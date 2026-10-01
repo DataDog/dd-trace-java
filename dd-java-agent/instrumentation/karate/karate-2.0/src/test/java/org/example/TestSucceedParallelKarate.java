@@ -8,9 +8,10 @@ import org.junit.jupiter.api.Test;
 
 public class TestSucceedParallelKarate {
 
-  @Test
-  public void testSucceed() {
-    Results results = Runner.path("classpath:org/example/test_succeed.feature").parallel(4);
-    assertEquals(0, results.getFailCount(), results.getErrorMessages());
-  }
+    @Test
+    public void testSucceed() {
+        Results results =
+                Runner.path("classpath:org/example/test_succeed.feature").parallel(4);
+        assertEquals(0, results.getFailCount(), results.getErrorMessages());
+    }
 }

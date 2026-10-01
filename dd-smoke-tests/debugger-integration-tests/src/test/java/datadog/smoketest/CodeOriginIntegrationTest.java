@@ -18,42 +18,38 @@ import org.junit.jupiter.api.Test;
 @NonRetryable
 public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    commandParams.add("-Ddd.code.origin.for.spans.enabled=true");
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
-  }
+    @Override
+    protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
+        List<String> commandParams = getDebuggerCommandParams();
+        commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+        commandParams.add("-Ddd.code.origin.for.spans.enabled=true");
+        return ProcessBuilderHelper.createProcessBuilder(commandParams, logFilePath, getAppClass(), params);
+    }
 
-  @Test
-  @DisplayName("testCodeOriginTraceAnnotation")
-  void testCodeOriginTraceAnnotation() throws Exception {
-    appUrl = startAppAndAndGetUrl();
-    execute(appUrl, TRACED_METHOD_NAME);
-    waitForInstrumentation(appUrl);
-    execute(appUrl, TRACED_METHOD_NAME);
-    AtomicBoolean codeOrigin = new AtomicBoolean();
-    registerTraceListener(
-        decodedTrace -> {
-          for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (isTracedFullMethodSpan(span)) {
-              if (span.getMeta().containsKey(DDTags.DD_CODE_ORIGIN_TYPE)) {
-                assertEquals("entry", span.getMeta().get(DDTags.DD_CODE_ORIGIN_TYPE));
-                assertEquals(
-                    "ServerDebuggerTestApplication.java",
-                    span.getMeta().get(DD_CODE_ORIGIN_FRAME_FILE));
-                assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAME_METHOD));
-                assertEquals(
-                    "(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAME_SIGNATURE));
-                assertEquals("158", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
-                codeOrigin.set(true);
-              }
+    @Test
+    @DisplayName("testCodeOriginTraceAnnotation")
+    void testCodeOriginTraceAnnotation() throws Exception {
+        appUrl = startAppAndAndGetUrl();
+        execute(appUrl, TRACED_METHOD_NAME);
+        waitForInstrumentation(appUrl);
+        execute(appUrl, TRACED_METHOD_NAME);
+        AtomicBoolean codeOrigin = new AtomicBoolean();
+        registerTraceListener(decodedTrace -> {
+            for (DecodedSpan span : decodedTrace.getSpans()) {
+                if (isTracedFullMethodSpan(span)) {
+                    if (span.getMeta().containsKey(DDTags.DD_CODE_ORIGIN_TYPE)) {
+                        assertEquals("entry", span.getMeta().get(DDTags.DD_CODE_ORIGIN_TYPE));
+                        assertEquals(
+                                "ServerDebuggerTestApplication.java",
+                                span.getMeta().get(DD_CODE_ORIGIN_FRAME_FILE));
+                        assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAME_METHOD));
+                        assertEquals("(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAME_SIGNATURE));
+                        assertEquals("158", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
+                        codeOrigin.set(true);
+                    }
+                }
             }
-          }
         });
-    processRequests(
-        codeOrigin::get, () -> String.format("timeout codeOrigin=%s", codeOrigin.get()));
-  }
+        processRequests(codeOrigin::get, () -> String.format("timeout codeOrigin=%s", codeOrigin.get()));
+    }
 }

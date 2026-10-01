@@ -14,53 +14,50 @@ import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 
 public class LegacyConstructorAdvice {
-  // new - capture the ConsumerDelegate instead of KafkaConsumer
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void captureGroup(
-      @Advice.This ConsumerDelegate consumer,
-      @Advice.Argument(0) ConsumerConfig consumerConfig,
-      @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
-      @Advice.FieldValue("metadata") Metadata metadata) {
-    ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
-    String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
-    String normalizedConsumerGroup =
-        consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
-    if (normalizedConsumerGroup == null) {
-      if (groupMetadata != null) {
-        normalizedConsumerGroup = groupMetadata.groupId();
-      }
-    }
-    List<String> bootstrapServersList =
-        consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
-    String bootstrapServers = null;
-    if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
-      bootstrapServers = String.join(",", bootstrapServersList);
-    }
-    KafkaConsumerInfo kafkaConsumerInfo;
-    kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-    // new - search for the ConsumerDelegate instead of KafkaConsumer
-    if (kafkaConsumerInfo.getConsumerGroup().isPresent()
-        || kafkaConsumerInfo.getmetadata().isPresent()) {
-      InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
-          .put(consumer, kafkaConsumerInfo);
-      if (coordinator != null) {
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .put(coordinator, kafkaConsumerInfo);
-      }
+    // new - capture the ConsumerDelegate instead of KafkaConsumer
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+            @Advice.This ConsumerDelegate consumer,
+            @Advice.Argument(0) ConsumerConfig consumerConfig,
+            @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
+            @Advice.FieldValue("metadata") Metadata metadata) {
+        ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
+        String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+        String normalizedConsumerGroup = consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
+        if (normalizedConsumerGroup == null) {
+            if (groupMetadata != null) {
+                normalizedConsumerGroup = groupMetadata.groupId();
+            }
+        }
+        List<String> bootstrapServersList = consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+        String bootstrapServers = null;
+        if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
+            bootstrapServers = String.join(",", bootstrapServersList);
+        }
+        KafkaConsumerInfo kafkaConsumerInfo;
+        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
+        // new - search for the ConsumerDelegate instead of KafkaConsumer
+        if (kafkaConsumerInfo.getConsumerGroup().isPresent()
+                || kafkaConsumerInfo.getmetadata().isPresent()) {
+            InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
+                    .put(consumer, kafkaConsumerInfo);
+            if (coordinator != null) {
+                InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+                        .put(coordinator, kafkaConsumerInfo);
+            }
+        }
+
+        if (Config.get().isDataStreamsEnabled()) {
+            MetadataState state = InstrumentationContext.get(Metadata.class, MetadataState.class)
+                    .getOrCreate(metadata, MetadataState::new);
+            KafkaConfigHelper.storePendingConsumerConfig(
+                    state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+        }
     }
 
-    if (Config.get().isDataStreamsEnabled()) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
-      KafkaConfigHelper.storePendingConsumerConfig(
-          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+    public static void muzzleCheck(ConsumerRecord record) {
+        // KafkaConsumerInstrumentation only applies for kafka versions with headers
+        // Make an explicit call so KafkaConsumerGroupInstrumentation does the same
+        record.headers();
     }
-  }
-
-  public static void muzzleCheck(ConsumerRecord record) {
-    // KafkaConsumerInstrumentation only applies for kafka versions with headers
-    // Make an explicit call so KafkaConsumerGroupInstrumentation does the same
-    record.headers();
-  }
 }

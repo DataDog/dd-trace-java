@@ -27,56 +27,52 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class DefaultRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
-  public static class ContainerRequestContextAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope createGenericSpan(
-        @Advice.This final ContainerRequestContext context) {
+    public static class ContainerRequestContextAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope createGenericSpan(@Advice.This final ContainerRequestContext context) {
 
-      if (context.getProperty(JakartaRsAnnotationsDecorator.ABORT_HANDLED) == null) {
-        final AgentSpan parent = activeSpan();
-        final AgentSpan span =
-            startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_RS_REQUEST_ABORT);
+            if (context.getProperty(JakartaRsAnnotationsDecorator.ABORT_HANDLED) == null) {
+                final AgentSpan parent = activeSpan();
+                final AgentSpan span = startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_RS_REQUEST_ABORT);
 
-        // Save spans so a more specific instrumentation can run later
-        context.setProperty(JakartaRsAnnotationsDecorator.ABORT_PARENT, parent);
-        context.setProperty(JakartaRsAnnotationsDecorator.ABORT_SPAN, span);
+                // Save spans so a more specific instrumentation can run later
+                context.setProperty(JakartaRsAnnotationsDecorator.ABORT_PARENT, parent);
+                context.setProperty(JakartaRsAnnotationsDecorator.ABORT_SPAN, span);
 
-        final Class filterClass =
-            (Class) context.getProperty(JakartaRsAnnotationsDecorator.ABORT_FILTER_CLASS);
-        Method method = null;
-        try {
-          method = filterClass.getMethod("filter", ContainerRequestContext.class);
-        } catch (final NoSuchMethodException e) {
-          // Unable to find the filter method.  This should not be reachable because the context
-          // can only be aborted inside the filter method
+                final Class filterClass = (Class) context.getProperty(JakartaRsAnnotationsDecorator.ABORT_FILTER_CLASS);
+                Method method = null;
+                try {
+                    method = filterClass.getMethod("filter", ContainerRequestContext.class);
+                } catch (final NoSuchMethodException e) {
+                    // Unable to find the filter method.  This should not be reachable because the context
+                    // can only be aborted inside the filter method
+                }
+
+                final ContextScope scope = activateSpan(span);
+
+                DECORATE.afterStart(span);
+                DECORATE.onJakartaRsSpan(span, parent, filterClass, method);
+
+                return scope;
+            }
+
+            return null;
         }
 
-        final ContextScope scope = activateSpan(span);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
 
-        DECORATE.afterStart(span);
-        DECORATE.onJakartaRsSpan(span, parent, filterClass, method);
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                DECORATE.onError(span, throwable);
+            }
 
-        return scope;
-      }
-
-      return null;
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-      }
-
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-    }
-  }
 }

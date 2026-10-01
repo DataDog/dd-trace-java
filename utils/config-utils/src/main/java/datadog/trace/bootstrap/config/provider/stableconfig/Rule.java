@@ -15,67 +15,67 @@ import java.util.Objects;
  * configuration files
  */
 public final class Rule {
-  private final List<Selector> selectors;
-  private final Map<String, Object> configuration;
+    private final List<Selector> selectors;
+    private final Map<String, Object> configuration;
 
-  public Rule() {
-    this.selectors = emptyList();
-    this.configuration = emptyMap();
-  }
-
-  public Rule(List<Selector> selectors, Map<String, Object> configuration) {
-    this.selectors = selectors;
-    this.configuration = configuration;
-  }
-
-  public static Rule from(Map<?, ?> map) {
-    Object selectorsObj = map.get("selectors");
-    if (selectorsObj == null) {
-      throwStableConfigMappingException("Missing 'selectors' in rule:", map);
+    public Rule() {
+        this.selectors = emptyList();
+        this.configuration = emptyMap();
     }
 
-    if (!(selectorsObj instanceof List)) {
-      throwStableConfigMappingException(
-          "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName() + ": ",
-          selectorsObj);
+    public Rule(List<Selector> selectors, Map<String, Object> configuration) {
+        this.selectors = selectors;
+        this.configuration = configuration;
     }
 
-    Object configObj = map.get("configuration");
-    if (configObj == null) {
-      throwStableConfigMappingException("Missing 'configuration' in rule:", map);
+    public static Rule from(Map<?, ?> map) {
+        Object selectorsObj = map.get("selectors");
+        if (selectorsObj == null) {
+            throwStableConfigMappingException("Missing 'selectors' in rule:", map);
+        }
+
+        if (!(selectorsObj instanceof List)) {
+            throwStableConfigMappingException(
+                    "'selectors' must be a list, but got: "
+                            + selectorsObj.getClass().getSimpleName() + ": ",
+                    selectorsObj);
+        }
+
+        Object configObj = map.get("configuration");
+        if (configObj == null) {
+            throwStableConfigMappingException("Missing 'configuration' in rule:", map);
+        }
+        if (!(configObj instanceof Map)) {
+            throwStableConfigMappingException(
+                    "'configuration' must be a map, but got: "
+                            + configObj.getClass().getSimpleName() + ": ",
+                    configObj);
+        }
+
+        List<Selector> selectors = ((List<?>) selectorsObj)
+                .stream()
+                        .filter(Objects::nonNull)
+                        .map(s -> {
+                            if (!(s instanceof Map)) {
+                                throwStableConfigMappingException(
+                                        "Each selector must be a map, but got: "
+                                                + s.getClass().getSimpleName()
+                                                + ": ",
+                                        s);
+                            }
+
+                            return Selector.from((Map<?, ?>) s);
+                        })
+                        .collect(toList());
+
+        return new Rule(unmodifiableList(selectors), (Map<String, Object>) configObj);
     }
-    if (!(configObj instanceof Map)) {
-      throwStableConfigMappingException(
-          "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName() + ": ",
-          configObj);
+
+    public List<Selector> getSelectors() {
+        return selectors;
     }
 
-    List<Selector> selectors =
-        ((List<?>) selectorsObj)
-            .stream()
-                .filter(Objects::nonNull)
-                .map(
-                    s -> {
-                      if (!(s instanceof Map)) {
-                        throwStableConfigMappingException(
-                            "Each selector must be a map, but got: "
-                                + s.getClass().getSimpleName()
-                                + ": ",
-                            s);
-                      }
-
-                      return Selector.from((Map<?, ?>) s);
-                    })
-                .collect(toList());
-
-    return new Rule(unmodifiableList(selectors), (Map<String, Object>) configObj);
-  }
-
-  public List<Selector> getSelectors() {
-    return selectors;
-  }
-
-  public Map<String, Object> getConfiguration() {
-    return configuration;
-  }
+    public Map<String, Object> getConfiguration() {
+        return configuration;
+    }
 }

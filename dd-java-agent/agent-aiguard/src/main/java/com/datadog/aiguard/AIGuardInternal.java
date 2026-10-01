@@ -64,566 +64,555 @@ import org.slf4j.LoggerFactory;
  */
 public class AIGuardInternal implements Evaluator {
 
-  private static final Logger log = LoggerFactory.getLogger(AIGuardInternal.class);
+    private static final Logger log = LoggerFactory.getLogger(AIGuardInternal.class);
 
-  public static class BadConfigurationException extends RuntimeException {
-    public BadConfigurationException(final String message) {
-      super(message);
-    }
-  }
-
-  static final String SPAN_NAME = "ai_guard";
-  static final String TARGET_TAG = "ai_guard.target";
-  static final String TOOL_TAG = "ai_guard.tool_name";
-  static final String ACTION_TAG = "ai_guard.action";
-  static final String REASON_TAG = "ai_guard.reason";
-  static final String BLOCKED_TAG = "ai_guard.blocked";
-  static final String REDACTED_TAG = "ai_guard.redacted";
-
-  static final String RESPONSE_REDACTION_REPLACEMENTS = "redaction_replacements";
-
-  static final String META_STRUCT_TAG = "ai_guard";
-  static final String META_STRUCT_MESSAGES = "messages";
-  static final String META_STRUCT_CATEGORIES = "attack_categories";
-  static final String META_STRUCT_SDS = "sds";
-  static final String META_STRUCT_TAG_PROBS = "tag_probs";
-
-  /**
-   * Anomaly detection tags copied from the local root span onto every {@code ai_guard} span with
-   * the {@code ai_guard.} prefix, so the AI Guard backend can correlate AI Guard requests with the
-   * request context (client IP, user, session) without depending on the local root span.
-   */
-  static final String[] ANOMALY_DETECTION_TAGS = {
-    Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
-  };
-
-  public static void install() {
-    final Config config = Config.get();
-    final String apiKey = config.getApiKey();
-    final String appKey = config.getApplicationKey();
-    if (isBlank(apiKey) || isBlank(appKey)) {
-      throw new BadConfigurationException(
-          "AI Guard: Missing api and/or application key, use DD_API_KEY and DD_APP_KEY");
-    }
-    String endpoint = config.getAiGuardEndpoint();
-    if (isBlank(endpoint)) {
-      endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
-    }
-    final Map<String, String> headers =
-        mapOf(
-            "DD-API-KEY",
-            apiKey,
-            "DD-APPLICATION-KEY",
-            appKey,
-            "DD-AI-GUARD-VERSION",
-            TRACER_VERSION,
-            "DD-AI-GUARD-SOURCE",
-            "SDK",
-            "DD-AI-GUARD-LANGUAGE",
-            "jvm");
-    final HttpUrl url = HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
-    final int timeout = config.getAiGuardTimeout();
-    final OkHttpClient client = buildClient(url, timeout);
-    Installer.install(new AIGuardInternal(url, headers, client));
-  }
-
-  /** Used by tests to reset status */
-  static void uninstall() {
-    Installer.install(new NoOpEvaluator());
-  }
-
-  private final HttpUrl url;
-  private final Moshi moshi;
-  private final OkHttpClient client;
-  private final Map<String, String> meta;
-  private final Map<String, String> headers;
-  private final MessageRedactor redactor;
-
-  AIGuardInternal(final HttpUrl url, final Map<String, String> headers, final OkHttpClient client) {
-    this.url = url;
-    this.headers = headers;
-    this.client = client;
-    this.moshi = new Moshi.Builder().add(new AIGuardFactory()).build();
-    final Config config = Config.get();
-    this.meta = mapOf("service", config.getServiceName(), "env", config.getEnv());
-    this.redactor =
-        config.isAiGuardRedactionEnabled()
-            ? new MessageRedactor.DefaultRedactor()
-            : new MessageRedactor.NoOp();
-  }
-
-  /**
-   * Creates a deep copy of the messages before storing them in the metastruct to avoid concurrent
-   * modifications prior to trace serialization.
-   */
-  private static List<Message> messagesForMetaStruct(final List<Message> messages) {
-    final Config config = Config.get();
-    final int size = Math.min(messages.size(), config.getAiGuardMaxMessagesLength());
-    if (size < messages.size()) {
-      WafMetricCollector.get().aiGuardTruncated(MESSAGES);
-    }
-    final List<Message> result = new ArrayList<>(size);
-    final int maxContent = config.getAiGuardMaxContentSize();
-    boolean contentTruncated = false;
-    for (int i = messages.size() - size; i < messages.size(); i++) {
-      final Message source = messages.get(i);
-
-      List<ToolCall> toolCalls = source.getToolCalls();
-      if (toolCalls != null) {
-        toolCalls = new ArrayList<>(toolCalls);
-      }
-
-      List<ContentPart> contentParts = source.getContentParts();
-      if (contentParts != null) {
-        final List<ContentPart> truncatedParts = new ArrayList<>(contentParts.size());
-        for (final ContentPart part : contentParts) {
-          if (part.getType() == ContentPart.Type.TEXT
-              && part.getText() != null
-              && part.getText().length() > maxContent) {
-            contentTruncated = true;
-            final String text = part.getText().substring(0, maxContent);
-            truncatedParts.add(ContentPart.text(text));
-          } else {
-            truncatedParts.add(part);
-          }
+    public static class BadConfigurationException extends RuntimeException {
+        public BadConfigurationException(final String message) {
+            super(message);
         }
+    }
 
-        result.add(
-            new Message(source.getRole(), truncatedParts, toolCalls, source.getToolCallId()));
-      } else {
-        String content = source.getContent();
-        if (content != null && content.length() > maxContent) {
-          contentTruncated = true;
-          content = content.substring(0, maxContent);
+    static final String SPAN_NAME = "ai_guard";
+    static final String TARGET_TAG = "ai_guard.target";
+    static final String TOOL_TAG = "ai_guard.tool_name";
+    static final String ACTION_TAG = "ai_guard.action";
+    static final String REASON_TAG = "ai_guard.reason";
+    static final String BLOCKED_TAG = "ai_guard.blocked";
+    static final String REDACTED_TAG = "ai_guard.redacted";
+
+    static final String RESPONSE_REDACTION_REPLACEMENTS = "redaction_replacements";
+
+    static final String META_STRUCT_TAG = "ai_guard";
+    static final String META_STRUCT_MESSAGES = "messages";
+    static final String META_STRUCT_CATEGORIES = "attack_categories";
+    static final String META_STRUCT_SDS = "sds";
+    static final String META_STRUCT_TAG_PROBS = "tag_probs";
+
+    /**
+     * Anomaly detection tags copied from the local root span onto every {@code ai_guard} span with
+     * the {@code ai_guard.} prefix, so the AI Guard backend can correlate AI Guard requests with the
+     * request context (client IP, user, session) without depending on the local root span.
+     */
+    static final String[] ANOMALY_DETECTION_TAGS = {
+        Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
+    };
+
+    public static void install() {
+        final Config config = Config.get();
+        final String apiKey = config.getApiKey();
+        final String appKey = config.getApplicationKey();
+        if (isBlank(apiKey) || isBlank(appKey)) {
+            throw new BadConfigurationException(
+                    "AI Guard: Missing api and/or application key, use DD_API_KEY and DD_APP_KEY");
         }
-        result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
-      }
-    }
-    if (contentTruncated) {
-      WafMetricCollector.get().aiGuardTruncated(CONTENT);
-    }
-    return result;
-  }
-
-  /**
-   * Applies the redaction requested by the AI Guard service and reports the outcome on the span.
-   *
-   * <p>This runs before the rest of the response is interpreted on purpose. Every surface that
-   * reports the conversation must report it redacted, and both the blocking decision and the
-   * response validation that precedes it can leave the evaluation through the meta struct: a
-   * blocked evaluation still reports through it, and so does a response the tracer rejects. The
-   * {@link AIGuardAbortError} raised on the blocked path deliberately carries no messages.
-   *
-   * <p>The {@code ai_guard.redacted} tag is set to {@code false} before the request is issued and
-   * only raised here, so an evaluation that fails before this point still reports that nothing was
-   * redacted rather than looking like the kill switch is off.
-   *
-   * @return the telemetry state, {@link AIGuardRedaction#DISABLED} when the kill switch is off, in
-   *     which case no {@code ai_guard.redacted} tag is attached at all
-   */
-  private AIGuardRedaction reportRedaction(
-      final AgentSpan span, final MessageRedactor.Result redaction) {
-    if (!redactor.enabled()) {
-      // No tag at all, so an absent tag ("redaction is off") stays distinguishable from a false
-      // one ("redaction is on and nothing was redacted").
-      return AIGuardRedaction.DISABLED;
-    }
-    if (redaction.skipped > 0) {
-      log.debug(
-          "AI Guard skipped {} redaction replacement(s) that could not be applied",
-          redaction.skipped);
-      // Reported and then forgotten: redaction is best effort and must never fail the evaluation
-      // it rode in on, so this counts an error without counting a failed request.
-      WafMetricCollector.get().aiGuardRedactionErrors(redaction.skipped);
-    }
-    if (!redaction.redacted()) {
-      // The tag was already set to false before the request; nothing to correct.
-      return AIGuardRedaction.NOT_APPLIED;
-    }
-    span.setTag(REDACTED_TAG, true);
-    return AIGuardRedaction.APPLIED;
-  }
-
-  private static boolean isToolCall(final Message message) {
-    return message.getToolCalls() != null || message.getToolCallId() != null;
-  }
-
-  private static String getToolName(final Message current, final List<Message> messages) {
-    if (current.getToolCalls() != null) {
-      // assistant message with tool calls
-      return current.getToolCalls().stream()
-          .map(ToolCall::getFunction)
-          .map(Function::getName)
-          .collect(Collectors.joining(","));
-    }
-    // assistant message with tool output (search the linked tool call in reverse order)
-    final String id = current.getToolCallId();
-    for (int i = messages.size() - 1; i >= 0; i--) {
-      final Message message = messages.get(i);
-      if (message.getToolCalls() != null) {
-        for (final ToolCall toolCall : message.getToolCalls()) {
-          if (toolCall.getId().equals(id)) {
-            return toolCall.getFunction() == null ? null : toolCall.getFunction().getName();
-          }
+        String endpoint = config.getAiGuardEndpoint();
+        if (isBlank(endpoint)) {
+            endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
         }
-      }
-    }
-    return null;
-  }
-
-  private boolean isBlockingEnabled(final Options options, final Object isBlockingEnabled) {
-    if (isBlockingEnabled == null) {
-      return false;
-    }
-    return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
-  }
-
-  /**
-   * Applies the {@link ClientIpAddressData} captured during HTTP server request decoration to the
-   * local root span. This is the lazy half of AI Guard client IP collection: {@code
-   * HttpServerDecorator} resolves the IP eagerly and stashes it on the {@link RequestContext}; we
-   * consume it here once an {@code ai_guard} span is created, so IP tags are not added to spans of
-   * non-AI requests in services that have AI Guard enabled.
-   */
-  private static void applyClientIpTags(final AgentSpan localRootSpan) {
-    final RequestContext requestContext = localRootSpan.getRequestContext();
-    if (requestContext == null) {
-      return;
-    }
-    final ClientIpAddressData clientIpAddressData = requestContext.getClientIpAddressData();
-    if (clientIpAddressData == null) {
-      return;
-    }
-    final String peerIp = clientIpAddressData.getPeerIp();
-    if (peerIp != null && localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) == null) {
-      localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
-    }
-    final String inferredClientIp = clientIpAddressData.getInferredClientIp();
-    if (inferredClientIp != null && localRootSpan.getTag(Tags.HTTP_CLIENT_IP) == null) {
-      localRootSpan.setTag(Tags.HTTP_CLIENT_IP, inferredClientIp);
-    }
-  }
-
-  private static void copyAnomalyDetectionTags(
-      final AgentSpan span, final AgentSpan localRootSpan) {
-    for (final String tag : ANOMALY_DETECTION_TAGS) {
-      final Object value = localRootSpan.getTag(tag);
-      if (value != null) {
-        span.setTag("ai_guard." + tag, value.toString());
-      }
-    }
-  }
-
-  @Override
-  public Evaluation evaluate(final List<Message> messages, final Options options) {
-    if (messages == null || messages.isEmpty()) {
-      throw new IllegalArgumentException("Messages must not be empty");
-    }
-    final AgentTracer.TracerAPI tracer = AgentTracer.get();
-    final AgentTracer.SpanBuilder builder = tracer.buildSpan(SPAN_NAME, SPAN_NAME);
-    final AgentSpan parent = AgentTracer.activeSpan();
-    if (parent != null) {
-      builder.asChildOf(parent.spanContext());
-    }
-    final AgentSpan span = builder.start();
-    final AgentSpan localRootSpan = span.getLocalRootSpan();
-    if (localRootSpan != null) {
-      localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
-      localRootSpan.setTag(Tags.AI_GUARD_EVENT, true);
-      localRootSpan.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
-      applyClientIpTags(localRootSpan);
-      // copyAnomalyDetectionTags MUST run after applyClientIpTags, to make
-      // sure client IP tags were populated.
-      copyAnomalyDetectionTags(span, localRootSpan);
-    }
-    List<Message> finalMessages = messages;
-    // Classifies the ai_guard.error metric when a raise below escapes. A transport failure, and
-    // anything the tracer cannot attribute to the response, keeps the default; the raises driven
-    // by the response itself narrow it first.
-    AIGuardError errorType = AIGuardError.CLIENT_ERROR;
-    try (final ContextScope scope = tracer.activateSpan(span)) {
-      final Message last = messages.get(messages.size() - 1);
-      if (isToolCall(last)) {
-        span.setTag(TARGET_TAG, "tool");
-        final String toolName = getToolName(last, messages);
-        if (toolName != null) {
-          span.setTag(TOOL_TAG, toolName);
-        }
-      } else {
-        span.setTag(TARGET_TAG, "prompt");
-      }
-      if (redactor.enabled()) {
-        // Reported before the request goes out so an evaluation that fails, and therefore redacts
-        // nothing, still says so. An absent tag stays reserved for the kill switch being off.
-        span.setTag(REDACTED_TAG, false);
-      }
-      final Map<String, Object> metaStruct = new HashMap<>(2);
-      span.setMetaStruct(META_STRUCT_TAG, metaStruct);
-      final Request.Builder request =
-          new Request.Builder()
-              .url(url)
-              .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
-      headers.forEach(request::header);
-      try (final Response response = client.newCall(request.build()).execute()) {
-        final Map<String, Object> result;
-        try {
-          result = parseResponseBody(response);
-        } catch (final Exception e) {
-          // A body we cannot read is a response problem, not a transport one, unless the status
-          // code already explains the failure on its own.
-          errorType = response.isSuccessful() ? AIGuardError.BAD_RESPONSE : AIGuardError.BAD_STATUS;
-          throw e;
-        }
-        // Resolved before anything else that can throw: once the service has told us what to
-        // redact, every reporting surface must carry the redacted conversation, including on the
-        // paths that reject the rest of the response.
-        final Object rawReplacements = result.get(RESPONSE_REDACTION_REPLACEMENTS);
-        // Reported back to the caller verbatim, including entries redaction could not apply.
-        final List<?> redactionReplacements =
-            rawReplacements instanceof List ? (List<?>) rawReplacements : null;
-        // The raw value goes to the redactor: a present payload that is not an array is a
-        // backend contract break the redactor counts, not something to drop silently.
-        final MessageRedactor.Result redaction = redactor.redact(messages, rawReplacements);
-        finalMessages = redaction.messages;
-        final AIGuardRedaction redactionState = reportRedaction(span, redaction);
-        final Action action;
-        final String reason;
-        final List<String> tags;
-        final List<?> sdsFindings;
-        final Map<String, Number> tagProbs;
-        try {
-          // Everything here reads the parsed body, so a raise means the service answered with
-          // something that does not honour the response contract.
-          final String actionStr = (String) result.get("action");
-          if (actionStr == null) {
-            throw new IllegalArgumentException("Action field is missing in the response");
-          }
-          action = Action.valueOf(actionStr);
-          reason = (String) result.get("reason");
-          @SuppressWarnings("unchecked")
-          final List<String> parsedTags = (List<String>) result.get("tags");
-          tags = parsedTags;
-          sdsFindings = (List<?>) result.get("sds_findings");
-          @SuppressWarnings("unchecked")
-          final Map<String, Number> parsedTagProbs = (Map<String, Number>) result.get("tag_probs");
-          tagProbs = parsedTagProbs;
-        } catch (final Exception e) {
-          errorType = AIGuardError.BAD_RESPONSE;
-          throw e;
-        }
-        span.setTag(ACTION_TAG, action);
-        if (reason != null) {
-          span.setTag(REASON_TAG, reason);
-        }
-        if (tags != null && !tags.isEmpty()) {
-          metaStruct.put(META_STRUCT_CATEGORIES, tags);
-        }
-        if (tagProbs != null && !tagProbs.isEmpty()) {
-          metaStruct.put(META_STRUCT_TAG_PROBS, tagProbs);
-        }
-        if (sdsFindings != null && !sdsFindings.isEmpty()) {
-          metaStruct.put(META_STRUCT_SDS, sdsFindings);
-        }
-        final boolean shouldBlock =
-            isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
-        WafMetricCollector.get().aiGuardRequest(action, shouldBlock, redactionState);
-        if (shouldBlock) {
-          span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
-        }
-        return new Evaluation(
-            action, reason, tags, tagProbs, sdsFindings, redaction.messages, redactionReplacements);
-      } finally {
-        metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(finalMessages));
-      }
-    } catch (AIGuardAbortError e) {
-      span.addThrowable(e);
-      throw e;
-    } catch (AIGuardClientError e) {
-      WafMetricCollector.get().aiGuardError(errorType);
-      span.addThrowable(e);
-      throw e;
-    } catch (final Exception e) {
-      WafMetricCollector.get().aiGuardError(errorType);
-      final AIGuardClientError error =
-          new AIGuardClientError(
-              "AI Guard service returned unexpected response: " + e.getMessage(), e);
-      span.addThrowable(error);
-      throw error;
-    } finally {
-      span.finish();
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private Map<String, Object> parseResponseBody(final Response response) throws IOException {
-    final ResponseBody body = response.body();
-    if (body == null) {
-      throw fail(response.code(), null);
-    }
-    final JsonReader reader = JsonReader.of(body.source());
-    final Map<?, ?> parsedBody = moshi.adapter(Map.class).fromJson(reader);
-    final Object errors = parsedBody.get("errors");
-    if (errors != null) {
-      throw fail(response.code(), errors);
-    }
-    final Map<?, ?> data = (Map<?, ?>) parsedBody.get("data");
-    return (Map<String, Object>) data.get("attributes");
-  }
-
-  private AIGuardClientError fail(final int statusCode, final Object errors) {
-    return new AIGuardClientError("AI Guard service call failed, status: " + statusCode, errors);
-  }
-
-  private static OkHttpClient buildClient(final HttpUrl url, final long timeout) {
-    return OkHttpUtils.buildHttpClient(url, timeout).newBuilder().build();
-  }
-
-  private static Map<String, String> mapOf(final String... props) {
-    if (props.length % 2 != 0) {
-      throw new IllegalArgumentException("Props must be even");
-    }
-    final Map<String, String> map = new HashMap<>(props.length << 1);
-    for (int i = 0; i < props.length; ) {
-      map.put(props[i++], props[i++]);
-    }
-    return map;
-  }
-
-  private static class Installer extends AIGuard {
-    public static void install(final Evaluator evaluator) {
-      AIGuard.EVALUATOR = evaluator;
-    }
-  }
-
-  static class AIGuardFactory implements JsonAdapter.Factory {
-
-    @Nullable
-    @Override
-    public JsonAdapter<?> create(
-        final Type type, final Set<? extends Annotation> annotations, final Moshi moshi) {
-      final Class<?> rawType = Types.getRawType(type);
-      if (rawType != AIGuard.Message.class) {
-        return null;
-      }
-      return new MessageAdapter(moshi.adapter(AIGuard.ToolCall.class)).nullSafe();
-    }
-  }
-
-  static class MessageAdapter extends JsonAdapter<Message> {
-
-    private final JsonAdapter<AIGuard.ToolCall> toolCallAdapter;
-
-    MessageAdapter(final JsonAdapter<ToolCall> toolCallAdapter) {
-      this.toolCallAdapter = toolCallAdapter;
+        final Map<String, String> headers = mapOf(
+                "DD-API-KEY",
+                apiKey,
+                "DD-APPLICATION-KEY",
+                appKey,
+                "DD-AI-GUARD-VERSION",
+                TRACER_VERSION,
+                "DD-AI-GUARD-SOURCE",
+                "SDK",
+                "DD-AI-GUARD-LANGUAGE",
+                "jvm");
+        final HttpUrl url =
+                HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
+        final int timeout = config.getAiGuardTimeout();
+        final OkHttpClient client = buildClient(url, timeout);
+        Installer.install(new AIGuardInternal(url, headers, client));
     }
 
-    @Nullable
-    @Override
-    public Message fromJson(JsonReader reader) throws IOException {
-      throw new UnsupportedOperationException("Serializing only adapter");
+    /** Used by tests to reset status */
+    static void uninstall() {
+        Installer.install(new NoOpEvaluator());
     }
 
-    @Override
-    public void toJson(final JsonWriter writer, final Message value) throws IOException {
-      writer.beginObject();
-      writeValue(writer, "role", value.getRole());
-
-      if (value.getContentParts() != null) {
-        writeContentParts(writer, "content", value.getContentParts());
-      } else {
-        writeValue(writer, "content", value.getContent());
-      }
-
-      writeArray(writer, "tool_calls", value.getToolCalls());
-      writeValue(writer, "tool_call_id", value.getToolCallId());
-      writer.endObject();
-    }
-
-    private void writeContentParts(
-        final JsonWriter writer, final String name, final List<ContentPart> contentParts)
-        throws IOException {
-      writer.name(name);
-      writer.beginArray();
-      for (final ContentPart part : contentParts) {
-        writer.beginObject();
-
-        writer.name("type");
-        writer.value(part.getType().toString());
-
-        if (part.getType() == ContentPart.Type.TEXT) {
-          writer.name("text");
-          writer.value(part.getText());
-        } else if (part.getType() == ContentPart.Type.IMAGE_URL) {
-          writer.name("image_url");
-          writer.beginObject();
-          writer.name("url");
-          writer.value(part.getImageUrl().getUrl());
-          writer.endObject();
-        }
-
-        writer.endObject();
-      }
-      writer.endArray();
-    }
-
-    private void writeValue(final JsonWriter writer, final String name, final Object value)
-        throws IOException {
-      if (value != null) {
-        writer.name(name);
-        writer.jsonValue(value);
-      }
-    }
-
-    private void writeArray(final JsonWriter writer, final String name, final List<ToolCall> value)
-        throws IOException {
-      if (value != null) {
-        writer.name(name);
-        writer.beginArray();
-        for (final ToolCall toolCall : value) {
-          toolCallAdapter.toJson(writer, toolCall);
-        }
-        writer.endArray();
-      }
-    }
-  }
-
-  static class MoshiJsonRequestBody extends RequestBody {
-
-    private static final MediaType JSON = MediaType.parse("application/json");
-
+    private final HttpUrl url;
     private final Moshi moshi;
+    private final OkHttpClient client;
     private final Map<String, String> meta;
-    private final Collection<Message> messages;
+    private final Map<String, String> headers;
+    private final MessageRedactor redactor;
 
-    public MoshiJsonRequestBody(
-        final Moshi moshi, final Collection<Message> messages, final Map<String, String> meta) {
-      this.moshi = moshi;
-      this.messages = messages;
-      this.meta = meta;
+    AIGuardInternal(final HttpUrl url, final Map<String, String> headers, final OkHttpClient client) {
+        this.url = url;
+        this.headers = headers;
+        this.client = client;
+        this.moshi = new Moshi.Builder().add(new AIGuardFactory()).build();
+        final Config config = Config.get();
+        this.meta = mapOf("service", config.getServiceName(), "env", config.getEnv());
+        this.redactor =
+                config.isAiGuardRedactionEnabled() ? new MessageRedactor.DefaultRedactor() : new MessageRedactor.NoOp();
     }
 
-    @Nullable
+    /**
+     * Creates a deep copy of the messages before storing them in the metastruct to avoid concurrent
+     * modifications prior to trace serialization.
+     */
+    private static List<Message> messagesForMetaStruct(final List<Message> messages) {
+        final Config config = Config.get();
+        final int size = Math.min(messages.size(), config.getAiGuardMaxMessagesLength());
+        if (size < messages.size()) {
+            WafMetricCollector.get().aiGuardTruncated(MESSAGES);
+        }
+        final List<Message> result = new ArrayList<>(size);
+        final int maxContent = config.getAiGuardMaxContentSize();
+        boolean contentTruncated = false;
+        for (int i = messages.size() - size; i < messages.size(); i++) {
+            final Message source = messages.get(i);
+
+            List<ToolCall> toolCalls = source.getToolCalls();
+            if (toolCalls != null) {
+                toolCalls = new ArrayList<>(toolCalls);
+            }
+
+            List<ContentPart> contentParts = source.getContentParts();
+            if (contentParts != null) {
+                final List<ContentPart> truncatedParts = new ArrayList<>(contentParts.size());
+                for (final ContentPart part : contentParts) {
+                    if (part.getType() == ContentPart.Type.TEXT
+                            && part.getText() != null
+                            && part.getText().length() > maxContent) {
+                        contentTruncated = true;
+                        final String text = part.getText().substring(0, maxContent);
+                        truncatedParts.add(ContentPart.text(text));
+                    } else {
+                        truncatedParts.add(part);
+                    }
+                }
+
+                result.add(new Message(source.getRole(), truncatedParts, toolCalls, source.getToolCallId()));
+            } else {
+                String content = source.getContent();
+                if (content != null && content.length() > maxContent) {
+                    contentTruncated = true;
+                    content = content.substring(0, maxContent);
+                }
+                result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
+            }
+        }
+        if (contentTruncated) {
+            WafMetricCollector.get().aiGuardTruncated(CONTENT);
+        }
+        return result;
+    }
+
+    /**
+     * Applies the redaction requested by the AI Guard service and reports the outcome on the span.
+     *
+     * <p>This runs before the rest of the response is interpreted on purpose. Every surface that
+     * reports the conversation must report it redacted, and both the blocking decision and the
+     * response validation that precedes it can leave the evaluation through the meta struct: a
+     * blocked evaluation still reports through it, and so does a response the tracer rejects. The
+     * {@link AIGuardAbortError} raised on the blocked path deliberately carries no messages.
+     *
+     * <p>The {@code ai_guard.redacted} tag is set to {@code false} before the request is issued and
+     * only raised here, so an evaluation that fails before this point still reports that nothing was
+     * redacted rather than looking like the kill switch is off.
+     *
+     * @return the telemetry state, {@link AIGuardRedaction#DISABLED} when the kill switch is off, in
+     *     which case no {@code ai_guard.redacted} tag is attached at all
+     */
+    private AIGuardRedaction reportRedaction(final AgentSpan span, final MessageRedactor.Result redaction) {
+        if (!redactor.enabled()) {
+            // No tag at all, so an absent tag ("redaction is off") stays distinguishable from a false
+            // one ("redaction is on and nothing was redacted").
+            return AIGuardRedaction.DISABLED;
+        }
+        if (redaction.skipped > 0) {
+            log.debug("AI Guard skipped {} redaction replacement(s) that could not be applied", redaction.skipped);
+            // Reported and then forgotten: redaction is best effort and must never fail the evaluation
+            // it rode in on, so this counts an error without counting a failed request.
+            WafMetricCollector.get().aiGuardRedactionErrors(redaction.skipped);
+        }
+        if (!redaction.redacted()) {
+            // The tag was already set to false before the request; nothing to correct.
+            return AIGuardRedaction.NOT_APPLIED;
+        }
+        span.setTag(REDACTED_TAG, true);
+        return AIGuardRedaction.APPLIED;
+    }
+
+    private static boolean isToolCall(final Message message) {
+        return message.getToolCalls() != null || message.getToolCallId() != null;
+    }
+
+    private static String getToolName(final Message current, final List<Message> messages) {
+        if (current.getToolCalls() != null) {
+            // assistant message with tool calls
+            return current.getToolCalls().stream()
+                    .map(ToolCall::getFunction)
+                    .map(Function::getName)
+                    .collect(Collectors.joining(","));
+        }
+        // assistant message with tool output (search the linked tool call in reverse order)
+        final String id = current.getToolCallId();
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            final Message message = messages.get(i);
+            if (message.getToolCalls() != null) {
+                for (final ToolCall toolCall : message.getToolCalls()) {
+                    if (toolCall.getId().equals(id)) {
+                        return toolCall.getFunction() == null
+                                ? null
+                                : toolCall.getFunction().getName();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isBlockingEnabled(final Options options, final Object isBlockingEnabled) {
+        if (isBlockingEnabled == null) {
+            return false;
+        }
+        return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
+    }
+
+    /**
+     * Applies the {@link ClientIpAddressData} captured during HTTP server request decoration to the
+     * local root span. This is the lazy half of AI Guard client IP collection: {@code
+     * HttpServerDecorator} resolves the IP eagerly and stashes it on the {@link RequestContext}; we
+     * consume it here once an {@code ai_guard} span is created, so IP tags are not added to spans of
+     * non-AI requests in services that have AI Guard enabled.
+     */
+    private static void applyClientIpTags(final AgentSpan localRootSpan) {
+        final RequestContext requestContext = localRootSpan.getRequestContext();
+        if (requestContext == null) {
+            return;
+        }
+        final ClientIpAddressData clientIpAddressData = requestContext.getClientIpAddressData();
+        if (clientIpAddressData == null) {
+            return;
+        }
+        final String peerIp = clientIpAddressData.getPeerIp();
+        if (peerIp != null && localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) == null) {
+            localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+        }
+        final String inferredClientIp = clientIpAddressData.getInferredClientIp();
+        if (inferredClientIp != null && localRootSpan.getTag(Tags.HTTP_CLIENT_IP) == null) {
+            localRootSpan.setTag(Tags.HTTP_CLIENT_IP, inferredClientIp);
+        }
+    }
+
+    private static void copyAnomalyDetectionTags(final AgentSpan span, final AgentSpan localRootSpan) {
+        for (final String tag : ANOMALY_DETECTION_TAGS) {
+            final Object value = localRootSpan.getTag(tag);
+            if (value != null) {
+                span.setTag("ai_guard." + tag, value.toString());
+            }
+        }
+    }
+
     @Override
-    public MediaType contentType() {
-      return JSON;
+    public Evaluation evaluate(final List<Message> messages, final Options options) {
+        if (messages == null || messages.isEmpty()) {
+            throw new IllegalArgumentException("Messages must not be empty");
+        }
+        final AgentTracer.TracerAPI tracer = AgentTracer.get();
+        final AgentTracer.SpanBuilder builder = tracer.buildSpan(SPAN_NAME, SPAN_NAME);
+        final AgentSpan parent = AgentTracer.activeSpan();
+        if (parent != null) {
+            builder.asChildOf(parent.spanContext());
+        }
+        final AgentSpan span = builder.start();
+        final AgentSpan localRootSpan = span.getLocalRootSpan();
+        if (localRootSpan != null) {
+            localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
+            localRootSpan.setTag(Tags.AI_GUARD_EVENT, true);
+            localRootSpan.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
+            applyClientIpTags(localRootSpan);
+            // copyAnomalyDetectionTags MUST run after applyClientIpTags, to make
+            // sure client IP tags were populated.
+            copyAnomalyDetectionTags(span, localRootSpan);
+        }
+        List<Message> finalMessages = messages;
+        // Classifies the ai_guard.error metric when a raise below escapes. A transport failure, and
+        // anything the tracer cannot attribute to the response, keeps the default; the raises driven
+        // by the response itself narrow it first.
+        AIGuardError errorType = AIGuardError.CLIENT_ERROR;
+        try (final ContextScope scope = tracer.activateSpan(span)) {
+            final Message last = messages.get(messages.size() - 1);
+            if (isToolCall(last)) {
+                span.setTag(TARGET_TAG, "tool");
+                final String toolName = getToolName(last, messages);
+                if (toolName != null) {
+                    span.setTag(TOOL_TAG, toolName);
+                }
+            } else {
+                span.setTag(TARGET_TAG, "prompt");
+            }
+            if (redactor.enabled()) {
+                // Reported before the request goes out so an evaluation that fails, and therefore redacts
+                // nothing, still says so. An absent tag stays reserved for the kill switch being off.
+                span.setTag(REDACTED_TAG, false);
+            }
+            final Map<String, Object> metaStruct = new HashMap<>(2);
+            span.setMetaStruct(META_STRUCT_TAG, metaStruct);
+            final Request.Builder request =
+                    new Request.Builder().url(url).method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
+            headers.forEach(request::header);
+            try (final Response response = client.newCall(request.build()).execute()) {
+                final Map<String, Object> result;
+                try {
+                    result = parseResponseBody(response);
+                } catch (final Exception e) {
+                    // A body we cannot read is a response problem, not a transport one, unless the status
+                    // code already explains the failure on its own.
+                    errorType = response.isSuccessful() ? AIGuardError.BAD_RESPONSE : AIGuardError.BAD_STATUS;
+                    throw e;
+                }
+                // Resolved before anything else that can throw: once the service has told us what to
+                // redact, every reporting surface must carry the redacted conversation, including on the
+                // paths that reject the rest of the response.
+                final Object rawReplacements = result.get(RESPONSE_REDACTION_REPLACEMENTS);
+                // Reported back to the caller verbatim, including entries redaction could not apply.
+                final List<?> redactionReplacements =
+                        rawReplacements instanceof List ? (List<?>) rawReplacements : null;
+                // The raw value goes to the redactor: a present payload that is not an array is a
+                // backend contract break the redactor counts, not something to drop silently.
+                final MessageRedactor.Result redaction = redactor.redact(messages, rawReplacements);
+                finalMessages = redaction.messages;
+                final AIGuardRedaction redactionState = reportRedaction(span, redaction);
+                final Action action;
+                final String reason;
+                final List<String> tags;
+                final List<?> sdsFindings;
+                final Map<String, Number> tagProbs;
+                try {
+                    // Everything here reads the parsed body, so a raise means the service answered with
+                    // something that does not honour the response contract.
+                    final String actionStr = (String) result.get("action");
+                    if (actionStr == null) {
+                        throw new IllegalArgumentException("Action field is missing in the response");
+                    }
+                    action = Action.valueOf(actionStr);
+                    reason = (String) result.get("reason");
+                    @SuppressWarnings("unchecked")
+                    final List<String> parsedTags = (List<String>) result.get("tags");
+                    tags = parsedTags;
+                    sdsFindings = (List<?>) result.get("sds_findings");
+                    @SuppressWarnings("unchecked")
+                    final Map<String, Number> parsedTagProbs = (Map<String, Number>) result.get("tag_probs");
+                    tagProbs = parsedTagProbs;
+                } catch (final Exception e) {
+                    errorType = AIGuardError.BAD_RESPONSE;
+                    throw e;
+                }
+                span.setTag(ACTION_TAG, action);
+                if (reason != null) {
+                    span.setTag(REASON_TAG, reason);
+                }
+                if (tags != null && !tags.isEmpty()) {
+                    metaStruct.put(META_STRUCT_CATEGORIES, tags);
+                }
+                if (tagProbs != null && !tagProbs.isEmpty()) {
+                    metaStruct.put(META_STRUCT_TAG_PROBS, tagProbs);
+                }
+                if (sdsFindings != null && !sdsFindings.isEmpty()) {
+                    metaStruct.put(META_STRUCT_SDS, sdsFindings);
+                }
+                final boolean shouldBlock =
+                        isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
+                WafMetricCollector.get().aiGuardRequest(action, shouldBlock, redactionState);
+                if (shouldBlock) {
+                    span.setTag(BLOCKED_TAG, true);
+                    throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
+                }
+                return new Evaluation(
+                        action, reason, tags, tagProbs, sdsFindings, redaction.messages, redactionReplacements);
+            } finally {
+                metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(finalMessages));
+            }
+        } catch (AIGuardAbortError e) {
+            span.addThrowable(e);
+            throw e;
+        } catch (AIGuardClientError e) {
+            WafMetricCollector.get().aiGuardError(errorType);
+            span.addThrowable(e);
+            throw e;
+        } catch (final Exception e) {
+            WafMetricCollector.get().aiGuardError(errorType);
+            final AIGuardClientError error =
+                    new AIGuardClientError("AI Guard service returned unexpected response: " + e.getMessage(), e);
+            span.addThrowable(error);
+            throw error;
+        } finally {
+            span.finish();
+        }
     }
 
-    @Override
-    public void writeTo(final BufferedSink sink) throws IOException {
-      final JsonWriter writer = JsonWriter.of(sink);
-      writer.beginObject(); // request
-      writer.name("data");
-      writer.beginObject(); // data
-      writer.name("attributes");
-      writer.beginObject(); // attributes
-      writer.name("messages");
-      moshi.adapter(Object.class).toJson(writer, messages);
-      writer.name("meta");
-      writer.jsonValue(meta);
-      writer.endObject(); // attributes
-      writer.endObject(); // data
-      writer.endObject(); // request
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseResponseBody(final Response response) throws IOException {
+        final ResponseBody body = response.body();
+        if (body == null) {
+            throw fail(response.code(), null);
+        }
+        final JsonReader reader = JsonReader.of(body.source());
+        final Map<?, ?> parsedBody = moshi.adapter(Map.class).fromJson(reader);
+        final Object errors = parsedBody.get("errors");
+        if (errors != null) {
+            throw fail(response.code(), errors);
+        }
+        final Map<?, ?> data = (Map<?, ?>) parsedBody.get("data");
+        return (Map<String, Object>) data.get("attributes");
     }
-  }
+
+    private AIGuardClientError fail(final int statusCode, final Object errors) {
+        return new AIGuardClientError("AI Guard service call failed, status: " + statusCode, errors);
+    }
+
+    private static OkHttpClient buildClient(final HttpUrl url, final long timeout) {
+        return OkHttpUtils.buildHttpClient(url, timeout).newBuilder().build();
+    }
+
+    private static Map<String, String> mapOf(final String... props) {
+        if (props.length % 2 != 0) {
+            throw new IllegalArgumentException("Props must be even");
+        }
+        final Map<String, String> map = new HashMap<>(props.length << 1);
+        for (int i = 0; i < props.length; ) {
+            map.put(props[i++], props[i++]);
+        }
+        return map;
+    }
+
+    private static class Installer extends AIGuard {
+        public static void install(final Evaluator evaluator) {
+            AIGuard.EVALUATOR = evaluator;
+        }
+    }
+
+    static class AIGuardFactory implements JsonAdapter.Factory {
+
+        @Nullable
+        @Override
+        public JsonAdapter<?> create(final Type type, final Set<? extends Annotation> annotations, final Moshi moshi) {
+            final Class<?> rawType = Types.getRawType(type);
+            if (rawType != AIGuard.Message.class) {
+                return null;
+            }
+            return new MessageAdapter(moshi.adapter(AIGuard.ToolCall.class)).nullSafe();
+        }
+    }
+
+    static class MessageAdapter extends JsonAdapter<Message> {
+
+        private final JsonAdapter<AIGuard.ToolCall> toolCallAdapter;
+
+        MessageAdapter(final JsonAdapter<ToolCall> toolCallAdapter) {
+            this.toolCallAdapter = toolCallAdapter;
+        }
+
+        @Nullable
+        @Override
+        public Message fromJson(JsonReader reader) throws IOException {
+            throw new UnsupportedOperationException("Serializing only adapter");
+        }
+
+        @Override
+        public void toJson(final JsonWriter writer, final Message value) throws IOException {
+            writer.beginObject();
+            writeValue(writer, "role", value.getRole());
+
+            if (value.getContentParts() != null) {
+                writeContentParts(writer, "content", value.getContentParts());
+            } else {
+                writeValue(writer, "content", value.getContent());
+            }
+
+            writeArray(writer, "tool_calls", value.getToolCalls());
+            writeValue(writer, "tool_call_id", value.getToolCallId());
+            writer.endObject();
+        }
+
+        private void writeContentParts(final JsonWriter writer, final String name, final List<ContentPart> contentParts)
+                throws IOException {
+            writer.name(name);
+            writer.beginArray();
+            for (final ContentPart part : contentParts) {
+                writer.beginObject();
+
+                writer.name("type");
+                writer.value(part.getType().toString());
+
+                if (part.getType() == ContentPart.Type.TEXT) {
+                    writer.name("text");
+                    writer.value(part.getText());
+                } else if (part.getType() == ContentPart.Type.IMAGE_URL) {
+                    writer.name("image_url");
+                    writer.beginObject();
+                    writer.name("url");
+                    writer.value(part.getImageUrl().getUrl());
+                    writer.endObject();
+                }
+
+                writer.endObject();
+            }
+            writer.endArray();
+        }
+
+        private void writeValue(final JsonWriter writer, final String name, final Object value) throws IOException {
+            if (value != null) {
+                writer.name(name);
+                writer.jsonValue(value);
+            }
+        }
+
+        private void writeArray(final JsonWriter writer, final String name, final List<ToolCall> value)
+                throws IOException {
+            if (value != null) {
+                writer.name(name);
+                writer.beginArray();
+                for (final ToolCall toolCall : value) {
+                    toolCallAdapter.toJson(writer, toolCall);
+                }
+                writer.endArray();
+            }
+        }
+    }
+
+    static class MoshiJsonRequestBody extends RequestBody {
+
+        private static final MediaType JSON = MediaType.parse("application/json");
+
+        private final Moshi moshi;
+        private final Map<String, String> meta;
+        private final Collection<Message> messages;
+
+        public MoshiJsonRequestBody(
+                final Moshi moshi, final Collection<Message> messages, final Map<String, String> meta) {
+            this.moshi = moshi;
+            this.messages = messages;
+            this.meta = meta;
+        }
+
+        @Nullable
+        @Override
+        public MediaType contentType() {
+            return JSON;
+        }
+
+        @Override
+        public void writeTo(final BufferedSink sink) throws IOException {
+            final JsonWriter writer = JsonWriter.of(sink);
+            writer.beginObject(); // request
+            writer.name("data");
+            writer.beginObject(); // data
+            writer.name("attributes");
+            writer.beginObject(); // attributes
+            writer.name("messages");
+            moshi.adapter(Object.class).toJson(writer, messages);
+            writer.name("meta");
+            writer.jsonValue(meta);
+            writer.endObject(); // attributes
+            writer.endObject(); // data
+            writer.endObject(); // request
+        }
+    }
 }

@@ -12,36 +12,35 @@ import java.util.Collections;
 
 public class CiVisibilityTraceInterceptor extends AbstractTraceInterceptor {
 
-  public static final CiVisibilityTraceInterceptor INSTANCE =
-      new CiVisibilityTraceInterceptor(Priority.CI_VISIBILITY_TRACE);
+    public static final CiVisibilityTraceInterceptor INSTANCE =
+            new CiVisibilityTraceInterceptor(Priority.CI_VISIBILITY_TRACE);
 
-  protected CiVisibilityTraceInterceptor(Priority priority) {
-    super(priority);
-  }
-
-  @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> trace) {
-    if (trace.isEmpty()) {
-      return trace;
+    protected CiVisibilityTraceInterceptor(Priority priority) {
+        super(priority);
     }
 
-    final DDSpan firstSpan = (DDSpan) trace.iterator().next();
-    final DDSpan localRootSpan = firstSpan.getLocalRootSpan();
+    @Override
+    public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
+        if (trace.isEmpty()) {
+            return trace;
+        }
 
-    final DDSpan spanToCheck = null == localRootSpan ? firstSpan : localRootSpan;
+        final DDSpan firstSpan = (DDSpan) trace.iterator().next();
+        final DDSpan localRootSpan = firstSpan.getLocalRootSpan();
 
-    // If root span does not originate from CI visibility, we drop the full trace.
-    CharSequence origin = spanToCheck.getOrigin();
-    if (origin == null || !CIAPP_TEST_ORIGIN.contentEquals(origin)) {
-      return Collections.emptyList();
+        final DDSpan spanToCheck = null == localRootSpan ? firstSpan : localRootSpan;
+
+        // If root span does not originate from CI visibility, we drop the full trace.
+        CharSequence origin = spanToCheck.getOrigin();
+        if (origin == null || !CIAPP_TEST_ORIGIN.contentEquals(origin)) {
+            return Collections.emptyList();
+        }
+
+        // If the trace belongs to a "test", we need to set the `library_version` tag for all spans.
+        for (MutableSpan span : trace) {
+            span.setTag(DDTags.LIBRARY_VERSION_TAG_KEY, DDTraceCoreInfo.VERSION);
+        }
+
+        return trace;
     }
-
-    // If the trace belongs to a "test", we need to set the `library_version` tag for all spans.
-    for (MutableSpan span : trace) {
-      span.setTag(DDTags.LIBRARY_VERSION_TAG_KEY, DDTraceCoreInfo.VERSION);
-    }
-
-    return trace;
-  }
 }

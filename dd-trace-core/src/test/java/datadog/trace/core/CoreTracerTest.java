@@ -64,833 +64,835 @@ import org.tabletest.junit.TableTest;
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class CoreTracerTest extends DDCoreJavaSpecification {
 
-  private static final String FAKE_ENGINE = "fake-engine";
+    private static final String FAKE_ENGINE = "fake-engine";
 
-  @BeforeAll
-  static void checkJvm() {
-    assumeFalse(
-        JavaVirtualMachine.isOracleJDK8(),
-        "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to"
-            + " correctly extract method parameters without args, when the code is compiled on a"
-            + " later JDK (targeting 8). This can manifest when creating mocks.");
-  }
-
-  @Test
-  void verifyDefaultsOnTracer() {
-    CoreTracer tracer = CoreTracer.builder().build();
-    try {
-      assertFalse(tracer.serviceName.isEmpty());
-      assertInstanceOf(RateByServiceTraceSampler.class, tracer.initialSampler);
-      assertInstanceOf(DDAgentWriter.class, tracer.writer);
-    } finally {
-      tracer.close();
-    }
-  }
-
-  private static final long SNAPSTART_CONSTRUCTION_TIME_NANOS = TimeUnit.SECONDS.toNanos(1000);
-
-  @Test
-  void
-      getTimeWithNanoTicks_whenNanoTicksStaleAfterSimulatedRestore_thenTimestampStaysAnchoredToConstructionTime() {
-    // Characterizes the AWS Lambda SnapStart bug this fix addresses: System.nanoTime() does not
-    // accumulate the frozen checkpoint/restore duration, so the nanoTicks a span is timestamped
-    // with right after restore is (almost) unchanged from construction (snapshot creation) time,
-    // even though wall-clock time has moved on by hours. Without a resync, span timestamps
-    // computed from that near-frozen nanoTicks stay anchored to construction time.
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
-    try {
-      long constructionTimeNanoTicks = timeSource.getNanoTicks();
-
-      // The restore happens much later: wall-clock jumps forward by 2 hours, but nanoTicks - tied
-      // to monotonic JVM uptime, which does not advance while the snapshot is frozen - does not.
-      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
-
-      assertEquals(
-          SNAPSTART_CONSTRUCTION_TIME_NANOS,
-          tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
-  void
-      maybeResyncClockForLambdaInvocation_whenEnabledAndCalledAfterSimulatedRestore_thenTimestampReflectsPostRestoreTime() {
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
-    try {
-      // The restore happens: wall-clock jumps forward by 2 hours, nanoTicks barely moves.
-      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
-      long postRestoreNanos = timeSource.getCurrentTimeNanos();
-
-      tracer.maybeResyncClockForLambdaInvocation();
-
-      // A span timestamped with the near-frozen, post-restore nanoTicks reading now reflects the
-      // real post-restore time, not the stale construction-time anchor - proving the resync
-      // actually corrected counterDrift rather than the assertion just re-deriving the same
-      // reading.
-      assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
-  void notifyLambdaStart_whenExplicitlyEnabled_thenResyncsClockToCurrentTime() {
-    // notifyLambdaStart runs once per Lambda invocation, before any span for that invocation is
-    // created - the actual trigger point for the resync in production, not just the extracted
-    // maybeResyncClockForLambdaInvocation() logic exercised directly above.
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
-    try {
-      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
-      long postRestoreNanos = timeSource.getCurrentTimeNanos();
-
-      tracer.notifyLambdaStart(new Object(), "lambda-request-123");
-
-      // Same near-frozen-nanoTicks check as above: proves notifyLambdaStart's resync corrected
-      // the drift, rather than the assertion re-deriving the answer independently.
-      assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void
-      notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
-    try {
-      long constructionTimeNanoTicks = timeSource.getNanoTicks();
-      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
-
-      // No @WithConfig override here - this is an opt-in feature, off by default.
-      tracer.notifyLambdaStart(new Object(), "lambda-request-123");
-
-      assertEquals(
-          SNAPSTART_CONSTRUCTION_TIME_NANOS,
-          tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  /**
-   * A {@link datadog.trace.api.time.TimeSource} that decouples wall-clock time from nanoTicks, to
-   * simulate an AWS Lambda SnapStart checkpoint/restore: while frozen, monotonic nanoTicks do not
-   * advance but wall-clock time does. {@link ControllableTimeSource} can't simulate this because it
-   * derives both from the same underlying counter.
-   */
-  private static final class SnapStartTimeSource implements datadog.trace.api.time.TimeSource {
-    private final long nanoTicks;
-    private long currentTimeNanos;
-
-    SnapStartTimeSource(long initialNanos) {
-      this.nanoTicks = initialNanos;
-      this.currentTimeNanos = initialNanos;
+    @BeforeAll
+    static void checkJvm() {
+        assumeFalse(
+                JavaVirtualMachine.isOracleJDK8(),
+                "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to"
+                        + " correctly extract method parameters without args, when the code is compiled on a"
+                        + " later JDK (targeting 8). This can manifest when creating mocks.");
     }
 
-    void simulateSnapStartRestore(long wallClockJumpNanos) {
-      currentTimeNanos += wallClockJumpNanos;
+    @Test
+    void verifyDefaultsOnTracer() {
+        CoreTracer tracer = CoreTracer.builder().build();
+        try {
+            assertFalse(tracer.serviceName.isEmpty());
+            assertInstanceOf(RateByServiceTraceSampler.class, tracer.initialSampler);
+            assertInstanceOf(DDAgentWriter.class, tracer.writer);
+        } finally {
+            tracer.close();
+        }
     }
 
-    @Override
-    public long getNanoTicks() {
-      return nanoTicks;
+    private static final long SNAPSTART_CONSTRUCTION_TIME_NANOS = TimeUnit.SECONDS.toNanos(1000);
+
+    @Test
+    void getTimeWithNanoTicks_whenNanoTicksStaleAfterSimulatedRestore_thenTimestampStaysAnchoredToConstructionTime() {
+        // Characterizes the AWS Lambda SnapStart bug this fix addresses: System.nanoTime() does not
+        // accumulate the frozen checkpoint/restore duration, so the nanoTicks a span is timestamped
+        // with right after restore is (almost) unchanged from construction (snapshot creation) time,
+        // even though wall-clock time has moved on by hours. Without a resync, span timestamps
+        // computed from that near-frozen nanoTicks stay anchored to construction time.
+        SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+        CoreTracer tracer =
+                tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+        try {
+            long constructionTimeNanoTicks = timeSource.getNanoTicks();
+
+            // The restore happens much later: wall-clock jumps forward by 2 hours, but nanoTicks - tied
+            // to monotonic JVM uptime, which does not advance while the snapshot is frozen - does not.
+            timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+
+            assertEquals(SNAPSTART_CONSTRUCTION_TIME_NANOS, tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
+        } finally {
+            tracer.close();
+        }
     }
 
-    @Override
-    public long getCurrentTimeMillis() {
-      return TimeUnit.NANOSECONDS.toMillis(currentTimeNanos);
+    @Test
+    @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
+    void
+            maybeResyncClockForLambdaInvocation_whenEnabledAndCalledAfterSimulatedRestore_thenTimestampReflectsPostRestoreTime() {
+        SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+        CoreTracer tracer =
+                tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+        try {
+            // The restore happens: wall-clock jumps forward by 2 hours, nanoTicks barely moves.
+            timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+            long postRestoreNanos = timeSource.getCurrentTimeNanos();
+
+            tracer.maybeResyncClockForLambdaInvocation();
+
+            // A span timestamped with the near-frozen, post-restore nanoTicks reading now reflects the
+            // real post-restore time, not the stale construction-time anchor - proving the resync
+            // actually corrected counterDrift rather than the assertion just re-deriving the same
+            // reading.
+            assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
+        } finally {
+            tracer.close();
+        }
     }
 
-    @Override
-    public long getCurrentTimeMicros() {
-      return TimeUnit.NANOSECONDS.toMicros(currentTimeNanos);
+    @Test
+    @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
+    void notifyLambdaStart_whenExplicitlyEnabled_thenResyncsClockToCurrentTime() {
+        // notifyLambdaStart runs once per Lambda invocation, before any span for that invocation is
+        // created - the actual trigger point for the resync in production, not just the extracted
+        // maybeResyncClockForLambdaInvocation() logic exercised directly above.
+        SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+        CoreTracer tracer =
+                tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+        try {
+            timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+            long postRestoreNanos = timeSource.getCurrentTimeNanos();
+
+            tracer.notifyLambdaStart(new Object(), "lambda-request-123");
+
+            // Same near-frozen-nanoTicks check as above: proves notifyLambdaStart's resync corrected
+            // the drift, rather than the assertion re-deriving the answer independently.
+            assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
+        } finally {
+            tracer.close();
+        }
     }
 
-    @Override
-    public long getCurrentTimeNanos() {
-      return currentTimeNanos;
-    }
-  }
-
-  @Test
-  @WithConfig(key = TracerConfig.PRIORITY_SAMPLING, value = "false")
-  void verifyOverridingSampler() {
-    CoreTracer tracer = tracerBuilder().build();
-    try {
-      assertInstanceOf(AllSampler.class, tracer.initialSampler);
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  @WithConfig(key = TracerConfig.WRITER_TYPE, value = "LoggingWriter")
-  void verifyOverridingWriter() {
-    CoreTracer tracer = tracerBuilder().build();
-    try {
-      assertInstanceOf(LoggingWriter.class, tracer.writer);
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  @WithConfig(key = TracerConfig.AGENT_UNIX_DOMAIN_SOCKET, value = "asdf")
-  void verifyUdsWindows() {
-    String originalOsName = System.getProperty("os.name");
-    try {
-      System.setProperty("os.name", "Windows ME");
-      assertEquals("asdf", Config.get().getAgentUnixDomainSocket());
-    } finally {
-      if (originalOsName != null) {
-        System.setProperty("os.name", originalOsName);
-      } else {
-        System.clearProperty("os.name");
-      }
-    }
-  }
-
-  @TableTest({
-    "scenario       | mapString             | map         ",
-    "duplicate keys | a:one, a:two, a:three | [a: three]  ",
-    "empty value    | a:b,c:d,e:            | [a: b, c: d]"
-  })
-  void verifyMappingConfigsOnTracer(String scenario, String mapString, Map<String, String> map) {
-    injectSysConfig(TracerConfig.SERVICE_MAPPING, mapString);
-    injectSysConfig(TracerConfig.SPAN_TAGS, mapString);
-    injectSysConfig(TracerConfig.HEADER_TAGS, mapString);
-    CoreTracer tracer = tracerBuilder().build();
-    try {
-      ConfigSnapshot config = tracer.captureTraceConfig();
-      assertEquals(map, config.mergedTracerTags);
-      assertEquals(map, config.getServiceMapping());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @TableTest({
-    "scenario       | mapString             | map         ",
-    "duplicate keys | a:one, a:two, a:three | [a: three]  ",
-    "empty value    | a:b,c:d,e:            | [a: b, c: d]"
-  })
-  void verifyBaggageMappingConfigsOnTracer(
-      String scenario, String mapString, Map<String, String> map) {
-    injectSysConfig(TracerConfig.BAGGAGE_MAPPING, mapString);
-    CoreTracer tracer = tracerBuilder().build();
-    try {
-      assertEquals(map, tracer.captureTraceConfig().getBaggageMapping());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  @WithConfig(key = "agent.host", value = "somethingelse")
-  void verifyOverridingHost() {
-    assertEquals("somethingelse", Config.get().getAgentHost());
-  }
-
-  @TableTest({
-    "scenario   | key              | value",
-    "agent port | agent.port       | 777  ",
-    "trace port | trace.agent.port | 9999 "
-  })
-  void verifyOverridingPort(String key, String value) {
-    injectSysConfig(key, value);
-    assertEquals(Integer.valueOf(value), Config.get().getAgentPort());
-  }
-
-  @Test
-  @WithConfig(key = "writer.type", value = "LoggingWriter")
-  void writerIsLoggingWriterWhenPropertySet() {
-    CoreTracer tracer = tracerBuilder().build();
-    try {
-      assertInstanceOf(LoggingWriter.class, tracer.writer);
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @TableTest({
-    "scenario       | key               | value",
-    "priority true  | priority.sampling | true ",
-    "priority false | priority.sampling | false"
-  })
-  void sharesTraceCountWithDDApiWithKeyValue(String key, String value) {
-    injectSysConfig(key, value);
-    CoreTracer tracer = tracerBuilder().build();
-    try {
-      assertInstanceOf(DDAgentWriter.class, tracer.writer);
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void rootTagsAppliedOnlyToRootSpans() {
-    Map<String, Object> localRootSpanTags = new LinkedHashMap<>();
-    localRootSpanTags.put("only_root", "value");
-    CoreTracer tracer = tracerBuilder().localRootSpanTags(localRootSpanTags).build();
-    AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
-    AgentSpan child = tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
-    try {
-      assertTrue(root.getTags().containsKey("only_root"));
-      assertFalse(child.getTags().containsKey("only_root"));
-    } finally {
-      child.finish();
-      root.finish();
-      tracer.close();
-    }
-  }
-
-  @Test
-  void profilingContextEngineTagStampedWhenTheIntegrationIsAlreadyAvailable() {
-    CoreTracer tracer =
-        tracerBuilder().profilingContextIntegration(new FakeContextIntegration()).build();
-    AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
-    try {
-      assertEquals(FAKE_ENGINE, root.getTags().get(DDTags.PROFILING_CONTEXT_ENGINE));
-    } finally {
-      root.finish();
-      tracer.close();
-    }
-  }
-
-  @Test
-  void profilingContextEngineTagWithheldUntilTheIntegrationBecomesAvailable() {
-    FakeContextIntegration integration = new FakeContextIntegration();
-    integration.deferAvailability = true;
-    CoreTracer tracer = tracerBuilder().profilingContextIntegration(integration).build();
-    try {
-      AgentSpan beforeSwap = tracer.buildSpan("datadog", "before").start();
-      assertFalse(beforeSwap.getTags().containsKey(DDTags.PROFILING_CONTEXT_ENGINE));
-      beforeSwap.finish();
-
-      integration.becomeAvailable();
-
-      AgentSpan afterSwap = tracer.buildSpan("datadog", "after").start();
-      assertEquals(FAKE_ENGINE, afterSwap.getTags().get(DDTags.PROFILING_CONTEXT_ENGINE));
-      afterSwap.finish();
-    } finally {
-      tracer.close();
-    }
-  }
-
-  /**
-   * Pins the needsIntercept half of the {@code LocalRootSpanTags} swap: {@code
-   * stampProfilingContextEngine()} recomputes {@code tagInterceptor.needsIntercept()} on the frozen
-   * tag map, so a root span started after the swap must apply interception rules (here, {@code
-   * trace.split-by-tags}) to the newly-stamped {@code _dd.profiling.ctx} tag exactly like any other
-   * tag present at span-start time, while one started before the swap must not.
-   */
-  @Test
-  @WithConfig(key = TracerConfig.SPLIT_BY_TAGS, value = DDTags.PROFILING_CONTEXT_ENGINE)
-  void needsInterceptRecomputationAppliesSplitByTagsOnceProfilingContextEngineTagIsStamped() {
-    FakeContextIntegration integration = new FakeContextIntegration();
-    integration.deferAvailability = true;
-    CoreTracer tracer = tracerBuilder().profilingContextIntegration(integration).build();
-    try {
-      DDSpan beforeSwap = (DDSpan) tracer.buildSpan("datadog", "before").start();
-      assertNotEquals(FAKE_ENGINE, beforeSwap.getServiceName());
-      beforeSwap.finish();
-
-      integration.becomeAvailable();
-
-      DDSpan afterSwap = (DDSpan) tracer.buildSpan("datadog", "after").start();
-      assertEquals(FAKE_ENGINE, afterSwap.getServiceName());
-      afterSwap.finish();
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void prioritySamplingWhenSpanFinishes() throws Exception {
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    try {
-      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
-      span.finish();
-      writer.waitForTraces(1);
-      assertEquals(PrioritySampling.SAMPLER_KEEP, (int) span.getSamplingPriority());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void prioritySamplingSetWhenChildSpanComplete() throws Exception {
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    try {
-      DDSpan root = (DDSpan) tracer.buildSpan("datadog", "operation").start();
-      DDSpan child =
-          (DDSpan) tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
-      root.finish();
-
-      assertNull(root.getSamplingPriority());
-
-      child.finish();
-      writer.waitForTraces(1);
-
-      assertEquals(PrioritySampling.SAMPLER_KEEP, (int) root.getSamplingPriority());
-      assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void verifyConfigurationPolling() throws Exception {
-    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
-    ConfigurationPoller poller = mock(ConfigurationPoller.class);
-    SharedCommunicationObjects sco = createScoWithPoller(poller);
-
-    ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
-        .when(poller)
-        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
-    unclosedTracers.add(tracer);
-
-    try {
-      verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-      assertNotNull(capturedUpdater[0]);
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getRequestHeaderTags());
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getResponseHeaderTags());
-      assertNull(tracer.captureTraceConfig().getTraceSampleRate());
-
-      String json =
-          "{\n"
-              + "  \"lib_config\":\n"
-              + "  {\n"
-              + "    \"tracing_service_mapping\":\n"
-              + "    [{\n"
-              + "       \"from_key\": \"foobar\",\n"
-              + "       \"to_name\": \"bar\"\n"
-              + "    }, {\n"
-              + "       \"from_key\": \"snafu\",\n"
-              + "       \"to_name\": \"foo\"\n"
-              + "    }]\n"
-              + "    ,\n"
-              + "    \"tracing_header_tags\":\n"
-              + "    [{\n"
-              + "       \"header\": \"Cookie\",\n"
-              + "       \"tag_name\": \"\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"Referer\",\n"
-              + "       \"tag_name\": \"http.referer\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"  Some.Header  \",\n"
-              + "       \"tag_name\": \"\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"C!!!ont_____ent----tYp!/!e\",\n"
-              + "       \"tag_name\": \"\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"this.header\",\n"
-              + "       \"tag_name\": \"whatever.the.user.wants.this.header\"\n"
-              + "    }]\n"
-              + "    ,\n"
-              + "    \"tracing_sampling_rate\": 0.5\n"
-              + "  }\n"
-              + "}";
-
-      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
-      capturedUpdater[0].commit(null);
-
-      Map<String, String> expectedServiceMapping = buildStringMap("foobar", "bar", "snafu", "foo");
-      assertEquals(expectedServiceMapping, tracer.captureTraceConfig().getServiceMapping());
-
-      Map<String, String> expectedRequestHeaderTags =
-          buildStringMap(
-              "cookie", "http.request.headers.cookie",
-              "referer", "http.referer",
-              "some.header", "http.request.headers.some_header",
-              "c!!!ont_____ent----typ!/!e", "http.request.headers.c___ont_____ent----typ_/_e",
-              "this.header", "whatever.the.user.wants.this.header");
-      assertEquals(expectedRequestHeaderTags, tracer.captureTraceConfig().getRequestHeaderTags());
-
-      Map<String, String> expectedResponseHeaderTags =
-          buildStringMap(
-              "cookie", "http.response.headers.cookie",
-              "referer", "http.referer",
-              "some.header", "http.response.headers.some_header",
-              "c!!!ont_____ent----typ!/!e", "http.response.headers.c___ont_____ent----typ_/_e",
-              "this.header", "whatever.the.user.wants.this.header");
-      assertEquals(expectedResponseHeaderTags, tracer.captureTraceConfig().getResponseHeaderTags());
-
-      assertEquals(0.5, tracer.captureTraceConfig().getTraceSampleRate(), 0.0001);
-
-      capturedUpdater[0].remove(key, null);
-      capturedUpdater[0].commit(null);
-
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getRequestHeaderTags());
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getResponseHeaderTags());
-      assertNull(tracer.captureTraceConfig().getTraceSampleRate());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @TableTest({
-    "scenario      | json                                                               | expectedValue     ",
-    "a:b c:d e:f   | '{\"lib_config\":{\"tracing_tags\": [\"a:b\", \"c:d\", \"e:f\"]}}' | [a: b, c: d, e: f]",
-    "empty and c:d | '{\"lib_config\":{\"tracing_tags\": [\"\", \"c:d\", \"\"]}}'       | [c: d]            ",
-    ":b c: e:f     | '{\"lib_config\":{\"tracing_tags\": [\":b\", \"c:\", \"e:f\"]}}'   | [e: f]            ",
-    ": c: e:f      | '{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"e:f\"]}}'    | [e: f]            ",
-    ": c: empty    | '{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"\"]}}'       | [:]               ",
-    "empty array   | '{\"lib_config\":{\"tracing_tags\": []}}'                          | [:]               "
-  })
-  void verifyConfigurationPollingWithCustomTags(
-      String scenario, String json, Map<String, String> expectedValue) throws Exception {
-    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
-    ConfigurationPoller poller = mock(ConfigurationPoller.class);
-    SharedCommunicationObjects sco = createScoWithPoller(poller);
-
-    ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
-        .when(poller)
-        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
-    unclosedTracers.add(tracer);
-
-    try {
-      verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-      assertNotNull(capturedUpdater[0]);
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getTracingTags());
-
-      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
-      capturedUpdater[0].commit(null);
-
-      ConfigSnapshot config = tracer.captureTraceConfig();
-      assertEquals(expectedValue, config.getTracingTags());
-      assertEquals(expectedValue, config.mergedTracerTags);
-
-      capturedUpdater[0].remove(key, null);
-      capturedUpdater[0].commit(null);
-
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getTracingTags());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  static final String ACTION_JSON =
-      "'{\"action\": \"enable\", \"lib_config\":"
-          + "{\"tracing_sampling_rate\": null,"
-          + " \"log_injection_enabled\": null, "
-          + "\"tracing_header_tags\": null,"
-          + " \"runtime_metrics_enabled\": null,"
-          + "\"tracing_debug\": null,"
-          + " \"tracing_service_mapping\": null,"
-          + "\"tracing_sampling_rules\": null,"
-          + " \"span_sampling_rules\": null,"
-          + "\"data_streams_enabled\": null,"
-          + " \"tracing_enabled\": false}}'";
-
-  @TableTest({
-    "scenario         | json                                            | expectedValue",
-    "tracing disabled | '{\"lib_config\":{\"tracing_enabled\": false}}' | false        ",
-    "tracing enabled  | '{\"lib_config\":{\"tracing_enabled\": true}}'  | true         "
-  })
-  @ParameterizedTest
-  @CsvSource(delimiter = '|', value = "action with tracing disabled | " + ACTION_JSON + " | false")
-  void verifyConfigurationPollingWithTracingEnabled(
-      String scenario, String json, boolean expectedValue) throws Exception {
-    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
-    ConfigurationPoller poller = mock(ConfigurationPoller.class);
-    SharedCommunicationObjects sco = createScoWithPoller(poller);
-
-    ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
-        .when(poller)
-        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
-    unclosedTracers.add(tracer);
-
-    try {
-      verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-      assertNotNull(capturedUpdater[0]);
-      assertTrue(tracer.captureTraceConfig().isTraceEnabled());
-
-      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
-      capturedUpdater[0].commit(null);
-
-      assertEquals(expectedValue, tracer.captureTraceConfig().isTraceEnabled());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @TableTest({
-    "scenario  | preferred | expected",
-    "no pref   |           | test    ",
-    "with pref | some      | some    "
-  })
-  void testLocalRootServiceNameOverride(String preferred, String expected) {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build();
-    tracer.updatePreferredServiceName(preferred, preferred);
-    try {
-      DDSpan span = (DDSpan) tracer.startSpan("", "test");
-      span.finish();
-      assertEquals(expected, span.getServiceName());
-      if (preferred != null) {
-        assertTrue(ServiceNameCollector.get().getServices().contains(preferred));
-      }
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  @WithConfig(key = GeneralConfig.SERVICE_NAME, value = "dd_service_name")
-  @WithConfig(key = GeneralConfig.VERSION, value = "1.0.0")
-  void testDdVersionExistsOnlyIfServiceEqDdService() {
-    TagsPostProcessorFactory.withAddInternalTags(true);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    try {
-      DDSpan span =
-          (DDSpan)
-              tracer.buildSpan("datadog", "def").withTag(GeneralConfig.SERVICE_NAME, "foo").start();
-      span.finish();
-      assertEquals("foo", span.getServiceName());
-      assertFalse(span.getTags().containsKey("version"));
-
-      DDSpan span2 = (DDSpan) tracer.buildSpan("datadog", "abc").start();
-      span2.finish();
-      assertEquals("dd_service_name", span2.getServiceName());
-      assertEquals("1.0.0", String.valueOf(span2.getTags().get("version")));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void flushesOnTracerCloseIfConfiguredToDoSo() {
-    WriterWithExplicitFlush writer = new WriterWithExplicitFlush();
-    CoreTracer tracer = tracerBuilder().writer(writer).flushOnClose(true).build();
-    tracer.buildSpan("datadog", "my_span").start().finish();
-    tracer.close();
-    assertFalse(writer.flushedTraces.isEmpty());
-  }
-
-  @TableTest({
-    "scenario                    | service | env | targetService | targetEnv",
-    "diff target service         | service | env | service_1     | env      ",
-    "diff target env             | service | env | service       | env_1    ",
-    "diff target service and env | service | env | service_2     | env_2    "
-  })
-  void verifyNoFilteringOfServiceEnvWhenMismatchedWithDdServiceDdEnv(
-      String service, String env, String targetService, String targetEnv) throws Exception {
-    injectSysConfig(GeneralConfig.SERVICE_NAME, service);
-    injectSysConfig(GeneralConfig.ENV, env);
-
-    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
-    ConfigurationPoller poller = mock(ConfigurationPoller.class);
-    SharedCommunicationObjects sco = createScoWithPoller(poller);
-
-    ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
-        .when(poller)
-        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
-    unclosedTracers.add(tracer);
-
-    try {
-      verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
-      assertNotNull(capturedUpdater[0]);
-      assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
-
-      String json =
-          String.format(
-              "{\"service_target\":{\"service\":\"%s\",\"env\":\"%s\"},"
-                  + "\"lib_config\":{\"tracing_service_mapping\":"
-                  + "[{\"from_key\":\"foobar\",\"to_name\":\"bar\"}]}}",
-              targetService, targetEnv);
-
-      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
-      capturedUpdater[0].commit(null);
-
-      assertEquals(
-          buildStringMap("foobar", "bar"), tracer.captureTraceConfig().getServiceMapping());
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void serviceNameSourceIsRecordedWhenUsingTwoParameterSetServiceName() {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    try {
-      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
-      span.setServiceName("custom-service", "my-integration");
-      DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").start();
-      child.finish();
-      span.finish();
-
-      assertEquals("custom-service", span.getServiceName());
-      assertEquals("my-integration", span.getTag(DDTags.DD_SVC_SRC));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void serviceNameSourceIsMarkedAsManualWhenUsingOneParameterSetServiceName() {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    try {
-      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
-      span.setServiceName("custom-service", "my-integration");
-      span.setServiceName("another");
-      span.finish();
-
-      assertEquals("another", span.getServiceName());
-      assertEquals(ServiceNameSources.MANUAL, span.getTag(DDTags.DD_SVC_SRC));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  @Test
-  void serviceNameSourceIsMissingWhenNotExplicitlySettingServiceName() {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    try {
-      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
-      span.finish();
-
-      assertEquals(tracer.serviceName, span.getServiceName());
-      assertNull(span.getTag(DDTags.DD_SVC_SRC));
-    } finally {
-      tracer.close();
-    }
-  }
-
-  // --- helpers ---
-
-  private SharedCommunicationObjects createScoWithPoller(ConfigurationPoller poller)
-      throws Exception {
-    SharedCommunicationObjects sco = new SharedCommunicationObjects();
-    sco.agentHttpClient = mock(OkHttpClient.class);
-    sco.monitoring = mock(Monitoring.class);
-    sco.agentUrl = HttpUrl.get("https://example.com");
-    sco.setFeaturesDiscovery(mock(DDAgentFeaturesDiscovery.class));
-    Field pollerField = SharedCommunicationObjects.class.getDeclaredField("configurationPoller");
-    pollerField.setAccessible(true);
-    pollerField.set(sco, poller);
-    return sco;
-  }
-
-  private static Map<String, String> buildStringMap(String... keyValues) {
-    Map<String, String> map = new LinkedHashMap<>();
-    for (int i = 0; i < keyValues.length; i += 2) {
-      map.put(keyValues[i], keyValues[i + 1]);
-    }
-    return map;
-  }
-
-  // --- inner classes ---
-
-  /**
-   * A profiling context integration whose availability can be released after the tracer has been
-   * built, the way an integration whose construction is deferred off the premain thread does.
-   */
-  static class FakeContextIntegration implements ProfilingContextIntegration {
-    boolean deferAvailability;
-    private Runnable availabilityCallback;
-
-    @Override
-    public String name() {
-      return FAKE_ENGINE;
+    @Test
+    void notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
+        SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+        CoreTracer tracer =
+                tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+        try {
+            long constructionTimeNanoTicks = timeSource.getNanoTicks();
+            timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+
+            // No @WithConfig override here - this is an opt-in feature, off by default.
+            tracer.notifyLambdaStart(new Object(), "lambda-request-123");
+
+            assertEquals(SNAPSTART_CONSTRUCTION_TIME_NANOS, tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
+        } finally {
+            tracer.close();
+        }
     }
 
-    @Override
-    public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {}
+    /**
+     * A {@link datadog.trace.api.time.TimeSource} that decouples wall-clock time from nanoTicks, to
+     * simulate an AWS Lambda SnapStart checkpoint/restore: while frozen, monotonic nanoTicks do not
+     * advance but wall-clock time does. {@link ControllableTimeSource} can't simulate this because it
+     * derives both from the same underlying counter.
+     */
+    private static final class SnapStartTimeSource implements datadog.trace.api.time.TimeSource {
+        private final long nanoTicks;
+        private long currentTimeNanos;
 
-    @Override
-    public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
-      return EndpointTracker.NO_OP;
+        SnapStartTimeSource(long initialNanos) {
+            this.nanoTicks = initialNanos;
+            this.currentTimeNanos = initialNanos;
+        }
+
+        void simulateSnapStartRestore(long wallClockJumpNanos) {
+            currentTimeNanos += wallClockJumpNanos;
+        }
+
+        @Override
+        public long getNanoTicks() {
+            return nanoTicks;
+        }
+
+        @Override
+        public long getCurrentTimeMillis() {
+            return TimeUnit.NANOSECONDS.toMillis(currentTimeNanos);
+        }
+
+        @Override
+        public long getCurrentTimeMicros() {
+            return TimeUnit.NANOSECONDS.toMicros(currentTimeNanos);
+        }
+
+        @Override
+        public long getCurrentTimeNanos() {
+            return currentTimeNanos;
+        }
     }
 
-    @Override
-    public Timing start(TimerType type) {
-      return Timing.NoOp.INSTANCE;
+    @Test
+    @WithConfig(key = TracerConfig.PRIORITY_SAMPLING, value = "false")
+    void verifyOverridingSampler() {
+        CoreTracer tracer = tracerBuilder().build();
+        try {
+            assertInstanceOf(AllSampler.class, tracer.initialSampler);
+        } finally {
+            tracer.close();
+        }
     }
 
-    @Override
-    public void whenAvailable(Runnable callback) {
-      if (deferAvailability) {
-        this.availabilityCallback = callback;
-      } else {
-        callback.run();
-      }
+    @Test
+    @WithConfig(key = TracerConfig.WRITER_TYPE, value = "LoggingWriter")
+    void verifyOverridingWriter() {
+        CoreTracer tracer = tracerBuilder().build();
+        try {
+            assertInstanceOf(LoggingWriter.class, tracer.writer);
+        } finally {
+            tracer.close();
+        }
     }
 
-    void becomeAvailable() {
-      Runnable callback = this.availabilityCallback;
-      this.availabilityCallback = null;
-      if (callback != null) {
-        callback.run();
-      }
-    }
-  }
-
-  static class WriterWithExplicitFlush implements datadog.trace.common.writer.Writer {
-    final List<List<DDSpan>> writtenTraces = new CopyOnWriteArrayList<>();
-    final List<List<DDSpan>> flushedTraces = new CopyOnWriteArrayList<>();
-
-    @Override
-    public void write(List<DDSpan> trace) {
-      writtenTraces.add(trace);
+    @Test
+    @WithConfig(key = TracerConfig.AGENT_UNIX_DOMAIN_SOCKET, value = "asdf")
+    void verifyUdsWindows() {
+        String originalOsName = System.getProperty("os.name");
+        try {
+            System.setProperty("os.name", "Windows ME");
+            assertEquals("asdf", Config.get().getAgentUnixDomainSocket());
+        } finally {
+            if (originalOsName != null) {
+                System.setProperty("os.name", originalOsName);
+            } else {
+                System.clearProperty("os.name");
+            }
+        }
     }
 
-    @Override
-    public void start() {}
-
-    @Override
-    public boolean flush() {
-      flushedTraces.addAll(writtenTraces);
-      writtenTraces.clear();
-      return true;
+    @TableTest({
+      "scenario       | mapString             | map         ",
+      "duplicate keys | a:one, a:two, a:three | [a: three]  ",
+      "empty value    | a:b,c:d,e:            | [a: b, c: d]"
+    })
+    void verifyMappingConfigsOnTracer(String scenario, String mapString, Map<String, String> map) {
+        injectSysConfig(TracerConfig.SERVICE_MAPPING, mapString);
+        injectSysConfig(TracerConfig.SPAN_TAGS, mapString);
+        injectSysConfig(TracerConfig.HEADER_TAGS, mapString);
+        CoreTracer tracer = tracerBuilder().build();
+        try {
+            ConfigSnapshot config = tracer.captureTraceConfig();
+            assertEquals(map, config.mergedTracerTags);
+            assertEquals(map, config.getServiceMapping());
+        } finally {
+            tracer.close();
+        }
     }
 
-    @Override
-    public void close() {}
+    @TableTest({
+      "scenario       | mapString             | map         ",
+      "duplicate keys | a:one, a:two, a:three | [a: three]  ",
+      "empty value    | a:b,c:d,e:            | [a: b, c: d]"
+    })
+    void verifyBaggageMappingConfigsOnTracer(String scenario, String mapString, Map<String, String> map) {
+        injectSysConfig(TracerConfig.BAGGAGE_MAPPING, mapString);
+        CoreTracer tracer = tracerBuilder().build();
+        try {
+            assertEquals(map, tracer.captureTraceConfig().getBaggageMapping());
+        } finally {
+            tracer.close();
+        }
+    }
 
-    @Override
-    public void incrementDropCounts(int spanCount) {}
-  }
+    @Test
+    @WithConfig(key = "agent.host", value = "somethingelse")
+    void verifyOverridingHost() {
+        assertEquals("somethingelse", Config.get().getAgentHost());
+    }
+
+    @TableTest({
+      "scenario   | key              | value",
+      "agent port | agent.port       | 777  ",
+      "trace port | trace.agent.port | 9999 "
+    })
+    void verifyOverridingPort(String key, String value) {
+        injectSysConfig(key, value);
+        assertEquals(Integer.valueOf(value), Config.get().getAgentPort());
+    }
+
+    @Test
+    @WithConfig(key = "writer.type", value = "LoggingWriter")
+    void writerIsLoggingWriterWhenPropertySet() {
+        CoreTracer tracer = tracerBuilder().build();
+        try {
+            assertInstanceOf(LoggingWriter.class, tracer.writer);
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @TableTest({
+      "scenario       | key               | value",
+      "priority true  | priority.sampling | true ",
+      "priority false | priority.sampling | false"
+    })
+    void sharesTraceCountWithDDApiWithKeyValue(String key, String value) {
+        injectSysConfig(key, value);
+        CoreTracer tracer = tracerBuilder().build();
+        try {
+            assertInstanceOf(DDAgentWriter.class, tracer.writer);
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void rootTagsAppliedOnlyToRootSpans() {
+        Map<String, Object> localRootSpanTags = new LinkedHashMap<>();
+        localRootSpanTags.put("only_root", "value");
+        CoreTracer tracer = tracerBuilder().localRootSpanTags(localRootSpanTags).build();
+        AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
+        AgentSpan child = tracer.buildSpan("datadog", "my_child")
+                .asChildOf(root.spanContext())
+                .start();
+        try {
+            assertTrue(root.getTags().containsKey("only_root"));
+            assertFalse(child.getTags().containsKey("only_root"));
+        } finally {
+            child.finish();
+            root.finish();
+            tracer.close();
+        }
+    }
+
+    @Test
+    void profilingContextEngineTagStampedWhenTheIntegrationIsAlreadyAvailable() {
+        CoreTracer tracer = tracerBuilder()
+                .profilingContextIntegration(new FakeContextIntegration())
+                .build();
+        AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
+        try {
+            assertEquals(FAKE_ENGINE, root.getTags().get(DDTags.PROFILING_CONTEXT_ENGINE));
+        } finally {
+            root.finish();
+            tracer.close();
+        }
+    }
+
+    @Test
+    void profilingContextEngineTagWithheldUntilTheIntegrationBecomesAvailable() {
+        FakeContextIntegration integration = new FakeContextIntegration();
+        integration.deferAvailability = true;
+        CoreTracer tracer =
+                tracerBuilder().profilingContextIntegration(integration).build();
+        try {
+            AgentSpan beforeSwap = tracer.buildSpan("datadog", "before").start();
+            assertFalse(beforeSwap.getTags().containsKey(DDTags.PROFILING_CONTEXT_ENGINE));
+            beforeSwap.finish();
+
+            integration.becomeAvailable();
+
+            AgentSpan afterSwap = tracer.buildSpan("datadog", "after").start();
+            assertEquals(FAKE_ENGINE, afterSwap.getTags().get(DDTags.PROFILING_CONTEXT_ENGINE));
+            afterSwap.finish();
+        } finally {
+            tracer.close();
+        }
+    }
+
+    /**
+     * Pins the needsIntercept half of the {@code LocalRootSpanTags} swap: {@code
+     * stampProfilingContextEngine()} recomputes {@code tagInterceptor.needsIntercept()} on the frozen
+     * tag map, so a root span started after the swap must apply interception rules (here, {@code
+     * trace.split-by-tags}) to the newly-stamped {@code _dd.profiling.ctx} tag exactly like any other
+     * tag present at span-start time, while one started before the swap must not.
+     */
+    @Test
+    @WithConfig(key = TracerConfig.SPLIT_BY_TAGS, value = DDTags.PROFILING_CONTEXT_ENGINE)
+    void needsInterceptRecomputationAppliesSplitByTagsOnceProfilingContextEngineTagIsStamped() {
+        FakeContextIntegration integration = new FakeContextIntegration();
+        integration.deferAvailability = true;
+        CoreTracer tracer =
+                tracerBuilder().profilingContextIntegration(integration).build();
+        try {
+            DDSpan beforeSwap = (DDSpan) tracer.buildSpan("datadog", "before").start();
+            assertNotEquals(FAKE_ENGINE, beforeSwap.getServiceName());
+            beforeSwap.finish();
+
+            integration.becomeAvailable();
+
+            DDSpan afterSwap = (DDSpan) tracer.buildSpan("datadog", "after").start();
+            assertEquals(FAKE_ENGINE, afterSwap.getServiceName());
+            afterSwap.finish();
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void prioritySamplingWhenSpanFinishes() throws Exception {
+        ListWriter writer = new ListWriter();
+        CoreTracer tracer = tracerBuilder().writer(writer).build();
+        try {
+            DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
+            span.finish();
+            writer.waitForTraces(1);
+            assertEquals(PrioritySampling.SAMPLER_KEEP, (int) span.getSamplingPriority());
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void prioritySamplingSetWhenChildSpanComplete() throws Exception {
+        ListWriter writer = new ListWriter();
+        CoreTracer tracer = tracerBuilder().writer(writer).build();
+        try {
+            DDSpan root = (DDSpan) tracer.buildSpan("datadog", "operation").start();
+            DDSpan child = (DDSpan) tracer.buildSpan("datadog", "my_child")
+                    .asChildOf(root.spanContext())
+                    .start();
+            root.finish();
+
+            assertNull(root.getSamplingPriority());
+
+            child.finish();
+            writer.waitForTraces(1);
+
+            assertEquals(PrioritySampling.SAMPLER_KEEP, (int) root.getSamplingPriority());
+            assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void verifyConfigurationPolling() throws Exception {
+        ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+        ConfigurationPoller poller = mock(ConfigurationPoller.class);
+        SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+        ProductListener[] capturedUpdater = {null};
+        doAnswer(inv -> {
+                    capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+                    return null;
+                })
+                .when(poller)
+                .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+        CoreTracer tracer = CoreTracer.builder()
+                .sharedCommunicationObjects(sco)
+                .pollForTracingConfiguration()
+                .build();
+        unclosedTracers.add(tracer);
+
+        try {
+            verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+            assertNotNull(capturedUpdater[0]);
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getRequestHeaderTags());
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getResponseHeaderTags());
+            assertNull(tracer.captureTraceConfig().getTraceSampleRate());
+
+            String json = "{\n"
+                    + "  \"lib_config\":\n"
+                    + "  {\n"
+                    + "    \"tracing_service_mapping\":\n"
+                    + "    [{\n"
+                    + "       \"from_key\": \"foobar\",\n"
+                    + "       \"to_name\": \"bar\"\n"
+                    + "    }, {\n"
+                    + "       \"from_key\": \"snafu\",\n"
+                    + "       \"to_name\": \"foo\"\n"
+                    + "    }]\n"
+                    + "    ,\n"
+                    + "    \"tracing_header_tags\":\n"
+                    + "    [{\n"
+                    + "       \"header\": \"Cookie\",\n"
+                    + "       \"tag_name\": \"\"\n"
+                    + "    }, {\n"
+                    + "       \"header\": \"Referer\",\n"
+                    + "       \"tag_name\": \"http.referer\"\n"
+                    + "    }, {\n"
+                    + "       \"header\": \"  Some.Header  \",\n"
+                    + "       \"tag_name\": \"\"\n"
+                    + "    }, {\n"
+                    + "       \"header\": \"C!!!ont_____ent----tYp!/!e\",\n"
+                    + "       \"tag_name\": \"\"\n"
+                    + "    }, {\n"
+                    + "       \"header\": \"this.header\",\n"
+                    + "       \"tag_name\": \"whatever.the.user.wants.this.header\"\n"
+                    + "    }]\n"
+                    + "    ,\n"
+                    + "    \"tracing_sampling_rate\": 0.5\n"
+                    + "  }\n"
+                    + "}";
+
+            capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+            capturedUpdater[0].commit(null);
+
+            Map<String, String> expectedServiceMapping = buildStringMap("foobar", "bar", "snafu", "foo");
+            assertEquals(expectedServiceMapping, tracer.captureTraceConfig().getServiceMapping());
+
+            Map<String, String> expectedRequestHeaderTags = buildStringMap(
+                    "cookie", "http.request.headers.cookie",
+                    "referer", "http.referer",
+                    "some.header", "http.request.headers.some_header",
+                    "c!!!ont_____ent----typ!/!e", "http.request.headers.c___ont_____ent----typ_/_e",
+                    "this.header", "whatever.the.user.wants.this.header");
+            assertEquals(expectedRequestHeaderTags, tracer.captureTraceConfig().getRequestHeaderTags());
+
+            Map<String, String> expectedResponseHeaderTags = buildStringMap(
+                    "cookie", "http.response.headers.cookie",
+                    "referer", "http.referer",
+                    "some.header", "http.response.headers.some_header",
+                    "c!!!ont_____ent----typ!/!e", "http.response.headers.c___ont_____ent----typ_/_e",
+                    "this.header", "whatever.the.user.wants.this.header");
+            assertEquals(expectedResponseHeaderTags, tracer.captureTraceConfig().getResponseHeaderTags());
+
+            assertEquals(0.5, tracer.captureTraceConfig().getTraceSampleRate(), 0.0001);
+
+            capturedUpdater[0].remove(key, null);
+            capturedUpdater[0].commit(null);
+
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getRequestHeaderTags());
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getResponseHeaderTags());
+            assertNull(tracer.captureTraceConfig().getTraceSampleRate());
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @TableTest({
+      "scenario      | json                                                               | expectedValue     ",
+      "a:b c:d e:f   | '{\"lib_config\":{\"tracing_tags\": [\"a:b\", \"c:d\", \"e:f\"]}}' | [a: b, c: d, e: f]",
+      "empty and c:d | '{\"lib_config\":{\"tracing_tags\": [\"\", \"c:d\", \"\"]}}'       | [c: d]            ",
+      ":b c: e:f     | '{\"lib_config\":{\"tracing_tags\": [\":b\", \"c:\", \"e:f\"]}}'   | [e: f]            ",
+      ": c: e:f      | '{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"e:f\"]}}'    | [e: f]            ",
+      ": c: empty    | '{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"\"]}}'       | [:]               ",
+      "empty array   | '{\"lib_config\":{\"tracing_tags\": []}}'                          | [:]               "
+    })
+    void verifyConfigurationPollingWithCustomTags(String scenario, String json, Map<String, String> expectedValue)
+            throws Exception {
+        ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+        ConfigurationPoller poller = mock(ConfigurationPoller.class);
+        SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+        ProductListener[] capturedUpdater = {null};
+        doAnswer(inv -> {
+                    capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+                    return null;
+                })
+                .when(poller)
+                .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+        CoreTracer tracer = CoreTracer.builder()
+                .sharedCommunicationObjects(sco)
+                .pollForTracingConfiguration()
+                .build();
+        unclosedTracers.add(tracer);
+
+        try {
+            verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+            assertNotNull(capturedUpdater[0]);
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getTracingTags());
+
+            capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+            capturedUpdater[0].commit(null);
+
+            ConfigSnapshot config = tracer.captureTraceConfig();
+            assertEquals(expectedValue, config.getTracingTags());
+            assertEquals(expectedValue, config.mergedTracerTags);
+
+            capturedUpdater[0].remove(key, null);
+            capturedUpdater[0].commit(null);
+
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getTracingTags());
+        } finally {
+            tracer.close();
+        }
+    }
+
+    static final String ACTION_JSON = "'{\"action\": \"enable\", \"lib_config\":"
+            + "{\"tracing_sampling_rate\": null,"
+            + " \"log_injection_enabled\": null, "
+            + "\"tracing_header_tags\": null,"
+            + " \"runtime_metrics_enabled\": null,"
+            + "\"tracing_debug\": null,"
+            + " \"tracing_service_mapping\": null,"
+            + "\"tracing_sampling_rules\": null,"
+            + " \"span_sampling_rules\": null,"
+            + "\"data_streams_enabled\": null,"
+            + " \"tracing_enabled\": false}}'";
+
+    @TableTest({
+      "scenario         | json                                            | expectedValue",
+      "tracing disabled | '{\"lib_config\":{\"tracing_enabled\": false}}' | false        ",
+      "tracing enabled  | '{\"lib_config\":{\"tracing_enabled\": true}}'  | true         "
+    })
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = "action with tracing disabled | " + ACTION_JSON + " | false")
+    void verifyConfigurationPollingWithTracingEnabled(String scenario, String json, boolean expectedValue)
+            throws Exception {
+        ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+        ConfigurationPoller poller = mock(ConfigurationPoller.class);
+        SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+        ProductListener[] capturedUpdater = {null};
+        doAnswer(inv -> {
+                    capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+                    return null;
+                })
+                .when(poller)
+                .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+        CoreTracer tracer = CoreTracer.builder()
+                .sharedCommunicationObjects(sco)
+                .pollForTracingConfiguration()
+                .build();
+        unclosedTracers.add(tracer);
+
+        try {
+            verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+            assertNotNull(capturedUpdater[0]);
+            assertTrue(tracer.captureTraceConfig().isTraceEnabled());
+
+            capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+            capturedUpdater[0].commit(null);
+
+            assertEquals(expectedValue, tracer.captureTraceConfig().isTraceEnabled());
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @TableTest({
+      "scenario  | preferred | expected",
+      "no pref   |           | test    ",
+      "with pref | some      | some    "
+    })
+    void testLocalRootServiceNameOverride(String preferred, String expected) {
+        CoreTracer tracer =
+                tracerBuilder().writer(new ListWriter()).serviceName("test").build();
+        tracer.updatePreferredServiceName(preferred, preferred);
+        try {
+            DDSpan span = (DDSpan) tracer.startSpan("", "test");
+            span.finish();
+            assertEquals(expected, span.getServiceName());
+            if (preferred != null) {
+                assertTrue(ServiceNameCollector.get().getServices().contains(preferred));
+            }
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    @WithConfig(key = GeneralConfig.SERVICE_NAME, value = "dd_service_name")
+    @WithConfig(key = GeneralConfig.VERSION, value = "1.0.0")
+    void testDdVersionExistsOnlyIfServiceEqDdService() {
+        TagsPostProcessorFactory.withAddInternalTags(true);
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        try {
+            DDSpan span = (DDSpan) tracer.buildSpan("datadog", "def")
+                    .withTag(GeneralConfig.SERVICE_NAME, "foo")
+                    .start();
+            span.finish();
+            assertEquals("foo", span.getServiceName());
+            assertFalse(span.getTags().containsKey("version"));
+
+            DDSpan span2 = (DDSpan) tracer.buildSpan("datadog", "abc").start();
+            span2.finish();
+            assertEquals("dd_service_name", span2.getServiceName());
+            assertEquals("1.0.0", String.valueOf(span2.getTags().get("version")));
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void flushesOnTracerCloseIfConfiguredToDoSo() {
+        WriterWithExplicitFlush writer = new WriterWithExplicitFlush();
+        CoreTracer tracer = tracerBuilder().writer(writer).flushOnClose(true).build();
+        tracer.buildSpan("datadog", "my_span").start().finish();
+        tracer.close();
+        assertFalse(writer.flushedTraces.isEmpty());
+    }
+
+    @TableTest({
+      "scenario                    | service | env | targetService | targetEnv",
+      "diff target service         | service | env | service_1     | env      ",
+      "diff target env             | service | env | service       | env_1    ",
+      "diff target service and env | service | env | service_2     | env_2    "
+    })
+    void verifyNoFilteringOfServiceEnvWhenMismatchedWithDdServiceDdEnv(
+            String service, String env, String targetService, String targetEnv) throws Exception {
+        injectSysConfig(GeneralConfig.SERVICE_NAME, service);
+        injectSysConfig(GeneralConfig.ENV, env);
+
+        ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+        ConfigurationPoller poller = mock(ConfigurationPoller.class);
+        SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+        ProductListener[] capturedUpdater = {null};
+        doAnswer(inv -> {
+                    capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+                    return null;
+                })
+                .when(poller)
+                .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+        CoreTracer tracer = CoreTracer.builder()
+                .sharedCommunicationObjects(sco)
+                .pollForTracingConfiguration()
+                .build();
+        unclosedTracers.add(tracer);
+
+        try {
+            verify(poller).addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+            assertNotNull(capturedUpdater[0]);
+            assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
+
+            String json = String.format(
+                    "{\"service_target\":{\"service\":\"%s\",\"env\":\"%s\"},"
+                            + "\"lib_config\":{\"tracing_service_mapping\":"
+                            + "[{\"from_key\":\"foobar\",\"to_name\":\"bar\"}]}}",
+                    targetService, targetEnv);
+
+            capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+            capturedUpdater[0].commit(null);
+
+            assertEquals(
+                    buildStringMap("foobar", "bar"), tracer.captureTraceConfig().getServiceMapping());
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void serviceNameSourceIsRecordedWhenUsingTwoParameterSetServiceName() {
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        try {
+            DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
+            span.setServiceName("custom-service", "my-integration");
+            DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").start();
+            child.finish();
+            span.finish();
+
+            assertEquals("custom-service", span.getServiceName());
+            assertEquals("my-integration", span.getTag(DDTags.DD_SVC_SRC));
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void serviceNameSourceIsMarkedAsManualWhenUsingOneParameterSetServiceName() {
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        try {
+            DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
+            span.setServiceName("custom-service", "my-integration");
+            span.setServiceName("another");
+            span.finish();
+
+            assertEquals("another", span.getServiceName());
+            assertEquals(ServiceNameSources.MANUAL, span.getTag(DDTags.DD_SVC_SRC));
+        } finally {
+            tracer.close();
+        }
+    }
+
+    @Test
+    void serviceNameSourceIsMissingWhenNotExplicitlySettingServiceName() {
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        try {
+            DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
+            span.finish();
+
+            assertEquals(tracer.serviceName, span.getServiceName());
+            assertNull(span.getTag(DDTags.DD_SVC_SRC));
+        } finally {
+            tracer.close();
+        }
+    }
+
+    // --- helpers ---
+
+    private SharedCommunicationObjects createScoWithPoller(ConfigurationPoller poller) throws Exception {
+        SharedCommunicationObjects sco = new SharedCommunicationObjects();
+        sco.agentHttpClient = mock(OkHttpClient.class);
+        sco.monitoring = mock(Monitoring.class);
+        sco.agentUrl = HttpUrl.get("https://example.com");
+        sco.setFeaturesDiscovery(mock(DDAgentFeaturesDiscovery.class));
+        Field pollerField = SharedCommunicationObjects.class.getDeclaredField("configurationPoller");
+        pollerField.setAccessible(true);
+        pollerField.set(sco, poller);
+        return sco;
+    }
+
+    private static Map<String, String> buildStringMap(String... keyValues) {
+        Map<String, String> map = new LinkedHashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            map.put(keyValues[i], keyValues[i + 1]);
+        }
+        return map;
+    }
+
+    // --- inner classes ---
+
+    /**
+     * A profiling context integration whose availability can be released after the tracer has been
+     * built, the way an integration whose construction is deferred off the premain thread does.
+     */
+    static class FakeContextIntegration implements ProfilingContextIntegration {
+        boolean deferAvailability;
+        private Runnable availabilityCallback;
+
+        @Override
+        public String name() {
+            return FAKE_ENGINE;
+        }
+
+        @Override
+        public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {}
+
+        @Override
+        public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+            return EndpointTracker.NO_OP;
+        }
+
+        @Override
+        public Timing start(TimerType type) {
+            return Timing.NoOp.INSTANCE;
+        }
+
+        @Override
+        public void whenAvailable(Runnable callback) {
+            if (deferAvailability) {
+                this.availabilityCallback = callback;
+            } else {
+                callback.run();
+            }
+        }
+
+        void becomeAvailable() {
+            Runnable callback = this.availabilityCallback;
+            this.availabilityCallback = null;
+            if (callback != null) {
+                callback.run();
+            }
+        }
+    }
+
+    static class WriterWithExplicitFlush implements datadog.trace.common.writer.Writer {
+        final List<List<DDSpan>> writtenTraces = new CopyOnWriteArrayList<>();
+        final List<List<DDSpan>> flushedTraces = new CopyOnWriteArrayList<>();
+
+        @Override
+        public void write(List<DDSpan> trace) {
+            writtenTraces.add(trace);
+        }
+
+        @Override
+        public void start() {}
+
+        @Override
+        public boolean flush() {
+            flushedTraces.addAll(writtenTraces);
+            writtenTraces.clear();
+            return true;
+        }
+
+        @Override
+        public void close() {}
+
+        @Override
+        public void incrementDropCounts(int spanCount) {}
+    }
 }

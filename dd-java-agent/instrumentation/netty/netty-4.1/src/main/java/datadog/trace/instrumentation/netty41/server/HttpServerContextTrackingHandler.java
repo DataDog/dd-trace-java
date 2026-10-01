@@ -11,15 +11,14 @@ import io.netty.handler.codec.http.HttpRequest;
 
 @ChannelHandler.Sharable
 public class HttpServerContextTrackingHandler extends ChannelInboundHandlerAdapter {
-  public static final HttpServerContextTrackingHandler INSTANCE =
-      new HttpServerContextTrackingHandler();
+    public static final HttpServerContextTrackingHandler INSTANCE = new HttpServerContextTrackingHandler();
 
-  @Override
-  public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-    if (msg instanceof HttpRequest) {
-      final Context parentContext = DECORATE.extract(((HttpRequest) msg).headers());
-      ctx.channel().attr(PARENT_CONTEXT_ATTRIBUTE_KEY).set(parentContext);
+    @Override
+    public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
+        if (msg instanceof HttpRequest) {
+            final Context parentContext = DECORATE.extract(((HttpRequest) msg).headers());
+            ctx.channel().attr(PARENT_CONTEXT_ATTRIBUTE_KEY).set(parentContext);
+        }
+        ctx.fireChannelRead(msg);
     }
-    ctx.fireChannelRead(msg);
-  }
 }

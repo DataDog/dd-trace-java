@@ -17,46 +17,43 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class ConfigManagerTest {
-  @Test
-  public void testConfigWriteAndRead() throws IOException {
-    Config config = mock(Config.class);
-    when(config.getWellKnownTags())
-        .thenReturn(new WellKnownTags("1234", "", "env", "service", "version", ""));
-    when(config.isCrashTrackingAgentless()).thenReturn(false);
-    when(config.isCrashTrackingErrorsIntakeEnabled()).thenReturn(true);
-    when(config.isCrashTrackingExtendedInfoEnabled()).thenReturn(true);
-    when(config.getMergedCrashTrackingTags()).thenReturn(Collections.singletonMap("key", "value"));
-    File tmpFile = File.createTempFile("ConfigManagerTest", null);
-    tmpFile.deleteOnExit();
-    ConfigManager.writeConfigToFile(config, tmpFile);
-    ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), tmpFile);
-    Assertions.assertNotNull(deserialized);
-    assertEquals("service", deserialized.service);
-    assertEquals("version", deserialized.version);
-    assertEquals("env", deserialized.env);
-    assertEquals("key:value", deserialized.tags);
-    assertEquals("1234", deserialized.runtimeId);
-    assertEquals(
-        Objects.requireNonNull(ProcessTags.getTagsForSerialization()).toString(),
-        deserialized.processTags);
-    assertFalse(deserialized.agentless);
-    assertTrue(deserialized.sendToErrorTracking);
-    assertTrue(deserialized.extendedInfoEnabled);
-  }
+    @Test
+    public void testConfigWriteAndRead() throws IOException {
+        Config config = mock(Config.class);
+        when(config.getWellKnownTags()).thenReturn(new WellKnownTags("1234", "", "env", "service", "version", ""));
+        when(config.isCrashTrackingAgentless()).thenReturn(false);
+        when(config.isCrashTrackingErrorsIntakeEnabled()).thenReturn(true);
+        when(config.isCrashTrackingExtendedInfoEnabled()).thenReturn(true);
+        when(config.getMergedCrashTrackingTags()).thenReturn(Collections.singletonMap("key", "value"));
+        File tmpFile = File.createTempFile("ConfigManagerTest", null);
+        tmpFile.deleteOnExit();
+        ConfigManager.writeConfigToFile(config, tmpFile);
+        ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), tmpFile);
+        Assertions.assertNotNull(deserialized);
+        assertEquals("service", deserialized.service);
+        assertEquals("version", deserialized.version);
+        assertEquals("env", deserialized.env);
+        assertEquals("key:value", deserialized.tags);
+        assertEquals("1234", deserialized.runtimeId);
+        assertEquals(
+                Objects.requireNonNull(ProcessTags.getTagsForSerialization()).toString(), deserialized.processTags);
+        assertFalse(deserialized.agentless);
+        assertTrue(deserialized.sendToErrorTracking);
+        assertTrue(deserialized.extendedInfoEnabled);
+    }
 
-  @Test
-  public void testStoredConfigDefaults() {
-    Config config = mock(Config.class);
-    when(config.getServiceName()).thenReturn("service");
-    when(config.getVersion()).thenReturn("version");
-    when(config.getEnv()).thenReturn("env");
-    ConfigManager.StoredConfig storedConfig =
-        new ConfigManager.StoredConfig.Builder(config).build();
-    assertEquals("service", storedConfig.service);
-    assertEquals("version", storedConfig.version);
-    assertEquals("env", storedConfig.env);
-    assertFalse(storedConfig.agentless);
-    assertFalse(storedConfig.sendToErrorTracking);
-    assertFalse(storedConfig.extendedInfoEnabled);
-  }
+    @Test
+    public void testStoredConfigDefaults() {
+        Config config = mock(Config.class);
+        when(config.getServiceName()).thenReturn("service");
+        when(config.getVersion()).thenReturn("version");
+        when(config.getEnv()).thenReturn("env");
+        ConfigManager.StoredConfig storedConfig = new ConfigManager.StoredConfig.Builder(config).build();
+        assertEquals("service", storedConfig.service);
+        assertEquals("version", storedConfig.version);
+        assertEquals("env", storedConfig.env);
+        assertFalse(storedConfig.agentless);
+        assertFalse(storedConfig.sendToErrorTracking);
+        assertFalse(storedConfig.extendedInfoEnabled);
+    }
 }

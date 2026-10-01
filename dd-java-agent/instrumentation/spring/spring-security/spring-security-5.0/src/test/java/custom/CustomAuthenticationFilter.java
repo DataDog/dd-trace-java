@@ -11,23 +11,22 @@ import org.springframework.security.web.authentication.AbstractAuthenticationPro
 
 public class CustomAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
-  private static final String HEADER_NAME = "X-Custom-User";
+    private static final String HEADER_NAME = "X-Custom-User";
 
-  private final AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
 
-  public CustomAuthenticationFilter(final AuthenticationManager authenticationManager) {
-    super("/custom");
-    this.authenticationManager = authenticationManager;
-  }
-
-  @Override
-  public Authentication attemptAuthentication(
-      HttpServletRequest request, HttpServletResponse response)
-      throws AuthenticationException, IOException, ServletException {
-    final String user = request.getHeader(HEADER_NAME);
-    if (user == null) {
-      return null;
+    public CustomAuthenticationFilter(final AuthenticationManager authenticationManager) {
+        super("/custom");
+        this.authenticationManager = authenticationManager;
     }
-    return authenticationManager.authenticate(new CustomAuthenticationToken(user));
-  }
+
+    @Override
+    public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+            throws AuthenticationException, IOException, ServletException {
+        final String user = request.getHeader(HEADER_NAME);
+        if (user == null) {
+            return null;
+        }
+        return authenticationManager.authenticate(new CustomAuthenticationToken(user));
+    }
 }

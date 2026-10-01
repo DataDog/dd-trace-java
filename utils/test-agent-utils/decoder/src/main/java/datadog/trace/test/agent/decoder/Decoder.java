@@ -9,32 +9,30 @@ import java.util.Collection;
 import java.util.List;
 
 public class Decoder {
-  public static DecodedMessage decodeV1(byte[] buffer) {
-    return MessageV1.unpack(buffer);
-  }
+    public static DecodedMessage decodeV1(byte[] buffer) {
+        return MessageV1.unpack(buffer);
+    }
 
-  /** Decodes the JSON trace format exposed by the dd-apm-test-agent. */
-  public static DecodedMessage decodeJson(String json) {
-    return MessageJson.fromJson(json);
-  }
+    /** Decodes the JSON trace format exposed by the dd-apm-test-agent. */
+    public static DecodedMessage decodeJson(String json) {
+        return MessageJson.fromJson(json);
+    }
 
-  public static DecodedMessage decodeV05(byte[] buffer) {
-    return MessageV05.unpack(buffer);
-  }
+    public static DecodedMessage decodeV05(byte[] buffer) {
+        return MessageV05.unpack(buffer);
+    }
 
-  public static DecodedMessage decodeV04(byte[] buffer) {
-    return MessageV04.unpack(buffer);
-  }
+    public static DecodedMessage decodeV04(byte[] buffer) {
+        return MessageV04.unpack(buffer);
+    }
 
-  public static List<DecodedSpan> sortByStart(Collection<DecodedSpan> spans) {
-    DecodedSpan[] spanArray = new DecodedSpan[spans.size()];
-    spanArray = spans.toArray(spanArray);
-    Arrays.sort(
-        spanArray,
-        (o1, o2) -> {
-          long res = o1.getStart() - o2.getStart();
-          return res == 0 ? 0 : res > 0 ? 1 : -1;
+    public static List<DecodedSpan> sortByStart(Collection<DecodedSpan> spans) {
+        DecodedSpan[] spanArray = new DecodedSpan[spans.size()];
+        spanArray = spans.toArray(spanArray);
+        Arrays.sort(spanArray, (o1, o2) -> {
+            long res = o1.getStart() - o2.getStart();
+            return res == 0 ? 0 : res > 0 ? 1 : -1;
         });
-    return Arrays.asList(spanArray);
-  }
+        return Arrays.asList(spanArray);
+    }
 }

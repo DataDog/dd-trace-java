@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Controller
 @RequestMapping("/single")
 public class SingleEndpointController {
-  @GetMapping
-  public @ResponseBody String get() {
-    return "Hello World";
-  }
+    @GetMapping
+    public @ResponseBody String get() {
+        return "Hello World";
+    }
 }

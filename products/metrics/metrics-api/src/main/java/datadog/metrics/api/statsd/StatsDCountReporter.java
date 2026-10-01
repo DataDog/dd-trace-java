@@ -29,94 +29,90 @@ import org.slf4j.LoggerFactory;
  */
 @ThreadSafe
 public final class StatsDCountReporter<E extends Enum<E> & StatsDCounterKey> {
-  private static final Logger log = LoggerFactory.getLogger(StatsDCountReporter.class);
+    private static final Logger log = LoggerFactory.getLogger(StatsDCountReporter.class);
 
-  private final StatsDClient statsDClient;
-  private final Accumulator<E> accumulator;
-  private final Accumulator.RunningTotal<E> runningTotal;
+    private final StatsDClient statsDClient;
+    private final Accumulator<E> accumulator;
+    private final Accumulator.RunningTotal<E> runningTotal;
 
-  /** Undelivered from the last {@link #flush}, to retry on the next one; {@code null} if none. */
-  private Accumulator.Counts<E> pending;
+    /** Undelivered from the last {@link #flush}, to retry on the next one; {@code null} if none. */
+    private Accumulator.Counts<E> pending;
 
-  /**
-   * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
-   */
-  public static <E extends Enum<E> & StatsDCounterKey> StatsDCountReporter<E> of(
-      StatsDClient statsDClient, Class<E> enumType) {
-    return new StatsDCountReporter<>(statsDClient, Accumulator.of(enumType));
-  }
+    /**
+     * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
+     */
+    public static <E extends Enum<E> & StatsDCounterKey> StatsDCountReporter<E> of(
+            StatsDClient statsDClient, Class<E> enumType) {
+        return new StatsDCountReporter<>(statsDClient, Accumulator.of(enumType));
+    }
 
-  private StatsDCountReporter(StatsDClient statsDClient, Accumulator<E> accumulator) {
-    this.statsDClient = statsDClient;
-    this.accumulator = accumulator;
-    this.runningTotal = Accumulator.RunningTotal.of(accumulator);
-  }
+    private StatsDCountReporter(StatsDClient statsDClient, Accumulator<E> accumulator) {
+        this.statsDClient = statsDClient;
+        this.accumulator = accumulator;
+        this.runningTotal = Accumulator.RunningTotal.of(accumulator);
+    }
 
-  /** Increments the counter named by {@code key} by one. */
-  public void inc(E key) {
-    accumulator.inc(key);
-  }
+    /** Increments the counter named by {@code key} by one. */
+    public void inc(E key) {
+        accumulator.inc(key);
+    }
 
-  /** Adds {@code delta} to the counter named by {@code key}. */
-  public void add(E key, long delta) {
-    accumulator.add(key, delta);
-  }
+    /** Adds {@code delta} to the counter named by {@code key}. */
+    public void add(E key, long delta) {
+        accumulator.add(key, delta);
+    }
 
-  /**
-   * The live total -- see {@link Accumulator.RunningTotal#live}. For a diagnostic read (e.g. a
-   * {@code summary()}), never for deciding what to report: {@link #flush} owns that.
-   */
-  public Accumulator.Counts<E> live() {
-    return runningTotal.live();
-  }
+    /**
+     * The live total -- see {@link Accumulator.RunningTotal#live}. For a diagnostic read (e.g. a
+     * {@code summary()}), never for deciding what to report: {@link #flush} owns that.
+     */
+    public Accumulator.Counts<E> live() {
+        return runningTotal.live();
+    }
 
-  /**
-   * Drains the accumulator and reports the delta (plus anything still owed from a prior failed
-   * attempt), holding onto whatever isn't confirmed delivered this time for the next {@link
-   * #flush}.
-   */
-  public void flush() {
-    Accumulator.Counts<E> drained = runningTotal.drain();
-    Accumulator.Counts<E> toReport = pending == null ? drained : pending.plus(drained);
-    pending = report(toReport);
-  }
+    /**
+     * Drains the accumulator and reports the delta (plus anything still owed from a prior failed
+     * attempt), holding onto whatever isn't confirmed delivered this time for the next {@link
+     * #flush}.
+     */
+    public void flush() {
+        Accumulator.Counts<E> drained = runningTotal.drain();
+        Accumulator.Counts<E> toReport = pending == null ? drained : pending.plus(drained);
+        pending = report(toReport);
+    }
 
-  /**
-   * @return {@code null} if every counter was delivered, otherwise a {@link Accumulator.Counts}
-   *     holding whatever wasn't attempted or confirmed sent
-   */
-  private Accumulator.Counts<E> report(Accumulator.Counts<E> counts) {
-    List<E> keys = counts.keys();
-    for (int i = 0; i < keys.size(); i++) {
-      E key = keys.get(i);
-      long delta = counts.get(key);
-      if (delta != 0) {
-        try {
-          statsDClient.count(key.getMetricName(), delta, key.getTags());
-        } catch (RuntimeException e) {
-          log.debug(
-              "Failed to report {}, compensating {} undelivered counter(s)",
-              key,
-              keys.size() - i,
-              e);
-          return counts.from(i);
+    /**
+     * @return {@code null} if every counter was delivered, otherwise a {@link Accumulator.Counts}
+     *     holding whatever wasn't attempted or confirmed sent
+     */
+    private Accumulator.Counts<E> report(Accumulator.Counts<E> counts) {
+        List<E> keys = counts.keys();
+        for (int i = 0; i < keys.size(); i++) {
+            E key = keys.get(i);
+            long delta = counts.get(key);
+            if (delta != 0) {
+                try {
+                    statsDClient.count(key.getMetricName(), delta, key.getTags());
+                } catch (RuntimeException e) {
+                    log.debug("Failed to report {}, compensating {} undelivered counter(s)", key, keys.size() - i, e);
+                    return counts.from(i);
+                }
+            }
         }
-      }
+        return null;
     }
-    return null;
-  }
 
-  /**
-   * Reports every nonzero entry of {@code values}/{@code counts} directly -- no accumulator, no
-   * compensation.
-   */
-  public static <E extends Enum<E> & StatsDCounterKey> void report(
-      StatsDClient statsDClient, E[] values, ToLongFunction<E> counts) {
-    for (E value : values) {
-      long delta = counts.applyAsLong(value);
-      if (delta != 0) {
-        statsDClient.count(value.getMetricName(), delta, value.getTags());
-      }
+    /**
+     * Reports every nonzero entry of {@code values}/{@code counts} directly -- no accumulator, no
+     * compensation.
+     */
+    public static <E extends Enum<E> & StatsDCounterKey> void report(
+            StatsDClient statsDClient, E[] values, ToLongFunction<E> counts) {
+        for (E value : values) {
+            long delta = counts.applyAsLong(value);
+            if (delta != 0) {
+                statsDClient.count(value.getMetricName(), delta, value.getTags());
+            }
+        }
     }
-  }
 }

@@ -6,13 +6,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class Controller {
 
-  @RequestMapping("/")
-  public String htmlString() {
-    return "Hello world!";
-  }
+    @RequestMapping("/")
+    public String htmlString() {
+        return "Hello world!";
+    }
 
-  @RequestMapping("/exception")
-  public void exceptionMethod() throws Throwable {
-    throw new Throwable("hello");
-  }
+    @RequestMapping("/exception")
+    public void exceptionMethod() throws Throwable {
+        throw new Throwable("hello");
+    }
 }

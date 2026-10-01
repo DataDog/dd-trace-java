@@ -7,44 +7,44 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.springframework.scheduling.support.ScheduledMethodRunnable;
 
 public class SpringSchedulingDecorator extends BaseDecorator {
-  public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
-  public static final SpringSchedulingDecorator DECORATE = new SpringSchedulingDecorator();
+    public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
+    public static final SpringSchedulingDecorator DECORATE = new SpringSchedulingDecorator();
 
-  private static final boolean MEASURED = Config.get().isSpringSchedulingMeasuredEnabled();
+    private static final boolean MEASURED = Config.get().isSpringSchedulingMeasuredEnabled();
 
-  private SpringSchedulingDecorator() {}
+    private SpringSchedulingDecorator() {}
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"spring-scheduling"};
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return null;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return "spring-scheduling";
-  }
-
-  public void measureIfEnabled(final AgentSpan span) {
-    if (MEASURED) {
-      span.setMeasured(true);
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"spring-scheduling"};
     }
-  }
 
-  public void onRun(final AgentSpan span, final Runnable runnable) {
-    if (runnable != null) {
-      CharSequence resourceName = "";
-      if (runnable instanceof ScheduledMethodRunnable) {
-        final ScheduledMethodRunnable scheduledMethodRunnable = (ScheduledMethodRunnable) runnable;
-        resourceName = spanNameForMethod(scheduledMethodRunnable.getMethod());
-      } else {
-        resourceName = spanNameForMethod(runnable.getClass(), "run");
-      }
-      span.setResourceName(resourceName);
+    @Override
+    protected CharSequence spanType() {
+        return null;
     }
-  }
+
+    @Override
+    protected CharSequence component() {
+        return "spring-scheduling";
+    }
+
+    public void measureIfEnabled(final AgentSpan span) {
+        if (MEASURED) {
+            span.setMeasured(true);
+        }
+    }
+
+    public void onRun(final AgentSpan span, final Runnable runnable) {
+        if (runnable != null) {
+            CharSequence resourceName = "";
+            if (runnable instanceof ScheduledMethodRunnable) {
+                final ScheduledMethodRunnable scheduledMethodRunnable = (ScheduledMethodRunnable) runnable;
+                resourceName = spanNameForMethod(scheduledMethodRunnable.getMethod());
+            } else {
+                resourceName = spanNameForMethod(runnable.getClass(), "run");
+            }
+            span.setResourceName(resourceName);
+        }
+    }
 }

@@ -22,187 +22,177 @@ import okhttp3.OkHttpClient;
 
 public class DDAgentWriter extends RemoteWriter {
 
-  public static DDAgentWriterBuilder builder() {
-    return new DDAgentWriterBuilder();
-  }
-
-  private static final int BUFFER_SIZE = 1024;
-
-  public static class DDAgentWriterBuilder {
-
-    String agentHost = DEFAULT_AGENT_HOST;
-    int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
-    String unixDomainSocket = null;
-    String namedPipe = null;
-    long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
-    int traceBufferSize = BUFFER_SIZE;
-    HealthMetrics healthMetrics = HealthMetrics.NO_OP;
-    int flushIntervalMilliseconds = 1000;
-    Monitoring monitoring = Monitoring.DISABLED;
-    ProtocolVersion protocolVersion = Config.get().getProtocolVersion();
-    boolean nativeMetricsReportingEnabled = Config.get().isTracerMetricsEnabled();
-    boolean metricsIgnoreAgentVersion = Config.get().isTracerMetricsIgnoreAgentVersion();
-    private int flushTimeout = 1;
-    private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
-    boolean alwaysFlush = false;
-
-    private DDAgentApi agentApi;
-    private Prioritization prioritization;
-    private DDAgentFeaturesDiscovery featureDiscovery;
-    private DroppingPolicy droppingPolicy;
-    private SingleSpanSampler singleSpanSampler;
-
-    public DDAgentWriterBuilder agentApi(DDAgentApi agentApi) {
-      this.agentApi = agentApi;
-      return this;
+    public static DDAgentWriterBuilder builder() {
+        return new DDAgentWriterBuilder();
     }
 
-    public DDAgentWriterBuilder agentHost(String agentHost) {
-      this.agentHost = agentHost;
-      return this;
+    private static final int BUFFER_SIZE = 1024;
+
+    public static class DDAgentWriterBuilder {
+
+        String agentHost = DEFAULT_AGENT_HOST;
+        int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
+        String unixDomainSocket = null;
+        String namedPipe = null;
+        long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
+        int traceBufferSize = BUFFER_SIZE;
+        HealthMetrics healthMetrics = HealthMetrics.NO_OP;
+        int flushIntervalMilliseconds = 1000;
+        Monitoring monitoring = Monitoring.DISABLED;
+        ProtocolVersion protocolVersion = Config.get().getProtocolVersion();
+        boolean nativeMetricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+        boolean metricsIgnoreAgentVersion = Config.get().isTracerMetricsIgnoreAgentVersion();
+        private int flushTimeout = 1;
+        private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
+        boolean alwaysFlush = false;
+
+        private DDAgentApi agentApi;
+        private Prioritization prioritization;
+        private DDAgentFeaturesDiscovery featureDiscovery;
+        private DroppingPolicy droppingPolicy;
+        private SingleSpanSampler singleSpanSampler;
+
+        public DDAgentWriterBuilder agentApi(DDAgentApi agentApi) {
+            this.agentApi = agentApi;
+            return this;
+        }
+
+        public DDAgentWriterBuilder agentHost(String agentHost) {
+            this.agentHost = agentHost;
+            return this;
+        }
+
+        public DDAgentWriterBuilder traceAgentPort(int traceAgentPort) {
+            this.traceAgentPort = traceAgentPort;
+            return this;
+        }
+
+        public DDAgentWriterBuilder unixDomainSocket(String unixDomainSocket) {
+            this.unixDomainSocket = unixDomainSocket;
+            return this;
+        }
+
+        public DDAgentWriterBuilder namedPipe(String namedPipe) {
+            this.namedPipe = namedPipe;
+            return this;
+        }
+
+        public DDAgentWriterBuilder timeoutMillis(long timeoutMillis) {
+            this.timeoutMillis = timeoutMillis;
+            return this;
+        }
+
+        public DDAgentWriterBuilder traceBufferSize(int traceBufferSize) {
+            this.traceBufferSize = traceBufferSize;
+            return this;
+        }
+
+        public DDAgentWriterBuilder healthMetrics(HealthMetrics healthMetrics) {
+            this.healthMetrics = healthMetrics;
+            return this;
+        }
+
+        public DDAgentWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
+            this.flushIntervalMilliseconds = flushIntervalMilliseconds;
+            return this;
+        }
+
+        public DDAgentWriterBuilder prioritization(Prioritization prioritization) {
+            this.prioritization = prioritization;
+            return this;
+        }
+
+        public DDAgentWriterBuilder monitoring(Monitoring monitoring) {
+            this.monitoring = monitoring;
+            return this;
+        }
+
+        public DDAgentWriterBuilder traceAgentProtocolVersion(ProtocolVersion protocolVersion) {
+            this.protocolVersion = protocolVersion;
+            return this;
+        }
+
+        public DDAgentWriterBuilder nativeMetricsReportingEnabled(boolean nativeMetricsReportingEnabled) {
+            this.nativeMetricsReportingEnabled = nativeMetricsReportingEnabled;
+            return this;
+        }
+
+        public DDAgentWriterBuilder metricsIgnoreAgentVersion(boolean metricsIgnoreAgentVersion) {
+            this.metricsIgnoreAgentVersion = metricsIgnoreAgentVersion;
+            return this;
+        }
+
+        public DDAgentWriterBuilder featureDiscovery(DDAgentFeaturesDiscovery featureDiscovery) {
+            this.featureDiscovery = featureDiscovery;
+            return this;
+        }
+
+        public DDAgentWriterBuilder droppingPolicy(DroppingPolicy droppingPolicy) {
+            this.droppingPolicy = droppingPolicy;
+            return this;
+        }
+
+        public DDAgentWriterBuilder flushTimeout(int flushTimeout, TimeUnit flushTimeoutUnit) {
+            this.flushTimeout = flushTimeout;
+            this.flushTimeoutUnit = flushTimeoutUnit;
+            return this;
+        }
+
+        public DDAgentWriterBuilder alwaysFlush(boolean alwaysFlush) {
+            this.alwaysFlush = alwaysFlush;
+            return this;
+        }
+
+        public DDAgentWriterBuilder spanSamplingRules(SingleSpanSampler singleSpanSampler) {
+            this.singleSpanSampler = singleSpanSampler;
+            return this;
+        }
+
+        public DDAgentWriter build() {
+            final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
+            final OkHttpClient client = null == featureDiscovery || null == agentApi
+                    ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
+                    : null;
+            if (null == featureDiscovery) {
+                featureDiscovery = new DDAgentFeaturesDiscovery(
+                        client,
+                        monitoring,
+                        agentUrl,
+                        protocolVersion,
+                        nativeMetricsReportingEnabled,
+                        metricsIgnoreAgentVersion);
+            }
+            if (null == agentApi) {
+                agentApi =
+                        new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, nativeMetricsReportingEnabled);
+            }
+
+            final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
+            final PayloadDispatcher dispatcher =
+                    new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
+            final TraceProcessingWorker traceProcessingWorker = new TraceProcessingWorker(
+                    traceBufferSize,
+                    healthMetrics,
+                    dispatcher,
+                    // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
+                    droppingPolicy != null ? droppingPolicy : featureDiscovery,
+                    null == prioritization ? FAST_LANE : prioritization,
+                    flushIntervalMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                    singleSpanSampler);
+
+            return new DDAgentWriter(
+                    traceProcessingWorker, dispatcher, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
+        }
     }
 
-    public DDAgentWriterBuilder traceAgentPort(int traceAgentPort) {
-      this.traceAgentPort = traceAgentPort;
-      return this;
+    DDAgentWriter(
+            TraceProcessingWorker worker,
+            PayloadDispatcher dispatcher,
+            HealthMetrics healthMetrics,
+            int flushTimeout,
+            TimeUnit flushTimeoutUnit,
+            boolean alwaysFlush) {
+        super(worker, dispatcher, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
     }
-
-    public DDAgentWriterBuilder unixDomainSocket(String unixDomainSocket) {
-      this.unixDomainSocket = unixDomainSocket;
-      return this;
-    }
-
-    public DDAgentWriterBuilder namedPipe(String namedPipe) {
-      this.namedPipe = namedPipe;
-      return this;
-    }
-
-    public DDAgentWriterBuilder timeoutMillis(long timeoutMillis) {
-      this.timeoutMillis = timeoutMillis;
-      return this;
-    }
-
-    public DDAgentWriterBuilder traceBufferSize(int traceBufferSize) {
-      this.traceBufferSize = traceBufferSize;
-      return this;
-    }
-
-    public DDAgentWriterBuilder healthMetrics(HealthMetrics healthMetrics) {
-      this.healthMetrics = healthMetrics;
-      return this;
-    }
-
-    public DDAgentWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
-      this.flushIntervalMilliseconds = flushIntervalMilliseconds;
-      return this;
-    }
-
-    public DDAgentWriterBuilder prioritization(Prioritization prioritization) {
-      this.prioritization = prioritization;
-      return this;
-    }
-
-    public DDAgentWriterBuilder monitoring(Monitoring monitoring) {
-      this.monitoring = monitoring;
-      return this;
-    }
-
-    public DDAgentWriterBuilder traceAgentProtocolVersion(ProtocolVersion protocolVersion) {
-      this.protocolVersion = protocolVersion;
-      return this;
-    }
-
-    public DDAgentWriterBuilder nativeMetricsReportingEnabled(
-        boolean nativeMetricsReportingEnabled) {
-      this.nativeMetricsReportingEnabled = nativeMetricsReportingEnabled;
-      return this;
-    }
-
-    public DDAgentWriterBuilder metricsIgnoreAgentVersion(boolean metricsIgnoreAgentVersion) {
-      this.metricsIgnoreAgentVersion = metricsIgnoreAgentVersion;
-      return this;
-    }
-
-    public DDAgentWriterBuilder featureDiscovery(DDAgentFeaturesDiscovery featureDiscovery) {
-      this.featureDiscovery = featureDiscovery;
-      return this;
-    }
-
-    public DDAgentWriterBuilder droppingPolicy(DroppingPolicy droppingPolicy) {
-      this.droppingPolicy = droppingPolicy;
-      return this;
-    }
-
-    public DDAgentWriterBuilder flushTimeout(int flushTimeout, TimeUnit flushTimeoutUnit) {
-      this.flushTimeout = flushTimeout;
-      this.flushTimeoutUnit = flushTimeoutUnit;
-      return this;
-    }
-
-    public DDAgentWriterBuilder alwaysFlush(boolean alwaysFlush) {
-      this.alwaysFlush = alwaysFlush;
-      return this;
-    }
-
-    public DDAgentWriterBuilder spanSamplingRules(SingleSpanSampler singleSpanSampler) {
-      this.singleSpanSampler = singleSpanSampler;
-      return this;
-    }
-
-    public DDAgentWriter build() {
-      final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
-      final OkHttpClient client =
-          null == featureDiscovery || null == agentApi
-              ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
-              : null;
-      if (null == featureDiscovery) {
-        featureDiscovery =
-            new DDAgentFeaturesDiscovery(
-                client,
-                monitoring,
-                agentUrl,
-                protocolVersion,
-                nativeMetricsReportingEnabled,
-                metricsIgnoreAgentVersion);
-      }
-      if (null == agentApi) {
-        agentApi =
-            new DDAgentApi(
-                client, agentUrl, featureDiscovery, monitoring, nativeMetricsReportingEnabled);
-      }
-
-      final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
-      final PayloadDispatcher dispatcher =
-          new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
-      final TraceProcessingWorker traceProcessingWorker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              healthMetrics,
-              dispatcher,
-              // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
-              droppingPolicy != null ? droppingPolicy : featureDiscovery,
-              null == prioritization ? FAST_LANE : prioritization,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
-
-      return new DDAgentWriter(
-          traceProcessingWorker,
-          dispatcher,
-          healthMetrics,
-          flushTimeout,
-          flushTimeoutUnit,
-          alwaysFlush);
-    }
-  }
-
-  DDAgentWriter(
-      TraceProcessingWorker worker,
-      PayloadDispatcher dispatcher,
-      HealthMetrics healthMetrics,
-      int flushTimeout,
-      TimeUnit flushTimeoutUnit,
-      boolean alwaysFlush) {
-    super(worker, dispatcher, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
-  }
 }

@@ -34,48 +34,48 @@ import scala.concurrent.Future;
  */
 @AutoService(InstrumenterModule.class)
 public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public UnmarshallerInstrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "akka.http.scaladsl.unmarshalling.Unmarshaller";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return nameStartsWith("akka.http.scaladsl.unmarshalling.")
-        .and(implementsInterface(named(hierarchyMarkerType())));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("apply"))
-            .and(returns(named("scala.concurrent.Future")))
-            .and(takesArguments(3))
-            .and(takesArgument(0, Object.class))
-            .and(takesArgument(1, named("scala.concurrent.ExecutionContext")))
-            .and(takesArgument(2, named("akka.stream.Materializer"))),
-        UnmarshallerInstrumentation.class.getName() + "$PropagateTaintOnApplyAdvice");
-  }
-
-  static class PropagateTaintOnApplyAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    static void after(
-        @Advice.Return(readOnly = false) Future<?> result,
-        @Advice.Argument(0) Object input,
-        @Advice.Argument(1) ExecutionContext ec) {
-      PropagationModule mod = InstrumentationBridge.PROPAGATION;
-      if (mod == null) {
-        return;
-      }
-      result = TaintFutureHelper.wrapFuture(result, input, mod, ec);
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public UnmarshallerInstrumentation() {
+        super("akka-http");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "akka.http.scaladsl.unmarshalling.Unmarshaller";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return nameStartsWith("akka.http.scaladsl.unmarshalling.")
+                .and(implementsInterface(named(hierarchyMarkerType())));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("apply"))
+                        .and(returns(named("scala.concurrent.Future")))
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, Object.class))
+                        .and(takesArgument(1, named("scala.concurrent.ExecutionContext")))
+                        .and(takesArgument(2, named("akka.stream.Materializer"))),
+                UnmarshallerInstrumentation.class.getName() + "$PropagateTaintOnApplyAdvice");
+    }
+
+    static class PropagateTaintOnApplyAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        static void after(
+                @Advice.Return(readOnly = false) Future<?> result,
+                @Advice.Argument(0) Object input,
+                @Advice.Argument(1) ExecutionContext ec) {
+            PropagationModule mod = InstrumentationBridge.PROPAGATION;
+            if (mod == null) {
+                return;
+            }
+            result = TaintFutureHelper.wrapFuture(result, input, mod, ec);
+        }
+    }
 }

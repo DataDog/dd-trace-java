@@ -36,256 +36,254 @@ import org.slf4j.LoggerFactory;
 
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedClientDecorator {
 
-  private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 
-  private static final String DATADOG_META_LANG_HEADER_NAME = "Datadog-Meta-Lang";
-  private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
+    private static final String DATADOG_META_LANG_HEADER_NAME = "Datadog-Meta-Lang";
+    private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
 
-  private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
+    private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
 
-  private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+    private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
 
-  private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
+    private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
 
-  private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
+    private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
 
-  protected abstract String method(REQUEST request);
+    protected abstract String method(REQUEST request);
 
-  protected abstract URI url(REQUEST request) throws URISyntaxException;
+    protected abstract URI url(REQUEST request) throws URISyntaxException;
 
-  /**
-   * Returns {@code true} if the request was made by the Datadog agent itself. Such requests must
-   * not be traced to avoid self-tracing loops.
-   */
-  public boolean isAgentRequest(final REQUEST request) {
-    // Advice runs before the instrumented method's own argument validation, so a caller
-    // passing a null request must not NPE here — let the real method report that itself.
-    if (request == null) {
-      return false;
+    /**
+     * Returns {@code true} if the request was made by the Datadog agent itself. Such requests must
+     * not be traced to avoid self-tracing loops.
+     */
+    public boolean isAgentRequest(final REQUEST request) {
+        // Advice runs before the instrumented method's own argument validation, so a caller
+        // passing a null request must not NPE here — let the real method report that itself.
+        if (request == null) {
+            return false;
+        }
+        return getRequestHeader(request, DATADOG_META_LANG_HEADER_NAME) != null
+                || getRequestHeader(request, DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME) != null;
     }
-    return getRequestHeader(request, DATADOG_META_LANG_HEADER_NAME) != null
-        || getRequestHeader(request, DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME) != null;
-  }
 
-  protected abstract int status(RESPONSE response);
+    protected abstract int status(RESPONSE response);
 
-  protected abstract String getRequestHeader(REQUEST request, String headerName);
+    protected abstract String getRequestHeader(REQUEST request, String headerName);
 
-  protected abstract String getResponseHeader(RESPONSE response, String headerName);
+    protected abstract String getResponseHeader(RESPONSE response, String headerName);
 
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.HTTP_CLIENT;
-  }
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.HTTP_CLIENT;
+    }
 
-  @Override
-  protected String service() {
-    return null;
-  }
+    @Override
+    protected String service() {
+        return null;
+    }
 
-  protected boolean shouldSetResourceName() {
-    return true;
-  }
+    protected boolean shouldSetResourceName() {
+        return true;
+    }
 
-  private final DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return getRequestHeader((REQUEST) source, headerName);
-            } catch (Throwable ignored) {
-              return null;
+    private final DataStreamsTransactionTracker.TransactionSourceReader DSM_TRANSACTION_SOURCE_READER =
+            (source, headerName) -> {
+                try {
+                    return getRequestHeader((REQUEST) source, headerName);
+                } catch (Throwable ignored) {
+                    return null;
+                }
+            };
+
+    public final void onRequest(final AgentSpan span, final REQUEST request) {
+        try {
+            doOnRequest(span, request);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span on request", t);
+        }
+    }
+
+    protected void doOnRequest(final AgentSpan span, final REQUEST request) {
+        if (request != null) {
+            AgentTracer.get()
+                    .getDataStreamsMonitoring()
+                    .trackTransaction(
+                            span,
+                            DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
+                            request,
+                            DSM_TRANSACTION_SOURCE_READER);
+
+            String method = method(request);
+            span.setTag(Tags.HTTP_METHOD, method);
+
+            if (CLIENT_TAG_HEADERS) {
+                for (Map.Entry<String, String> headerTag :
+                        traceConfig(span).getRequestHeaderTags().entrySet()) {
+                    String headerValue = getRequestHeader(request, headerTag.getKey());
+                    if (null != headerValue) {
+                        span.setTag(headerTag.getValue(), headerValue);
+                    }
+                }
             }
-          };
 
-  public final void onRequest(final AgentSpan span, final REQUEST request) {
-    try {
-      doOnRequest(span, request);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on request", t);
-    }
-  }
-
-  protected void doOnRequest(final AgentSpan span, final REQUEST request) {
-    if (request != null) {
-      AgentTracer.get()
-          .getDataStreamsMonitoring()
-          .trackTransaction(
-              span,
-              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
-              request,
-              DSM_TRANSACTION_SOURCE_READER);
-
-      String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
-
-      if (CLIENT_TAG_HEADERS) {
-        for (Map.Entry<String, String> headerTag :
-            traceConfig(span).getRequestHeaderTags().entrySet()) {
-          String headerValue = getRequestHeader(request, headerTag.getKey());
-          if (null != headerValue) {
-            span.setTag(headerTag.getValue(), headerValue);
-          }
+            // Copy of HttpServerDecorator url handling
+            try {
+                final URI url = url(request);
+                if (url != null) {
+                    onURI(span, url);
+                    span.setTag(
+                            Tags.HTTP_URL,
+                            URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
+                    if (Config.get().isHttpClientTagQueryString()) {
+                        span.setTag(DDTags.HTTP_QUERY, url.getQuery());
+                        span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
+                    }
+                    if (shouldSetResourceName()) {
+                        HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
+                    }
+                    // SSRF exploit prevention check
+                    onHttpClientRequest(span, url.toString());
+                } else if (shouldSetResourceName()) {
+                    span.setResourceName(DEFAULT_RESOURCE_NAME);
+                }
+            } catch (final BlockingException e) {
+                throw e;
+            } catch (final Exception e) {
+                log.debug("Error tagging url", e);
+            } finally {
+                ssrfIastCheck(request);
+            }
         }
-      }
+    }
 
-      // Copy of HttpServerDecorator url handling
-      try {
-        final URI url = url(request);
-        if (url != null) {
-          onURI(span, url);
-          span.setTag(
-              Tags.HTTP_URL,
-              URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
-          if (Config.get().isHttpClientTagQueryString()) {
-            span.setTag(DDTags.HTTP_QUERY, url.getQuery());
-            span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
-          }
-          if (shouldSetResourceName()) {
-            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
-          }
-          // SSRF exploit prevention check
-          onHttpClientRequest(span, url.toString());
-        } else if (shouldSetResourceName()) {
-          span.setResourceName(DEFAULT_RESOURCE_NAME);
+    public final void onResponse(final AgentSpan span, final RESPONSE response) {
+        try {
+            doOnResponse(span, response);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span on response", t);
         }
-      } catch (final BlockingException e) {
-        throw e;
-      } catch (final Exception e) {
-        log.debug("Error tagging url", e);
-      } finally {
-        ssrfIastCheck(request);
-      }
     }
-  }
 
-  public final void onResponse(final AgentSpan span, final RESPONSE response) {
-    try {
-      doOnResponse(span, response);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on response", t);
-    }
-  }
+    protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
+        if (response != null) {
+            final int status = status(response);
+            if (status > UNSET_STATUS) {
+                span.setHttpStatusCode(status);
+                if (CLIENT_ERROR_STATUSES.get(status)) {
+                    span.setError(true);
+                }
+            }
 
-  protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
-    if (response != null) {
-      final int status = status(response);
-      if (status > UNSET_STATUS) {
-        span.setHttpStatusCode(status);
-        if (CLIENT_ERROR_STATUSES.get(status)) {
-          span.setError(true);
+            if (CLIENT_TAG_HEADERS) {
+                for (Map.Entry<String, String> headerTag :
+                        traceConfig(span).getResponseHeaderTags().entrySet()) {
+                    String headerValue = getResponseHeader(response, headerTag.getKey());
+                    if (null != headerValue) {
+                        span.setTag(headerTag.getValue(), headerValue);
+                    }
+                }
+            }
         }
-      }
+    }
 
-      if (CLIENT_TAG_HEADERS) {
-        for (Map.Entry<String, String> headerTag :
-            traceConfig(span).getResponseHeaderTags().entrySet()) {
-          String headerValue = getResponseHeader(response, headerTag.getKey());
-          if (null != headerValue) {
-            span.setTag(headerTag.getValue(), headerValue);
-          }
+    public String operationName() {
+        return SpanNaming.instance()
+                .namingSchema()
+                .client()
+                .operationForComponent(component().toString());
+    }
+
+    public String getSpanTagAsString(AgentSpan span, String tag) {
+        Object value = span.getTag(tag);
+        return value == null ? null : value.toString();
+    }
+
+    public long getRequestContentLength(final REQUEST request) {
+        if (request == null) {
+            return 0;
         }
-      }
-    }
-  }
 
-  public String operationName() {
-    return SpanNaming.instance()
-        .namingSchema()
-        .client()
-        .operationForComponent(component().toString());
-  }
+        String contentLengthStr = getRequestHeader(request, "Content-Length");
+        if (contentLengthStr != null) {
+            try {
+                return Long.parseLong(contentLengthStr);
+            } catch (NumberFormatException ignored) {
+            }
+        }
 
-  public String getSpanTagAsString(AgentSpan span, String tag) {
-    Object value = span.getTag(tag);
-    return value == null ? null : value.toString();
-  }
-
-  public long getRequestContentLength(final REQUEST request) {
-    if (request == null) {
-      return 0;
+        return 0;
     }
 
-    String contentLengthStr = getRequestHeader(request, "Content-Length");
-    if (contentLengthStr != null) {
-      try {
-        return Long.parseLong(contentLengthStr);
-      } catch (NumberFormatException ignored) {
-      }
+    public long getResponseContentLength(final RESPONSE response) {
+        if (response == null) {
+            return 0;
+        }
+
+        String contentLengthStr = getResponseHeader(response, "Content-Length");
+        if (contentLengthStr != null) {
+            try {
+                return Long.parseLong(contentLengthStr);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        return 0;
     }
 
-    return 0;
-  }
+    protected void onHttpClientRequest(final AgentSpan span, final String url) {
+        if (!APPSEC_RASP_ENABLED) {
+            return;
+        }
+        if (url == null) {
+            return;
+        }
+        final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb = AgentTracer.get()
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.httpClientRequest());
 
-  public long getResponseContentLength(final RESPONSE response) {
-    if (response == null) {
-      return 0;
-    }
+        if (requestCb == null) {
+            return;
+        }
 
-    String contentLengthStr = getResponseHeader(response, "Content-Length");
-    if (contentLengthStr != null) {
-      try {
-        return Long.parseLong(contentLengthStr);
-      } catch (NumberFormatException ignored) {
-      }
-    }
+        final RequestContext ctx = span.getRequestContext();
+        if (ctx == null) {
+            return;
+        }
 
-    return 0;
-  }
-
-  protected void onHttpClientRequest(final AgentSpan span, final String url) {
-    if (!APPSEC_RASP_ENABLED) {
-      return;
-    }
-    if (url == null) {
-      return;
-    }
-    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
-        AgentTracer.get()
-            .getCallbackProvider(RequestContextSlot.APPSEC)
-            .getCallback(EVENTS.httpClientRequest());
-
-    if (requestCb == null) {
-      return;
+        final long requestId = span.getSpanId();
+        Flow<Void> flow = requestCb.apply(ctx, new HttpClientRequest(requestId, url));
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction brf = ctx.getBlockResponseFunction();
+            if (brf != null) {
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+            }
+            throw new BlockingException("Blocked request (for SSRF attempt)");
+        }
     }
 
-    final RequestContext ctx = span.getRequestContext();
-    if (ctx == null) {
-      return;
+    /* This method must be overriden after making the proper propagations to the client before **/
+    protected Object sourceUrl(REQUEST request) {
+        return null;
     }
 
-    final long requestId = span.getSpanId();
-    Flow<Void> flow = requestCb.apply(ctx, new HttpClientRequest(requestId, url));
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction brf = ctx.getBlockResponseFunction();
-      if (brf != null) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
-      }
-      throw new BlockingException("Blocked request (for SSRF attempt)");
+    private void ssrfIastCheck(final REQUEST request) {
+        final Object sourceUrl = sourceUrl(request);
+        if (sourceUrl == null) {
+            return;
+        }
+        if (InstrumenterConfig.get().getIastActivation() != ProductActivation.FULLY_ENABLED) {
+            return;
+        }
+        final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
+        if (ssrfModule != null) {
+            ssrfModule.onURLConnection(sourceUrl);
+        }
     }
-  }
-
-  /* This method must be overriden after making the proper propagations to the client before **/
-  protected Object sourceUrl(REQUEST request) {
-    return null;
-  }
-
-  private void ssrfIastCheck(final REQUEST request) {
-    final Object sourceUrl = sourceUrl(request);
-    if (sourceUrl == null) {
-      return;
-    }
-    if (InstrumenterConfig.get().getIastActivation() != ProductActivation.FULLY_ENABLED) {
-      return;
-    }
-    final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
-    if (ssrfModule != null) {
-      ssrfModule.onURLConnection(sourceUrl);
-    }
-  }
 }

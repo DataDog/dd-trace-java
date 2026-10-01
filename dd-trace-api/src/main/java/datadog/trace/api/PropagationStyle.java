@@ -10,22 +10,22 @@ import java.util.List;
  */
 @Deprecated
 public enum PropagationStyle {
-  DATADOG(TracePropagationStyle.DATADOG),
-  B3(TracePropagationStyle.B3SINGLE, TracePropagationStyle.B3MULTI),
-  HAYSTACK(TracePropagationStyle.HAYSTACK),
-  XRAY(TracePropagationStyle.XRAY);
+    DATADOG(TracePropagationStyle.DATADOG),
+    B3(TracePropagationStyle.B3SINGLE, TracePropagationStyle.B3MULTI),
+    HAYSTACK(TracePropagationStyle.HAYSTACK),
+    XRAY(TracePropagationStyle.XRAY);
 
-  private final List<TracePropagationStyle> newStyles;
+    private final List<TracePropagationStyle> newStyles;
 
-  PropagationStyle(TracePropagationStyle... newStyles) {
-    this.newStyles = Collections.unmodifiableList(Arrays.asList(newStyles));
-  }
+    PropagationStyle(TracePropagationStyle... newStyles) {
+        this.newStyles = Collections.unmodifiableList(Arrays.asList(newStyles));
+    }
 
-  public List<TracePropagationStyle> getNewStyles() {
-    return newStyles;
-  }
+    public List<TracePropagationStyle> getNewStyles() {
+        return newStyles;
+    }
 
-  public static PropagationStyle valueOfConfigName(String configName) {
-    return valueOf(configName.toUpperCase().trim());
-  }
+    public static PropagationStyle valueOfConfigName(String configName) {
+        return valueOf(configName.toUpperCase().trim());
+    }
 }

@@ -14,26 +14,26 @@ import org.mockito.ArgumentCaptor;
 
 class DependencyPeriodicActionTest {
 
-  private final DependencyService depService = mock(DependencyService.class);
-  private final DependencyPeriodicAction periodicAction = new DependencyPeriodicAction(depService);
-  private final TelemetryService telemetryService = mock(TelemetryService.class);
+    private final DependencyService depService = mock(DependencyService.class);
+    private final DependencyPeriodicAction periodicAction = new DependencyPeriodicAction(depService);
+    private final TelemetryService telemetryService = mock(TelemetryService.class);
 
-  @Test
-  void transformsDependenciesAndPushesThemToTheTelemetryService() {
-    Dependency dependency = new Dependency("name", "1.2.3", "name-1.2.3.jar", "DEADBEEF");
-    when(depService.drainDeterminedDependencies()).thenReturn(singletonList(dependency));
+    @Test
+    void transformsDependenciesAndPushesThemToTheTelemetryService() {
+        Dependency dependency = new Dependency("name", "1.2.3", "name-1.2.3.jar", "DEADBEEF");
+        when(depService.drainDeterminedDependencies()).thenReturn(singletonList(dependency));
 
-    periodicAction.doIteration(telemetryService);
+        periodicAction.doIteration(telemetryService);
 
-    verify(depService).drainDeterminedDependencies();
-    verifyNoMoreInteractions(depService);
-    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
-    verify(telemetryService).addDependency(captor.capture());
-    verifyNoMoreInteractions(telemetryService);
-    Dependency addedDependency = captor.getValue();
-    assertEquals("name", addedDependency.name);
-    assertEquals("1.2.3", addedDependency.version);
-    assertEquals("DEADBEEF", addedDependency.hash);
-    assertNull(addedDependency.reachabilityMetadata);
-  }
+        verify(depService).drainDeterminedDependencies();
+        verifyNoMoreInteractions(depService);
+        ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+        verify(telemetryService).addDependency(captor.capture());
+        verifyNoMoreInteractions(telemetryService);
+        Dependency addedDependency = captor.getValue();
+        assertEquals("name", addedDependency.name);
+        assertEquals("1.2.3", addedDependency.version);
+        assertEquals("DEADBEEF", addedDependency.hash);
+        assertNull(addedDependency.reachabilityMetadata);
+    }
 }

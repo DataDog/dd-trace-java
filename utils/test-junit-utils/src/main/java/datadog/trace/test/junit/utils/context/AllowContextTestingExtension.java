@@ -15,13 +15,17 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 @SuppressForbidden
 public class AllowContextTestingExtension implements BeforeAllCallback {
 
-  @Override
-  public void beforeAll(ExtensionContext context) {
-    try {
-      Class.forName("datadog.context.ContextManager").getMethod("allowTesting").invoke(null);
-      Class.forName("datadog.context.ContextBinder").getMethod("allowTesting").invoke(null);
-    } catch (Throwable ignore) {
-      // don't block testing if context types aren't available
+    @Override
+    public void beforeAll(ExtensionContext context) {
+        try {
+            Class.forName("datadog.context.ContextManager")
+                    .getMethod("allowTesting")
+                    .invoke(null);
+            Class.forName("datadog.context.ContextBinder")
+                    .getMethod("allowTesting")
+                    .invoke(null);
+        } catch (Throwable ignore) {
+            // don't block testing if context types aren't available
+        }
     }
-  }
 }

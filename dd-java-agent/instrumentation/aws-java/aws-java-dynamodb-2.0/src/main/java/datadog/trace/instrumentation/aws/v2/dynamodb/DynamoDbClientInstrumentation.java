@@ -12,32 +12,32 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 @AutoService(InstrumenterModule.class)
 public final class DynamoDbClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public DynamoDbClientInstrumentation() {
-    super("dynamodb", "aws-dynamodb");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("resolveExecutionInterceptors")),
-        DynamoDbClientInstrumentation.class.getName() + "$AwsDynamoDbBuilderAdvice");
-  }
-
-  public static class AwsDynamoDbBuilderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      for (ExecutionInterceptor interceptor : interceptors) {
-        if (interceptor instanceof DynamoDbInterceptor) {
-          return; // list already has our interceptor, return to builder
-        }
-      }
-      interceptors.add(new DynamoDbInterceptor());
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public DynamoDbClientInstrumentation() {
+        super("dynamodb", "aws-dynamodb");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("resolveExecutionInterceptors")),
+                DynamoDbClientInstrumentation.class.getName() + "$AwsDynamoDbBuilderAdvice");
+    }
+
+    public static class AwsDynamoDbBuilderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
+            for (ExecutionInterceptor interceptor : interceptors) {
+                if (interceptor instanceof DynamoDbInterceptor) {
+                    return; // list already has our interceptor, return to builder
+                }
+            }
+            interceptors.add(new DynamoDbInterceptor());
+        }
+    }
 }

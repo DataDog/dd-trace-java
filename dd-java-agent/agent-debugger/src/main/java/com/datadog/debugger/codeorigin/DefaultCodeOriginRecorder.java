@@ -33,143 +33,134 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultCodeOriginRecorder.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultCodeOriginRecorder.class);
 
-  private final ConfigurationUpdater configurationUpdater;
+    private final ConfigurationUpdater configurationUpdater;
 
-  private final Map<String, CodeOriginProbe> probesByFingerprint = new ConcurrentHashMap<>();
+    private final Map<String, CodeOriginProbe> probesByFingerprint = new ConcurrentHashMap<>();
 
-  private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
-  private final Map<String, LogProbe> logProbes = new ConcurrentHashMap<>();
+    private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
+    private final Map<String, LogProbe> logProbes = new ConcurrentHashMap<>();
 
-  private final int maxUserFrames;
+    private final int maxUserFrames;
 
-  private AgentTaskScheduler scheduler;
+    private AgentTaskScheduler scheduler;
 
-  public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
-    this(config, configurationUpdater, AgentTaskScheduler.get());
-  }
-
-  public DefaultCodeOriginRecorder(
-      Config config, ConfigurationUpdater configurationUpdater, AgentTaskScheduler scheduler) {
-    this.configurationUpdater = configurationUpdater;
-    maxUserFrames = config.getDebuggerCodeOriginMaxUserFrames();
-    this.scheduler = scheduler;
-  }
-
-  @Override
-  public String captureCodeOrigin(boolean entry) {
-    if (!entry) {
-      LOG.debug("Not capturing code origin for exit");
-      return null;
+    public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
+        this(config, configurationUpdater, AgentTaskScheduler.get());
     }
-    StackTraceElement element = findPlaceInStack();
-    String fingerprint = Fingerprinter.fingerprint(element);
-    CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
-    if (probe == null) {
-      Where where =
-          Where.of(
-              element.getClassName(),
-              element.getMethodName(),
-              null,
-              String.valueOf(element.getLineNumber()));
-      probe = createProbe(fingerprint, entry, where);
-    }
-    return probe.getId();
-  }
 
-  @Override
-  public String captureCodeOrigin(
-      String typeName, String methodName, String descriptor, boolean entry) {
-    String fingerprint = typeName + "." + methodName + descriptor;
-    CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
-    if (probe == null) {
-      String signature = Types.descriptorToSignature(descriptor);
-      probe = createProbe(fingerprint, entry, Where.of(typeName, methodName, signature));
-      LOG.debug("Creating probe for method {}", fingerprint);
-    }
-    return probe.getId();
-  }
-
-  public void registerLogProbe(CodeOriginProbe probe) {
-    logProbes.computeIfAbsent(
-        probe.getId(),
-        key ->
-            new Builder()
-                .language(probe.getLanguage())
-                .probeId(ProbeId.newId())
-                .where(probe.getWhere())
-                .evaluateAt(probe.getEvaluateAt())
-                .captureSnapshot(true)
-                .tags("session_id:*")
-                .snapshotProcessor(new CodeOriginSnapshotConsumer(probe.entrySpanProbe()))
-                .build());
-  }
-
-  private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
-    CodeOriginProbe probe = new CodeOriginProbe(ProbeId.newId(), entry, where);
-    CodeOriginProbe existing;
-    if ((existing = probesByFingerprint.putIfAbsent(fingerPrint, probe)) != null) {
-      // concurrent calls, considered the probe already installed
-      return existing;
-    }
-    LOG.debug("Creating probe for location {}", where);
-    CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
-
-    // i think this check is unnecessary at this point time but leaving for now to be safe
-    if (installed == null) {
-      if (Config.get().isDistributedDebuggerEnabled()) {
-        registerLogProbe(probe);
-      }
-      installProbes();
-    }
-    // committing here manually so that first run probe encounters decorate the span until the
-    // instrumentation gets installed
-    AgentSpan span = AgentTracer.activeSpan();
-    if (span != null) {
-      probe.commit(
-          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
-    }
-    return probe;
-  }
-
-  private StackTraceElement findPlaceInStack() {
-    return StackWalkerFactory.INSTANCE.walk(
-        stream ->
-            stream
-                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
-                .findFirst()
-                .orElse(null));
-  }
-
-  public void installProbes() {
-    scheduler.execute(() -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
-  }
-
-  public CodeOriginProbe getProbe(String probeId) {
-    return probes.get(probeId);
-  }
-
-  public List<ProbeDefinition> getProbes() {
-    return Stream.of(probes.values(), logProbes.values())
-        .flatMap(Collection::stream)
-        .collect(Collectors.toList());
-  }
-
-  private static class CodeOriginSnapshotConsumer implements Consumer<Snapshot> {
-    private final boolean entrySpanProbe;
-
-    public CodeOriginSnapshotConsumer(boolean entrySpanProbe) {
-      this.entrySpanProbe = entrySpanProbe;
+    public DefaultCodeOriginRecorder(
+            Config config, ConfigurationUpdater configurationUpdater, AgentTaskScheduler scheduler) {
+        this.configurationUpdater = configurationUpdater;
+        maxUserFrames = config.getDebuggerCodeOriginMaxUserFrames();
+        this.scheduler = scheduler;
     }
 
     @Override
-    public void accept(Snapshot snapshot) {
-      AgentSpan span = AgentTracer.get().activeSpan();
-      span.setTag(DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID, snapshot.getId());
-      if (entrySpanProbe) {
-        span.getLocalRootSpan().setTag(DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID, snapshot.getId());
-      }
+    public String captureCodeOrigin(boolean entry) {
+        if (!entry) {
+            LOG.debug("Not capturing code origin for exit");
+            return null;
+        }
+        StackTraceElement element = findPlaceInStack();
+        String fingerprint = Fingerprinter.fingerprint(element);
+        CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
+        if (probe == null) {
+            Where where = Where.of(
+                    element.getClassName(), element.getMethodName(), null, String.valueOf(element.getLineNumber()));
+            probe = createProbe(fingerprint, entry, where);
+        }
+        return probe.getId();
     }
-  }
+
+    @Override
+    public String captureCodeOrigin(String typeName, String methodName, String descriptor, boolean entry) {
+        String fingerprint = typeName + "." + methodName + descriptor;
+        CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
+        if (probe == null) {
+            String signature = Types.descriptorToSignature(descriptor);
+            probe = createProbe(fingerprint, entry, Where.of(typeName, methodName, signature));
+            LOG.debug("Creating probe for method {}", fingerprint);
+        }
+        return probe.getId();
+    }
+
+    public void registerLogProbe(CodeOriginProbe probe) {
+        logProbes.computeIfAbsent(
+                probe.getId(),
+                key -> new Builder()
+                        .language(probe.getLanguage())
+                        .probeId(ProbeId.newId())
+                        .where(probe.getWhere())
+                        .evaluateAt(probe.getEvaluateAt())
+                        .captureSnapshot(true)
+                        .tags("session_id:*")
+                        .snapshotProcessor(new CodeOriginSnapshotConsumer(probe.entrySpanProbe()))
+                        .build());
+    }
+
+    private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
+        CodeOriginProbe probe = new CodeOriginProbe(ProbeId.newId(), entry, where);
+        CodeOriginProbe existing;
+        if ((existing = probesByFingerprint.putIfAbsent(fingerPrint, probe)) != null) {
+            // concurrent calls, considered the probe already installed
+            return existing;
+        }
+        LOG.debug("Creating probe for location {}", where);
+        CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
+
+        // i think this check is unnecessary at this point time but leaving for now to be safe
+        if (installed == null) {
+            if (Config.get().isDistributedDebuggerEnabled()) {
+                registerLogProbe(probe);
+            }
+            installProbes();
+        }
+        // committing here manually so that first run probe encounters decorate the span until the
+        // instrumentation gets installed
+        AgentSpan span = AgentTracer.activeSpan();
+        if (span != null) {
+            probe.commit(CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+        }
+        return probe;
+    }
+
+    private StackTraceElement findPlaceInStack() {
+        return StackWalkerFactory.INSTANCE.walk(
+                stream -> stream.filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
+                        .findFirst()
+                        .orElse(null));
+    }
+
+    public void installProbes() {
+        scheduler.execute(() -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
+    }
+
+    public CodeOriginProbe getProbe(String probeId) {
+        return probes.get(probeId);
+    }
+
+    public List<ProbeDefinition> getProbes() {
+        return Stream.of(probes.values(), logProbes.values())
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+    }
+
+    private static class CodeOriginSnapshotConsumer implements Consumer<Snapshot> {
+        private final boolean entrySpanProbe;
+
+        public CodeOriginSnapshotConsumer(boolean entrySpanProbe) {
+            this.entrySpanProbe = entrySpanProbe;
+        }
+
+        @Override
+        public void accept(Snapshot snapshot) {
+            AgentSpan span = AgentTracer.get().activeSpan();
+            span.setTag(DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID, snapshot.getId());
+            if (entrySpanProbe) {
+                span.getLocalRootSpan().setTag(DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID, snapshot.getId());
+            }
+        }
+    }
 }

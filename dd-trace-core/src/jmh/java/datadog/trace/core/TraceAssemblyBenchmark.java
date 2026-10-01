@@ -90,51 +90,52 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class TraceAssemblyBenchmark {
-  private static final String INSTRUMENTATION_NAME = "bench";
-  private static final String ROOT_OPERATION = "servlet.request";
-  private static final String CHILD_OPERATION = "servlet.handler";
+    private static final String INSTRUMENTATION_NAME = "bench";
+    private static final String ROOT_OPERATION = "servlet.request";
+    private static final String CHILD_OPERATION = "servlet.handler";
 
-  private static final String COMPONENT_VALUE = "tomcat-server";
-  private static final String HTTP_METHOD_VALUE = "GET";
-  private static final String HTTP_ROUTE_VALUE = "/owners/{ownerId}";
-  private static final String HTTP_URL_VALUE = "http://localhost:8080/owners/42";
-  private static final int HTTP_STATUS_VALUE = 200;
+    private static final String COMPONENT_VALUE = "tomcat-server";
+    private static final String HTTP_METHOD_VALUE = "GET";
+    private static final String HTTP_ROUTE_VALUE = "/owners/{ownerId}";
+    private static final String HTTP_URL_VALUE = "http://localhost:8080/owners/42";
+    private static final int HTTP_STATUS_VALUE = 200;
 
-  /** Number of child spans under the root — the axis that turns per-child cost into a slope. */
-  @Param({"1", "5", "20"})
-  int childCount;
+    /** Number of child spans under the root — the axis that turns per-child cost into a slope. */
+    @Param({"1", "5", "20"})
+    int childCount;
 
-  CoreTracer tracer;
+    CoreTracer tracer;
 
-  @Setup
-  public void setup(Blackhole blackhole) {
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
-  }
-
-  @TearDown
-  public void tearDown() {
-    this.tracer.close();
-  }
-
-  /** Web-server root + {@code childCount} children, each finished; whole trace dropped. */
-  @Benchmark
-  public void webServerTrace() {
-    AgentSpan root = tracer.buildSpan(INSTRUMENTATION_NAME, ROOT_OPERATION).start();
-    root.setTag(Tags.COMPONENT, COMPONENT_VALUE);
-    root.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
-    root.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
-    root.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
-    root.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
-    root.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
-
-    for (int i = 0; i < childCount; i++) {
-      AgentSpan child =
-          tracer.buildSpan(INSTRUMENTATION_NAME, CHILD_OPERATION).asChildOf(root).start();
-      child.setTag(Tags.COMPONENT, COMPONENT_VALUE);
-      child.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-      child.finish();
+    @Setup
+    public void setup(Blackhole blackhole) {
+        this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
     }
 
-    root.finish();
-  }
+    @TearDown
+    public void tearDown() {
+        this.tracer.close();
+    }
+
+    /** Web-server root + {@code childCount} children, each finished; whole trace dropped. */
+    @Benchmark
+    public void webServerTrace() {
+        AgentSpan root = tracer.buildSpan(INSTRUMENTATION_NAME, ROOT_OPERATION).start();
+        root.setTag(Tags.COMPONENT, COMPONENT_VALUE);
+        root.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+        root.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
+        root.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
+        root.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
+        root.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
+
+        for (int i = 0; i < childCount; i++) {
+            AgentSpan child = tracer.buildSpan(INSTRUMENTATION_NAME, CHILD_OPERATION)
+                    .asChildOf(root)
+                    .start();
+            child.setTag(Tags.COMPONENT, COMPONENT_VALUE);
+            child.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
+            child.finish();
+        }
+
+        root.finish();
+    }
 }

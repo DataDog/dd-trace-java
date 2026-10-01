@@ -24,82 +24,81 @@ import javax.servlet.http.HttpServletResponse;
  * case of exception handling, the status reported could be wrong.
  */
 public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
-  private final AtomicBoolean activated;
-  private final AgentSpan span;
-  private final boolean doOnResponse;
-  private final ContextScope scope;
+    private final AtomicBoolean activated;
+    private final AgentSpan span;
+    private final boolean doOnResponse;
+    private final ContextScope scope;
 
-  public FinishAsyncDispatchListener(final ContextScope scope, boolean doOnResponse) {
-    this(scope, new AtomicBoolean(), doOnResponse);
-  }
+    public FinishAsyncDispatchListener(final ContextScope scope, boolean doOnResponse) {
+        this(scope, new AtomicBoolean(), doOnResponse);
+    }
 
-  public FinishAsyncDispatchListener(
-      final ContextScope scope, AtomicBoolean activated, boolean doOnResponse) {
-    this.scope = scope;
-    this.span = AgentSpan.fromContext(scope.context());
-    this.activated = activated;
-    this.doOnResponse = doOnResponse;
-  }
+    public FinishAsyncDispatchListener(final ContextScope scope, AtomicBoolean activated, boolean doOnResponse) {
+        this.scope = scope;
+        this.span = AgentSpan.fromContext(scope.context());
+        this.activated = activated;
+        this.doOnResponse = doOnResponse;
+    }
 
-  @Override
-  public void onComplete(final AsyncEvent event) throws IOException {
-    if (activated.compareAndSet(false, true)) {
-      if (doOnResponse) {
-        ServletResponse resp = event.getSuppliedResponse();
-        if (resp instanceof HttpServletResponse) {
-          DECORATE.onResponse(span, (HttpServletResponse) resp);
+    @Override
+    public void onComplete(final AsyncEvent event) throws IOException {
+        if (activated.compareAndSet(false, true)) {
+            if (doOnResponse) {
+                ServletResponse resp = event.getSuppliedResponse();
+                if (resp instanceof HttpServletResponse) {
+                    DECORATE.onResponse(span, (HttpServletResponse) resp);
+                }
+            }
+            ServletRequest req = event.getSuppliedRequest();
+            if (null != req) {
+                Object error = req.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
+                if (error instanceof Throwable) {
+                    DECORATE.onError(span, (Throwable) error);
+                }
+            }
+            DECORATE.beforeFinish(scope.context());
+            maybeFinishSpan();
         }
-      }
-      ServletRequest req = event.getSuppliedRequest();
-      if (null != req) {
-        Object error = req.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
-        if (error instanceof Throwable) {
-          DECORATE.onError(span, (Throwable) error);
+    }
+
+    @Override
+    public void run() {
+        if (activated.compareAndSet(false, true)) {
+            DECORATE.beforeFinish(scope.context());
+            maybeFinishSpan();
         }
-      }
-      DECORATE.beforeFinish(scope.context());
-      maybeFinishSpan();
     }
-  }
 
-  @Override
-  public void run() {
-    if (activated.compareAndSet(false, true)) {
-      DECORATE.beforeFinish(scope.context());
-      maybeFinishSpan();
+    @Override
+    public void onTimeout(final AsyncEvent event) throws IOException {
+        if (activated.compareAndSet(false, true)) {
+            if (Config.get().isServletAsyncTimeoutError()) {
+                span.setError(true);
+            }
+            span.setTag(TIMEOUT, event.getAsyncContext().getTimeout());
+            DECORATE.beforeFinish(scope.context());
+            maybeFinishSpan();
+        }
     }
-  }
 
-  @Override
-  public void onTimeout(final AsyncEvent event) throws IOException {
-    if (activated.compareAndSet(false, true)) {
-      if (Config.get().isServletAsyncTimeoutError()) {
-        span.setError(true);
-      }
-      span.setTag(TIMEOUT, event.getAsyncContext().getTimeout());
-      DECORATE.beforeFinish(scope.context());
-      maybeFinishSpan();
+    @Override
+    public void onError(final AsyncEvent event) throws IOException {
+        if (event.getThrowable() != null && activated.compareAndSet(false, true)) {
+            DECORATE.onError(span, event.getThrowable());
+            DECORATE.beforeFinish(scope.context());
+            maybeFinishSpan();
+        }
     }
-  }
 
-  @Override
-  public void onError(final AsyncEvent event) throws IOException {
-    if (event.getThrowable() != null && activated.compareAndSet(false, true)) {
-      DECORATE.onError(span, event.getThrowable());
-      DECORATE.beforeFinish(scope.context());
-      maybeFinishSpan();
+    /** Transfer the listener over to the new context. */
+    @Override
+    public void onStartAsync(final AsyncEvent event) throws IOException {
+        event.getAsyncContext().addListener(this);
     }
-  }
 
-  /** Transfer the listener over to the new context. */
-  @Override
-  public void onStartAsync(final AsyncEvent event) throws IOException {
-    event.getAsyncContext().addListener(this);
-  }
-
-  private void maybeFinishSpan() {
-    if (span.phasedFinish()) {
-      span.publish();
+    private void maybeFinishSpan() {
+        if (span.phasedFinish()) {
+            span.publish();
+        }
     }
-  }
 }

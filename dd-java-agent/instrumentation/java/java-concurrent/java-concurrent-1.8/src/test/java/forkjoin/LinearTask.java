@@ -8,38 +8,38 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.RecursiveTask;
 
 public class LinearTask extends RecursiveTask<Integer> {
-  private final int depth;
-  private final int parent;
+    private final int depth;
+    private final int parent;
 
-  public LinearTask(int depth) {
-    this(0, depth);
-  }
-
-  private LinearTask(int parent, int depth) {
-    this.parent = parent;
-    this.depth = depth;
-  }
-
-  @Override
-  protected Integer compute() {
-    try {
-      // introduces delay to encourage parallelism
-      // which will expose problems with context propagation
-      Thread.sleep(5);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+    public LinearTask(int depth) {
+        this(0, depth);
     }
-    if (parent == depth) {
-      return parent;
-    } else {
-      int next = parent + 1;
-      AgentSpan span = startSpan("test", Integer.toString(next));
-      try (ContextScope scope = activateSpan(span)) {
-        LinearTask child = new LinearTask(next, depth);
-        return child.fork().join();
-      } finally {
-        span.finish();
-      }
+
+    private LinearTask(int parent, int depth) {
+        this.parent = parent;
+        this.depth = depth;
     }
-  }
+
+    @Override
+    protected Integer compute() {
+        try {
+            // introduces delay to encourage parallelism
+            // which will expose problems with context propagation
+            Thread.sleep(5);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (parent == depth) {
+            return parent;
+        } else {
+            int next = parent + 1;
+            AgentSpan span = startSpan("test", Integer.toString(next));
+            try (ContextScope scope = activateSpan(span)) {
+                LinearTask child = new LinearTask(next, depth);
+                return child.fork().join();
+            } finally {
+                span.finish();
+            }
+        }
+    }
 }

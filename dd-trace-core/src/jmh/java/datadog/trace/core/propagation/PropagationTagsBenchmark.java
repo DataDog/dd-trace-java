@@ -28,45 +28,45 @@ import org.openjdk.jmh.infra.Blackhole;
 @SuppressForbidden
 public class PropagationTagsBenchmark {
 
-  /**
-   * In order to avoid JMH splitting up the strings, all ',' are replaced by '|' in the parameter.
-   * The parameter is split at '|' and the first element is the propagation tags header type. The
-   * rest of the elements are joined with ',' to form the header to be parsed.
-   */
-  @Param({
-    "datadog|_dd.p.anytag=value|_dd.p.dm=934086a686-4",
-    "w3c|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4",
-    "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4|bar=baz",
-    "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;other:value;t.dm:934086a686-4|bar=baz"
-  })
-  String extractHeaderType;
+    /**
+     * In order to avoid JMH splitting up the strings, all ',' are replaced by '|' in the parameter.
+     * The parameter is split at '|' and the first element is the propagation tags header type. The
+     * rest of the elements are joined with ',' to form the header to be parsed.
+     */
+    @Param({
+        "datadog|_dd.p.anytag=value|_dd.p.dm=934086a686-4",
+        "w3c|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4",
+        "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4|bar=baz",
+        "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;other:value;t.dm:934086a686-4|bar=baz"
+    })
+    String extractHeaderType;
 
-  @Param({"datadog", "w3c"})
-  String injectHeaderType;
+    @Param({"datadog", "w3c"})
+    String injectHeaderType;
 
-  PropagationTags.Factory factory;
-  PropagationTags.HeaderType extractHT;
-  PropagationTags.HeaderType injectHT;
-  String header;
+    PropagationTags.Factory factory;
+    PropagationTags.HeaderType extractHT;
+    PropagationTags.HeaderType injectHT;
+    String header;
 
-  @Setup(Level.Trial)
-  public void setUp() {
-    factory = PropagationTags.factory();
-    CharSequence[] parts = extractHeaderType.split("\\|");
-    extractHT = PropagationTags.HeaderType.valueOf(((String) parts[0]).toUpperCase());
-    header = String.join(",", Arrays.stream(parts, 1, parts.length)::iterator);
-    injectHT = PropagationTags.HeaderType.valueOf(injectHeaderType.toUpperCase());
-  }
+    @Setup(Level.Trial)
+    public void setUp() {
+        factory = PropagationTags.factory();
+        CharSequence[] parts = extractHeaderType.split("\\|");
+        extractHT = PropagationTags.HeaderType.valueOf(((String) parts[0]).toUpperCase());
+        header = String.join(",", Arrays.stream(parts, 1, parts.length)::iterator);
+        injectHT = PropagationTags.HeaderType.valueOf(injectHeaderType.toUpperCase());
+    }
 
-  @Benchmark
-  public void extractHeader(Blackhole blackhole) {
-    blackhole.consume(factory.fromHeaderValue(extractHT, header));
-  }
+    @Benchmark
+    public void extractHeader(Blackhole blackhole) {
+        blackhole.consume(factory.fromHeaderValue(extractHT, header));
+    }
 
-  @Benchmark
-  public void extractInjectHeader(Blackhole blackhole) {
-    PropagationTags pt = factory.fromHeaderValue(extractHT, header);
-    blackhole.consume(pt.headerValue(injectHT));
-    blackhole.consume(pt);
-  }
+    @Benchmark
+    public void extractInjectHeader(Blackhole blackhole) {
+        PropagationTags pt = factory.fromHeaderValue(extractHT, header);
+        blackhole.consume(pt.headerValue(injectHT));
+        blackhole.consume(pt);
+    }
 }

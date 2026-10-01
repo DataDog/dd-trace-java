@@ -22,63 +22,61 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ListenableFutureInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ListenableFutureInstrumentation() {
-    super("guava");
-  }
+    public ListenableFutureInstrumentation() {
+        super("guava");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.google.common.util.concurrent.AbstractFuture";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.google.common.util.concurrent.AbstractFuture";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      this.packageName + ".GuavaAsyncResultExtension",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            this.packageName + ".GuavaAsyncResultExtension",
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(Runnable.class.getName(), State.class.getName());
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("addListener").and(takesArguments(Runnable.class, Executor.class)),
-        ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("addListener").and(takesArguments(Runnable.class, Executor.class)),
+                ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
+    }
 
-  public static class AddListenerAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static State addListenerEnter(
-        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      final Context context = currentContext();
-      if (context != rootContext()) {
-        final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
-        // It is important to check potentially wrapped task if we can instrument task in this
-        // executor. Some executors do not support wrapped tasks.
-        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, context)) {
-          task = newTask;
-          final ContextStore<Runnable, State> contextStore =
-              InstrumentationContext.get(Runnable.class, State.class);
-          return ExecutorInstrumentationUtils.setupState(contextStore, newTask, context);
+    public static class AddListenerAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static State addListenerEnter(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
+            final Context context = currentContext();
+            if (context != rootContext()) {
+                final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
+                // It is important to check potentially wrapped task if we can instrument task in this
+                // executor. Some executors do not support wrapped tasks.
+                if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, context)) {
+                    task = newTask;
+                    final ContextStore<Runnable, State> contextStore =
+                            InstrumentationContext.get(Runnable.class, State.class);
+                    return ExecutorInstrumentationUtils.setupState(contextStore, newTask, context);
+                }
+            }
+            return null;
         }
-      }
-      return null;
-    }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void addListenerExit(
-        @Advice.Enter final State state, @Advice.Thrown final Throwable throwable) {
-      ExecutorInstrumentationUtils.cleanUpOnMethodExit(state, throwable);
-    }
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void addListenerExit(@Advice.Enter final State state, @Advice.Thrown final Throwable throwable) {
+            ExecutorInstrumentationUtils.cleanUpOnMethodExit(state, throwable);
+        }
 
-    private static void muzzleCheck(final AbstractFuture<?> future) {
-      future.addListener(null, null);
+        private static void muzzleCheck(final AbstractFuture<?> future) {
+            future.addListener(null, null);
+        }
     }
-  }
 }

@@ -6,10 +6,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
 
 public abstract class AbstractHibernateInstrumentation
-    implements Instrumenter.HasMethodAdvice, Instrumenter.CanShortcutTypeMatching {
-  @Override
-  public final boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get()
-        .isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
-  }
+        implements Instrumenter.HasMethodAdvice, Instrumenter.CanShortcutTypeMatching {
+    @Override
+    public final boolean onlyMatchKnownTypes() {
+        return InstrumenterConfig.get()
+                .isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
+    }
 }

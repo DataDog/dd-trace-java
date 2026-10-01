@@ -12,28 +12,28 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class ElementTagStructureHandlerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public ElementTagStructureHandlerInstrumentation() {
-    super("thymeleaf");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public ElementTagStructureHandlerInstrumentation() {
+        super("thymeleaf");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.thymeleaf.engine.ElementTagStructureHandler";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.thymeleaf.engine.ElementTagStructureHandler";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
 
-    transformer.applyAdvice(
-        isMethod().and(named("setBody")).and(takesArgument(0, CharSequence.class)),
-        packageName + ".BodyAdvice");
-  }
+        transformer.applyAdvice(
+                isMethod().and(named("setBody")).and(takesArgument(0, CharSequence.class)),
+                packageName + ".BodyAdvice");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.thymeleaf.processor.element.IElementTagStructureHandler",
-        "datadog.trace.instrumentation.thymeleaf.ThymeleafContext");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(
+                "org.thymeleaf.processor.element.IElementTagStructureHandler",
+                "datadog.trace.instrumentation.thymeleaf.ThymeleafContext");
+    }
 }

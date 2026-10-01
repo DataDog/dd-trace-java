@@ -47,53 +47,49 @@ import org.openjdk.jol.info.GraphLayout;
  */
 class StringIndexFootprintTest {
 
-  @BeforeAll
-  static void assumeNotJ9Jvm() {
-    // JOL's GraphLayout relies on HotSpot-specific Unsafe internals and throws
-    // IllegalStateException on J9-based JVMs (IBM/Semeru) — same guard as
-    // ScopeAndContinuationLayoutTest.
-    assumeFalse(JavaVirtualMachine.isJ9());
-  }
-
-  static String[] elements(int n) {
-    String[] a = new String[n];
-    for (int i = 0; i < n; ++i) {
-      a[i] = "element-key-" + i;
+    @BeforeAll
+    static void assumeNotJ9Jvm() {
+        // JOL's GraphLayout relies on HotSpot-specific Unsafe internals and throws
+        // IllegalStateException on J9-based JVMs (IBM/Semeru) — same guard as
+        // ScopeAndContinuationLayoutTest.
+        assumeFalse(JavaVirtualMachine.isJ9());
     }
-    return a;
-  }
 
-  static long bytes(Object root) {
-    return GraphLayout.parseInstance(root).totalSize();
-  }
-
-  @Test
-  void footprintComparison() {
-    System.out.printf(
-        "%-6s %12s %12s %12s %12s %12s%n",
-        "n", "array", "hashSet", "treeSet", "copyOf", "stringIndex");
-    System.out.printf(
-        "%-6s %12s %12s %12s %12s %12s   (overhead above array)%n", "", "", "", "", "", "");
-
-    for (int n : new int[] {8, 32, 128}) {
-      String[] el = elements(n);
-
-      long array = bytes((Object) el); // baseline: strings + reference array
-      long hashSet = bytes(new HashSet<>(Arrays.asList(el)));
-      long treeSet = bytes(new TreeSet<>(Arrays.asList(el)));
-      Set<String> copy = CollectionUtils.tryMakeImmutableSet(Arrays.asList(el));
-      long copyOf = bytes(copy);
-      long stringIndex = bytes(StringIndex.of(el));
-
-      System.out.printf(
-          "%-6d %12d %12d %12d %12d %12d%n", n, array, hashSet, treeSet, copyOf, stringIndex);
-      System.out.printf(
-          "%-6s %12s %12d %12d %12d %12d%n",
-          "", "", hashSet - array, treeSet - array, copyOf - array, stringIndex - array);
-
-      // Robust cross-JVM invariant: no per-element Node objects -> lighter than HashSet.
-      assertTrue(
-          stringIndex < hashSet, "StringIndex should retain fewer bytes than HashSet at n=" + n);
+    static String[] elements(int n) {
+        String[] a = new String[n];
+        for (int i = 0; i < n; ++i) {
+            a[i] = "element-key-" + i;
+        }
+        return a;
     }
-  }
+
+    static long bytes(Object root) {
+        return GraphLayout.parseInstance(root).totalSize();
+    }
+
+    @Test
+    void footprintComparison() {
+        System.out.printf(
+                "%-6s %12s %12s %12s %12s %12s%n", "n", "array", "hashSet", "treeSet", "copyOf", "stringIndex");
+        System.out.printf("%-6s %12s %12s %12s %12s %12s   (overhead above array)%n", "", "", "", "", "", "");
+
+        for (int n : new int[] {8, 32, 128}) {
+            String[] el = elements(n);
+
+            long array = bytes((Object) el); // baseline: strings + reference array
+            long hashSet = bytes(new HashSet<>(Arrays.asList(el)));
+            long treeSet = bytes(new TreeSet<>(Arrays.asList(el)));
+            Set<String> copy = CollectionUtils.tryMakeImmutableSet(Arrays.asList(el));
+            long copyOf = bytes(copy);
+            long stringIndex = bytes(StringIndex.of(el));
+
+            System.out.printf("%-6d %12d %12d %12d %12d %12d%n", n, array, hashSet, treeSet, copyOf, stringIndex);
+            System.out.printf(
+                    "%-6s %12s %12d %12d %12d %12d%n",
+                    "", "", hashSet - array, treeSet - array, copyOf - array, stringIndex - array);
+
+            // Robust cross-JVM invariant: no per-element Node objects -> lighter than HashSet.
+            assertTrue(stringIndex < hashSet, "StringIndex should retain fewer bytes than HashSet at n=" + n);
+        }
+    }
 }

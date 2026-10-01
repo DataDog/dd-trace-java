@@ -27,72 +27,71 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public LogbackLoggerInstrumentation() {
-    super("logback", "logs-intake", "logs-intake-logback");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "ch.qos.logback.classic.Logger";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "ch.qos.logback.classic.spi.ILoggingEvent", AgentSpanContext.class.getName());
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {LogsIntakeHelper.class.getName()};
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("callAppenders"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
-        LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
-    // this can be moved into a always on instrumenter module if one day context tracking can be
-    // deactivated by config
-    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
-      transformer.applyAdvice(
-          isMethod()
-              .and(isPublic())
-              .and(named("callAppenders"))
-              .and(takesArguments(1))
-              .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
-          LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice2");
+    public LogbackLoggerInstrumentation() {
+        super("logback", "logs-intake", "logs-intake-logback");
     }
-  }
 
-  public static class CallAppendersAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
-      if (event == null) {
-        return;
-      }
-      AgentSpan span = activeSpan();
-
-      if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
-            .put(event, span.spanContext());
-      }
+    @Override
+    public String instrumentedType() {
+        return "ch.qos.logback.classic.Logger";
     }
-  }
 
-  public static class CallAppendersAdvice2 {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
-      if (event == null) {
-        return;
-      }
-      LogsIntakeHelper.log(event);
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("ch.qos.logback.classic.spi.ILoggingEvent", AgentSpanContext.class.getName());
     }
-  }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {LogsIntakeHelper.class.getName()};
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("callAppenders"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
+                LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
+        // this can be moved into a always on instrumenter module if one day context tracking can be
+        // deactivated by config
+        if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
+            transformer.applyAdvice(
+                    isMethod()
+                            .and(isPublic())
+                            .and(named("callAppenders"))
+                            .and(takesArguments(1))
+                            .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
+                    LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice2");
+        }
+    }
+
+    public static class CallAppendersAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
+            if (event == null) {
+                return;
+            }
+            AgentSpan span = activeSpan();
+
+            if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
+                InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
+                        .put(event, span.spanContext());
+            }
+        }
+    }
+
+    public static class CallAppendersAdvice2 {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
+            if (event == null) {
+                return;
+            }
+            LogsIntakeHelper.log(event);
+        }
+    }
 }

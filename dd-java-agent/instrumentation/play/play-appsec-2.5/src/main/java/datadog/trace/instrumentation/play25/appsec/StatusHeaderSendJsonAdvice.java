@@ -20,44 +20,42 @@ import play.mvc.StatusHeader;
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class StatusHeaderSendJsonAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  static void before(
-      @Advice.Argument(0) final JsonNode json, @ActiveRequestContext final RequestContext reqCtx) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void before(@Advice.Argument(0) final JsonNode json, @ActiveRequestContext final RequestContext reqCtx) {
 
-    if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
-      return;
+        if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
+            return;
+        }
+
+        if (json == null) {
+            return;
+        }
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        if (cbp == null) {
+            return;
+        }
+        BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
+        if (callback == null) {
+            return;
+        }
+
+        Flow<Void> flow = callback.apply(reqCtx, json);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+            if (blockResponseFunction == null) {
+                return;
+            }
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+
+            throw new BlockingException("Blocked request (for StatusHeader/sendJson)");
+        }
     }
 
-    if (json == null) {
-      return;
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    static void after() {
+        CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
     }
-
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    if (cbp == null) {
-      return;
-    }
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.responseBody());
-    if (callback == null) {
-      return;
-    }
-
-    Flow<Void> flow = callback.apply(reqCtx, json);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-      if (blockResponseFunction == null) {
-        return;
-      }
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-
-      throw new BlockingException("Blocked request (for StatusHeader/sendJson)");
-    }
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  static void after() {
-    CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
-  }
 }

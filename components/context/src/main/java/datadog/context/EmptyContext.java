@@ -6,27 +6,27 @@ import javax.annotation.Nullable;
 
 /** {@link Context} containing no values. */
 final class EmptyContext implements SelfScopedContext {
-  static final Context INSTANCE = new EmptyContext();
+    static final Context INSTANCE = new EmptyContext();
 
-  private EmptyContext() {}
+    private EmptyContext() {}
 
-  @Override
-  @Nullable
-  public <T> T get(ContextKey<T> key) {
-    return null;
-  }
-
-  @Override
-  public <T> Context with(ContextKey<T> key, @Nullable T value) {
-    requireNonNull(key, "Context key cannot be null");
-    if (value == null) {
-      return this;
+    @Override
+    @Nullable
+    public <T> T get(ContextKey<T> key) {
+        return null;
     }
-    return new SingletonContext(key.index, value);
-  }
 
-  @Override
-  public String toString() {
-    return "EmptyContext{}";
-  }
+    @Override
+    public <T> Context with(ContextKey<T> key, @Nullable T value) {
+        requireNonNull(key, "Context key cannot be null");
+        if (value == null) {
+            return this;
+        }
+        return new SingletonContext(key.index, value);
+    }
+
+    @Override
+    public String toString() {
+        return "EmptyContext{}";
+    }
 }

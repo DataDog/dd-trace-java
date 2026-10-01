@@ -8,8 +8,8 @@ import org.testng.annotations.Test;
 @Test(groups = CIConstants.Tags.ITR_UNSKIPPABLE_TAG)
 public class TestSucceedUnskippable {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

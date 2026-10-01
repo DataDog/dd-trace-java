@@ -15,33 +15,31 @@ import io.netty.util.DefaultAttributeMap;
 import org.junit.jupiter.api.Test;
 
 class Http2ContextTransferTest {
-  @Test
-  void consumesParentContextOnceAndReusesItsAttribute() {
-    Channel parent = channel(null);
-    Channel first = channel(parent);
-    Channel second = channel(parent);
-    Attribute<Context> attribute = parent.attr(CONTEXT_ATTRIBUTE_KEY);
-    Context context = Context.root();
-    attribute.set(context);
+    @Test
+    void consumesParentContextOnceAndReusesItsAttribute() {
+        Channel parent = channel(null);
+        Channel first = channel(parent);
+        Channel second = channel(parent);
+        Attribute<Context> attribute = parent.attr(CONTEXT_ATTRIBUTE_KEY);
+        Context context = Context.root();
+        attribute.set(context);
 
-    afterCreate(first);
-    afterCreate(second);
+        afterCreate(first);
+        afterCreate(second);
 
-    assertSame(context, first.attr(CONTEXT_ATTRIBUTE_KEY).get());
-    assertNull(attribute.get());
-    assertSame(attribute, parent.attr(CONTEXT_ATTRIBUTE_KEY));
-    assertFalse(second.hasAttr(CONTEXT_ATTRIBUTE_KEY));
-  }
+        assertSame(context, first.attr(CONTEXT_ATTRIBUTE_KEY).get());
+        assertNull(attribute.get());
+        assertSame(attribute, parent.attr(CONTEXT_ATTRIBUTE_KEY));
+        assertFalse(second.hasAttr(CONTEXT_ATTRIBUTE_KEY));
+    }
 
-  private static Channel channel(Channel parent) {
-    // Avoid pipeline events creating attributes when another test installs Netty instrumentation.
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-    Channel channel = mock(Channel.class);
-    when(channel.parent()).thenReturn(parent);
-    when(channel.hasAttr(CONTEXT_ATTRIBUTE_KEY))
-        .thenAnswer(ignored -> attributes.hasAttr(CONTEXT_ATTRIBUTE_KEY));
-    when(channel.attr(CONTEXT_ATTRIBUTE_KEY))
-        .thenAnswer(ignored -> attributes.attr(CONTEXT_ATTRIBUTE_KEY));
-    return channel;
-  }
+    private static Channel channel(Channel parent) {
+        // Avoid pipeline events creating attributes when another test installs Netty instrumentation.
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
+        Channel channel = mock(Channel.class);
+        when(channel.parent()).thenReturn(parent);
+        when(channel.hasAttr(CONTEXT_ATTRIBUTE_KEY)).thenAnswer(ignored -> attributes.hasAttr(CONTEXT_ATTRIBUTE_KEY));
+        when(channel.attr(CONTEXT_ATTRIBUTE_KEY)).thenAnswer(ignored -> attributes.attr(CONTEXT_ATTRIBUTE_KEY));
+        return channel;
+    }
 }

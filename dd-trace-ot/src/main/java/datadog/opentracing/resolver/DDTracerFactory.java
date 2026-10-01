@@ -11,16 +11,16 @@ import org.slf4j.LoggerFactory;
 @AutoService(TracerFactory.class)
 public class DDTracerFactory implements TracerFactory {
 
-  private static final Logger log = LoggerFactory.getLogger(DDTracerFactory.class);
+    private static final Logger log = LoggerFactory.getLogger(DDTracerFactory.class);
 
-  @Override
-  public Tracer getTracer() {
-    if (Config.get().isTraceResolverEnabled()) {
-      log.info("Creating DDTracer with DDTracerFactory");
-      return DDTracer.builder().build();
-    } else {
-      log.info("DDTracerFactory disabled");
-      return null;
+    @Override
+    public Tracer getTracer() {
+        if (Config.get().isTraceResolverEnabled()) {
+            log.info("Creating DDTracer with DDTracerFactory");
+            return DDTracer.builder().build();
+        } else {
+            log.info("DDTracerFactory disabled");
+            return null;
+        }
     }
-  }
 }

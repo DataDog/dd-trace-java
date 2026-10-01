@@ -11,36 +11,36 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class SetValueEmptyTest {
-  private SetValue instance;
+    private SetValue instance;
 
-  @BeforeEach
-  void setup() throws Exception {
-    instance = new SetValue(Collections.emptySet());
-  }
+    @BeforeEach
+    void setup() throws Exception {
+        instance = new SetValue(Collections.emptySet());
+    }
 
-  @Test
-  void prettyPrint() {
-    assertEquals("Set", print(instance));
-  }
+    @Test
+    void prettyPrint() {
+        assertEquals("Set", print(instance));
+    }
 
-  @Test
-  void isEmpty() {
-    assertTrue(instance.isEmpty());
-  }
+    @Test
+    void isEmpty() {
+        assertTrue(instance.isEmpty());
+    }
 
-  @Test
-  void count() {
-    assertEquals(0, instance.count());
-  }
+    @Test
+    void count() {
+        assertEquals(0, instance.count());
+    }
 
-  @Test
-  void get() {
-    assertEquals(BooleanValue.FALSE, instance.get("a"));
-    assertEquals(BooleanValue.FALSE, instance.get("b"));
-    assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
-    assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
-    assertEquals(Value.nullValue(), instance.get(Values.NULL_OBJECT));
-    assertEquals(Value.nullValue(), instance.get(Value.nullValue()));
-    assertEquals(Value.nullValue(), instance.get(null));
-  }
+    @Test
+    void get() {
+        assertEquals(BooleanValue.FALSE, instance.get("a"));
+        assertEquals(BooleanValue.FALSE, instance.get("b"));
+        assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
+        assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
+        assertEquals(Value.nullValue(), instance.get(Values.NULL_OBJECT));
+        assertEquals(Value.nullValue(), instance.get(Value.nullValue()));
+        assertEquals(Value.nullValue(), instance.get(null));
+    }
 }

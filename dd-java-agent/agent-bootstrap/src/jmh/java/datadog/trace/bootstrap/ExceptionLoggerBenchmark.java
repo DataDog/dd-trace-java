@@ -19,10 +19,10 @@ import org.slf4j.LoggerFactory;
 @Measurement(iterations = 5)
 @Threads(8)
 public class ExceptionLoggerBenchmark {
-  @Benchmark
-  public Logger getExceptionLogger() {
-    // This matches what happens in the bytecode weaving that defends against
-    // exception leaking out of instrumentation.
-    return LoggerFactory.getLogger(ExceptionLogger.class);
-  }
+    @Benchmark
+    public Logger getExceptionLogger() {
+        // This matches what happens in the bytecode weaving that defends against
+        // exception leaking out of instrumentation.
+        return LoggerFactory.getLogger(ExceptionLogger.class);
+    }
 }

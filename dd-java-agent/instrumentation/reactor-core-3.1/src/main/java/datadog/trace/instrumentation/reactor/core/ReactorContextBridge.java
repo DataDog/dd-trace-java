@@ -17,123 +17,120 @@ import reactor.core.CoreSubscriber;
  */
 public final class ReactorContextBridge {
 
-  private static final String DD_SPAN_KEY = "dd.span";
+    private static final String DD_SPAN_KEY = "dd.span";
 
-  private ReactorContextBridge() {}
+    private ReactorContextBridge() {}
 
-  /**
-   * Records the {@link Context} derived from the {@code dd.span} span a context-writing subscriber
-   * carries, into the subscriber store, once, when the subscriber is constructed. The caller
-   * ({@code ContextWritingSubscriberInstrumentation}) only matches context-writing subscribers, so
-   * no runtime type check is needed.
-   */
-  public static void captureSubscriberContext(
-      final CoreSubscriber<?> subscriber,
-      final ContextStore<Subscriber, Context> subscriberContexts) {
-    final Context context = explicitContextFromSubscriber(subscriber);
-    if (context != null) {
-      subscriberContexts.put(subscriber, context);
-    }
-  }
-
-  /**
-   * Attaches the context recorded for {@code subscriber} by {@link #captureSubscriberContext}. A
-   * plain store lookup — no {@code instanceof}, no {@code currentContext()} call — on the signal
-   * hot path.
-   */
-  public static ContextScope activateStoredContext(
-      final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
-    return attachIfRequired(subscriberContexts.get(subscriber), Context.current());
-  }
-
-  /**
-   * On subscribe, hands the explicit context recorded for {@code subscriber} (a context-writing
-   * subscriber) to the publisher store so the reactive-streams layer can propagate it, and attaches
-   * it. The deposit is {@linkplain HandoffContext#threadConfined thread-confined} since the
-   * subscribed publisher may be a concurrently-subscribed shared sink.
-   */
-  public static ContextScope captureOnSubscribe(
-      final Publisher<?> publisher,
-      final Subscriber<?> subscriber,
-      final ContextStore<Publisher, HandoffContext> publisherContexts,
-      final ContextStore<Subscriber, Context> subscriberContexts) {
-    final Context context = subscriberContexts.get(subscriber);
-    if (context == null) {
-      return null;
+    /**
+     * Records the {@link Context} derived from the {@code dd.span} span a context-writing subscriber
+     * carries, into the subscriber store, once, when the subscriber is constructed. The caller
+     * ({@code ContextWritingSubscriberInstrumentation}) only matches context-writing subscribers, so
+     * no runtime type check is needed.
+     */
+    public static void captureSubscriberContext(
+            final CoreSubscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
+        final Context context = explicitContextFromSubscriber(subscriber);
+        if (context != null) {
+            subscriberContexts.put(subscriber, context);
+        }
     }
 
-    publisherContexts.put(publisher, HandoffContext.threadConfined(context));
-    return attachIfRequired(context, Context.current());
-  }
-
-  public static ContextScope activateForBlocking(
-      final Publisher<?> publisher,
-      final ContextStore<Publisher, HandoffContext> publisherContexts) {
-    final HandoffContext handoff = publisherContexts.get(publisher);
-    return attachIfRequired(
-        handoff == null ? null : handoff.contextForCurrentThread(), Context.current());
-  }
-
-  public static void transferToOptimizedSubscriber(
-      final Publisher<?> publisher,
-      final Subscriber<?> source,
-      final Subscriber<?> target,
-      final ContextStore<Publisher, HandoffContext> publisherContexts,
-      final ContextStore<Subscriber, Context> subscriberContexts) {
-    if (source == null || target == null) {
-      return;
+    /**
+     * Attaches the context recorded for {@code subscriber} by {@link #captureSubscriberContext}. A
+     * plain store lookup — no {@code instanceof}, no {@code currentContext()} call — on the signal
+     * hot path.
+     */
+    public static ContextScope activateStoredContext(
+            final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
+        return attachIfRequired(subscriberContexts.get(subscriber), Context.current());
     }
 
-    final HandoffContext handoff = publisherContexts.get(publisher);
-    Context context = handoff == null ? null : handoff.contextForCurrentThread();
-    if (context == null) {
-      context = subscriberContexts.get(source);
-    }
-    if (context != null) {
-      subscriberContexts.getOrPut(target, context);
-    }
-  }
+    /**
+     * On subscribe, hands the explicit context recorded for {@code subscriber} (a context-writing
+     * subscriber) to the publisher store so the reactive-streams layer can propagate it, and attaches
+     * it. The deposit is {@linkplain HandoffContext#threadConfined thread-confined} since the
+     * subscribed publisher may be a concurrently-subscribed shared sink.
+     */
+    public static ContextScope captureOnSubscribe(
+            final Publisher<?> publisher,
+            final Subscriber<?> subscriber,
+            final ContextStore<Publisher, HandoffContext> publisherContexts,
+            final ContextStore<Subscriber, Context> subscriberContexts) {
+        final Context context = subscriberContexts.get(subscriber);
+        if (context == null) {
+            return null;
+        }
 
-  private static Context explicitContextFromSubscriber(final CoreSubscriber<?> subscriber) {
-    final reactor.util.context.Context reactorContext = currentContext(subscriber);
-    if (reactorContext == null || !hasKey(reactorContext, DD_SPAN_KEY)) {
-      return null;
+        publisherContexts.put(publisher, HandoffContext.threadConfined(context));
+        return attachIfRequired(context, Context.current());
     }
-    final Object maybeSpan = get(reactorContext, DD_SPAN_KEY);
-    return maybeSpan instanceof WithAgentSpan ? ((WithAgentSpan) maybeSpan).asAgentSpan() : null;
-  }
 
-  private static reactor.util.context.Context currentContext(final CoreSubscriber<?> subscriber) {
-    if (subscriber == null) {
-      return null;
+    public static ContextScope activateForBlocking(
+            final Publisher<?> publisher, final ContextStore<Publisher, HandoffContext> publisherContexts) {
+        final HandoffContext handoff = publisherContexts.get(publisher);
+        return attachIfRequired(handoff == null ? null : handoff.contextForCurrentThread(), Context.current());
     }
-    try {
-      return subscriber.currentContext();
-    } catch (Throwable ignored) {
-      return null;
-    }
-  }
 
-  private static ContextScope attachIfRequired(final Context context, final Context activeContext) {
-    if (context == null || context == activeContext || context == Context.root()) {
-      return null;
-    }
-    return context.attach();
-  }
+    public static void transferToOptimizedSubscriber(
+            final Publisher<?> publisher,
+            final Subscriber<?> source,
+            final Subscriber<?> target,
+            final ContextStore<Publisher, HandoffContext> publisherContexts,
+            final ContextStore<Subscriber, Context> subscriberContexts) {
+        if (source == null || target == null) {
+            return;
+        }
 
-  private static boolean hasKey(final reactor.util.context.Context context, final Object key) {
-    try {
-      return context.hasKey(key);
-    } catch (Throwable ignored) {
-      return false;
+        final HandoffContext handoff = publisherContexts.get(publisher);
+        Context context = handoff == null ? null : handoff.contextForCurrentThread();
+        if (context == null) {
+            context = subscriberContexts.get(source);
+        }
+        if (context != null) {
+            subscriberContexts.getOrPut(target, context);
+        }
     }
-  }
 
-  private static Object get(final reactor.util.context.Context context, final Object key) {
-    try {
-      return context.get(key);
-    } catch (Throwable ignored) {
-      return null;
+    private static Context explicitContextFromSubscriber(final CoreSubscriber<?> subscriber) {
+        final reactor.util.context.Context reactorContext = currentContext(subscriber);
+        if (reactorContext == null || !hasKey(reactorContext, DD_SPAN_KEY)) {
+            return null;
+        }
+        final Object maybeSpan = get(reactorContext, DD_SPAN_KEY);
+        return maybeSpan instanceof WithAgentSpan ? ((WithAgentSpan) maybeSpan).asAgentSpan() : null;
     }
-  }
+
+    private static reactor.util.context.Context currentContext(final CoreSubscriber<?> subscriber) {
+        if (subscriber == null) {
+            return null;
+        }
+        try {
+            return subscriber.currentContext();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static ContextScope attachIfRequired(final Context context, final Context activeContext) {
+        if (context == null || context == activeContext || context == Context.root()) {
+            return null;
+        }
+        return context.attach();
+    }
+
+    private static boolean hasKey(final reactor.util.context.Context context, final Object key) {
+        try {
+            return context.hasKey(key);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static Object get(final reactor.util.context.Context context, final Object key) {
+        try {
+            return context.get(key);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
 }

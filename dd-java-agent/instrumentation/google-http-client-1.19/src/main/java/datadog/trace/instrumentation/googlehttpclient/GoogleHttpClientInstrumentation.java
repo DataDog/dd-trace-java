@@ -27,104 +27,101 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public GoogleHttpClientInstrumentation() {
-    super("google-http-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public GoogleHttpClientInstrumentation() {
+        super("google-http-client");
+    }
 
-  @Override
-  public String instrumentedType() {
-    // HttpRequest is a final class.  Only need to instrument it exactly
-    // Note: the rest of com.google.api is ignored in the additional ignores
-    // of GlobalIgnoresMatcher to speed things up
-    return "com.google.api.client.http.HttpRequest";
-  }
+    @Override
+    public String instrumentedType() {
+        // HttpRequest is a final class.  Only need to instrument it exactly
+        // Note: the rest of com.google.api is ignored in the additional ignores
+        // of GlobalIgnoresMatcher to speed things up
+        return "com.google.api.client.http.HttpRequest";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod().and(isPublic()).and(named("execute")).and(takesArguments(0)),
-        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice",
-        GoogleHttpClientInstrumentation.class.getName()
-            + "$GoogleHttpClientContextPropagationAdvice");
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod().and(isPublic()).and(named("execute")).and(takesArguments(0)),
+                GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice",
+                GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientContextPropagationAdvice");
 
-    transformer.applyAdvices(
-        isMethod()
-            .and(isPublic())
-            .and(named("executeAsync"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, (named("java.util.concurrent.Executor")))),
-        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAsyncAdvice",
-        GoogleHttpClientInstrumentation.class.getName()
-            + "$GoogleHttpClientContextPropagationAdvice");
-  }
+        transformer.applyAdvices(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("executeAsync"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, (named("java.util.concurrent.Executor")))),
+                GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAsyncAdvice",
+                GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientContextPropagationAdvice");
+    }
 
-  public static class GoogleHttpClientAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(
-        @Advice.This HttpRequest request, @Advice.Local("inherited") AgentSpan inheritedSpan) {
-      AgentSpan activeSpan = activeSpan();
-      // detect if span was propagated here by java-concurrent handling
-      // of async requests
-      if (null != activeSpan) {
-        // reference equality to check this instrumentation created the span,
-        // not some other HTTP client
-        if (HTTP_REQUEST == activeSpan.getOperationName()) {
-          inheritedSpan = activeSpan;
-          return null;
+    public static class GoogleHttpClientAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(
+                @Advice.This HttpRequest request, @Advice.Local("inherited") AgentSpan inheritedSpan) {
+            AgentSpan activeSpan = activeSpan();
+            // detect if span was propagated here by java-concurrent handling
+            // of async requests
+            if (null != activeSpan) {
+                // reference equality to check this instrumentation created the span,
+                // not some other HTTP client
+                if (HTTP_REQUEST == activeSpan.getOperationName()) {
+                    inheritedSpan = activeSpan;
+                    return null;
+                }
+            }
+            AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
+            DECORATE.prepareSpan(span, request);
+            return activateSpan(span);
         }
-      }
-      AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
-      DECORATE.prepareSpan(span, request);
-      return activateSpan(span);
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter ContextScope scope,
+                @Advice.Local("inherited") AgentSpan inheritedSpan,
+                @Advice.Return final HttpResponse response,
+                @Advice.Thrown final Throwable throwable) {
+            AgentSpan span = scope != null ? spanFromScope(scope) : inheritedSpan;
+            DECORATE.onError(span, throwable);
+            DECORATE.onResponse(span, response);
+            DECORATE.beforeFinish(span);
+            if (scope != null) {
+                scope.close();
+            }
+            span.finish();
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter ContextScope scope,
-        @Advice.Local("inherited") AgentSpan inheritedSpan,
-        @Advice.Return final HttpResponse response,
-        @Advice.Thrown final Throwable throwable) {
-      AgentSpan span = scope != null ? spanFromScope(scope) : inheritedSpan;
-      DECORATE.onError(span, throwable);
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
-      if (scope != null) {
-        scope.close();
-      }
-      span.finish();
-    }
-  }
+    public static class GoogleHttpClientAsyncAdvice {
 
-  public static class GoogleHttpClientAsyncAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(@Advice.This HttpRequest request) {
+            AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
+            DECORATE.prepareSpan(span, request);
+            return activateSpan(span);
+        }
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(@Advice.This HttpRequest request) {
-      AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
-      DECORATE.prepareSpan(span, request);
-      return activateSpan(span);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(@Advice.Enter ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+            }
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-      }
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class GoogleHttpClientContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter(@Advice.This HttpRequest request) {
+            DECORATE.injectContext(currentContext(), request, SETTER);
+        }
     }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class GoogleHttpClientContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.This HttpRequest request) {
-      DECORATE.injectContext(currentContext(), request, SETTER);
-    }
-  }
 }

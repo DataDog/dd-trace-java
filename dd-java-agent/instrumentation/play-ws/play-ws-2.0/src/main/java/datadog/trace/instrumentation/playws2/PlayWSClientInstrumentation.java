@@ -18,42 +18,42 @@ import play.shaded.ahc.org.asynchttpclient.ws.WebSocketUpgradeHandler;
 
 @AutoService(InstrumenterModule.class)
 public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation {
-  public static class ClientAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(
-        @Advice.Argument(0) final Request request,
-        @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
+    public static class ClientAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(
+                @Advice.Argument(0) final Request request,
+                @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
 
-      final AgentSpan span = startSpan("play-ws", PLAY_WS_REQUEST);
+            final AgentSpan span = startSpan("play-ws", PLAY_WS_REQUEST);
 
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, request);
 
-      if (asyncHandler instanceof StreamedAsyncHandler) {
-        asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);
-      } else if (!(asyncHandler instanceof WebSocketUpgradeHandler)) {
-        // websocket upgrade handlers aren't supported
-        asyncHandler = new AsyncHandlerWrapper(asyncHandler, span);
-      }
+            if (asyncHandler instanceof StreamedAsyncHandler) {
+                asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);
+            } else if (!(asyncHandler instanceof WebSocketUpgradeHandler)) {
+                // websocket upgrade handlers aren't supported
+                asyncHandler = new AsyncHandlerWrapper(asyncHandler, span);
+            }
 
-      return span.attachWithContext();
+            return span.attachWithContext();
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            if (throwable != null) {
+                final AgentSpan span = spanFromContext(scope.context());
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+            }
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      if (throwable != null) {
-        final AgentSpan span = spanFromContext(scope.context());
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-      }
-    }
-  }
 }

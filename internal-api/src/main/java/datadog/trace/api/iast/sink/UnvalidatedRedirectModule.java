@@ -7,11 +7,11 @@ import javax.annotation.Nullable;
 
 public interface UnvalidatedRedirectModule extends IastModule {
 
-  void onRedirect(@Nullable String value);
+    void onRedirect(@Nullable String value);
 
-  void onRedirect(@Nonnull String value, @Nonnull String clazz, @Nonnull String method);
+    void onRedirect(@Nonnull String value, @Nonnull String clazz, @Nonnull String method);
 
-  void onURIRedirect(@Nullable URI value);
+    void onURIRedirect(@Nullable URI value);
 
-  void onHeader(@Nonnull String name, String value);
+    void onHeader(@Nonnull String name, String value);
 }

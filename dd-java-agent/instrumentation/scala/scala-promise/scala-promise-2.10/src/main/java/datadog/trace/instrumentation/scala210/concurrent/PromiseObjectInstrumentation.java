@@ -19,41 +19,39 @@ import scala.util.Try;
  * to take priority over any spans captured while adding computations to a {@code Future} associated
  * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
  */
-public final class PromiseObjectInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class PromiseObjectInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
-    return "scala.concurrent.impl.Promise$";
-  }
+    @Override
+    public String instrumentedType() {
+        // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
+        return "scala.concurrent.impl.Promise$";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("scala$concurrent$impl$Promise$$resolveTry")),
-        getClass().getName() + "$ResolveTry");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("scala$concurrent$impl$Promise$$resolveTry")),
+                getClass().getName() + "$ResolveTry");
+    }
 
-  public static final class ResolveTry {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <T> void afterResolve(@Advice.Return(readOnly = false) Try<T> resolved) {
-      Context context = currentContext();
-      if (shouldCapture(context)) {
-        ContextStore<Try, Context> contextStore =
-            InstrumentationContext.get(Try.class, Context.class);
-        final Context existing = contextStore.get(resolved);
-        Try<T> next = PromiseHelper.getTry(resolved, context, existing);
-        if (next != resolved) {
-          contextStore.put(next, context);
-          resolved = next;
+    public static final class ResolveTry {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static <T> void afterResolve(@Advice.Return(readOnly = false) Try<T> resolved) {
+            Context context = currentContext();
+            if (shouldCapture(context)) {
+                ContextStore<Try, Context> contextStore = InstrumentationContext.get(Try.class, Context.class);
+                final Context existing = contextStore.get(resolved);
+                Try<T> next = PromiseHelper.getTry(resolved, context, existing);
+                if (next != resolved) {
+                    contextStore.put(next, context);
+                    resolved = next;
+                }
+            }
         }
-      }
-    }
 
-    /** CallbackRunnable was removed in scala 2.13 */
-    private static void muzzleCheck(final CallbackRunnable callback) {
-      callback.run();
+        /** CallbackRunnable was removed in scala 2.13 */
+        private static void muzzleCheck(final CallbackRunnable callback) {
+            callback.run();
+        }
     }
-  }
 }

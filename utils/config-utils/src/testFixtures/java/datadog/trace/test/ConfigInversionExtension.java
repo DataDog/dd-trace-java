@@ -17,24 +17,23 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  */
 public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCallback {
 
-  private StrictnessPolicy previousPolicy;
+    private StrictnessPolicy previousPolicy;
 
-  @Override
-  public void beforeAll(ExtensionContext ctx) {
-    previousPolicy = ConfigHelper.get().configInversionStrictFlag();
-    ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.STRICT_TEST);
-  }
-
-  @Override
-  public void afterAll(ExtensionContext ctx) {
-    List<String> unsupported = ConfigHelper.get().drainUnsupportedConfigs();
-    ConfigHelper.get().setConfigInversionStrict(previousPolicy);
-
-    if (!unsupported.isEmpty()) {
-      throw new AssertionError(
-          "Unsupported configurations found during test. "
-              + "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  "
-              + String.join("\n  ", unsupported));
+    @Override
+    public void beforeAll(ExtensionContext ctx) {
+        previousPolicy = ConfigHelper.get().configInversionStrictFlag();
+        ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.STRICT_TEST);
     }
-  }
+
+    @Override
+    public void afterAll(ExtensionContext ctx) {
+        List<String> unsupported = ConfigHelper.get().drainUnsupportedConfigs();
+        ConfigHelper.get().setConfigInversionStrict(previousPolicy);
+
+        if (!unsupported.isEmpty()) {
+            throw new AssertionError("Unsupported configurations found during test. "
+                    + "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  "
+                    + String.join("\n  ", unsupported));
+        }
+    }
 }

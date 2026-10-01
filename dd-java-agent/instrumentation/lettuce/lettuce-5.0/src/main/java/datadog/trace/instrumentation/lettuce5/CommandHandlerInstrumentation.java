@@ -24,48 +24,48 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CommandHandlerInstrumentation() {
-    super("lettuce", "lettuce-5", "lettuce-5-async");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.lettuce.core.protocol.CommandHandler";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("io.lettuce.core.protocol.AsyncCommand", State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("decode"))
-            .and(takesArgument(0, named("io.netty.channel.ChannelHandlerContext")))
-            .and(takesArgument(1, named("io.netty.buffer.ByteBuf")))
-            .and(takesArgument(2, named("io.lettuce.core.protocol.RedisCommand"))),
-        getClass().getName() + "$Decode");
-  }
-
-  public static class Decode {
-    @SuppressWarnings("rawtypes")
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.Argument(2) RedisCommand command) {
-      // if it's something we're tracing, it will always be an AsyncCommand
-      if (command instanceof AsyncCommand) {
-        return startTaskScope(
-            InstrumentationContext.get(AsyncCommand.class, State.class), (AsyncCommand) command);
-      }
-      return null;
+    public CommandHandlerInstrumentation() {
+        super("lettuce", "lettuce-5", "lettuce-5-async");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public String instrumentedType() {
+        return "io.lettuce.core.protocol.CommandHandler";
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("io.lettuce.core.protocol.AsyncCommand", State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("decode"))
+                        .and(takesArgument(0, named("io.netty.channel.ChannelHandlerContext")))
+                        .and(takesArgument(1, named("io.netty.buffer.ByteBuf")))
+                        .and(takesArgument(2, named("io.lettuce.core.protocol.RedisCommand"))),
+                getClass().getName() + "$Decode");
+    }
+
+    public static class Decode {
+        @SuppressWarnings("rawtypes")
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.Argument(2) RedisCommand command) {
+            // if it's something we're tracing, it will always be an AsyncCommand
+            if (command instanceof AsyncCommand) {
+                return startTaskScope(
+                        InstrumentationContext.get(AsyncCommand.class, State.class), (AsyncCommand) command);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
 }

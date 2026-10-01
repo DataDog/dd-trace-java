@@ -50,166 +50,161 @@ import org.openjdk.jmh.infra.Blackhole;
 @SuppressForbidden
 public class TraceMapperBenchmark {
 
-  @Param({"v04", "v04:x-dth", "v05", "v05:x-dth"})
-  String mapperName;
+    @Param({"v04", "v04:x-dth", "v05", "v05:x-dth"})
+    String mapperName;
 
-  private TraceMapper mapper;
-  private Writable writable;
-  private CoreTracer tracer;
-  private List<DDSpan> trace;
+    private TraceMapper mapper;
+    private Writable writable;
+    private CoreTracer tracer;
+    private List<DDSpan> trace;
 
-  @Setup(Level.Trial)
-  public void init(Blackhole blackhole) {
-    PropagationTags propagationTags = null;
-    String[] mapperAndFeatures = mapperName.split(":");
-    switch (mapperAndFeatures[0]) {
-      case "v04":
-        mapper = new TraceMapperV0_4();
-        break;
-      case "v05":
-        mapper = new TraceMapperV0_5();
-        break;
-      default:
-        throw new IllegalArgumentException("Illegal mapper type " + mapperAndFeatures[0] + ".");
-    }
-    for (int i = 1; i < mapperAndFeatures.length; i++) {
-      String feature = mapperAndFeatures[i];
-      switch (feature) {
-        case "x-dth":
-          propagationTags =
-              PropagationTags.factory()
-                  .fromHeaderValue(
-                      PropagationTags.HeaderType.DATADOG,
-                      "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
-          break;
-        default:
-          throw new IllegalArgumentException("Unknown benchmark feature " + feature + ".");
-      }
-    }
+    @Setup(Level.Trial)
+    public void init(Blackhole blackhole) {
+        PropagationTags propagationTags = null;
+        String[] mapperAndFeatures = mapperName.split(":");
+        switch (mapperAndFeatures[0]) {
+            case "v04":
+                mapper = new TraceMapperV0_4();
+                break;
+            case "v05":
+                mapper = new TraceMapperV0_5();
+                break;
+            default:
+                throw new IllegalArgumentException("Illegal mapper type " + mapperAndFeatures[0] + ".");
+        }
+        for (int i = 1; i < mapperAndFeatures.length; i++) {
+            String feature = mapperAndFeatures[i];
+            switch (feature) {
+                case "x-dth":
+                    propagationTags = PropagationTags.factory()
+                            .fromHeaderValue(
+                                    PropagationTags.HeaderType.DATADOG, "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown benchmark feature " + feature + ".");
+            }
+        }
 
-    Map<String, Object> tags = new HashMap<>();
-    tags.put(RUNTIME_ID_TAG, "fdd790b3-4aeb-4517-9b84-cafcc0129c48");
-    tags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
-    tags.put("env", "prod");
+        Map<String, Object> tags = new HashMap<>();
+        tags.put(RUNTIME_ID_TAG, "fdd790b3-4aeb-4517-9b84-cafcc0129c48");
+        tags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+        tags.put("env", "prod");
 
-    writable = new MsgPackWriter(new BlackholeBuffer(blackhole));
+        writable = new MsgPackWriter(new BlackholeBuffer(blackhole));
 
-    tracer =
-        CoreTracer.builder()
-            .strictTraceWrites(
-                true) // Avoid any extra bookkeeping for traces since we write directly
-            .build();
+        tracer = CoreTracer.builder()
+                .strictTraceWrites(true) // Avoid any extra bookkeeping for traces since we write directly
+                .build();
 
-    DDTraceId traceId = DDTraceId.ONE;
-    TraceCollector traceCollector = tracer.createTraceCollector(traceId);
-    DDSpanContext rootContext =
-        new DDSpanContext(
-            traceId,
-            2,
-            DDSpanId.ZERO,
-            null,
-            "service",
-            UTF8BytesString.create("operation"),
-            UTF8BytesString.create("resource"),
-            PrioritySampling.SAMPLER_KEEP,
-            null,
-            Collections.<String, String>emptyMap(),
-            false,
-            UTF8BytesString.create("type"),
-            0,
-            traceCollector,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            propagationTags);
-    DDSpanHelper.setAllTags(rootContext, tags);
-    DDSpan root = DDSpanHelper.create("benchmark", System.currentTimeMillis() * 1000, rootContext);
-    root.setResourceName(UTF8BytesString.create("benchmark"));
-    trace = Lists.newArrayList(root);
-  }
-
-  @Benchmark
-  public void mapTrace() {
-    mapper.map(trace, writable);
-  }
-
-  public static final class BlackholeBuffer implements StreamingBuffer {
-    private final Blackhole blackhole;
-
-    public BlackholeBuffer(Blackhole blackhole) {
-      this.blackhole = blackhole;
+        DDTraceId traceId = DDTraceId.ONE;
+        TraceCollector traceCollector = tracer.createTraceCollector(traceId);
+        DDSpanContext rootContext = new DDSpanContext(
+                traceId,
+                2,
+                DDSpanId.ZERO,
+                null,
+                "service",
+                UTF8BytesString.create("operation"),
+                UTF8BytesString.create("resource"),
+                PrioritySampling.SAMPLER_KEEP,
+                null,
+                Collections.<String, String>emptyMap(),
+                false,
+                UTF8BytesString.create("type"),
+                0,
+                traceCollector,
+                null,
+                null,
+                NoopPathwayContext.INSTANCE,
+                false,
+                propagationTags);
+        DDSpanHelper.setAllTags(rootContext, tags);
+        DDSpan root = DDSpanHelper.create("benchmark", System.currentTimeMillis() * 1000, rootContext);
+        root.setResourceName(UTF8BytesString.create("benchmark"));
+        trace = Lists.newArrayList(root);
     }
 
-    @Override
-    public int capacity() {
-      return 0;
+    @Benchmark
+    public void mapTrace() {
+        mapper.map(trace, writable);
     }
 
-    @Override
-    public boolean isDirty() {
-      return false;
+    public static final class BlackholeBuffer implements StreamingBuffer {
+        private final Blackhole blackhole;
+
+        public BlackholeBuffer(Blackhole blackhole) {
+            this.blackhole = blackhole;
+        }
+
+        @Override
+        public int capacity() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDirty() {
+            return false;
+        }
+
+        @Override
+        public void mark() {}
+
+        @Override
+        public boolean flush() {
+            return true;
+        }
+
+        @Override
+        public void put(byte b) {
+            blackhole.consume(b);
+        }
+
+        @Override
+        public void putShort(short s) {
+            blackhole.consume(s);
+        }
+
+        @Override
+        public void putChar(char c) {
+            blackhole.consume(c);
+        }
+
+        @Override
+        public void putInt(int i) {
+            blackhole.consume(i);
+        }
+
+        @Override
+        public void putLong(long l) {
+            blackhole.consume(l);
+        }
+
+        @Override
+        public void putFloat(float f) {
+            blackhole.consume(f);
+        }
+
+        @Override
+        public void putDouble(double d) {
+            blackhole.consume(d);
+        }
+
+        @Override
+        public void put(byte[] bytes) {
+            blackhole.consume(bytes);
+        }
+
+        @Override
+        public void put(byte[] bytes, int offset, int length) {
+            blackhole.consume(bytes);
+        }
+
+        @Override
+        public void put(ByteBuffer buffer) {
+            blackhole.consume(buffer);
+        }
+
+        @Override
+        public void reset() {}
     }
-
-    @Override
-    public void mark() {}
-
-    @Override
-    public boolean flush() {
-      return true;
-    }
-
-    @Override
-    public void put(byte b) {
-      blackhole.consume(b);
-    }
-
-    @Override
-    public void putShort(short s) {
-      blackhole.consume(s);
-    }
-
-    @Override
-    public void putChar(char c) {
-      blackhole.consume(c);
-    }
-
-    @Override
-    public void putInt(int i) {
-      blackhole.consume(i);
-    }
-
-    @Override
-    public void putLong(long l) {
-      blackhole.consume(l);
-    }
-
-    @Override
-    public void putFloat(float f) {
-      blackhole.consume(f);
-    }
-
-    @Override
-    public void putDouble(double d) {
-      blackhole.consume(d);
-    }
-
-    @Override
-    public void put(byte[] bytes) {
-      blackhole.consume(bytes);
-    }
-
-    @Override
-    public void put(byte[] bytes, int offset, int length) {
-      blackhole.consume(bytes);
-    }
-
-    @Override
-    public void put(ByteBuffer buffer) {
-      blackhole.consume(buffer);
-    }
-
-    @Override
-    public void reset() {}
-  }
 }

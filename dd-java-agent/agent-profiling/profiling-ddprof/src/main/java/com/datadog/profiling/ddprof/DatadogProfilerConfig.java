@@ -73,435 +73,406 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DatadogProfilerConfig {
-  private static final Logger log = LoggerFactory.getLogger(DatadogProfilerConfig.class);
+    private static final Logger log = LoggerFactory.getLogger(DatadogProfilerConfig.class);
 
-  public static boolean isCpuProfilerEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_CPU_ENABLED,
-        PROFILING_DATADOG_PROFILER_CPU_ENABLED_DEFAULT);
-  }
-
-  public static String getLibPath(ConfigProvider configProvider) {
-    return getString(configProvider, PROFILING_DATADOG_PROFILER_LIBPATH);
-  }
-
-  public static String getLibPath() {
-    return getLibPath(ConfigProvider.getInstance());
-  }
-
-  public static boolean isCpuProfilerEnabled() {
-    return isCpuProfilerEnabled(ConfigProvider.getInstance());
-  }
-
-  public static int getCpuInterval(ConfigProvider configProvider) {
-    return getInteger(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_CPU_INTERVAL,
-        PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT);
-  }
-
-  public static int getCpuInterval() {
-    return getCpuInterval(ConfigProvider.getInstance());
-  }
-
-  public static String getSchedulingEvent(ConfigProvider configProvider) {
-    return getString(configProvider, PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT);
-  }
-
-  public static String getSchedulingEvent() {
-    return getSchedulingEvent(ConfigProvider.getInstance());
-  }
-
-  public static int getSchedulingEventInterval(ConfigProvider configProvider) {
-    return getInteger(configProvider, PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL);
-  }
-
-  public static int getSchedulingEventInterval() {
-    return getSchedulingEventInterval(ConfigProvider.getInstance());
-  }
-
-  public static boolean isWallClockProfilerEnabled() {
-    return isWallClockProfilerEnabled(ConfigProvider.getInstance());
-  }
-
-  public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
-    boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
-    boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
-    boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
-    boolean enabledByDefault = !disableUnlessOptedIn;
-    return getBoolean(configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, enabledByDefault);
-  }
-
-  public static int getWallInterval(ConfigProvider configProvider) {
-    return getInteger(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_WALL_INTERVAL,
-        PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT);
-  }
-
-  public static int getWallInterval() {
-    return getWallInterval(ConfigProvider.getInstance());
-  }
-
-  public static boolean getWallCollapsing(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_WALL_COLLAPSING,
-        PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT);
-  }
-
-  /**
-   * Checks whether the wall-clock context filter should be used.<br>
-   * The context filter will make wall-clock profiler to pick candidate threads only from threads
-   * with attached tracing context.<br>
-   * If context filter is not used (this method returns {@literal false}) all threads will be
-   * considered for wallclock sampling.
-   *
-   * @param configProvider the associated config provider
-   * @return {@literal true} if the wallclock sampler should use context filtering, {@literal false}
-   *     otherwise
-   */
-  public static boolean getWallContextFilter(ConfigProvider configProvider) {
-    // Context filtering requires tracing to be enabled - without tracing,
-    // there are no span contexts to filter on, so threads would never be added
-    // to the filter, resulting in no walltime samples.
-    boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
-    if (!isTracingEnabled) {
-      return false;
+    public static boolean isCpuProfilerEnabled(ConfigProvider configProvider) {
+        return getBoolean(
+                configProvider, PROFILING_DATADOG_PROFILER_CPU_ENABLED, PROFILING_DATADOG_PROFILER_CPU_ENABLED_DEFAULT);
     }
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
-        PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
-  }
 
-  static boolean isJmethodIDSafe() {
-    return ProfilingSupport.isJmethodIDSafe();
-  }
-
-  static boolean isMemoryLeakProfilingSafe() {
-    return ProfilingSupport.isLiveHeapProfilingSafe();
-  }
-
-  public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
-    // JVMTI Allocation Sampler is available since Java 11
-    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-      boolean dflt = isJmethodIDSafe();
-      boolean enableDdprofAlloc =
-          getBoolean(
-              configProvider,
-              PROFILING_ALLOCATION_ENABLED,
-              dflt,
-              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
-
-      if (!dflt && enableDdprofAlloc) {
-        log.warn(
-            "Allocation profiling was enabled although it is not considered stable on this JVM version.");
-      }
-      return enableDdprofAlloc;
+    public static String getLibPath(ConfigProvider configProvider) {
+        return getString(configProvider, PROFILING_DATADOG_PROFILER_LIBPATH);
     }
-    return false;
-  }
 
-  public static boolean isAllocationProfilingEnabled() {
-    return isAllocationProfilingEnabled(ConfigProvider.getInstance());
-  }
-
-  public static int getAllocationInterval(ConfigProvider configProvider) {
-    return getInteger(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL,
-        PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT);
-  }
-
-  public static int getAllocationInterval() {
-    return getAllocationInterval(ConfigProvider.getInstance());
-  }
-
-  public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
-    boolean unifiedEnabled =
-        configProvider.getBoolean(PROFILING_HEAP_ENABLED, isMemoryLeakProfilingSafe());
-    if (!unifiedEnabled) {
-      return false;
+    public static String getLibPath() {
+        return getLibPath(ConfigProvider.getInstance());
     }
-    // JVMTI Allocation Sampler is required for ddprof live heap and is available since Java 11.
-    // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
-    boolean isSafe = JavaVirtualMachine.isJavaVersionAtLeast(11) && isJmethodIDSafe();
-    boolean enableDdprofMemleak =
-        getBoolean(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
-            isSafe,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
-    if (!isSafe && enableDdprofMemleak) {
-      log.warn(
-          "Live heap profiling (ddprof) was enabled although it is not considered stable"
-              + " on this JVM version.");
+
+    public static boolean isCpuProfilerEnabled() {
+        return isCpuProfilerEnabled(ConfigProvider.getInstance());
     }
-    if (!enableDdprofMemleak && !isOldObjectSampleAvailable()) {
-      log.warn(
-          "ddprof live heap profiling is disabled and JFR OldObjectSample is not available"
-              + " on this JVM. Live heap profiling will be inactive.");
+
+    public static int getCpuInterval(ConfigProvider configProvider) {
+        return getInteger(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_CPU_INTERVAL,
+                PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT);
     }
-    return enableDdprofMemleak;
-  }
 
-  public static boolean isMemoryLeakProfilingEnabled() {
-    return isMemoryLeakProfilingEnabled(ConfigProvider.getInstance());
-  }
-
-  public static boolean isLiveHeapSizeTrackingEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE,
-        PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT);
-  }
-
-  public static int getLiveHeapSamplePercent(ConfigProvider configProvider) {
-    return getInteger(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT,
-        PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT);
-  }
-
-  public static long getMemleakInterval(ConfigProvider configProvider) {
-    long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
-    long memleakIntervalDefault =
-        maxheap <= 0 ? 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
-    return getLong(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL,
-        memleakIntervalDefault,
-        PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL);
-  }
-
-  public static long getMemleakInterval() {
-    return getMemleakInterval(ConfigProvider.getInstance());
-  }
-
-  public static int getMemleakCapacity(ConfigProvider configProvider) {
-    return clamp(
-        0,
-        // see
-        // https://github.com/DataDog/java-profiler/blob/main/ddprof-lib/src/main/cpp/livenessTracker.h#L54
-        8192,
-        getInteger(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY,
-            PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY));
-  }
-
-  public static int getMemleakCapacity() {
-    return getMemleakCapacity(ConfigProvider.getInstance());
-  }
-
-  public static boolean isNativeMemoryProfilingEnabled(ConfigProvider configProvider) {
-    // nativemem never shipped under the legacy '.async.' naming, so it has no async-translated
-    // form to fall back to — call the provider directly instead of the ddprof->async helper.
-    return configProvider.getBoolean(
-        PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED,
-        PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT);
-  }
-
-  public static boolean isNativeMemoryProfilingEnabled() {
-    return isNativeMemoryProfilingEnabled(ConfigProvider.getInstance());
-  }
-
-  public static int getNativeMemoryInterval(ConfigProvider configProvider) {
-    // nativemem never shipped under the legacy '.async.' naming, so it has no async-translated
-    // form to fall back to — call the provider directly instead of the ddprof->async helper.
-    return configProvider.getInteger(
-        PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL,
-        PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT);
-  }
-
-  public static int getNativeMemoryInterval() {
-    return getNativeMemoryInterval(ConfigProvider.getInstance());
-  }
-
-  public static boolean isNativeSocketProfilingEnabled(ConfigProvider configProvider) {
-    // natsock never shipped under the legacy '.async.' naming, so it has no async-translated
-    // form to fall back to — call the provider directly instead of the ddprof->async helper.
-    return configProvider.getBoolean(
-        PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED,
-        PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT);
-  }
-
-  public static boolean isNativeSocketProfilingEnabled() {
-    return isNativeSocketProfilingEnabled(ConfigProvider.getInstance());
-  }
-
-  public static String getNativeSocketInterval(ConfigProvider configProvider) {
-    // natsock never shipped under the legacy '.async.' naming, so it has no async-translated
-    // form to fall back to — call the provider directly instead of the ddprof->async helper.
-    return configProvider.getString(PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL);
-  }
-
-  public static String getNativeSocketInterval() {
-    return getNativeSocketInterval(ConfigProvider.getInstance());
-  }
-
-  public static int getStackDepth(ConfigProvider configProvider) {
-    return getInteger(
-        configProvider,
-        PROFILING_STACKDEPTH,
-        PROFILING_STACKDEPTH_DEFAULT,
-        PROFILING_DATADOG_PROFILER_STACKDEPTH);
-  }
-
-  public static int getStackDepth() {
-    return getStackDepth(ConfigProvider.getInstance());
-  }
-
-  public static int getSafeMode(ConfigProvider configProvider) {
-    return getInteger(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_SAFEMODE,
-        PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT);
-  }
-
-  public static int getSafeMode() {
-    return getSafeMode(ConfigProvider.getInstance());
-  }
-
-  public static String getCStack(ConfigProvider configProvider) {
-    String cstack =
-        getString(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_CSTACK,
-            PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
-    if (cstack.startsWith("vm") && !(JavaVirtualMachine.isHotspot())) {
-      // can't use the VM stackwalking on non-hotspot VMs
-      // fall-back to 'dwarf' unwinding
-      cstack = "dwarf";
+    public static int getCpuInterval() {
+        return getCpuInterval(ConfigProvider.getInstance());
     }
-    return cstack;
-  }
 
-  public static boolean isEndpointTrackingEnabled() {
-    return isEndpointTrackingEnabled(ConfigProvider.getInstance());
-  }
+    public static String getSchedulingEvent(ConfigProvider configProvider) {
+        return getString(configProvider, PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT);
+    }
 
-  public static boolean isEndpointTrackingEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
-        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
-  }
+    public static String getSchedulingEvent() {
+        return getSchedulingEvent(ConfigProvider.getInstance());
+    }
 
-  public static boolean isQueueTimeEnabled() {
-    return isQueueTimeEnabled(ConfigProvider.getInstance());
-  }
+    public static int getSchedulingEventInterval(ConfigProvider configProvider) {
+        return getInteger(configProvider, PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL);
+    }
 
-  public static boolean isQueueTimeEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider, PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
-  }
+    public static int getSchedulingEventInterval() {
+        return getSchedulingEventInterval(ConfigProvider.getInstance());
+    }
 
-  public static String getCStack() {
-    return getCStack(ConfigProvider.getInstance());
-  }
+    public static boolean isWallClockProfilerEnabled() {
+        return isWallClockProfilerEnabled(ConfigProvider.getInstance());
+    }
 
-  public static boolean omitLineNumbers(ConfigProvider configProvider) {
-    return !getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_LINE_NUMBERS,
-        PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT);
-  }
+    public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
+        boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
+        boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
+        boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
+        boolean enabledByDefault = !disableUnlessOptedIn;
+        return getBoolean(configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, enabledByDefault);
+    }
 
-  private static int clamp(int min, int max, int value) {
-    return Math.max(min, Math.min(max, value));
-  }
+    public static int getWallInterval(ConfigProvider configProvider) {
+        return getInteger(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_WALL_INTERVAL,
+                PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT);
+    }
 
-  public static String getLogLevel(ConfigProvider configProvider) {
-    return getString(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_LOG_LEVEL,
-        PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT);
-  }
+    public static int getWallInterval() {
+        return getWallInterval(ConfigProvider.getInstance());
+    }
 
-  public static String getLogLevel() {
-    return getLogLevel(ConfigProvider.getInstance());
-  }
+    public static boolean getWallCollapsing(ConfigProvider configProvider) {
+        return getBoolean(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_WALL_COLLAPSING,
+                PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT);
+    }
 
-  public static Set<String> getContextAttributes(ConfigProvider configProvider) {
-    return configProvider.getSet(PROFILING_CONTEXT_ATTRIBUTES, Collections.emptySet());
-  }
+    /**
+     * Checks whether the wall-clock context filter should be used.<br>
+     * The context filter will make wall-clock profiler to pick candidate threads only from threads
+     * with attached tracing context.<br>
+     * If context filter is not used (this method returns {@literal false}) all threads will be
+     * considered for wallclock sampling.
+     *
+     * @param configProvider the associated config provider
+     * @return {@literal true} if the wallclock sampler should use context filtering, {@literal false}
+     *     otherwise
+     */
+    public static boolean getWallContextFilter(ConfigProvider configProvider) {
+        // Context filtering requires tracing to be enabled - without tracing,
+        // there are no span contexts to filter on, so threads would never be added
+        // to the filter, resulting in no walltime samples.
+        boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
+        if (!isTracingEnabled) {
+            return false;
+        }
+        return getBoolean(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
+                PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
+    }
 
-  public static boolean isQueueingTimeEnabled() {
-    return isQueueingTimeEnabled(ConfigProvider.getInstance());
-  }
+    static boolean isJmethodIDSafe() {
+        return ProfilingSupport.isJmethodIDSafe();
+    }
 
-  public static boolean isQueueingTimeEnabled(ConfigProvider configProvider) {
-    return configProvider.getBoolean(
-        PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
-  }
+    static boolean isMemoryLeakProfilingSafe() {
+        return ProfilingSupport.isLiveHeapProfilingSafe();
+    }
 
-  public static boolean isSpanNameContextAttributeEnabled() {
-    return isSpanNameContextAttributeEnabled(ConfigProvider.getInstance());
-  }
+    public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
+        // JVMTI Allocation Sampler is available since Java 11
+        if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+            boolean dflt = isJmethodIDSafe();
+            boolean enableDdprofAlloc = getBoolean(
+                    configProvider, PROFILING_ALLOCATION_ENABLED, dflt, PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
 
-  public static boolean isSpanNameContextAttributeEnabled(ConfigProvider configProvider) {
-    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED, true);
-  }
+            if (!dflt && enableDdprofAlloc) {
+                log.warn("Allocation profiling was enabled although it is not considered stable on this JVM version.");
+            }
+            return enableDdprofAlloc;
+        }
+        return false;
+    }
 
-  public static boolean isResourceNameContextAttributeEnabled(ConfigProvider configProvider) {
-    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, false);
-  }
+    public static boolean isAllocationProfilingEnabled() {
+        return isAllocationProfilingEnabled(ConfigProvider.getInstance());
+    }
 
-  public static boolean isTrackingGenerations(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider, PROFILING_HEAP_TRACK_GENERATIONS, PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT);
-  }
+    public static int getAllocationInterval(ConfigProvider configProvider) {
+        return getInteger(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL,
+                PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT);
+    }
 
-  public static String getString(ConfigProvider configProvider, String key, String defaultValue) {
-    return configProvider.getString(key, configProvider.getString(normalizeKey(key), defaultValue));
-  }
+    public static int getAllocationInterval() {
+        return getAllocationInterval(ConfigProvider.getInstance());
+    }
 
-  public static String getString(ConfigProvider configProvider, String key) {
-    return configProvider.getString(key, configProvider.getString(normalizeKey(key)));
-  }
+    public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
+        boolean unifiedEnabled = configProvider.getBoolean(PROFILING_HEAP_ENABLED, isMemoryLeakProfilingSafe());
+        if (!unifiedEnabled) {
+            return false;
+        }
+        // JVMTI Allocation Sampler is required for ddprof live heap and is available since Java 11.
+        // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
+        boolean isSafe = JavaVirtualMachine.isJavaVersionAtLeast(11) && isJmethodIDSafe();
+        boolean enableDdprofMemleak = getBoolean(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+                isSafe,
+                PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
+        if (!isSafe && enableDdprofMemleak) {
+            log.warn("Live heap profiling (ddprof) was enabled although it is not considered stable"
+                    + " on this JVM version.");
+        }
+        if (!enableDdprofMemleak && !isOldObjectSampleAvailable()) {
+            log.warn("ddprof live heap profiling is disabled and JFR OldObjectSample is not available"
+                    + " on this JVM. Live heap profiling will be inactive.");
+        }
+        return enableDdprofMemleak;
+    }
 
-  public static boolean getBoolean(
-      ConfigProvider configProvider, String key, boolean defaultValue, String... aliases) {
-    return configProvider.getBoolean(
-        key, configProvider.getBoolean(normalizeKey(key), defaultValue), aliases);
-  }
+    public static boolean isMemoryLeakProfilingEnabled() {
+        return isMemoryLeakProfilingEnabled(ConfigProvider.getInstance());
+    }
 
-  public static boolean getBoolean(ConfigProvider configProvider, String key) {
-    return configProvider.getBoolean(key, configProvider.getBoolean(normalizeKey(key), false));
-  }
+    public static boolean isLiveHeapSizeTrackingEnabled(ConfigProvider configProvider) {
+        return getBoolean(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE,
+                PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT);
+    }
 
-  public static int getInteger(
-      ConfigProvider configProvider, String key, int defaultValue, String... aliases) {
-    return configProvider.getInteger(
-        key, configProvider.getInteger(normalizeKey(key), defaultValue), aliases);
-  }
+    public static int getLiveHeapSamplePercent(ConfigProvider configProvider) {
+        return getInteger(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT,
+                PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT);
+    }
 
-  public static int getInteger(ConfigProvider configProvider, String key) {
-    return configProvider.getInteger(key, configProvider.getInteger(normalizeKey(key), -1));
-  }
+    public static long getMemleakInterval(ConfigProvider configProvider) {
+        long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
+        long memleakIntervalDefault = maxheap <= 0 ? 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
+        return getLong(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL,
+                memleakIntervalDefault,
+                PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL);
+    }
 
-  public static long getLong(
-      ConfigProvider configProvider, String key, long defaultValue, String... aliases) {
-    return configProvider.getLong(
-        key, configProvider.getLong(normalizeKey(key), defaultValue), aliases);
-  }
+    public static long getMemleakInterval() {
+        return getMemleakInterval(ConfigProvider.getInstance());
+    }
 
-  public static long getLong(ConfigProvider configProvider, String key) {
-    return configProvider.getLong(key, configProvider.getLong(normalizeKey(key), -1));
-  }
+    public static int getMemleakCapacity(ConfigProvider configProvider) {
+        return clamp(
+                0,
+                // see
+                // https://github.com/DataDog/java-profiler/blob/main/ddprof-lib/src/main/cpp/livenessTracker.h#L54
+                8192,
+                getInteger(
+                        configProvider,
+                        PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY,
+                        PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT,
+                        PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY));
+    }
 
-  public static boolean enableJMethodIDOptim(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED,
-        PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT);
-  }
+    public static int getMemleakCapacity() {
+        return getMemleakCapacity(ConfigProvider.getInstance());
+    }
 
-  private static String normalizeKey(String key) {
-    return key.replace(".ddprof.", ".async.");
-  }
+    public static boolean isNativeMemoryProfilingEnabled(ConfigProvider configProvider) {
+        // nativemem never shipped under the legacy '.async.' naming, so it has no async-translated
+        // form to fall back to — call the provider directly instead of the ddprof->async helper.
+        return configProvider.getBoolean(
+                PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED, PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT);
+    }
+
+    public static boolean isNativeMemoryProfilingEnabled() {
+        return isNativeMemoryProfilingEnabled(ConfigProvider.getInstance());
+    }
+
+    public static int getNativeMemoryInterval(ConfigProvider configProvider) {
+        // nativemem never shipped under the legacy '.async.' naming, so it has no async-translated
+        // form to fall back to — call the provider directly instead of the ddprof->async helper.
+        return configProvider.getInteger(
+                PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL, PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT);
+    }
+
+    public static int getNativeMemoryInterval() {
+        return getNativeMemoryInterval(ConfigProvider.getInstance());
+    }
+
+    public static boolean isNativeSocketProfilingEnabled(ConfigProvider configProvider) {
+        // natsock never shipped under the legacy '.async.' naming, so it has no async-translated
+        // form to fall back to — call the provider directly instead of the ddprof->async helper.
+        return configProvider.getBoolean(
+                PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED,
+                PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT);
+    }
+
+    public static boolean isNativeSocketProfilingEnabled() {
+        return isNativeSocketProfilingEnabled(ConfigProvider.getInstance());
+    }
+
+    public static String getNativeSocketInterval(ConfigProvider configProvider) {
+        // natsock never shipped under the legacy '.async.' naming, so it has no async-translated
+        // form to fall back to — call the provider directly instead of the ddprof->async helper.
+        return configProvider.getString(PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL);
+    }
+
+    public static String getNativeSocketInterval() {
+        return getNativeSocketInterval(ConfigProvider.getInstance());
+    }
+
+    public static int getStackDepth(ConfigProvider configProvider) {
+        return getInteger(
+                configProvider,
+                PROFILING_STACKDEPTH,
+                PROFILING_STACKDEPTH_DEFAULT,
+                PROFILING_DATADOG_PROFILER_STACKDEPTH);
+    }
+
+    public static int getStackDepth() {
+        return getStackDepth(ConfigProvider.getInstance());
+    }
+
+    public static int getSafeMode(ConfigProvider configProvider) {
+        return getInteger(
+                configProvider, PROFILING_DATADOG_PROFILER_SAFEMODE, PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT);
+    }
+
+    public static int getSafeMode() {
+        return getSafeMode(ConfigProvider.getInstance());
+    }
+
+    public static String getCStack(ConfigProvider configProvider) {
+        String cstack =
+                getString(configProvider, PROFILING_DATADOG_PROFILER_CSTACK, PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
+        if (cstack.startsWith("vm") && !(JavaVirtualMachine.isHotspot())) {
+            // can't use the VM stackwalking on non-hotspot VMs
+            // fall-back to 'dwarf' unwinding
+            cstack = "dwarf";
+        }
+        return cstack;
+    }
+
+    public static boolean isEndpointTrackingEnabled() {
+        return isEndpointTrackingEnabled(ConfigProvider.getInstance());
+    }
+
+    public static boolean isEndpointTrackingEnabled(ConfigProvider configProvider) {
+        return getBoolean(
+                configProvider,
+                ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
+                ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
+    }
+
+    public static boolean isQueueTimeEnabled() {
+        return isQueueTimeEnabled(ConfigProvider.getInstance());
+    }
+
+    public static boolean isQueueTimeEnabled(ConfigProvider configProvider) {
+        return getBoolean(configProvider, PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+    }
+
+    public static String getCStack() {
+        return getCStack(ConfigProvider.getInstance());
+    }
+
+    public static boolean omitLineNumbers(ConfigProvider configProvider) {
+        return !getBoolean(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_LINE_NUMBERS,
+                PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT);
+    }
+
+    private static int clamp(int min, int max, int value) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    public static String getLogLevel(ConfigProvider configProvider) {
+        return getString(
+                configProvider, PROFILING_DATADOG_PROFILER_LOG_LEVEL, PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT);
+    }
+
+    public static String getLogLevel() {
+        return getLogLevel(ConfigProvider.getInstance());
+    }
+
+    public static Set<String> getContextAttributes(ConfigProvider configProvider) {
+        return configProvider.getSet(PROFILING_CONTEXT_ATTRIBUTES, Collections.emptySet());
+    }
+
+    public static boolean isQueueingTimeEnabled() {
+        return isQueueingTimeEnabled(ConfigProvider.getInstance());
+    }
+
+    public static boolean isQueueingTimeEnabled(ConfigProvider configProvider) {
+        return configProvider.getBoolean(PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+    }
+
+    public static boolean isSpanNameContextAttributeEnabled() {
+        return isSpanNameContextAttributeEnabled(ConfigProvider.getInstance());
+    }
+
+    public static boolean isSpanNameContextAttributeEnabled(ConfigProvider configProvider) {
+        return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED, true);
+    }
+
+    public static boolean isResourceNameContextAttributeEnabled(ConfigProvider configProvider) {
+        return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, false);
+    }
+
+    public static boolean isTrackingGenerations(ConfigProvider configProvider) {
+        return getBoolean(configProvider, PROFILING_HEAP_TRACK_GENERATIONS, PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT);
+    }
+
+    public static String getString(ConfigProvider configProvider, String key, String defaultValue) {
+        return configProvider.getString(key, configProvider.getString(normalizeKey(key), defaultValue));
+    }
+
+    public static String getString(ConfigProvider configProvider, String key) {
+        return configProvider.getString(key, configProvider.getString(normalizeKey(key)));
+    }
+
+    public static boolean getBoolean(
+            ConfigProvider configProvider, String key, boolean defaultValue, String... aliases) {
+        return configProvider.getBoolean(key, configProvider.getBoolean(normalizeKey(key), defaultValue), aliases);
+    }
+
+    public static boolean getBoolean(ConfigProvider configProvider, String key) {
+        return configProvider.getBoolean(key, configProvider.getBoolean(normalizeKey(key), false));
+    }
+
+    public static int getInteger(ConfigProvider configProvider, String key, int defaultValue, String... aliases) {
+        return configProvider.getInteger(key, configProvider.getInteger(normalizeKey(key), defaultValue), aliases);
+    }
+
+    public static int getInteger(ConfigProvider configProvider, String key) {
+        return configProvider.getInteger(key, configProvider.getInteger(normalizeKey(key), -1));
+    }
+
+    public static long getLong(ConfigProvider configProvider, String key, long defaultValue, String... aliases) {
+        return configProvider.getLong(key, configProvider.getLong(normalizeKey(key), defaultValue), aliases);
+    }
+
+    public static long getLong(ConfigProvider configProvider, String key) {
+        return configProvider.getLong(key, configProvider.getLong(normalizeKey(key), -1));
+    }
+
+    public static boolean enableJMethodIDOptim(ConfigProvider configProvider) {
+        return getBoolean(
+                configProvider,
+                PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED,
+                PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT);
+    }
+
+    private static String normalizeKey(String key) {
+        return key.replace(".ddprof.", ".async.");
+    }
 }

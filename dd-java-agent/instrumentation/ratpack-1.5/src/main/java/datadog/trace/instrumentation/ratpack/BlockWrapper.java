@@ -10,29 +10,29 @@ import ratpack.func.Block;
 
 public class BlockWrapper implements Block {
 
-  private static final Logger log = LoggerFactory.getLogger(BlockWrapper.class);
+    private static final Logger log = LoggerFactory.getLogger(BlockWrapper.class);
 
-  private final Block delegate;
-  private final AgentSpan span;
+    private final Block delegate;
+    private final AgentSpan span;
 
-  private BlockWrapper(final Block delegate, final AgentSpan span) {
-    assert span != null;
-    this.delegate = delegate;
-    this.span = span;
-  }
-
-  @Override
-  public void execute() throws Exception {
-    try (final ContextScope scope = activateSpan(span)) {
-      delegate.execute();
+    private BlockWrapper(final Block delegate, final AgentSpan span) {
+        assert span != null;
+        this.delegate = delegate;
+        this.span = span;
     }
-  }
 
-  public static Block wrapIfNeeded(final Block delegate, final AgentSpan span) {
-    if (delegate instanceof BlockWrapper || span == null) {
-      return delegate;
+    @Override
+    public void execute() throws Exception {
+        try (final ContextScope scope = activateSpan(span)) {
+            delegate.execute();
+        }
     }
-    log.debug("Wrapping block {}", delegate);
-    return new BlockWrapper(delegate, span);
-  }
+
+    public static Block wrapIfNeeded(final Block delegate, final AgentSpan span) {
+        if (delegate instanceof BlockWrapper || span == null) {
+            return delegate;
+        }
+        log.debug("Wrapping block {}", delegate);
+        return new BlockWrapper(delegate, span);
+    }
 }

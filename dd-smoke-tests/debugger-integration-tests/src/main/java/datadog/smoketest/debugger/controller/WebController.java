@@ -5,13 +5,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class WebController {
-  @RequestMapping("/greeting")
-  public String greeting() {
-    processWithArg(42);
-    return "Sup Dawg";
-  }
+    @RequestMapping("/greeting")
+    public String greeting() {
+        processWithArg(42);
+        return "Sup Dawg";
+    }
 
-  private void processWithArg(int argInt) {
-    System.out.println(argInt);
-  }
+    private void processWithArg(int argInt) {
+        System.out.println(argInt);
+    }
 }

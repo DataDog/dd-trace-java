@@ -32,19 +32,19 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
  * taking place that decides which thread actually get to run the user code that was supplied.
  */
 public class CompletableFutureUniCompletionInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
-  static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";
-  static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";
-  static final String ADVICE_BASE = JAVA_UTIL_CONCURRENT + ".CompletableFutureAdvice$";
+        implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
+    static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";
+    static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";
+    static final String ADVICE_BASE = JAVA_UTIL_CONCURRENT + ".CompletableFutureAdvice$";
 
-  @Override
-  public String instrumentedType() {
-    return UNI_COMPLETION;
-  }
+    @Override
+    public String instrumentedType() {
+        return UNI_COMPLETION;
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), ADVICE_BASE + "UniConstructor");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), ADVICE_BASE + "UniConstructor");
+    }
 }

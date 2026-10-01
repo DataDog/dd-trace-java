@@ -10,52 +10,52 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class SimpleRateLimiterTest {
 
-  @ParameterizedTest
-  @ValueSource(ints = {10, 100, 1000})
-  void initialRateAvailableAtCreation(int rate) {
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    SimpleRateLimiter limiter = new SimpleRateLimiter(rate, timeSource);
+    @ParameterizedTest
+    @ValueSource(ints = {10, 100, 1000})
+    void initialRateAvailableAtCreation(int rate) {
+        ControllableTimeSource timeSource = new ControllableTimeSource();
+        SimpleRateLimiter limiter = new SimpleRateLimiter(rate, timeSource);
 
-    for (int i = 0; i < rate; i++) {
-      assertTrue(limiter.tryAcquire(), "failed for " + i);
+        for (int i = 0; i < rate; i++) {
+            assertTrue(limiter.tryAcquire(), "failed for " + i);
+        }
+
+        assertFalse(limiter.tryAcquire());
     }
 
-    assertFalse(limiter.tryAcquire());
-  }
+    @ParameterizedTest
+    @ValueSource(ints = {10, 100, 1000})
+    void tokensNeverGoBeyondRate(int rate) {
+        ControllableTimeSource timeSource = new ControllableTimeSource();
+        SimpleRateLimiter limiter = new SimpleRateLimiter(rate, timeSource);
 
-  @ParameterizedTest
-  @ValueSource(ints = {10, 100, 1000})
-  void tokensNeverGoBeyondRate(int rate) {
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    SimpleRateLimiter limiter = new SimpleRateLimiter(rate, timeSource);
+        timeSource.advance(TimeUnit.SECONDS.toNanos(5));
+        for (int i = 0; i < rate; i++) {
+            assertTrue(limiter.tryAcquire(), "failed for " + i);
+        }
 
-    timeSource.advance(TimeUnit.SECONDS.toNanos(5));
-    for (int i = 0; i < rate; i++) {
-      assertTrue(limiter.tryAcquire(), "failed for " + i);
+        assertFalse(limiter.tryAcquire());
     }
 
-    assertFalse(limiter.tryAcquire());
-  }
+    @ParameterizedTest
+    @ValueSource(ints = {10, 100, 1000})
+    void tokensAreConsumedAndReplenished(int rate) {
+        ControllableTimeSource timeSource = new ControllableTimeSource();
+        SimpleRateLimiter limiter = new SimpleRateLimiter(rate, timeSource);
+        long nanosIncrement = TimeUnit.SECONDS.toNanos(1) / (rate + 1) + 1;
 
-  @ParameterizedTest
-  @ValueSource(ints = {10, 100, 1000})
-  void tokensAreConsumedAndReplenished(int rate) {
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    SimpleRateLimiter limiter = new SimpleRateLimiter(rate, timeSource);
-    long nanosIncrement = TimeUnit.SECONDS.toNanos(1) / (rate + 1) + 1;
+        for (int i = 0; i < rate; i++) {
+            timeSource.advance(nanosIncrement);
+            assertTrue(limiter.tryAcquire(), "failed for " + i);
+        }
 
-    for (int i = 0; i < rate; i++) {
-      timeSource.advance(nanosIncrement);
-      assertTrue(limiter.tryAcquire(), "failed for " + i);
+        assertFalse(limiter.tryAcquire());
+
+        for (int i = 0; i < rate; i++) {
+            timeSource.advance(nanosIncrement);
+            assertTrue(limiter.tryAcquire(), "failed for " + i);
+        }
+
+        assertFalse(limiter.tryAcquire());
     }
-
-    assertFalse(limiter.tryAcquire());
-
-    for (int i = 0; i < rate; i++) {
-      timeSource.advance(nanosIncrement);
-      assertTrue(limiter.tryAcquire(), "failed for " + i);
-    }
-
-    assertFalse(limiter.tryAcquire());
-  }
 }

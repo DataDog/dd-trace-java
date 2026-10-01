@@ -12,33 +12,33 @@ import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import javax.annotation.Nullable;
 
 public class RemoteConfigServiceImpl
-    implements ConfigurationSourceService, ConfigurationChangesTypedListener<ServerConfiguration> {
+        implements ConfigurationSourceService, ConfigurationChangesTypedListener<ServerConfiguration> {
 
-  private final ConfigurationPoller configurationPoller;
+    private final ConfigurationPoller configurationPoller;
 
-  public RemoteConfigServiceImpl(final SharedCommunicationObjects sco, final Config config) {
-    configurationPoller = sco.configurationPoller(config);
-  }
+    public RemoteConfigServiceImpl(final SharedCommunicationObjects sco, final Config config) {
+        configurationPoller = sco.configurationPoller(config);
+    }
 
-  @Override
-  public void init() {
-    configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    configurationPoller.addListener(Product.FFE_FLAGS, UniversalFlagConfigParser.INSTANCE, this);
-    configurationPoller.start();
-  }
+    @Override
+    public void init() {
+        configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+        configurationPoller.addListener(Product.FFE_FLAGS, UniversalFlagConfigParser.INSTANCE, this);
+        configurationPoller.start();
+    }
 
-  @Override
-  public void close() {
-    configurationPoller.removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    configurationPoller.removeListeners(Product.FFE_FLAGS);
-    configurationPoller.stop();
-  }
+    @Override
+    public void close() {
+        configurationPoller.removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+        configurationPoller.removeListeners(Product.FFE_FLAGS);
+        configurationPoller.stop();
+    }
 
-  @Override
-  public void accept(
-      final String configKey,
-      @Nullable final ServerConfiguration configuration,
-      final PollingRateHinter pollingRateHinter) {
-    FeatureFlaggingGateway.dispatch(configuration);
-  }
+    @Override
+    public void accept(
+            final String configKey,
+            @Nullable final ServerConfiguration configuration,
+            final PollingRateHinter pollingRateHinter) {
+        FeatureFlaggingGateway.dispatch(configuration);
+    }
 }

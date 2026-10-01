@@ -11,32 +11,32 @@ import org.hibernate.annotations.NamedQuery;
 @NamedQuery(name = "TestNamedQuery", query = "from Value")
 public class Value {
 
-  private Long id;
-  private String name;
+    private Long id;
+    private String name;
 
-  public Value() {}
+    public Value() {}
 
-  public Value(final String name) {
-    this.name = name;
-  }
+    public Value(final String name) {
+        this.name = name;
+    }
 
-  @Id
-  @GeneratedValue(generator = "increment")
-  @GenericGenerator(name = "increment", strategy = "increment")
-  public Long getId() {
-    return id;
-  }
+    @Id
+    @GeneratedValue(generator = "increment")
+    @GenericGenerator(name = "increment", strategy = "increment")
+    public Long getId() {
+        return id;
+    }
 
-  private void setId(final Long id) {
-    this.id = id;
-  }
+    private void setId(final Long id) {
+        this.id = id;
+    }
 
-  @Trace
-  public String getName() {
-    return name;
-  }
+    @Trace
+    public String getName() {
+        return name;
+    }
 
-  public void setName(final String title) {
-    this.name = title;
-  }
+    public void setName(final String title) {
+        this.name = title;
+    }
 }

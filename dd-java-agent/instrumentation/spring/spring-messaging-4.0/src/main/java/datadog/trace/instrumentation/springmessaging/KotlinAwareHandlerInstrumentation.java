@@ -32,38 +32,37 @@ import org.reactivestreams.Publisher;
  */
 @AutoService(InstrumenterModule.class)
 public class KotlinAwareHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public KotlinAwareHandlerInstrumentation() {
-    super("spring-messaging", "spring-messaging-4", "spring-messaging-kotlin");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.reactivestreams.Publisher", HandoffContext.class.getName());
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("doInvoke")),
-        KotlinAwareHandlerInstrumentation.class.getName() + "$DoInvokeAdvice");
-  }
-
-  public static class DoInvokeAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.Return Object result) {
-      if (result instanceof Publisher) {
-        InstrumentationContext.get(Publisher.class, HandoffContext.class)
-            .put((Publisher<?>) result, HandoffContext.anyThread(currentContext()));
-      }
+    public KotlinAwareHandlerInstrumentation() {
+        super("spring-messaging", "spring-messaging-4", "spring-messaging-kotlin");
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.reactivestreams.Publisher", HandoffContext.class.getName());
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("doInvoke")),
+                KotlinAwareHandlerInstrumentation.class.getName() + "$DoInvokeAdvice");
+    }
+
+    public static class DoInvokeAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(@Advice.Return Object result) {
+            if (result instanceof Publisher) {
+                InstrumentationContext.get(Publisher.class, HandoffContext.class)
+                        .put((Publisher<?>) result, HandoffContext.anyThread(currentContext()));
+            }
+        }
+    }
 }

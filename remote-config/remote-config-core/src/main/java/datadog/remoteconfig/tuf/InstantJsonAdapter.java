@@ -9,15 +9,15 @@ import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
 public class InstantJsonAdapter extends JsonAdapter<Instant> {
-  @Nullable
-  @Override
-  public Instant fromJson(JsonReader reader) throws IOException {
-    String s = reader.nextString();
-    return OffsetDateTime.parse(s).toInstant();
-  }
+    @Nullable
+    @Override
+    public Instant fromJson(JsonReader reader) throws IOException {
+        String s = reader.nextString();
+        return OffsetDateTime.parse(s).toInstant();
+    }
 
-  @Override
-  public void toJson(JsonWriter writer, @Nullable Instant value) throws IOException {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public void toJson(JsonWriter writer, @Nullable Instant value) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 }

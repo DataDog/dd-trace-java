@@ -23,59 +23,59 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public IastJakartaServletInstrumentation() {
-    super("servlet", "servlet-5");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "jakarta.servlet.http.HttpServlet";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("jakarta.servlet.ServletContext", Boolean.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("service"))
-            .and(isPublic())
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
-            .and(takesArgument(1, named("jakarta.servlet.ServletResponse"))),
-        getClass().getName() + "$IastAdvice");
-  }
-
-  @Override
-  protected boolean isOptOutEnabled() {
-    return true;
-  }
-
-  public static class IastAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(@Advice.This final HttpServlet servlet) {
-      final ApplicationModule applicationModule = InstrumentationBridge.APPLICATION;
-      if (applicationModule == null) {
-        return;
-      }
-      final ServletContext context = servlet.getServletContext();
-      if (InstrumentationContext.get(ServletContext.class, Boolean.class).get(context) != null) {
-        return;
-      }
-      InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
-      if (applicationModule != null) {
-        applicationModule.onRealPath(context.getRealPath("/"));
-      }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public IastJakartaServletInstrumentation() {
+        super("servlet", "servlet-5");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "jakarta.servlet.http.HttpServlet";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return hasSuperType(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("jakarta.servlet.ServletContext", Boolean.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("service"))
+                        .and(isPublic())
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
+                        .and(takesArgument(1, named("jakarta.servlet.ServletResponse"))),
+                getClass().getName() + "$IastAdvice");
+    }
+
+    @Override
+    protected boolean isOptOutEnabled() {
+        return true;
+    }
+
+    public static class IastAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void after(@Advice.This final HttpServlet servlet) {
+            final ApplicationModule applicationModule = InstrumentationBridge.APPLICATION;
+            if (applicationModule == null) {
+                return;
+            }
+            final ServletContext context = servlet.getServletContext();
+            if (InstrumentationContext.get(ServletContext.class, Boolean.class).get(context) != null) {
+                return;
+            }
+            InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
+            if (applicationModule != null) {
+                applicationModule.onRealPath(context.getRealPath("/"));
+            }
+        }
+    }
 }

@@ -13,24 +13,24 @@ import javax.annotation.Nonnull;
  */
 class BazelInfo implements CIProviderInfo {
 
-  @Override
-  public GitInfo buildCIGitInfo() {
-    return GitInfo.NOOP;
-  }
+    @Override
+    public GitInfo buildCIGitInfo() {
+        return GitInfo.NOOP;
+    }
 
-  @Override
-  public CIInfo buildCIInfo() {
-    return CIInfo.NOOP;
-  }
+    @Override
+    public CIInfo buildCIInfo() {
+        return CIInfo.NOOP;
+    }
 
-  @Nonnull
-  @Override
-  public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
-  }
+    @Nonnull
+    @Override
+    public PullRequestInfo buildPullRequestInfo() {
+        return PullRequestInfo.EMPTY;
+    }
 
-  @Override
-  public Provider getProvider() {
-    return Provider.BAZEL;
-  }
+    @Override
+    public Provider getProvider() {
+        return Provider.BAZEL;
+    }
 }

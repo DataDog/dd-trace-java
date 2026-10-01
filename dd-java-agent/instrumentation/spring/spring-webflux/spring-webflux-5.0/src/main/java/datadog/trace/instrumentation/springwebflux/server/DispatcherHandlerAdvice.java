@@ -23,39 +23,38 @@ import reactor.core.publisher.Mono;
  */
 public class DispatcherHandlerAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope methodEnter(@Advice.Argument(0) final ServerWebExchange exchange) {
-    // Unfortunately Netty EventLoop is not instrumented well enough to attribute all work to the
-    // right things so we have to store span in request itself. We also store parent (netty's)
-    // span
-    // so we could update resource name.
-    final AgentSpan parentSpan = activeSpan();
-    if (parentSpan != null) {
-      exchange.getAttributes().put(AdviceUtils.PARENT_SPAN_ATTRIBUTE, parentSpan);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope methodEnter(@Advice.Argument(0) final ServerWebExchange exchange) {
+        // Unfortunately Netty EventLoop is not instrumented well enough to attribute all work to the
+        // right things so we have to store span in request itself. We also store parent (netty's)
+        // span
+        // so we could update resource name.
+        final AgentSpan parentSpan = activeSpan();
+        if (parentSpan != null) {
+            exchange.getAttributes().put(AdviceUtils.PARENT_SPAN_ATTRIBUTE, parentSpan);
+        }
+
+        final AgentSpan span = startSpan("spring-webflux-controller", DISPATCHER_HANDLE_HANDLER);
+        span.setMeasured(true);
+        DECORATE.afterStart(span);
+        exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);
+
+        return activateSpan(span);
     }
 
-    final AgentSpan span = startSpan("spring-webflux-controller", DISPATCHER_HANDLE_HANDLER);
-    span.setMeasured(true);
-    DECORATE.afterStart(span);
-    exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);
-
-    return activateSpan(span);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void methodExit(
-      @Advice.Enter final ContextScope scope,
-      @Advice.Thrown final Throwable throwable,
-      @Advice.Argument(0) final ServerWebExchange exchange,
-      @Advice.Return(readOnly = false) Mono<Void> mono) {
-    if (throwable == null && mono != null) {
-      final AgentSpan span = spanFromScope(scope);
-      final Consumer finisher = new AdviceUtils.MonoSpanFinisher(span);
-      mono = mono.doOnError(finisher).doFinally(finisher);
-      InstrumentationContext.get(Publisher.class, HandoffContext.class)
-          .put(mono, HandoffContext.anyThread(span));
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(
+            @Advice.Enter final ContextScope scope,
+            @Advice.Thrown final Throwable throwable,
+            @Advice.Argument(0) final ServerWebExchange exchange,
+            @Advice.Return(readOnly = false) Mono<Void> mono) {
+        if (throwable == null && mono != null) {
+            final AgentSpan span = spanFromScope(scope);
+            final Consumer finisher = new AdviceUtils.MonoSpanFinisher(span);
+            mono = mono.doOnError(finisher).doFinally(finisher);
+            InstrumentationContext.get(Publisher.class, HandoffContext.class).put(mono, HandoffContext.anyThread(span));
+        }
+        scope.close();
+        // span finished in MonoSpanFinisher
     }
-    scope.close();
-    // span finished in MonoSpanFinisher
-  }
 }

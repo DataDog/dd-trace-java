@@ -16,32 +16,31 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public class Resilience4jReactorModule extends InstrumenterModule.Tracing {
 
-  public Resilience4jReactorModule() {
-    super("resilience4j-reactor");
-  }
+    public Resilience4jReactorModule() {
+        super("resilience4j-reactor");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".Resilience4jSpan",
-      packageName + ".Resilience4jSpanDecorator",
-      packageName + ".CircuitBreakerDecorator",
-      packageName + ".RetryDecorator",
-      packageName + ".ReactorHelper",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".Resilience4jSpan",
+            packageName + ".Resilience4jSpanDecorator",
+            packageName + ".CircuitBreakerDecorator",
+            packageName + ".RetryDecorator",
+            packageName + ".ReactorHelper",
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.reactivestreams.Publisher", HandoffContext.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.reactivestreams.Publisher", HandoffContext.class.getName());
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new CircuitBreakerOperatorInstrumentation(),
-        new FallbackOperatorInstrumentation(),
-        new RetryOperatorInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new CircuitBreakerOperatorInstrumentation(),
+                new FallbackOperatorInstrumentation(),
+                new RetryOperatorInstrumentation());
+    }
 }

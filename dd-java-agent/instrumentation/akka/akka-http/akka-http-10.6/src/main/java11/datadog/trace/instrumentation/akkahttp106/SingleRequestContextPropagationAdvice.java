@@ -10,16 +10,14 @@ import net.bytebuddy.asm.Advice;
 
 @AppliesOn(CONTEXT_TRACKING)
 public class SingleRequestContextPropagationAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void methodEnter(
-      @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
-    if (request == null) {
-      return;
-    }
-    final AkkaHttpClientHelpers.AkkaHttpHeaders headers =
-        new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+        if (request == null) {
+            return;
+        }
+        final AkkaHttpClientHelpers.AkkaHttpHeaders headers = new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
 
-    DECORATE.injectContext(currentContext(), request, headers);
-    request = headers.getRequest();
-  }
+        DECORATE.injectContext(currentContext(), request, headers);
+        request = headers.getRequest();
+    }
 }

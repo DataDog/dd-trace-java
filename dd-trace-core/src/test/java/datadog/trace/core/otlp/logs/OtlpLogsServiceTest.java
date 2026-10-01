@@ -12,16 +12,16 @@ import org.junit.jupiter.api.Test;
 
 class OtlpLogsServiceTest {
 
-  @Test
-  void httpJsonProtocolUsesJsonCollectorAndConfiguredEndpoint() {
-    Properties properties = new Properties();
-    properties.setProperty(OTLP_LOGS_PROTOCOL, "http/json");
-    properties.setProperty(OTLP_LOGS_ENDPOINT, "http://localhost:4318/v1/logs");
+    @Test
+    void httpJsonProtocolUsesJsonCollectorAndConfiguredEndpoint() {
+        Properties properties = new Properties();
+        properties.setProperty(OTLP_LOGS_PROTOCOL, "http/json");
+        properties.setProperty(OTLP_LOGS_ENDPOINT, "http://localhost:4318/v1/logs");
 
-    OtlpLogsService service = new OtlpLogsService(Config.get(properties));
+        OtlpLogsService service = new OtlpLogsService(Config.get(properties));
 
-    assertInstanceOf(OtlpLogsJsonCollector.class, service.getCollector());
-    OtlpHttpSender sender = assertInstanceOf(OtlpHttpSender.class, service.getSender());
-    assertEquals("http://localhost:4318/v1/logs", sender.url().toString());
-  }
+        assertInstanceOf(OtlpLogsJsonCollector.class, service.getCollector());
+        OtlpHttpSender sender = assertInstanceOf(OtlpHttpSender.class, service.getSender());
+        assertEquals("http://localhost:4318/v1/logs", sender.url().toString());
+    }
 }

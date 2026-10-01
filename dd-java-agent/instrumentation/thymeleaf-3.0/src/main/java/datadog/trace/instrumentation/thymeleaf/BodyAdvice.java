@@ -11,18 +11,18 @@ import org.thymeleaf.engine.ElementTagStructureHandler;
 import org.thymeleaf.processor.element.IElementTagStructureHandler;
 
 public class BodyAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  @Sink(VulnerabilityTypes.XSS)
-  public static void setBody(
-      @Advice.This ElementTagStructureHandler self, @Advice.Argument(0) final CharSequence text) {
-    final XssModule module = InstrumentationBridge.XSS;
-    if (module != null) {
-      ContextStore<IElementTagStructureHandler, ThymeleafContext> contextStore =
-          InstrumentationContext.get(IElementTagStructureHandler.class, ThymeleafContext.class);
-      ThymeleafContext ctx = contextStore.get(self);
-      if (ctx != null) {
-        module.onXss(text, ctx.getTemplateName(), ctx.getLine());
-      }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.XSS)
+    public static void setBody(
+            @Advice.This ElementTagStructureHandler self, @Advice.Argument(0) final CharSequence text) {
+        final XssModule module = InstrumentationBridge.XSS;
+        if (module != null) {
+            ContextStore<IElementTagStructureHandler, ThymeleafContext> contextStore =
+                    InstrumentationContext.get(IElementTagStructureHandler.class, ThymeleafContext.class);
+            ThymeleafContext ctx = contextStore.get(self);
+            if (ctx != null) {
+                module.onXss(text, ctx.getTemplateName(), ctx.getLine());
+            }
+        }
     }
-  }
 }

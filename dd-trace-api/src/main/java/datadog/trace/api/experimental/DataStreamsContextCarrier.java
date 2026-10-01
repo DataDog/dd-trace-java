@@ -6,28 +6,28 @@ import java.util.Set;
 
 /** An interface representing the context carrier. Typically, message headers. */
 public interface DataStreamsContextCarrier {
-  /**
-   * @return A set of key value pairs, such as message headers.
-   */
-  Set<Entry<String, Object>> entries();
+    /**
+     * @return A set of key value pairs, such as message headers.
+     */
+    Set<Entry<String, Object>> entries();
 
-  /**
-   * @param key parameter to be set
-   * @param value to be set
-   */
-  void set(String key, String value);
+    /**
+     * @param key parameter to be set
+     * @param value to be set
+     */
+    void set(String key, String value);
 
-  final class NoOp implements DataStreamsContextCarrier {
-    public static final DataStreamsContextCarrier INSTANCE = new NoOp();
+    final class NoOp implements DataStreamsContextCarrier {
+        public static final DataStreamsContextCarrier INSTANCE = new NoOp();
 
-    private NoOp() {}
+        private NoOp() {}
 
-    @Override
-    public Set<Entry<String, Object>> entries() {
-      return Collections.emptySet();
+        @Override
+        public Set<Entry<String, Object>> entries() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public void set(String key, String value) {}
     }
-
-    @Override
-    public void set(String key, String value) {}
-  }
 }

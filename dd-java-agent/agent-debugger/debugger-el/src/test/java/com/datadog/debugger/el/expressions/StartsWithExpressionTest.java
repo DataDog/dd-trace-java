@@ -16,46 +16,42 @@ import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 class StartsWithExpressionTest {
-  private final EvalContext evalContext = createEvalContext(this);
-  // used to ref lookup
-  URI uri = URI.create("https://www.datadoghq.com");
+    private final EvalContext evalContext = createEvalContext(this);
+    // used to ref lookup
+    URI uri = URI.create("https://www.datadoghq.com");
 
-  @Test
-  void nullExpression() {
-    StartsWithExpression expression = new StartsWithExpression(null, null);
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
-    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("startsWith(null, null)", print(expression));
-  }
+    @Test
+    void nullExpression() {
+        StartsWithExpression expression = new StartsWithExpression(null, null);
+        EvaluationException exception = assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
+        assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+        assertEquals("startsWith(null, null)", print(expression));
+    }
 
-  @Test
-  void undefinedExpression() {
-    StartsWithExpression expression =
-        new StartsWithExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
-    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
-    assertEquals("startsWith(UNDEFINED, \"null\")", print(expression));
-  }
+    @Test
+    void undefinedExpression() {
+        StartsWithExpression expression =
+                new StartsWithExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
+        EvaluationException exception = assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
+        assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+        assertEquals("startsWith(UNDEFINED, \"null\")", print(expression));
+    }
 
-  @Test
-  void stringExpression() {
-    StartsWithExpression expression =
-        new StartsWithExpression(DSL.value("abc"), new StringValue("ab"));
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("startsWith(\"abc\", \"ab\")", print(expression));
+    @Test
+    void stringExpression() {
+        StartsWithExpression expression = new StartsWithExpression(DSL.value("abc"), new StringValue("ab"));
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("startsWith(\"abc\", \"ab\")", print(expression));
 
-    expression = new StartsWithExpression(DSL.value("abc"), new StringValue("bc"));
-    assertFalse(expression.evaluate(evalContext));
-    assertEquals("startsWith(\"abc\", \"bc\")", print(expression));
-  }
+        expression = new StartsWithExpression(DSL.value("abc"), new StringValue("bc"));
+        assertFalse(expression.evaluate(evalContext));
+        assertEquals("startsWith(\"abc\", \"bc\")", print(expression));
+    }
 
-  @Test
-  void stringPrimitives() {
-    StartsWithExpression expression =
-        new StartsWithExpression(DSL.ref("uri"), new StringValue("https"));
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("startsWith(uri, \"https\")", print(expression));
-  }
+    @Test
+    void stringPrimitives() {
+        StartsWithExpression expression = new StartsWithExpression(DSL.ref("uri"), new StringValue("https"));
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("startsWith(uri, \"https\")", print(expression));
+    }
 }

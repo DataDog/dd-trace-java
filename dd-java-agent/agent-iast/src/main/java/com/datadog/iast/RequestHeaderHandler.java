@@ -7,14 +7,14 @@ import datadog.trace.api.gateway.RequestContextSlot;
 
 public class RequestHeaderHandler implements TriConsumer<RequestContext, String, String> {
 
-  @Override
-  public void accept(RequestContext requestContext, String key, String value) {
-    final IastRequestContext ctx = requestContext.getData(RequestContextSlot.IAST);
-    if (null != ctx && key != null) {
-      final HttpHeader header = HttpHeader.from(key);
-      if (header != null) {
-        header.addToContext(ctx, value);
-      }
+    @Override
+    public void accept(RequestContext requestContext, String key, String value) {
+        final IastRequestContext ctx = requestContext.getData(RequestContextSlot.IAST);
+        if (null != ctx && key != null) {
+            final HttpHeader header = HttpHeader.from(key);
+            if (header != null) {
+                header.addToContext(ctx, value);
+            }
+        }
     }
-  }
 }

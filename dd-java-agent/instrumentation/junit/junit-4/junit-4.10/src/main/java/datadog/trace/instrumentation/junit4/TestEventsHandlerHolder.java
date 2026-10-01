@@ -13,35 +13,34 @@ import java.util.Map;
 
 public abstract class TestEventsHandlerHolder {
 
-  // store one handler per framework running
-  public static final Map<
-          TestFrameworkInstrumentation, TestEventsHandler<TestSuiteDescriptor, TestDescriptor>>
-      HANDLERS = new ConcurrentEnumMap<>(TestFrameworkInstrumentation.class);
+    // store one handler per framework running
+    public static final Map<TestFrameworkInstrumentation, TestEventsHandler<TestSuiteDescriptor, TestDescriptor>>
+            HANDLERS = new ConcurrentEnumMap<>(TestFrameworkInstrumentation.class);
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Holder class not exposed to application code; locking on its Class is safe")
-  public static synchronized void start(
-      TestFrameworkInstrumentation framework, Collection<LibraryCapability> capabilities) {
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
-    if (handler == null) {
-      HANDLERS.put(
-          framework,
-          InstrumentationBridge.createTestEventsHandler(
-              framework.name().toLowerCase(), null, null, capabilities));
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Holder class not exposed to application code; locking on its Class is safe")
+    public static synchronized void start(
+            TestFrameworkInstrumentation framework, Collection<LibraryCapability> capabilities) {
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
+        if (handler == null) {
+            HANDLERS.put(
+                    framework,
+                    InstrumentationBridge.createTestEventsHandler(
+                            framework.name().toLowerCase(), null, null, capabilities));
+        }
     }
-  }
 
-  /** Used by instrumentation tests */
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Holder class not exposed to application code; locking on its Class is safe")
-  public static synchronized void stop(TestFrameworkInstrumentation framework) {
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.remove(framework);
-    if (handler != null) {
-      handler.close();
+    /** Used by instrumentation tests */
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Holder class not exposed to application code; locking on its Class is safe")
+    public static synchronized void stop(TestFrameworkInstrumentation framework) {
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.remove(framework);
+        if (handler != null) {
+            handler.close();
+        }
     }
-  }
 
-  private TestEventsHandlerHolder() {}
+    private TestEventsHandlerHolder() {}
 }

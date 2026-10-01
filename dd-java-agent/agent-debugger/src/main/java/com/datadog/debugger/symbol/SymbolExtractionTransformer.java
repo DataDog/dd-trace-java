@@ -11,49 +11,48 @@ import org.slf4j.LoggerFactory;
 
 public class SymbolExtractionTransformer implements ClassFileTransformer {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractionTransformer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractionTransformer.class);
 
-  private final SymbolAggregator symbolAggregator;
-  private final ClassNameFilter classNameFiltering;
+    private final SymbolAggregator symbolAggregator;
+    private final ClassNameFilter classNameFiltering;
 
-  public SymbolExtractionTransformer(
-      SymbolAggregator symbolAggregator, ClassNameFilter classNameFiltering) {
-    this.symbolAggregator = symbolAggregator;
-    this.classNameFiltering = classNameFiltering;
-    if (isDebuggerInternalClass(null)) {
-      // Force DebuggerInternalPAckages to be loaded before calling it into the transform method
-      // avoid LinkageError for duplicated class definition
-      throw new IllegalArgumentException("DebuggerInternalClass should be loaded");
+    public SymbolExtractionTransformer(SymbolAggregator symbolAggregator, ClassNameFilter classNameFiltering) {
+        this.symbolAggregator = symbolAggregator;
+        this.classNameFiltering = classNameFiltering;
+        if (isDebuggerInternalClass(null)) {
+            // Force DebuggerInternalPAckages to be loaded before calling it into the transform method
+            // avoid LinkageError for duplicated class definition
+            throw new IllegalArgumentException("DebuggerInternalClass should be loaded");
+        }
     }
-  }
 
-  @Override
-  public byte[] transform(
-      ClassLoader loader,
-      String className,
-      Class<?> classBeingRedefined,
-      ProtectionDomain protectionDomain,
-      byte[] classfileBuffer) {
-    if (className == null) {
-      return null;
+    @Override
+    public byte[] transform(
+            ClassLoader loader,
+            String className,
+            Class<?> classBeingRedefined,
+            ProtectionDomain protectionDomain,
+            byte[] classfileBuffer) {
+        if (className == null) {
+            return null;
+        }
+        try {
+            if (isDebuggerInternalClass(className)) {
+                // Don't parse debugger-internal classes to avoid duplicate class definition
+                return null;
+            }
+            if (classNameFiltering.isExcluded(Strings.getClassName(className))) {
+                return null;
+            }
+            symbolAggregator.parseClass(className, classfileBuffer, protectionDomain);
+            return null;
+        } catch (Exception ex) {
+            LOGGER.debug("Error during extraction: ", ex);
+            return null;
+        }
     }
-    try {
-      if (isDebuggerInternalClass(className)) {
-        // Don't parse debugger-internal classes to avoid duplicate class definition
-        return null;
-      }
-      if (classNameFiltering.isExcluded(Strings.getClassName(className))) {
-        return null;
-      }
-      symbolAggregator.parseClass(className, classfileBuffer, protectionDomain);
-      return null;
-    } catch (Exception ex) {
-      LOGGER.debug("Error during extraction: ", ex);
-      return null;
-    }
-  }
 
-  ClassNameFilter getClassNameFiltering() {
-    return classNameFiltering;
-  }
+    ClassNameFilter getClassNameFiltering() {
+        return classNameFiltering;
+    }
 }

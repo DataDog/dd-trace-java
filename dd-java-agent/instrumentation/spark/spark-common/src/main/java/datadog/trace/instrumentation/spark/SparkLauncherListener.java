@@ -20,239 +20,231 @@ import org.slf4j.LoggerFactory;
  */
 public class SparkLauncherListener implements SparkAppHandle.Listener {
 
-  private static final Logger log = LoggerFactory.getLogger(SparkLauncherListener.class);
+    private static final Logger log = LoggerFactory.getLogger(SparkLauncherListener.class);
 
-  static volatile AgentSpan launcherSpan;
+    static volatile AgentSpan launcherSpan;
 
-  private static volatile boolean shutdownHookRegistered = false;
+    private static volatile boolean shutdownHookRegistered = false;
 
-  private static long spanStartTimeMs = 0L;
-  private static long connectedTimeMs = 0L;
-  private static long submittedTimeMs = 0L;
-  private static long runningTimeMs = 0L;
+    private static long spanStartTimeMs = 0L;
+    private static long connectedTimeMs = 0L;
+    private static long submittedTimeMs = 0L;
+    private static long runningTimeMs = 0L;
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Listener class not exposed to application code; locking on its Class is safe")
-  public static synchronized void createLauncherSpan(Object launcher) {
-    if (launcherSpan != null) {
-      return;
-    }
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Listener class not exposed to application code; locking on its Class is safe")
+    public static synchronized void createLauncherSpan(Object launcher) {
+        if (launcherSpan != null) {
+            return;
+        }
 
-    AgentTracer.TracerAPI tracer = AgentTracer.get();
-    AgentSpan span =
-        tracer
-            .buildSpan("spark-launcher", "spark.launcher.launch")
-            .withSpanType("spark")
-            .withResourceName("SparkLauncher.startApplication")
-            .start();
-    span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
-    setLauncherConfigTags(span, launcher);
-    captureEmrStepId(span);
-    spanStartTimeMs = System.currentTimeMillis();
-    connectedTimeMs = 0L;
-    submittedTimeMs = 0L;
-    runningTimeMs = 0L;
-    launcherSpan = span;
+        AgentTracer.TracerAPI tracer = AgentTracer.get();
+        AgentSpan span = tracer.buildSpan("spark-launcher", "spark.launcher.launch")
+                .withSpanType("spark")
+                .withResourceName("SparkLauncher.startApplication")
+                .start();
+        span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
+        setLauncherConfigTags(span, launcher);
+        captureEmrStepId(span);
+        spanStartTimeMs = System.currentTimeMillis();
+        connectedTimeMs = 0L;
+        submittedTimeMs = 0L;
+        runningTimeMs = 0L;
+        launcherSpan = span;
 
-    if (!shutdownHookRegistered) {
-      shutdownHookRegistered = true;
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  () -> {
-                    synchronized (SparkLauncherListener.class) {
-                      AgentSpan s = launcherSpan;
-                      if (s != null) {
+        if (!shutdownHookRegistered) {
+            shutdownHookRegistered = true;
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                synchronized (SparkLauncherListener.class) {
+                    AgentSpan s = launcherSpan;
+                    if (s != null) {
                         log.info("Finishing spark.launcher span from shutdown hook");
                         setTimingMetrics(s);
                         s.finish();
                         launcherSpan = null;
-                      }
                     }
-                  }));
-    }
-  }
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Listener class not exposed to application code; locking on its Class is safe")
-  public static synchronized void finishSpan(boolean isError, String errorMessage) {
-    AgentSpan span = launcherSpan;
-    if (span == null) {
-      return;
-    }
-    if (isError) {
-      span.setError(true);
-      span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
-      span.setTag(DDTags.ERROR_MSG, errorMessage);
-    }
-    setTimingMetrics(span);
-    span.finish();
-    launcherSpan = null;
-  }
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Listener class not exposed to application code; locking on its Class is safe")
-  public static synchronized void finishSpanWithThrowable(Throwable throwable) {
-    AgentSpan span = launcherSpan;
-    if (span == null) {
-      return;
-    }
-    if (throwable != null) {
-      span.addThrowable(throwable);
-    }
-    setTimingMetrics(span);
-    span.finish();
-    launcherSpan = null;
-  }
-
-  private static void setTimingMetrics(AgentSpan span) {
-    if (spanStartTimeMs <= 0L) {
-      return;
-    }
-    if (connectedTimeMs > 0L) {
-      span.setMetric("spark.launcher.time_to_connected_ms", connectedTimeMs - spanStartTimeMs);
-    }
-    if (submittedTimeMs > 0L) {
-      span.setMetric("spark.launcher.time_to_submitted_ms", submittedTimeMs - spanStartTimeMs);
-    }
-    if (runningTimeMs > 0L) {
-      span.setMetric("spark.launcher.time_to_running_ms", runningTimeMs - spanStartTimeMs);
-    }
-  }
-
-  @Override
-  public void stateChanged(SparkAppHandle handle) {
-    synchronized (SparkLauncherListener.class) {
-      SparkAppHandle.State state = handle.getState();
-      AgentSpan span = launcherSpan;
-      if (span != null) {
-        span.setTag("spark.launcher.app_state", state.toString());
-        recordStateTimestamp(state);
-
-        String appId = handle.getAppId();
-        if (appId != null) {
-          span.setTag("spark.app_id", appId);
-          span.setTag("app_id", appId);
+                }
+            }));
         }
+    }
 
-        if (state.isFinal()) {
-          if (state == SparkAppHandle.State.FAILED
-              || state == SparkAppHandle.State.KILLED
-              || state == SparkAppHandle.State.LOST) {
-            // Set error tags but don't finish yet — RunMainAdvice may add the throwable
-            // with the full stack trace. The span will be finished by RunMainAdvice or
-            // the shutdown hook.
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Listener class not exposed to application code; locking on its Class is safe")
+    public static synchronized void finishSpan(boolean isError, String errorMessage) {
+        AgentSpan span = launcherSpan;
+        if (span == null) {
+            return;
+        }
+        if (isError) {
             span.setError(true);
             span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
-            span.setTag(DDTags.ERROR_MSG, "Application " + state);
-          } else {
-            finishSpan(false, null);
-          }
+            span.setTag(DDTags.ERROR_MSG, errorMessage);
         }
-      }
+        setTimingMetrics(span);
+        span.finish();
+        launcherSpan = null;
     }
-  }
 
-  @Override
-  public void infoChanged(SparkAppHandle handle) {
-    synchronized (SparkLauncherListener.class) {
-      AgentSpan span = launcherSpan;
-      if (span != null) {
-        String appId = handle.getAppId();
-        if (appId != null) {
-          span.setTag("spark.app_id", appId);
-          span.setTag("app_id", appId);
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Listener class not exposed to application code; locking on its Class is safe")
+    public static synchronized void finishSpanWithThrowable(Throwable throwable) {
+        AgentSpan span = launcherSpan;
+        if (span == null) {
+            return;
         }
-      }
+        if (throwable != null) {
+            span.addThrowable(throwable);
+        }
+        setTimingMetrics(span);
+        span.finish();
+        launcherSpan = null;
     }
-  }
 
-  private static void recordStateTimestamp(SparkAppHandle.State state) {
-    long now = System.currentTimeMillis();
-    if (state == SparkAppHandle.State.CONNECTED) {
-      if (connectedTimeMs == 0L) {
-        connectedTimeMs = now;
-      }
-    } else if (state == SparkAppHandle.State.SUBMITTED) {
-      if (submittedTimeMs == 0L) {
-        submittedTimeMs = now;
-      }
-    } else if (state == SparkAppHandle.State.RUNNING) {
-      if (runningTimeMs == 0L) {
-        runningTimeMs = now;
-      }
+    private static void setTimingMetrics(AgentSpan span) {
+        if (spanStartTimeMs <= 0L) {
+            return;
+        }
+        if (connectedTimeMs > 0L) {
+            span.setMetric("spark.launcher.time_to_connected_ms", connectedTimeMs - spanStartTimeMs);
+        }
+        if (submittedTimeMs > 0L) {
+            span.setMetric("spark.launcher.time_to_submitted_ms", submittedTimeMs - spanStartTimeMs);
+        }
+        if (runningTimeMs > 0L) {
+            span.setMetric("spark.launcher.time_to_running_ms", runningTimeMs - spanStartTimeMs);
+        }
     }
-  }
 
-  private static void captureEmrStepId(AgentSpan span) {
-    String stepId = EmrUtils.getEmrStepId();
-    if (stepId != null) {
-      span.setTag("emr_step_id", stepId);
-    }
-  }
+    @Override
+    public void stateChanged(SparkAppHandle handle) {
+        synchronized (SparkLauncherListener.class) {
+            SparkAppHandle.State state = handle.getState();
+            AgentSpan span = launcherSpan;
+            if (span != null) {
+                span.setTag("spark.launcher.app_state", state.toString());
+                recordStateTimestamp(state);
 
-  /**
-   * Extract launcher configuration via reflection and set as span tags. Secret redaction uses the
-   * default pattern only (not spark.redaction.regex) because the SparkLauncher conf map is a plain
-   * Map, not a SparkConf, so there is no way to read the user's custom redaction regex at this
-   * point.
-   */
-  private static void setLauncherConfigTags(AgentSpan span, Object launcher) {
-    try {
-      Field builderField = launcher.getClass().getSuperclass().getDeclaredField("builder");
-      builderField.setAccessible(true);
-      Object builder = builderField.get(launcher);
-      if (builder == null) {
-        return;
-      }
+                String appId = handle.getAppId();
+                if (appId != null) {
+                    span.setTag("spark.app_id", appId);
+                    span.setTag("app_id", appId);
+                }
 
-      Class<?> builderClass = builder.getClass();
-      Class<?> abstractBuilderClass = builderClass.getSuperclass();
-
-      setStringFieldAsTag(span, builder, abstractBuilderClass, "master", "master");
-      setStringFieldAsTag(span, builder, abstractBuilderClass, "deployMode", "deploy_mode");
-      setStringFieldAsTag(span, builder, abstractBuilderClass, "appName", "application_name");
-      setStringFieldAsTag(span, builder, abstractBuilderClass, "mainClass", "main_class");
-      setStringFieldAsTag(span, builder, abstractBuilderClass, "appResource", "app_resource");
-
-      try {
-        Field confField = abstractBuilderClass.getDeclaredField("conf");
-        confField.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Map<String, String> conf = (Map<String, String>) confField.get(builder);
-        if (conf != null) {
-          for (Map.Entry<String, String> entry : conf.entrySet()) {
-            if (SparkConfAllowList.canCaptureJobParameter(entry.getKey())) {
-              String value = SparkConfAllowList.redactValue(entry.getKey(), entry.getValue());
-              span.setTag("config." + entry.getKey().replace('.', '_'), value);
+                if (state.isFinal()) {
+                    if (state == SparkAppHandle.State.FAILED
+                            || state == SparkAppHandle.State.KILLED
+                            || state == SparkAppHandle.State.LOST) {
+                        // Set error tags but don't finish yet — RunMainAdvice may add the throwable
+                        // with the full stack trace. The span will be finished by RunMainAdvice or
+                        // the shutdown hook.
+                        span.setError(true);
+                        span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
+                        span.setTag(DDTags.ERROR_MSG, "Application " + state);
+                    } else {
+                        finishSpan(false, null);
+                    }
+                }
             }
-          }
         }
-      } catch (NoSuchFieldException e) {
-        log.debug("Could not find conf field on builder", e);
-      }
-    } catch (Exception e) {
-      log.debug("Failed to extract SparkLauncher configuration", e);
     }
-  }
 
-  private static void setStringFieldAsTag(
-      AgentSpan span, Object obj, Class<?> clazz, String fieldName, String tagName) {
-    try {
-      Field field = clazz.getDeclaredField(fieldName);
-      field.setAccessible(true);
-      Object value = field.get(obj);
-      if (value != null) {
-        span.setTag(tagName, value.toString());
-      }
-    } catch (Exception e) {
-      log.debug("Could not read field {} from builder", fieldName, e);
+    @Override
+    public void infoChanged(SparkAppHandle handle) {
+        synchronized (SparkLauncherListener.class) {
+            AgentSpan span = launcherSpan;
+            if (span != null) {
+                String appId = handle.getAppId();
+                if (appId != null) {
+                    span.setTag("spark.app_id", appId);
+                    span.setTag("app_id", appId);
+                }
+            }
+        }
     }
-  }
+
+    private static void recordStateTimestamp(SparkAppHandle.State state) {
+        long now = System.currentTimeMillis();
+        if (state == SparkAppHandle.State.CONNECTED) {
+            if (connectedTimeMs == 0L) {
+                connectedTimeMs = now;
+            }
+        } else if (state == SparkAppHandle.State.SUBMITTED) {
+            if (submittedTimeMs == 0L) {
+                submittedTimeMs = now;
+            }
+        } else if (state == SparkAppHandle.State.RUNNING) {
+            if (runningTimeMs == 0L) {
+                runningTimeMs = now;
+            }
+        }
+    }
+
+    private static void captureEmrStepId(AgentSpan span) {
+        String stepId = EmrUtils.getEmrStepId();
+        if (stepId != null) {
+            span.setTag("emr_step_id", stepId);
+        }
+    }
+
+    /**
+     * Extract launcher configuration via reflection and set as span tags. Secret redaction uses the
+     * default pattern only (not spark.redaction.regex) because the SparkLauncher conf map is a plain
+     * Map, not a SparkConf, so there is no way to read the user's custom redaction regex at this
+     * point.
+     */
+    private static void setLauncherConfigTags(AgentSpan span, Object launcher) {
+        try {
+            Field builderField = launcher.getClass().getSuperclass().getDeclaredField("builder");
+            builderField.setAccessible(true);
+            Object builder = builderField.get(launcher);
+            if (builder == null) {
+                return;
+            }
+
+            Class<?> builderClass = builder.getClass();
+            Class<?> abstractBuilderClass = builderClass.getSuperclass();
+
+            setStringFieldAsTag(span, builder, abstractBuilderClass, "master", "master");
+            setStringFieldAsTag(span, builder, abstractBuilderClass, "deployMode", "deploy_mode");
+            setStringFieldAsTag(span, builder, abstractBuilderClass, "appName", "application_name");
+            setStringFieldAsTag(span, builder, abstractBuilderClass, "mainClass", "main_class");
+            setStringFieldAsTag(span, builder, abstractBuilderClass, "appResource", "app_resource");
+
+            try {
+                Field confField = abstractBuilderClass.getDeclaredField("conf");
+                confField.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                Map<String, String> conf = (Map<String, String>) confField.get(builder);
+                if (conf != null) {
+                    for (Map.Entry<String, String> entry : conf.entrySet()) {
+                        if (SparkConfAllowList.canCaptureJobParameter(entry.getKey())) {
+                            String value = SparkConfAllowList.redactValue(entry.getKey(), entry.getValue());
+                            span.setTag("config." + entry.getKey().replace('.', '_'), value);
+                        }
+                    }
+                }
+            } catch (NoSuchFieldException e) {
+                log.debug("Could not find conf field on builder", e);
+            }
+        } catch (Exception e) {
+            log.debug("Failed to extract SparkLauncher configuration", e);
+        }
+    }
+
+    private static void setStringFieldAsTag(
+            AgentSpan span, Object obj, Class<?> clazz, String fieldName, String tagName) {
+        try {
+            Field field = clazz.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            Object value = field.get(obj);
+            if (value != null) {
+                span.setTag(tagName, value.toString());
+            }
+        } catch (Exception e) {
+            log.debug("Could not read field {} from builder", fieldName, e);
+        }
+    }
 }

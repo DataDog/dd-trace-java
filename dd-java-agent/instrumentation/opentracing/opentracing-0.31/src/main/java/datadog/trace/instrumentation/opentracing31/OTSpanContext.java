@@ -5,18 +5,18 @@ import io.opentracing.SpanContext;
 import java.util.Map;
 
 class OTSpanContext implements SpanContext {
-  private final AgentSpanContext delegate;
+    private final AgentSpanContext delegate;
 
-  OTSpanContext(final AgentSpanContext delegate) {
-    this.delegate = delegate;
-  }
+    OTSpanContext(final AgentSpanContext delegate) {
+        this.delegate = delegate;
+    }
 
-  @Override
-  public Iterable<Map.Entry<String, String>> baggageItems() {
-    return delegate.baggageItems();
-  }
+    @Override
+    public Iterable<Map.Entry<String, String>> baggageItems() {
+        return delegate.baggageItems();
+    }
 
-  AgentSpanContext getDelegate() {
-    return delegate;
-  }
+    AgentSpanContext getDelegate() {
+        return delegate;
+    }
 }

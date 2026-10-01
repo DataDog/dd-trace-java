@@ -9,33 +9,33 @@ import java.util.Map;
 
 class FlagEvalMetricsHook implements Hook<Object> {
 
-  private final FlagEvalMetrics metrics;
+    private final FlagEvalMetrics metrics;
 
-  FlagEvalMetricsHook(FlagEvalMetrics metrics) {
-    this.metrics = metrics;
-  }
-
-  @Override
-  public void finallyAfter(
-      HookContext<Object> ctx, FlagEvaluationDetails<Object> details, Map<String, Object> hints) {
-    if (metrics == null || details == null) {
-      return;
+    FlagEvalMetricsHook(FlagEvalMetrics metrics) {
+        this.metrics = metrics;
     }
-    try {
-      String flagKey = details.getFlagKey();
-      String variant = details.getVariant();
-      String reason = details.getReason();
-      ErrorCode errorCode = details.getErrorCode();
 
-      String allocationKey = null;
-      ImmutableMetadata metadata = details.getFlagMetadata();
-      if (metadata != null) {
-        allocationKey = metadata.getString("allocationKey");
-      }
+    @Override
+    public void finallyAfter(
+            HookContext<Object> ctx, FlagEvaluationDetails<Object> details, Map<String, Object> hints) {
+        if (metrics == null || details == null) {
+            return;
+        }
+        try {
+            String flagKey = details.getFlagKey();
+            String variant = details.getVariant();
+            String reason = details.getReason();
+            ErrorCode errorCode = details.getErrorCode();
 
-      metrics.record(flagKey, variant, reason, errorCode, allocationKey);
-    } catch (Exception e) {
-      // Never let metrics recording break flag evaluation
+            String allocationKey = null;
+            ImmutableMetadata metadata = details.getFlagMetadata();
+            if (metadata != null) {
+                allocationKey = metadata.getString("allocationKey");
+            }
+
+            metrics.record(flagKey, variant, reason, errorCode, allocationKey);
+        } catch (Exception e) {
+            // Never let metrics recording break flag evaluation
+        }
     }
-  }
 }

@@ -5,45 +5,45 @@ import java.util.List;
 
 public interface Histogram {
 
-  double getCount();
+    double getCount();
 
-  boolean isEmpty();
+    boolean isEmpty();
 
-  void accept(double value);
+    void accept(double value);
 
-  void accept(double value, double count);
+    void accept(double value, double count);
 
-  double getValueAtQuantile(double quantile);
+    double getValueAtQuantile(double quantile);
 
-  double getMinValue();
+    double getMinValue();
 
-  double getMaxValue();
+    double getMaxValue();
 
-  List<Double> getBinBoundaries();
+    List<Double> getBinBoundaries();
 
-  List<Double> getBinCounts();
+    List<Double> getBinCounts();
 
-  void clear();
+    void clear();
 
-  ByteBuffer serialize();
+    ByteBuffer serialize();
 
-  static Histogram newHistogram() {
-    return Histograms.factory.newHistogram();
-  }
+    static Histogram newHistogram() {
+        return Histograms.factory.newHistogram();
+    }
 
-  static Histogram newLogHistogram() {
-    return Histograms.factory.newLogHistogram();
-  }
+    static Histogram newLogHistogram() {
+        return Histograms.factory.newLogHistogram();
+    }
 
-  static Histogram newHistogram(double relativeAccuracy, int maxNumBins) {
-    return Histograms.factory.newHistogram(relativeAccuracy, maxNumBins);
-  }
+    static Histogram newHistogram(double relativeAccuracy, int maxNumBins) {
+        return Histograms.factory.newHistogram(relativeAccuracy, maxNumBins);
+    }
 
-  static HistogramWithSum newHistogramWithSum(double relativeAccuracy, int maxNumBins) {
-    return Histograms.factory.newHistogramWithSum(relativeAccuracy, maxNumBins);
-  }
+    static HistogramWithSum newHistogramWithSum(double relativeAccuracy, int maxNumBins) {
+        return Histograms.factory.newHistogramWithSum(relativeAccuracy, maxNumBins);
+    }
 
-  static HistogramWithSum newHistogramWithSum(List<Double> binBoundaries) {
-    return Histograms.factory.newHistogramWithSum(binBoundaries);
-  }
+    static HistogramWithSum newHistogramWithSum(List<Double> binBoundaries) {
+        return Histograms.factory.newHistogramWithSum(binBoundaries);
+    }
 }

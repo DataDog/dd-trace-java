@@ -14,47 +14,44 @@ import net.bytebuddy.asm.Advice;
 // TODO: move to separate module and have better support
 @AutoService(InstrumenterModule.class)
 public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  private static final String TRAIT_NAME =
-      "akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport";
+    private static final String TRAIT_NAME = "akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport";
 
-  public SprayUnmarshallerInstrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      TRAIT_NAME, TRAIT_NAME + "$class",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "sprayJsonUnmarshaller", "spray.json.RootJsonReader")
-            .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .or(
-                isTraitMethod(
-                        TRAIT_NAME, "sprayJsonByteStringUnmarshaller", "spray.json.RootJsonReader")
-                    .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))),
-        SprayUnmarshallerInstrumentation.class.getName() + "$ArbitraryTypeAdvice");
-    // support is basic:
-    // * Source[T, NotUsed] is not intercepted
-    // * neither is the conversion into JsValue. It would need to wrap the JsValue
-    //   to intercept calls to the methods in play.api.libs.json.JsReadable
-  }
-
-  static class ArbitraryTypeAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return(readOnly = false) Unmarshaller ret) {
-      ret = UnmarshallerHelpers.transformArbitrarySprayUnmarshaller(ret);
+    public SprayUnmarshallerInstrumentation() {
+        super("akka-http");
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            TRAIT_NAME, TRAIT_NAME + "$class",
+        };
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "sprayJsonUnmarshaller", "spray.json.RootJsonReader")
+                        .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+                        .or(isTraitMethod(TRAIT_NAME, "sprayJsonByteStringUnmarshaller", "spray.json.RootJsonReader")
+                                .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))),
+                SprayUnmarshallerInstrumentation.class.getName() + "$ArbitraryTypeAdvice");
+        // support is basic:
+        // * Source[T, NotUsed] is not intercepted
+        // * neither is the conversion into JsValue. It would need to wrap the JsValue
+        //   to intercept calls to the methods in play.api.libs.json.JsReadable
+    }
+
+    static class ArbitraryTypeAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) Unmarshaller ret) {
+            ret = UnmarshallerHelpers.transformArbitrarySprayUnmarshaller(ret);
+        }
+    }
 }

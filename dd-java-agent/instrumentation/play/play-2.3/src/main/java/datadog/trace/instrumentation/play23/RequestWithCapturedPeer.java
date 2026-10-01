@@ -10,16 +10,16 @@ import play.api.mvc.WrappedRequest;
  * information. See APPSEC-62562.
  */
 public class RequestWithCapturedPeer extends WrappedRequest<Object> {
-  private final String capturedPeerAddress;
+    private final String capturedPeerAddress;
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  public RequestWithCapturedPeer(final Request<?> request, final String capturedPeerAddress) {
-    super((Request) request);
-    this.capturedPeerAddress = capturedPeerAddress;
-  }
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public RequestWithCapturedPeer(final Request<?> request, final String capturedPeerAddress) {
+        super((Request) request);
+        this.capturedPeerAddress = capturedPeerAddress;
+    }
 
-  @Override
-  public String remoteAddress() {
-    return capturedPeerAddress;
-  }
+    @Override
+    public String remoteAddress() {
+        return capturedPeerAddress;
+    }
 }

@@ -16,30 +16,29 @@ import scala.util.Try;
  * every {@code Future} created via one of the static methods like {@code map} would always pick up
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
-public final class FutureObjectInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class FutureObjectInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
-    return "scala.concurrent.Future$";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isTypeInitializer(), getClass().getName() + "$ClassInit");
-  }
-
-  public static final class ClassInit {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <T> void afterInit() {
-      Try<?> result = Future$.MODULE$.unit().value().get();
-      InstrumentationContext.get(Try.class, Context.class).remove(result);
+    @Override
+    public String instrumentedType() {
+        // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
+        return "scala.concurrent.Future$";
     }
 
-    /** Promise.Transformation was introduced in scala 2.13 */
-    private static void muzzleCheck(final Transformation callback) {
-      callback.submitWithValue(null);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isTypeInitializer(), getClass().getName() + "$ClassInit");
     }
-  }
+
+    public static final class ClassInit {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static <T> void afterInit() {
+            Try<?> result = Future$.MODULE$.unit().value().get();
+            InstrumentationContext.get(Try.class, Context.class).remove(result);
+        }
+
+        /** Promise.Transformation was introduced in scala 2.13 */
+        private static void muzzleCheck(final Transformation callback) {
+            callback.submitWithValue(null);
+        }
+    }
 }

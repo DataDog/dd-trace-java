@@ -12,13 +12,13 @@ import datadog.trace.core.CoreSpan;
  */
 public class ParentBasedAlwaysOnSampler implements Sampler, PrioritySampler {
 
-  @Override
-  public <T extends CoreSpan<T>> boolean sample(final T span) {
-    return true;
-  }
+    @Override
+    public <T extends CoreSpan<T>> boolean sample(final T span) {
+        return true;
+    }
 
-  @Override
-  public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
-    span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
-  }
+    @Override
+    public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
+        span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
+    }
 }

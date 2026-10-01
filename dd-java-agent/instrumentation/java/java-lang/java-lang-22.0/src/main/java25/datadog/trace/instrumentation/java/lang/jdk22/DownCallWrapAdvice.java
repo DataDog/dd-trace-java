@@ -9,18 +9,17 @@ import java.lang.invoke.MethodHandle;
 import net.bytebuddy.asm.Advice;
 
 public class DownCallWrapAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void onExit(
-      @Advice.Argument(0) final MemorySegment memorySegment,
-      @Advice.Return(readOnly = false) MethodHandle handle) {
-    if (memorySegment == null) {
-      return;
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(
+            @Advice.Argument(0) final MemorySegment memorySegment,
+            @Advice.Return(readOnly = false) MethodHandle handle) {
+        if (memorySegment == null) {
+            return;
+        }
+        final Pair<String, String> libAndMethod = reverseResolveLibraryAndSymbol(memorySegment.address());
+        if (libAndMethod == null) {
+            return;
+        }
+        handle = wrap(handle, libAndMethod.getLeft(), libAndMethod.getRight());
     }
-    final Pair<String, String> libAndMethod =
-        reverseResolveLibraryAndSymbol(memorySegment.address());
-    if (libAndMethod == null) {
-      return;
-    }
-    handle = wrap(handle, libAndMethod.getLeft(), libAndMethod.getRight());
-  }
 }

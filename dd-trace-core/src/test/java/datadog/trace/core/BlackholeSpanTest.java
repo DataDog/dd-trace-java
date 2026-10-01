@@ -15,43 +15,43 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class BlackholeSpanTest extends DDCoreJavaSpecification {
 
-  @ValueSource(strings = {"true", "false"})
-  @ParameterizedTest
-  void shouldMuteTracing(String use128bitTraceId) throws Exception {
-    injectSysConfig("trace.128.bit.traceid.logging.enabled", use128bitTraceId);
-    ListWriter writer = new ListWriter();
-    Properties props = new Properties();
-    CoreTracer tracer = tracerBuilder().withProperties(props).writer(writer).build();
-    try {
-      AgentSpan root = tracer.startSpan("test", "root");
-      ContextScope scope1 = tracer.activateSpan(root);
-      AgentSpan bh;
-      AgentSpan ignored;
-      AgentSpan child;
-      try {
-        bh = tracer.blackholeSpan();
-        ContextScope scope2 = tracer.activateSpan(bh);
+    @ValueSource(strings = {"true", "false"})
+    @ParameterizedTest
+    void shouldMuteTracing(String use128bitTraceId) throws Exception {
+        injectSysConfig("trace.128.bit.traceid.logging.enabled", use128bitTraceId);
+        ListWriter writer = new ListWriter();
+        Properties props = new Properties();
+        CoreTracer tracer = tracerBuilder().withProperties(props).writer(writer).build();
         try {
-          ignored = tracer.startSpan("test", "ignored");
-          ignored.finish();
+            AgentSpan root = tracer.startSpan("test", "root");
+            ContextScope scope1 = tracer.activateSpan(root);
+            AgentSpan bh;
+            AgentSpan ignored;
+            AgentSpan child;
+            try {
+                bh = tracer.blackholeSpan();
+                ContextScope scope2 = tracer.activateSpan(bh);
+                try {
+                    ignored = tracer.startSpan("test", "ignored");
+                    ignored.finish();
+                } finally {
+                    bh.finish();
+                    scope2.close();
+                }
+                child = tracer.startSpan("test", "child");
+                child.finish();
+            } finally {
+                root.finish();
+                scope1.close();
+            }
+            writer.waitForTraces(1);
+            assertEquals(2, writer.firstTrace().size());
+            assertTrue(writer.firstTrace().containsAll(Arrays.asList(root, child)));
+            assertFalse(writer.firstTrace().contains(bh));
+            assertFalse(writer.firstTrace().contains(ignored));
         } finally {
-          bh.finish();
-          scope2.close();
+            writer.close();
+            tracer.close();
         }
-        child = tracer.startSpan("test", "child");
-        child.finish();
-      } finally {
-        root.finish();
-        scope1.close();
-      }
-      writer.waitForTraces(1);
-      assertEquals(2, writer.firstTrace().size());
-      assertTrue(writer.firstTrace().containsAll(Arrays.asList(root, child)));
-      assertFalse(writer.firstTrace().contains(bh));
-      assertFalse(writer.firstTrace().contains(ignored));
-    } finally {
-      writer.close();
-      tracer.close();
     }
-  }
 }

@@ -26,37 +26,36 @@ import jdk.jfr.Recording;
 /** Implementation for profiling recordings. */
 public class OpenJdkRecordingData extends RecordingData {
 
-  private final Recording recording;
+    private final Recording recording;
 
-  OpenJdkRecordingData(final Recording recording, Kind kind) {
-    this(recording, recording.getStartTime(), recording.getStopTime(), kind);
-  }
+    OpenJdkRecordingData(final Recording recording, Kind kind) {
+        this(recording, recording.getStartTime(), recording.getStopTime(), kind);
+    }
 
-  OpenJdkRecordingData(
-      final Recording recording, final Instant start, final Instant end, Kind kind) {
-    super(start, end, kind);
-    this.recording = recording;
-  }
+    OpenJdkRecordingData(final Recording recording, final Instant start, final Instant end, Kind kind) {
+        super(start, end, kind);
+        this.recording = recording;
+    }
 
-  @Override
-  @Nonnull
-  public RecordingInputStream getStream() throws IOException {
-    return new RecordingInputStream(recording.getStream(start, end));
-  }
+    @Override
+    @Nonnull
+    public RecordingInputStream getStream() throws IOException {
+        return new RecordingInputStream(recording.getStream(start, end));
+    }
 
-  @Override
-  public void release() {
-    recording.close();
-  }
+    @Override
+    public void release() {
+        recording.close();
+    }
 
-  @Override
-  @Nonnull
-  public String getName() {
-    return recording.getName();
-  }
+    @Override
+    @Nonnull
+    public String getName() {
+        return recording.getName();
+    }
 
-  @VisibleForTesting
-  Recording getRecording() {
-    return recording;
-  }
+    @VisibleForTesting
+    Recording getRecording() {
+        return recording;
+    }
 }

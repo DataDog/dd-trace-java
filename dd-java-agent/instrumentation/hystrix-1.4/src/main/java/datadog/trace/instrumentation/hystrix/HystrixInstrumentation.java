@@ -16,69 +16,68 @@ import rx.Observable;
 
 @AutoService(InstrumenterModule.class)
 public class HystrixInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public HystrixInstrumentation() {
-    super("hystrix");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.netflix.hystrix.HystrixCommand";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(
-        namedOneOf(
-            "com.netflix.hystrix.HystrixCommand", "com.netflix.hystrix.HystrixObservableCommand"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "rx.DDTracingUtil",
-      "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
-      "datadog.trace.instrumentation.rxjava.TracedSubscriber",
-      "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
-      packageName + ".HystrixDecorator",
-      packageName + ".HystrixDecorator$1",
-      packageName + ".HystrixDecorator$ResourceNameCacheKey",
-      packageName + ".HystrixOnSubscribe",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getExecutionObservable").and(returns(named("rx.Observable"))),
-        HystrixInstrumentation.class.getName() + "$ExecuteAdvice");
-    transformer.applyAdvice(
-        named("getFallbackObservable").and(returns(named("rx.Observable"))),
-        HystrixInstrumentation.class.getName() + "$FallbackAdvice");
-  }
-
-  public static class ExecuteAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This final HystrixInvokableInfo<?> command,
-        @Advice.Return(readOnly = false) Observable result,
-        @Advice.Thrown final Throwable throwable) {
-
-      result = Observable.create(new HystrixOnSubscribe(result, command, "execute"));
+    public HystrixInstrumentation() {
+        super("hystrix");
     }
-  }
 
-  public static class FallbackAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This final HystrixInvokableInfo<?> command,
-        @Advice.Return(readOnly = false) Observable<?> result,
-        @Advice.Thrown final Throwable throwable) {
-
-      result = Observable.create(new HystrixOnSubscribe(result, command, "fallback"));
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.netflix.hystrix.HystrixCommand";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(
+                namedOneOf("com.netflix.hystrix.HystrixCommand", "com.netflix.hystrix.HystrixObservableCommand"));
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "rx.DDTracingUtil",
+            "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
+            "datadog.trace.instrumentation.rxjava.TracedSubscriber",
+            "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
+            packageName + ".HystrixDecorator",
+            packageName + ".HystrixDecorator$1",
+            packageName + ".HystrixDecorator$ResourceNameCacheKey",
+            packageName + ".HystrixOnSubscribe",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getExecutionObservable").and(returns(named("rx.Observable"))),
+                HystrixInstrumentation.class.getName() + "$ExecuteAdvice");
+        transformer.applyAdvice(
+                named("getFallbackObservable").and(returns(named("rx.Observable"))),
+                HystrixInstrumentation.class.getName() + "$FallbackAdvice");
+    }
+
+    public static class ExecuteAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.This final HystrixInvokableInfo<?> command,
+                @Advice.Return(readOnly = false) Observable result,
+                @Advice.Thrown final Throwable throwable) {
+
+            result = Observable.create(new HystrixOnSubscribe(result, command, "execute"));
+        }
+    }
+
+    public static class FallbackAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.This final HystrixInvokableInfo<?> command,
+                @Advice.Return(readOnly = false) Observable<?> result,
+                @Advice.Thrown final Throwable throwable) {
+
+            result = Observable.create(new HystrixOnSubscribe(result, command, "fallback"));
+        }
+    }
 }

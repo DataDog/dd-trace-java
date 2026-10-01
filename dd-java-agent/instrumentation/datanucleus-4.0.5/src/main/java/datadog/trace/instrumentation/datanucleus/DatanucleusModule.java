@@ -9,15 +9,15 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class DatanucleusModule extends InstrumenterModule.Tracing {
-  public DatanucleusModule() {
-    super("datanucleus");
-  }
+    public DatanucleusModule() {
+        super("datanucleus");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new ExecutionContextInstrumentation(),
-        new JDOQueryInstrumentation(),
-        new JDOTransactionInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new ExecutionContextInstrumentation(),
+                new JDOQueryInstrumentation(),
+                new JDOTransactionInstrumentation());
+    }
 }

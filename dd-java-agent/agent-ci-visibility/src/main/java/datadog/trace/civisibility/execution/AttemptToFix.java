@@ -15,55 +15,55 @@ import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
  */
 public class AttemptToFix implements TestExecutionPolicy {
 
-  private final int maxExecutions;
-  private int executions;
-  private ExecutionAggregation results;
-  private TestStatus lastStatus;
+    private final int maxExecutions;
+    private int executions;
+    private ExecutionAggregation results;
+    private TestStatus lastStatus;
 
-  public AttemptToFix(int maxExecutions) {
-    this.maxExecutions = maxExecutions;
-    this.executions = 0;
-    this.results = ExecutionAggregation.NONE;
-  }
-
-  @Override
-  public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
-    lastStatus = status;
-    ++executions;
-    results = results.withExecution(status);
-
-    boolean lastExecution = !retriesLeft();
-    boolean retry = executions > 1;
-    TestStatus finalStatus = null;
-    if (lastExecution) {
-      finalStatus = results == ExecutionAggregation.ONLY_PASSED ? TestStatus.pass : TestStatus.fail;
+    public AttemptToFix(int maxExecutions) {
+        this.maxExecutions = maxExecutions;
+        this.executions = 0;
+        this.results = ExecutionAggregation.NONE;
     }
 
-    return new ExecutionOutcomeImpl(
-        false, lastExecution, results, retry ? RetryReason.attemptToFix : null, finalStatus);
-  }
+    @Override
+    public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
+        lastStatus = status;
+        ++executions;
+        results = results.withExecution(status);
 
-  private boolean retriesLeft() {
-    // stop retrying if the test was skipped, max executions reached,
-    // or a failure was observed (the fix didn't work)
-    return lastStatus != TestStatus.skip
-        && executions < maxExecutions
-        && results != ExecutionAggregation.ONLY_FAILED
-        && results != ExecutionAggregation.MIXED;
-  }
+        boolean lastExecution = !retriesLeft();
+        boolean retry = executions > 1;
+        TestStatus finalStatus = null;
+        if (lastExecution) {
+            finalStatus = results == ExecutionAggregation.ONLY_PASSED ? TestStatus.pass : TestStatus.fail;
+        }
 
-  @Override
-  public boolean applicable() {
-    return retriesLeft();
-  }
+        return new ExecutionOutcomeImpl(
+                false, lastExecution, results, retry ? RetryReason.attemptToFix : null, finalStatus);
+    }
 
-  @Override
-  public boolean suppressFailures() {
-    return false;
-  }
+    private boolean retriesLeft() {
+        // stop retrying if the test was skipped, max executions reached,
+        // or a failure was observed (the fix didn't work)
+        return lastStatus != TestStatus.skip
+                && executions < maxExecutions
+                && results != ExecutionAggregation.ONLY_FAILED
+                && results != ExecutionAggregation.MIXED;
+    }
 
-  @Override
-  public boolean failedTestReplayApplicable() {
-    return false;
-  }
+    @Override
+    public boolean applicable() {
+        return retriesLeft();
+    }
+
+    @Override
+    public boolean suppressFailures() {
+        return false;
+    }
+
+    @Override
+    public boolean failedTestReplayApplicable() {
+        return false;
+    }
 }

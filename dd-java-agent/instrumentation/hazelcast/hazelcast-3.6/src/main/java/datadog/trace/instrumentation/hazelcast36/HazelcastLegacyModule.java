@@ -14,18 +14,17 @@ import java.util.List;
 @AutoService(InstrumenterModule.class)
 public final class HazelcastLegacyModule extends InstrumenterModule.Tracing {
 
-  public HazelcastLegacyModule() {
-    super("hazelcast_legacy");
-  }
+    public HazelcastLegacyModule() {
+        super("hazelcast_legacy");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return false;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new ClientInvocationInstrumentation(), new DistributedObjectInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(new ClientInvocationInstrumentation(), new DistributedObjectInstrumentation());
+    }
 }

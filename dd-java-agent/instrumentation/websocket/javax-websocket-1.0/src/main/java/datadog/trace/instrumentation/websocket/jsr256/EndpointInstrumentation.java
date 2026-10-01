@@ -22,89 +22,86 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class EndpointInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  private final String namespace;
+public class EndpointInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    private final String namespace;
 
-  public EndpointInstrumentation(String namespace) {
-    this.namespace = namespace;
-  }
+    public EndpointInstrumentation(String namespace) {
+        this.namespace = namespace;
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return namespace + ".websocket.Endpoint";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return namespace + ".websocket.Endpoint";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isPublic()
-            .and(
-                named("onOpen")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))),
-        getClass().getName() + "$CaptureHandshakeSpanAdvice");
-    transformer.applyAdvice(
-        isPublic()
-            .and(
-                named("onClose")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))
-                    .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))),
-        getClass().getName() + "$SessionCloseAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isPublic()
+                        .and(named("onOpen")
+                                .and(takesArguments(2))
+                                .and(takesArgument(0, named(namespace + ".websocket.Session")))),
+                getClass().getName() + "$CaptureHandshakeSpanAdvice");
+        transformer.applyAdvice(
+                isPublic()
+                        .and(named("onClose")
+                                .and(takesArguments(2))
+                                .and(takesArgument(0, named(namespace + ".websocket.Session")))
+                                .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))),
+                getClass().getName() + "$SessionCloseAdvice");
+    }
 
-  public static class CaptureHandshakeSpanAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final Session session) {
-      final AgentSpan current = AgentTracer.get().activeSpan();
-      if (current != null) {
-        // we need to force the sampling decision in case the span is linked
-        if (Config.get().isWebsocketMessagesInheritSampling()) {
-          current.forceSamplingDecision();
+    public static class CaptureHandshakeSpanAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) final Session session) {
+            final AgentSpan current = AgentTracer.get().activeSpan();
+            if (current != null) {
+                // we need to force the sampling decision in case the span is linked
+                if (Config.get().isWebsocketMessagesInheritSampling()) {
+                    current.forceSamplingDecision();
+                }
+                InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
+                        .getOrPut(session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
+            }
         }
-        InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
-            .getOrPut(
-                session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
-      }
-    }
-  }
-
-  public static class SessionCloseAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
-        @Advice.Argument(0) final Session session,
-        @Advice.Argument(1) final CloseReason closeReason) {
-      final HandlerContext.Sender sessionState =
-          InstrumentationContext.get(Session.class, HandlerContext.Sender.class).remove(session);
-      if (sessionState == null) {
-        return null;
-      }
-      handlerContext =
-          new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
-
-      return activateSpan(
-          DECORATE.startInboundCloseSpan(
-              handlerContext, closeReason.getReasonPhrase(), closeReason.getCloseCode().getCode()));
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
-        @Advice.Thrown final Throwable thrown) {
-      if (scope != null) {
-        final AgentSpan span = spanFromScope(scope);
-        DECORATE.onError(span, thrown);
-        DECORATE.onFrameEnd(handlerContext);
-        scope.close();
-      }
+    public static class SessionCloseAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
+                @Advice.Argument(0) final Session session,
+                @Advice.Argument(1) final CloseReason closeReason) {
+            final HandlerContext.Sender sessionState = InstrumentationContext.get(
+                            Session.class, HandlerContext.Sender.class)
+                    .remove(session);
+            if (sessionState == null) {
+                return null;
+            }
+            handlerContext = new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
+
+            return activateSpan(DECORATE.startInboundCloseSpan(
+                    handlerContext,
+                    closeReason.getReasonPhrase(),
+                    closeReason.getCloseCode().getCode()));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
+                @Advice.Thrown final Throwable thrown) {
+            if (scope != null) {
+                final AgentSpan span = spanFromScope(scope);
+                DECORATE.onError(span, thrown);
+                DECORATE.onFrameEnd(handlerContext);
+                scope.close();
+            }
+        }
     }
-  }
 }

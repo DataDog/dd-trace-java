@@ -4,10 +4,10 @@ import org.apache.kafka.common.header.Headers;
 
 public class NoopTextMapInjectAdapter implements TextMapInjectAdapterInterface {
 
-  public static final NoopTextMapInjectAdapter NOOP_SETTER = new NoopTextMapInjectAdapter();
+    public static final NoopTextMapInjectAdapter NOOP_SETTER = new NoopTextMapInjectAdapter();
 
-  @Override
-  public void set(final Headers headers, final String key, final String value) {}
+    @Override
+    public void set(final Headers headers, final String key, final String value) {}
 
-  public void injectTimeInQueue(Headers headers) {}
+    public void injectTimeInQueue(Headers headers) {}
 }

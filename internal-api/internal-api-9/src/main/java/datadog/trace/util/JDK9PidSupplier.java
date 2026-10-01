@@ -6,15 +6,15 @@ import org.slf4j.LoggerFactory;
 
 /** Use standard API to retrieve PID on Java9+. */
 public final class JDK9PidSupplier implements Supplier<String> {
-  private static final Logger log = LoggerFactory.getLogger(JDK9PidSupplier.class);
+    private static final Logger log = LoggerFactory.getLogger(JDK9PidSupplier.class);
 
-  @Override
-  public String get() {
-    try {
-      return Long.toString(ProcessHandle.current().pid());
-    } catch (Throwable e) {
-      log.debug("Cannot get PID through JVM API", e);
-      return "";
+    @Override
+    public String get() {
+        try {
+            return Long.toString(ProcessHandle.current().pid());
+        } catch (Throwable e) {
+            log.debug("Cannot get PID through JVM API", e);
+            return "";
+        }
     }
-  }
 }

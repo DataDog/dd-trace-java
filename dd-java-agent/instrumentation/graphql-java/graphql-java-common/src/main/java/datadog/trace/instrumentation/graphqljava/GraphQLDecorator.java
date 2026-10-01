@@ -25,84 +25,82 @@ import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 
 public class GraphQLDecorator extends BaseDecorator {
-  public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
-  public static final CharSequence GRAPHQL_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForProtocol("graphql"));
-  public static final CharSequence GRAPHQL_PARSING = UTF8BytesString.create("graphql.parsing");
-  public static final CharSequence GRAPHQL_VALIDATION =
-      UTF8BytesString.create("graphql.validation");
-  public static final CharSequence GRAPHQL_JAVA = UTF8BytesString.create("graphql-java");
+    public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
+    public static final CharSequence GRAPHQL_REQUEST =
+            UTF8BytesString.create(SpanNaming.instance().namingSchema().server().operationForProtocol("graphql"));
+    public static final CharSequence GRAPHQL_PARSING = UTF8BytesString.create("graphql.parsing");
+    public static final CharSequence GRAPHQL_VALIDATION = UTF8BytesString.create("graphql.validation");
+    public static final CharSequence GRAPHQL_JAVA = UTF8BytesString.create("graphql-java");
 
-  // Extract this to allow for easier testing
-  protected AgentTracer.TracerAPI tracer() {
-    return AgentTracer.get();
-  }
-
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"graphql-java"};
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.GRAPHQL;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return GRAPHQL_JAVA;
-  }
-
-  @Override
-  protected void doAfterStart(@Nonnull final AgentSpan span) {
-    span.setMeasured(true);
-    super.doAfterStart(span);
-  }
-
-  public void onRequest(final AgentSpan span, final ExecutionContext context) {
-
-    if (ActiveSubsystems.APPSEC_ACTIVE) {
-
-      Map<String, Map<String, String>> resolversArgs = new HashMap<>();
-
-      for (Selection<?> selection :
-          context.getOperationDefinition().getSelectionSet().getSelections()) {
-        if (selection instanceof Field) {
-          Field field = (Field) selection;
-          String name = field.getName();
-
-          Map<String, String> arguments = new HashMap<>();
-
-          for (Argument argument : field.getArguments()) {
-            String fieldName = argument.getName();
-            Value<?> fieldValue = argument.getValue();
-            if (fieldValue instanceof StringValue) {
-              String stringValue = ((StringValue) fieldValue).getValue();
-              arguments.put(fieldName, stringValue);
-            }
-          }
-          resolversArgs.put(name, arguments);
-        }
-      }
-
-      CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-      RequestContext ctx = span.getRequestContext();
-      if (cbp == null || resolversArgs.isEmpty() || ctx == null) {
-        return;
-      }
-
-      BiFunction<RequestContext, Map<String, ?>, Flow<Void>> graphqlResolverCallback =
-          cbp.getCallback(EVENTS.graphqlServerRequestMessage());
-      if (graphqlResolverCallback == null) {
-        return;
-      }
-
-      Flow<Void> flow = graphqlResolverCallback.apply(ctx, resolversArgs);
-      if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
-        // Blocking will be implemented in future PRs
-        // span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
-      }
+    // Extract this to allow for easier testing
+    protected AgentTracer.TracerAPI tracer() {
+        return AgentTracer.get();
     }
-  }
+
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"graphql-java"};
+    }
+
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.GRAPHQL;
+    }
+
+    @Override
+    protected CharSequence component() {
+        return GRAPHQL_JAVA;
+    }
+
+    @Override
+    protected void doAfterStart(@Nonnull final AgentSpan span) {
+        span.setMeasured(true);
+        super.doAfterStart(span);
+    }
+
+    public void onRequest(final AgentSpan span, final ExecutionContext context) {
+
+        if (ActiveSubsystems.APPSEC_ACTIVE) {
+
+            Map<String, Map<String, String>> resolversArgs = new HashMap<>();
+
+            for (Selection<?> selection :
+                    context.getOperationDefinition().getSelectionSet().getSelections()) {
+                if (selection instanceof Field) {
+                    Field field = (Field) selection;
+                    String name = field.getName();
+
+                    Map<String, String> arguments = new HashMap<>();
+
+                    for (Argument argument : field.getArguments()) {
+                        String fieldName = argument.getName();
+                        Value<?> fieldValue = argument.getValue();
+                        if (fieldValue instanceof StringValue) {
+                            String stringValue = ((StringValue) fieldValue).getValue();
+                            arguments.put(fieldName, stringValue);
+                        }
+                    }
+                    resolversArgs.put(name, arguments);
+                }
+            }
+
+            CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+            RequestContext ctx = span.getRequestContext();
+            if (cbp == null || resolversArgs.isEmpty() || ctx == null) {
+                return;
+            }
+
+            BiFunction<RequestContext, Map<String, ?>, Flow<Void>> graphqlResolverCallback =
+                    cbp.getCallback(EVENTS.graphqlServerRequestMessage());
+            if (graphqlResolverCallback == null) {
+                return;
+            }
+
+            Flow<Void> flow = graphqlResolverCallback.apply(ctx, resolversArgs);
+            if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+                // Blocking will be implemented in future PRs
+                // span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+            }
+        }
+    }
 }

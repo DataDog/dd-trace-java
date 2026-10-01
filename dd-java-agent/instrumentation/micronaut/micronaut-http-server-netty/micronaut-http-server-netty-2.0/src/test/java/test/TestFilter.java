@@ -11,15 +11,10 @@ import org.reactivestreams.Publisher;
 
 @Filter(Filter.MATCH_ALL_PATTERN)
 public class TestFilter implements HttpServerFilter {
-  @Override
-  public Publisher<MutableHttpResponse<?>> doFilter(
-      HttpRequest<?> request, ServerFilterChain chain) {
-    return Flowable.fromPublisher(chain.proceed(request))
-        .doOnNext(
-            res ->
-                res.getHeaders()
-                    .add(
-                        HttpServerTest.getIG_RESPONSE_HEADER(),
-                        HttpServerTest.getIG_RESPONSE_HEADER_VALUE()));
-  }
+    @Override
+    public Publisher<MutableHttpResponse<?>> doFilter(HttpRequest<?> request, ServerFilterChain chain) {
+        return Flowable.fromPublisher(chain.proceed(request))
+                .doOnNext(res -> res.getHeaders()
+                        .add(HttpServerTest.getIG_RESPONSE_HEADER(), HttpServerTest.getIG_RESPONSE_HEADER_VALUE()));
+    }
 }

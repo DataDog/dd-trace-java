@@ -24,140 +24,133 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public KarateExecutionInstrumentation() {
-    super("ci-visibility", "karate", "test-retry");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "com.intuit.karate.core.ScenarioRuntime", "com.intuit.karate.core.ScenarioResult"
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.intuit.karate.core.Scenario", packageName + ".ExecutionContext");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // ScenarioRuntime
-    transformer.applyAdvice(
-        named("run").and(takesNoArguments()),
-        KarateExecutionInstrumentation.class.getName() + "$RetryAdvice");
-
-    // ScenarioResult
-    transformer.applyAdvice(
-        named("addStepResult")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("com.intuit.karate.core.StepResult"))),
-        KarateExecutionInstrumentation.class.getName() + "$SuppressErrorAdvice");
-  }
-
-  public static class RetryAdvice {
-    @Advice.OnMethodEnter
-    public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
-      if (KarateTracingHook.skipTracking(scenarioRuntime)) {
-        return;
-      }
-
-      ExecutionContext executionContext =
-          InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-              .getOrCompute(scenarioRuntime.scenario, ExecutionContext::create);
-
-      // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
-      // rest of the frameworks
-      TestExecutionPolicy executionPolicy = executionContext.getExecutionPolicy();
-      executionContext.setSuppressFailures(executionPolicy.suppressFailures());
-
-      scenarioRuntime.magicVariables.putIfAbsent(
-          KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE, executionPolicy);
+    public KarateExecutionInstrumentation() {
+        super("ci-visibility", "karate", "test-retry");
     }
 
-    @Advice.OnMethodExit
-    public static void afterExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
-      if (KarateTracingHook.skipTracking(scenarioRuntime)) {
-        return;
-      }
-
-      if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
-        // nested call
-        return;
-      }
-
-      Scenario scenario = scenarioRuntime.scenario;
-      ExecutionContext context =
-          InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
-      if (context == null) {
-        return;
-      }
-
-      ScenarioResult originalResult = scenarioRuntime.result;
-      ScenarioResult finalResult = originalResult;
-
-      TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
-      while (executionPolicy.applicable()) {
-        ScenarioRuntime retry =
-            new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
-        retry.magicVariables.put(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE, executionPolicy);
-        retry.run();
-        retry.featureRuntime.result.addResult(retry.result);
-        finalResult = retry.result;
-      }
-
-      // When the scenario is retried, the original runtime's result must reflect the final
-      // attempt's outcome. To avoid final field modifications, the final attempt's failure is
-      // reflected onto the original result via addStepResult
-      if (finalResult.isFailed() && !originalResult.isFailed()) {
-        originalResult.addStepResult(finalResult.getFailedStep());
-      }
-
-      CallDepthThreadLocalMap.reset(ScenarioRuntime.class);
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
     }
 
-    // Karate 1.0.0 and above
-    public static void muzzleCheck(RuntimeHook runtimeHook) {
-      runtimeHook.beforeSuite(null);
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"com.intuit.karate.core.ScenarioRuntime", "com.intuit.karate.core.ScenarioResult"};
     }
-  }
 
-  public static class SuppressErrorAdvice {
-    @Advice.OnMethodEnter
-    public static void onAddingStepResult(
-        @Advice.Argument(value = 0, readOnly = false) StepResult stepResult,
-        @Advice.FieldValue("scenario") Scenario scenario) {
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.intuit.karate.core.Scenario", packageName + ".ExecutionContext");
+    }
 
-      Result result = stepResult.getResult();
-      if (result.isFailed()) {
-        ExecutionContext executionContext =
-            InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
-        if (executionContext == null) {
-          return;
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // ScenarioRuntime
+        transformer.applyAdvice(
+                named("run").and(takesNoArguments()), KarateExecutionInstrumentation.class.getName() + "$RetryAdvice");
+
+        // ScenarioResult
+        transformer.applyAdvice(
+                named("addStepResult")
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("com.intuit.karate.core.StepResult"))),
+                KarateExecutionInstrumentation.class.getName() + "$SuppressErrorAdvice");
+    }
+
+    public static class RetryAdvice {
+        @Advice.OnMethodEnter
+        public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
+            if (KarateTracingHook.skipTracking(scenarioRuntime)) {
+                return;
+            }
+
+            ExecutionContext executionContext = InstrumentationContext.get(Scenario.class, ExecutionContext.class)
+                    .getOrCompute(scenarioRuntime.scenario, ExecutionContext::create);
+
+            // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
+            // rest of the frameworks
+            TestExecutionPolicy executionPolicy = executionContext.getExecutionPolicy();
+            executionContext.setSuppressFailures(executionPolicy.suppressFailures());
+
+            scenarioRuntime.magicVariables.putIfAbsent(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE, executionPolicy);
         }
 
-        // Suppress every failing step of a to-be-retried attempt (not just the first): with
-        // continueOnStepFailure a single attempt can add multiple failing steps, and any leak would
-        // mark the original runtime's result failed
-        if (executionContext.shouldSuppressFailures()) {
-          stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
-          stepResult.setFailedReason(result.getError());
-          stepResult.setErrorIgnored(true);
+        @Advice.OnMethodExit
+        public static void afterExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
+            if (KarateTracingHook.skipTracking(scenarioRuntime)) {
+                return;
+            }
+
+            if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
+                // nested call
+                return;
+            }
+
+            Scenario scenario = scenarioRuntime.scenario;
+            ExecutionContext context = InstrumentationContext.get(Scenario.class, ExecutionContext.class)
+                    .get(scenario);
+            if (context == null) {
+                return;
+            }
+
+            ScenarioResult originalResult = scenarioRuntime.result;
+            ScenarioResult finalResult = originalResult;
+
+            TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
+            while (executionPolicy.applicable()) {
+                ScenarioRuntime retry = new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
+                retry.magicVariables.put(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE, executionPolicy);
+                retry.run();
+                retry.featureRuntime.result.addResult(retry.result);
+                finalResult = retry.result;
+            }
+
+            // When the scenario is retried, the original runtime's result must reflect the final
+            // attempt's outcome. To avoid final field modifications, the final attempt's failure is
+            // reflected onto the original result via addStepResult
+            if (finalResult.isFailed() && !originalResult.isFailed()) {
+                originalResult.addStepResult(finalResult.getFailedStep());
+            }
+
+            CallDepthThreadLocalMap.reset(ScenarioRuntime.class);
         }
-      }
+
+        // Karate 1.0.0 and above
+        public static void muzzleCheck(RuntimeHook runtimeHook) {
+            runtimeHook.beforeSuite(null);
+        }
     }
 
-    // Karate 1.0.0 and above
-    public static void muzzleCheck(RuntimeHook runtimeHook) {
-      runtimeHook.beforeSuite(null);
+    public static class SuppressErrorAdvice {
+        @Advice.OnMethodEnter
+        public static void onAddingStepResult(
+                @Advice.Argument(value = 0, readOnly = false) StepResult stepResult,
+                @Advice.FieldValue("scenario") Scenario scenario) {
+
+            Result result = stepResult.getResult();
+            if (result.isFailed()) {
+                ExecutionContext executionContext = InstrumentationContext.get(Scenario.class, ExecutionContext.class)
+                        .get(scenario);
+                if (executionContext == null) {
+                    return;
+                }
+
+                // Suppress every failing step of a to-be-retried attempt (not just the first): with
+                // continueOnStepFailure a single attempt can add multiple failing steps, and any leak would
+                // mark the original runtime's result failed
+                if (executionContext.shouldSuppressFailures()) {
+                    stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
+                    stepResult.setFailedReason(result.getError());
+                    stepResult.setErrorIgnored(true);
+                }
+            }
+        }
+
+        // Karate 1.0.0 and above
+        public static void muzzleCheck(RuntimeHook runtimeHook) {
+            runtimeHook.beforeSuite(null);
+        }
     }
-  }
 }

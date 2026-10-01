@@ -11,24 +11,24 @@ import java.util.function.Predicate;
  * @param <T> The type of the value being validated.
  */
 public class Validates<T> implements Matcher<T> {
-  private final Predicate<T> validator;
+    private final Predicate<T> validator;
 
-  Validates(Predicate<T> validator) {
-    this.validator = validator;
-  }
+    Validates(Predicate<T> validator) {
+        this.validator = validator;
+    }
 
-  @Override
-  public Optional<T> expected() {
-    return Optional.empty();
-  }
+    @Override
+    public Optional<T> expected() {
+        return Optional.empty();
+    }
 
-  @Override
-  public String failureReason() {
-    return "Invalid value";
-  }
+    @Override
+    public String failureReason() {
+        return "Invalid value";
+    }
 
-  @Override
-  public boolean test(T t) {
-    return this.validator.test(t);
-  }
+    @Override
+    public boolean test(T t) {
+        return this.validator.test(t);
+    }
 }

@@ -8,11 +8,11 @@ import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 
 public class TestSucceedSelenium {
 
-  @Test
-  public void test_succeed() {
-    WebDriver driver = new HtmlUnitDriver(BrowserVersion.CHROME, true);
-    driver.get(System.getProperty("selenium-test.dummy-page-url"));
-    Assertions.assertEquals("Selenium Integration Test", driver.getTitle());
-    driver.close();
-  }
+    @Test
+    public void test_succeed() {
+        WebDriver driver = new HtmlUnitDriver(BrowserVersion.CHROME, true);
+        driver.get(System.getProperty("selenium-test.dummy-page-url"));
+        Assertions.assertEquals("Selenium Integration Test", driver.getTitle());
+        driver.close();
+    }
 }

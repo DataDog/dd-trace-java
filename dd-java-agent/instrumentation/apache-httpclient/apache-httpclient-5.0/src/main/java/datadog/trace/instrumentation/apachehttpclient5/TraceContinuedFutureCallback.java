@@ -13,98 +13,98 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.http.protocol.HttpCoreContext;
 
 public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
-  private final ContextContinuation parentContinuation;
-  private final AgentSpan clientSpan;
-  private final HttpContext context;
-  private final FutureCallback<T> delegate;
+    private final ContextContinuation parentContinuation;
+    private final AgentSpan clientSpan;
+    private final HttpContext context;
+    private final FutureCallback<T> delegate;
 
-  public TraceContinuedFutureCallback(
-      final ContextContinuation parentContinuation,
-      final AgentSpan clientSpan,
-      final HttpContext context,
-      final FutureCallback<T> delegate) {
-    this.parentContinuation = parentContinuation;
-    this.clientSpan = clientSpan;
-    this.context = context;
-    // Note: this can be null in real life, so we have to handle this carefully
-    this.delegate = delegate;
-  }
-
-  @Override
-  public void completed(final T result) {
-    DECORATE.onResponse(clientSpan, extractHttpResponse(result));
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish(); // Finish span before calling delegate
-
-    if (parentContinuation.context() == Context.root()) {
-      completeDelegate(result);
-    } else {
-      try (final ContextScope scope = parentContinuation.resume()) {
-        completeDelegate(result);
-      }
+    public TraceContinuedFutureCallback(
+            final ContextContinuation parentContinuation,
+            final AgentSpan clientSpan,
+            final HttpContext context,
+            final FutureCallback<T> delegate) {
+        this.parentContinuation = parentContinuation;
+        this.clientSpan = clientSpan;
+        this.context = context;
+        // Note: this can be null in real life, so we have to handle this carefully
+        this.delegate = delegate;
     }
-  }
 
-  @Override
-  public void failed(final Exception ex) {
-    DECORATE.onResponse(clientSpan, extractHttpResponse(null));
-    DECORATE.onError(clientSpan, ex);
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish(); // Finish span before calling delegate
+    @Override
+    public void completed(final T result) {
+        DECORATE.onResponse(clientSpan, extractHttpResponse(result));
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation.context() == Context.root()) {
-      failDelegate(ex);
-    } else {
-      try (final ContextScope scope = parentContinuation.resume()) {
-        failDelegate(ex);
-      }
+        if (parentContinuation.context() == Context.root()) {
+            completeDelegate(result);
+        } else {
+            try (final ContextScope scope = parentContinuation.resume()) {
+                completeDelegate(result);
+            }
+        }
     }
-  }
 
-  @Override
-  public void cancelled() {
-    DECORATE.onResponse(clientSpan, extractHttpResponse(null));
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish(); // Finish span before calling delegate
+    @Override
+    public void failed(final Exception ex) {
+        DECORATE.onResponse(clientSpan, extractHttpResponse(null));
+        DECORATE.onError(clientSpan, ex);
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation.context() == Context.root()) {
-      cancelDelegate();
-    } else {
-      try (final ContextScope scope = parentContinuation.resume()) {
-        cancelDelegate();
-      }
+        if (parentContinuation.context() == Context.root()) {
+            failDelegate(ex);
+        } else {
+            try (final ContextScope scope = parentContinuation.resume()) {
+                failDelegate(ex);
+            }
+        }
     }
-  }
 
-  private void completeDelegate(final T result) {
-    if (delegate != null) {
-      delegate.completed(result);
-    }
-  }
+    @Override
+    public void cancelled() {
+        DECORATE.onResponse(clientSpan, extractHttpResponse(null));
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish(); // Finish span before calling delegate
 
-  private void failDelegate(final Exception ex) {
-    if (delegate != null) {
-      delegate.failed(ex);
+        if (parentContinuation.context() == Context.root()) {
+            cancelDelegate();
+        } else {
+            try (final ContextScope scope = parentContinuation.resume()) {
+                cancelDelegate();
+            }
+        }
     }
-  }
 
-  private void cancelDelegate() {
-    if (delegate != null) {
-      delegate.cancelled();
+    private void completeDelegate(final T result) {
+        if (delegate != null) {
+            delegate.completed(result);
+        }
     }
-  }
 
-  @Nullable
-  private HttpResponse extractHttpResponse(Object futureResult) {
-    if (context != null) {
-      Object fromContext = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
-      if (fromContext instanceof HttpResponse) {
-        return (HttpResponse) fromContext;
-      }
+    private void failDelegate(final Exception ex) {
+        if (delegate != null) {
+            delegate.failed(ex);
+        }
     }
-    if (futureResult instanceof HttpResponse) {
-      return (HttpResponse) futureResult;
+
+    private void cancelDelegate() {
+        if (delegate != null) {
+            delegate.cancelled();
+        }
     }
-    return null;
-  }
+
+    @Nullable
+    private HttpResponse extractHttpResponse(Object futureResult) {
+        if (context != null) {
+            Object fromContext = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
+            if (fromContext instanceof HttpResponse) {
+                return (HttpResponse) fromContext;
+            }
+        }
+        if (futureResult instanceof HttpResponse) {
+            return (HttpResponse) futureResult;
+        }
+        return null;
+    }
 }

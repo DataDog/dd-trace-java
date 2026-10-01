@@ -10,31 +10,30 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class OtelBaggageBuilder implements BaggageBuilder {
-  private final Map<String, String> items;
+    private final Map<String, String> items;
 
-  public OtelBaggageBuilder(Map<String, String> items) {
-    this.items = new HashMap<>(items);
-  }
-
-  @Override
-  public BaggageBuilder put(
-      @Nullable String key, @Nullable String value, BaggageEntryMetadata ignore) {
-    if (key != null && value != null) {
-      items.put(key, value);
+    public OtelBaggageBuilder(Map<String, String> items) {
+        this.items = new HashMap<>(items);
     }
-    return this;
-  }
 
-  @Override
-  public BaggageBuilder remove(@Nullable String key) {
-    if (key != null) {
-      items.remove(key);
+    @Override
+    public BaggageBuilder put(@Nullable String key, @Nullable String value, BaggageEntryMetadata ignore) {
+        if (key != null && value != null) {
+            items.put(key, value);
+        }
+        return this;
     }
-    return this;
-  }
 
-  @Override
-  public Baggage build() {
-    return new OtelBaggage(new HashMap<>(items));
-  }
+    @Override
+    public BaggageBuilder remove(@Nullable String key) {
+        if (key != null) {
+            items.remove(key);
+        }
+        return this;
+    }
+
+    @Override
+    public Baggage build() {
+        return new OtelBaggage(new HashMap<>(items));
+    }
 }

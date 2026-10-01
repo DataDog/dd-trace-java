@@ -19,86 +19,81 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 class ReferenceCreatorConversionTest {
-  @Test
-  void preservesTransitiveReferencesThroughArrayOwners() {
-    for (Class<?> advice :
-        new Class<?>[] {ArrayCloneAdvice.class, MultidimensionalArrayCloneAdvice.class}) {
-      Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(advice);
+    @Test
+    void preservesTransitiveReferencesThroughArrayOwners() {
+        for (Class<?> advice : new Class<?>[] {ArrayCloneAdvice.class, MultidimensionalArrayCloneAdvice.class}) {
+            Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(advice);
 
-      Reference type = references.get(Type.class.getName());
-      assertNotNull(type, advice.getName());
-      assertTrue(
-          Stream.of(type.methods)
-              .anyMatch(
-                  method ->
-                      method.name.equals("getType")
-                          && method.methodType.equals(
-                              "(Ljava/lang/Class;)Lnet/bytebuddy/jar/asm/Type;")),
-          advice.getName());
-      assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
-    }
-  }
-
-  @Test
-  void ignoresPrimitiveArrayOwners() {
-    assertTrue(
-        ReferenceCreatorTestSupport.referencesFrom(PrimitiveArrayCloneAdvice.class).isEmpty());
-  }
-
-  @Test
-  void appliesAdviceShadingOnlyDuringConversion() {
-    ShadingModule module = new ShadingModule();
-    AdviceScanResult scan = AdviceScanner.scan(module);
-    AdviceShader shader = AdviceShader.with(module.adviceShading());
-
-    List<Reference> converted = ReferenceCreator.createReferences(scan, shader);
-    Map<String, Reference> references = ReferenceCreatorTestSupport.byName(converted);
-
-    assertTrue(references.containsKey("relocated.library.TestInfo"));
-    assertFalse(references.containsKey(TestInfo.class.getName()));
-    assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
-    assertNotNull(scan.getClassInfo(TestInfo.class.getName()));
-  }
-
-  public static final class ShadingModule extends InstrumenterModule
-      implements Instrumenter.HasMethodAdvice {
-    public ShadingModule() {
-      super("muzzle-shading");
+            Reference type = references.get(Type.class.getName());
+            assertNotNull(type, advice.getName());
+            assertTrue(
+                    Stream.of(type.methods)
+                            .anyMatch(method -> method.name.equals("getType")
+                                    && method.methodType.equals("(Ljava/lang/Class;)Lnet/bytebuddy/jar/asm/Type;")),
+                    advice.getName());
+            assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
+        }
     }
 
-    @Override
-    public void methodAdvice(MethodTransformer transformer) {
-      transformer.applyAdvice(null, ShadingAdvice.class.getName());
+    @Test
+    void ignoresPrimitiveArrayOwners() {
+        assertTrue(ReferenceCreatorTestSupport.referencesFrom(PrimitiveArrayCloneAdvice.class)
+                .isEmpty());
     }
 
-    @Override
-    public Map<String, String> adviceShading() {
-      return Collections.singletonMap("org.junit.jupiter.api", "relocated.library");
-    }
-  }
+    @Test
+    void appliesAdviceShadingOnlyDuringConversion() {
+        ShadingModule module = new ShadingModule();
+        AdviceScanResult scan = AdviceScanner.scan(module);
+        AdviceShader shader = AdviceShader.with(module.adviceShading());
 
-  static final class ArrayCloneAdvice {
-    static Object apply(ExternalHelper[] helpers) {
-      return helpers.clone();
-    }
-  }
+        List<Reference> converted = ReferenceCreator.createReferences(scan, shader);
+        Map<String, Reference> references = ReferenceCreatorTestSupport.byName(converted);
 
-  static final class MultidimensionalArrayCloneAdvice {
-    static Object apply(ExternalHelper[][] helpers) {
-      return helpers.clone();
+        assertTrue(references.containsKey("relocated.library.TestInfo"));
+        assertFalse(references.containsKey(TestInfo.class.getName()));
+        assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
+        assertNotNull(scan.getClassInfo(TestInfo.class.getName()));
     }
-  }
 
-  static final class PrimitiveArrayCloneAdvice {
-    static Object apply(int[] values) {
-      return values.clone();
-    }
-  }
+    public static final class ShadingModule extends InstrumenterModule implements Instrumenter.HasMethodAdvice {
+        public ShadingModule() {
+            super("muzzle-shading");
+        }
 
-  static final class ShadingAdvice {
-    static String apply(TestInfo testInfo) {
-      TestInfo[] testInfos = {testInfo};
-      return testInfos.clone()[0].getDisplayName();
+        @Override
+        public void methodAdvice(MethodTransformer transformer) {
+            transformer.applyAdvice(null, ShadingAdvice.class.getName());
+        }
+
+        @Override
+        public Map<String, String> adviceShading() {
+            return Collections.singletonMap("org.junit.jupiter.api", "relocated.library");
+        }
     }
-  }
+
+    static final class ArrayCloneAdvice {
+        static Object apply(ExternalHelper[] helpers) {
+            return helpers.clone();
+        }
+    }
+
+    static final class MultidimensionalArrayCloneAdvice {
+        static Object apply(ExternalHelper[][] helpers) {
+            return helpers.clone();
+        }
+    }
+
+    static final class PrimitiveArrayCloneAdvice {
+        static Object apply(int[] values) {
+            return values.clone();
+        }
+    }
+
+    static final class ShadingAdvice {
+        static String apply(TestInfo testInfo) {
+            TestInfo[] testInfos = {testInfo};
+            return testInfos.clone()[0].getDisplayName();
+        }
+    }
 }

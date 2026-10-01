@@ -13,64 +13,60 @@ import software.amazon.awssdk.services.sfn.model.StartSyncExecutionRequest;
 
 public class SfnInterceptor implements ExecutionInterceptor {
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+    public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(ExecutionAttribute.class)
+            .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
-  public SfnInterceptor() {}
+    public SfnInterceptor() {}
 
-  @Override
-  public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
-    SdkRequest request = context.request();
-    if (!Config.get().isSfnInjectDatadogAttributeEnabled()) {
-      return request;
-    }
-    try {
-      return modifyRequestImpl(context, executionAttributes);
-    } catch (Exception e) {
-      return request;
-    }
-  }
-
-  public SdkRequest modifyRequestImpl(
-      ModifyRequest context, ExecutionAttributes executionAttributes) {
-    final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
-    // StartExecutionRequest
-    if (context.request() instanceof StartExecutionRequest) {
-      StartExecutionRequest request = (StartExecutionRequest) context.request();
-      if (request.input() == null) {
-        return request;
-      }
-      return injectTraceContext(ddContext, request);
+    @Override
+    public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
+        SdkRequest request = context.request();
+        if (!Config.get().isSfnInjectDatadogAttributeEnabled()) {
+            return request;
+        }
+        try {
+            return modifyRequestImpl(context, executionAttributes);
+        } catch (Exception e) {
+            return request;
+        }
     }
 
-    // StartSyncExecutionRequest
-    if (context.request() instanceof StartSyncExecutionRequest) {
-      StartSyncExecutionRequest request = (StartSyncExecutionRequest) context.request();
-      if (request.input() == null) {
-        return request;
-      }
-      return injectTraceContext(ddContext, request);
+    public SdkRequest modifyRequestImpl(ModifyRequest context, ExecutionAttributes executionAttributes) {
+        final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+        // StartExecutionRequest
+        if (context.request() instanceof StartExecutionRequest) {
+            StartExecutionRequest request = (StartExecutionRequest) context.request();
+            if (request.input() == null) {
+                return request;
+            }
+            return injectTraceContext(ddContext, request);
+        }
+
+        // StartSyncExecutionRequest
+        if (context.request() instanceof StartSyncExecutionRequest) {
+            StartSyncExecutionRequest request = (StartSyncExecutionRequest) context.request();
+            if (request.input() == null) {
+                return request;
+            }
+            return injectTraceContext(ddContext, request);
+        }
+
+        return context.request();
     }
 
-    return context.request();
-  }
+    private SdkRequest injectTraceContext(Context ddContext, StartExecutionRequest request) {
+        String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(ddContext);
+        // Inject the trace context into the StartExecutionRequest input
+        String modifiedInput = InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
 
-  private SdkRequest injectTraceContext(Context ddContext, StartExecutionRequest request) {
-    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(ddContext);
-    // Inject the trace context into the StartExecutionRequest input
-    String modifiedInput =
-        InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
+        return request.toBuilder().input(modifiedInput).build();
+    }
 
-    return request.toBuilder().input(modifiedInput).build();
-  }
+    private SdkRequest injectTraceContext(Context ddContext, StartSyncExecutionRequest request) {
+        String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(ddContext);
+        // Inject the trace context into the StartSyncExecutionRequest input
+        String modifiedInput = InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
 
-  private SdkRequest injectTraceContext(Context ddContext, StartSyncExecutionRequest request) {
-    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(ddContext);
-    // Inject the trace context into the StartSyncExecutionRequest input
-    String modifiedInput =
-        InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
-
-    return request.toBuilder().input(modifiedInput).build();
-  }
+        return request.toBuilder().input(modifiedInput).build();
+    }
 }

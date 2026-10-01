@@ -5,17 +5,17 @@ import java.time.Duration;
 
 public interface TimeoutChecker {
 
-  String CPU = "CPU";
-  String WALL = "WALL";
+    String CPU = "CPU";
+    String WALL = "WALL";
 
-  boolean isTimedOut();
+    boolean isTimedOut();
 
-  Duration getTimeOut();
+    Duration getTimeOut();
 
-  static TimeoutChecker create(Config config, Duration timeout) {
-    if (config.getDynamicInstrumentationTimeoutCheckerMode().equals(CPU)) {
-      return new CpuTimeoutChecker(timeout);
+    static TimeoutChecker create(Config config, Duration timeout) {
+        if (config.getDynamicInstrumentationTimeoutCheckerMode().equals(CPU)) {
+            return new CpuTimeoutChecker(timeout);
+        }
+        return new WallTimeoutChecker(timeout);
     }
-    return new WallTimeoutChecker(timeout);
-  }
 }

@@ -18,87 +18,80 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class ArmeriaMessageDeframerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return named(hierarchyMarkerType()).or(extendsClass(named(hierarchyMarkerType())));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer$Listener"))),
-        getClass().getName() + "$CaptureClientCallArg0");
-    transformer.applyAdvice(
-        isConstructor()
-            .and(
-                takesArgument(
-                    2, named("com.linecorp.armeria.internal.common.grpc.TransportStatusListener"))),
-        getClass().getName() + "$CaptureClientCallArg2");
-    transformer.applyAdvice(
-        isMethod().and(named("process").or(named("deframe"))),
-        getClass().getName() + "$ActivateSpan");
-  }
-
-  public static final class CaptureClientCallArg0 {
-    @SuppressWarnings("rawtypes")
-    @Advice.OnMethodExit
-    public static void capture(
-        @Advice.This ArmeriaMessageDeframer messageDeframer,
-        @Advice.Argument(0) Object clientCall) {
-      if (clientCall instanceof ClientCall) {
-        InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
-            .put(messageDeframer, (ClientCall) clientCall);
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer";
     }
-  }
 
-  public static final class CaptureClientCallArg2 {
-    @SuppressWarnings("rawtypes")
-    @Advice.OnMethodExit
-    public static void capture(
-        @Advice.This ArmeriaMessageDeframer messageDeframer,
-        @Advice.Argument(2) Object clientCall) {
-      if (clientCall instanceof ClientCall) {
-        InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
-            .put(messageDeframer, (ClientCall) clientCall);
-      }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return named(hierarchyMarkerType()).or(extendsClass(named(hierarchyMarkerType())));
     }
-  }
 
-  public static final class ActivateSpan {
-    @SuppressWarnings("rawtypes")
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.This ArmeriaMessageDeframer messageDeframer) {
-      ClientCall clientCall =
-          InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
-              .get(messageDeframer);
-      if (clientCall != null) {
-        AgentSpan span =
-            InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(clientCall);
-        if (null != span) {
-          return activateSpan(span);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(
+                                0, named("com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer$Listener"))),
+                getClass().getName() + "$CaptureClientCallArg0");
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(
+                                2, named("com.linecorp.armeria.internal.common.grpc.TransportStatusListener"))),
+                getClass().getName() + "$CaptureClientCallArg2");
+        transformer.applyAdvice(
+                isMethod().and(named("process").or(named("deframe"))),
+                getClass().getName() + "$ActivateSpan");
+    }
+
+    public static final class CaptureClientCallArg0 {
+        @SuppressWarnings("rawtypes")
+        @Advice.OnMethodExit
+        public static void capture(
+                @Advice.This ArmeriaMessageDeframer messageDeframer, @Advice.Argument(0) Object clientCall) {
+            if (clientCall instanceof ClientCall) {
+                InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
+                        .put(messageDeframer, (ClientCall) clientCall);
+            }
         }
-      }
-      return null;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      if (null != scope) {
-        scope.close();
-      }
+    public static final class CaptureClientCallArg2 {
+        @SuppressWarnings("rawtypes")
+        @Advice.OnMethodExit
+        public static void capture(
+                @Advice.This ArmeriaMessageDeframer messageDeframer, @Advice.Argument(2) Object clientCall) {
+            if (clientCall instanceof ClientCall) {
+                InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
+                        .put(messageDeframer, (ClientCall) clientCall);
+            }
+        }
     }
-  }
+
+    public static final class ActivateSpan {
+        @SuppressWarnings("rawtypes")
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.This ArmeriaMessageDeframer messageDeframer) {
+            ClientCall clientCall = InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
+                    .get(messageDeframer);
+            if (clientCall != null) {
+                AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                        .get(clientCall);
+                if (null != span) {
+                    return activateSpan(span);
+                }
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            if (null != scope) {
+                scope.close();
+            }
+        }
+    }
 }

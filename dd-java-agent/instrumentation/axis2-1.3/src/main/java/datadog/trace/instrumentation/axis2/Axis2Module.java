@@ -9,15 +9,15 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class Axis2Module extends InstrumenterModule.Tracing {
-  public Axis2Module() {
-    super("axis2");
-  }
+    public Axis2Module() {
+        super("axis2");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new AxisEngineInstrumentation(),
-        new AxisTransportInstrumentation(),
-        new WebSphereAsyncInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new AxisEngineInstrumentation(),
+                new AxisTransportInstrumentation(),
+                new WebSphereAsyncInstrumentation());
+    }
 }

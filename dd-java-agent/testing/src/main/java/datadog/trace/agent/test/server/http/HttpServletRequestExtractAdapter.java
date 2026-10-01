@@ -10,24 +10,21 @@ import javax.servlet.http.HttpServletRequest;
  * @author Pavol Loffay
  */
 // FIXME:  This code is duplicated in several places.  Extract to a common dependency.
-public class HttpServletRequestExtractAdapter
-    implements AgentPropagation.ContextVisitor<HttpServletRequest> {
+public class HttpServletRequestExtractAdapter implements AgentPropagation.ContextVisitor<HttpServletRequest> {
 
-  public static final HttpServletRequestExtractAdapter GETTER =
-      new HttpServletRequestExtractAdapter();
+    public static final HttpServletRequestExtractAdapter GETTER = new HttpServletRequestExtractAdapter();
 
-  @Override
-  public void forEachKey(
-      final HttpServletRequest carrier, final AgentPropagation.KeyClassifier classifier) {
-    Enumeration<String> headerNames = carrier.getHeaderNames();
-    if (headerNames == null) {
-      return;
+    @Override
+    public void forEachKey(final HttpServletRequest carrier, final AgentPropagation.KeyClassifier classifier) {
+        Enumeration<String> headerNames = carrier.getHeaderNames();
+        if (headerNames == null) {
+            return;
+        }
+        while (headerNames.hasMoreElements()) {
+            final String header = headerNames.nextElement();
+            if (!classifier.accept(header, carrier.getHeader(header))) {
+                return;
+            }
+        }
     }
-    while (headerNames.hasMoreElements()) {
-      final String header = headerNames.nextElement();
-      if (!classifier.accept(header, carrier.getHeader(header))) {
-        return;
-      }
-    }
-  }
 }

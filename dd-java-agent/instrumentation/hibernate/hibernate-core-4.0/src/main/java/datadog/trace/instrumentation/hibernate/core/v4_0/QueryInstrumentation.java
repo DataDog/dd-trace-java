@@ -21,76 +21,75 @@ import org.hibernate.SharedSessionContract;
 
 public final class QueryInstrumentation extends AbstractHibernateInstrumentation {
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.hibernate.query.internal.AbstractProducedQuery",
-      "org.hibernate.internal.AbstractQueryImpl",
-      "org.hibernate.internal.CollectionFilterImpl",
-      "org.hibernate.internal.QueryImpl",
-      "org.hibernate.internal.SQLQueryImpl"
-    };
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.hibernate.Query";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(namedOneOf("list", "executeUpdate", "uniqueResult", "scroll")),
-        QueryInstrumentation.class.getName() + "$QueryMethodAdvice");
-  }
-
-  public static class QueryMethodAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static SessionState startMethod(
-        @Advice.This final Query query,
-        @Advice.Origin("hibernate.query.#m") final String operationName) {
-
-      final ContextStore<Query, SessionState> contextStore =
-          InstrumentationContext.get(Query.class, SessionState.class);
-
-      // Note: We don't know what the entity is until the method is returning.
-      final SessionState state =
-          SessionMethodUtils.startScopeFrom(contextStore, query, operationName, null, true);
-      if (state != null) {
-        DECORATOR.onStatement(spanFromScope(state.getMethodScope()), query.getQueryString());
-      }
-      return state;
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.hibernate.query.internal.AbstractProducedQuery",
+            "org.hibernate.internal.AbstractQueryImpl",
+            "org.hibernate.internal.CollectionFilterImpl",
+            "org.hibernate.internal.QueryImpl",
+            "org.hibernate.internal.SQLQueryImpl"
+        };
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void endMethod(
-        @Advice.This final Query query,
-        @Advice.Enter final SessionState state,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
-
-      Object entity = returned;
-      if (returned == null || query instanceof SQLQuery) {
-        // Not a method that returns results, or the query returns a table rather than an ORM
-        // object.
-        entity = query.getQueryString();
-      }
-
-      SessionMethodUtils.closeScope(state, throwable, entity, true);
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.hibernate.Query";
     }
 
-    /**
-     * Some cases of instrumentation will match more broadly than others, so this unused method
-     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
-     */
-    public static void muzzleCheck(final SharedSessionContract contract) {
-      contract.createCriteria("");
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(namedOneOf("list", "executeUpdate", "uniqueResult", "scroll")),
+                QueryInstrumentation.class.getName() + "$QueryMethodAdvice");
+    }
+
+    public static class QueryMethodAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static SessionState startMethod(
+                @Advice.This final Query query, @Advice.Origin("hibernate.query.#m") final String operationName) {
+
+            final ContextStore<Query, SessionState> contextStore =
+                    InstrumentationContext.get(Query.class, SessionState.class);
+
+            // Note: We don't know what the entity is until the method is returning.
+            final SessionState state =
+                    SessionMethodUtils.startScopeFrom(contextStore, query, operationName, null, true);
+            if (state != null) {
+                DECORATOR.onStatement(spanFromScope(state.getMethodScope()), query.getQueryString());
+            }
+            return state;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void endMethod(
+                @Advice.This final Query query,
+                @Advice.Enter final SessionState state,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
+
+            Object entity = returned;
+            if (returned == null || query instanceof SQLQuery) {
+                // Not a method that returns results, or the query returns a table rather than an ORM
+                // object.
+                entity = query.getQueryString();
+            }
+
+            SessionMethodUtils.closeScope(state, throwable, entity, true);
+        }
+
+        /**
+         * Some cases of instrumentation will match more broadly than others, so this unused method
+         * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+         */
+        public static void muzzleCheck(final SharedSessionContract contract) {
+            contract.createCriteria("");
+        }
+    }
 }

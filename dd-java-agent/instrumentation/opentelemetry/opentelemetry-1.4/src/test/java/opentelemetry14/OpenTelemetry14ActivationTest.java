@@ -14,56 +14,55 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = "integration.opentelemetry.experimental.enabled", value = "")
 abstract class OpenTelemetry14ActivationTest extends AbstractOpenTelemetry14Test {
 
-  abstract boolean shouldBeInjected();
+    abstract boolean shouldBeInjected();
 
-  @Test
-  void testInstrumentationInjection() {
-    Tracer tracer = GlobalOpenTelemetry.get().getTracerProvider().get("some-instrumentation");
-    SpanBuilder builder = tracer.spanBuilder("some-name");
-    Span result = builder.startSpan();
-    Context context = Context.current();
+    @Test
+    void testInstrumentationInjection() {
+        Tracer tracer = GlobalOpenTelemetry.get().getTracerProvider().get("some-instrumentation");
+        SpanBuilder builder = tracer.spanBuilder("some-name");
+        Span result = builder.startSpan();
+        Context context = Context.current();
 
-    if (shouldBeInjected()) {
-      assertImplementation(tracer, "OtelTracer");
-      assertImplementation(builder, "OtelSpanBuilder");
-      assertImplementation(result, "OtelSpan");
-      assertImplementation(context, "OtelContext");
-    } else {
-      assertImplementation(tracer, "DefaultTracer");
-      assertImplementation(context, "ArrayBasedContext");
+        if (shouldBeInjected()) {
+            assertImplementation(tracer, "OtelTracer");
+            assertImplementation(builder, "OtelSpanBuilder");
+            assertImplementation(result, "OtelSpan");
+            assertImplementation(context, "OtelContext");
+        } else {
+            assertImplementation(tracer, "DefaultTracer");
+            assertImplementation(context, "ArrayBasedContext");
+        }
     }
-  }
 
-  private static void assertImplementation(Object instance, String expectedClassName) {
-    String actualClassName = instance.getClass().getName();
-    assertTrue(
-        actualClassName.endsWith("." + expectedClassName),
-        "Expected " + expectedClassName + " but got " + actualClassName);
-  }
+    private static void assertImplementation(Object instance, String expectedClassName) {
+        String actualClassName = instance.getClass().getName();
+        assertTrue(
+                actualClassName.endsWith("." + expectedClassName),
+                "Expected " + expectedClassName + " but got " + actualClassName);
+    }
 }
 
 // Forked test variants: each runs in its own JVM to allow GlobalOpenTelemetry static state to reset
 
 @WithConfig(key = "integration.opentelemetry.experimental.enabled", value = "true")
-class OpenTelemetry14ActivationByInstrumentationNameForkedTest
-    extends OpenTelemetry14ActivationTest {
-  @Override
-  boolean shouldBeInjected() {
-    return true;
-  }
+class OpenTelemetry14ActivationByInstrumentationNameForkedTest extends OpenTelemetry14ActivationTest {
+    @Override
+    boolean shouldBeInjected() {
+        return true;
+    }
 }
 
 @WithConfig(key = "trace.otel.enabled", value = "true")
 class OpenTelemetry14ActivationByOtelRfcNameForkedTest extends OpenTelemetry14ActivationTest {
-  @Override
-  boolean shouldBeInjected() {
-    return true;
-  }
+    @Override
+    boolean shouldBeInjected() {
+        return true;
+    }
 }
 
 class OpenTelemetry14DisableByDefaultForkedTest extends OpenTelemetry14ActivationTest {
-  @Override
-  boolean shouldBeInjected() {
-    return false;
-  }
+    @Override
+    boolean shouldBeInjected() {
+        return false;
+    }
 }

@@ -25,186 +25,180 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-  public ApacheHttpClientInstrumentation() {
-    super(
-        "httpclient5",
-        "apache-httpclient5",
-        "apache-http-client5",
-        "httpclient",
-        "apache-httpclient",
-        "apache-http-client");
-  }
-
-  @Override
-  public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.hc.client5.http.impl.classic.CloseableHttpClient",
-      "org.apache.hc.client5.http.impl.classic.MinimalHttpClient"
-    };
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.apache.hc.client5.http.classic.HttpClient";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice",
-        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg0");
-
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest")))
-            .and(takesArgument(1, named("org.apache.hc.core5.http.protocol.HttpContext"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice",
-        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg0");
-
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
-            .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))
-            .and(takesArgument(2, named("org.apache.hc.core5.http.protocol.HttpContext"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice",
-        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
-
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
-            .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice",
-        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
-
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(4))
-            .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
-            .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))
-            .and(takesArgument(2, named("org.apache.hc.core5.http.protocol.HttpContext")))
-            .and(takesArgument(3, named("org.apache.hc.core5.http.io.HttpClientResponseHandler"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$ResponseHandlerAdvice",
-        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
-  }
-
-  public static class RequestAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
-      try {
-        return HelperMethods.doMethodEnter(request);
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest();
-        // re-throw blocking exceptions
-        throw e;
-      }
+    public ApacheHttpClientInstrumentation() {
+        super(
+                "httpclient5",
+                "apache-httpclient5",
+                "apache-http-client5",
+                "httpclient",
+                "apache-httpclient",
+                "apache-http-client");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Return final Object result,
-        @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
-    }
-  }
-
-  public static class HostRequestAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(
-        @Advice.Argument(0) final HttpHost host,
-        @Advice.Argument(1) final ClassicHttpRequest request) {
-      try {
-        return HelperMethods.doMethodEnter(host, request);
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest();
-        // re-throw blocking exceptions
-        throw e;
-      }
+    @Override
+    public boolean onlyMatchKnownTypes() {
+        return isShortcutMatchingEnabled(false);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Return final Object result,
-        @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.apache.hc.client5.http.impl.classic.CloseableHttpClient",
+            "org.apache.hc.client5.http.impl.classic.MinimalHttpClient"
+        };
     }
-  }
 
-  public static class ResponseHandlerAdvice {
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.apache.hc.client5.http.classic.HttpClient";
+    }
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(
-        @Advice.Argument(0) final HttpHost host,
-        @Advice.Argument(1) final ClassicHttpRequest request,
-        @Advice.Argument(2) final HttpContext context,
-        @Advice.Argument(
-                value = 3,
-                optional = true,
-                typing = Assigner.Typing.DYNAMIC,
-                readOnly = false)
-            Object handler) {
-      try {
-        final ContextScope scope = HelperMethods.doMethodEnter(host, request);
-        // Wrap the handler so we capture the status code
-        if (null != scope && handler instanceof HttpClientResponseHandler) {
-          handler =
-              new WrappingStatusSettingResponseHandler(
-                  spanFromScope(scope), (HttpClientResponseHandler) handler);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("execute"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
+                ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice",
+                ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg0");
+
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("execute"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest")))
+                        .and(takesArgument(1, named("org.apache.hc.core5.http.protocol.HttpContext"))),
+                ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice",
+                ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg0");
+
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("execute"))
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
+                        .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))
+                        .and(takesArgument(2, named("org.apache.hc.core5.http.protocol.HttpContext"))),
+                ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice",
+                ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
+
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("execute"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
+                        .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
+                ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice",
+                ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
+
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("execute"))
+                        .and(takesArguments(4))
+                        .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
+                        .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))
+                        .and(takesArgument(2, named("org.apache.hc.core5.http.protocol.HttpContext")))
+                        .and(takesArgument(3, named("org.apache.hc.core5.http.io.HttpClientResponseHandler"))),
+                ApacheHttpClientInstrumentation.class.getName() + "$ResponseHandlerAdvice",
+                ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
+    }
+
+    public static class RequestAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
+            try {
+                return HelperMethods.doMethodEnter(request);
+            } catch (BlockingException e) {
+                HelperMethods.onBlockingRequest();
+                // re-throw blocking exceptions
+                throw e;
+            }
         }
-        return scope;
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest();
-        // re-throw blocking exceptions
-        throw e;
-      }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Return final Object result,
+                @Advice.Thrown final Throwable throwable) {
+            HelperMethods.doMethodExit(scope, result, throwable);
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Return final Object result,
-        @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
-    }
-  }
+    public static class HostRequestAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(
+                @Advice.Argument(0) final HttpHost host, @Advice.Argument(1) final ClassicHttpRequest request) {
+            try {
+                return HelperMethods.doMethodEnter(host, request);
+            } catch (BlockingException e) {
+                HelperMethods.onBlockingRequest();
+                // re-throw blocking exceptions
+                throw e;
+            }
+        }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextPropagationAdviceArg0 {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
-      HelperMethods.doInjectContext(request);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Return final Object result,
+                @Advice.Thrown final Throwable throwable) {
+            HelperMethods.doMethodExit(scope, result, throwable);
+        }
     }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextPropagationAdviceArg1 {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.Argument(1) final ClassicHttpRequest request) {
-      HelperMethods.doInjectContext(request);
+    public static class ResponseHandlerAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(
+                @Advice.Argument(0) final HttpHost host,
+                @Advice.Argument(1) final ClassicHttpRequest request,
+                @Advice.Argument(2) final HttpContext context,
+                @Advice.Argument(value = 3, optional = true, typing = Assigner.Typing.DYNAMIC, readOnly = false)
+                        Object handler) {
+            try {
+                final ContextScope scope = HelperMethods.doMethodEnter(host, request);
+                // Wrap the handler so we capture the status code
+                if (null != scope && handler instanceof HttpClientResponseHandler) {
+                    handler = new WrappingStatusSettingResponseHandler(
+                            spanFromScope(scope), (HttpClientResponseHandler) handler);
+                }
+                return scope;
+            } catch (BlockingException e) {
+                HelperMethods.onBlockingRequest();
+                // re-throw blocking exceptions
+                throw e;
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Return final Object result,
+                @Advice.Thrown final Throwable throwable) {
+            HelperMethods.doMethodExit(scope, result, throwable);
+        }
     }
-  }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextPropagationAdviceArg0 {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
+            HelperMethods.doInjectContext(request);
+        }
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextPropagationAdviceArg1 {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter(@Advice.Argument(1) final ClassicHttpRequest request) {
+            HelperMethods.doInjectContext(request);
+        }
+    }
 }

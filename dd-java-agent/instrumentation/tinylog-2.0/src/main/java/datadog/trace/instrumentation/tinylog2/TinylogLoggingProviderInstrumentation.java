@@ -21,41 +21,41 @@ import org.tinylog.core.LogEntry;
 
 @AutoService(InstrumenterModule.class)
 public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TinylogLoggingProviderInstrumentation() {
-    super("tinylog");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.tinylog.core.TinylogLoggingProvider";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.tinylog.core.LogEntry", AgentSpanContext.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPrivate())
-            .and(named("output"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.tinylog.core.LogEntry"))),
-        TinylogLoggingProviderInstrumentation.class.getName() + "$OutputAdvice");
-  }
-
-  public static class OutputAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) LogEntry event) {
-      AgentSpan span = activeSpan();
-
-      if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(LogEntry.class, AgentSpanContext.class)
-            .put(event, span.spanContext());
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public TinylogLoggingProviderInstrumentation() {
+        super("tinylog");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.tinylog.core.TinylogLoggingProvider";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.tinylog.core.LogEntry", AgentSpanContext.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPrivate())
+                        .and(named("output"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("org.tinylog.core.LogEntry"))),
+                TinylogLoggingProviderInstrumentation.class.getName() + "$OutputAdvice");
+    }
+
+    public static class OutputAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) LogEntry event) {
+            AgentSpan span = activeSpan();
+
+            if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
+                InstrumentationContext.get(LogEntry.class, AgentSpanContext.class)
+                        .put(event, span.spanContext());
+            }
+        }
+    }
 }

@@ -9,7 +9,7 @@ package datadog.trace.util.throwable;
  * renaming or moving it.
  */
 public class FatalAgentMisconfigurationError extends Error {
-  public FatalAgentMisconfigurationError(String message) {
-    super(message);
-  }
+    public FatalAgentMisconfigurationError(String message) {
+        super(message);
+    }
 }

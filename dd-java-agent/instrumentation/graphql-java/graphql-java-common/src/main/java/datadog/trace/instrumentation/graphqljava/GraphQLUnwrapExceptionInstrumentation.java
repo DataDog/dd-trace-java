@@ -11,33 +11,33 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class GraphQLUnwrapExceptionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public GraphQLUnwrapExceptionInstrumentation() {
-    super("graphql-java");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "graphql-java-common";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "graphql.execution.DataFetcherExceptionHandlerParameters";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("getException")).and(returns(Throwable.class)),
-        this.getClass().getName() + "$UnwrapGetExceptionAdvice");
-  }
-
-  public static class UnwrapGetExceptionAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.Return(readOnly = false) Throwable throwable) {
-      throwable = AsyncExceptionUnwrapper.unwrap(throwable);
+    public GraphQLUnwrapExceptionInstrumentation() {
+        super("graphql-java");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "graphql-java-common";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "graphql.execution.DataFetcherExceptionHandlerParameters";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("getException")).and(returns(Throwable.class)),
+                this.getClass().getName() + "$UnwrapGetExceptionAdvice");
+    }
+
+    public static class UnwrapGetExceptionAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(@Advice.Return(readOnly = false) Throwable throwable) {
+            throwable = AsyncExceptionUnwrapper.unwrap(throwable);
+        }
+    }
 }

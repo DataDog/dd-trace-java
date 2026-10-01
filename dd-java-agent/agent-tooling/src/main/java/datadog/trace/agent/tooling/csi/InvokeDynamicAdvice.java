@@ -9,10 +9,10 @@ import net.bytebuddy.jar.asm.Handle;
  */
 public interface InvokeDynamicAdvice extends CallSiteAdvice {
 
-  void apply(
-      MethodHandler handler,
-      String name,
-      String descriptor,
-      Handle bootstrapMethodHandle,
-      Object... bootstrapMethodArguments);
+    void apply(
+            MethodHandler handler,
+            String name,
+            String descriptor,
+            Handle bootstrapMethodHandle,
+            Object... bootstrapMethodArguments);
 }

@@ -16,156 +16,156 @@ import java.util.Queue;
  * buffered for a retry
  */
 interface EventSource {
-  boolean hasConfigChangeEvent();
+    boolean hasConfigChangeEvent();
 
-  ConfigSetting nextConfigChangeEvent();
+    ConfigSetting nextConfigChangeEvent();
 
-  boolean hasIntegrationEvent();
+    boolean hasIntegrationEvent();
 
-  Integration nextIntegrationEvent();
+    Integration nextIntegrationEvent();
 
-  boolean hasDependencyEvent();
+    boolean hasDependencyEvent();
 
-  Dependency nextDependencyEvent();
+    Dependency nextDependencyEvent();
 
-  boolean hasMetricEvent();
+    boolean hasMetricEvent();
 
-  Metric nextMetricEvent();
+    Metric nextMetricEvent();
 
-  boolean hasDistributionSeriesEvent();
+    boolean hasDistributionSeriesEvent();
 
-  DistributionSeries nextDistributionSeriesEvent();
+    DistributionSeries nextDistributionSeriesEvent();
 
-  boolean hasLogMessageEvent();
+    boolean hasLogMessageEvent();
 
-  LogMessage nextLogMessageEvent();
+    LogMessage nextLogMessageEvent();
 
-  boolean hasProductChangeEvent();
+    boolean hasProductChangeEvent();
 
-  ProductChange nextProductChangeEvent();
+    ProductChange nextProductChangeEvent();
 
-  boolean hasEndpoint();
+    boolean hasEndpoint();
 
-  Endpoint nextEndpoint();
+    Endpoint nextEndpoint();
 
-  default boolean isEmpty() {
-    return !hasConfigChangeEvent()
-        && !hasIntegrationEvent()
-        && !hasDependencyEvent()
-        && !hasMetricEvent()
-        && !hasDistributionSeriesEvent()
-        && !hasLogMessageEvent()
-        && !hasProductChangeEvent()
-        && !hasEndpoint();
-  }
-
-  final class Queued implements EventSource {
-    private final Queue<ConfigSetting> configChangeQueue;
-    private final Queue<Integration> integrationQueue;
-    private final Queue<Dependency> dependencyQueue;
-    private final Queue<Metric> metricQueue;
-    private final Queue<DistributionSeries> distributionSeriesQueue;
-    private final Queue<LogMessage> logMessageQueue;
-    private final Queue<ProductChange> productChanges;
-    private final Queue<Endpoint> endpoints;
-
-    Queued(
-        Queue<ConfigSetting> configChangeQueue,
-        Queue<Integration> integrationQueue,
-        Queue<Dependency> dependencyQueue,
-        Queue<Metric> metricQueue,
-        Queue<DistributionSeries> distributionSeriesQueue,
-        Queue<LogMessage> logMessageQueue,
-        Queue<ProductChange> productChanges,
-        Queue<Endpoint> endpoints) {
-      this.configChangeQueue = configChangeQueue;
-      this.integrationQueue = integrationQueue;
-      this.dependencyQueue = dependencyQueue;
-      this.metricQueue = metricQueue;
-      this.distributionSeriesQueue = distributionSeriesQueue;
-      this.logMessageQueue = logMessageQueue;
-      this.productChanges = productChanges;
-      this.endpoints = endpoints;
+    default boolean isEmpty() {
+        return !hasConfigChangeEvent()
+                && !hasIntegrationEvent()
+                && !hasDependencyEvent()
+                && !hasMetricEvent()
+                && !hasDistributionSeriesEvent()
+                && !hasLogMessageEvent()
+                && !hasProductChangeEvent()
+                && !hasEndpoint();
     }
 
-    @Override
-    public boolean hasConfigChangeEvent() {
-      return !configChangeQueue.isEmpty();
-    }
+    final class Queued implements EventSource {
+        private final Queue<ConfigSetting> configChangeQueue;
+        private final Queue<Integration> integrationQueue;
+        private final Queue<Dependency> dependencyQueue;
+        private final Queue<Metric> metricQueue;
+        private final Queue<DistributionSeries> distributionSeriesQueue;
+        private final Queue<LogMessage> logMessageQueue;
+        private final Queue<ProductChange> productChanges;
+        private final Queue<Endpoint> endpoints;
 
-    @Override
-    public ConfigSetting nextConfigChangeEvent() {
-      return configChangeQueue.poll();
-    }
+        Queued(
+                Queue<ConfigSetting> configChangeQueue,
+                Queue<Integration> integrationQueue,
+                Queue<Dependency> dependencyQueue,
+                Queue<Metric> metricQueue,
+                Queue<DistributionSeries> distributionSeriesQueue,
+                Queue<LogMessage> logMessageQueue,
+                Queue<ProductChange> productChanges,
+                Queue<Endpoint> endpoints) {
+            this.configChangeQueue = configChangeQueue;
+            this.integrationQueue = integrationQueue;
+            this.dependencyQueue = dependencyQueue;
+            this.metricQueue = metricQueue;
+            this.distributionSeriesQueue = distributionSeriesQueue;
+            this.logMessageQueue = logMessageQueue;
+            this.productChanges = productChanges;
+            this.endpoints = endpoints;
+        }
 
-    @Override
-    public boolean hasIntegrationEvent() {
-      return !integrationQueue.isEmpty();
-    }
+        @Override
+        public boolean hasConfigChangeEvent() {
+            return !configChangeQueue.isEmpty();
+        }
 
-    @Override
-    public Integration nextIntegrationEvent() {
-      return integrationQueue.poll();
-    }
+        @Override
+        public ConfigSetting nextConfigChangeEvent() {
+            return configChangeQueue.poll();
+        }
 
-    @Override
-    public boolean hasDependencyEvent() {
-      return !dependencyQueue.isEmpty();
-    }
+        @Override
+        public boolean hasIntegrationEvent() {
+            return !integrationQueue.isEmpty();
+        }
 
-    @Override
-    public Dependency nextDependencyEvent() {
-      return dependencyQueue.poll();
-    }
+        @Override
+        public Integration nextIntegrationEvent() {
+            return integrationQueue.poll();
+        }
 
-    @Override
-    public boolean hasMetricEvent() {
-      return !metricQueue.isEmpty();
-    }
+        @Override
+        public boolean hasDependencyEvent() {
+            return !dependencyQueue.isEmpty();
+        }
 
-    @Override
-    public Metric nextMetricEvent() {
-      return metricQueue.poll();
-    }
+        @Override
+        public Dependency nextDependencyEvent() {
+            return dependencyQueue.poll();
+        }
 
-    @Override
-    public boolean hasDistributionSeriesEvent() {
-      return !distributionSeriesQueue.isEmpty();
-    }
+        @Override
+        public boolean hasMetricEvent() {
+            return !metricQueue.isEmpty();
+        }
 
-    @Override
-    public DistributionSeries nextDistributionSeriesEvent() {
-      return distributionSeriesQueue.poll();
-    }
+        @Override
+        public Metric nextMetricEvent() {
+            return metricQueue.poll();
+        }
 
-    @Override
-    public boolean hasLogMessageEvent() {
-      return !logMessageQueue.isEmpty();
-    }
+        @Override
+        public boolean hasDistributionSeriesEvent() {
+            return !distributionSeriesQueue.isEmpty();
+        }
 
-    @Override
-    public LogMessage nextLogMessageEvent() {
-      return logMessageQueue.poll();
-    }
+        @Override
+        public DistributionSeries nextDistributionSeriesEvent() {
+            return distributionSeriesQueue.poll();
+        }
 
-    @Override
-    public boolean hasProductChangeEvent() {
-      return !productChanges.isEmpty();
-    }
+        @Override
+        public boolean hasLogMessageEvent() {
+            return !logMessageQueue.isEmpty();
+        }
 
-    @Override
-    public ProductChange nextProductChangeEvent() {
-      return productChanges.poll();
-    }
+        @Override
+        public LogMessage nextLogMessageEvent() {
+            return logMessageQueue.poll();
+        }
 
-    @Override
-    public boolean hasEndpoint() {
-      return !endpoints.isEmpty();
-    }
+        @Override
+        public boolean hasProductChangeEvent() {
+            return !productChanges.isEmpty();
+        }
 
-    @Override
-    public Endpoint nextEndpoint() {
-      return endpoints.poll();
+        @Override
+        public ProductChange nextProductChangeEvent() {
+            return productChanges.poll();
+        }
+
+        @Override
+        public boolean hasEndpoint() {
+            return !endpoints.isEmpty();
+        }
+
+        @Override
+        public Endpoint nextEndpoint() {
+            return endpoints.poll();
+        }
     }
-  }
 }

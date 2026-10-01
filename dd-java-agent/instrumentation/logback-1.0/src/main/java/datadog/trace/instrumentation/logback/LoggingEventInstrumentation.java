@@ -28,80 +28,76 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public LoggingEventInstrumentation() {
-    super("logback");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "ch.qos.logback.classic.spi.ILoggingEvent";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "ch.qos.logback.classic.spi.ILoggingEvent", AgentSpanContext.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("getMDCPropertyMap").or(named("getMdc"))).and(takesArguments(0)),
-        LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice");
-  }
-
-  public static class GetMdcAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(
-        @Advice.This ILoggingEvent event,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)
-            Map<String, String> mdc) {
-
-      if (mdc instanceof UnionMap) {
-        return;
-      }
-
-      AgentSpanContext context =
-          InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class).get(event);
-
-      // Nothing to add so return early
-      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
-        return;
-      }
-
-      Map<String, String> correlationValues = new HashMap<>(8);
-
-      if (context != null) {
-        DDTraceId traceId = context.getTraceId();
-        String traceIdValue =
-            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
-                ? traceId.toHexString()
-                : traceId.toString();
-        correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
-        correlationValues.put(
-            CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
-      }
-
-      String serviceName = Config.get().getServiceName();
-      if (null != serviceName && !serviceName.isEmpty()) {
-        correlationValues.put(Tags.DD_SERVICE, serviceName);
-      }
-      String env = Config.get().getEnv();
-      if (null != env && !env.isEmpty()) {
-        correlationValues.put(Tags.DD_ENV, env);
-      }
-      String version = Config.get().getVersion();
-      if (null != version && !version.isEmpty()) {
-        correlationValues.put(Tags.DD_VERSION, version);
-      }
-
-      mdc = null != mdc ? new UnionMap<>(mdc, correlationValues) : correlationValues;
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public LoggingEventInstrumentation() {
+        super("logback");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "ch.qos.logback.classic.spi.ILoggingEvent";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("ch.qos.logback.classic.spi.ILoggingEvent", AgentSpanContext.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("getMDCPropertyMap").or(named("getMdc"))).and(takesArguments(0)),
+                LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice");
+    }
+
+    public static class GetMdcAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(
+                @Advice.This ILoggingEvent event,
+                @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Map<String, String> mdc) {
+
+            if (mdc instanceof UnionMap) {
+                return;
+            }
+
+            AgentSpanContext context = InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
+                    .get(event);
+
+            // Nothing to add so return early
+            if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+                return;
+            }
+
+            Map<String, String> correlationValues = new HashMap<>(8);
+
+            if (context != null) {
+                DDTraceId traceId = context.getTraceId();
+                String traceIdValue = Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
+                        ? traceId.toHexString()
+                        : traceId.toString();
+                correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
+                correlationValues.put(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
+            }
+
+            String serviceName = Config.get().getServiceName();
+            if (null != serviceName && !serviceName.isEmpty()) {
+                correlationValues.put(Tags.DD_SERVICE, serviceName);
+            }
+            String env = Config.get().getEnv();
+            if (null != env && !env.isEmpty()) {
+                correlationValues.put(Tags.DD_ENV, env);
+            }
+            String version = Config.get().getVersion();
+            if (null != version && !version.isEmpty()) {
+                correlationValues.put(Tags.DD_VERSION, version);
+            }
+
+            mdc = null != mdc ? new UnionMap<>(mdc, correlationValues) : correlationValues;
+        }
+    }
 }

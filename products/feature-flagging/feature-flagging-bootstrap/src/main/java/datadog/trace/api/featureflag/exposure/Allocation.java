@@ -1,9 +1,9 @@
 package datadog.trace.api.featureflag.exposure;
 
 public class Allocation {
-  public final String key;
+    public final String key;
 
-  public Allocation(final String key) {
-    this.key = key;
-  }
+    public Allocation(final String key) {
+        this.key = key;
+    }
 }

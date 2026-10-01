@@ -22,16 +22,15 @@ import javax.annotation.Nonnull;
  * want to support multiple versions later.
  */
 public interface Controller {
-  /**
-   * Creates a continuous recording using the specified template.
-   *
-   * @param recordingName the name under which the recording will be known.
-   * @return the recording object created.
-   */
-  @Nonnull
-  OngoingRecording createRecording(
-      @Nonnull String recordingName, ControllerContext.Snapshot context)
-      throws UnsupportedEnvironmentException;
+    /**
+     * Creates a continuous recording using the specified template.
+     *
+     * @param recordingName the name under which the recording will be known.
+     * @return the recording object created.
+     */
+    @Nonnull
+    OngoingRecording createRecording(@Nonnull String recordingName, ControllerContext.Snapshot context)
+            throws UnsupportedEnvironmentException;
 
-  default void configure(ControllerContext context) {}
+    default void configure(ControllerContext context) {}
 }

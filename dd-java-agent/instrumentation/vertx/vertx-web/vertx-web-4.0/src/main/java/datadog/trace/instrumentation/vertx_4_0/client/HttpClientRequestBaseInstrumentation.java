@@ -21,53 +21,55 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  static final String[] CONCRETE_TYPES = {
-    "io.vertx.core.http.impl.HttpClientRequestBase",
-    "io.vertx.core.http.impl.HttpClientRequestImpl",
-    "io.vertx.core.http.impl.HttpClientRequestPushPromise"
-  };
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    static final String[] CONCRETE_TYPES = {
+        "io.vertx.core.http.impl.HttpClientRequestBase",
+        "io.vertx.core.http.impl.HttpClientRequestImpl",
+        "io.vertx.core.http.impl.HttpClientRequestPushPromise"
+    };
 
-  public HttpClientRequestBaseInstrumentation() {
-    super("vertx", "vertx-4.0");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.netty41.AttributeKeys"};
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPackagePrivate().or(isPrivate()))
-            .and(named("reset"))
-            .and(takesArgument(0, named("java.lang.Throwable"))),
-        HttpClientRequestBaseInstrumentation.class.getName() + "$ResetAdvice");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return CONCRETE_TYPES;
-  }
-
-  public static class ResetAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Argument(value = 0) Throwable cause,
-        @Advice.FieldValue("stream") final HttpClientStream stream,
-        @Advice.Return boolean result) {
-      if (result) {
-        Context storedContext =
-            stream.connection().channel().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get();
-        AgentSpan nettySpan = spanFromContext(storedContext);
-        if (nettySpan != null) {
-          try (final ContextScope scope = activateSpan(nettySpan)) {
-            DECORATE.onError(scope, cause);
-          }
-        }
-      }
+    public HttpClientRequestBaseInstrumentation() {
+        super("vertx", "vertx-4.0");
     }
-  }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {"datadog.trace.instrumentation.netty41.AttributeKeys"};
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPackagePrivate().or(isPrivate()))
+                        .and(named("reset"))
+                        .and(takesArgument(0, named("java.lang.Throwable"))),
+                HttpClientRequestBaseInstrumentation.class.getName() + "$ResetAdvice");
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return CONCRETE_TYPES;
+    }
+
+    public static class ResetAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Argument(value = 0) Throwable cause,
+                @Advice.FieldValue("stream") final HttpClientStream stream,
+                @Advice.Return boolean result) {
+            if (result) {
+                Context storedContext = stream.connection()
+                        .channel()
+                        .attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)
+                        .get();
+                AgentSpan nettySpan = spanFromContext(storedContext);
+                if (nettySpan != null) {
+                    try (final ContextScope scope = activateSpan(nettySpan)) {
+                        DECORATE.onError(scope, cause);
+                    }
+                }
+            }
+        }
+    }
 }

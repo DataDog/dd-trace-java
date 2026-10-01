@@ -21,115 +21,116 @@ import javax.annotation.Nullable;
  */
 public final class LLMObsFeedbackEvent {
 
-  private static final String EVENT_KIND_FEEDBACK = "feedback";
+    private static final String EVENT_KIND_FEEDBACK = "feedback";
 
-  private final LLMObs.Feedback feedback;
-  private final String mlApp;
-  private final List<String> tags;
+    private final LLMObs.Feedback feedback;
+    private final String mlApp;
+    private final List<String> tags;
 
-  public LLMObsFeedbackEvent(LLMObs.Feedback feedback, String mlApp) {
-    this.feedback = feedback;
-    this.mlApp = mlApp;
-    this.tags = buildTags(feedback.getTags(), mlApp);
-  }
-
-  public LLMObs.Feedback getFeedback() {
-    return feedback;
-  }
-
-  public String getMlApp() {
-    return mlApp;
-  }
-
-  public List<String> getTags() {
-    return tags;
-  }
-
-  private static List<String> buildTags(@Nullable Map<String, Object> userTags, String mlApp) {
-    return IntakeTags.flatten(
-        userTags, "ddtrace.version:" + DDTraceApiInfo.VERSION, "ml_app:" + mlApp);
-  }
-
-  /**
-   * Returns a serializer turning a batch of feedback events into an intake request body.
-   *
-   * @return the batch serializer
-   */
-  public static LLMObsIntakeWorker.BatchSerializer<LLMObsFeedbackEvent> batchSerializer() {
-    Moshi moshi = new Moshi.Builder().add(LLMObsFeedbackEvent.class, new Adapter()).build();
-    JsonAdapter<Request> requestAdapter = moshi.adapter(Request.class);
-    return batch -> requestAdapter.toJson(new Request(batch));
-  }
-
-  public static final class Adapter extends JsonAdapter<LLMObsFeedbackEvent> {
-    private final JsonAdapter<Object> valueAdapter =
-        new Moshi.Builder().build().adapter(Object.class);
-
-    @Nullable
-    @Override
-    public LLMObsFeedbackEvent fromJson(JsonReader reader) {
-      return null;
+    public LLMObsFeedbackEvent(LLMObs.Feedback feedback, String mlApp) {
+        this.feedback = feedback;
+        this.mlApp = mlApp;
+        this.tags = buildTags(feedback.getTags(), mlApp);
     }
 
-    @Override
-    public void toJson(JsonWriter writer, @Nullable LLMObsFeedbackEvent event) throws IOException {
-      if (event == null) {
-        throw new JsonDataException("unexpectedly got null llm obs feedback event");
-      }
-      LLMObs.Feedback feedback = event.feedback;
-
-      writer.beginObject();
-      writer.name("event_kind").value(EVENT_KIND_FEEDBACK);
-      // Exactly one target, enforced by the builder.
-      writer.name(feedback.getTargetType().getWireKey()).value(feedback.getTargetValue());
-      writer.name("label").value(feedback.getLabel());
-      writer.name("metric_type").value(feedback.getMetricType().toString());
-      writer.name(feedback.getMetricType() + "_value");
-      valueAdapter.toJson(writer, feedback.getValue());
-      writer.name("ml_app").value(event.mlApp);
-      writer.name("timestamp_ms").value(feedback.getTimestampMs());
-
-      writer.name("submitter").beginObject();
-      writer.name("id").value(feedback.getSubmitter().getId());
-      if (feedback.getSubmitter().getType() != null) {
-        writer.name("type").value(feedback.getSubmitter().getType());
-      }
-      writer.endObject();
-
-      if (feedback.getAssessment() != null) {
-        writer.name("assessment").value(feedback.getAssessment().toString());
-      }
-      if (feedback.getReasoning() != null) {
-        writer.name("reasoning").value(feedback.getReasoning());
-      }
-
-      writer.name("tags").beginArray();
-      for (String tag : event.tags) {
-        writer.value(tag);
-      }
-      writer.endArray();
-
-      writer.endObject();
-    }
-  }
-
-  /** The request envelope, identical in shape to the one used for evaluations. */
-  public static final class Request {
-    public final Data data;
-
-    public static class Data {
-      public final String type = "evaluation_metric";
-      public Attributes attributes;
+    public LLMObs.Feedback getFeedback() {
+        return feedback;
     }
 
-    public static class Attributes {
-      public List<LLMObsFeedbackEvent> metrics;
+    public String getMlApp() {
+        return mlApp;
     }
 
-    public Request(List<LLMObsFeedbackEvent> metrics) {
-      this.data = new Data();
-      this.data.attributes = new Attributes();
-      this.data.attributes.metrics = metrics;
+    public List<String> getTags() {
+        return tags;
     }
-  }
+
+    private static List<String> buildTags(@Nullable Map<String, Object> userTags, String mlApp) {
+        return IntakeTags.flatten(userTags, "ddtrace.version:" + DDTraceApiInfo.VERSION, "ml_app:" + mlApp);
+    }
+
+    /**
+     * Returns a serializer turning a batch of feedback events into an intake request body.
+     *
+     * @return the batch serializer
+     */
+    public static LLMObsIntakeWorker.BatchSerializer<LLMObsFeedbackEvent> batchSerializer() {
+        Moshi moshi = new Moshi.Builder()
+                .add(LLMObsFeedbackEvent.class, new Adapter())
+                .build();
+        JsonAdapter<Request> requestAdapter = moshi.adapter(Request.class);
+        return batch -> requestAdapter.toJson(new Request(batch));
+    }
+
+    public static final class Adapter extends JsonAdapter<LLMObsFeedbackEvent> {
+        private final JsonAdapter<Object> valueAdapter =
+                new Moshi.Builder().build().adapter(Object.class);
+
+        @Nullable
+        @Override
+        public LLMObsFeedbackEvent fromJson(JsonReader reader) {
+            return null;
+        }
+
+        @Override
+        public void toJson(JsonWriter writer, @Nullable LLMObsFeedbackEvent event) throws IOException {
+            if (event == null) {
+                throw new JsonDataException("unexpectedly got null llm obs feedback event");
+            }
+            LLMObs.Feedback feedback = event.feedback;
+
+            writer.beginObject();
+            writer.name("event_kind").value(EVENT_KIND_FEEDBACK);
+            // Exactly one target, enforced by the builder.
+            writer.name(feedback.getTargetType().getWireKey()).value(feedback.getTargetValue());
+            writer.name("label").value(feedback.getLabel());
+            writer.name("metric_type").value(feedback.getMetricType().toString());
+            writer.name(feedback.getMetricType() + "_value");
+            valueAdapter.toJson(writer, feedback.getValue());
+            writer.name("ml_app").value(event.mlApp);
+            writer.name("timestamp_ms").value(feedback.getTimestampMs());
+
+            writer.name("submitter").beginObject();
+            writer.name("id").value(feedback.getSubmitter().getId());
+            if (feedback.getSubmitter().getType() != null) {
+                writer.name("type").value(feedback.getSubmitter().getType());
+            }
+            writer.endObject();
+
+            if (feedback.getAssessment() != null) {
+                writer.name("assessment").value(feedback.getAssessment().toString());
+            }
+            if (feedback.getReasoning() != null) {
+                writer.name("reasoning").value(feedback.getReasoning());
+            }
+
+            writer.name("tags").beginArray();
+            for (String tag : event.tags) {
+                writer.value(tag);
+            }
+            writer.endArray();
+
+            writer.endObject();
+        }
+    }
+
+    /** The request envelope, identical in shape to the one used for evaluations. */
+    public static final class Request {
+        public final Data data;
+
+        public static class Data {
+            public final String type = "evaluation_metric";
+            public Attributes attributes;
+        }
+
+        public static class Attributes {
+            public List<LLMObsFeedbackEvent> metrics;
+        }
+
+        public Request(List<LLMObsFeedbackEvent> metrics) {
+            this.data = new Data();
+            this.data.attributes = new Attributes();
+            this.data.attributes.metrics = metrics;
+        }
+    }
 }

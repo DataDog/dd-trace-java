@@ -6,10 +6,10 @@ import org.apache.synapse.transport.passthru.TargetRequest;
 
 @ParametersAreNonnullByDefault
 public final class TargetRequestInjectAdapter implements CarrierSetter<TargetRequest> {
-  public static final TargetRequestInjectAdapter SETTER = new TargetRequestInjectAdapter();
+    public static final TargetRequestInjectAdapter SETTER = new TargetRequestInjectAdapter();
 
-  @Override
-  public void set(final TargetRequest carrier, final String key, final String value) {
-    carrier.addHeader(key, value);
-  }
+    @Override
+    public void set(final TargetRequest carrier, final String key, final String value) {
+        carrier.addHeader(key, value);
+    }
 }

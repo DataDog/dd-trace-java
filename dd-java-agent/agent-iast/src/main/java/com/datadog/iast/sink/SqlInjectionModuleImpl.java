@@ -10,23 +10,23 @@ import javax.annotation.Nullable;
 
 public class SqlInjectionModuleImpl extends SinkModuleBase implements SqlInjectionModule {
 
-  public SqlInjectionModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-  }
-
-  @Override
-  public void onJdbcQuery(@Nullable final String queryString) {
-    onJdbcQuery(queryString, null);
-  }
-
-  @Override
-  public void onJdbcQuery(@Nullable final String queryString, @Nullable final String database) {
-    if (!canBeTainted(queryString)) {
-      return;
+    public SqlInjectionModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
     }
-    final Evidence evidence = checkInjection(VulnerabilityType.SQL_INJECTION, queryString);
-    if (evidence != null && database != null) {
-      evidence.getContext().put(DATABASE_PARAMETER, database);
+
+    @Override
+    public void onJdbcQuery(@Nullable final String queryString) {
+        onJdbcQuery(queryString, null);
     }
-  }
+
+    @Override
+    public void onJdbcQuery(@Nullable final String queryString, @Nullable final String database) {
+        if (!canBeTainted(queryString)) {
+            return;
+        }
+        final Evidence evidence = checkInjection(VulnerabilityType.SQL_INJECTION, queryString);
+        if (evidence != null && database != null) {
+            evidence.getContext().put(DATABASE_PARAMETER, database);
+        }
+    }
 }

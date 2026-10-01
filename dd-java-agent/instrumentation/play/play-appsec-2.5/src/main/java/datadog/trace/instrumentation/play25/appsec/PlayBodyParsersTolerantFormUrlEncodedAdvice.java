@@ -6,13 +6,10 @@ import play.core.Execution;
 import scala.collection.Seq;
 
 public class PlayBodyParsersTolerantFormUrlEncodedAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  static void after(
-      @Advice.Return(readOnly = false)
-          BodyParser<scala.collection.immutable.Map<String, Seq<String>>> parser) {
-    parser =
-        parser.map(
-            BodyParserHelpers.getHandleUrlEncodedMapF(),
-            Execution.Implicits$.MODULE$.internalContext());
-  }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+            @Advice.Return(readOnly = false) BodyParser<scala.collection.immutable.Map<String, Seq<String>>> parser) {
+        parser =
+                parser.map(BodyParserHelpers.getHandleUrlEncodedMapF(), Execution.Implicits$.MODULE$.internalContext());
+    }
 }

@@ -11,37 +11,35 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CoreEnvironmentBuilderInstrumentation() {
-    super("couchbase", "couchbase-3");
-  }
+    public CoreEnvironmentBuilderInstrumentation() {
+        super("couchbase", "couchbase-3");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.couchbase.client.core.env.CoreEnvironment$Builder";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.couchbase.client.core.env.CoreEnvironment$Builder";
+    }
 
-  private static final Reference TRACING_IDENTIFIERS_REFERENCE =
-      new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
+    private static final Reference TRACING_IDENTIFIERS_REFERENCE =
+            new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
 
-  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
-      new Reference.Builder(
-              "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
-          .build();
+    private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
+            new Reference.Builder("com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent").build();
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {TRACING_IDENTIFIERS_REFERENCE, SUSPICIOUS_EXPIRY_REFERENCE};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {TRACING_IDENTIFIERS_REFERENCE, SUSPICIOUS_EXPIRY_REFERENCE};
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
+    }
 }

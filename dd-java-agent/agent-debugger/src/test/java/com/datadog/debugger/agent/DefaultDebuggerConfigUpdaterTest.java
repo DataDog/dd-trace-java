@@ -17,37 +17,36 @@ import org.junit.jupiter.api.Test;
 
 class DefaultDebuggerConfigUpdaterTest {
 
-  @Test
-  public void enableDisable() {
-    SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
-    when(sco.configurationPoller(null)).thenReturn(mock(ConfigurationPoller.class));
-    when(sco.featuresDiscovery(any())).thenReturn(mock(DDAgentFeaturesDiscovery.class));
-    DebuggerAgent.run(Config.get(), mock(Instrumentation.class), sco);
-    DefaultDebuggerConfigUpdater productConfigUpdater =
-        new DefaultDebuggerConfigUpdater(Config.get());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate(true, true, true, true));
-    assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
-    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-      assertTrue(productConfigUpdater.isExceptionReplayEnabled());
-    } else {
-      assertFalse(productConfigUpdater.isExceptionReplayEnabled());
+    @Test
+    public void enableDisable() {
+        SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
+        when(sco.configurationPoller(null)).thenReturn(mock(ConfigurationPoller.class));
+        when(sco.featuresDiscovery(any())).thenReturn(mock(DDAgentFeaturesDiscovery.class));
+        DebuggerAgent.run(Config.get(), mock(Instrumentation.class), sco);
+        DefaultDebuggerConfigUpdater productConfigUpdater = new DefaultDebuggerConfigUpdater(Config.get());
+        productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
+        productConfigUpdater.updateConfig(new DebuggerConfigUpdate(true, true, true, true));
+        assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
+        if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+            assertTrue(productConfigUpdater.isExceptionReplayEnabled());
+        } else {
+            assertFalse(productConfigUpdater.isExceptionReplayEnabled());
+        }
+        assertTrue(productConfigUpdater.isCodeOriginEnabled());
+        assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
+        productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
+        assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
+        if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+            assertTrue(productConfigUpdater.isExceptionReplayEnabled());
+        } else {
+            assertFalse(productConfigUpdater.isExceptionReplayEnabled());
+        }
+        assertTrue(productConfigUpdater.isCodeOriginEnabled());
+        assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
+        productConfigUpdater.updateConfig(new DebuggerConfigUpdate(false, false, false, false));
+        assertFalse(productConfigUpdater.isDynamicInstrumentationEnabled());
+        assertFalse(productConfigUpdater.isExceptionReplayEnabled());
+        assertFalse(productConfigUpdater.isCodeOriginEnabled());
+        assertFalse(productConfigUpdater.isDistributedDebuggerEnabled());
     }
-    assertTrue(productConfigUpdater.isCodeOriginEnabled());
-    assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
-    assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
-    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-      assertTrue(productConfigUpdater.isExceptionReplayEnabled());
-    } else {
-      assertFalse(productConfigUpdater.isExceptionReplayEnabled());
-    }
-    assertTrue(productConfigUpdater.isCodeOriginEnabled());
-    assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate(false, false, false, false));
-    assertFalse(productConfigUpdater.isDynamicInstrumentationEnabled());
-    assertFalse(productConfigUpdater.isExceptionReplayEnabled());
-    assertFalse(productConfigUpdater.isCodeOriginEnabled());
-    assertFalse(productConfigUpdater.isDistributedDebuggerEnabled());
-  }
 }

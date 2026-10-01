@@ -5,7 +5,7 @@ import datadog.trace.api.iast.VulnerabilityTypes;
 import net.bytebuddy.asm.Advice;
 
 public class IastAnnotatedAdvice {
-  @Advice.OnMethodExit
-  @Sink(VulnerabilityTypes.SQL_INJECTION)
-  static void exit() {}
+    @Advice.OnMethodExit
+    @Sink(VulnerabilityTypes.SQL_INJECTION)
+    static void exit() {}
 }

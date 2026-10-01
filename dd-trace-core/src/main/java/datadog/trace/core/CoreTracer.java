@@ -145,2546 +145,2489 @@ import org.slf4j.LoggerFactory;
  * reporting, and propagating traces
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
-  private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
+    private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
 
-  public static CoreTracerBuilder builder() {
-    return new CoreTracerBuilder();
-  }
-
-  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
-  private final long startTimeNano;
-
-  /** Nanosecond ticks value at tracer start */
-  private final long startNanoTicks;
-
-  /** How often should traced threads check clock ticks against the wall clock */
-  private final long clockSyncPeriod;
-
-  /** If the tracer can create inferred services */
-  private final boolean allowInferredServices;
-
-  /** Last time (in nanosecond ticks) the clock was checked for drift */
-  private volatile long lastSyncTicks;
-
-  /** Nanosecond offset to counter clock drift */
-  private volatile long counterDrift;
-
-  private final TracingConfigPoller tracingConfigPoller;
-
-  private final PendingTraceBuffer pendingTraceBuffer;
-
-  /** Default service name if none provided on the trace or span */
-  final String serviceName;
-
-  /** Writer is in charge of reporting traces and spans to the desired endpoint */
-  final Writer writer;
-
-  /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
-  final Sampler initialSampler;
-
-  /**
-   * The sampler registered to receive agent published rates, reused across sampler rebuilds so
-   * learned rates survive.
-   */
-  @Nullable final RateByServiceTraceSampler agentSampler;
-
-  /** Scope manager is in charge of managing the scopes from which spans are created */
-  final ContinuableScopeManager scopeManager;
-
-  volatile MetricsAggregator metricsAggregator;
-
-  /** Initial static configuration associated with the tracer. */
-  final Config initialConfig;
-
-  /** Maintains dynamic configuration associated with the tracer */
-  private final DynamicConfig<ConfigSnapshot> dynamicConfig;
-
-  /**
-   * Tags added only to the application's root span, paired with whether they need interception;
-   * replaced as one immutable holder so a concurrent root span creation never sees a torn read.
-   */
-  private static final class LocalRootSpanTags {
-    final TagMap tags;
-    final boolean needsIntercept;
-
-    LocalRootSpanTags(final TagMap tags, final boolean needsIntercept) {
-      this.tags = tags;
-      this.needsIntercept = needsIntercept;
-    }
-  }
-
-  private volatile LocalRootSpanTags localRootSpanTags;
-
-  /**
-   * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
-   * marker — see {@link #write(SpanList)}.
-   */
-  private final boolean apmTracingEnabled;
-
-  /** A set of tags that are added to every span */
-  private final TagMap defaultSpanTags;
-
-  private final boolean defaultSpanTagsNeedsIntercept;
-
-  /** number of spans in a pending trace before they get flushed */
-  private final int partialFlushMinSpans;
-
-  private final Monitoring performanceMonitoring;
-
-  private final HealthMetrics healthMetrics;
-  private final Recording traceWriteTimer;
-  private final IdGenerationStrategy idGenerationStrategy;
-  private final TraceCollector.Factory traceCollectorFactory;
-  private final DataStreamsMonitoring dataStreamsMonitoring;
-  private final ExternalAgentLauncher externalAgentLauncher;
-  private final boolean disableSamplingMechanismValidation;
-  private final TimeSource timeSource;
-  private final ProfilingContextIntegration profilingContextIntegration;
-  private final boolean injectBaggageAsTags;
-  private final boolean injectLinksAsTags;
-  private final boolean flushOnClose;
-  private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
-
-  /**
-   * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
-   * earlier
-   */
-  private final Thread shutdownCallback;
-
-  /**
-   * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
-   * to be concurrent.
-   */
-  private final TagInterceptor tagInterceptor;
-
-  private final TraceInterceptors interceptors = new TraceInterceptors();
-
-  private final boolean logs128bTraceIdEnabled;
-
-  private final InstrumentationGateway instrumentationGateway;
-  private final CallbackProvider callbackProviderAppSec;
-  private final CallbackProvider callbackProviderIast;
-  private final CallbackProvider universalCallbackProvider;
-
-  private final PropagationTags.Factory propagationTagsFactory;
-
-  // DQH - storing into a static constant, so value will constant propagate and dead code eliminate
-  // the other branch in singleSpanBuilder
-  private static final boolean SPAN_BUILDER_REUSE_ENABLED =
-      Config.get().isSpanBuilderReuseEnabled();
-
-  // Instance field (not static final) so it honors per-tracer config, e.g. an embedded tracer
-  // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
-  // singleton. See the tag-ordering block in buildSpanContext.
-  private final boolean builderTagsPrecedence;
-
-  // Cache used by buildSpan - instance so it can capture the CoreTracer
-  private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
-      SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
-
-  @Override
-  public ConfigSnapshot captureTraceConfig() {
-    return dynamicConfig.captureTraceConfig();
-  }
-
-  @Override
-  public void updatePreferredServiceName(String serviceName, CharSequence source) {
-    dynamicConfig.current().setPreferredServiceNameAndSource(serviceName, source).apply();
-    ServiceNameCollector.get().addService(serviceName);
-  }
-
-  PropagationTags.Factory getPropagationTagsFactory() {
-    return propagationTagsFactory;
-  }
-
-  /**
-   * Called when a root span is finished before it is serialized. This is might be called multiple
-   * times per root span. If a child span is part of a partial flush, this method will be called for
-   * its root even if not finished.
-   */
-  @Override
-  public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
-    if (!root.isOutbound()) {
-      profilingContextIntegration.onRootSpanFinished(root, tracker);
-    }
-  }
-
-  /**
-   * Called when a root span is finished before it is serialized. This is guaranteed to be called
-   * exactly once per root span.
-   */
-  void onRootSpanPublished(final AgentSpan root) {
-    // Request context is propagated to contexts in child spans.
-    // Assume here that if present it will be so starting in the top span.
-    RequestContext requestContext = root.getRequestContext();
-    if (requestContext != null) {
-      try {
-        requestContext.close();
-      } catch (IOException e) {
-        log.warn("Error closing request context data", e);
-      }
-    }
-  }
-
-  @Override
-  public EndpointTracker onRootSpanStarted(AgentSpan root) {
-    if (!root.isOutbound()) {
-      return profilingContextIntegration.onRootSpanStarted(root);
-    }
-    return null;
-  }
-
-  public static class CoreTracerBuilder {
-
-    private Config config;
-    private String serviceName;
-    private SharedCommunicationObjects sharedCommunicationObjects;
-    private Writer writer;
-    private IdGenerationStrategy idGenerationStrategy;
-    private Sampler sampler;
-    private SingleSpanSampler singleSpanSampler;
-    private HttpCodec.Injector injector;
-    private HttpCodec.Extractor extractor;
-    private TagMap localRootSpanTags;
-    private TagMap defaultSpanTags;
-    private Map<String, String> serviceNameMappings;
-    private Map<String, String> taggedHeaders;
-    private Map<String, String> baggageMapping;
-    private int partialFlushMinSpans;
-    private StatsDClient statsDClient;
-    private HealthMetrics healthMetrics;
-    private TagInterceptor tagInterceptor;
-    private boolean strictTraceWrites;
-    private InstrumentationGateway instrumentationGateway;
-    private ServiceDiscoveryFactory serviceDiscoveryFactory;
-    private TimeSource timeSource;
-    private DataStreamsMonitoring dataStreamsMonitoring;
-    private ProfilingContextIntegration profilingContextIntegration =
-        ProfilingContextIntegration.NoOp.INSTANCE;
-    private boolean reportInTracerFlare;
-    private boolean pollForTracingConfiguration;
-    private boolean injectBaggageAsTags;
-    private boolean injectLinksAsTags;
-    private boolean flushOnClose;
-
-    public CoreTracerBuilder serviceName(String serviceName) {
-      this.serviceName = serviceName;
-      return this;
+    public static CoreTracerBuilder builder() {
+        return new CoreTracerBuilder();
     }
 
-    public CoreTracerBuilder sharedCommunicationObjects(
-        SharedCommunicationObjects sharedCommunicationObjects) {
-      this.sharedCommunicationObjects = sharedCommunicationObjects;
-      return this;
-    }
+    /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
+    private final long startTimeNano;
 
-    public CoreTracerBuilder writer(Writer writer) {
-      this.writer = writer;
-      return this;
-    }
+    /** Nanosecond ticks value at tracer start */
+    private final long startNanoTicks;
 
-    public CoreTracerBuilder idGenerationStrategy(IdGenerationStrategy idGenerationStrategy) {
-      this.idGenerationStrategy = idGenerationStrategy;
-      return this;
-    }
+    /** How often should traced threads check clock ticks against the wall clock */
+    private final long clockSyncPeriod;
 
-    public CoreTracerBuilder sampler(Sampler sampler) {
-      this.sampler = sampler;
-      return this;
-    }
+    /** If the tracer can create inferred services */
+    private final boolean allowInferredServices;
 
-    public CoreTracerBuilder singleSpanSampler(SingleSpanSampler singleSpanSampler) {
-      this.singleSpanSampler = singleSpanSampler;
-      return this;
-    }
+    /** Last time (in nanosecond ticks) the clock was checked for drift */
+    private volatile long lastSyncTicks;
 
-    public CoreTracerBuilder injector(HttpCodec.Injector injector) {
-      this.injector = injector;
-      return this;
-    }
+    /** Nanosecond offset to counter clock drift */
+    private volatile long counterDrift;
 
-    public CoreTracerBuilder extractor(HttpCodec.Extractor extractor) {
-      this.extractor = extractor;
-      return this;
-    }
+    private final TracingConfigPoller tracingConfigPoller;
 
-    public CoreTracerBuilder localRootSpanTags(Map<String, ?> localRootSpanTags) {
-      this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
-      return this;
-    }
+    private final PendingTraceBuffer pendingTraceBuffer;
 
-    public CoreTracerBuilder localRootSpanTags(TagMap tagMap) {
-      this.localRootSpanTags = tagMap.immutableCopy();
-      return this;
-    }
+    /** Default service name if none provided on the trace or span */
+    final String serviceName;
 
-    public CoreTracerBuilder defaultSpanTags(Map<String, ?> defaultSpanTags) {
-      this.defaultSpanTags = TagMap.fromMapImmutable(defaultSpanTags);
-      return this;
-    }
+    /** Writer is in charge of reporting traces and spans to the desired endpoint */
+    final Writer writer;
 
-    public CoreTracerBuilder defaultSpanTags(TagMap defaultSpanTags) {
-      this.defaultSpanTags = defaultSpanTags.immutableCopy();
-      return this;
-    }
+    /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
+    final Sampler initialSampler;
 
-    public CoreTracerBuilder serviceNameMappings(Map<String, String> serviceNameMappings) {
-      this.serviceNameMappings = tryMakeImmutableMap(serviceNameMappings);
-      return this;
-    }
+    /**
+     * The sampler registered to receive agent published rates, reused across sampler rebuilds so
+     * learned rates survive.
+     */
+    @Nullable
+    final RateByServiceTraceSampler agentSampler;
 
-    public CoreTracerBuilder taggedHeaders(Map<String, String> taggedHeaders) {
-      this.taggedHeaders = tryMakeImmutableMap(taggedHeaders);
-      return this;
-    }
+    /** Scope manager is in charge of managing the scopes from which spans are created */
+    final ContinuableScopeManager scopeManager;
 
-    public CoreTracerBuilder baggageMapping(Map<String, String> baggageMapping) {
-      this.baggageMapping = tryMakeImmutableMap(baggageMapping);
-      return this;
-    }
+    volatile MetricsAggregator metricsAggregator;
 
-    public CoreTracerBuilder partialFlushMinSpans(int partialFlushMinSpans) {
-      this.partialFlushMinSpans = partialFlushMinSpans;
-      return this;
-    }
+    /** Initial static configuration associated with the tracer. */
+    final Config initialConfig;
 
-    public CoreTracerBuilder statsDClient(StatsDClient statsDClient) {
-      this.statsDClient = statsDClient;
-      return this;
-    }
+    /** Maintains dynamic configuration associated with the tracer */
+    private final DynamicConfig<ConfigSnapshot> dynamicConfig;
 
-    public CoreTracerBuilder tagInterceptor(TagInterceptor tagInterceptor) {
-      this.tagInterceptor = tagInterceptor;
-      return this;
-    }
+    /**
+     * Tags added only to the application's root span, paired with whether they need interception;
+     * replaced as one immutable holder so a concurrent root span creation never sees a torn read.
+     */
+    private static final class LocalRootSpanTags {
+        final TagMap tags;
+        final boolean needsIntercept;
 
-    public CoreTracerBuilder healthMetrics(HealthMetrics healthMetrics) {
-      this.healthMetrics = healthMetrics;
-      return this;
-    }
-
-    public CoreTracerBuilder strictTraceWrites(boolean strictTraceWrites) {
-      this.strictTraceWrites = strictTraceWrites;
-      return this;
-    }
-
-    public CoreTracerBuilder instrumentationGateway(InstrumentationGateway instrumentationGateway) {
-      this.instrumentationGateway = instrumentationGateway;
-      return this;
-    }
-
-    public CoreTracerBuilder serviceDiscoveryFactory(
-        ServiceDiscoveryFactory serviceDiscoveryFactory) {
-      this.serviceDiscoveryFactory = serviceDiscoveryFactory;
-      return this;
-    }
-
-    public CoreTracerBuilder timeSource(TimeSource timeSource) {
-      this.timeSource = timeSource;
-      return this;
-    }
-
-    public CoreTracerBuilder dataStreamsMonitoring(DataStreamsMonitoring dataStreamsMonitoring) {
-      this.dataStreamsMonitoring = dataStreamsMonitoring;
-      return this;
-    }
-
-    public CoreTracerBuilder profilingContextIntegration(
-        ProfilingContextIntegration profilingContextIntegration) {
-      this.profilingContextIntegration = profilingContextIntegration;
-      return this;
-    }
-
-    public CoreTracerBuilder reportInTracerFlare() {
-      this.reportInTracerFlare = true;
-      return this;
-    }
-
-    public CoreTracerBuilder pollForTracingConfiguration() {
-      this.pollForTracingConfiguration = true;
-      return this;
-    }
-
-    public CoreTracerBuilder injectBaggageAsTags(boolean injectBaggageAsTags) {
-      this.injectBaggageAsTags = injectBaggageAsTags;
-      return this;
-    }
-
-    public CoreTracerBuilder injectLinksAsTags(boolean injectLinksAsTags) {
-      this.injectLinksAsTags = injectLinksAsTags;
-      return this;
-    }
-
-    public CoreTracerBuilder flushOnClose(boolean flushOnClose) {
-      this.flushOnClose = flushOnClose;
-      return this;
-    }
-
-    public CoreTracerBuilder() {
-      // Apply the default values from config.
-      config(Config.get());
-    }
-
-    public CoreTracerBuilder withProperties(final Properties properties) {
-      return config(Config.get(properties));
-    }
-
-    public CoreTracerBuilder config(final Config config) {
-      this.config = config;
-      serviceName(config.getServiceName());
-      // Explicitly skip setting writer to avoid allocating resources prematurely.
-      sampler(Sampler.Builder.forConfig(config, null));
-      singleSpanSampler(SingleSpanSampler.Builder.forConfig(config));
-      instrumentationGateway(new InstrumentationGateway());
-      injector(
-          HttpCodec.createInjector(
-              config,
-              config.getTracePropagationStylesToInject(),
-              invertMap(config.getBaggageMapping())));
-      // Explicitly skip setting scope manager because it depends on statsDClient
-      localRootSpanTags(config.getLocalRootSpanTags());
-      defaultSpanTags(withTracerTags(config.getMergedSpanTags(), config, null));
-      serviceNameMappings(config.getServiceMapping());
-      taggedHeaders(config.getRequestHeaderTags());
-      baggageMapping(config.getBaggageMapping());
-      partialFlushMinSpans(config.getPartialFlushMinSpans());
-      strictTraceWrites(config.isTraceStrictWritesEnabled());
-      injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
-      injectLinksAsTags(config.isInjectLinksAsTagsEnabled());
-      flushOnClose(config.isCiVisibilityEnabled());
-      return this;
-    }
-
-    public CoreTracer build() {
-      return new CoreTracer(
-          config,
-          serviceName,
-          sharedCommunicationObjects,
-          writer,
-          idGenerationStrategy,
-          sampler,
-          singleSpanSampler,
-          injector,
-          extractor,
-          localRootSpanTags,
-          defaultSpanTags,
-          serviceNameMappings,
-          taggedHeaders,
-          baggageMapping,
-          partialFlushMinSpans,
-          healthMetrics,
-          tagInterceptor,
-          strictTraceWrites,
-          instrumentationGateway,
-          serviceDiscoveryFactory,
-          timeSource,
-          dataStreamsMonitoring,
-          profilingContextIntegration,
-          reportInTracerFlare,
-          pollForTracingConfiguration,
-          injectBaggageAsTags,
-          injectLinksAsTags,
-          flushOnClose);
-    }
-  }
-
-  @Deprecated
-  private CoreTracer(
-      final Config config,
-      final String serviceName,
-      SharedCommunicationObjects sharedCommunicationObjects,
-      final Writer writer,
-      final IdGenerationStrategy idGenerationStrategy,
-      final Sampler sampler,
-      final SingleSpanSampler singleSpanSampler,
-      final HttpCodec.Injector injector,
-      final HttpCodec.Extractor extractor,
-      final Map<String, Object> localRootSpanTags,
-      final TagMap defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders,
-      final Map<String, String> baggageMapping,
-      final int partialFlushMinSpans,
-      final HealthMetrics healthMetrics,
-      final TagInterceptor tagInterceptor,
-      final boolean strictTraceWrites,
-      final InstrumentationGateway instrumentationGateway,
-      final TimeSource timeSource,
-      final DataStreamsMonitoring dataStreamsMonitoring,
-      final ProfilingContextIntegration profilingContextIntegration,
-      final boolean reportInTracerFlare,
-      final boolean pollForTracingConfiguration,
-      final boolean injectBaggageAsTags,
-      final boolean injectLinksAsTags,
-      final boolean flushOnClose) {
-    this(
-        config,
-        serviceName,
-        sharedCommunicationObjects,
-        writer,
-        idGenerationStrategy,
-        sampler,
-        singleSpanSampler,
-        injector,
-        extractor,
-        TagMap.fromMap(localRootSpanTags),
-        defaultSpanTags,
-        serviceNameMappings,
-        taggedHeaders,
-        baggageMapping,
-        partialFlushMinSpans,
-        healthMetrics,
-        tagInterceptor,
-        strictTraceWrites,
-        instrumentationGateway,
-        null,
-        timeSource,
-        dataStreamsMonitoring,
-        profilingContextIntegration,
-        reportInTracerFlare,
-        pollForTracingConfiguration,
-        injectBaggageAsTags,
-        injectLinksAsTags,
-        flushOnClose);
-  }
-
-  // These field names must be stable to ensure the builder api is stable.
-  private CoreTracer(
-      final Config config,
-      final String serviceName,
-      SharedCommunicationObjects sharedCommunicationObjects,
-      final Writer writer,
-      final IdGenerationStrategy idGenerationStrategy,
-      final Sampler sampler,
-      final SingleSpanSampler singleSpanSampler,
-      final HttpCodec.Injector injector,
-      final HttpCodec.Extractor extractor,
-      final TagMap localRootSpanTags,
-      final TagMap defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders,
-      final Map<String, String> baggageMapping,
-      final int partialFlushMinSpans,
-      final HealthMetrics healthMetrics,
-      final TagInterceptor tagInterceptor,
-      final boolean strictTraceWrites,
-      final InstrumentationGateway instrumentationGateway,
-      final ServiceDiscoveryFactory serviceDiscoveryFactory,
-      final TimeSource timeSource,
-      final DataStreamsMonitoring dataStreamsMonitoring,
-      final ProfilingContextIntegration profilingContextIntegration,
-      final boolean reportInTracerFlare,
-      final boolean pollForTracingConfiguration,
-      final boolean injectBaggageAsTags,
-      final boolean injectLinksAsTags,
-      final boolean flushOnClose) {
-
-    assert localRootSpanTags != null;
-    assert defaultSpanTags != null;
-    assert serviceNameMappings != null;
-    assert taggedHeaders != null;
-    assert baggageMapping != null;
-
-    // preload this enum to avoid triggering classloading on the hot path
-    TraceCollector.PublishState.values();
-
-    if (reportInTracerFlare) {
-      TracerFlare.addReporter(this);
-    }
-    this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    startTimeNano = this.timeSource.getCurrentTimeNanos();
-    startNanoTicks = this.timeSource.getNanoTicks();
-    clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
-    lastSyncTicks = startNanoTicks;
-
-    this.serviceName = serviceName;
-
-    this.initialConfig = config;
-    this.apmTracingEnabled = config.isApmTracingEnabled();
-    this.initialSampler = sampler;
-    this.agentSampler = sampler.agentSampler();
-
-    // Get initial Trace Sampling Rules from config
-    String traceSamplingRulesJson = config.getTraceSamplingRules();
-    TraceSamplingRules traceSamplingRules;
-    if (traceSamplingRulesJson == null) {
-      traceSamplingRulesJson = "[]";
-      traceSamplingRules = TraceSamplingRules.EMPTY;
-    } else {
-      traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
-    }
-
-    DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
-    String dataStreamsTransactionExtractorsJson = config.getDataStreamsTransactionExtractors();
-    if (dataStreamsTransactionExtractorsJson == null) {
-      dataStreamsTransactionExtractors = DataStreamsTransactionExtractors.EMPTY;
-    } else {
-      dataStreamsTransactionExtractors =
-          DataStreamsTransactionExtractors.deserialize(dataStreamsTransactionExtractorsJson);
-    }
-
-    // Get initial Span Sampling Rules from config
-    String spanSamplingRulesJson = config.getSpanSamplingRules();
-    String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
-    SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
-    if (spanSamplingRulesJson != null) {
-      spanSamplingRules = SpanSamplingRules.deserialize(spanSamplingRulesJson);
-    } else if (spanSamplingRulesFile != null) {
-      spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
-    }
-
-    this.tagInterceptor =
-        null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
-
-    this.defaultSpanTags = defaultSpanTags;
-    this.defaultSpanTagsNeedsIntercept = this.tagInterceptor.needsIntercept(this.defaultSpanTags);
-
-    this.dynamicConfig =
-        DynamicConfig.create(ConfigSnapshot::new)
-            .setTracingEnabled(true) // implied by installation of CoreTracer
-            .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
-            .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
-            .setDataStreamsEnabled(config.isDataStreamsEnabled())
-            .setServiceMapping(serviceNameMappings)
-            .setHeaderTags(taggedHeaders)
-            .setBaggageMapping(baggageMapping)
-            .setTraceSampleRate(config.getTraceSampleRate())
-            .setSpanSamplingRules(spanSamplingRules.getRules())
-            .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
-            .setTracingTags(config.getMergedSpanTags())
-            .setDataStreamsTransactionExtractors(dataStreamsTransactionExtractors.getExtractors())
-            .apply();
-
-    this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
-    this.partialFlushMinSpans = partialFlushMinSpans;
-    this.idGenerationStrategy =
-        null == idGenerationStrategy
-            ? Config.get().getIdGenerationStrategy()
-            : idGenerationStrategy;
-
-    this.healthMetrics =
-        healthMetrics != null
-            ? healthMetrics
-            : (config.isHealthMetricsEnabled()
-                ? new TracerHealthMetrics(AgentMeter.statsDClient())
-                : HealthMetrics.NO_OP);
-    this.healthMetrics.start();
-
-    performanceMonitoring =
-        config.isPerfMetricsEnabled() ? AgentMeter.monitoring() : Monitoring.DISABLED;
-
-    traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
-
-    scopeManager =
-        new ContinuableScopeManager(
-            config.getScopeDepthLimit(),
-            config.isScopeStrictMode(),
-            profilingContextIntegration,
-            this.healthMetrics);
-
-    externalAgentLauncher = new ExternalAgentLauncher(config);
-
-    disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
-
-    if (sharedCommunicationObjects == null) {
-      sharedCommunicationObjects = new SharedCommunicationObjects();
-    }
-    sharedCommunicationObjects.monitoring = AgentMeter.monitoring();
-    sharedCommunicationObjects.createRemaining(config);
-
-    tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
-    if (pollForTracingConfiguration) {
-      tracingConfigPoller.start(config, sharedCommunicationObjects);
-    }
-
-    if (writer == null) {
-      this.writer =
-          WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.healthMetrics);
-    } else {
-      this.writer = writer;
-    }
-
-    DDAgentFeaturesDiscovery featuresDiscovery =
-        sharedCommunicationObjects.featuresDiscovery(config);
-    if (config.isCiVisibilityEnabled()) {
-      // ensure updated discovery and sync if the another discovery currently being done
-      featuresDiscovery.discoverIfOutdated();
-    }
-
-    boolean payloadFilesEnabled =
-        config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled();
-    if (config.isCiVisibilityEnabled()
-        && (config.isCiVisibilityAgentlessEnabled()
-            || payloadFilesEnabled
-            || featuresDiscovery.supportsEvpProxy())) {
-      pendingTraceBuffer = PendingTraceBuffer.discarding();
-      traceCollectorFactory =
-          new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
-    } else {
-      pendingTraceBuffer =
-          strictTraceWrites
-              ? PendingTraceBuffer.discarding()
-              : PendingTraceBuffer.delaying(
-                  this.timeSource, config, sharedCommunicationObjects, this.healthMetrics);
-      traceCollectorFactory =
-          new PendingTrace.Factory(
-              this, pendingTraceBuffer, this.timeSource, strictTraceWrites, this.healthMetrics);
-    }
-    pendingTraceBuffer.start();
-
-    sharedCommunicationObjects.whenReady(this.writer::start);
-    // temporary assign a no-op instance. The final one will be resolved when the discovery will be
-    // allowed
-    metricsAggregator = NoOpMetricsAggregator.INSTANCE;
-    final SharedCommunicationObjects sco = sharedCommunicationObjects;
-    // asynchronously create these aggregator/export components to avoid triggering
-    // expensive classloading during the tracer initialisation.
-    sharedCommunicationObjects.whenReady(
-        () ->
-            AgentTaskScheduler.get()
-                .execute(
-                    () -> {
-                      startMetricsAggregation(config, sco);
-                      maybeStartLogsExport(config);
-                    }));
-
-    if (dataStreamsMonitoring == null) {
-      // Avoid DSM in bazel hermetic mode
-      this.dataStreamsMonitoring =
-          payloadFilesEnabled
-              ? DisabledDataStreamsMonitoring.INSTANCE
-              : new DefaultDataStreamsMonitoring(
-                  config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
-    } else {
-      this.dataStreamsMonitoring = dataStreamsMonitoring;
-    }
-
-    sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
-
-    propagationTagsFactory = PropagationTags.factory(config);
-
-    builderTagsPrecedence = config.isTraceBuilderTagsPrecedenceEnabled();
-
-    // Register context propagators
-    HttpCodec.Extractor baseExtractor =
-        extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
-    OrgGuard orgGuard =
-        OrgGuard.create(
-            config,
-            featuresDiscovery::getOrgPropagationMarker,
-            propagationTagsFactory,
-            this.healthMetrics);
-    HttpCodec.Extractor tracingExtractor = orgGuard.decorateExtractor(baseExtractor);
-    HttpCodec.Injector tracingInjector = orgGuard.decorateInjector(injector);
-    TracingPropagator tracingPropagator =
-        new TracingPropagator(config.isApmTracingEnabled(), tracingInjector, tracingExtractor);
-    Propagators.register(TRACING_CONCERN, tracingPropagator);
-    Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
-    if (config.isDataStreamsEnabled()) {
-      Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
-    }
-    if (config.isBaggagePropagationEnabled()
-        && config.getTracePropagationBehaviorExtract() != IGNORE) {
-      Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
-    }
-    if (config.isInferredProxyPropagationEnabled()) {
-      Propagators.register(INFERRED_PROXY_CONCERN, new InferredProxyPropagator());
-    }
-
-    if (config.isCiVisibilityEnabled()) {
-      if (config.isCiVisibilityTraceSanitationEnabled()) {
-        addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
-      }
-
-      if (config.isCiVisibilityAgentlessEnabled() || BazelMode.get().isPayloadFilesEnabled()) {
-        addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
-      } else {
-        featuresDiscovery.discoverIfOutdated();
-        if (!featuresDiscovery.supportsEvpProxy()) {
-          // CI Test Cycle protocol is not available
-          addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
+        LocalRootSpanTags(final TagMap tags, final boolean needsIntercept) {
+            this.tags = tags;
+            this.needsIntercept = needsIntercept;
         }
-      }
-
-      if (config.isCiVisibilityTelemetryEnabled()) {
-        addTraceInterceptor(new CiVisibilityTelemetryInterceptor());
-      }
     }
 
-    if (config.isTraceGitMetadataEnabled()) {
-      addTraceInterceptor(GitMetadataTraceInterceptor.INSTANCE);
-    }
-
-    if (config.isTraceKeepLatencyThresholdEnabled()) {
-      addTraceInterceptor(LatencyTraceInterceptor.INSTANCE);
-    }
-
-    this.instrumentationGateway = instrumentationGateway;
-    callbackProviderAppSec = instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
-    callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
-    universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
-
-    shutdownCallback = new ShutdownHook(this);
-    try {
-      Runtime.getRuntime().addShutdownHook(shutdownCallback);
-    } catch (final IllegalStateException ex) {
-      // The JVM is already shutting down.
-    }
-
-    registerClassLoader(ClassLoader.getSystemClassLoader());
-
-    StatusLogger.logStatus(config);
-
-    this.profilingContextIntegration = profilingContextIntegration;
-    this.injectBaggageAsTags = injectBaggageAsTags;
-    this.injectLinksAsTags = injectLinksAsTags;
-    this.flushOnClose = flushOnClose;
-    this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
-    final TagMap frozenLocalRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
-    this.localRootSpanTags =
-        new LocalRootSpanTags(
-            frozenLocalRootSpanTags, this.tagInterceptor.needsIntercept(frozenLocalRootSpanTags));
-    if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
-      // Deferred integrations run this later (or never, if construction fails).
-      profilingContextIntegration.whenAvailable(this::stampProfilingContextEngine);
-    }
-    if (serviceDiscoveryFactory != null) {
-      AgentTaskScheduler.get()
-          .schedule(
-              () -> {
-                final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
-                if (serviceDiscovery != null) {
-                  // JNA can do ldconfig and other commands. Those are hidden since internal.
-                  try (final TraceScope blackhole = muteTracing()) {
-                    serviceDiscovery.writeTracerMetadata(config);
-                  }
-                }
-              },
-              1,
-              SECONDS);
-    }
-  }
-
-  /**
-   * Adds the profiling context engine tag to {@link #localRootSpanTags}; runs at most once per
-   * tracer.
-   */
-  private void stampProfilingContextEngine() {
-    TagMap tags = TagMap.fromMap(this.localRootSpanTags.tags);
-    tags.set(PROFILING_CONTEXT_ENGINE, this.profilingContextIntegration.name());
-    TagMap frozenTags = tags.freeze();
-    this.localRootSpanTags =
-        new LocalRootSpanTags(frozenTags, this.tagInterceptor.needsIntercept(frozenTags));
-  }
-
-  private void startMetricsAggregation(Config config, SharedCommunicationObjects sco) {
-    metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
-    // Schedule the metrics aggregator to begin reporting after a random delay of
-    // 1 to 10 seconds (using milliseconds granularity.)
-    // This avoids a fleet of traced applications starting at the same time from
-    // sending metrics in sync.
-    AgentTaskScheduler.get()
-        .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
-
-    if (config.isMetricsOtlpExporterEnabled()) {
-      OtlpMetricsService.INSTANCE.start();
-    }
-  }
-
-  private void maybeStartLogsExport(Config config) {
-    if (config.isLogsOtlpExporterEnabled()) {
-      OtlpLogsService.INSTANCE.start();
-    }
-  }
-
-  /** Used by AgentTestRunner to inject configuration into the test tracer. */
-  public void rebuildTraceConfig(Config config) {
-    dynamicConfig
-        .initial()
-        .setTracingEnabled(true) // implied by installation of CoreTracer
-        .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
-        .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
-        .setDataStreamsEnabled(config.isDataStreamsEnabled())
-        .setServiceMapping(config.getServiceMapping())
-        .setHeaderTags(config.getRequestHeaderTags())
-        .setBaggageMapping(config.getBaggageMapping())
-        .setTraceSampleRate(config.getTraceSampleRate())
-        .setTracingTags(config.getGlobalTags())
-        .apply();
-  }
-
-  @Override
-  protected void finalize() {
-    if (null != shutdownCallback) {
-      try {
-        shutdownCallback.run();
-        Runtime.getRuntime().removeShutdownHook(shutdownCallback);
-      } catch (final IllegalStateException e) {
-        // Do nothing.  Already shutting down
-      } catch (final Exception e) {
-        log.error("Error while finalizing DDTracer.", e);
-      }
-    }
-  }
-
-  /**
-   * Only visible for benchmarking purposes
-   *
-   * @return a PendingTrace
-   */
-  public TraceCollector createTraceCollector(DDTraceId id) {
-    return traceCollectorFactory.create(id);
-  }
-
-  TraceCollector createTraceCollector(DDTraceId id, ConfigSnapshot traceConfig) {
-    return traceCollectorFactory.create(id, traceConfig);
-  }
-
-  /**
-   * If an application is using a non-system classloader, that classloader should be registered
-   * here. Due to the way Spring Boot structures its' executable jar, this might log some warnings.
-   *
-   * @param classLoader to register.
-   */
-  private void registerClassLoader(final ClassLoader classLoader) {
-    try {
-      for (final TraceInterceptor interceptor :
-          ServiceLoader.load(TraceInterceptor.class, classLoader)) {
-        addTraceInterceptor(interceptor);
-      }
-    } catch (final ServiceConfigurationError e) {
-      log.warn("Problem loading TraceInterceptor for classLoader: {}", classLoader, e);
-    }
-  }
-
-  /**
-   * Timestamp in nanoseconds for the current {@code nanoTicks}.
-   *
-   * <p>Note: it is not possible to get 'real' nanosecond time. This method uses tracer start time
-   * (with millisecond precision) as a reference and applies relative time with nanosecond precision
-   * after that. This means time measured with same Tracer in different Spans is relatively correct
-   * with nanosecond precision.
-   *
-   * @param nanoTicks as returned by {@link TimeSource#getNanoTicks()}
-   * @return timestamp in nanoseconds
-   */
-  long getTimeWithNanoTicks(long nanoTicks) {
-    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
-    if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      correctCounterDrift(computedNanoTime);
-      lastSyncTicks = nanoTicks;
-    }
-    return computedNanoTime + counterDrift;
-  }
-
-  /**
-   * Computes {@link #counterDrift} corrected against {@code computedNanoTime}, gated by a 1ms
-   * threshold to avoid regressing the clock on {@link SystemTimeSource}'s millisecond precision.
-   */
-  private void correctCounterDrift(long computedNanoTime) {
-    long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
-    if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
-      counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
-    }
-  }
-
-  /**
-   * AWS Lambda SnapStart restores a checkpointed JVM, potentially hours or days later, without
-   * {@link System#nanoTime()} accounting for the frozen duration. That can leave the computed time
-   * stale for longer than {@link #getTimeWithNanoTicks}'s periodic self-correction can catch, as
-   * that's gated on ticks elapsed rather than wall-clock time. Called once per Lambda invocation,
-   * before any span for it is created, so it's a cheap no-op outside SnapStart.
-   *
-   * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
-   */
-  @VisibleForTesting
-  void maybeResyncClockForLambdaInvocation() {
-    if (!initialConfig.isLambdaSnapStartClockResyncEnabled()) {
-      return;
-    }
-    long nanoTicks = timeSource.getNanoTicks();
-    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
-    correctCounterDrift(computedNanoTime);
-    lastSyncTicks = nanoTicks;
-  }
-
-  @Override
-  public CoreSpanBuilder buildSpan(
-      final String instrumentationName, final CharSequence operationName) {
-    return createMultiSpanBuilder(instrumentationName, operationName);
-  }
-
-  /**
-   * Seeds identity (instrumentation name, operation, span type) and constant tags from a prototype.
-   * {@code operationName} overrides the prototype's when non-null — the explicit value wins, the
-   * prototype is the fallback. The prototype's tags are seeded during {@link CoreSpanBuilder}
-   * construction just before the builder's own tags, so explicit tags override prototype constants.
-   */
-  @Override
-  public CoreSpanBuilder buildSpan(
-      @Nonnull final SpanPrototype prototype, CharSequence operationName) {
-    if (operationName == null) {
-      operationName = prototype.operationName();
-    }
-    CoreSpanBuilder builder =
-        createMultiSpanBuilder(prototype.instrumentationName(), operationName);
-    builder.spanPrototype = prototype;
-    if (prototype.spanType() != null) {
-      builder.spanType = prototype.spanType();
-    }
-    return builder;
-  }
-
-  MultiSpanBuilder createMultiSpanBuilder(
-      final String instrumentationName, final CharSequence operationName) {
-    return new MultiSpanBuilder(this, instrumentationName, operationName);
-  }
-
-  @Override
-  public CoreSpanBuilder singleSpanBuilder(
-      final String instrumentationName, final CharSequence operationName) {
-    return SPAN_BUILDER_REUSE_ENABLED
-        ? reuseSingleSpanBuilder(instrumentationName, operationName)
-        : createMultiSpanBuilder(instrumentationName, operationName);
-  }
-
-  ReusableSingleSpanBuilder createSingleSpanBuilder(
-      final String instrumentationName, final CharSequence oprationName) {
-    ReusableSingleSpanBuilder singleSpanBuilder = new ReusableSingleSpanBuilder(this);
-    singleSpanBuilder.init(instrumentationName, oprationName);
-    return singleSpanBuilder;
-  }
-
-  CoreSpanBuilder reuseSingleSpanBuilder(
-      final String instrumentationName, final CharSequence operationName) {
-    return reuseSingleSpanBuilder(
-        this, spanBuilderThreadLocalCache, instrumentationName, operationName);
-  }
-
-  static final ReusableSingleSpanBuilder reuseSingleSpanBuilder(
-      final CoreTracer tracer,
-      final ReusableSingleSpanBuilderThreadLocalCache tlCache,
-      final String instrumentationName,
-      final CharSequence operationName) {
-    if (ThreadSupport.isVirtual()) {
-      // Since virtual threads are created and destroyed often,
-      // cautiously decided not to create a thread local for the virtual threads.
-
-      // TODO: This could probably be improved by having a single thread local that
-      // holds the core things that we need for tracing.  e.g. context, etc
-      return tracer.createSingleSpanBuilder(instrumentationName, operationName);
-    }
-
-    // retrieve the thread's typical SpanBuilder and try to reset it
-    // reset will fail if the ReusableSingleSpanBuilder is still "in-use"
-    ReusableSingleSpanBuilder tlSpanBuilder = tlCache.get();
-    boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
-    if (wasReset) return tlSpanBuilder;
-
-    // TODO: counter for how often the fallback is used?
-    ReusableSingleSpanBuilder newSpanBuilder =
-        tracer.createSingleSpanBuilder(instrumentationName, operationName);
-
-    // DQH - Debated how best to handle the case of someone requesting a SpanBuilder
-    // and then not using it.  Without the ability to replace the cached SpanBuilder,
-    // that case could result in permanently burning the cache for a given thread.
-
-    // That could be solved with additional logic during ReusableSingleSpanBuilder#start
-    // that checks to see if the cached Builder is in use and then replaces it
-    // with the freed Builder, but that would put extra logic in the common path.
-
-    // Instead of making the release process more complicated, I'm chosing to just
-    // override here when we know we're already in an uncommon path.
-    tlCache.set(newSpanBuilder);
-
-    return newSpanBuilder;
-  }
-
-  @Override
-  public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-    return CoreSpanBuilder.startSpan(
-        this,
-        instrumentationName,
-        spanName,
-        null,
-        CoreSpanBuilder.USE_SCOPE,
-        CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
-  }
-
-  @Override
-  public AgentSpan startSpan(
-      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
-    return CoreSpanBuilder.startSpan(
-        this, instrumentationName, spanName, null, CoreSpanBuilder.USE_SCOPE, startTimeMicros);
-  }
-
-  @Override
-  public AgentSpan startSpan(
-      String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
-    return CoreSpanBuilder.startSpan(
-        this,
-        instrumentationName,
-        spanName,
-        parent,
-        CoreSpanBuilder.IGNORE_SCOPE,
-        CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
-  }
-
-  @Override
-  public AgentSpan startSpan(
-      final String instrumentationName,
-      final CharSequence spanName,
-      final AgentSpanContext parent,
-      final long startTimeMicros) {
-    return CoreSpanBuilder.startSpan(
-        this, instrumentationName, spanName, parent, CoreSpanBuilder.IGNORE_SCOPE, startTimeMicros);
-  }
-
-  @Override
-  public AgentSpan startSpan(
-      @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
-    return CoreSpanBuilder.startSpan(
-        this,
-        prototype,
-        operationName != null ? operationName : prototype.operationName(),
-        CoreSpanBuilder.USE_SCOPE,
-        CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
-  }
-
-  @Override
-  public ContextScope activateSpan(AgentSpan span) {
-    return scopeManager.activateSpan(span);
-  }
-
-  @Override
-  public ContextScope activateManualSpan(final AgentSpan span) {
-    return scopeManager.activateManualSpan(span);
-  }
-
-  @Override
-  @SuppressWarnings("resource")
-  public void activateSpanWithoutScope(AgentSpan span) {
-    scopeManager.activateSpan(span);
-  }
-
-  @Override
-  public boolean isAsyncPropagationEnabled() {
-    return scopeManager.isAsyncPropagationEnabled();
-  }
-
-  @Override
-  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  @Override
-  public void closePrevious(boolean finishSpan) {
-    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      throw new IllegalStateException(
-          "closePrevious must not be called when context swap based logic is enabled");
-    }
-    scopeManager.closePrevious(finishSpan);
-  }
-
-  @Override
-  public ContextScope activateNext(AgentSpan span) {
-    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      throw new IllegalStateException(
-          "activateNext must not be called when context swap based logic is enabled");
-    }
-    return scopeManager.activateNext(span);
-  }
-
-  public TagInterceptor getTagInterceptor() {
-    return tagInterceptor;
-  }
-
-  public int getPartialFlushMinSpans() {
-    return partialFlushMinSpans;
-  }
-
-  @Override
-  public AgentSpan activeSpan() {
-    return scopeManager.activeSpan();
-  }
-
-  @Override
-  public void checkpointActiveForRollback() {
-    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      throw new IllegalStateException(
-          "checkpointActiveForRollback must not be called when context swap based logic is enabled");
-    }
-    this.scopeManager.checkpointActiveForRollback();
-  }
-
-  @Override
-  public void rollbackActiveToCheckpoint() {
-    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      throw new IllegalStateException(
-          "rollbackActiveToCheckpoint must not be called when context swap based logic is enabled");
-    }
-    this.scopeManager.rollbackActiveToCheckpoint();
-  }
-
-  @Override
-  public void closeActive() {
-    ContextScope activeScope = this.scopeManager.active();
-    if (activeScope != null) {
-      activeScope.close();
-    }
-  }
-
-  @Override
-  public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
-    maybeResyncClockForLambdaInvocation();
-
-    // Get context from AppSec
-    AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
-
-    // Get context from extension
-    AgentSpanContext extensionContext = LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
-
-    // Merge contexts
-    return LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
-  }
-
-  @Override
-  public void notifyExtensionEnd(
-      AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
-    LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
-  }
-
-  @Override
-  public void notifyAppSecEnd(AgentSpan span, Object result) {
-    try {
-      LambdaAppSecHandler.processResponseData(span, result);
-    } finally {
-      LambdaAppSecHandler.processRequestEnd(span);
-    }
-  }
-
-  @Override
-  public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
-    return dataStreamsMonitoring;
-  }
-
-  private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
-
-  /**
-   * We use the sampler to know if the trace has to be reported/written. The sampler is called on
-   * the first span (root span) of the trace. If the trace is marked as a sample, we report it.
-   *
-   * @param trace a list of the spans related to the same trace
-   */
-  void write(final SpanList trace) {
-    if (trace.isEmpty() || !trace.get(0).traceConfig().isTraceEnabled()) {
-      return;
-    }
-    List<DDSpan> writtenTrace = interceptCompleteTrace(trace);
-    if (writtenTrace.isEmpty()) {
-      return;
-    }
-
-    // run early tag postprocessors before publishing to the metrics writer since peer / base
-    // service are needed
-
-    // DQH - Using forEach avoids ArrayList$Iter allocation
-    writtenTrace.forEach(DDSpan::processServiceTags);
-
-    boolean forceKeep = metricsAggregator.publish(writtenTrace);
-
-    TraceCollector traceCollector = writtenTrace.get(0).spanContext().getTraceCollector();
-    traceCollector.setSamplingPriorityIfNecessary();
-
-    DDSpan rootSpan = traceCollector.getRootSpan();
-    DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
-    spanToSample.forceKeep(forceKeep);
-    boolean published = forceKeep || traceCollector.sample(spanToSample);
-    if (published) {
-      if (!apmTracingEnabled) {
-        // Stamp the billing marker on every span of each exported chunk so the intake does not bill
-        // APM host usage.
-        for (int i = 0; i < writtenTrace.size(); i++) {
-          writtenTrace.get(i).setTag(APM_ENABLED, 0);
-        }
-      }
-      writer.write(writtenTrace);
-    } else {
-      // with span streaming this won't work - it needs to be changed
-      // to track an effective sampling rate instead, however, tests
-      // checking that a hard reference on a continuation prevents
-      // reporting fail without this, so will need to be fixed first.
-      writer.incrementDropCounts(writtenTrace.size());
-    }
-    if (null != rootSpan) {
-      onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
-    }
-  }
-
-  private List<DDSpan> interceptCompleteTrace(SpanList originalTrace) {
-    return interceptCompleteTrace(interceptors, originalTrace);
-  }
-
-  static final List<DDSpan> interceptCompleteTrace(
-      TraceInterceptors interceptors, SpanList originalTrace) {
-    if (interceptors.isEmpty()) {
-      return originalTrace;
-    }
-    if (originalTrace.isEmpty()) {
-      return SpanList.EMPTY;
-    }
-
-    // Using TraceList to optimize the common case where the interceptors,
-    // don't alter the list.  If the interceptors just return the provided
-    // List, then no need to copy to another List.
-
-    // As an extra precaution, also check the modCount before and after on
-    // the TraceList, since TraceInterceptor could put some other type of
-    // object into the List.
-
-    // There is still a risk that a TraceInterceptor holds onto the provided
-    // List and modifies it later on, but we cannot safeguard against
-    // every possible misuse.
-    Collection<? extends MutableSpan> interceptedTrace = originalTrace;
-    int originalModCount = originalTrace.modCount();
-
-    for (final TraceInterceptor interceptor : interceptors.interceptors()) {
-      try {
-        // If one TraceInterceptor throws an exception, then continue with the next one
-        interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
-      } catch (Throwable e) {
-        String interceptorName = interceptor.getClass().getName();
-        rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
-      }
-      if (interceptedTrace == null) {
-        interceptedTrace = emptyList();
-      }
-    }
-
-    if (interceptedTrace == null || interceptedTrace.isEmpty()) {
-      return SpanList.EMPTY;
-    } else if (interceptedTrace == originalTrace && originalTrace.modCount() == originalModCount) {
-      return originalTrace;
-    } else {
-      SpanList trace = new SpanList(interceptedTrace.size());
-      for (final MutableSpan span : interceptedTrace) {
-        if (span instanceof DDSpan) {
-          trace.add((DDSpan) span);
-        }
-      }
-      return trace;
-    }
-  }
-
-  @Override
-  public String getTraceId() {
-    return getTraceId(activeSpan());
-  }
-
-  @Override
-  public String getSpanId() {
-    return getSpanId(activeSpan());
-  }
-
-  @Override
-  public String getTraceId(AgentSpan span) {
-    if (span != null && span.getTraceId() != null) {
-      DDTraceId traceId = span.getTraceId();
-      // Return padded hexadecimal string representation if 128-bit TraceId logging is enabled and
-      // TraceId is a 128-bit ID, otherwise use the default numerical string representation.
-      if (this.logs128bTraceIdEnabled && traceId.toHighOrderLong() != 0) {
-        return traceId.toHexString();
-      } else {
-        return traceId.toString();
-      }
-    }
-    return "0";
-  }
-
-  @Override
-  public String getSpanId(AgentSpan span) {
-    if (span != null) {
-      return DDSpanId.toString(span.getSpanId());
-    }
-    return "0";
-  }
-
-  @VisibleForTesting
-  TraceInterceptors getInterceptors() {
-    return interceptors;
-  }
-
-  @Override
-  public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
-    TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
-    if (conflictingInterceptor == null) {
-      return true;
-    } else {
-      log.warn(
-          "Interceptor {} will NOT be registered with the tracer, "
-              + "as already registered interceptor {} is considered its duplicate",
-          interceptor,
-          conflictingInterceptor);
-      return false;
-    }
-  }
-
-  @Override
-  public TraceScope muteTracing() {
-    return activateSpan(blackholeSpan())::close;
-  }
-
-  @Override
-  public DataStreamsCheckpointer getDataStreamsCheckpointer() {
-    return this.dataStreamsMonitoring;
-  }
-
-  @Override
-  public void addShutdownListener(Runnable listener) {
-    this.shutdownListeners.add(listener);
-  }
-
-  @Override
-  public void addScopeListener(final ScopeListener listener) {
-    this.scopeManager.addScopeListener(listener);
-  }
-
-  @Override
-  public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
-    return (SubscriptionService) instrumentationGateway.getCallbackProvider(slot);
-  }
-
-  @Override
-  public CallbackProvider getCallbackProvider(RequestContextSlot slot) {
-    if (slot == RequestContextSlot.APPSEC) {
-      return callbackProviderAppSec;
-    } else if (slot == RequestContextSlot.IAST) {
-      return callbackProviderIast;
-    } else {
-      return CallbackProvider.CallbackProviderNoop.INSTANCE;
-    }
-  }
-
-  @Override
-  public CallbackProvider getUniversalCallbackProvider() {
-    return universalCallbackProvider;
-  }
-
-  @Override
-  public void close() {
-    for (Runnable shutdownListener : shutdownListeners) {
-      try {
-        shutdownListener.run();
-      } catch (Exception e) {
-        log.error("Error while running shutdown listener", e);
-      }
-    }
-    if (flushOnClose) {
-      flush();
-    }
-    tracingConfigPoller.stop();
-    pendingTraceBuffer.close();
-    writer.close();
-    RumInjector.shutdownTelemetry();
-    AgentMeter.statsDClient().close();
-    metricsAggregator.close();
-    if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      OtlpMetricsService.INSTANCE.shutdown();
-    }
-    if (initialConfig.isLogsOtlpExporterEnabled()) {
-      OtlpLogsService.INSTANCE.shutdown();
-    }
-    dataStreamsMonitoring.close();
-    externalAgentLauncher.close();
-    healthMetrics.close();
-  }
-
-  @Override
-  public void addScopeListener(
-      Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
-    addScopeListener(
-        new ScopeListener() {
-          @Override
-          public void afterScopeActivated() {
-            afterScopeActivatedCallback.run();
-          }
-
-          @Override
-          public void afterScopeClosed() {
-            afterScopeClosedCallback.run();
-          }
-        });
-  }
-
-  @Override
-  public void flush() {
-    pendingTraceBuffer.flush();
-    writer.flush();
-  }
-
-  @Override
-  public void flushMetrics() {
-    try {
-      metricsAggregator.forceReport().get(2_500, MILLISECONDS);
-    } catch (InterruptedException | ExecutionException | TimeoutException e) {
-      log.debug("Failed to wait for metrics flush.", e);
-    }
-
-    if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      OtlpMetricsService.INSTANCE.flush();
-    }
-  }
-
-  @Override
-  public void flushLogs() {
-    if (initialConfig.isLogsOtlpExporterEnabled()) {
-      OtlpLogsService.INSTANCE.flush();
-    }
-  }
-
-  @Override
-  public ProfilingContextIntegration getProfilingContext() {
-    return profilingContextIntegration;
-  }
-
-  @Override
-  public TraceSegment getTraceSegment() {
-    AgentSpan activeSpan = activeSpan();
-    if (activeSpan == null) {
-      return null;
-    }
-    AgentSpanContext spanContext = activeSpan.spanContext();
-    if (spanContext instanceof DDSpanContext) {
-      return ((DDSpanContext) spanContext).getTraceSegment();
-    }
-    return null;
-  }
-
-  @Override
-  public void addReportToFlare(ZipOutputStream zip) throws IOException {
-    TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
-    TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
-    TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
-  }
-
-  Recording writeTimer() {
-    return traceWriteTimer.start();
-  }
-
-  private static <K, V> Map<V, K> invertMap(Map<K, V> map) {
-    Map<V, K> inverted = new HashMap<>(map.size());
-    for (Map.Entry<K, V> entry : map.entrySet()) {
-      inverted.put(entry.getValue(), entry.getKey());
-    }
-    return Collections.unmodifiableMap(inverted);
-  }
-
-  /** Spans are built using this builder */
-  public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
-    protected static final boolean USE_SCOPE = false;
-    protected static final boolean IGNORE_SCOPE = true;
-    protected static final int AUTO_ASSIGN_SPAN_ID = 0;
-    protected static final long AUTO_ASSIGN_TIMESTAMP = 0L;
-
-    protected final CoreTracer tracer;
-
-    protected String instrumentationName;
-    protected CharSequence operationName;
-
-    // Builder attributes
-    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
-    protected TagMap.Ledger tagLedger;
-    protected SpanPrototype spanPrototype = SpanPrototype.NONE;
-    protected long timestampMicro;
-    protected AgentSpanContext parent;
-    protected String serviceName;
-    protected String resourceName;
-    protected boolean errorFlag;
-    protected CharSequence spanType;
-    protected boolean ignoreScope = USE_SCOPE;
-    protected Object builderRequestContextDataAppSec;
-    protected Object builderRequestContextDataIast;
-    protected Object builderCiVisibilityContextData;
-    protected List<AgentSpanLink> links;
-    protected long spanId = AUTO_ASSIGN_SPAN_ID;
-
-    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
-
-    CoreSpanBuilder(CoreTracer tracer) {
-      this.tracer = tracer;
+    private volatile LocalRootSpanTags localRootSpanTags;
+
+    /**
+     * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
+     * marker — see {@link #write(SpanList)}.
+     */
+    private final boolean apmTracingEnabled;
+
+    /** A set of tags that are added to every span */
+    private final TagMap defaultSpanTags;
+
+    private final boolean defaultSpanTagsNeedsIntercept;
+
+    /** number of spans in a pending trace before they get flushed */
+    private final int partialFlushMinSpans;
+
+    private final Monitoring performanceMonitoring;
+
+    private final HealthMetrics healthMetrics;
+    private final Recording traceWriteTimer;
+    private final IdGenerationStrategy idGenerationStrategy;
+    private final TraceCollector.Factory traceCollectorFactory;
+    private final DataStreamsMonitoring dataStreamsMonitoring;
+    private final ExternalAgentLauncher externalAgentLauncher;
+    private final boolean disableSamplingMechanismValidation;
+    private final TimeSource timeSource;
+    private final ProfilingContextIntegration profilingContextIntegration;
+    private final boolean injectBaggageAsTags;
+    private final boolean injectLinksAsTags;
+    private final boolean flushOnClose;
+    private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
+
+    /**
+     * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
+     * earlier
+     */
+    private final Thread shutdownCallback;
+
+    /**
+     * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
+     * to be concurrent.
+     */
+    private final TagInterceptor tagInterceptor;
+
+    private final TraceInterceptors interceptors = new TraceInterceptors();
+
+    private final boolean logs128bTraceIdEnabled;
+
+    private final InstrumentationGateway instrumentationGateway;
+    private final CallbackProvider callbackProviderAppSec;
+    private final CallbackProvider callbackProviderIast;
+    private final CallbackProvider universalCallbackProvider;
+
+    private final PropagationTags.Factory propagationTagsFactory;
+
+    // DQH - storing into a static constant, so value will constant propagate and dead code eliminate
+    // the other branch in singleSpanBuilder
+    private static final boolean SPAN_BUILDER_REUSE_ENABLED = Config.get().isSpanBuilderReuseEnabled();
+
+    // Instance field (not static final) so it honors per-tracer config, e.g. an embedded tracer
+    // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
+    // singleton. See the tag-ordering block in buildSpanContext.
+    private final boolean builderTagsPrecedence;
+
+    // Cache used by buildSpan - instance so it can capture the CoreTracer
+    private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
+            SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
+
+    @Override
+    public ConfigSnapshot captureTraceConfig() {
+        return dynamicConfig.captureTraceConfig();
     }
 
     @Override
-    public final CoreSpanBuilder ignoreActiveSpan() {
-      ignoreScope = true;
-      return this;
+    public void updatePreferredServiceName(String serviceName, CharSequence source) {
+        dynamicConfig
+                .current()
+                .setPreferredServiceNameAndSource(serviceName, source)
+                .apply();
+        ServiceNameCollector.get().addService(serviceName);
     }
 
-    protected static final DDSpan buildSpan(
-        final CoreTracer tracer,
-        long spanId,
-        String instrumentationName,
-        long timestampMicro,
-        String serviceName,
-        CharSequence operationName,
-        String resourceName,
-        AgentSpanContext resolvedParentSpanContext,
-        boolean ignoreScope,
-        boolean errorFlag,
-        CharSequence spanType,
-        TagMap.Ledger tagLedger,
-        SpanPrototype spanPrototype,
-        List<AgentSpanLink> links,
-        Object builderRequestContextDataAppSec,
-        Object builderRequestContextDataIast,
-        Object builderCiVisibilityContextData) {
-      return buildSpanImpl(
-          tracer,
-          instrumentationName,
-          timestampMicro,
-          links,
-          buildSpanContext(
-              tracer,
-              spanId,
-              serviceName,
-              operationName,
-              resourceName,
-              resolvedParentSpanContext,
-              errorFlag,
-              spanType,
-              tagLedger,
-              spanPrototype,
-              links,
-              builderRequestContextDataAppSec,
-              builderRequestContextDataIast,
-              builderCiVisibilityContextData));
-    }
-
-    protected static final DDSpan buildSpanImpl(
-        CoreTracer tracer,
-        String instrumentationName,
-        long timestampMicro,
-        List<AgentSpanLink> links,
-        DDSpanContext spanContext) {
-      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, spanContext, links);
-      if (span.isLocalRootSpan()) {
-        EndpointTracker tracker = tracer.onRootSpanStarted(span);
-        if (tracker != null) {
-          span.setEndpointTracker(tracker);
-        }
-      }
-      return span;
-    }
-
-    private static final List<AgentSpanLink> addParentSpanLink(
-        List<AgentSpanLink> links, AgentSpanContext parentSpanContext) {
-      SpanLink link;
-      if (parentSpanContext instanceof ExtractedContext) {
-        String headers = ((ExtractedContext) parentSpanContext).getPropagationStyle().toString();
-        SpanAttributes attributes =
-            SpanAttributes.builder()
-                .put("reason", "propagation_behavior_extract")
-                .put("context_headers", headers)
-                .build();
-        link = DDSpanLink.from((ExtractedContext) parentSpanContext, attributes);
-      } else {
-        link = SpanLink.from(parentSpanContext);
-      }
-      return addLink(links, link);
-    }
-
-    protected static final List<AgentSpanLink> addTerminatedSpanAsLinks(
-        List<AgentSpanLink> links, AgentSpanContext parentSpanContext) {
-      if (parentSpanContext instanceof TagContext) {
-        List<AgentSpanLink> terminatedSpanLinks =
-            ((TagContext) parentSpanContext).getTerminatedSpanLinks();
-        if (!terminatedSpanLinks.isEmpty()) {
-          return addLinks(links, terminatedSpanLinks);
-        }
-      }
-      return links;
-    }
-
-    protected static final List<AgentSpanLink> addLink(
-        List<AgentSpanLink> links, AgentSpanLink link) {
-      if (links == null) links = new ArrayList<>();
-      links.add(link);
-      return links;
-    }
-
-    protected static final List<AgentSpanLink> addLinks(
-        List<AgentSpanLink> links, List<AgentSpanLink> additionalLinks) {
-      if (links == null) {
-        links = new ArrayList<>(additionalLinks);
-      } else {
-        links.addAll(additionalLinks);
-      }
-      return links;
-    }
-
-    @Override
-    public abstract AgentSpan start();
-
-    protected AgentSpan startImpl() {
-      return startSpan(
-          this.tracer,
-          this.spanId,
-          this.instrumentationName,
-          this.timestampMicro,
-          this.serviceName,
-          this.operationName,
-          this.resourceName,
-          this.parent,
-          this.ignoreScope,
-          this.errorFlag,
-          this.spanType,
-          this.tagLedger,
-          this.spanPrototype,
-          this.links,
-          this.builderRequestContextDataAppSec,
-          this.builderRequestContextDataIast,
-          this.builderCiVisibilityContextData);
-    }
-
-    protected static final AgentSpan startSpan(
-        final CoreTracer tracer,
-        String instrumentationName,
-        CharSequence operationName,
-        AgentSpanContext specifiedParentSpanContext,
-        boolean ignoreScope,
-        long timestampMicros) {
-      return startSpan(
-          tracer,
-          AUTO_ASSIGN_SPAN_ID,
-          instrumentationName,
-          timestampMicros,
-          null /* serviceName */,
-          operationName,
-          null /* resourceName */,
-          specifiedParentSpanContext,
-          ignoreScope,
-          false /* errorFlag */,
-          null /* spanType */,
-          null /* tagLedger */,
-          SpanPrototype.NONE /* spanPrototype */,
-          null /* links */,
-          null /* appSec */,
-          null /* iast */,
-          null /* ciViz */);
-    }
-
-    protected static final AgentSpan startSpan(
-        final CoreTracer tracer,
-        final SpanPrototype prototype,
-        final CharSequence operationName,
-        final boolean ignoreScope,
-        final long timestampMicros) {
-      return startSpan(
-          tracer,
-          AUTO_ASSIGN_SPAN_ID,
-          prototype.instrumentationName(),
-          timestampMicros,
-          null /* serviceName */,
-          operationName,
-          null /* resourceName */,
-          null /* specifiedParentSpanContext */,
-          ignoreScope,
-          false /* errorFlag */,
-          prototype.spanType(),
-          null /* tagLedger */,
-          prototype,
-          null /* links */,
-          null /* appSec */,
-          null /* iast */,
-          null /* ciViz */);
-    }
-
-    protected static final AgentSpan startSpan(
-        final CoreTracer tracer,
-        long spanId,
-        String instrumentationName,
-        long timestampMicro,
-        String serviceName,
-        CharSequence operationName,
-        String resourceName,
-        AgentSpanContext specifiedParentSpanContext,
-        boolean ignoreScope,
-        boolean errorFlag,
-        CharSequence spanType,
-        TagMap.Ledger tagLedger,
-        SpanPrototype spanPrototype,
-        List<AgentSpanLink> links,
-        Object builderRequestContextDataAppSec,
-        Object builderRequestContextDataIast,
-        Object builderCiVisibilityContextData) {
-      // Find the parent context
-      AgentSpanContext parentSpanContext = specifiedParentSpanContext;
-      if (parentSpanContext == null && !ignoreScope) {
-        // use the Scope as parent unless overridden or ignored.
-        final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
-        if (activeSpan != null) {
-          parentSpanContext = activeSpan.spanContext();
-        }
-      }
-
-      if (parentSpanContext == BlackHoleSpan.Context.INSTANCE) {
-        return new BlackHoleSpan(parentSpanContext.getTraceId());
-      }
-
-      // Handle remote terminated span context as span links
-      if (parentSpanContext != null && parentSpanContext.isRemote()) {
-        // Preserve AppSec/IAST request context before dropping the remote parent: when
-        // extract=IGNORE or RESTART the TagContext parent is nulled before buildSpanContext
-        // can copy requestContextDataAppSec/Iast into DDSpanContext.
-        if (parentSpanContext instanceof TagContext) {
-          TagContext tc = (TagContext) parentSpanContext;
-          if (builderRequestContextDataAppSec == null) {
-            builderRequestContextDataAppSec = tc.getRequestContextDataAppSec();
-          }
-          if (builderRequestContextDataIast == null) {
-            builderRequestContextDataIast = tc.getRequestContextDataIast();
-          }
-        }
-        switch (Config.get().getTracePropagationBehaviorExtract()) {
-          case RESTART:
-            links = addParentSpanLink(links, parentSpanContext);
-            parentSpanContext = null;
-            break;
-
-          case IGNORE:
-            parentSpanContext = null;
-            break;
-
-          case CONTINUE:
-          default:
-            links = addTerminatedSpanAsLinks(links, specifiedParentSpanContext);
-            break;
-        }
-      }
-
-      return buildSpan(
-          tracer,
-          spanId,
-          instrumentationName,
-          timestampMicro,
-          serviceName,
-          operationName,
-          resourceName,
-          parentSpanContext,
-          ignoreScope,
-          errorFlag,
-          spanType,
-          tagLedger,
-          spanPrototype,
-          links,
-          builderRequestContextDataAppSec,
-          builderRequestContextDataIast,
-          builderCiVisibilityContextData);
-    }
-
-    @Override
-    public final CoreSpanBuilder withTag(final String tag, final Number number) {
-      return withTag(tag, (Object) number);
-    }
-
-    @Override
-    public final CoreSpanBuilder withTag(final String tag, final String string) {
-      return withTag(tag, (Object) (string == null || string.isEmpty() ? null : string));
-    }
-
-    @Override
-    public final CoreSpanBuilder withTag(final String tag, final boolean bool) {
-      return withTag(tag, (Object) bool);
-    }
-
-    @Override
-    public final CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
-      timestampMicro = timestampMicroseconds;
-      return this;
-    }
-
-    @Override
-    public final CoreSpanBuilder withServiceName(final String serviceName) {
-      this.serviceName = serviceName;
-      return this;
-    }
-
-    @Override
-    public final CoreSpanBuilder withResourceName(final String resourceName) {
-      this.resourceName = resourceName;
-      return this;
-    }
-
-    @Override
-    public final CoreSpanBuilder withErrorFlag() {
-      errorFlag = true;
-      return this;
-    }
-
-    @Override
-    public final CoreSpanBuilder withSpanType(final CharSequence spanType) {
-      this.spanType = spanType;
-      return this;
-    }
-
-    @Override
-    public final CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
-      // TODO we will start propagating stack trace hash and it will need to
-      //  be extracted here if available
-      parent = spanContext;
-      return this;
-    }
-
-    public final CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
-      parent = agentSpan.spanContext();
-      return this;
-    }
-
-    @Override
-    public final CoreSpanBuilder withTag(final String tag, final Object value) {
-      if (tag == null) {
-        return this;
-      }
-      TagMap.Ledger tagLedger = this.tagLedger;
-      if (tagLedger == null) {
-        // Insertion order is important, so using TagLedger which builds up a set
-        // of Entry modifications in order
-        this.tagLedger = tagLedger = TagMap.ledger();
-      }
-      if (value == null) {
-        // DQH - Use of smartRemove is important to avoid clobbering entries added by another map
-        // smartRemove only records the removal if a prior matching put has already occurred in the
-        // ledger
-        // smartRemove is O(n) but since removes are rare, this is preferable to a more complicated
-        // implementation in setAll
-        tagLedger.smartRemove(tag);
-      } else {
-        tagLedger.set(tag, value);
-      }
-      return this;
-    }
-
-    @Override
-    public final <T> AgentTracer.SpanBuilder withRequestContextData(
-        RequestContextSlot slot, T data) {
-      switch (slot) {
-        case APPSEC:
-          builderRequestContextDataAppSec = data;
-          break;
-        case CI_VISIBILITY:
-          builderCiVisibilityContextData = data;
-          break;
-        case IAST:
-          builderRequestContextDataIast = data;
-          break;
-      }
-      return this;
-    }
-
-    @Override
-    public final AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
-      if (link != null) {
-        if (this.links == null) {
-          this.links = new ArrayList<>();
-        }
-        this.links.add(link);
-      }
-      return this;
-    }
-
-    @Override
-    public final CoreSpanBuilder withSpanId(final long spanId) {
-      this.spanId = spanId;
-      return this;
+    PropagationTags.Factory getPropagationTagsFactory() {
+        return propagationTagsFactory;
     }
 
     /**
-     * Build the SpanContext, if the actual span has a parent, the following attributes must be
-     * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
-     *
-     * @return the context
+     * Called when a root span is finished before it is serialized. This is might be called multiple
+     * times per root span. If a child span is part of a partial flush, this method will be called for
+     * its root even if not finished.
      */
-    protected static final DDSpanContext buildSpanContext(
-        final CoreTracer tracer,
-        long spanId,
-        String serviceName,
-        CharSequence operationName,
-        String resourceName,
-        AgentSpanContext resolvedParentSpanContext,
-        boolean errorFlag,
-        CharSequence spanType,
-        TagMap.Ledger tagLedger,
-        SpanPrototype spanPrototype,
-        List<AgentSpanLink> links,
-        Object builderRequestContextDataAppSec,
-        Object builderRequestContextDataIast,
-        Object builderCiVisibilityContextData) {
-      DDTraceId traceId;
-      long parentSpanId;
-      final Map<String, String> baggage;
-      final Baggage w3cBaggage;
-      final TraceCollector parentTraceCollector;
-      final int samplingPriority;
-      final CharSequence origin;
-      final TagMap coreTags;
-      final boolean coreTagsNeedsIntercept;
-      final TagMap rootSpanTags;
-      final boolean rootSpanTagsNeedsIntercept;
-      final DDSpanContext context;
-      Object requestContextDataAppSec;
-      Object requestContextDataIast;
-      Object ciVisibilityContextData;
-      final PathwayContext pathwayContext;
-      final PropagationTags propagationTags;
-
-      if (spanId == AUTO_ASSIGN_SPAN_ID) {
-        spanId = tracer.idGenerationStrategy.generateSpanId();
-      }
-
-      String parentServiceName = null;
-      CharSequence serviceNameSource = MANUAL;
-      // Propagate internal trace.
-      // Note: if we are not in the context of distributed tracing, and we are starting the first
-      // root span, parentSpanContext will be null at this point.
-      if (resolvedParentSpanContext instanceof DDSpanContext) {
-        final DDSpanContext ddsc = (DDSpanContext) resolvedParentSpanContext;
-        traceId = ddsc.getTraceId();
-        parentSpanId = ddsc.getSpanId();
-        baggage = ddsc.getBaggageItems();
-        w3cBaggage = null;
-        parentTraceCollector = ddsc.getTraceCollector();
-        samplingPriority = PrioritySampling.UNSET;
-        origin = null;
-        coreTags = null;
-        coreTagsNeedsIntercept = false;
-        rootSpanTags = null;
-        rootSpanTagsNeedsIntercept = false;
-        parentServiceName = ddsc.getServiceName();
-        serviceNameSource = ddsc.getServiceNameSource();
-        if (serviceName == null) {
-          serviceName = parentServiceName;
+    @Override
+    public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
+        if (!root.isOutbound()) {
+            profilingContextIntegration.onRootSpanFinished(root, tracker);
         }
-        RequestContext requestContext =
-            ((DDSpanContext) resolvedParentSpanContext).getRequestContext();
+    }
+
+    /**
+     * Called when a root span is finished before it is serialized. This is guaranteed to be called
+     * exactly once per root span.
+     */
+    void onRootSpanPublished(final AgentSpan root) {
+        // Request context is propagated to contexts in child spans.
+        // Assume here that if present it will be so starting in the top span.
+        RequestContext requestContext = root.getRequestContext();
         if (requestContext != null) {
-          requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
-          requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
-          ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
-        } else {
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
-        }
-        propagationTags = tracer.propagationTagsFactory.empty();
-      } else {
-        long endToEndStartTime;
-
-        if (resolvedParentSpanContext instanceof ExtractedContext) {
-          // Propagate external trace
-          final ExtractedContext extractedContext = (ExtractedContext) resolvedParentSpanContext;
-          traceId = extractedContext.getTraceId();
-          parentSpanId = extractedContext.getSpanId();
-          samplingPriority = extractedContext.getSamplingPriority();
-          endToEndStartTime = extractedContext.getEndToEndStartTime();
-          propagationTags = extractedContext.getPropagationTags();
-        } else if (resolvedParentSpanContext != null) {
-          traceId =
-              resolvedParentSpanContext.getTraceId() == DDTraceId.ZERO
-                  ? tracer.idGenerationStrategy.generateTraceId()
-                  : resolvedParentSpanContext.getTraceId();
-          parentSpanId = resolvedParentSpanContext.getSpanId();
-          samplingPriority = resolvedParentSpanContext.getSamplingPriority();
-          endToEndStartTime = 0;
-          propagationTags = tracer.propagationTagsFactory.empty();
-        } else {
-          // Start a new trace
-          traceId = tracer.idGenerationStrategy.generateTraceId();
-          parentSpanId = DDSpanId.ZERO;
-          samplingPriority = PrioritySampling.UNSET;
-          endToEndStartTime = 0;
-          propagationTags = tracer.propagationTagsFactory.empty();
-        }
-
-        ConfigSnapshot traceConfig;
-
-        // Get header tags and set origin whether propagating or not.
-        if (resolvedParentSpanContext instanceof TagContext) {
-          TagContext tc = (TagContext) resolvedParentSpanContext;
-          traceConfig = (ConfigSnapshot) tc.getTraceConfig();
-          coreTags = tc.getTags();
-          coreTagsNeedsIntercept = true; // maybe intercept isn't needed?
-          origin = tc.getOrigin();
-          baggage = tc.getBaggage();
-          w3cBaggage = tc.getW3CBaggage();
-          requestContextDataAppSec = tc.getRequestContextDataAppSec();
-          requestContextDataIast = tc.getRequestContextDataIast();
-          ciVisibilityContextData = tc.getCiVisibilityContextData();
-        } else {
-          traceConfig = null;
-          coreTags = null;
-          coreTagsNeedsIntercept = false;
-          origin = null;
-          baggage = null;
-          w3cBaggage = null;
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
-        }
-
-        LocalRootSpanTags localRootSpanTags = tracer.localRootSpanTags;
-        rootSpanTags = localRootSpanTags.tags;
-        rootSpanTagsNeedsIntercept = localRootSpanTags.needsIntercept;
-
-        parentTraceCollector = tracer.createTraceCollector(traceId, traceConfig);
-
-        if (endToEndStartTime > 0) {
-          parentTraceCollector.beginEndToEnd(endToEndStartTime);
-        }
-      }
-
-      ConfigSnapshot traceConfig = parentTraceCollector.getTraceConfig();
-
-      // Use parent pathwayContext if present and started
-      pathwayContext =
-          resolvedParentSpanContext != null
-                  && resolvedParentSpanContext.getPathwayContext() != null
-                  && resolvedParentSpanContext.getPathwayContext().isStarted()
-              ? resolvedParentSpanContext.getPathwayContext()
-              : tracer.dataStreamsMonitoring.newPathwayContext();
-
-      // when removing fake services the best upward service name to pick is the local root one
-      // since a split by tag (i.e. servlet context) might have happened on it.
-      if (!tracer.allowInferredServices) {
-        final DDSpan rootSpan = parentTraceCollector.getRootSpan();
-        if (rootSpan != null) {
-          // An inferred proxy represents the gateway, not the application service.
-          // Preserve the service and source already resolved for spans beneath it.
-          // Avoid the synchronized tag lookup when inferred proxies are disabled.
-          if (!tracer.initialConfig.isInferredProxyPropagationEnabled()
-              || rootSpan.getTag("_dd.inferred_span") == null) {
-            serviceName = rootSpan.getServiceName();
-            serviceNameSource = rootSpan.getServiceNameSource();
-          }
-        } else {
-          serviceName = null;
-        }
-      }
-      if (serviceName == null) {
-        final Pair<String, CharSequence> serviceNameAndSource =
-            traceConfig.getPreferredServiceNameAndSource();
-        ;
-        if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
-          serviceName = serviceNameAndSource.getLeft();
-          serviceNameSource = serviceNameAndSource.getRight();
-        }
-      }
-      Map<String, Object> contextualTags = null;
-      if (parentServiceName == null) {
-        // only fetch this on local root spans
-        final ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
-            ClassloaderConfigurationOverrides.maybeGetContextualInfo();
-        if (contextualInfo != null) {
-          // in this case we have a local root without service name.
-          // We can try to see if we can find one from the thread context classloader
-          if (serviceName == null) {
-            serviceName = contextualInfo.getServiceName();
-            if (serviceName != null) {
-              serviceNameSource = contextualInfo.getServiceNameSource();
+            try {
+                requestContext.close();
+            } catch (IOException e) {
+                log.warn("Error closing request context data", e);
             }
-          }
-          contextualTags = contextualInfo.getTags();
         }
-      }
-      if (serviceName == null) {
-        // it could be on the initial snapshot but may be overridden to null and service name
-        // cannot be null
-        serviceName = tracer.serviceName;
-        // do not mark as manual when the service name is coming from the tracer default
-        serviceNameSource = null;
-      }
-
-      if (operationName == null) {
-        operationName = resourceName;
-      }
-
-      final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
-      boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
-
-      final int tagsSize =
-          mergedTracerTags.size()
-              + (null == tagLedger ? 0 : tagLedger.estimateSize())
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-              + (null == contextualTags ? 0 : contextualTags.size());
-
-      if (builderRequestContextDataAppSec != null) {
-        requestContextDataAppSec = builderRequestContextDataAppSec;
-      }
-      if (builderCiVisibilityContextData != null) {
-        ciVisibilityContextData = builderCiVisibilityContextData;
-      }
-      if (builderRequestContextDataIast != null) {
-        requestContextDataIast = builderRequestContextDataIast;
-      }
-
-      // some attributes are inherited from the parent
-      context =
-          new DDSpanContext(
-              traceId,
-              spanId,
-              parentSpanId,
-              parentServiceName,
-              serviceNameSource,
-              serviceName,
-              operationName,
-              resourceName,
-              samplingPriority,
-              origin,
-              baggage,
-              w3cBaggage,
-              errorFlag,
-              spanType,
-              tagsSize,
-              parentTraceCollector,
-              requestContextDataAppSec,
-              requestContextDataIast,
-              ciVisibilityContextData,
-              pathwayContext,
-              tracer.disableSamplingMechanismValidation,
-              propagationTags,
-              tracer.profilingContextIntegration,
-              tracer.injectBaggageAsTags,
-              tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
-
-      // By setting the tags on the context we apply decorators to any tags that have been set via
-      // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
-      // everything overrides them). The remaining contributors are applied last-wins; with
-      // `builderTagsPrecedence` enabled, `tagLedger` (the explicit builder tags) moves to last so
-      // it wins collisions instead of being overridden by `coreTags`/`rootSpanTags`/
-      // `contextualTags` -- see the PR description for the historical context on this ordering.
-      //
-      // mergedTracerTags is trace-level shared state and the precedence floor (everything below
-      // overrides it). When it carries no interceptable tags it is attached as a read-through
-      // PARENT at construction (shared by reference, no per-span copy). When it does need
-      // interception, copy its entries in (the interceptor's per-span side-effects can't be
-      // shared by reference).
-      if (mergedTracerTagsNeedsIntercept) {
-        context.setAllTags(mergedTracerTags, true);
-      }
-      if (spanPrototype != SpanPrototype.NONE) {
-        // Seed the prototype's constant tags + integration name as fallback defaults (span type was
-        // already seeded onto the builder). apply never clobbers, so tags set below still win, and
-        // this is the same seam decorator afterStart uses.
-        context.apply(spanPrototype);
-      }
-      if (tracer.builderTagsPrecedence) {
-        context.setAllTags(coreTags, coreTagsNeedsIntercept);
-        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
-        context.setAllTags(contextualTags);
-        context.setAllTags(tagLedger);
-      } else {
-        context.setAllTags(tagLedger);
-        context.setAllTags(coreTags, coreTagsNeedsIntercept);
-        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
-        context.setAllTags(contextualTags);
-      }
-      // Version is added later by the postProcessor (InternalTagsAdder), only if not already set
-      // during the request. Config version is kept out of the trace-level bundle (see
-      // withTracerTags), so this removal now only wipes a version set via the span builder —
-      // keeping the existing semantics where a builder-set version is replaced by the config
-      // version. Under read-through this is a cheap local removal (version isn't in the parent,
-      // so no tombstone).
-      context.removeTag(Tags.VERSION);
-      return context;
-    }
-  }
-
-  /** CoreSpanBuilder that can be used to produce multiple spans */
-  static final class MultiSpanBuilder extends CoreSpanBuilder {
-    MultiSpanBuilder(CoreTracer tracer, String instrumentationName, CharSequence operationName) {
-      super(tracer);
-      this.instrumentationName = instrumentationName;
-      this.operationName = operationName;
     }
 
     @Override
-    public AgentSpan start() {
-      return this.startImpl();
-    }
-  }
-
-  static final class ReusableSingleSpanBuilderThreadLocalCache
-      extends ThreadLocal<ReusableSingleSpanBuilder> {
-    private final CoreTracer tracer;
-
-    public ReusableSingleSpanBuilderThreadLocalCache(CoreTracer tracer) {
-      this.tracer = tracer;
+    public EndpointTracker onRootSpanStarted(AgentSpan root) {
+        if (!root.isOutbound()) {
+            return profilingContextIntegration.onRootSpanStarted(root);
+        }
+        return null;
     }
 
-    @Override
-    protected ReusableSingleSpanBuilder initialValue() {
-      return new ReusableSingleSpanBuilder(this.tracer);
+    public static class CoreTracerBuilder {
+
+        private Config config;
+        private String serviceName;
+        private SharedCommunicationObjects sharedCommunicationObjects;
+        private Writer writer;
+        private IdGenerationStrategy idGenerationStrategy;
+        private Sampler sampler;
+        private SingleSpanSampler singleSpanSampler;
+        private HttpCodec.Injector injector;
+        private HttpCodec.Extractor extractor;
+        private TagMap localRootSpanTags;
+        private TagMap defaultSpanTags;
+        private Map<String, String> serviceNameMappings;
+        private Map<String, String> taggedHeaders;
+        private Map<String, String> baggageMapping;
+        private int partialFlushMinSpans;
+        private StatsDClient statsDClient;
+        private HealthMetrics healthMetrics;
+        private TagInterceptor tagInterceptor;
+        private boolean strictTraceWrites;
+        private InstrumentationGateway instrumentationGateway;
+        private ServiceDiscoveryFactory serviceDiscoveryFactory;
+        private TimeSource timeSource;
+        private DataStreamsMonitoring dataStreamsMonitoring;
+        private ProfilingContextIntegration profilingContextIntegration = ProfilingContextIntegration.NoOp.INSTANCE;
+        private boolean reportInTracerFlare;
+        private boolean pollForTracingConfiguration;
+        private boolean injectBaggageAsTags;
+        private boolean injectLinksAsTags;
+        private boolean flushOnClose;
+
+        public CoreTracerBuilder serviceName(String serviceName) {
+            this.serviceName = serviceName;
+            return this;
+        }
+
+        public CoreTracerBuilder sharedCommunicationObjects(SharedCommunicationObjects sharedCommunicationObjects) {
+            this.sharedCommunicationObjects = sharedCommunicationObjects;
+            return this;
+        }
+
+        public CoreTracerBuilder writer(Writer writer) {
+            this.writer = writer;
+            return this;
+        }
+
+        public CoreTracerBuilder idGenerationStrategy(IdGenerationStrategy idGenerationStrategy) {
+            this.idGenerationStrategy = idGenerationStrategy;
+            return this;
+        }
+
+        public CoreTracerBuilder sampler(Sampler sampler) {
+            this.sampler = sampler;
+            return this;
+        }
+
+        public CoreTracerBuilder singleSpanSampler(SingleSpanSampler singleSpanSampler) {
+            this.singleSpanSampler = singleSpanSampler;
+            return this;
+        }
+
+        public CoreTracerBuilder injector(HttpCodec.Injector injector) {
+            this.injector = injector;
+            return this;
+        }
+
+        public CoreTracerBuilder extractor(HttpCodec.Extractor extractor) {
+            this.extractor = extractor;
+            return this;
+        }
+
+        public CoreTracerBuilder localRootSpanTags(Map<String, ?> localRootSpanTags) {
+            this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
+            return this;
+        }
+
+        public CoreTracerBuilder localRootSpanTags(TagMap tagMap) {
+            this.localRootSpanTags = tagMap.immutableCopy();
+            return this;
+        }
+
+        public CoreTracerBuilder defaultSpanTags(Map<String, ?> defaultSpanTags) {
+            this.defaultSpanTags = TagMap.fromMapImmutable(defaultSpanTags);
+            return this;
+        }
+
+        public CoreTracerBuilder defaultSpanTags(TagMap defaultSpanTags) {
+            this.defaultSpanTags = defaultSpanTags.immutableCopy();
+            return this;
+        }
+
+        public CoreTracerBuilder serviceNameMappings(Map<String, String> serviceNameMappings) {
+            this.serviceNameMappings = tryMakeImmutableMap(serviceNameMappings);
+            return this;
+        }
+
+        public CoreTracerBuilder taggedHeaders(Map<String, String> taggedHeaders) {
+            this.taggedHeaders = tryMakeImmutableMap(taggedHeaders);
+            return this;
+        }
+
+        public CoreTracerBuilder baggageMapping(Map<String, String> baggageMapping) {
+            this.baggageMapping = tryMakeImmutableMap(baggageMapping);
+            return this;
+        }
+
+        public CoreTracerBuilder partialFlushMinSpans(int partialFlushMinSpans) {
+            this.partialFlushMinSpans = partialFlushMinSpans;
+            return this;
+        }
+
+        public CoreTracerBuilder statsDClient(StatsDClient statsDClient) {
+            this.statsDClient = statsDClient;
+            return this;
+        }
+
+        public CoreTracerBuilder tagInterceptor(TagInterceptor tagInterceptor) {
+            this.tagInterceptor = tagInterceptor;
+            return this;
+        }
+
+        public CoreTracerBuilder healthMetrics(HealthMetrics healthMetrics) {
+            this.healthMetrics = healthMetrics;
+            return this;
+        }
+
+        public CoreTracerBuilder strictTraceWrites(boolean strictTraceWrites) {
+            this.strictTraceWrites = strictTraceWrites;
+            return this;
+        }
+
+        public CoreTracerBuilder instrumentationGateway(InstrumentationGateway instrumentationGateway) {
+            this.instrumentationGateway = instrumentationGateway;
+            return this;
+        }
+
+        public CoreTracerBuilder serviceDiscoveryFactory(ServiceDiscoveryFactory serviceDiscoveryFactory) {
+            this.serviceDiscoveryFactory = serviceDiscoveryFactory;
+            return this;
+        }
+
+        public CoreTracerBuilder timeSource(TimeSource timeSource) {
+            this.timeSource = timeSource;
+            return this;
+        }
+
+        public CoreTracerBuilder dataStreamsMonitoring(DataStreamsMonitoring dataStreamsMonitoring) {
+            this.dataStreamsMonitoring = dataStreamsMonitoring;
+            return this;
+        }
+
+        public CoreTracerBuilder profilingContextIntegration(ProfilingContextIntegration profilingContextIntegration) {
+            this.profilingContextIntegration = profilingContextIntegration;
+            return this;
+        }
+
+        public CoreTracerBuilder reportInTracerFlare() {
+            this.reportInTracerFlare = true;
+            return this;
+        }
+
+        public CoreTracerBuilder pollForTracingConfiguration() {
+            this.pollForTracingConfiguration = true;
+            return this;
+        }
+
+        public CoreTracerBuilder injectBaggageAsTags(boolean injectBaggageAsTags) {
+            this.injectBaggageAsTags = injectBaggageAsTags;
+            return this;
+        }
+
+        public CoreTracerBuilder injectLinksAsTags(boolean injectLinksAsTags) {
+            this.injectLinksAsTags = injectLinksAsTags;
+            return this;
+        }
+
+        public CoreTracerBuilder flushOnClose(boolean flushOnClose) {
+            this.flushOnClose = flushOnClose;
+            return this;
+        }
+
+        public CoreTracerBuilder() {
+            // Apply the default values from config.
+            config(Config.get());
+        }
+
+        public CoreTracerBuilder withProperties(final Properties properties) {
+            return config(Config.get(properties));
+        }
+
+        public CoreTracerBuilder config(final Config config) {
+            this.config = config;
+            serviceName(config.getServiceName());
+            // Explicitly skip setting writer to avoid allocating resources prematurely.
+            sampler(Sampler.Builder.forConfig(config, null));
+            singleSpanSampler(SingleSpanSampler.Builder.forConfig(config));
+            instrumentationGateway(new InstrumentationGateway());
+            injector(HttpCodec.createInjector(
+                    config, config.getTracePropagationStylesToInject(), invertMap(config.getBaggageMapping())));
+            // Explicitly skip setting scope manager because it depends on statsDClient
+            localRootSpanTags(config.getLocalRootSpanTags());
+            defaultSpanTags(withTracerTags(config.getMergedSpanTags(), config, null));
+            serviceNameMappings(config.getServiceMapping());
+            taggedHeaders(config.getRequestHeaderTags());
+            baggageMapping(config.getBaggageMapping());
+            partialFlushMinSpans(config.getPartialFlushMinSpans());
+            strictTraceWrites(config.isTraceStrictWritesEnabled());
+            injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
+            injectLinksAsTags(config.isInjectLinksAsTagsEnabled());
+            flushOnClose(config.isCiVisibilityEnabled());
+            return this;
+        }
+
+        public CoreTracer build() {
+            return new CoreTracer(
+                    config,
+                    serviceName,
+                    sharedCommunicationObjects,
+                    writer,
+                    idGenerationStrategy,
+                    sampler,
+                    singleSpanSampler,
+                    injector,
+                    extractor,
+                    localRootSpanTags,
+                    defaultSpanTags,
+                    serviceNameMappings,
+                    taggedHeaders,
+                    baggageMapping,
+                    partialFlushMinSpans,
+                    healthMetrics,
+                    tagInterceptor,
+                    strictTraceWrites,
+                    instrumentationGateway,
+                    serviceDiscoveryFactory,
+                    timeSource,
+                    dataStreamsMonitoring,
+                    profilingContextIntegration,
+                    reportInTracerFlare,
+                    pollForTracingConfiguration,
+                    injectBaggageAsTags,
+                    injectLinksAsTags,
+                    flushOnClose);
+        }
     }
-  }
 
-  /**
-   * Reusable CoreSpanBuilder that can be used to build one and only one span before being reset
-   *
-   * <p>{@link CoreTracer#singleSpanBuilder(String, CharSequence)} reuses instances of this object
-   * to reduce the overhead of span construction
-   */
-  static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
-    // Used to track whether the ReusableSingleSpanBuilder is actively being used
-    // ReusableSingleSpanBuilder becomes "inUse" after a succesful init/reset and remains "inUse"
-    // until "start" is called
-    boolean inUse;
-
-    ReusableSingleSpanBuilder(CoreTracer tracer) {
-      super(tracer);
-      this.inUse = false;
+    @Deprecated
+    private CoreTracer(
+            final Config config,
+            final String serviceName,
+            SharedCommunicationObjects sharedCommunicationObjects,
+            final Writer writer,
+            final IdGenerationStrategy idGenerationStrategy,
+            final Sampler sampler,
+            final SingleSpanSampler singleSpanSampler,
+            final HttpCodec.Injector injector,
+            final HttpCodec.Extractor extractor,
+            final Map<String, Object> localRootSpanTags,
+            final TagMap defaultSpanTags,
+            final Map<String, String> serviceNameMappings,
+            final Map<String, String> taggedHeaders,
+            final Map<String, String> baggageMapping,
+            final int partialFlushMinSpans,
+            final HealthMetrics healthMetrics,
+            final TagInterceptor tagInterceptor,
+            final boolean strictTraceWrites,
+            final InstrumentationGateway instrumentationGateway,
+            final TimeSource timeSource,
+            final DataStreamsMonitoring dataStreamsMonitoring,
+            final ProfilingContextIntegration profilingContextIntegration,
+            final boolean reportInTracerFlare,
+            final boolean pollForTracingConfiguration,
+            final boolean injectBaggageAsTags,
+            final boolean injectLinksAsTags,
+            final boolean flushOnClose) {
+        this(
+                config,
+                serviceName,
+                sharedCommunicationObjects,
+                writer,
+                idGenerationStrategy,
+                sampler,
+                singleSpanSampler,
+                injector,
+                extractor,
+                TagMap.fromMap(localRootSpanTags),
+                defaultSpanTags,
+                serviceNameMappings,
+                taggedHeaders,
+                baggageMapping,
+                partialFlushMinSpans,
+                healthMetrics,
+                tagInterceptor,
+                strictTraceWrites,
+                instrumentationGateway,
+                null,
+                timeSource,
+                dataStreamsMonitoring,
+                profilingContextIntegration,
+                reportInTracerFlare,
+                pollForTracingConfiguration,
+                injectBaggageAsTags,
+                injectLinksAsTags,
+                flushOnClose);
     }
 
-    /** Similar to reset, but only valid on first use */
-    void init(String instrumentationName, CharSequence operationName) {
-      assert !this.inUse;
+    // These field names must be stable to ensure the builder api is stable.
+    private CoreTracer(
+            final Config config,
+            final String serviceName,
+            SharedCommunicationObjects sharedCommunicationObjects,
+            final Writer writer,
+            final IdGenerationStrategy idGenerationStrategy,
+            final Sampler sampler,
+            final SingleSpanSampler singleSpanSampler,
+            final HttpCodec.Injector injector,
+            final HttpCodec.Extractor extractor,
+            final TagMap localRootSpanTags,
+            final TagMap defaultSpanTags,
+            final Map<String, String> serviceNameMappings,
+            final Map<String, String> taggedHeaders,
+            final Map<String, String> baggageMapping,
+            final int partialFlushMinSpans,
+            final HealthMetrics healthMetrics,
+            final TagInterceptor tagInterceptor,
+            final boolean strictTraceWrites,
+            final InstrumentationGateway instrumentationGateway,
+            final ServiceDiscoveryFactory serviceDiscoveryFactory,
+            final TimeSource timeSource,
+            final DataStreamsMonitoring dataStreamsMonitoring,
+            final ProfilingContextIntegration profilingContextIntegration,
+            final boolean reportInTracerFlare,
+            final boolean pollForTracingConfiguration,
+            final boolean injectBaggageAsTags,
+            final boolean injectLinksAsTags,
+            final boolean flushOnClose) {
 
-      this.instrumentationName = instrumentationName;
-      this.operationName = operationName;
+        assert localRootSpanTags != null;
+        assert defaultSpanTags != null;
+        assert serviceNameMappings != null;
+        assert taggedHeaders != null;
+        assert baggageMapping != null;
 
-      this.inUse = true;
+        // preload this enum to avoid triggering classloading on the hot path
+        TraceCollector.PublishState.values();
+
+        if (reportInTracerFlare) {
+            TracerFlare.addReporter(this);
+        }
+        this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
+        startTimeNano = this.timeSource.getCurrentTimeNanos();
+        startNanoTicks = this.timeSource.getNanoTicks();
+        clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
+        lastSyncTicks = startNanoTicks;
+
+        this.serviceName = serviceName;
+
+        this.initialConfig = config;
+        this.apmTracingEnabled = config.isApmTracingEnabled();
+        this.initialSampler = sampler;
+        this.agentSampler = sampler.agentSampler();
+
+        // Get initial Trace Sampling Rules from config
+        String traceSamplingRulesJson = config.getTraceSamplingRules();
+        TraceSamplingRules traceSamplingRules;
+        if (traceSamplingRulesJson == null) {
+            traceSamplingRulesJson = "[]";
+            traceSamplingRules = TraceSamplingRules.EMPTY;
+        } else {
+            traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
+        }
+
+        DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
+        String dataStreamsTransactionExtractorsJson = config.getDataStreamsTransactionExtractors();
+        if (dataStreamsTransactionExtractorsJson == null) {
+            dataStreamsTransactionExtractors = DataStreamsTransactionExtractors.EMPTY;
+        } else {
+            dataStreamsTransactionExtractors =
+                    DataStreamsTransactionExtractors.deserialize(dataStreamsTransactionExtractorsJson);
+        }
+
+        // Get initial Span Sampling Rules from config
+        String spanSamplingRulesJson = config.getSpanSamplingRules();
+        String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
+        SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
+        if (spanSamplingRulesJson != null) {
+            spanSamplingRules = SpanSamplingRules.deserialize(spanSamplingRulesJson);
+        } else if (spanSamplingRulesFile != null) {
+            spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
+        }
+
+        this.tagInterceptor = null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
+
+        this.defaultSpanTags = defaultSpanTags;
+        this.defaultSpanTagsNeedsIntercept = this.tagInterceptor.needsIntercept(this.defaultSpanTags);
+
+        this.dynamicConfig = DynamicConfig.create(ConfigSnapshot::new)
+                .setTracingEnabled(true) // implied by installation of CoreTracer
+                .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
+                .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
+                .setDataStreamsEnabled(config.isDataStreamsEnabled())
+                .setServiceMapping(serviceNameMappings)
+                .setHeaderTags(taggedHeaders)
+                .setBaggageMapping(baggageMapping)
+                .setTraceSampleRate(config.getTraceSampleRate())
+                .setSpanSamplingRules(spanSamplingRules.getRules())
+                .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
+                .setTracingTags(config.getMergedSpanTags())
+                .setDataStreamsTransactionExtractors(dataStreamsTransactionExtractors.getExtractors())
+                .apply();
+
+        this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
+        this.partialFlushMinSpans = partialFlushMinSpans;
+        this.idGenerationStrategy =
+                null == idGenerationStrategy ? Config.get().getIdGenerationStrategy() : idGenerationStrategy;
+
+        this.healthMetrics = healthMetrics != null
+                ? healthMetrics
+                : (config.isHealthMetricsEnabled()
+                        ? new TracerHealthMetrics(AgentMeter.statsDClient())
+                        : HealthMetrics.NO_OP);
+        this.healthMetrics.start();
+
+        performanceMonitoring = config.isPerfMetricsEnabled() ? AgentMeter.monitoring() : Monitoring.DISABLED;
+
+        traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
+
+        scopeManager = new ContinuableScopeManager(
+                config.getScopeDepthLimit(),
+                config.isScopeStrictMode(),
+                profilingContextIntegration,
+                this.healthMetrics);
+
+        externalAgentLauncher = new ExternalAgentLauncher(config);
+
+        disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
+
+        if (sharedCommunicationObjects == null) {
+            sharedCommunicationObjects = new SharedCommunicationObjects();
+        }
+        sharedCommunicationObjects.monitoring = AgentMeter.monitoring();
+        sharedCommunicationObjects.createRemaining(config);
+
+        tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
+        if (pollForTracingConfiguration) {
+            tracingConfigPoller.start(config, sharedCommunicationObjects);
+        }
+
+        if (writer == null) {
+            this.writer = WriterFactory.createWriter(
+                    config, sharedCommunicationObjects, sampler, singleSpanSampler, this.healthMetrics);
+        } else {
+            this.writer = writer;
+        }
+
+        DDAgentFeaturesDiscovery featuresDiscovery = sharedCommunicationObjects.featuresDiscovery(config);
+        if (config.isCiVisibilityEnabled()) {
+            // ensure updated discovery and sync if the another discovery currently being done
+            featuresDiscovery.discoverIfOutdated();
+        }
+
+        boolean payloadFilesEnabled =
+                config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled();
+        if (config.isCiVisibilityEnabled()
+                && (config.isCiVisibilityAgentlessEnabled()
+                        || payloadFilesEnabled
+                        || featuresDiscovery.supportsEvpProxy())) {
+            pendingTraceBuffer = PendingTraceBuffer.discarding();
+            traceCollectorFactory = new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
+        } else {
+            pendingTraceBuffer = strictTraceWrites
+                    ? PendingTraceBuffer.discarding()
+                    : PendingTraceBuffer.delaying(
+                            this.timeSource, config, sharedCommunicationObjects, this.healthMetrics);
+            traceCollectorFactory = new PendingTrace.Factory(
+                    this, pendingTraceBuffer, this.timeSource, strictTraceWrites, this.healthMetrics);
+        }
+        pendingTraceBuffer.start();
+
+        sharedCommunicationObjects.whenReady(this.writer::start);
+        // temporary assign a no-op instance. The final one will be resolved when the discovery will be
+        // allowed
+        metricsAggregator = NoOpMetricsAggregator.INSTANCE;
+        final SharedCommunicationObjects sco = sharedCommunicationObjects;
+        // asynchronously create these aggregator/export components to avoid triggering
+        // expensive classloading during the tracer initialisation.
+        sharedCommunicationObjects.whenReady(() -> AgentTaskScheduler.get().execute(() -> {
+            startMetricsAggregation(config, sco);
+            maybeStartLogsExport(config);
+        }));
+
+        if (dataStreamsMonitoring == null) {
+            // Avoid DSM in bazel hermetic mode
+            this.dataStreamsMonitoring = payloadFilesEnabled
+                    ? DisabledDataStreamsMonitoring.INSTANCE
+                    : new DefaultDataStreamsMonitoring(
+                            config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
+        } else {
+            this.dataStreamsMonitoring = dataStreamsMonitoring;
+        }
+
+        sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
+
+        propagationTagsFactory = PropagationTags.factory(config);
+
+        builderTagsPrecedence = config.isTraceBuilderTagsPrecedenceEnabled();
+
+        // Register context propagators
+        HttpCodec.Extractor baseExtractor =
+                extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
+        OrgGuard orgGuard = OrgGuard.create(
+                config, featuresDiscovery::getOrgPropagationMarker, propagationTagsFactory, this.healthMetrics);
+        HttpCodec.Extractor tracingExtractor = orgGuard.decorateExtractor(baseExtractor);
+        HttpCodec.Injector tracingInjector = orgGuard.decorateInjector(injector);
+        TracingPropagator tracingPropagator =
+                new TracingPropagator(config.isApmTracingEnabled(), tracingInjector, tracingExtractor);
+        Propagators.register(TRACING_CONCERN, tracingPropagator);
+        Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
+        if (config.isDataStreamsEnabled()) {
+            Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
+        }
+        if (config.isBaggagePropagationEnabled() && config.getTracePropagationBehaviorExtract() != IGNORE) {
+            Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
+        }
+        if (config.isInferredProxyPropagationEnabled()) {
+            Propagators.register(INFERRED_PROXY_CONCERN, new InferredProxyPropagator());
+        }
+
+        if (config.isCiVisibilityEnabled()) {
+            if (config.isCiVisibilityTraceSanitationEnabled()) {
+                addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+            }
+
+            if (config.isCiVisibilityAgentlessEnabled() || BazelMode.get().isPayloadFilesEnabled()) {
+                addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
+            } else {
+                featuresDiscovery.discoverIfOutdated();
+                if (!featuresDiscovery.supportsEvpProxy()) {
+                    // CI Test Cycle protocol is not available
+                    addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
+                }
+            }
+
+            if (config.isCiVisibilityTelemetryEnabled()) {
+                addTraceInterceptor(new CiVisibilityTelemetryInterceptor());
+            }
+        }
+
+        if (config.isTraceGitMetadataEnabled()) {
+            addTraceInterceptor(GitMetadataTraceInterceptor.INSTANCE);
+        }
+
+        if (config.isTraceKeepLatencyThresholdEnabled()) {
+            addTraceInterceptor(LatencyTraceInterceptor.INSTANCE);
+        }
+
+        this.instrumentationGateway = instrumentationGateway;
+        callbackProviderAppSec = instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
+        callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
+        universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
+
+        shutdownCallback = new ShutdownHook(this);
+        try {
+            Runtime.getRuntime().addShutdownHook(shutdownCallback);
+        } catch (final IllegalStateException ex) {
+            // The JVM is already shutting down.
+        }
+
+        registerClassLoader(ClassLoader.getSystemClassLoader());
+
+        StatusLogger.logStatus(config);
+
+        this.profilingContextIntegration = profilingContextIntegration;
+        this.injectBaggageAsTags = injectBaggageAsTags;
+        this.injectLinksAsTags = injectLinksAsTags;
+        this.flushOnClose = flushOnClose;
+        this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
+        final TagMap frozenLocalRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
+        this.localRootSpanTags = new LocalRootSpanTags(
+                frozenLocalRootSpanTags, this.tagInterceptor.needsIntercept(frozenLocalRootSpanTags));
+        if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
+            // Deferred integrations run this later (or never, if construction fails).
+            profilingContextIntegration.whenAvailable(this::stampProfilingContextEngine);
+        }
+        if (serviceDiscoveryFactory != null) {
+            AgentTaskScheduler.get()
+                    .schedule(
+                            () -> {
+                                final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
+                                if (serviceDiscovery != null) {
+                                    // JNA can do ldconfig and other commands. Those are hidden since internal.
+                                    try (final TraceScope blackhole = muteTracing()) {
+                                        serviceDiscovery.writeTracerMetadata(config);
+                                    }
+                                }
+                            },
+                            1,
+                            SECONDS);
+        }
     }
 
     /**
-     * Resets the {@link ReusableSingleSpanBuilder}, so it may be used to build another single span
-     *
-     * @returns <code>true</code> if the reset was successful, otherwise <code>false</code> if this
-     *     <code>ReusableSingleSpanBuilder</code> is still "in-use".
+     * Adds the profiling context engine tag to {@link #localRootSpanTags}; runs at most once per
+     * tracer.
      */
-    final boolean reset(String instrumentationName, CharSequence operationName) {
-      if (this.inUse) return false;
-      this.inUse = true;
-
-      this.instrumentationName = instrumentationName;
-      this.operationName = operationName;
-
-      if (this.tagLedger != null) this.tagLedger.reset();
-      this.spanPrototype = SpanPrototype.NONE;
-      this.timestampMicro = 0L;
-      this.parent = null;
-      this.serviceName = null;
-      this.resourceName = null;
-      this.errorFlag = false;
-      this.spanType = null;
-      this.ignoreScope = false;
-      this.builderRequestContextDataAppSec = null;
-      this.builderRequestContextDataIast = null;
-      this.builderCiVisibilityContextData = null;
-      this.links = null;
-      this.spanId = 0L;
-
-      return true;
+    private void stampProfilingContextEngine() {
+        TagMap tags = TagMap.fromMap(this.localRootSpanTags.tags);
+        tags.set(PROFILING_CONTEXT_ENGINE, this.profilingContextIntegration.name());
+        TagMap frozenTags = tags.freeze();
+        this.localRootSpanTags = new LocalRootSpanTags(frozenTags, this.tagInterceptor.needsIntercept(frozenTags));
     }
 
-    /*
-     * Clears the inUse boolean, so this ReusableSpanBuilder can be reset
-     */
+    private void startMetricsAggregation(Config config, SharedCommunicationObjects sco) {
+        metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
+        // Schedule the metrics aggregator to begin reporting after a random delay of
+        // 1 to 10 seconds (using milliseconds granularity.)
+        // This avoids a fleet of traced applications starting at the same time from
+        // sending metrics in sync.
+        AgentTaskScheduler.get().scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+
+        if (config.isMetricsOtlpExporterEnabled()) {
+            OtlpMetricsService.INSTANCE.start();
+        }
+    }
+
+    private void maybeStartLogsExport(Config config) {
+        if (config.isLogsOtlpExporterEnabled()) {
+            OtlpLogsService.INSTANCE.start();
+        }
+    }
+
+    /** Used by AgentTestRunner to inject configuration into the test tracer. */
+    public void rebuildTraceConfig(Config config) {
+        dynamicConfig
+                .initial()
+                .setTracingEnabled(true) // implied by installation of CoreTracer
+                .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
+                .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
+                .setDataStreamsEnabled(config.isDataStreamsEnabled())
+                .setServiceMapping(config.getServiceMapping())
+                .setHeaderTags(config.getRequestHeaderTags())
+                .setBaggageMapping(config.getBaggageMapping())
+                .setTraceSampleRate(config.getTraceSampleRate())
+                .setTracingTags(config.getGlobalTags())
+                .apply();
+    }
+
     @Override
-    public AgentSpan start() {
-      assert this.inUse
-          : "ReusableSingleSpanBuilder not reset properly -- multiple span construction?";
-
-      AgentSpan span = this.startImpl();
-      this.inUse = false;
-      return span;
-    }
-  }
-
-  /**
-   * Implements a copy on write array list where interceptors are added to the list ordered by
-   * TraceInterceptor priority
-   */
-  static final class TraceInterceptors {
-    private volatile TraceInterceptor[] interceptors = {};
-
-    public boolean isEmpty() {
-      return (this.interceptors.length == 0);
-    }
-
-    public TraceInterceptor[] interceptors() {
-      return this.interceptors;
+    protected void finalize() {
+        if (null != shutdownCallback) {
+            try {
+                shutdownCallback.run();
+                Runtime.getRuntime().removeShutdownHook(shutdownCallback);
+            } catch (final IllegalStateException e) {
+                // Do nothing.  Already shutting down
+            } catch (final Exception e) {
+                log.error("Error while finalizing DDTracer.", e);
+            }
+        }
     }
 
     /**
-     * Adds the interceptor to the list; returns any colliding interceptor with the same priority
+     * Only visible for benchmarking purposes
      *
-     * <ul>
-     *   <li>returns null - if there is no collision and the interceptor was added
-     *   <li>returns the colliding interceptor - if not added
-     * </ul>
+     * @return a PendingTrace
      */
-    public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
-      // Interceptors is always kept in sorted order
-
-      // This method performs an insertion sort by scanning interceptors
-      // and finding the correct insertion position
-
-      // Since interceptors isn't expected to be large, not using a binary search
-      // Simple search should provide better cache utilization
-      TraceInterceptor[] interceptors = this.interceptors;
-
-      int newPriority = newInterceptor.priority();
-
-      int insertionIndex = interceptors.length;
-      for (int i = 0; i < interceptors.length; ++i) {
-        TraceInterceptor curInterceptor = interceptors[i];
-        int curPriority = curInterceptor.priority();
-
-        if (curPriority > newPriority) {
-          insertionIndex = i;
-          break;
-        } else if (curPriority == newPriority) {
-          return curInterceptor;
-        }
-      }
-
-      // While not immediately obvious, this code does handle when interceptors was previously empty
-      // In that case, the insertionIndex will be 0 and length will 0, so neither if / arraycopy
-      // blocks are run
-      TraceInterceptor[] newInterceptors = new TraceInterceptor[interceptors.length + 1];
-      if (insertionIndex != 0) {
-        System.arraycopy(interceptors, 0, newInterceptors, 0, insertionIndex);
-      }
-      newInterceptors[insertionIndex] = newInterceptor;
-      if (insertionIndex != interceptors.length) {
-        System.arraycopy(
-            interceptors,
-            insertionIndex,
-            newInterceptors,
-            insertionIndex + 1,
-            interceptors.length - insertionIndex);
-      }
-      this.interceptors = newInterceptors;
-      return null;
+    public TraceCollector createTraceCollector(DDTraceId id) {
+        return traceCollectorFactory.create(id);
     }
-  }
 
-  private static class ShutdownHook extends Thread {
-    private final WeakReference<CoreTracer> reference;
+    TraceCollector createTraceCollector(DDTraceId id, ConfigSnapshot traceConfig) {
+        return traceCollectorFactory.create(id, traceConfig);
+    }
 
-    private ShutdownHook(final CoreTracer tracer) {
-      super(AGENT_THREAD_GROUP, "dd-tracer-shutdown-hook");
-      reference = new WeakReference<>(tracer);
+    /**
+     * If an application is using a non-system classloader, that classloader should be registered
+     * here. Due to the way Spring Boot structures its' executable jar, this might log some warnings.
+     *
+     * @param classLoader to register.
+     */
+    private void registerClassLoader(final ClassLoader classLoader) {
+        try {
+            for (final TraceInterceptor interceptor : ServiceLoader.load(TraceInterceptor.class, classLoader)) {
+                addTraceInterceptor(interceptor);
+            }
+        } catch (final ServiceConfigurationError e) {
+            log.warn("Problem loading TraceInterceptor for classLoader: {}", classLoader, e);
+        }
+    }
+
+    /**
+     * Timestamp in nanoseconds for the current {@code nanoTicks}.
+     *
+     * <p>Note: it is not possible to get 'real' nanosecond time. This method uses tracer start time
+     * (with millisecond precision) as a reference and applies relative time with nanosecond precision
+     * after that. This means time measured with same Tracer in different Spans is relatively correct
+     * with nanosecond precision.
+     *
+     * @param nanoTicks as returned by {@link TimeSource#getNanoTicks()}
+     * @return timestamp in nanoseconds
+     */
+    long getTimeWithNanoTicks(long nanoTicks) {
+        long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+        if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
+            correctCounterDrift(computedNanoTime);
+            lastSyncTicks = nanoTicks;
+        }
+        return computedNanoTime + counterDrift;
+    }
+
+    /**
+     * Computes {@link #counterDrift} corrected against {@code computedNanoTime}, gated by a 1ms
+     * threshold to avoid regressing the clock on {@link SystemTimeSource}'s millisecond precision.
+     */
+    private void correctCounterDrift(long computedNanoTime) {
+        long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
+        if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
+            counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
+        }
+    }
+
+    /**
+     * AWS Lambda SnapStart restores a checkpointed JVM, potentially hours or days later, without
+     * {@link System#nanoTime()} accounting for the frozen duration. That can leave the computed time
+     * stale for longer than {@link #getTimeWithNanoTicks}'s periodic self-correction can catch, as
+     * that's gated on ticks elapsed rather than wall-clock time. Called once per Lambda invocation,
+     * before any span for it is created, so it's a cheap no-op outside SnapStart.
+     *
+     * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
+     */
+    @VisibleForTesting
+    void maybeResyncClockForLambdaInvocation() {
+        if (!initialConfig.isLambdaSnapStartClockResyncEnabled()) {
+            return;
+        }
+        long nanoTicks = timeSource.getNanoTicks();
+        long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+        correctCounterDrift(computedNanoTime);
+        lastSyncTicks = nanoTicks;
     }
 
     @Override
-    public void run() {
-      final CoreTracer tracer = reference.get();
-      if (tracer != null) {
-        tracer.close();
-      }
+    public CoreSpanBuilder buildSpan(final String instrumentationName, final CharSequence operationName) {
+        return createMultiSpanBuilder(instrumentationName, operationName);
     }
-  }
 
-  protected class ConfigSnapshot extends DynamicConfig.Snapshot {
-    final Sampler sampler;
-
-    final TagMap mergedTracerTags;
-    final boolean mergedTracerTagsNeedsIntercept;
-
-    protected ConfigSnapshot(
-        DynamicConfig<ConfigSnapshot>.Builder builder, ConfigSnapshot oldSnapshot) {
-      super(builder, oldSnapshot);
-
-      if (null == oldSnapshot) {
-        sampler = CoreTracer.this.initialSampler;
-      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())
-          && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
-        sampler = oldSnapshot.sampler;
-      } else {
-        // Reuse the agent sampler: registration for agent rates happens once, at construction.
-        sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
-      }
-
-      if (null == oldSnapshot) {
-        mergedTracerTags = CoreTracer.this.defaultSpanTags.immutableCopy();
-        this.mergedTracerTagsNeedsIntercept = CoreTracer.this.defaultSpanTagsNeedsIntercept;
-      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())) {
-        mergedTracerTags = oldSnapshot.mergedTracerTags;
-        mergedTracerTagsNeedsIntercept = oldSnapshot.mergedTracerTagsNeedsIntercept;
-      } else {
-        mergedTracerTags = withTracerTags(getTracingTags(), CoreTracer.this.initialConfig, this);
-        mergedTracerTagsNeedsIntercept =
-            CoreTracer.this.tagInterceptor.needsIntercept(mergedTracerTags);
-      }
+    /**
+     * Seeds identity (instrumentation name, operation, span type) and constant tags from a prototype.
+     * {@code operationName} overrides the prototype's when non-null — the explicit value wins, the
+     * prototype is the fallback. The prototype's tags are seeded during {@link CoreSpanBuilder}
+     * construction just before the builder's own tags, so explicit tags override prototype constants.
+     */
+    @Override
+    public CoreSpanBuilder buildSpan(@Nonnull final SpanPrototype prototype, CharSequence operationName) {
+        if (operationName == null) {
+            operationName = prototype.operationName();
+        }
+        CoreSpanBuilder builder = createMultiSpanBuilder(prototype.instrumentationName(), operationName);
+        builder.spanPrototype = prototype;
+        if (prototype.spanType() != null) {
+            builder.spanType = prototype.spanType();
+        }
+        return builder;
     }
-  }
 
-  /**
-   * Tags added by the tracer to all spans; combines user-supplied tags with tracer-defined tags.
-   */
-  static TagMap withTracerTags(
-      Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
-    final TagMap result = TagMap.create(userSpanTags.size() + 5);
-    result.putAll(userSpanTags);
-    // Version is conditionally managed by InternalTagsAdder (added only when service == DD_SERVICE
-    // and not set during the request), so keep it OUT of the trace-level bundle. This matters under
-    // read-through: the bundle becomes a shared parent, and a per-span removeTag(VERSION) on a key
-    // that lived in the parent would mint a per-span tombstone. With version excluded here, the
-    // per-span removeTag (retained, to wipe a builder-set version) is a cheap local op, never a
-    // tombstone.
-    //
-    // EXCEPTION: when `version` is a split-service tag, the TagInterceptor derives the service name
-    // from it, so it must reach the interceptor. Keeping it in the bundle forces the intercepting
-    // seed path (a split tag makes the bundle needsIntercept=true -> copied, not a read-through
-    // parent), where the retained removeTag(VERSION) still deletes only a local copy -- so the
-    // split
-    // side-effect fires and no per-span tombstone is minted either way.
-    //
-    // Cold path: withTracerTags runs at setup / config-change, not per span (mergedTracerTags is
-    // cached on the config snapshot), so this getSplitByTags() lookup needn't be hoisted.
-    if (config == null || !config.getSplitByTags().contains(Tags.VERSION)) {
-      result.remove(Tags.VERSION);
+    MultiSpanBuilder createMultiSpanBuilder(final String instrumentationName, final CharSequence operationName) {
+        return new MultiSpanBuilder(this, instrumentationName, operationName);
     }
-    if (null != config) { // static
-      if (!config.getEnv().isEmpty()) {
-        result.set("env", config.getEnv());
-      }
-      if (config.isDataJobsEnabled()) {
-        result.set(DJM_ENABLED, 1);
-      }
-      if (config.isDataStreamsEnabled()) {
-        result.set(DSM_ENABLED, 1);
-      }
+
+    @Override
+    public CoreSpanBuilder singleSpanBuilder(final String instrumentationName, final CharSequence operationName) {
+        return SPAN_BUILDER_REUSE_ENABLED
+                ? reuseSingleSpanBuilder(instrumentationName, operationName)
+                : createMultiSpanBuilder(instrumentationName, operationName);
     }
-    if (null != traceConfig) { // dynamic
-      if (traceConfig.isDataStreamsEnabled()) {
-        result.set(DSM_ENABLED, 1);
-      } else {
-        result.remove(DSM_ENABLED);
-      }
+
+    ReusableSingleSpanBuilder createSingleSpanBuilder(
+            final String instrumentationName, final CharSequence oprationName) {
+        ReusableSingleSpanBuilder singleSpanBuilder = new ReusableSingleSpanBuilder(this);
+        singleSpanBuilder.init(instrumentationName, oprationName);
+        return singleSpanBuilder;
     }
-    return result.freeze();
-  }
 
-  @Override
-  public Context currentContext() {
-    return scopeManager.currentContext();
-  }
+    CoreSpanBuilder reuseSingleSpanBuilder(final String instrumentationName, final CharSequence operationName) {
+        return reuseSingleSpanBuilder(this, spanBuilderThreadLocalCache, instrumentationName, operationName);
+    }
 
-  @Override
-  public ContextScope attach(Context context) {
-    return scopeManager.attach(context);
-  }
+    static final ReusableSingleSpanBuilder reuseSingleSpanBuilder(
+            final CoreTracer tracer,
+            final ReusableSingleSpanBuilderThreadLocalCache tlCache,
+            final String instrumentationName,
+            final CharSequence operationName) {
+        if (ThreadSupport.isVirtual()) {
+            // Since virtual threads are created and destroyed often,
+            // cautiously decided not to create a thread local for the virtual threads.
 
-  @Override
-  public Context swap(Context context) {
-    return scopeManager.swap(context);
-  }
+            // TODO: This could probably be improved by having a single thread local that
+            // holds the core things that we need for tracing.  e.g. context, etc
+            return tracer.createSingleSpanBuilder(instrumentationName, operationName);
+        }
 
-  @Override
-  public ContextContinuation capture(Context context) {
-    return scopeManager.capture(context);
-  }
+        // retrieve the thread's typical SpanBuilder and try to reset it
+        // reset will fail if the ReusableSingleSpanBuilder is still "in-use"
+        ReusableSingleSpanBuilder tlSpanBuilder = tlCache.get();
+        boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
+        if (wasReset) return tlSpanBuilder;
+
+        // TODO: counter for how often the fallback is used?
+        ReusableSingleSpanBuilder newSpanBuilder = tracer.createSingleSpanBuilder(instrumentationName, operationName);
+
+        // DQH - Debated how best to handle the case of someone requesting a SpanBuilder
+        // and then not using it.  Without the ability to replace the cached SpanBuilder,
+        // that case could result in permanently burning the cache for a given thread.
+
+        // That could be solved with additional logic during ReusableSingleSpanBuilder#start
+        // that checks to see if the cached Builder is in use and then replaces it
+        // with the freed Builder, but that would put extra logic in the common path.
+
+        // Instead of making the release process more complicated, I'm chosing to just
+        // override here when we know we're already in an uncommon path.
+        tlCache.set(newSpanBuilder);
+
+        return newSpanBuilder;
+    }
+
+    @Override
+    public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
+        return CoreSpanBuilder.startSpan(
+                this,
+                instrumentationName,
+                spanName,
+                null,
+                CoreSpanBuilder.USE_SCOPE,
+                CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
+    }
+
+    @Override
+    public AgentSpan startSpan(
+            final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+        return CoreSpanBuilder.startSpan(
+                this, instrumentationName, spanName, null, CoreSpanBuilder.USE_SCOPE, startTimeMicros);
+    }
+
+    @Override
+    public AgentSpan startSpan(String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
+        return CoreSpanBuilder.startSpan(
+                this,
+                instrumentationName,
+                spanName,
+                parent,
+                CoreSpanBuilder.IGNORE_SCOPE,
+                CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
+    }
+
+    @Override
+    public AgentSpan startSpan(
+            final String instrumentationName,
+            final CharSequence spanName,
+            final AgentSpanContext parent,
+            final long startTimeMicros) {
+        return CoreSpanBuilder.startSpan(
+                this, instrumentationName, spanName, parent, CoreSpanBuilder.IGNORE_SCOPE, startTimeMicros);
+    }
+
+    @Override
+    public AgentSpan startSpan(@Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+        return CoreSpanBuilder.startSpan(
+                this,
+                prototype,
+                operationName != null ? operationName : prototype.operationName(),
+                CoreSpanBuilder.USE_SCOPE,
+                CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
+    }
+
+    @Override
+    public ContextScope activateSpan(AgentSpan span) {
+        return scopeManager.activateSpan(span);
+    }
+
+    @Override
+    public ContextScope activateManualSpan(final AgentSpan span) {
+        return scopeManager.activateManualSpan(span);
+    }
+
+    @Override
+    @SuppressWarnings("resource")
+    public void activateSpanWithoutScope(AgentSpan span) {
+        scopeManager.activateSpan(span);
+    }
+
+    @Override
+    public boolean isAsyncPropagationEnabled() {
+        return scopeManager.isAsyncPropagationEnabled();
+    }
+
+    @Override
+    public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+        scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
+    }
+
+    @Override
+    public void closePrevious(boolean finishSpan) {
+        if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+            throw new IllegalStateException(
+                    "closePrevious must not be called when context swap based logic is enabled");
+        }
+        scopeManager.closePrevious(finishSpan);
+    }
+
+    @Override
+    public ContextScope activateNext(AgentSpan span) {
+        if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+            throw new IllegalStateException("activateNext must not be called when context swap based logic is enabled");
+        }
+        return scopeManager.activateNext(span);
+    }
+
+    public TagInterceptor getTagInterceptor() {
+        return tagInterceptor;
+    }
+
+    public int getPartialFlushMinSpans() {
+        return partialFlushMinSpans;
+    }
+
+    @Override
+    public AgentSpan activeSpan() {
+        return scopeManager.activeSpan();
+    }
+
+    @Override
+    public void checkpointActiveForRollback() {
+        if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+            throw new IllegalStateException(
+                    "checkpointActiveForRollback must not be called when context swap based logic is enabled");
+        }
+        this.scopeManager.checkpointActiveForRollback();
+    }
+
+    @Override
+    public void rollbackActiveToCheckpoint() {
+        if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+            throw new IllegalStateException(
+                    "rollbackActiveToCheckpoint must not be called when context swap based logic is enabled");
+        }
+        this.scopeManager.rollbackActiveToCheckpoint();
+    }
+
+    @Override
+    public void closeActive() {
+        ContextScope activeScope = this.scopeManager.active();
+        if (activeScope != null) {
+            activeScope.close();
+        }
+    }
+
+    @Override
+    public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+        maybeResyncClockForLambdaInvocation();
+
+        // Get context from AppSec
+        AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
+
+        // Get context from extension
+        AgentSpanContext extensionContext = LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
+
+        // Merge contexts
+        return LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
+    }
+
+    @Override
+    public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
+        LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
+    }
+
+    @Override
+    public void notifyAppSecEnd(AgentSpan span, Object result) {
+        try {
+            LambdaAppSecHandler.processResponseData(span, result);
+        } finally {
+            LambdaAppSecHandler.processRequestEnd(span);
+        }
+    }
+
+    @Override
+    public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
+        return dataStreamsMonitoring;
+    }
+
+    private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
+
+    /**
+     * We use the sampler to know if the trace has to be reported/written. The sampler is called on
+     * the first span (root span) of the trace. If the trace is marked as a sample, we report it.
+     *
+     * @param trace a list of the spans related to the same trace
+     */
+    void write(final SpanList trace) {
+        if (trace.isEmpty() || !trace.get(0).traceConfig().isTraceEnabled()) {
+            return;
+        }
+        List<DDSpan> writtenTrace = interceptCompleteTrace(trace);
+        if (writtenTrace.isEmpty()) {
+            return;
+        }
+
+        // run early tag postprocessors before publishing to the metrics writer since peer / base
+        // service are needed
+
+        // DQH - Using forEach avoids ArrayList$Iter allocation
+        writtenTrace.forEach(DDSpan::processServiceTags);
+
+        boolean forceKeep = metricsAggregator.publish(writtenTrace);
+
+        TraceCollector traceCollector = writtenTrace.get(0).spanContext().getTraceCollector();
+        traceCollector.setSamplingPriorityIfNecessary();
+
+        DDSpan rootSpan = traceCollector.getRootSpan();
+        DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
+        spanToSample.forceKeep(forceKeep);
+        boolean published = forceKeep || traceCollector.sample(spanToSample);
+        if (published) {
+            if (!apmTracingEnabled) {
+                // Stamp the billing marker on every span of each exported chunk so the intake does not bill
+                // APM host usage.
+                for (int i = 0; i < writtenTrace.size(); i++) {
+                    writtenTrace.get(i).setTag(APM_ENABLED, 0);
+                }
+            }
+            writer.write(writtenTrace);
+        } else {
+            // with span streaming this won't work - it needs to be changed
+            // to track an effective sampling rate instead, however, tests
+            // checking that a hard reference on a continuation prevents
+            // reporting fail without this, so will need to be fixed first.
+            writer.incrementDropCounts(writtenTrace.size());
+        }
+        if (null != rootSpan) {
+            onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
+        }
+    }
+
+    private List<DDSpan> interceptCompleteTrace(SpanList originalTrace) {
+        return interceptCompleteTrace(interceptors, originalTrace);
+    }
+
+    static final List<DDSpan> interceptCompleteTrace(TraceInterceptors interceptors, SpanList originalTrace) {
+        if (interceptors.isEmpty()) {
+            return originalTrace;
+        }
+        if (originalTrace.isEmpty()) {
+            return SpanList.EMPTY;
+        }
+
+        // Using TraceList to optimize the common case where the interceptors,
+        // don't alter the list.  If the interceptors just return the provided
+        // List, then no need to copy to another List.
+
+        // As an extra precaution, also check the modCount before and after on
+        // the TraceList, since TraceInterceptor could put some other type of
+        // object into the List.
+
+        // There is still a risk that a TraceInterceptor holds onto the provided
+        // List and modifies it later on, but we cannot safeguard against
+        // every possible misuse.
+        Collection<? extends MutableSpan> interceptedTrace = originalTrace;
+        int originalModCount = originalTrace.modCount();
+
+        for (final TraceInterceptor interceptor : interceptors.interceptors()) {
+            try {
+                // If one TraceInterceptor throws an exception, then continue with the next one
+                interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+            } catch (Throwable e) {
+                String interceptorName = interceptor.getClass().getName();
+                rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
+            }
+            if (interceptedTrace == null) {
+                interceptedTrace = emptyList();
+            }
+        }
+
+        if (interceptedTrace == null || interceptedTrace.isEmpty()) {
+            return SpanList.EMPTY;
+        } else if (interceptedTrace == originalTrace && originalTrace.modCount() == originalModCount) {
+            return originalTrace;
+        } else {
+            SpanList trace = new SpanList(interceptedTrace.size());
+            for (final MutableSpan span : interceptedTrace) {
+                if (span instanceof DDSpan) {
+                    trace.add((DDSpan) span);
+                }
+            }
+            return trace;
+        }
+    }
+
+    @Override
+    public String getTraceId() {
+        return getTraceId(activeSpan());
+    }
+
+    @Override
+    public String getSpanId() {
+        return getSpanId(activeSpan());
+    }
+
+    @Override
+    public String getTraceId(AgentSpan span) {
+        if (span != null && span.getTraceId() != null) {
+            DDTraceId traceId = span.getTraceId();
+            // Return padded hexadecimal string representation if 128-bit TraceId logging is enabled and
+            // TraceId is a 128-bit ID, otherwise use the default numerical string representation.
+            if (this.logs128bTraceIdEnabled && traceId.toHighOrderLong() != 0) {
+                return traceId.toHexString();
+            } else {
+                return traceId.toString();
+            }
+        }
+        return "0";
+    }
+
+    @Override
+    public String getSpanId(AgentSpan span) {
+        if (span != null) {
+            return DDSpanId.toString(span.getSpanId());
+        }
+        return "0";
+    }
+
+    @VisibleForTesting
+    TraceInterceptors getInterceptors() {
+        return interceptors;
+    }
+
+    @Override
+    public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
+        TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
+        if (conflictingInterceptor == null) {
+            return true;
+        } else {
+            log.warn(
+                    "Interceptor {} will NOT be registered with the tracer, "
+                            + "as already registered interceptor {} is considered its duplicate",
+                    interceptor,
+                    conflictingInterceptor);
+            return false;
+        }
+    }
+
+    @Override
+    public TraceScope muteTracing() {
+        return activateSpan(blackholeSpan())::close;
+    }
+
+    @Override
+    public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+        return this.dataStreamsMonitoring;
+    }
+
+    @Override
+    public void addShutdownListener(Runnable listener) {
+        this.shutdownListeners.add(listener);
+    }
+
+    @Override
+    public void addScopeListener(final ScopeListener listener) {
+        this.scopeManager.addScopeListener(listener);
+    }
+
+    @Override
+    public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
+        return (SubscriptionService) instrumentationGateway.getCallbackProvider(slot);
+    }
+
+    @Override
+    public CallbackProvider getCallbackProvider(RequestContextSlot slot) {
+        if (slot == RequestContextSlot.APPSEC) {
+            return callbackProviderAppSec;
+        } else if (slot == RequestContextSlot.IAST) {
+            return callbackProviderIast;
+        } else {
+            return CallbackProvider.CallbackProviderNoop.INSTANCE;
+        }
+    }
+
+    @Override
+    public CallbackProvider getUniversalCallbackProvider() {
+        return universalCallbackProvider;
+    }
+
+    @Override
+    public void close() {
+        for (Runnable shutdownListener : shutdownListeners) {
+            try {
+                shutdownListener.run();
+            } catch (Exception e) {
+                log.error("Error while running shutdown listener", e);
+            }
+        }
+        if (flushOnClose) {
+            flush();
+        }
+        tracingConfigPoller.stop();
+        pendingTraceBuffer.close();
+        writer.close();
+        RumInjector.shutdownTelemetry();
+        AgentMeter.statsDClient().close();
+        metricsAggregator.close();
+        if (initialConfig.isMetricsOtlpExporterEnabled()) {
+            OtlpMetricsService.INSTANCE.shutdown();
+        }
+        if (initialConfig.isLogsOtlpExporterEnabled()) {
+            OtlpLogsService.INSTANCE.shutdown();
+        }
+        dataStreamsMonitoring.close();
+        externalAgentLauncher.close();
+        healthMetrics.close();
+    }
+
+    @Override
+    public void addScopeListener(Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+        addScopeListener(new ScopeListener() {
+            @Override
+            public void afterScopeActivated() {
+                afterScopeActivatedCallback.run();
+            }
+
+            @Override
+            public void afterScopeClosed() {
+                afterScopeClosedCallback.run();
+            }
+        });
+    }
+
+    @Override
+    public void flush() {
+        pendingTraceBuffer.flush();
+        writer.flush();
+    }
+
+    @Override
+    public void flushMetrics() {
+        try {
+            metricsAggregator.forceReport().get(2_500, MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            log.debug("Failed to wait for metrics flush.", e);
+        }
+
+        if (initialConfig.isMetricsOtlpExporterEnabled()) {
+            OtlpMetricsService.INSTANCE.flush();
+        }
+    }
+
+    @Override
+    public void flushLogs() {
+        if (initialConfig.isLogsOtlpExporterEnabled()) {
+            OtlpLogsService.INSTANCE.flush();
+        }
+    }
+
+    @Override
+    public ProfilingContextIntegration getProfilingContext() {
+        return profilingContextIntegration;
+    }
+
+    @Override
+    public TraceSegment getTraceSegment() {
+        AgentSpan activeSpan = activeSpan();
+        if (activeSpan == null) {
+            return null;
+        }
+        AgentSpanContext spanContext = activeSpan.spanContext();
+        if (spanContext instanceof DDSpanContext) {
+            return ((DDSpanContext) spanContext).getTraceSegment();
+        }
+        return null;
+    }
+
+    @Override
+    public void addReportToFlare(ZipOutputStream zip) throws IOException {
+        TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
+        TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
+        TracerFlare.addText(
+                zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
+    }
+
+    Recording writeTimer() {
+        return traceWriteTimer.start();
+    }
+
+    private static <K, V> Map<V, K> invertMap(Map<K, V> map) {
+        Map<V, K> inverted = new HashMap<>(map.size());
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            inverted.put(entry.getValue(), entry.getKey());
+        }
+        return Collections.unmodifiableMap(inverted);
+    }
+
+    /** Spans are built using this builder */
+    public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+        protected static final boolean USE_SCOPE = false;
+        protected static final boolean IGNORE_SCOPE = true;
+        protected static final int AUTO_ASSIGN_SPAN_ID = 0;
+        protected static final long AUTO_ASSIGN_TIMESTAMP = 0L;
+
+        protected final CoreTracer tracer;
+
+        protected String instrumentationName;
+        protected CharSequence operationName;
+
+        // Builder attributes
+        // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
+        protected TagMap.Ledger tagLedger;
+        protected SpanPrototype spanPrototype = SpanPrototype.NONE;
+        protected long timestampMicro;
+        protected AgentSpanContext parent;
+        protected String serviceName;
+        protected String resourceName;
+        protected boolean errorFlag;
+        protected CharSequence spanType;
+        protected boolean ignoreScope = USE_SCOPE;
+        protected Object builderRequestContextDataAppSec;
+        protected Object builderRequestContextDataIast;
+        protected Object builderCiVisibilityContextData;
+        protected List<AgentSpanLink> links;
+        protected long spanId = AUTO_ASSIGN_SPAN_ID;
+
+        // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
+
+        CoreSpanBuilder(CoreTracer tracer) {
+            this.tracer = tracer;
+        }
+
+        @Override
+        public final CoreSpanBuilder ignoreActiveSpan() {
+            ignoreScope = true;
+            return this;
+        }
+
+        protected static final DDSpan buildSpan(
+                final CoreTracer tracer,
+                long spanId,
+                String instrumentationName,
+                long timestampMicro,
+                String serviceName,
+                CharSequence operationName,
+                String resourceName,
+                AgentSpanContext resolvedParentSpanContext,
+                boolean ignoreScope,
+                boolean errorFlag,
+                CharSequence spanType,
+                TagMap.Ledger tagLedger,
+                SpanPrototype spanPrototype,
+                List<AgentSpanLink> links,
+                Object builderRequestContextDataAppSec,
+                Object builderRequestContextDataIast,
+                Object builderCiVisibilityContextData) {
+            return buildSpanImpl(
+                    tracer,
+                    instrumentationName,
+                    timestampMicro,
+                    links,
+                    buildSpanContext(
+                            tracer,
+                            spanId,
+                            serviceName,
+                            operationName,
+                            resourceName,
+                            resolvedParentSpanContext,
+                            errorFlag,
+                            spanType,
+                            tagLedger,
+                            spanPrototype,
+                            links,
+                            builderRequestContextDataAppSec,
+                            builderRequestContextDataIast,
+                            builderCiVisibilityContextData));
+        }
+
+        protected static final DDSpan buildSpanImpl(
+                CoreTracer tracer,
+                String instrumentationName,
+                long timestampMicro,
+                List<AgentSpanLink> links,
+                DDSpanContext spanContext) {
+            DDSpan span = DDSpan.create(instrumentationName, timestampMicro, spanContext, links);
+            if (span.isLocalRootSpan()) {
+                EndpointTracker tracker = tracer.onRootSpanStarted(span);
+                if (tracker != null) {
+                    span.setEndpointTracker(tracker);
+                }
+            }
+            return span;
+        }
+
+        private static final List<AgentSpanLink> addParentSpanLink(
+                List<AgentSpanLink> links, AgentSpanContext parentSpanContext) {
+            SpanLink link;
+            if (parentSpanContext instanceof ExtractedContext) {
+                String headers = ((ExtractedContext) parentSpanContext)
+                        .getPropagationStyle()
+                        .toString();
+                SpanAttributes attributes = SpanAttributes.builder()
+                        .put("reason", "propagation_behavior_extract")
+                        .put("context_headers", headers)
+                        .build();
+                link = DDSpanLink.from((ExtractedContext) parentSpanContext, attributes);
+            } else {
+                link = SpanLink.from(parentSpanContext);
+            }
+            return addLink(links, link);
+        }
+
+        protected static final List<AgentSpanLink> addTerminatedSpanAsLinks(
+                List<AgentSpanLink> links, AgentSpanContext parentSpanContext) {
+            if (parentSpanContext instanceof TagContext) {
+                List<AgentSpanLink> terminatedSpanLinks = ((TagContext) parentSpanContext).getTerminatedSpanLinks();
+                if (!terminatedSpanLinks.isEmpty()) {
+                    return addLinks(links, terminatedSpanLinks);
+                }
+            }
+            return links;
+        }
+
+        protected static final List<AgentSpanLink> addLink(List<AgentSpanLink> links, AgentSpanLink link) {
+            if (links == null) links = new ArrayList<>();
+            links.add(link);
+            return links;
+        }
+
+        protected static final List<AgentSpanLink> addLinks(
+                List<AgentSpanLink> links, List<AgentSpanLink> additionalLinks) {
+            if (links == null) {
+                links = new ArrayList<>(additionalLinks);
+            } else {
+                links.addAll(additionalLinks);
+            }
+            return links;
+        }
+
+        @Override
+        public abstract AgentSpan start();
+
+        protected AgentSpan startImpl() {
+            return startSpan(
+                    this.tracer,
+                    this.spanId,
+                    this.instrumentationName,
+                    this.timestampMicro,
+                    this.serviceName,
+                    this.operationName,
+                    this.resourceName,
+                    this.parent,
+                    this.ignoreScope,
+                    this.errorFlag,
+                    this.spanType,
+                    this.tagLedger,
+                    this.spanPrototype,
+                    this.links,
+                    this.builderRequestContextDataAppSec,
+                    this.builderRequestContextDataIast,
+                    this.builderCiVisibilityContextData);
+        }
+
+        protected static final AgentSpan startSpan(
+                final CoreTracer tracer,
+                String instrumentationName,
+                CharSequence operationName,
+                AgentSpanContext specifiedParentSpanContext,
+                boolean ignoreScope,
+                long timestampMicros) {
+            return startSpan(
+                    tracer,
+                    AUTO_ASSIGN_SPAN_ID,
+                    instrumentationName,
+                    timestampMicros,
+                    null /* serviceName */,
+                    operationName,
+                    null /* resourceName */,
+                    specifiedParentSpanContext,
+                    ignoreScope,
+                    false /* errorFlag */,
+                    null /* spanType */,
+                    null /* tagLedger */,
+                    SpanPrototype.NONE /* spanPrototype */,
+                    null /* links */,
+                    null /* appSec */,
+                    null /* iast */,
+                    null /* ciViz */);
+        }
+
+        protected static final AgentSpan startSpan(
+                final CoreTracer tracer,
+                final SpanPrototype prototype,
+                final CharSequence operationName,
+                final boolean ignoreScope,
+                final long timestampMicros) {
+            return startSpan(
+                    tracer,
+                    AUTO_ASSIGN_SPAN_ID,
+                    prototype.instrumentationName(),
+                    timestampMicros,
+                    null /* serviceName */,
+                    operationName,
+                    null /* resourceName */,
+                    null /* specifiedParentSpanContext */,
+                    ignoreScope,
+                    false /* errorFlag */,
+                    prototype.spanType(),
+                    null /* tagLedger */,
+                    prototype,
+                    null /* links */,
+                    null /* appSec */,
+                    null /* iast */,
+                    null /* ciViz */);
+        }
+
+        protected static final AgentSpan startSpan(
+                final CoreTracer tracer,
+                long spanId,
+                String instrumentationName,
+                long timestampMicro,
+                String serviceName,
+                CharSequence operationName,
+                String resourceName,
+                AgentSpanContext specifiedParentSpanContext,
+                boolean ignoreScope,
+                boolean errorFlag,
+                CharSequence spanType,
+                TagMap.Ledger tagLedger,
+                SpanPrototype spanPrototype,
+                List<AgentSpanLink> links,
+                Object builderRequestContextDataAppSec,
+                Object builderRequestContextDataIast,
+                Object builderCiVisibilityContextData) {
+            // Find the parent context
+            AgentSpanContext parentSpanContext = specifiedParentSpanContext;
+            if (parentSpanContext == null && !ignoreScope) {
+                // use the Scope as parent unless overridden or ignored.
+                final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
+                if (activeSpan != null) {
+                    parentSpanContext = activeSpan.spanContext();
+                }
+            }
+
+            if (parentSpanContext == BlackHoleSpan.Context.INSTANCE) {
+                return new BlackHoleSpan(parentSpanContext.getTraceId());
+            }
+
+            // Handle remote terminated span context as span links
+            if (parentSpanContext != null && parentSpanContext.isRemote()) {
+                // Preserve AppSec/IAST request context before dropping the remote parent: when
+                // extract=IGNORE or RESTART the TagContext parent is nulled before buildSpanContext
+                // can copy requestContextDataAppSec/Iast into DDSpanContext.
+                if (parentSpanContext instanceof TagContext) {
+                    TagContext tc = (TagContext) parentSpanContext;
+                    if (builderRequestContextDataAppSec == null) {
+                        builderRequestContextDataAppSec = tc.getRequestContextDataAppSec();
+                    }
+                    if (builderRequestContextDataIast == null) {
+                        builderRequestContextDataIast = tc.getRequestContextDataIast();
+                    }
+                }
+                switch (Config.get().getTracePropagationBehaviorExtract()) {
+                    case RESTART:
+                        links = addParentSpanLink(links, parentSpanContext);
+                        parentSpanContext = null;
+                        break;
+
+                    case IGNORE:
+                        parentSpanContext = null;
+                        break;
+
+                    case CONTINUE:
+                    default:
+                        links = addTerminatedSpanAsLinks(links, specifiedParentSpanContext);
+                        break;
+                }
+            }
+
+            return buildSpan(
+                    tracer,
+                    spanId,
+                    instrumentationName,
+                    timestampMicro,
+                    serviceName,
+                    operationName,
+                    resourceName,
+                    parentSpanContext,
+                    ignoreScope,
+                    errorFlag,
+                    spanType,
+                    tagLedger,
+                    spanPrototype,
+                    links,
+                    builderRequestContextDataAppSec,
+                    builderRequestContextDataIast,
+                    builderCiVisibilityContextData);
+        }
+
+        @Override
+        public final CoreSpanBuilder withTag(final String tag, final Number number) {
+            return withTag(tag, (Object) number);
+        }
+
+        @Override
+        public final CoreSpanBuilder withTag(final String tag, final String string) {
+            return withTag(tag, (Object) (string == null || string.isEmpty() ? null : string));
+        }
+
+        @Override
+        public final CoreSpanBuilder withTag(final String tag, final boolean bool) {
+            return withTag(tag, (Object) bool);
+        }
+
+        @Override
+        public final CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
+            timestampMicro = timestampMicroseconds;
+            return this;
+        }
+
+        @Override
+        public final CoreSpanBuilder withServiceName(final String serviceName) {
+            this.serviceName = serviceName;
+            return this;
+        }
+
+        @Override
+        public final CoreSpanBuilder withResourceName(final String resourceName) {
+            this.resourceName = resourceName;
+            return this;
+        }
+
+        @Override
+        public final CoreSpanBuilder withErrorFlag() {
+            errorFlag = true;
+            return this;
+        }
+
+        @Override
+        public final CoreSpanBuilder withSpanType(final CharSequence spanType) {
+            this.spanType = spanType;
+            return this;
+        }
+
+        @Override
+        public final CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
+            // TODO we will start propagating stack trace hash and it will need to
+            //  be extracted here if available
+            parent = spanContext;
+            return this;
+        }
+
+        public final CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
+            parent = agentSpan.spanContext();
+            return this;
+        }
+
+        @Override
+        public final CoreSpanBuilder withTag(final String tag, final Object value) {
+            if (tag == null) {
+                return this;
+            }
+            TagMap.Ledger tagLedger = this.tagLedger;
+            if (tagLedger == null) {
+                // Insertion order is important, so using TagLedger which builds up a set
+                // of Entry modifications in order
+                this.tagLedger = tagLedger = TagMap.ledger();
+            }
+            if (value == null) {
+                // DQH - Use of smartRemove is important to avoid clobbering entries added by another map
+                // smartRemove only records the removal if a prior matching put has already occurred in the
+                // ledger
+                // smartRemove is O(n) but since removes are rare, this is preferable to a more complicated
+                // implementation in setAll
+                tagLedger.smartRemove(tag);
+            } else {
+                tagLedger.set(tag, value);
+            }
+            return this;
+        }
+
+        @Override
+        public final <T> AgentTracer.SpanBuilder withRequestContextData(RequestContextSlot slot, T data) {
+            switch (slot) {
+                case APPSEC:
+                    builderRequestContextDataAppSec = data;
+                    break;
+                case CI_VISIBILITY:
+                    builderCiVisibilityContextData = data;
+                    break;
+                case IAST:
+                    builderRequestContextDataIast = data;
+                    break;
+            }
+            return this;
+        }
+
+        @Override
+        public final AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
+            if (link != null) {
+                if (this.links == null) {
+                    this.links = new ArrayList<>();
+                }
+                this.links.add(link);
+            }
+            return this;
+        }
+
+        @Override
+        public final CoreSpanBuilder withSpanId(final long spanId) {
+            this.spanId = spanId;
+            return this;
+        }
+
+        /**
+         * Build the SpanContext, if the actual span has a parent, the following attributes must be
+         * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
+         *
+         * @return the context
+         */
+        protected static final DDSpanContext buildSpanContext(
+                final CoreTracer tracer,
+                long spanId,
+                String serviceName,
+                CharSequence operationName,
+                String resourceName,
+                AgentSpanContext resolvedParentSpanContext,
+                boolean errorFlag,
+                CharSequence spanType,
+                TagMap.Ledger tagLedger,
+                SpanPrototype spanPrototype,
+                List<AgentSpanLink> links,
+                Object builderRequestContextDataAppSec,
+                Object builderRequestContextDataIast,
+                Object builderCiVisibilityContextData) {
+            DDTraceId traceId;
+            long parentSpanId;
+            final Map<String, String> baggage;
+            final Baggage w3cBaggage;
+            final TraceCollector parentTraceCollector;
+            final int samplingPriority;
+            final CharSequence origin;
+            final TagMap coreTags;
+            final boolean coreTagsNeedsIntercept;
+            final TagMap rootSpanTags;
+            final boolean rootSpanTagsNeedsIntercept;
+            final DDSpanContext context;
+            Object requestContextDataAppSec;
+            Object requestContextDataIast;
+            Object ciVisibilityContextData;
+            final PathwayContext pathwayContext;
+            final PropagationTags propagationTags;
+
+            if (spanId == AUTO_ASSIGN_SPAN_ID) {
+                spanId = tracer.idGenerationStrategy.generateSpanId();
+            }
+
+            String parentServiceName = null;
+            CharSequence serviceNameSource = MANUAL;
+            // Propagate internal trace.
+            // Note: if we are not in the context of distributed tracing, and we are starting the first
+            // root span, parentSpanContext will be null at this point.
+            if (resolvedParentSpanContext instanceof DDSpanContext) {
+                final DDSpanContext ddsc = (DDSpanContext) resolvedParentSpanContext;
+                traceId = ddsc.getTraceId();
+                parentSpanId = ddsc.getSpanId();
+                baggage = ddsc.getBaggageItems();
+                w3cBaggage = null;
+                parentTraceCollector = ddsc.getTraceCollector();
+                samplingPriority = PrioritySampling.UNSET;
+                origin = null;
+                coreTags = null;
+                coreTagsNeedsIntercept = false;
+                rootSpanTags = null;
+                rootSpanTagsNeedsIntercept = false;
+                parentServiceName = ddsc.getServiceName();
+                serviceNameSource = ddsc.getServiceNameSource();
+                if (serviceName == null) {
+                    serviceName = parentServiceName;
+                }
+                RequestContext requestContext = ((DDSpanContext) resolvedParentSpanContext).getRequestContext();
+                if (requestContext != null) {
+                    requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
+                    requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
+                    ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
+                } else {
+                    requestContextDataAppSec = null;
+                    requestContextDataIast = null;
+                    ciVisibilityContextData = null;
+                }
+                propagationTags = tracer.propagationTagsFactory.empty();
+            } else {
+                long endToEndStartTime;
+
+                if (resolvedParentSpanContext instanceof ExtractedContext) {
+                    // Propagate external trace
+                    final ExtractedContext extractedContext = (ExtractedContext) resolvedParentSpanContext;
+                    traceId = extractedContext.getTraceId();
+                    parentSpanId = extractedContext.getSpanId();
+                    samplingPriority = extractedContext.getSamplingPriority();
+                    endToEndStartTime = extractedContext.getEndToEndStartTime();
+                    propagationTags = extractedContext.getPropagationTags();
+                } else if (resolvedParentSpanContext != null) {
+                    traceId = resolvedParentSpanContext.getTraceId() == DDTraceId.ZERO
+                            ? tracer.idGenerationStrategy.generateTraceId()
+                            : resolvedParentSpanContext.getTraceId();
+                    parentSpanId = resolvedParentSpanContext.getSpanId();
+                    samplingPriority = resolvedParentSpanContext.getSamplingPriority();
+                    endToEndStartTime = 0;
+                    propagationTags = tracer.propagationTagsFactory.empty();
+                } else {
+                    // Start a new trace
+                    traceId = tracer.idGenerationStrategy.generateTraceId();
+                    parentSpanId = DDSpanId.ZERO;
+                    samplingPriority = PrioritySampling.UNSET;
+                    endToEndStartTime = 0;
+                    propagationTags = tracer.propagationTagsFactory.empty();
+                }
+
+                ConfigSnapshot traceConfig;
+
+                // Get header tags and set origin whether propagating or not.
+                if (resolvedParentSpanContext instanceof TagContext) {
+                    TagContext tc = (TagContext) resolvedParentSpanContext;
+                    traceConfig = (ConfigSnapshot) tc.getTraceConfig();
+                    coreTags = tc.getTags();
+                    coreTagsNeedsIntercept = true; // maybe intercept isn't needed?
+                    origin = tc.getOrigin();
+                    baggage = tc.getBaggage();
+                    w3cBaggage = tc.getW3CBaggage();
+                    requestContextDataAppSec = tc.getRequestContextDataAppSec();
+                    requestContextDataIast = tc.getRequestContextDataIast();
+                    ciVisibilityContextData = tc.getCiVisibilityContextData();
+                } else {
+                    traceConfig = null;
+                    coreTags = null;
+                    coreTagsNeedsIntercept = false;
+                    origin = null;
+                    baggage = null;
+                    w3cBaggage = null;
+                    requestContextDataAppSec = null;
+                    requestContextDataIast = null;
+                    ciVisibilityContextData = null;
+                }
+
+                LocalRootSpanTags localRootSpanTags = tracer.localRootSpanTags;
+                rootSpanTags = localRootSpanTags.tags;
+                rootSpanTagsNeedsIntercept = localRootSpanTags.needsIntercept;
+
+                parentTraceCollector = tracer.createTraceCollector(traceId, traceConfig);
+
+                if (endToEndStartTime > 0) {
+                    parentTraceCollector.beginEndToEnd(endToEndStartTime);
+                }
+            }
+
+            ConfigSnapshot traceConfig = parentTraceCollector.getTraceConfig();
+
+            // Use parent pathwayContext if present and started
+            pathwayContext = resolvedParentSpanContext != null
+                            && resolvedParentSpanContext.getPathwayContext() != null
+                            && resolvedParentSpanContext.getPathwayContext().isStarted()
+                    ? resolvedParentSpanContext.getPathwayContext()
+                    : tracer.dataStreamsMonitoring.newPathwayContext();
+
+            // when removing fake services the best upward service name to pick is the local root one
+            // since a split by tag (i.e. servlet context) might have happened on it.
+            if (!tracer.allowInferredServices) {
+                final DDSpan rootSpan = parentTraceCollector.getRootSpan();
+                if (rootSpan != null) {
+                    // An inferred proxy represents the gateway, not the application service.
+                    // Preserve the service and source already resolved for spans beneath it.
+                    // Avoid the synchronized tag lookup when inferred proxies are disabled.
+                    if (!tracer.initialConfig.isInferredProxyPropagationEnabled()
+                            || rootSpan.getTag("_dd.inferred_span") == null) {
+                        serviceName = rootSpan.getServiceName();
+                        serviceNameSource = rootSpan.getServiceNameSource();
+                    }
+                } else {
+                    serviceName = null;
+                }
+            }
+            if (serviceName == null) {
+                final Pair<String, CharSequence> serviceNameAndSource = traceConfig.getPreferredServiceNameAndSource();
+                ;
+                if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
+                    serviceName = serviceNameAndSource.getLeft();
+                    serviceNameSource = serviceNameAndSource.getRight();
+                }
+            }
+            Map<String, Object> contextualTags = null;
+            if (parentServiceName == null) {
+                // only fetch this on local root spans
+                final ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
+                        ClassloaderConfigurationOverrides.maybeGetContextualInfo();
+                if (contextualInfo != null) {
+                    // in this case we have a local root without service name.
+                    // We can try to see if we can find one from the thread context classloader
+                    if (serviceName == null) {
+                        serviceName = contextualInfo.getServiceName();
+                        if (serviceName != null) {
+                            serviceNameSource = contextualInfo.getServiceNameSource();
+                        }
+                    }
+                    contextualTags = contextualInfo.getTags();
+                }
+            }
+            if (serviceName == null) {
+                // it could be on the initial snapshot but may be overridden to null and service name
+                // cannot be null
+                serviceName = tracer.serviceName;
+                // do not mark as manual when the service name is coming from the tracer default
+                serviceNameSource = null;
+            }
+
+            if (operationName == null) {
+                operationName = resourceName;
+            }
+
+            final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
+            boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
+
+            final int tagsSize = mergedTracerTags.size()
+                    + (null == tagLedger ? 0 : tagLedger.estimateSize())
+                    + (null == coreTags ? 0 : coreTags.size())
+                    + (null == rootSpanTags ? 0 : rootSpanTags.size())
+                    + (null == contextualTags ? 0 : contextualTags.size());
+
+            if (builderRequestContextDataAppSec != null) {
+                requestContextDataAppSec = builderRequestContextDataAppSec;
+            }
+            if (builderCiVisibilityContextData != null) {
+                ciVisibilityContextData = builderCiVisibilityContextData;
+            }
+            if (builderRequestContextDataIast != null) {
+                requestContextDataIast = builderRequestContextDataIast;
+            }
+
+            // some attributes are inherited from the parent
+            context = new DDSpanContext(
+                    traceId,
+                    spanId,
+                    parentSpanId,
+                    parentServiceName,
+                    serviceNameSource,
+                    serviceName,
+                    operationName,
+                    resourceName,
+                    samplingPriority,
+                    origin,
+                    baggage,
+                    w3cBaggage,
+                    errorFlag,
+                    spanType,
+                    tagsSize,
+                    parentTraceCollector,
+                    requestContextDataAppSec,
+                    requestContextDataIast,
+                    ciVisibilityContextData,
+                    pathwayContext,
+                    tracer.disableSamplingMechanismValidation,
+                    propagationTags,
+                    tracer.profilingContextIntegration,
+                    tracer.injectBaggageAsTags,
+                    tracer.injectLinksAsTags,
+                    mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+
+            // By setting the tags on the context we apply decorators to any tags that have been set via
+            // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
+            // everything overrides them). The remaining contributors are applied last-wins; with
+            // `builderTagsPrecedence` enabled, `tagLedger` (the explicit builder tags) moves to last so
+            // it wins collisions instead of being overridden by `coreTags`/`rootSpanTags`/
+            // `contextualTags` -- see the PR description for the historical context on this ordering.
+            //
+            // mergedTracerTags is trace-level shared state and the precedence floor (everything below
+            // overrides it). When it carries no interceptable tags it is attached as a read-through
+            // PARENT at construction (shared by reference, no per-span copy). When it does need
+            // interception, copy its entries in (the interceptor's per-span side-effects can't be
+            // shared by reference).
+            if (mergedTracerTagsNeedsIntercept) {
+                context.setAllTags(mergedTracerTags, true);
+            }
+            if (spanPrototype != SpanPrototype.NONE) {
+                // Seed the prototype's constant tags + integration name as fallback defaults (span type was
+                // already seeded onto the builder). apply never clobbers, so tags set below still win, and
+                // this is the same seam decorator afterStart uses.
+                context.apply(spanPrototype);
+            }
+            if (tracer.builderTagsPrecedence) {
+                context.setAllTags(coreTags, coreTagsNeedsIntercept);
+                context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+                context.setAllTags(contextualTags);
+                context.setAllTags(tagLedger);
+            } else {
+                context.setAllTags(tagLedger);
+                context.setAllTags(coreTags, coreTagsNeedsIntercept);
+                context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+                context.setAllTags(contextualTags);
+            }
+            // Version is added later by the postProcessor (InternalTagsAdder), only if not already set
+            // during the request. Config version is kept out of the trace-level bundle (see
+            // withTracerTags), so this removal now only wipes a version set via the span builder —
+            // keeping the existing semantics where a builder-set version is replaced by the config
+            // version. Under read-through this is a cheap local removal (version isn't in the parent,
+            // so no tombstone).
+            context.removeTag(Tags.VERSION);
+            return context;
+        }
+    }
+
+    /** CoreSpanBuilder that can be used to produce multiple spans */
+    static final class MultiSpanBuilder extends CoreSpanBuilder {
+        MultiSpanBuilder(CoreTracer tracer, String instrumentationName, CharSequence operationName) {
+            super(tracer);
+            this.instrumentationName = instrumentationName;
+            this.operationName = operationName;
+        }
+
+        @Override
+        public AgentSpan start() {
+            return this.startImpl();
+        }
+    }
+
+    static final class ReusableSingleSpanBuilderThreadLocalCache extends ThreadLocal<ReusableSingleSpanBuilder> {
+        private final CoreTracer tracer;
+
+        public ReusableSingleSpanBuilderThreadLocalCache(CoreTracer tracer) {
+            this.tracer = tracer;
+        }
+
+        @Override
+        protected ReusableSingleSpanBuilder initialValue() {
+            return new ReusableSingleSpanBuilder(this.tracer);
+        }
+    }
+
+    /**
+     * Reusable CoreSpanBuilder that can be used to build one and only one span before being reset
+     *
+     * <p>{@link CoreTracer#singleSpanBuilder(String, CharSequence)} reuses instances of this object
+     * to reduce the overhead of span construction
+     */
+    static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
+        // Used to track whether the ReusableSingleSpanBuilder is actively being used
+        // ReusableSingleSpanBuilder becomes "inUse" after a succesful init/reset and remains "inUse"
+        // until "start" is called
+        boolean inUse;
+
+        ReusableSingleSpanBuilder(CoreTracer tracer) {
+            super(tracer);
+            this.inUse = false;
+        }
+
+        /** Similar to reset, but only valid on first use */
+        void init(String instrumentationName, CharSequence operationName) {
+            assert !this.inUse;
+
+            this.instrumentationName = instrumentationName;
+            this.operationName = operationName;
+
+            this.inUse = true;
+        }
+
+        /**
+         * Resets the {@link ReusableSingleSpanBuilder}, so it may be used to build another single span
+         *
+         * @returns <code>true</code> if the reset was successful, otherwise <code>false</code> if this
+         *     <code>ReusableSingleSpanBuilder</code> is still "in-use".
+         */
+        final boolean reset(String instrumentationName, CharSequence operationName) {
+            if (this.inUse) return false;
+            this.inUse = true;
+
+            this.instrumentationName = instrumentationName;
+            this.operationName = operationName;
+
+            if (this.tagLedger != null) this.tagLedger.reset();
+            this.spanPrototype = SpanPrototype.NONE;
+            this.timestampMicro = 0L;
+            this.parent = null;
+            this.serviceName = null;
+            this.resourceName = null;
+            this.errorFlag = false;
+            this.spanType = null;
+            this.ignoreScope = false;
+            this.builderRequestContextDataAppSec = null;
+            this.builderRequestContextDataIast = null;
+            this.builderCiVisibilityContextData = null;
+            this.links = null;
+            this.spanId = 0L;
+
+            return true;
+        }
+
+        /*
+         * Clears the inUse boolean, so this ReusableSpanBuilder can be reset
+         */
+        @Override
+        public AgentSpan start() {
+            assert this.inUse : "ReusableSingleSpanBuilder not reset properly -- multiple span construction?";
+
+            AgentSpan span = this.startImpl();
+            this.inUse = false;
+            return span;
+        }
+    }
+
+    /**
+     * Implements a copy on write array list where interceptors are added to the list ordered by
+     * TraceInterceptor priority
+     */
+    static final class TraceInterceptors {
+        private volatile TraceInterceptor[] interceptors = {};
+
+        public boolean isEmpty() {
+            return (this.interceptors.length == 0);
+        }
+
+        public TraceInterceptor[] interceptors() {
+            return this.interceptors;
+        }
+
+        /**
+         * Adds the interceptor to the list; returns any colliding interceptor with the same priority
+         *
+         * <ul>
+         *   <li>returns null - if there is no collision and the interceptor was added
+         *   <li>returns the colliding interceptor - if not added
+         * </ul>
+         */
+        public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
+            // Interceptors is always kept in sorted order
+
+            // This method performs an insertion sort by scanning interceptors
+            // and finding the correct insertion position
+
+            // Since interceptors isn't expected to be large, not using a binary search
+            // Simple search should provide better cache utilization
+            TraceInterceptor[] interceptors = this.interceptors;
+
+            int newPriority = newInterceptor.priority();
+
+            int insertionIndex = interceptors.length;
+            for (int i = 0; i < interceptors.length; ++i) {
+                TraceInterceptor curInterceptor = interceptors[i];
+                int curPriority = curInterceptor.priority();
+
+                if (curPriority > newPriority) {
+                    insertionIndex = i;
+                    break;
+                } else if (curPriority == newPriority) {
+                    return curInterceptor;
+                }
+            }
+
+            // While not immediately obvious, this code does handle when interceptors was previously empty
+            // In that case, the insertionIndex will be 0 and length will 0, so neither if / arraycopy
+            // blocks are run
+            TraceInterceptor[] newInterceptors = new TraceInterceptor[interceptors.length + 1];
+            if (insertionIndex != 0) {
+                System.arraycopy(interceptors, 0, newInterceptors, 0, insertionIndex);
+            }
+            newInterceptors[insertionIndex] = newInterceptor;
+            if (insertionIndex != interceptors.length) {
+                System.arraycopy(
+                        interceptors,
+                        insertionIndex,
+                        newInterceptors,
+                        insertionIndex + 1,
+                        interceptors.length - insertionIndex);
+            }
+            this.interceptors = newInterceptors;
+            return null;
+        }
+    }
+
+    private static class ShutdownHook extends Thread {
+        private final WeakReference<CoreTracer> reference;
+
+        private ShutdownHook(final CoreTracer tracer) {
+            super(AGENT_THREAD_GROUP, "dd-tracer-shutdown-hook");
+            reference = new WeakReference<>(tracer);
+        }
+
+        @Override
+        public void run() {
+            final CoreTracer tracer = reference.get();
+            if (tracer != null) {
+                tracer.close();
+            }
+        }
+    }
+
+    protected class ConfigSnapshot extends DynamicConfig.Snapshot {
+        final Sampler sampler;
+
+        final TagMap mergedTracerTags;
+        final boolean mergedTracerTagsNeedsIntercept;
+
+        protected ConfigSnapshot(DynamicConfig<ConfigSnapshot>.Builder builder, ConfigSnapshot oldSnapshot) {
+            super(builder, oldSnapshot);
+
+            if (null == oldSnapshot) {
+                sampler = CoreTracer.this.initialSampler;
+            } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())
+                    && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
+                sampler = oldSnapshot.sampler;
+            } else {
+                // Reuse the agent sampler: registration for agent rates happens once, at construction.
+                sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
+            }
+
+            if (null == oldSnapshot) {
+                mergedTracerTags = CoreTracer.this.defaultSpanTags.immutableCopy();
+                this.mergedTracerTagsNeedsIntercept = CoreTracer.this.defaultSpanTagsNeedsIntercept;
+            } else if (getTracingTags().equals(oldSnapshot.getTracingTags())) {
+                mergedTracerTags = oldSnapshot.mergedTracerTags;
+                mergedTracerTagsNeedsIntercept = oldSnapshot.mergedTracerTagsNeedsIntercept;
+            } else {
+                mergedTracerTags = withTracerTags(getTracingTags(), CoreTracer.this.initialConfig, this);
+                mergedTracerTagsNeedsIntercept = CoreTracer.this.tagInterceptor.needsIntercept(mergedTracerTags);
+            }
+        }
+    }
+
+    /**
+     * Tags added by the tracer to all spans; combines user-supplied tags with tracer-defined tags.
+     */
+    static TagMap withTracerTags(Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
+        final TagMap result = TagMap.create(userSpanTags.size() + 5);
+        result.putAll(userSpanTags);
+        // Version is conditionally managed by InternalTagsAdder (added only when service == DD_SERVICE
+        // and not set during the request), so keep it OUT of the trace-level bundle. This matters under
+        // read-through: the bundle becomes a shared parent, and a per-span removeTag(VERSION) on a key
+        // that lived in the parent would mint a per-span tombstone. With version excluded here, the
+        // per-span removeTag (retained, to wipe a builder-set version) is a cheap local op, never a
+        // tombstone.
+        //
+        // EXCEPTION: when `version` is a split-service tag, the TagInterceptor derives the service name
+        // from it, so it must reach the interceptor. Keeping it in the bundle forces the intercepting
+        // seed path (a split tag makes the bundle needsIntercept=true -> copied, not a read-through
+        // parent), where the retained removeTag(VERSION) still deletes only a local copy -- so the
+        // split
+        // side-effect fires and no per-span tombstone is minted either way.
+        //
+        // Cold path: withTracerTags runs at setup / config-change, not per span (mergedTracerTags is
+        // cached on the config snapshot), so this getSplitByTags() lookup needn't be hoisted.
+        if (config == null || !config.getSplitByTags().contains(Tags.VERSION)) {
+            result.remove(Tags.VERSION);
+        }
+        if (null != config) { // static
+            if (!config.getEnv().isEmpty()) {
+                result.set("env", config.getEnv());
+            }
+            if (config.isDataJobsEnabled()) {
+                result.set(DJM_ENABLED, 1);
+            }
+            if (config.isDataStreamsEnabled()) {
+                result.set(DSM_ENABLED, 1);
+            }
+        }
+        if (null != traceConfig) { // dynamic
+            if (traceConfig.isDataStreamsEnabled()) {
+                result.set(DSM_ENABLED, 1);
+            } else {
+                result.remove(DSM_ENABLED);
+            }
+        }
+        return result.freeze();
+    }
+
+    @Override
+    public Context currentContext() {
+        return scopeManager.currentContext();
+    }
+
+    @Override
+    public ContextScope attach(Context context) {
+        return scopeManager.attach(context);
+    }
+
+    @Override
+    public Context swap(Context context) {
+        return scopeManager.swap(context);
+    }
+
+    @Override
+    public ContextContinuation capture(Context context) {
+        return scopeManager.capture(context);
+    }
 }

@@ -13,51 +13,47 @@ import org.restlet.util.Series;
 
 public class ResourceDecorator extends BaseDecorator {
 
-  public static final CharSequence RESTLET_CONTROLLER =
-      UTF8BytesString.create("restlet-controller");
+    public static final CharSequence RESTLET_CONTROLLER = UTF8BytesString.create("restlet-controller");
 
-  public static final String RESTLET_ROUTE = "datadog.trace.instrumentation.restlet.route";
+    public static final String RESTLET_ROUTE = "datadog.trace.instrumentation.restlet.route";
 
-  public static ResourceDecorator DECORATE = new ResourceDecorator();
+    public static ResourceDecorator DECORATE = new ResourceDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"restlet-http"};
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return null;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return RESTLET_CONTROLLER;
-  }
-
-  public void onRestletSpan(
-      final AgentSpan span,
-      final AgentSpan parent,
-      final ServerResource serverResource,
-      final Method method) {
-    Series<Header> headers =
-        (Series<Header>)
-            serverResource.getRequest().getAttributes().get("org.restlet.http.headers");
-    String route = headers.getFirstValue(RESTLET_ROUTE);
-
-    span.setSpanType(InternalSpanTypes.HTTP_SERVER);
-
-    // When restlet-http is the root, we want to name using the path, otherwise use
-    // class.method.
-    final boolean isRootScope = parent == null;
-    if (isRootScope) {
-      HTTP_RESOURCE_DECORATOR.withRoute(span, serverResource.getMethod().getName(), route);
-    } else {
-      span.setResourceName(DECORATE.spanNameForMethod(method));
-
-      if (parent == parent.getLocalRootSpan()) {
-        HTTP_RESOURCE_DECORATOR.withRoute(parent, serverResource.getMethod().getName(), route);
-      }
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"restlet-http"};
     }
-  }
+
+    @Override
+    protected CharSequence spanType() {
+        return null;
+    }
+
+    @Override
+    protected CharSequence component() {
+        return RESTLET_CONTROLLER;
+    }
+
+    public void onRestletSpan(
+            final AgentSpan span, final AgentSpan parent, final ServerResource serverResource, final Method method) {
+        Series<Header> headers =
+                (Series<Header>) serverResource.getRequest().getAttributes().get("org.restlet.http.headers");
+        String route = headers.getFirstValue(RESTLET_ROUTE);
+
+        span.setSpanType(InternalSpanTypes.HTTP_SERVER);
+
+        // When restlet-http is the root, we want to name using the path, otherwise use
+        // class.method.
+        final boolean isRootScope = parent == null;
+        if (isRootScope) {
+            HTTP_RESOURCE_DECORATOR.withRoute(span, serverResource.getMethod().getName(), route);
+        } else {
+            span.setResourceName(DECORATE.spanNameForMethod(method));
+
+            if (parent == parent.getLocalRootSpan()) {
+                HTTP_RESOURCE_DECORATOR.withRoute(
+                        parent, serverResource.getMethod().getName(), route);
+            }
+        }
+    }
 }

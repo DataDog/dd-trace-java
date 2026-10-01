@@ -6,46 +6,46 @@ import java.util.Map;
 
 public interface ParameterCollector {
 
-  boolean isEmpty();
+    boolean isEmpty();
 
-  void put(String key, String[] value);
+    void put(String key, String[] value);
 
-  Map<String, String[]> getMap();
+    Map<String, String[]> getMap();
 
-  class ParameterCollectorNoop implements ParameterCollector {
-    public static final ParameterCollector INSTANCE = new ParameterCollectorNoop();
+    class ParameterCollectorNoop implements ParameterCollector {
+        public static final ParameterCollector INSTANCE = new ParameterCollectorNoop();
 
-    @Override
-    public boolean isEmpty() {
-      return true;
+        @Override
+        public boolean isEmpty() {
+            return true;
+        }
+
+        @Override
+        public void put(String key, String[] value) {}
+
+        @Override
+        public Map<String, String[]> getMap() {
+            return Collections.emptyMap();
+        }
     }
 
-    @Override
-    public void put(String key, String[] value) {}
+    class ParameterCollectorImpl implements ParameterCollector {
+        public Map<String, String[]> map;
 
-    @Override
-    public Map<String, String[]> getMap() {
-      return Collections.emptyMap();
+        public boolean isEmpty() {
+            return map == null;
+        }
+
+        public void put(String key, String[] value) {
+            if (map == null) {
+                map = new HashMap<>();
+            }
+            map.put(key, value);
+        }
+
+        @Override
+        public Map<String, String[]> getMap() {
+            return map;
+        }
     }
-  }
-
-  class ParameterCollectorImpl implements ParameterCollector {
-    public Map<String, String[]> map;
-
-    public boolean isEmpty() {
-      return map == null;
-    }
-
-    public void put(String key, String[] value) {
-      if (map == null) {
-        map = new HashMap<>();
-      }
-      map.put(key, value);
-    }
-
-    @Override
-    public Map<String, String[]> getMap() {
-      return map;
-    }
-  }
 }

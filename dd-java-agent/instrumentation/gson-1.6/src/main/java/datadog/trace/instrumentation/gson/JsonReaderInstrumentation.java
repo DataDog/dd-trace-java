@@ -22,56 +22,55 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JsonReaderInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JsonReaderInstrumentation() {
-    super("gson");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.google.gson.stream.JsonReader";
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("com.google.gson.stream.JsonReader");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArguments(1)).and(takesArgument(0, named("java.io.Reader"))),
-        getClass().getName() + "$ConstructAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(returns(String.class))
-            .and(namedOneOf("nextName", "nextString"))
-            .and(takesNoArguments()),
-        getClass().getName() + "$MethodAdvice");
-  }
-
-  public static class ConstructAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void afterInit(
-        @Advice.This Object self, @Advice.Argument(0) final java.io.Reader input) {
-      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null && input != null) {
-        iastModule.taintObjectIfTainted(self, input);
-      }
+    public JsonReaderInstrumentation() {
+        super("gson");
     }
-  }
 
-  public static class MethodAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void afterMethod(@Advice.This Object self, @Advice.Return final String result) {
-      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null && result != null) {
-        iastModule.taintStringIfTainted(result, self);
-      }
+    @Override
+    public String instrumentedType() {
+        return "com.google.gson.stream.JsonReader";
     }
-  }
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return hasClassNamed("com.google.gson.stream.JsonReader");
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArguments(1)).and(takesArgument(0, named("java.io.Reader"))),
+                getClass().getName() + "$ConstructAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(returns(String.class))
+                        .and(namedOneOf("nextName", "nextString"))
+                        .and(takesNoArguments()),
+                getClass().getName() + "$MethodAdvice");
+    }
+
+    public static class ConstructAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final java.io.Reader input) {
+            final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
+            if (iastModule != null && input != null) {
+                iastModule.taintObjectIfTainted(self, input);
+            }
+        }
+    }
+
+    public static class MethodAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void afterMethod(@Advice.This Object self, @Advice.Return final String result) {
+            final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
+            if (iastModule != null && result != null) {
+                iastModule.taintStringIfTainted(result, self);
+            }
+        }
+    }
 }

@@ -49,1122 +49,1112 @@ import org.slf4j.LoggerFactory;
 // or at least create separate interfaces
 @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
 public class AppSecRequestContext implements DataBundle, Closeable, AppSecContext {
-  private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
-
-  public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
-
-  // Values MUST be lowercase! Lookup with Ignore Case
-  // was removed due performance reason
-  // request headers that will always be set when appsec is enabled
-  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList(
-              "content-type",
-              "user-agent",
-              "accept",
-              "x-amzn-trace-id",
-              "cloudfront-viewer-ja3-fingerprint",
-              "cf-ray",
-              "x-cloud-trace-context",
-              "x-appgw-trace-id",
-              "x-sigsci-requestid",
-              "x-sigsci-tags",
-              "akamai-user-risk"));
-
-  // request headers when there are security events
-  public static final Set<String> REQUEST_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList(
-              "x-forwarded-for",
-              "x-real-ip",
-              "true-client-ip",
-              "x-client-ip",
-              "x-forwarded",
-              "forwarded-for",
-              "x-cluster-client-ip",
-              "fastly-client-ip",
-              "cf-connecting-ip",
-              "cf-connecting-ipv6",
-              "forwarded",
-              "via",
-              "content-length",
-              "content-encoding",
-              "content-language",
-              "host",
-              "accept-encoding",
-              "accept-language"));
-
-  // response headers when there are security events
-  public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
-
-  // headers related with authorization
-  public static final Set<String> AUTHORIZATION_HEADERS =
-      new TreeSet<>(
-          Arrays.asList(
-              "authorization",
-              "proxy-authorization",
-              "www-authenticate",
-              "proxy-authenticate",
-              "authentication-info",
-              "proxy-authentication-info",
-              "cookie",
-              "set-cookie"));
-
-  static {
-    REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
-  }
-
-  private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private volatile Queue<AppSecEvent> appSecEvents;
-  private volatile Queue<StackTraceEvent> stackTraceEvents;
-
-  // assume these will always be written and read by the same thread
-  private String scheme;
-  private String method;
-  private String savedRawURI;
-  private String route;
-  private String httpUrl;
-  private String apiSecurityFramework;
-  private String endpoint;
-  private boolean endpointComputed = false;
-  // Handed out live to readers that may run on the trace-processing thread (API Security schema
-  // extraction), so close() must release these by nulling the reference, never by clearing the map:
-  // mutating a snapshot mid-iteration corrupts it (APPSEC-70134). Volatile because that release can
-  // happen on a different thread than the header writes.
-  //
-  // null also means "no header seen yet", so an untouched context allocates nothing. Only
-  // addRequestHeader/addResponseHeader materialize, which assumes the single writer the plain
-  // LinkedHashMap already assumes; the getters null-coalesce so no reader allocates.
-  private volatile Map<String, List<String>> requestHeaders;
-  private volatile Map<String, List<String>> responseHeaders;
-  private volatile Map<String, List<String>> collectedCookies;
-  private boolean finishedRequestHeaders;
-  private boolean finishedResponseHeaders;
-  private String peerAddress;
-  private int peerPort;
-  private String inferredClientIp;
-
-  private boolean extendedDataCollection = false;
-  private int extendedDataCollectionMaxHeaders = DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
-
-  private volatile StoredBodySupplier storedRequestBodySupplier;
-  private String dbType;
-
-  private int responseStatus;
-
-  private boolean reqDataPublished;
-  private boolean rawReqBodyPublished;
-  private boolean convertedReqBodyPublished;
-  private boolean responseBodyPublished;
-  private boolean respDataPublished;
-  private boolean pathParamsPublished;
-
-  /**
-   * WAF-reported attributes, published copy-on-write: writers publish a fresh unmodifiable copy
-   * instead of mutating in place, so a reader can keep the instance it read without
-   * synchronization. Mutating a published map would break readers running on the trace-processing
-   * thread (APPSEC-70134).
-   */
-  private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
-
-  private final AtomicBoolean rateLimited = new AtomicBoolean(false);
-  private volatile boolean throttled;
-
-  // should be guarded by this
-  private volatile WafContext wafContext;
-  private volatile boolean wafContextClosed;
-  // set after wafContext is set
-  private volatile WafMetrics wafMetrics;
-  private volatile WafMetrics raspMetrics;
-  private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
-
-  private volatile boolean wafBlocked;
-  private volatile String blockingResponseContentType;
-  private volatile Integer blockingResponseContentLength;
-  private volatile boolean wafErrors;
-  private volatile boolean wafTruncated;
-  private volatile boolean wafRequestBlockFailure;
-  private volatile boolean wafRateLimited;
-  private volatile boolean wafRequestExcluded;
-
-  private volatile int wafTimeouts;
-  private volatile int raspTimeouts;
-
-  private volatile Object processedRequestBody;
-  private volatile boolean processedResponseBodySizeExceeded;
-  private volatile boolean raspMatched;
-
-  // keep a reference to the last published usr.id
-  private volatile String userId;
-  // keep a reference to the last published usr.login
-  private volatile String userLogin;
-  // keep a reference to the last published usr.session_id
-  private volatile String sessionId;
-
-  // Used to detect missing request-end event at close.
-  private volatile boolean requestEndCalled;
-
-  private volatile boolean keepOpenForApiSecurityPostProcessing;
-  private volatile Long apiSecurityEndpointHash;
-
-  private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
-  private final Set<Long> sampledHttpClientRequests = new HashSet<>();
-
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
-  private boolean manuallyKept = false;
-
-  // to be called by the Event Dispatcher
-  public void addAll(DataBundle newData) {
-    for (Map.Entry<Address<?>, Object> entry : newData) {
-      Address<?> address = entry.getKey();
-      Object value = entry.getValue();
-      if (value == null) {
-        log.debug(SEND_TELEMETRY, "Address {} ignored, because contains null value.", address);
-        continue;
-      }
-      Object prev = persistentData.putIfAbsent(address, value);
-      if (prev == value || value.equals(prev)) {
-        continue;
-      } else if (prev != null) {
-        log.debug(SEND_TELEMETRY, "Attempt to replace context value for {}", address);
-      }
-      if (log.isDebugEnabled()) {
-        StandardizedLogging.addressPushed(log, address);
-      }
-    }
-  }
-
-  public WafMetrics getWafMetrics() {
-    return wafMetrics;
-  }
-
-  public WafMetrics getRaspMetrics() {
-    return raspMetrics;
-  }
-
-  public AtomicInteger getRaspMetricsCounter() {
-    return raspMetricsCounter;
-  }
-
-  public void setWafBlocked() {
-    this.wafBlocked = true;
-  }
-
-  public boolean isWafBlocked() {
-    return wafBlocked;
-  }
-
-  public void setBlockingResponseContentType(String contentType) {
-    this.blockingResponseContentType = contentType;
-  }
-
-  public String getBlockingResponseContentType() {
-    return blockingResponseContentType;
-  }
-
-  public void setBlockingResponseContentLength(Integer contentLength) {
-    this.blockingResponseContentLength = contentLength;
-  }
-
-  public Integer getBlockingResponseContentLength() {
-    return blockingResponseContentLength;
-  }
-
-  public void setWafErrors() {
-    this.wafErrors = true;
-  }
-
-  public boolean hasWafErrors() {
-    return wafErrors;
-  }
-
-  public void setWafTruncated() {
-    this.wafTruncated = true;
-  }
-
-  public boolean isWafTruncated() {
-    return wafTruncated;
-  }
-
-  public void setWafRequestBlockFailure() {
-    this.wafRequestBlockFailure = true;
-  }
-
-  public boolean isWafRequestBlockFailure() {
-    return wafRequestBlockFailure;
-  }
-
-  @Override
-  public void reportBlockFailure() {
-    setWafRequestBlockFailure();
-  }
-
-  public void setWafRateLimited() {
-    this.wafRateLimited = true;
-  }
-
-  public boolean isWafRateLimited() {
-    return wafRateLimited;
-  }
-
-  // placeholder: libddwaf does not yet expose exclusion filter results
-  public void setWafRequestExcluded() {
-    wafRequestExcluded = true;
-  }
-
-  public boolean isWafRequestExcluded() {
-    return wafRequestExcluded;
-  }
-
-  public void increaseWafTimeouts() {
-    WAF_TIMEOUTS_UPDATER.incrementAndGet(this);
-  }
-
-  public void increaseRaspTimeouts() {
-    RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
-  }
-
-  public boolean sampleHttpClientRequest(final long id) {
-    httpClientRequestCount.incrementAndGet();
-    synchronized (sampledHttpClientRequests) {
-      if (sampledHttpClientRequests.contains(id)) {
-        return true;
-      }
-      if (sampledHttpClientRequests.size()
-          < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
-        sampledHttpClientRequests.add(id);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public boolean isHttpClientRequestSampled(final long id) {
-    return sampledHttpClientRequests.contains(id);
-  }
-
-  public int getHttpClientRequestCount() {
-    return httpClientRequestCount.get();
-  }
-
-  public int getWafTimeouts() {
-    return wafTimeouts;
-  }
-
-  public int getRaspTimeouts() {
-    return raspTimeouts;
-  }
-
-  public boolean isExtendedDataCollection() {
-    return extendedDataCollection;
-  }
-
-  public void setExtendedDataCollection(boolean extendedDataCollection) {
-    this.extendedDataCollection = extendedDataCollection;
-  }
-
-  public int getExtendedDataCollectionMaxHeaders() {
-    return extendedDataCollectionMaxHeaders;
-  }
-
-  public void setExtendedDataCollectionMaxHeaders(int extendedDataCollectionMaxHeaders) {
-    this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
-  }
-
-  /**
-   * Returns the request's {@link WafContext}, creating it on first use.
-   *
-   * <p>Returns {@code null} when the context has already been closed (see {@link
-   * #closeWafContext()}). Callers MUST treat a {@code null} return as "the WAF must not run for
-   * this request" and skip the evaluation. This prevents a late/async data event (e.g. a RASP
-   * callback on a driver or event-loop thread) from resurrecting a brand-new native {@code
-   * ddwaf_context} on an already-finished request, which would never be closed and would leak
-   * off-heap memory (APPSEC-69085).
-   */
-  public WafContext getOrCreateWafContext(
-      WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
-    synchronized (this) {
-      // Atomic with respect to closeWafContext(): both run under this monitor.
-      if (wafContextClosed) {
-        return null;
-      }
-      if (createMetrics) {
-        if (wafMetrics == null) {
-          this.wafMetrics = new WafMetrics();
-        }
-        if (isRasp && raspMetrics == null) {
-          this.raspMetrics = new WafMetrics();
-        }
-      }
-      if (this.wafContext != null) {
-        return this.wafContext;
-      }
-      WafContext curWafContext = new WafContext(wafHandle);
-      this.wafContext = curWafContext;
-      return curWafContext;
-    }
-  }
-
-  public void closeWafContext() {
-    if (wafContextClosed) {
-      // Fast path for the common case of redundant close() calls (e.g. the generic fallback
-      // close() running after GatewayBridge#onRequestEnded already closed it).
-      return;
-    }
-    synchronized (this) {
-      // Must be set unconditionally, even if the WAF never ran for this request: a late/async
-      // caller of getOrCreateWafContext() must not resurrect a context after close (APPSEC-69085).
-      wafContextClosed = true;
-      if (wafContext != null) {
-        try {
-          wafContext.close();
-        } finally {
-          wafContext = null;
-        }
-      }
-    }
-  }
-
-  /* Implementation of DataBundle */
-
-  @Override
-  public boolean hasAddress(Address<?> addr) {
-    return persistentData.containsKey(addr);
-  }
-
-  @Override
-  public Collection<Address<?>> getAllAddresses() {
-    return persistentData.keySet();
-  }
-
-  @Override
-  public int size() {
-    return persistentData.size();
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> T get(Address<T> addr) {
-    return (T) persistentData.get(addr);
-  }
-
-  @Override
-  public Iterator<Map.Entry<Address<?>, Object>> iterator() {
-    return persistentData.entrySet().iterator();
-  }
-
-  /* Interface for use of GatewayBridge */
-
-  String getScheme() {
-    return scheme;
-  }
-
-  void setScheme(String scheme) {
-    this.scheme = scheme;
-  }
-
-  public String getMethod() {
-    return method;
-  }
-
-  void setMethod(String method) {
-    this.method = method;
-  }
-
-  String getSavedRawURI() {
-    return savedRawURI;
-  }
-
-  void setRawURI(String savedRawURI) {
-    if (this.savedRawURI == null) {
-      this.savedRawURI = savedRawURI;
-    }
-  }
-
-  public String getRoute() {
-    return route;
-  }
-
-  public void setRoute(String route) {
-    this.route = route;
-  }
-
-  /**
-   * The web framework component (e.g. netty, tomcat) captured at request-end, when the request was
-   * sampled for API Security schema extraction. Read by the deferred post-processing step instead
-   * of the span's local root, since the local root can be an inferred-proxy span (e.g.
-   * aws-apigateway) rather than the actual web framework.
-   */
-  public String getApiSecurityFramework() {
-    return apiSecurityFramework;
-  }
-
-  public void setApiSecurityFramework(String apiSecurityFramework) {
-    this.apiSecurityFramework = apiSecurityFramework;
-  }
-
-  public String getHttpUrl() {
-    return httpUrl;
-  }
-
-  public void setHttpUrl(String httpUrl) {
-    this.httpUrl = httpUrl;
-  }
-
-  /**
-   * Gets or computes the http.endpoint for this request. The endpoint is computed lazily on first
-   * access and cached to avoid recomputation.
-   *
-   * @return the http.endpoint value, or null if it cannot be computed
-   */
-  public String getOrComputeEndpoint() {
-    if (!endpointComputed) {
-      if (httpUrl != null && !httpUrl.isEmpty()) {
-        try {
-          endpoint = EndpointResolver.computeEndpoint(httpUrl);
-        } catch (Exception e) {
-          endpoint = null;
-        }
-      }
-      endpointComputed = true;
-    }
-    return endpoint;
-  }
-
-  /**
-   * Sets the endpoint directly without computing it. This is useful when the endpoint has already
-   * been computed elsewhere.
-   *
-   * @param endpoint the endpoint value to set
-   */
-  public void setEndpoint(String endpoint) {
-    this.endpoint = endpoint;
-    this.endpointComputed = true;
-  }
-
-  public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
-    this.keepOpenForApiSecurityPostProcessing = flag;
-  }
-
-  public boolean isKeepOpenForApiSecurityPostProcessing() {
-    return this.keepOpenForApiSecurityPostProcessing;
-  }
-
-  public void setApiSecurityEndpointHash(long hash) {
-    this.apiSecurityEndpointHash = hash;
-  }
-
-  public Long getApiSecurityEndpointHash() {
-    return this.apiSecurityEndpointHash;
-  }
-
-  void addRequestHeader(String name, String value) {
-    if (finishedRequestHeaders) {
-      throw new IllegalStateException("Request headers were said to be finished before");
+    private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
+
+    public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
+
+    // Values MUST be lowercase! Lookup with Ignore Case
+    // was removed due performance reason
+    // request headers that will always be set when appsec is enabled
+    public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST = new TreeSet<>(Arrays.asList(
+            "content-type",
+            "user-agent",
+            "accept",
+            "x-amzn-trace-id",
+            "cloudfront-viewer-ja3-fingerprint",
+            "cf-ray",
+            "x-cloud-trace-context",
+            "x-appgw-trace-id",
+            "x-sigsci-requestid",
+            "x-sigsci-tags",
+            "akamai-user-risk"));
+
+    // request headers when there are security events
+    public static final Set<String> REQUEST_HEADERS_ALLOW_LIST = new TreeSet<>(Arrays.asList(
+            "x-forwarded-for",
+            "x-real-ip",
+            "true-client-ip",
+            "x-client-ip",
+            "x-forwarded",
+            "forwarded-for",
+            "x-cluster-client-ip",
+            "fastly-client-ip",
+            "cf-connecting-ip",
+            "cf-connecting-ipv6",
+            "forwarded",
+            "via",
+            "content-length",
+            "content-encoding",
+            "content-language",
+            "host",
+            "accept-encoding",
+            "accept-language"));
+
+    // response headers when there are security events
+    public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
+            new TreeSet<>(Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
+
+    // headers related with authorization
+    public static final Set<String> AUTHORIZATION_HEADERS = new TreeSet<>(Arrays.asList(
+            "authorization",
+            "proxy-authorization",
+            "www-authenticate",
+            "proxy-authenticate",
+            "authentication-info",
+            "proxy-authentication-info",
+            "cookie",
+            "set-cookie"));
+
+    static {
+        REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
     }
 
-    if (name == null || value == null) {
-      return;
-    }
+    private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
+    private volatile Queue<AppSecEvent> appSecEvents;
+    private volatile Queue<StackTraceEvent> stackTraceEvents;
 
-    Map<String, List<String>> headers = requestHeaders;
-    if (headers == null) {
-      headers = new LinkedHashMap<>();
-      requestHeaders = headers;
-    }
-    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
-  }
+    // assume these will always be written and read by the same thread
+    private String scheme;
+    private String method;
+    private String savedRawURI;
+    private String route;
+    private String httpUrl;
+    private String apiSecurityFramework;
+    private String endpoint;
+    private boolean endpointComputed = false;
+    // Handed out live to readers that may run on the trace-processing thread (API Security schema
+    // extraction), so close() must release these by nulling the reference, never by clearing the map:
+    // mutating a snapshot mid-iteration corrupts it (APPSEC-70134). Volatile because that release can
+    // happen on a different thread than the header writes.
+    //
+    // null also means "no header seen yet", so an untouched context allocates nothing. Only
+    // addRequestHeader/addResponseHeader materialize, which assumes the single writer the plain
+    // LinkedHashMap already assumes; the getters null-coalesce so no reader allocates.
+    private volatile Map<String, List<String>> requestHeaders;
+    private volatile Map<String, List<String>> responseHeaders;
+    private volatile Map<String, List<String>> collectedCookies;
+    private boolean finishedRequestHeaders;
+    private boolean finishedResponseHeaders;
+    private String peerAddress;
+    private int peerPort;
+    private String inferredClientIp;
 
-  void finishRequestHeaders() {
-    this.finishedRequestHeaders = true;
-  }
+    private boolean extendedDataCollection = false;
+    private int extendedDataCollectionMaxHeaders = DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
 
-  boolean isFinishedRequestHeaders() {
-    return finishedRequestHeaders;
-  }
+    private volatile StoredBodySupplier storedRequestBodySupplier;
+    private String dbType;
 
-  Map<String, List<String>> getRequestHeaders() {
-    Map<String, List<String>> headers = requestHeaders;
-    return headers != null ? headers : emptyMap();
-  }
+    private int responseStatus;
 
-  void addResponseHeader(String name, String value) {
-    if (finishedResponseHeaders) {
-      throw new IllegalStateException("Response headers were said to be finished before");
-    }
+    private boolean reqDataPublished;
+    private boolean rawReqBodyPublished;
+    private boolean convertedReqBodyPublished;
+    private boolean responseBodyPublished;
+    private boolean respDataPublished;
+    private boolean pathParamsPublished;
 
-    if (name == null || value == null) {
-      return;
-    }
+    /**
+     * WAF-reported attributes, published copy-on-write: writers publish a fresh unmodifiable copy
+     * instead of mutating in place, so a reader can keep the instance it read without
+     * synchronization. Mutating a published map would break readers running on the trace-processing
+     * thread (APPSEC-70134).
+     */
+    private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
 
-    Map<String, List<String>> headers = responseHeaders;
-    if (headers == null) {
-      headers = new LinkedHashMap<>();
-      responseHeaders = headers;
-    }
-    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
-  }
+    private final AtomicBoolean rateLimited = new AtomicBoolean(false);
+    private volatile boolean throttled;
 
-  public void finishResponseHeaders() {
-    this.finishedResponseHeaders = true;
-  }
+    // should be guarded by this
+    private volatile WafContext wafContext;
+    private volatile boolean wafContextClosed;
+    // set after wafContext is set
+    private volatile WafMetrics wafMetrics;
+    private volatile WafMetrics raspMetrics;
+    private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
 
-  public boolean isFinishedResponseHeaders() {
-    return finishedResponseHeaders;
-  }
+    private volatile boolean wafBlocked;
+    private volatile String blockingResponseContentType;
+    private volatile Integer blockingResponseContentLength;
+    private volatile boolean wafErrors;
+    private volatile boolean wafTruncated;
+    private volatile boolean wafRequestBlockFailure;
+    private volatile boolean wafRateLimited;
+    private volatile boolean wafRequestExcluded;
 
-  Map<String, List<String>> getResponseHeaders() {
-    Map<String, List<String>> headers = responseHeaders;
-    return headers != null ? headers : emptyMap();
-  }
+    private volatile int wafTimeouts;
+    private volatile int raspTimeouts;
 
-  void addCookies(Map<String, List<String>> cookies) {
-    if (finishedRequestHeaders) {
-      throw new IllegalStateException("Request headers were said to be finished before");
-    }
-    if (collectedCookies == null) {
-      collectedCookies = cookies;
-    } else {
-      collectedCookies.putAll(cookies);
-    }
-  }
+    private volatile Object processedRequestBody;
+    private volatile boolean processedResponseBodySizeExceeded;
+    private volatile boolean raspMatched;
 
-  Map<String, ? extends Collection<String>> getCookies() {
-    return collectedCookies != null ? collectedCookies : Collections.emptyMap();
-  }
+    // keep a reference to the last published usr.id
+    private volatile String userId;
+    // keep a reference to the last published usr.login
+    private volatile String userLogin;
+    // keep a reference to the last published usr.session_id
+    private volatile String sessionId;
 
-  String getPeerAddress() {
-    return peerAddress;
-  }
+    // Used to detect missing request-end event at close.
+    private volatile boolean requestEndCalled;
 
-  void setPeerAddress(String peerAddress) {
-    this.peerAddress = peerAddress;
-  }
+    private volatile boolean keepOpenForApiSecurityPostProcessing;
+    private volatile Long apiSecurityEndpointHash;
 
-  public int getPeerPort() {
-    return peerPort;
-  }
+    private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
+    private final Set<Long> sampledHttpClientRequests = new HashSet<>();
 
-  public void setPeerPort(int peerPort) {
-    this.peerPort = peerPort;
-  }
+    private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
+    private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
+    private boolean manuallyKept = false;
 
-  void setInferredClientIp(String ipAddress) {
-    this.inferredClientIp = ipAddress;
-  }
-
-  String getInferredClientIp() {
-    return inferredClientIp;
-  }
-
-  void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
-    this.storedRequestBodySupplier = storedRequestBodySupplier;
-  }
-
-  public String getDbType() {
-    return dbType;
-  }
-
-  public void setDbType(String dbType) {
-    this.dbType = dbType;
-  }
-
-  public int getResponseStatus() {
-    return responseStatus;
-  }
-
-  public void setResponseStatus(int responseStatus) {
-    this.responseStatus = responseStatus;
-  }
-
-  public boolean isReqDataPublished() {
-    return reqDataPublished;
-  }
-
-  public void setReqDataPublished(boolean reqDataPublished) {
-    this.reqDataPublished = reqDataPublished;
-  }
-
-  public boolean isPathParamsPublished() {
-    return pathParamsPublished;
-  }
-
-  public void setPathParamsPublished(boolean pathParamsPublished) {
-    this.pathParamsPublished = pathParamsPublished;
-  }
-
-  public boolean isRawReqBodyPublished() {
-    return rawReqBodyPublished;
-  }
-
-  public void setRawReqBodyPublished(boolean rawReqBodyPublished) {
-    this.rawReqBodyPublished = rawReqBodyPublished;
-  }
-
-  public boolean isConvertedReqBodyPublished() {
-    return convertedReqBodyPublished;
-  }
-
-  public void setConvertedReqBodyPublished(boolean convertedReqBodyPublished) {
-    this.convertedReqBodyPublished = convertedReqBodyPublished;
-  }
-
-  public boolean isResponseBodyPublished() {
-    return responseBodyPublished;
-  }
-
-  public void setResponseBodyPublished(final boolean responseBodyPublished) {
-    this.responseBodyPublished = responseBodyPublished;
-  }
-
-  public boolean isRespDataPublished() {
-    return respDataPublished;
-  }
-
-  public void setRespDataPublished(boolean respDataPublished) {
-    this.respDataPublished = respDataPublished;
-  }
-
-  /**
-   * Updates the current used usr.id
-   *
-   * @return {@code false} if the user id has not been updated
-   */
-  public boolean updateUserId(String userId) {
-    if (Objects.equals(this.userId, userId)) {
-      return false;
-    }
-    this.userId = userId;
-    return true;
-  }
-
-  /**
-   * Updates current used usr.login
-   *
-   * @return {@code false} if the user login has not been updated
-   */
-  public boolean updateUserLogin(String userLogin) {
-    if (Objects.equals(this.userLogin, userLogin)) {
-      return false;
-    }
-    this.userLogin = userLogin;
-    return true;
-  }
-
-  public void setSessionId(String sessionId) {
-    this.sessionId = sessionId;
-  }
-
-  public String getSessionId() {
-    return sessionId;
-  }
-
-  /**
-   * Close the context and release all resources. This method is idempotent and can be called
-   * multiple times. For each root span, this method is always called from
-   * CoreTracer#onRootSpanPublished.
-   */
-  @Override
-  public void close() {
-    if (!requestEndCalled) {
-      log.debug(SEND_TELEMETRY, "Request end event was not called before close");
-    }
-    // For API Security, we sometimes keep contexts open for late processing. In that case, this
-    // flag needs to be
-    // later reset by the API Security post-processor and close must be called again.
-    if (!keepOpenForApiSecurityPostProcessing) {
-      if (wafContext != null) {
-        log.debug(
-            SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      }
-      // Always close, even if the WAF never ran for this request: wafContextClosed must be set so
-      // a late/async caller of getOrCreateWafContext() cannot resurrect a context (APPSEC-69085).
-      closeWafContext();
-      collectedCookies = null;
-      persistentData.clear();
-      // Null the reference, never clear in place (APPSEC-70134): see the field declarations.
-      this.requestHeaders = null;
-      this.responseHeaders = null;
-      this.derivatives.set(null);
-    }
-  }
-
-  /**
-   * @return the portion of the body read so far, if any
-   */
-  public CharSequence getStoredRequestBody() {
-    StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
-    if (storedRequestBodySupplier == null) {
-      return null;
-    }
-    return storedRequestBodySupplier.get();
-  }
-
-  public void reportEvents(Collection<AppSecEvent> appSecEvents) {
-    for (AppSecEvent event : appSecEvents) {
-      StandardizedLogging.attackDetected(log, event);
-    }
-    if (this.appSecEvents == null) {
-      synchronized (this) {
-        if (this.appSecEvents == null) {
-          this.appSecEvents = new ConcurrentLinkedQueue<>();
-        }
-      }
-    }
-    this.appSecEvents.addAll(appSecEvents);
-  }
-
-  public void reportStackTrace(StackTraceEvent stackTraceEvent) {
-    if (this.stackTraceEvents == null) {
-      synchronized (this) {
-        if (this.stackTraceEvents == null) {
-          this.stackTraceEvents = new ConcurrentLinkedQueue<>();
-        }
-      }
-    }
-    if (stackTraceEvents.size() <= Config.get().getAppSecMaxStackTraces()) {
-      this.stackTraceEvents.add(stackTraceEvent);
-    }
-  }
-
-  Collection<AppSecEvent> transferCollectedEvents() {
-    if (this.appSecEvents == null) {
-      return Collections.emptyList();
-    }
-
-    Collection<AppSecEvent> events = new ArrayList<>();
-    AppSecEvent item;
-    while ((item = this.appSecEvents.poll()) != null) {
-      events.add(item);
-    }
-
-    return events;
-  }
-
-  List<StackTraceEvent> getStackTraces() {
-    if (this.stackTraceEvents == null) {
-      return null;
-    }
-    List<StackTraceEvent> stackTraces = new ArrayList<>();
-    StackTraceEvent item;
-    while ((item = this.stackTraceEvents.poll()) != null) {
-      stackTraces.add(item);
-    }
-    return stackTraces;
-  }
-
-  public void reportDerivatives(Map<String, Object> data) {
-    log.debug("Reporting derivatives: {}", data);
-    if (data == null || data.isEmpty()) return;
-
-    // Initialize or update derivatives atomically
-    derivatives.updateAndGet(
-        current -> {
-          Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
-
-          // Process each attribute according to the specification
-          for (Map.Entry<String, Object> entry : data.entrySet()) {
-            String attributeKey = entry.getKey();
-            Object attributeConfig = entry.getValue();
-
-            if (attributeConfig instanceof Map) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> config = (Map<String, Object>) attributeConfig;
-
-              // Check if it's a literal value schema
-              if (config.containsKey("value")) {
-                Object literalValue = config.get("value");
-                if (literalValue != null) {
-                  // Preserve the original type - don't convert to string
-                  updated.put(attributeKey, literalValue);
-                  log.debug(
-                      "Added literal attribute: {} = {} (type: {})",
-                      attributeKey,
-                      literalValue,
-                      literalValue.getClass().getSimpleName());
-                }
-              }
-              // Check if it's a request data schema
-              else if (config.containsKey("address")) {
-                String address = (String) config.get("address");
-                @SuppressWarnings("unchecked")
-                List<String> keyPath = (List<String>) config.get("key_path");
-                @SuppressWarnings("unchecked")
-                List<String> transformers = (List<String>) config.get("transformers");
-
-                Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
-                if (extractedValue != null) {
-                  // For extracted values, convert to string as they come from request data
-                  updated.put(attributeKey, extractedValue.toString());
-                  log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
-                }
-              }
-            } else {
-              // Handle plain string/numeric values
-              updated.put(attributeKey, attributeConfig);
-              log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+    // to be called by the Event Dispatcher
+    public void addAll(DataBundle newData) {
+        for (Map.Entry<Address<?>, Object> entry : newData) {
+            Address<?> address = entry.getKey();
+            Object value = entry.getValue();
+            if (value == null) {
+                log.debug(SEND_TELEMETRY, "Address {} ignored, because contains null value.", address);
+                continue;
             }
-          }
-
-          // Unmodifiable: readers may hold this instance indefinitely.
-          return unmodifiableMap(updated);
-        });
-  }
-
-  /**
-   * Extracts a value from request data based on address, key path, and transformers.
-   *
-   * @param address The address to extract from (e.g., "server.request.headers")
-   * @param keyPath Optional key path to navigate the data structure
-   * @param transformers Optional list of transformers to apply
-   * @return The extracted value, or null if not found
-   */
-  private Object extractValueFromRequestData(
-      String address, List<String> keyPath, List<String> transformers) {
-    // Get the data from the address
-    Object data = getDataForAddress(address);
-    if (data == null) {
-      log.debug("No data found for address: {}", address);
-      return null;
+            Object prev = persistentData.putIfAbsent(address, value);
+            if (prev == value || value.equals(prev)) {
+                continue;
+            } else if (prev != null) {
+                log.debug(SEND_TELEMETRY, "Attempt to replace context value for {}", address);
+            }
+            if (log.isDebugEnabled()) {
+                StandardizedLogging.addressPushed(log, address);
+            }
+        }
     }
 
-    // Navigate through the key path
-    Object currentValue = data;
-    if (keyPath != null && !keyPath.isEmpty()) {
-      currentValue = navigateKeyPath(currentValue, keyPath);
-      if (currentValue == null) {
-        log.debug("Could not navigate key path {} for address {}", keyPath, address);
-        return null;
-      }
+    public WafMetrics getWafMetrics() {
+        return wafMetrics;
     }
 
-    // Apply transformers if specified
-    if (transformers != null && !transformers.isEmpty()) {
-      currentValue = applyTransformers(currentValue, transformers);
+    public WafMetrics getRaspMetrics() {
+        return raspMetrics;
     }
 
-    return currentValue;
-  }
+    public AtomicInteger getRaspMetricsCounter() {
+        return raspMetricsCounter;
+    }
 
-  /** Gets data for a specific address from the request context. */
-  private Object getDataForAddress(String address) {
-    // Map common addresses to our data structures
-    switch (address) {
-      case "server.request.headers":
-        return getRequestHeaders();
-      case "server.response.headers":
-        return getResponseHeaders();
-      case "server.request.cookies":
-        return collectedCookies;
-      case "server.request.uri.raw":
-        return savedRawURI;
-      case "server.request.method":
-        return method;
-      case "server.request.scheme":
+    public void setWafBlocked() {
+        this.wafBlocked = true;
+    }
+
+    public boolean isWafBlocked() {
+        return wafBlocked;
+    }
+
+    public void setBlockingResponseContentType(String contentType) {
+        this.blockingResponseContentType = contentType;
+    }
+
+    public String getBlockingResponseContentType() {
+        return blockingResponseContentType;
+    }
+
+    public void setBlockingResponseContentLength(Integer contentLength) {
+        this.blockingResponseContentLength = contentLength;
+    }
+
+    public Integer getBlockingResponseContentLength() {
+        return blockingResponseContentLength;
+    }
+
+    public void setWafErrors() {
+        this.wafErrors = true;
+    }
+
+    public boolean hasWafErrors() {
+        return wafErrors;
+    }
+
+    public void setWafTruncated() {
+        this.wafTruncated = true;
+    }
+
+    public boolean isWafTruncated() {
+        return wafTruncated;
+    }
+
+    public void setWafRequestBlockFailure() {
+        this.wafRequestBlockFailure = true;
+    }
+
+    public boolean isWafRequestBlockFailure() {
+        return wafRequestBlockFailure;
+    }
+
+    @Override
+    public void reportBlockFailure() {
+        setWafRequestBlockFailure();
+    }
+
+    public void setWafRateLimited() {
+        this.wafRateLimited = true;
+    }
+
+    public boolean isWafRateLimited() {
+        return wafRateLimited;
+    }
+
+    // placeholder: libddwaf does not yet expose exclusion filter results
+    public void setWafRequestExcluded() {
+        wafRequestExcluded = true;
+    }
+
+    public boolean isWafRequestExcluded() {
+        return wafRequestExcluded;
+    }
+
+    public void increaseWafTimeouts() {
+        WAF_TIMEOUTS_UPDATER.incrementAndGet(this);
+    }
+
+    public void increaseRaspTimeouts() {
+        RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
+    }
+
+    public boolean sampleHttpClientRequest(final long id) {
+        httpClientRequestCount.incrementAndGet();
+        synchronized (sampledHttpClientRequests) {
+            if (sampledHttpClientRequests.contains(id)) {
+                return true;
+            }
+            if (sampledHttpClientRequests.size() < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
+                sampledHttpClientRequests.add(id);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isHttpClientRequestSampled(final long id) {
+        return sampledHttpClientRequests.contains(id);
+    }
+
+    public int getHttpClientRequestCount() {
+        return httpClientRequestCount.get();
+    }
+
+    public int getWafTimeouts() {
+        return wafTimeouts;
+    }
+
+    public int getRaspTimeouts() {
+        return raspTimeouts;
+    }
+
+    public boolean isExtendedDataCollection() {
+        return extendedDataCollection;
+    }
+
+    public void setExtendedDataCollection(boolean extendedDataCollection) {
+        this.extendedDataCollection = extendedDataCollection;
+    }
+
+    public int getExtendedDataCollectionMaxHeaders() {
+        return extendedDataCollectionMaxHeaders;
+    }
+
+    public void setExtendedDataCollectionMaxHeaders(int extendedDataCollectionMaxHeaders) {
+        this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
+    }
+
+    /**
+     * Returns the request's {@link WafContext}, creating it on first use.
+     *
+     * <p>Returns {@code null} when the context has already been closed (see {@link
+     * #closeWafContext()}). Callers MUST treat a {@code null} return as "the WAF must not run for
+     * this request" and skip the evaluation. This prevents a late/async data event (e.g. a RASP
+     * callback on a driver or event-loop thread) from resurrecting a brand-new native {@code
+     * ddwaf_context} on an already-finished request, which would never be closed and would leak
+     * off-heap memory (APPSEC-69085).
+     */
+    public WafContext getOrCreateWafContext(WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
+        synchronized (this) {
+            // Atomic with respect to closeWafContext(): both run under this monitor.
+            if (wafContextClosed) {
+                return null;
+            }
+            if (createMetrics) {
+                if (wafMetrics == null) {
+                    this.wafMetrics = new WafMetrics();
+                }
+                if (isRasp && raspMetrics == null) {
+                    this.raspMetrics = new WafMetrics();
+                }
+            }
+            if (this.wafContext != null) {
+                return this.wafContext;
+            }
+            WafContext curWafContext = new WafContext(wafHandle);
+            this.wafContext = curWafContext;
+            return curWafContext;
+        }
+    }
+
+    public void closeWafContext() {
+        if (wafContextClosed) {
+            // Fast path for the common case of redundant close() calls (e.g. the generic fallback
+            // close() running after GatewayBridge#onRequestEnded already closed it).
+            return;
+        }
+        synchronized (this) {
+            // Must be set unconditionally, even if the WAF never ran for this request: a late/async
+            // caller of getOrCreateWafContext() must not resurrect a context after close (APPSEC-69085).
+            wafContextClosed = true;
+            if (wafContext != null) {
+                try {
+                    wafContext.close();
+                } finally {
+                    wafContext = null;
+                }
+            }
+        }
+    }
+
+    /* Implementation of DataBundle */
+
+    @Override
+    public boolean hasAddress(Address<?> addr) {
+        return persistentData.containsKey(addr);
+    }
+
+    @Override
+    public Collection<Address<?>> getAllAddresses() {
+        return persistentData.keySet();
+    }
+
+    @Override
+    public int size() {
+        return persistentData.size();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T get(Address<T> addr) {
+        return (T) persistentData.get(addr);
+    }
+
+    @Override
+    public Iterator<Map.Entry<Address<?>, Object>> iterator() {
+        return persistentData.entrySet().iterator();
+    }
+
+    /* Interface for use of GatewayBridge */
+
+    String getScheme() {
         return scheme;
-      case "server.request.route":
+    }
+
+    void setScheme(String scheme) {
+        this.scheme = scheme;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    void setMethod(String method) {
+        this.method = method;
+    }
+
+    String getSavedRawURI() {
+        return savedRawURI;
+    }
+
+    void setRawURI(String savedRawURI) {
+        if (this.savedRawURI == null) {
+            this.savedRawURI = savedRawURI;
+        }
+    }
+
+    public String getRoute() {
         return route;
-      case "server.response.status":
-        return responseStatus;
-      case "server.request.body":
-        return getStoredRequestBody();
-      case "usr.id":
-        return userId;
-      case "usr.login":
-        return userLogin;
-      case "usr.session_id":
-        return sessionId;
-      default:
-        log.debug("Unknown address: {}", address);
-        return null;
     }
-  }
 
-  /** Navigates through a data structure using a key path. */
-  private Object navigateKeyPath(Object data, List<String> keyPath) {
-    Object current = data;
+    public void setRoute(String route) {
+        this.route = route;
+    }
 
-    for (String key : keyPath) {
-      if (current instanceof Map) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> map = (Map<String, Object>) current;
-        current = map.get(key);
-      } else if (current instanceof List) {
-        try {
-          int index = Integer.parseInt(key);
-          @SuppressWarnings("unchecked")
-          List<Object> list = (List<Object>) current;
-          if (index >= 0 && index < list.size()) {
-            current = list.get(index);
-          } else {
-            return null;
-          }
-        } catch (NumberFormatException e) {
-          log.debug("Invalid list index: {}", key);
-          return null;
+    /**
+     * The web framework component (e.g. netty, tomcat) captured at request-end, when the request was
+     * sampled for API Security schema extraction. Read by the deferred post-processing step instead
+     * of the span's local root, since the local root can be an inferred-proxy span (e.g.
+     * aws-apigateway) rather than the actual web framework.
+     */
+    public String getApiSecurityFramework() {
+        return apiSecurityFramework;
+    }
+
+    public void setApiSecurityFramework(String apiSecurityFramework) {
+        this.apiSecurityFramework = apiSecurityFramework;
+    }
+
+    public String getHttpUrl() {
+        return httpUrl;
+    }
+
+    public void setHttpUrl(String httpUrl) {
+        this.httpUrl = httpUrl;
+    }
+
+    /**
+     * Gets or computes the http.endpoint for this request. The endpoint is computed lazily on first
+     * access and cached to avoid recomputation.
+     *
+     * @return the http.endpoint value, or null if it cannot be computed
+     */
+    public String getOrComputeEndpoint() {
+        if (!endpointComputed) {
+            if (httpUrl != null && !httpUrl.isEmpty()) {
+                try {
+                    endpoint = EndpointResolver.computeEndpoint(httpUrl);
+                } catch (Exception e) {
+                    endpoint = null;
+                }
+            }
+            endpointComputed = true;
         }
-      } else {
-        log.debug("Cannot navigate key {} in data type: {}", key, current.getClass());
-        return null;
-      }
-
-      if (current == null) {
-        return null;
-      }
+        return endpoint;
     }
 
-    return current;
-  }
-
-  /** Applies transformers to a value. */
-  private Object applyTransformers(Object value, List<String> transformers) {
-    Object current = value;
-
-    for (String transformer : transformers) {
-      switch (transformer) {
-        case "lowercase":
-          if (current instanceof String) {
-            current = ((String) current).toLowerCase(Locale.ROOT);
-          }
-          break;
-        case "uppercase":
-          if (current instanceof String) {
-            current = ((String) current).toUpperCase(Locale.ROOT);
-          }
-          break;
-        case "trim":
-          if (current instanceof String) {
-            current = ((String) current).trim();
-          }
-          break;
-        case "length":
-          if (current instanceof String) {
-            current = ((String) current).length();
-          } else if (current instanceof Collection) {
-            current = ((Collection<?>) current).size();
-          } else if (current instanceof Map) {
-            current = ((Map<?, ?>) current).size();
-          }
-          break;
-        default:
-          log.debug("Unknown transformer: {}", transformer);
-          break;
-      }
+    /**
+     * Sets the endpoint directly without computing it. This is useful when the endpoint has already
+     * been computed elsewhere.
+     *
+     * @param endpoint the endpoint value to set
+     */
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+        this.endpointComputed = true;
     }
 
-    return current;
-  }
-
-  public boolean commitDerivatives(TraceSegment traceSegment) {
-    if (traceSegment == null) {
-      return false;
+    public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
+        this.keepOpenForApiSecurityPostProcessing = flag;
     }
 
-    // Get and clear derivatives atomically
-    Map<String, Object> derivativesToCommit = derivatives.getAndSet(null);
-    log.debug("Committing derivatives: {} for {}", derivativesToCommit, traceSegment);
+    public boolean isKeepOpenForApiSecurityPostProcessing() {
+        return this.keepOpenForApiSecurityPostProcessing;
+    }
 
-    // Process and commit derivatives directly
-    if (derivativesToCommit != null && !derivativesToCommit.isEmpty()) {
-      for (Map.Entry<String, Object> entry : derivativesToCommit.entrySet()) {
-        String key = entry.getKey();
-        Object value = entry.getValue();
+    public void setApiSecurityEndpointHash(long hash) {
+        this.apiSecurityEndpointHash = hash;
+    }
 
-        // Handle different value types
-        if (value instanceof Number) {
-          traceSegment.setTagTop(key, (Number) value);
-        } else if (value instanceof String) {
-          // Try to parse as numeric, otherwise use as string
-          Number parsedNumber = Numbers.parseNumber((String) value);
-          if (parsedNumber != null) {
-            traceSegment.setTagTop(key, parsedNumber);
-          } else {
-            traceSegment.setTagTop(key, value);
-          }
-        } else if (value instanceof Boolean) {
-          traceSegment.setTagTop(key, value);
+    public Long getApiSecurityEndpointHash() {
+        return this.apiSecurityEndpointHash;
+    }
+
+    void addRequestHeader(String name, String value) {
+        if (finishedRequestHeaders) {
+            throw new IllegalStateException("Request headers were said to be finished before");
+        }
+
+        if (name == null || value == null) {
+            return;
+        }
+
+        Map<String, List<String>> headers = requestHeaders;
+        if (headers == null) {
+            headers = new LinkedHashMap<>();
+            requestHeaders = headers;
+        }
+        headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1))
+                .add(value);
+    }
+
+    void finishRequestHeaders() {
+        this.finishedRequestHeaders = true;
+    }
+
+    boolean isFinishedRequestHeaders() {
+        return finishedRequestHeaders;
+    }
+
+    Map<String, List<String>> getRequestHeaders() {
+        Map<String, List<String>> headers = requestHeaders;
+        return headers != null ? headers : emptyMap();
+    }
+
+    void addResponseHeader(String name, String value) {
+        if (finishedResponseHeaders) {
+            throw new IllegalStateException("Response headers were said to be finished before");
+        }
+
+        if (name == null || value == null) {
+            return;
+        }
+
+        Map<String, List<String>> headers = responseHeaders;
+        if (headers == null) {
+            headers = new LinkedHashMap<>();
+            responseHeaders = headers;
+        }
+        headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1))
+                .add(value);
+    }
+
+    public void finishResponseHeaders() {
+        this.finishedResponseHeaders = true;
+    }
+
+    public boolean isFinishedResponseHeaders() {
+        return finishedResponseHeaders;
+    }
+
+    Map<String, List<String>> getResponseHeaders() {
+        Map<String, List<String>> headers = responseHeaders;
+        return headers != null ? headers : emptyMap();
+    }
+
+    void addCookies(Map<String, List<String>> cookies) {
+        if (finishedRequestHeaders) {
+            throw new IllegalStateException("Request headers were said to be finished before");
+        }
+        if (collectedCookies == null) {
+            collectedCookies = cookies;
         } else {
-          // Convert other types to string
-          traceSegment.setTagTop(key, value.toString());
+            collectedCookies.putAll(cookies);
         }
-      }
     }
 
-    return true;
-  }
+    Map<String, ? extends Collection<String>> getCookies() {
+        return collectedCookies != null ? collectedCookies : Collections.emptyMap();
+    }
 
-  /**
-   * Mainly used for testing and debug logging. The published map is unmodifiable, so its key set is
-   * returned directly as a stable view.
-   */
-  public Set<String> getDerivativeKeys() {
-    Map<String, Object> current = derivatives.get();
-    return current == null ? emptySet() : current.keySet();
-  }
+    String getPeerAddress() {
+        return peerAddress;
+    }
 
-  /**
-   * Whether any currently reported derivative key starts with the given prefix. Must be called
-   * before {@link #commitDerivatives(TraceSegment)}, which detaches the derivatives map.
-   */
-  public boolean hasDerivativeKeyStartingWith(final String prefix) {
-    for (String key : getDerivativeKeys()) {
-      if (key != null && key.startsWith(prefix)) {
+    void setPeerAddress(String peerAddress) {
+        this.peerAddress = peerAddress;
+    }
+
+    public int getPeerPort() {
+        return peerPort;
+    }
+
+    public void setPeerPort(int peerPort) {
+        this.peerPort = peerPort;
+    }
+
+    void setInferredClientIp(String ipAddress) {
+        this.inferredClientIp = ipAddress;
+    }
+
+    String getInferredClientIp() {
+        return inferredClientIp;
+    }
+
+    void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
+        this.storedRequestBodySupplier = storedRequestBodySupplier;
+    }
+
+    public String getDbType() {
+        return dbType;
+    }
+
+    public void setDbType(String dbType) {
+        this.dbType = dbType;
+    }
+
+    public int getResponseStatus() {
+        return responseStatus;
+    }
+
+    public void setResponseStatus(int responseStatus) {
+        this.responseStatus = responseStatus;
+    }
+
+    public boolean isReqDataPublished() {
+        return reqDataPublished;
+    }
+
+    public void setReqDataPublished(boolean reqDataPublished) {
+        this.reqDataPublished = reqDataPublished;
+    }
+
+    public boolean isPathParamsPublished() {
+        return pathParamsPublished;
+    }
+
+    public void setPathParamsPublished(boolean pathParamsPublished) {
+        this.pathParamsPublished = pathParamsPublished;
+    }
+
+    public boolean isRawReqBodyPublished() {
+        return rawReqBodyPublished;
+    }
+
+    public void setRawReqBodyPublished(boolean rawReqBodyPublished) {
+        this.rawReqBodyPublished = rawReqBodyPublished;
+    }
+
+    public boolean isConvertedReqBodyPublished() {
+        return convertedReqBodyPublished;
+    }
+
+    public void setConvertedReqBodyPublished(boolean convertedReqBodyPublished) {
+        this.convertedReqBodyPublished = convertedReqBodyPublished;
+    }
+
+    public boolean isResponseBodyPublished() {
+        return responseBodyPublished;
+    }
+
+    public void setResponseBodyPublished(final boolean responseBodyPublished) {
+        this.responseBodyPublished = responseBodyPublished;
+    }
+
+    public boolean isRespDataPublished() {
+        return respDataPublished;
+    }
+
+    public void setRespDataPublished(boolean respDataPublished) {
+        this.respDataPublished = respDataPublished;
+    }
+
+    /**
+     * Updates the current used usr.id
+     *
+     * @return {@code false} if the user id has not been updated
+     */
+    public boolean updateUserId(String userId) {
+        if (Objects.equals(this.userId, userId)) {
+            return false;
+        }
+        this.userId = userId;
         return true;
-      }
     }
-    return false;
-  }
 
-  public boolean isThrottled(RateLimiter rateLimiter) {
-    if (rateLimiter != null && rateLimited.compareAndSet(false, true)) {
-      throttled = rateLimiter.isThrottled();
+    /**
+     * Updates current used usr.login
+     *
+     * @return {@code false} if the user login has not been updated
+     */
+    public boolean updateUserLogin(String userLogin) {
+        if (Objects.equals(this.userLogin, userLogin)) {
+            return false;
+        }
+        this.userLogin = userLogin;
+        return true;
     }
-    return throttled;
-  }
 
-  public boolean isWafContextClosed() {
-    return wafContextClosed;
-  }
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }
 
-  /** Must be called during request end event processing. */
-  void setRequestEndCalled() {
-    requestEndCalled = true;
-  }
+    public String getSessionId() {
+        return sessionId;
+    }
 
-  public void setProcessedRequestBody(Object processedRequestBody) {
-    this.processedRequestBody = processedRequestBody;
-  }
+    /**
+     * Close the context and release all resources. This method is idempotent and can be called
+     * multiple times. For each root span, this method is always called from
+     * CoreTracer#onRootSpanPublished.
+     */
+    @Override
+    public void close() {
+        if (!requestEndCalled) {
+            log.debug(SEND_TELEMETRY, "Request end event was not called before close");
+        }
+        // For API Security, we sometimes keep contexts open for late processing. In that case, this
+        // flag needs to be
+        // later reset by the API Security post-processor and close must be called again.
+        if (!keepOpenForApiSecurityPostProcessing) {
+            if (wafContext != null) {
+                log.debug(SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
+            }
+            // Always close, even if the WAF never ran for this request: wafContextClosed must be set so
+            // a late/async caller of getOrCreateWafContext() cannot resurrect a context (APPSEC-69085).
+            closeWafContext();
+            collectedCookies = null;
+            persistentData.clear();
+            // Null the reference, never clear in place (APPSEC-70134): see the field declarations.
+            this.requestHeaders = null;
+            this.responseHeaders = null;
+            this.derivatives.set(null);
+        }
+    }
 
-  public Object getProcessedRequestBody() {
-    return processedRequestBody;
-  }
+    /**
+     * @return the portion of the body read so far, if any
+     */
+    public CharSequence getStoredRequestBody() {
+        StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
+        if (storedRequestBodySupplier == null) {
+            return null;
+        }
+        return storedRequestBodySupplier.get();
+    }
 
-  public boolean isProcessedResponseBodySizeExceeded() {
-    return processedResponseBodySizeExceeded;
-  }
+    public void reportEvents(Collection<AppSecEvent> appSecEvents) {
+        for (AppSecEvent event : appSecEvents) {
+            StandardizedLogging.attackDetected(log, event);
+        }
+        if (this.appSecEvents == null) {
+            synchronized (this) {
+                if (this.appSecEvents == null) {
+                    this.appSecEvents = new ConcurrentLinkedQueue<>();
+                }
+            }
+        }
+        this.appSecEvents.addAll(appSecEvents);
+    }
 
-  public void setProcessedResponseBodySizeExceeded(boolean processedResponseBodySizeExceeded) {
-    this.processedResponseBodySizeExceeded = processedResponseBodySizeExceeded;
-  }
+    public void reportStackTrace(StackTraceEvent stackTraceEvent) {
+        if (this.stackTraceEvents == null) {
+            synchronized (this) {
+                if (this.stackTraceEvents == null) {
+                    this.stackTraceEvents = new ConcurrentLinkedQueue<>();
+                }
+            }
+        }
+        if (stackTraceEvents.size() <= Config.get().getAppSecMaxStackTraces()) {
+            this.stackTraceEvents.add(stackTraceEvent);
+        }
+    }
 
-  public boolean isRaspMatched() {
-    return raspMatched;
-  }
+    Collection<AppSecEvent> transferCollectedEvents() {
+        if (this.appSecEvents == null) {
+            return Collections.emptyList();
+        }
 
-  public void setRaspMatched(boolean raspMatched) {
-    this.raspMatched = raspMatched;
-  }
+        Collection<AppSecEvent> events = new ArrayList<>();
+        AppSecEvent item;
+        while ((item = this.appSecEvents.poll()) != null) {
+            events.add(item);
+        }
 
-  public boolean isManuallyKept() {
-    return manuallyKept;
-  }
+        return events;
+    }
 
-  public void setManuallyKept(boolean manuallyKept) {
-    this.manuallyKept = manuallyKept;
-  }
+    List<StackTraceEvent> getStackTraces() {
+        if (this.stackTraceEvents == null) {
+            return null;
+        }
+        List<StackTraceEvent> stackTraces = new ArrayList<>();
+        StackTraceEvent item;
+        while ((item = this.stackTraceEvents.poll()) != null) {
+            stackTraces.add(item);
+        }
+        return stackTraces;
+    }
+
+    public void reportDerivatives(Map<String, Object> data) {
+        log.debug("Reporting derivatives: {}", data);
+        if (data == null || data.isEmpty()) return;
+
+        // Initialize or update derivatives atomically
+        derivatives.updateAndGet(current -> {
+            Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
+
+            // Process each attribute according to the specification
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+                String attributeKey = entry.getKey();
+                Object attributeConfig = entry.getValue();
+
+                if (attributeConfig instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> config = (Map<String, Object>) attributeConfig;
+
+                    // Check if it's a literal value schema
+                    if (config.containsKey("value")) {
+                        Object literalValue = config.get("value");
+                        if (literalValue != null) {
+                            // Preserve the original type - don't convert to string
+                            updated.put(attributeKey, literalValue);
+                            log.debug(
+                                    "Added literal attribute: {} = {} (type: {})",
+                                    attributeKey,
+                                    literalValue,
+                                    literalValue.getClass().getSimpleName());
+                        }
+                    }
+                    // Check if it's a request data schema
+                    else if (config.containsKey("address")) {
+                        String address = (String) config.get("address");
+                        @SuppressWarnings("unchecked")
+                        List<String> keyPath = (List<String>) config.get("key_path");
+                        @SuppressWarnings("unchecked")
+                        List<String> transformers = (List<String>) config.get("transformers");
+
+                        Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+                        if (extractedValue != null) {
+                            // For extracted values, convert to string as they come from request data
+                            updated.put(attributeKey, extractedValue.toString());
+                            log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+                        }
+                    }
+                } else {
+                    // Handle plain string/numeric values
+                    updated.put(attributeKey, attributeConfig);
+                    log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+                }
+            }
+
+            // Unmodifiable: readers may hold this instance indefinitely.
+            return unmodifiableMap(updated);
+        });
+    }
+
+    /**
+     * Extracts a value from request data based on address, key path, and transformers.
+     *
+     * @param address The address to extract from (e.g., "server.request.headers")
+     * @param keyPath Optional key path to navigate the data structure
+     * @param transformers Optional list of transformers to apply
+     * @return The extracted value, or null if not found
+     */
+    private Object extractValueFromRequestData(String address, List<String> keyPath, List<String> transformers) {
+        // Get the data from the address
+        Object data = getDataForAddress(address);
+        if (data == null) {
+            log.debug("No data found for address: {}", address);
+            return null;
+        }
+
+        // Navigate through the key path
+        Object currentValue = data;
+        if (keyPath != null && !keyPath.isEmpty()) {
+            currentValue = navigateKeyPath(currentValue, keyPath);
+            if (currentValue == null) {
+                log.debug("Could not navigate key path {} for address {}", keyPath, address);
+                return null;
+            }
+        }
+
+        // Apply transformers if specified
+        if (transformers != null && !transformers.isEmpty()) {
+            currentValue = applyTransformers(currentValue, transformers);
+        }
+
+        return currentValue;
+    }
+
+    /** Gets data for a specific address from the request context. */
+    private Object getDataForAddress(String address) {
+        // Map common addresses to our data structures
+        switch (address) {
+            case "server.request.headers":
+                return getRequestHeaders();
+            case "server.response.headers":
+                return getResponseHeaders();
+            case "server.request.cookies":
+                return collectedCookies;
+            case "server.request.uri.raw":
+                return savedRawURI;
+            case "server.request.method":
+                return method;
+            case "server.request.scheme":
+                return scheme;
+            case "server.request.route":
+                return route;
+            case "server.response.status":
+                return responseStatus;
+            case "server.request.body":
+                return getStoredRequestBody();
+            case "usr.id":
+                return userId;
+            case "usr.login":
+                return userLogin;
+            case "usr.session_id":
+                return sessionId;
+            default:
+                log.debug("Unknown address: {}", address);
+                return null;
+        }
+    }
+
+    /** Navigates through a data structure using a key path. */
+    private Object navigateKeyPath(Object data, List<String> keyPath) {
+        Object current = data;
+
+        for (String key : keyPath) {
+            if (current instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) current;
+                current = map.get(key);
+            } else if (current instanceof List) {
+                try {
+                    int index = Integer.parseInt(key);
+                    @SuppressWarnings("unchecked")
+                    List<Object> list = (List<Object>) current;
+                    if (index >= 0 && index < list.size()) {
+                        current = list.get(index);
+                    } else {
+                        return null;
+                    }
+                } catch (NumberFormatException e) {
+                    log.debug("Invalid list index: {}", key);
+                    return null;
+                }
+            } else {
+                log.debug("Cannot navigate key {} in data type: {}", key, current.getClass());
+                return null;
+            }
+
+            if (current == null) {
+                return null;
+            }
+        }
+
+        return current;
+    }
+
+    /** Applies transformers to a value. */
+    private Object applyTransformers(Object value, List<String> transformers) {
+        Object current = value;
+
+        for (String transformer : transformers) {
+            switch (transformer) {
+                case "lowercase":
+                    if (current instanceof String) {
+                        current = ((String) current).toLowerCase(Locale.ROOT);
+                    }
+                    break;
+                case "uppercase":
+                    if (current instanceof String) {
+                        current = ((String) current).toUpperCase(Locale.ROOT);
+                    }
+                    break;
+                case "trim":
+                    if (current instanceof String) {
+                        current = ((String) current).trim();
+                    }
+                    break;
+                case "length":
+                    if (current instanceof String) {
+                        current = ((String) current).length();
+                    } else if (current instanceof Collection) {
+                        current = ((Collection<?>) current).size();
+                    } else if (current instanceof Map) {
+                        current = ((Map<?, ?>) current).size();
+                    }
+                    break;
+                default:
+                    log.debug("Unknown transformer: {}", transformer);
+                    break;
+            }
+        }
+
+        return current;
+    }
+
+    public boolean commitDerivatives(TraceSegment traceSegment) {
+        if (traceSegment == null) {
+            return false;
+        }
+
+        // Get and clear derivatives atomically
+        Map<String, Object> derivativesToCommit = derivatives.getAndSet(null);
+        log.debug("Committing derivatives: {} for {}", derivativesToCommit, traceSegment);
+
+        // Process and commit derivatives directly
+        if (derivativesToCommit != null && !derivativesToCommit.isEmpty()) {
+            for (Map.Entry<String, Object> entry : derivativesToCommit.entrySet()) {
+                String key = entry.getKey();
+                Object value = entry.getValue();
+
+                // Handle different value types
+                if (value instanceof Number) {
+                    traceSegment.setTagTop(key, (Number) value);
+                } else if (value instanceof String) {
+                    // Try to parse as numeric, otherwise use as string
+                    Number parsedNumber = Numbers.parseNumber((String) value);
+                    if (parsedNumber != null) {
+                        traceSegment.setTagTop(key, parsedNumber);
+                    } else {
+                        traceSegment.setTagTop(key, value);
+                    }
+                } else if (value instanceof Boolean) {
+                    traceSegment.setTagTop(key, value);
+                } else {
+                    // Convert other types to string
+                    traceSegment.setTagTop(key, value.toString());
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Mainly used for testing and debug logging. The published map is unmodifiable, so its key set is
+     * returned directly as a stable view.
+     */
+    public Set<String> getDerivativeKeys() {
+        Map<String, Object> current = derivatives.get();
+        return current == null ? emptySet() : current.keySet();
+    }
+
+    /**
+     * Whether any currently reported derivative key starts with the given prefix. Must be called
+     * before {@link #commitDerivatives(TraceSegment)}, which detaches the derivatives map.
+     */
+    public boolean hasDerivativeKeyStartingWith(final String prefix) {
+        for (String key : getDerivativeKeys()) {
+            if (key != null && key.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isThrottled(RateLimiter rateLimiter) {
+        if (rateLimiter != null && rateLimited.compareAndSet(false, true)) {
+            throttled = rateLimiter.isThrottled();
+        }
+        return throttled;
+    }
+
+    public boolean isWafContextClosed() {
+        return wafContextClosed;
+    }
+
+    /** Must be called during request end event processing. */
+    void setRequestEndCalled() {
+        requestEndCalled = true;
+    }
+
+    public void setProcessedRequestBody(Object processedRequestBody) {
+        this.processedRequestBody = processedRequestBody;
+    }
+
+    public Object getProcessedRequestBody() {
+        return processedRequestBody;
+    }
+
+    public boolean isProcessedResponseBodySizeExceeded() {
+        return processedResponseBodySizeExceeded;
+    }
+
+    public void setProcessedResponseBodySizeExceeded(boolean processedResponseBodySizeExceeded) {
+        this.processedResponseBodySizeExceeded = processedResponseBodySizeExceeded;
+    }
+
+    public boolean isRaspMatched() {
+        return raspMatched;
+    }
+
+    public void setRaspMatched(boolean raspMatched) {
+        this.raspMatched = raspMatched;
+    }
+
+    public boolean isManuallyKept() {
+        return manuallyKept;
+    }
+
+    public void setManuallyKept(boolean manuallyKept) {
+        this.manuallyKept = manuallyKept;
+    }
 }

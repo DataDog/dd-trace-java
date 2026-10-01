@@ -20,76 +20,75 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 
 public class HelperMethods {
-  public static ContextScope doMethodEnter(final HttpUriRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
-      return null;
-    }
-    return activateHttpSpan(request);
-  }
-
-  public static ContextScope doMethodEnter(HttpHost host, HttpRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
-      return null;
+    public static ContextScope doMethodEnter(final HttpUriRequest request) {
+        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+        if (callDepth > 0) {
+            return null;
+        }
+        return activateHttpSpan(request);
     }
 
-    return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
-  }
+    public static ContextScope doMethodEnter(HttpHost host, HttpRequest request) {
+        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+        if (callDepth > 0) {
+            return null;
+        }
 
-  private static ContextScope activateHttpSpan(final HttpUriRequest request) {
-    final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
-    final ContextScope scope = activateSpan(span);
-
-    try {
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-    } catch (BlockingException e) {
-      DECORATE.onError(span, e);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-      throw e;
+        return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
     }
 
-    return scope;
-  }
+    private static ContextScope activateHttpSpan(final HttpUriRequest request) {
+        final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
+        final ContextScope scope = activateSpan(span);
 
-  public static void doInjectContext(final HttpUriRequest request) {
-    if (request.containsHeader("amz-sdk-invocation-id")) {
-      return;
+        try {
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, request);
+        } catch (BlockingException e) {
+            DECORATE.onError(span, e);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+            throw e;
+        }
+
+        return scope;
     }
-    DECORATE.injectContext(current(), request, SETTER);
-  }
 
-  public static void doInjectContext(final HttpHost host, final HttpRequest request) {
-    final HttpUriRequest uriRequest;
-    if (request instanceof HttpUriRequest) {
-      uriRequest = (HttpUriRequest) request;
-    } else {
-      uriRequest = new HostAndRequestAsHttpUriRequest(host, request);
+    public static void doInjectContext(final HttpUriRequest request) {
+        if (request.containsHeader("amz-sdk-invocation-id")) {
+            return;
+        }
+        DECORATE.injectContext(current(), request, SETTER);
     }
-    doInjectContext(uriRequest);
-  }
 
-  public static void doMethodExit(
-      final ContextScope scope, final Object result, final Throwable throwable) {
-    if (scope == null) {
-      return;
+    public static void doInjectContext(final HttpHost host, final HttpRequest request) {
+        final HttpUriRequest uriRequest;
+        if (request instanceof HttpUriRequest) {
+            uriRequest = (HttpUriRequest) request;
+        } else {
+            uriRequest = new HostAndRequestAsHttpUriRequest(host, request);
+        }
+        doInjectContext(uriRequest);
     }
-    final AgentSpan span = spanFromScope(scope);
-    if (result instanceof HttpResponse) {
-      DECORATE.onResponse(span, (HttpResponse) result);
-    } // else they probably provided a ResponseHandler.
 
-    DECORATE.onError(span, throwable);
-    DECORATE.beforeFinish(span);
-    scope.close();
-    span.finish();
-    CallDepthThreadLocalMap.reset(HttpClient.class);
-  }
+    public static void doMethodExit(final ContextScope scope, final Object result, final Throwable throwable) {
+        if (scope == null) {
+            return;
+        }
+        final AgentSpan span = spanFromScope(scope);
+        if (result instanceof HttpResponse) {
+            DECORATE.onResponse(span, (HttpResponse) result);
+        } // else they probably provided a ResponseHandler.
 
-  public static void onBlockingRequest() {
-    CallDepthThreadLocalMap.reset(HttpClient.class);
-  }
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
+        scope.close();
+        span.finish();
+        CallDepthThreadLocalMap.reset(HttpClient.class);
+    }
+
+    public static void onBlockingRequest() {
+        CallDepthThreadLocalMap.reset(HttpClient.class);
+    }
 }

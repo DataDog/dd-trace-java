@@ -14,39 +14,37 @@ import java.util.List;
  * <p>Matches any code source location that contains one of the configured strings.
  */
 public class CodeSourceExcludes {
-  private CodeSourceExcludes() {}
+    private CodeSourceExcludes() {}
 
-  static final List<String> excludes = InstrumenterConfig.get().getExcludedCodeSources();
+    static final List<String> excludes = InstrumenterConfig.get().getExcludedCodeSources();
 
-  private static final DDCache<String, Boolean> excludedCodeSources;
+    private static final DDCache<String, Boolean> excludedCodeSources;
 
-  static {
-    if (!excludes.isEmpty()) {
-      excludedCodeSources = DDCaches.newFixedSizeCache(64);
-    } else {
-      excludedCodeSources = null;
+    static {
+        if (!excludes.isEmpty()) {
+            excludedCodeSources = DDCaches.newFixedSizeCache(64);
+        } else {
+            excludedCodeSources = null;
+        }
     }
-  }
 
-  public static boolean isExcluded(ProtectionDomain protectionDomain) {
-    if (null != excludedCodeSources && null != protectionDomain) {
-      CodeSource codeSource = protectionDomain.getCodeSource();
-      if (null != codeSource) {
-        // avoid hashing on the URL because that can be a blocking operation
-        URL location = codeSource.getLocation();
-        return null != location
-            && excludedCodeSources.computeIfAbsent(
-                location.getPath(),
-                path -> {
-                  for (String name : excludes) {
-                    if (path.contains(name)) {
-                      return true;
-                    }
-                  }
-                  return false;
-                });
-      }
+    public static boolean isExcluded(ProtectionDomain protectionDomain) {
+        if (null != excludedCodeSources && null != protectionDomain) {
+            CodeSource codeSource = protectionDomain.getCodeSource();
+            if (null != codeSource) {
+                // avoid hashing on the URL because that can be a blocking operation
+                URL location = codeSource.getLocation();
+                return null != location
+                        && excludedCodeSources.computeIfAbsent(location.getPath(), path -> {
+                            for (String name : excludes) {
+                                if (path.contains(name)) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        });
+            }
+        }
+        return false;
     }
-    return false;
-  }
 }

@@ -29,171 +29,167 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 @AutoService(InstrumenterModule.class)
 public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RequestGetPartsInstrumentation() {
-    super("jetty");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.server.Request";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
-    transformer.applyAdvice(
-        named("getPart").and(takesArguments(1)).and(takesArgument(0, String.class)),
-        getClass().getName() + "$GetPartAdvice");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return RequestImplementationClassLoaderMatcher.INSTANCE;
-  }
-
-  public static class RequestImplementationClassLoaderMatcher
-      extends ElementMatcher.Junction.ForNonNullValues<ClassLoader> {
-    public static final ElementMatcher.Junction<ClassLoader> INSTANCE =
-        new RequestImplementationClassLoaderMatcher();
-
-    @Override
-    protected boolean doMatch(ClassLoader cl) {
-      try (InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class")) {
-        if (is == null) {
-          return false;
-        }
-        ClassReader classReader = new ClassReader(is);
-        final boolean[] foundField = new boolean[1];
-        final boolean[] foundGetParameters = new boolean[1];
-        classReader.accept(new ClassLoaderMatcherClassVisitor(foundField, foundGetParameters), 0);
-        return !foundField[0] && foundGetParameters[0];
-      } catch (IOException e) {
-        return false;
-      }
-    }
-  }
-
-  public static class ClassLoaderMatcherClassVisitor extends ClassVisitor {
-    final boolean[] foundField;
-    final boolean[] foundGetParameters;
-
-    public ClassLoaderMatcherClassVisitor(boolean[] foundField, boolean[] foundGetParameters) {
-      super(OpenedClassReader.ASM_API);
-      this.foundField = foundField;
-      this.foundGetParameters = foundGetParameters;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RequestGetPartsInstrumentation() {
+        super("jetty");
     }
 
     @Override
-    public FieldVisitor visitField(
-        int access, String name, String descriptor, String signature, Object value) {
-      if (name.equals("_contentParameters")) {
-        foundField[0] = true;
-      }
-      return null;
+    public String instrumentedType() {
+        return "org.eclipse.jetty.server.Request";
     }
 
     @Override
-    public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
-      if (name.equals("getParts") && "()Ljava/util/Collection;".equals(descriptor)) {
-        return new MethodVisitor(OpenedClassReader.ASM_API) {
-          @Override
-          public void visitMethodInsn(
-              int opcode, String owner, String name, String descriptor, boolean isInterface) {
-            if (opcode == Opcodes.INVOKEVIRTUAL
-                && name.equals("getParameters")
-                && descriptor.equals("()Lorg/eclipse/jetty/util/MultiMap;")) {
-              foundGetParameters[0] = true;
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+        transformer.applyAdvice(
+                named("getPart").and(takesArguments(1)).and(takesArgument(0, String.class)),
+                getClass().getName() + "$GetPartAdvice");
+    }
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return RequestImplementationClassLoaderMatcher.INSTANCE;
+    }
+
+    public static class RequestImplementationClassLoaderMatcher
+            extends ElementMatcher.Junction.ForNonNullValues<ClassLoader> {
+        public static final ElementMatcher.Junction<ClassLoader> INSTANCE =
+                new RequestImplementationClassLoaderMatcher();
+
+        @Override
+        protected boolean doMatch(ClassLoader cl) {
+            try (InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class")) {
+                if (is == null) {
+                    return false;
+                }
+                ClassReader classReader = new ClassReader(is);
+                final boolean[] foundField = new boolean[1];
+                final boolean[] foundGetParameters = new boolean[1];
+                classReader.accept(new ClassLoaderMatcherClassVisitor(foundField, foundGetParameters), 0);
+                return !foundField[0] && foundGetParameters[0];
+            } catch (IOException e) {
+                return false;
             }
-          }
-        };
-      }
-      return null;
-    }
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class GetFilenamesAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before(
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            final Object multiPartInputStream) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
-      // _multiPartInputStream is null before the first parse; non-null on cached repeat calls.
-      // In Jetty 9.0/9.1, getPart(String) delegates to getParts() internally, triggering both
-      // GetPartAdvice and GetFilenamesAdvice — double-firing the filename event.
-      // If GetPartAdvice is already active (Part.class depth > 0) it will handle the event; skip.
-      return callDepth == 0
-          && multiPartInputStream == null
-          && CallDepthThreadLocalMap.getCallDepth(Part.class) == 0;
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Enter boolean proceed,
-        @Advice.Return Collection<?> parts,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
-      if (!proceed || t != null || parts == null || parts.isEmpty()) {
-        return;
-      }
-      BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
-      BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      BlockingException contentBlock =
-          bodyBlock == null && filenamesBlock == null
-              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
-              : null;
-      t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
-    }
-  }
+    public static class ClassLoaderMatcherClassVisitor extends ClassVisitor {
+        final boolean[] foundField;
+        final boolean[] foundGetParameters;
 
-  /**
-   * Fires AppSec events for requests whose first multipart access is {@code getPart(String)}.
-   *
-   * <p>In Jetty 8.x, {@code getPart(String)} parses and caches the entire multipart stream into
-   * {@code _multiPartInputStream} but returns only the single requested part. If the app only calls
-   * {@code getPart("field")} (a text field), any co-uploaded file parts would never reach {@code
-   * requestFilesFilenames}. We therefore read all cached parts via {@code
-   * MultiPartInputStream.getParts()} and fall back to the returned singleton only if that fails.
-   */
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class GetPartAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before(
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            Object multiPartInputStream) {
-      // _multiPartInputStream is null before the first parse. Once set, all parts are cached and
-      // events have already fired (either here or in GetFilenamesAdvice). Skip on repeat calls.
-      return CallDepthThreadLocalMap.incrementCallDepth(Part.class) == 0
-          && multiPartInputStream == null;
+        public ClassLoaderMatcherClassVisitor(boolean[] foundField, boolean[] foundGetParameters) {
+            super(OpenedClassReader.ASM_API);
+            this.foundField = foundField;
+            this.foundGetParameters = foundGetParameters;
+        }
+
+        @Override
+        public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+            if (name.equals("_contentParameters")) {
+                foundField[0] = true;
+            }
+            return null;
+        }
+
+        @Override
+        public MethodVisitor visitMethod(
+                int access, String name, String descriptor, String signature, String[] exceptions) {
+            if (name.equals("getParts") && "()Ljava/util/Collection;".equals(descriptor)) {
+                return new MethodVisitor(OpenedClassReader.ASM_API) {
+                    @Override
+                    public void visitMethodInsn(
+                            int opcode, String owner, String name, String descriptor, boolean isInterface) {
+                        if (opcode == Opcodes.INVOKEVIRTUAL
+                                && name.equals("getParameters")
+                                && descriptor.equals("()Lorg/eclipse/jetty/util/MultiMap;")) {
+                            foundGetParameters[0] = true;
+                        }
+                    }
+                };
+            }
+            return null;
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Enter boolean proceed,
-        @Advice.Return Part part,
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            Object multiPartInputStream,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Part.class);
-      if (!proceed || t != null) {
-        return;
-      }
-      Collection<?> parts = PartHelper.getAllParts(multiPartInputStream, part);
-      if (parts.isEmpty()) {
-        return;
-      }
-      BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
-      BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      BlockingException contentBlock =
-          bodyBlock == null && filenamesBlock == null
-              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
-              : null;
-      t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class GetFilenamesAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static boolean before(
+                @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+                        final Object multiPartInputStream) {
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+            // _multiPartInputStream is null before the first parse; non-null on cached repeat calls.
+            // In Jetty 9.0/9.1, getPart(String) delegates to getParts() internally, triggering both
+            // GetPartAdvice and GetFilenamesAdvice — double-firing the filename event.
+            // If GetPartAdvice is already active (Part.class depth > 0) it will handle the event; skip.
+            return callDepth == 0
+                    && multiPartInputStream == null
+                    && CallDepthThreadLocalMap.getCallDepth(Part.class) == 0;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Enter boolean proceed,
+                @Advice.Return Collection<?> parts,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+            if (!proceed || t != null || parts == null || parts.isEmpty()) {
+                return;
+            }
+            BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+            BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
+            BlockingException contentBlock = bodyBlock == null && filenamesBlock == null
+                    ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+                    : null;
+            t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
+        }
     }
-  }
+
+    /**
+     * Fires AppSec events for requests whose first multipart access is {@code getPart(String)}.
+     *
+     * <p>In Jetty 8.x, {@code getPart(String)} parses and caches the entire multipart stream into
+     * {@code _multiPartInputStream} but returns only the single requested part. If the app only calls
+     * {@code getPart("field")} (a text field), any co-uploaded file parts would never reach {@code
+     * requestFilesFilenames}. We therefore read all cached parts via {@code
+     * MultiPartInputStream.getParts()} and fall back to the returned singleton only if that fails.
+     */
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class GetPartAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static boolean before(
+                @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+                        Object multiPartInputStream) {
+            // _multiPartInputStream is null before the first parse. Once set, all parts are cached and
+            // events have already fired (either here or in GetFilenamesAdvice). Skip on repeat calls.
+            return CallDepthThreadLocalMap.incrementCallDepth(Part.class) == 0 && multiPartInputStream == null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Enter boolean proceed,
+                @Advice.Return Part part,
+                @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+                        Object multiPartInputStream,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            CallDepthThreadLocalMap.decrementCallDepth(Part.class);
+            if (!proceed || t != null) {
+                return;
+            }
+            Collection<?> parts = PartHelper.getAllParts(multiPartInputStream, part);
+            if (parts.isEmpty()) {
+                return;
+            }
+            BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+            BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
+            BlockingException contentBlock = bodyBlock == null && filenamesBlock == null
+                    ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+                    : null;
+            t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
+        }
+    }
 }

@@ -9,31 +9,31 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class MapValueUndefinedTest {
-  private MapValue instance;
+    private MapValue instance;
 
-  @BeforeEach
-  void setup() throws Exception {
-    instance = new MapValue("a");
-  }
+    @BeforeEach
+    void setup() throws Exception {
+        instance = new MapValue("a");
+    }
 
-  @Test
-  void prettyPrint() {
-    assertEquals("null", print(instance));
-  }
+    @Test
+    void prettyPrint() {
+        assertEquals("null", print(instance));
+    }
 
-  @Test
-  void isEmpty() {
-    assertTrue(instance.isEmpty());
-  }
+    @Test
+    void isEmpty() {
+        assertTrue(instance.isEmpty());
+    }
 
-  @Test
-  void count() {
-    assertEquals(-1, instance.count());
-  }
+    @Test
+    void count() {
+        assertEquals(-1, instance.count());
+    }
 
-  @Test
-  void get() {
-    assertEquals(Value.undefinedValue(), instance.get(0));
-    assertEquals(Value.undefinedValue(), instance.get(10));
-  }
+    @Test
+    void get() {
+        assertEquals(Value.undefinedValue(), instance.get(0));
+        assertEquals(Value.undefinedValue(), instance.get(10));
+    }
 }

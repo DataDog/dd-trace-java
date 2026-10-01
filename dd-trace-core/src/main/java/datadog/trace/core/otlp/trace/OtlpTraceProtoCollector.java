@@ -31,157 +31,156 @@ import java.util.List;
  */
 public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
-  private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
-      new OtelInstrumentationScope("", null, null);
+    private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE = new OtelInstrumentationScope("", null, null);
 
-  private final GrowableBuffer buf = new GrowableBuffer(512);
-  private final OtlpTraceProto.MetaWriter metaWriter = new OtlpTraceProto.MetaWriter(buf);
-  private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
+    private final GrowableBuffer buf = new GrowableBuffer(512);
+    private final OtlpTraceProto.MetaWriter metaWriter = new OtlpTraceProto.MetaWriter(buf);
+    private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
-  private boolean payloadStarted;
+    private boolean payloadStarted;
 
-  // total number of chunked bytes at different nesting levels
-  private int payloadBytes;
-  private int scopedBytes;
-  private int spanBytes;
+    // total number of chunked bytes at different nesting levels
+    private int payloadBytes;
+    private int scopedBytes;
+    private int spanBytes;
 
-  private OtelInstrumentationScope currentScope;
-  private DDSpan currentSpan;
+    private OtelInstrumentationScope currentScope;
+    private DDSpan currentSpan;
 
-  /** Adds the given trace spans to the collector. */
-  @Override
-  public void addTrace(List<? extends CoreSpan<?>> spans) {
-    if (!payloadStarted) {
-      start();
-      payloadStarted = true;
+    /** Adds the given trace spans to the collector. */
+    @Override
+    public void addTrace(List<? extends CoreSpan<?>> spans) {
+        if (!payloadStarted) {
+            start();
+            payloadStarted = true;
+        }
+
+        try {
+            // OtlpProtoBuffer collects spans in reverse
+            for (int i = spans.size() - 1; i >= 0; i--) {
+                visitSpan(spans.get(i));
+            }
+        } catch (Throwable e) {
+            // reset the buffer for subsequent traces
+            stop();
+            throw e;
+        }
     }
 
-    try {
-      // OtlpProtoBuffer collects spans in reverse
-      for (int i = spans.size() - 1; i >= 0; i--) {
-        visitSpan(spans.get(i));
-      }
-    } catch (Throwable e) {
-      // reset the buffer for subsequent traces
-      stop();
-      throw e;
-    }
-  }
-
-  @Override
-  public int sizeInBytes() {
-    return protobuf.sizeInBytes();
-  }
-
-  /**
-   * Marshals the traces collected so far into a chunked payload.
-   *
-   * <p>This payload is only valid for the calling thread until the next collection.
-   */
-  @Override
-  public OtlpPayload collectTraces() {
-    try {
-      return completePayload();
-    } finally {
-      stop();
-    }
-  }
-
-  /** Prepare temporary elements to collect trace data. */
-  private void start() {
-    // remove stale entries from caches
-    OtlpCommonProto.recalibrateCaches();
-
-    // for now put all spans under the default scope
-    visitScopedSpans(DEFAULT_TRACE_SCOPE);
-  }
-
-  /** Cleanup elements used to collect trace data. */
-  private void stop() {
-    payloadStarted = false;
-
-    buf.reset();
-    protobuf.reset();
-
-    payloadBytes = 0;
-    scopedBytes = 0;
-    spanBytes = 0;
-
-    currentScope = null;
-    currentSpan = null;
-  }
-
-  private void visitScopedSpans(OtelInstrumentationScope scope) {
-    if (currentScope != null) {
-      completeScope();
-    }
-    currentScope = scope;
-  }
-
-  private void visitSpan(CoreSpan<?> span) {
-    if (!shouldExport(span)) {
-      return;
-    }
-    if (currentSpan != null) {
-      // ensure last span written at trace boundary includes sampling tags
-      // payload buffer is prepending, so last span written appears first!
-      if (!span.getTraceId().equals(currentSpan.getTraceId())) {
-        metaWriter.includeSamplingTags();
-      }
-      completeSpan();
-    }
-    currentSpan = (DDSpan) span;
-    currentSpan.getLinks().forEach(this::visitSpanLink);
-  }
-
-  private void visitSpanLink(AgentSpanLink spanLink) {
-    spanBytes += recordSpanLinkMessage(buf, spanLink, protobuf);
-  }
-
-  // called once we've processed all scopes and span messages
-  private OtlpPayload completePayload() {
-    if (currentScope != null) {
-      completeScope();
+    @Override
+    public int sizeInBytes() {
+        return protobuf.sizeInBytes();
     }
 
-    if (payloadBytes == 0) {
-      return OtlpPayload.EMPTY;
+    /**
+     * Marshals the traces collected so far into a chunked payload.
+     *
+     * <p>This payload is only valid for the calling thread until the next collection.
+     */
+    @Override
+    public OtlpPayload collectTraces() {
+        try {
+            return completePayload();
+        } finally {
+            stop();
+        }
     }
 
-    // prepend the canned resource chunk
-    payloadBytes += protobuf.recordMessage(TRACE_RESOURCE_MESSAGE);
+    /** Prepare temporary elements to collect trace data. */
+    private void start() {
+        // remove stale entries from caches
+        OtlpCommonProto.recalibrateCaches();
 
-    // finally prepend the total length of all collected chunks
-    protobuf.recordMessage(buf, 1, payloadBytes);
-    return protobuf.toPayload();
-  }
-
-  // called once we've processed all spans in a specific scope
-  private void completeScope() {
-    if (currentSpan != null) {
-      // ensure last span written at scope boundary includes process+sampling tags
-      // payload buffer is prepending, so last span written appears first!
-      metaWriter.includeProcessTags();
-      metaWriter.includeSamplingTags();
-      completeSpan();
+        // for now put all spans under the default scope
+        visitScopedSpans(DEFAULT_TRACE_SCOPE);
     }
 
-    if (scopedBytes > 0) {
-      payloadBytes += recordScopedSpansMessage(buf, currentScope, scopedBytes, protobuf);
+    /** Cleanup elements used to collect trace data. */
+    private void stop() {
+        payloadStarted = false;
+
+        buf.reset();
+        protobuf.reset();
+
+        payloadBytes = 0;
+        scopedBytes = 0;
+        spanBytes = 0;
+
+        currentScope = null;
+        currentSpan = null;
     }
 
-    // reset temporary elements for next scope
-    currentScope = null;
-    scopedBytes = 0;
-  }
+    private void visitScopedSpans(OtelInstrumentationScope scope) {
+        if (currentScope != null) {
+            completeScope();
+        }
+        currentScope = scope;
+    }
 
-  // called once we've processed all span-links in a specific span
-  private void completeSpan() {
+    private void visitSpan(CoreSpan<?> span) {
+        if (!shouldExport(span)) {
+            return;
+        }
+        if (currentSpan != null) {
+            // ensure last span written at trace boundary includes sampling tags
+            // payload buffer is prepending, so last span written appears first!
+            if (!span.getTraceId().equals(currentSpan.getTraceId())) {
+                metaWriter.includeSamplingTags();
+            }
+            completeSpan();
+        }
+        currentSpan = (DDSpan) span;
+        currentSpan.getLinks().forEach(this::visitSpanLink);
+    }
 
-    scopedBytes += recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf);
+    private void visitSpanLink(AgentSpanLink spanLink) {
+        spanBytes += recordSpanLinkMessage(buf, spanLink, protobuf);
+    }
 
-    // reset temporary elements for next span
-    currentSpan = null;
-    spanBytes = 0;
-  }
+    // called once we've processed all scopes and span messages
+    private OtlpPayload completePayload() {
+        if (currentScope != null) {
+            completeScope();
+        }
+
+        if (payloadBytes == 0) {
+            return OtlpPayload.EMPTY;
+        }
+
+        // prepend the canned resource chunk
+        payloadBytes += protobuf.recordMessage(TRACE_RESOURCE_MESSAGE);
+
+        // finally prepend the total length of all collected chunks
+        protobuf.recordMessage(buf, 1, payloadBytes);
+        return protobuf.toPayload();
+    }
+
+    // called once we've processed all spans in a specific scope
+    private void completeScope() {
+        if (currentSpan != null) {
+            // ensure last span written at scope boundary includes process+sampling tags
+            // payload buffer is prepending, so last span written appears first!
+            metaWriter.includeProcessTags();
+            metaWriter.includeSamplingTags();
+            completeSpan();
+        }
+
+        if (scopedBytes > 0) {
+            payloadBytes += recordScopedSpansMessage(buf, currentScope, scopedBytes, protobuf);
+        }
+
+        // reset temporary elements for next scope
+        currentScope = null;
+        scopedBytes = 0;
+    }
+
+    // called once we've processed all span-links in a specific span
+    private void completeSpan() {
+
+        scopedBytes += recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf);
+
+        // reset temporary elements for next span
+        currentSpan = null;
+        spanBytes = 0;
+    }
 }

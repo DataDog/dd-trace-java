@@ -15,20 +15,21 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 public class MultipartParseParameterMapServlet extends HttpServlet {
 
-  @Override
-  public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    final FileItemFactory fileItemFactory = new DiskFileItemFactory();
-    final ServletFileUpload servletFileUpload = new ServletFileUpload(fileItemFactory);
-    try {
-      final Map<String, List<FileItem>> fileItemList = servletFileUpload.parseParameterMap(request);
-      for (final List<FileItem> fileItem : fileItemList.values()) {
-        final ObjectInputStream ois = new ObjectInputStream(fileItem.get(0).getInputStream());
-        ois.close();
-      }
-      response.setHeader("Content-Type", "text/plain");
-      response.getWriter().write("OK");
-    } catch (FileUploadException e) {
-      throw new IOException(e);
+    @Override
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        final FileItemFactory fileItemFactory = new DiskFileItemFactory();
+        final ServletFileUpload servletFileUpload = new ServletFileUpload(fileItemFactory);
+        try {
+            final Map<String, List<FileItem>> fileItemList = servletFileUpload.parseParameterMap(request);
+            for (final List<FileItem> fileItem : fileItemList.values()) {
+                final ObjectInputStream ois =
+                        new ObjectInputStream(fileItem.get(0).getInputStream());
+                ois.close();
+            }
+            response.setHeader("Content-Type", "text/plain");
+            response.getWriter().write("OK");
+        } catch (FileUploadException e) {
+            throw new IOException(e);
+        }
     }
-  }
 }

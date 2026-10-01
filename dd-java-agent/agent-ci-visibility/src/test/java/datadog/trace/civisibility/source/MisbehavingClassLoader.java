@@ -14,23 +14,23 @@ import java.util.Map;
  */
 final class MisbehavingClassLoader extends ClassLoader {
 
-  private final Map<String, byte[]> classes = new HashMap<>();
+    private final Map<String, byte[]> classes = new HashMap<>();
 
-  @Override
-  public InputStream getResourceAsStream(String name) {
-    throw new RuntimeException("Something went wrong");
-  }
-
-  @Override
-  public Class<?> loadClass(String name) throws ClassNotFoundException {
-    byte[] bytes = classes.get(name);
-    if (bytes != null) {
-      return defineClass(name, bytes, 0, bytes.length);
+    @Override
+    public InputStream getResourceAsStream(String name) {
+        throw new RuntimeException("Something went wrong");
     }
-    return super.loadClass(name);
-  }
 
-  void putClass(String name, byte[] bytes) {
-    classes.put(name, bytes);
-  }
+    @Override
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
+        byte[] bytes = classes.get(name);
+        if (bytes != null) {
+            return defineClass(name, bytes, 0, bytes.length);
+        }
+        return super.loadClass(name);
+    }
+
+    void putClass(String name, byte[] bytes) {
+        classes.put(name, bytes);
+    }
 }

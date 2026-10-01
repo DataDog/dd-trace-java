@@ -18,35 +18,34 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class KarateInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public KarateInstrumentation() {
-    super("ci-visibility", "karate");
-  }
+    public KarateInstrumentation() {
+        super("ci-visibility", "karate");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.karatelabs.core.Runner$Builder";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.karatelabs.core.Runner$Builder";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".ExecutionContext",
-      packageName + ".KarateTracingListener"
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".KarateUtils",
+            packageName + ".TestEventsHandlerHolder",
+            packageName + ".ExecutionContext",
+            packageName + ".KarateTracingListener"
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), packageName + ".KarateBuilderAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), packageName + ".KarateBuilderAdvice");
+    }
 }

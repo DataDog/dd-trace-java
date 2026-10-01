@@ -6,13 +6,12 @@ import datadog.trace.instrumentation.netty38.util.CombinedSimpleChannelHandler;
 import org.jboss.netty.channel.Channel;
 
 public class WebSocketServerTracingHandler
-    extends CombinedSimpleChannelHandler<
-        WebSocketServerRequestTracingHandler, WebSocketServerResponseTracingHandler> {
+        extends CombinedSimpleChannelHandler<
+                WebSocketServerRequestTracingHandler, WebSocketServerResponseTracingHandler> {
 
-  public WebSocketServerTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
-    super(
-        new WebSocketServerRequestTracingHandler(contextStore),
-        new WebSocketServerResponseTracingHandler(contextStore));
-  }
+    public WebSocketServerTracingHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
+        super(
+                new WebSocketServerRequestTracingHandler(contextStore),
+                new WebSocketServerResponseTracingHandler(contextStore));
+    }
 }

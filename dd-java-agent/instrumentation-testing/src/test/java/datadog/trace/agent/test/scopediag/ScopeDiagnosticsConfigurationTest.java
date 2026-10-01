@@ -8,29 +8,26 @@ import org.junit.jupiter.api.Test;
 
 class ScopeDiagnosticsConfigurationTest {
 
-  @TrackScopeContinuations(enabled = false)
-  private static class UndocumentedOptOut {}
+    @TrackScopeContinuations(enabled = false)
+    private static class UndocumentedOptOut {}
 
-  @TrackScopeContinuations(enabled = false, reason = "incompatible synthetic tracer")
-  private static class DocumentedOptOut {}
+    @TrackScopeContinuations(enabled = false, reason = "incompatible synthetic tracer")
+    private static class DocumentedOptOut {}
 
-  @Test
-  void diagnosticsAreEnabledByDefault() {
-    assertTrue(ScopeDiagnostics.isEnabled(null));
-  }
+    @Test
+    void diagnosticsAreEnabledByDefault() {
+        assertTrue(ScopeDiagnostics.isEnabled(null));
+    }
 
-  @Test
-  void documentedOptOutDisablesDiagnostics() {
-    assertFalse(
-        ScopeDiagnostics.isEnabled(
-            DocumentedOptOut.class.getAnnotation(TrackScopeContinuations.class)));
-  }
+    @Test
+    void documentedOptOutDisablesDiagnostics() {
+        assertFalse(ScopeDiagnostics.isEnabled(DocumentedOptOut.class.getAnnotation(TrackScopeContinuations.class)));
+    }
 
-  @Test
-  void undocumentedOptOutIsRejected() {
-    TrackScopeContinuations config =
-        UndocumentedOptOut.class.getAnnotation(TrackScopeContinuations.class);
+    @Test
+    void undocumentedOptOutIsRejected() {
+        TrackScopeContinuations config = UndocumentedOptOut.class.getAnnotation(TrackScopeContinuations.class);
 
-    assertThrows(IllegalArgumentException.class, () -> ScopeDiagnostics.isEnabled(config));
-  }
+        assertThrows(IllegalArgumentException.class, () -> ScopeDiagnostics.isEnabled(config));
+    }
 }

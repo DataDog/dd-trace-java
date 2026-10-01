@@ -22,39 +22,38 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
  */
 public class BoxedValueConverter implements ArgumentConverter {
 
-  @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
-    if (source == null) {
-      return null;
-    }
+    @Override
+    public Object convert(Object source, ParameterContext context) throws ArgumentConversionException {
+        if (source == null) {
+            return null;
+        }
 
-    String s = source.toString();
-    switch (s) {
-      case "":
-        return null;
-      case "true":
-        return Boolean.TRUE;
-      case "false":
-        return Boolean.FALSE;
-    }
-    if (s.endsWith("f")) {
-      try {
-        return Float.parseFloat(s.substring(0, s.length() - 1));
-      } catch (NumberFormatException ignored) {
-      }
-    }
+        String s = source.toString();
+        switch (s) {
+            case "":
+                return null;
+            case "true":
+                return Boolean.TRUE;
+            case "false":
+                return Boolean.FALSE;
+        }
+        if (s.endsWith("f")) {
+            try {
+                return Float.parseFloat(s.substring(0, s.length() - 1));
+            } catch (NumberFormatException ignored) {
+            }
+        }
 
-    if (s.contains(".")) {
-      try {
-        return Double.parseDouble(s);
-      } catch (NumberFormatException ignored) {
-      }
+        if (s.contains(".")) {
+            try {
+                return Double.parseDouble(s);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException ignored) {
+        }
+        return s;
     }
-    try {
-      return Integer.parseInt(s);
-    } catch (NumberFormatException ignored) {
-    }
-    return s;
-  }
 }

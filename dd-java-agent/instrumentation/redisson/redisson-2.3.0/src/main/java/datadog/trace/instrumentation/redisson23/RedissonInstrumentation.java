@@ -22,87 +22,88 @@ import org.redisson.client.protocol.CommandsData;
 
 @AutoService(InstrumenterModule.class)
 public final class RedissonInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public RedissonInstrumentation() {
-    super("redisson", "redis");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.redisson.client.RedisConnection";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("org.redisson.client.protocol.CommandData"))),
-        RedissonInstrumentation.class.getName() + "$RedissonCommandAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("org.redisson.client.protocol.CommandsData"))),
-        RedissonInstrumentation.class.getName() + "$RedissonCommandsAdvice");
-  }
-
-  public static class RedissonCommandAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(0) final CommandData<?, ?> command, @Advice.This RedisConnection thiz) {
-      if (command.getPromise() == null) {
-        return null;
-      }
-      final AgentSpan span = startSpan("redis-command", RedissonClientDecorator.OPERATION_NAME);
-      RedissonClientDecorator.DECORATE.afterStart(span);
-      RedissonClientDecorator.DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
-      RedissonClientDecorator.DECORATE.onStatement(span, command.getCommand().getName());
-      ((RFuture<?>) command.getPromise())
-          .addListener(new SpanFinishListener(span.captureWithContext()));
-      return activateSpan(span);
+    public RedissonInstrumentation() {
+        super("redisson", "redis");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
-    }
-  }
-
-  public static class RedissonCommandsAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(0) final CommandsData command, @Advice.This final RedisConnection thiz) {
-      if (command.getPromise() == null) {
-        return null;
-      }
-
-      final AgentSpan span = startSpan("redis-command", RedissonClientDecorator.OPERATION_NAME);
-      RedissonClientDecorator.DECORATE.afterStart(span);
-      RedissonClientDecorator.DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
-
-      List<String> commandResourceNames = new ArrayList<>();
-      for (CommandData<?, ?> commandData : command.getCommands()) {
-        commandResourceNames.add(commandData.getCommand().getName());
-      }
-      RedissonClientDecorator.DECORATE.onStatement(span, String.join(";", commandResourceNames));
-      ((RFuture<?>) command.getPromise())
-          .addListener(new SpanFinishListener(span.captureWithContext()));
-      return activateSpan(span);
+    @Override
+    public String instrumentedType() {
+        return "org.redisson.client.RedisConnection";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("send"))
+                        .and(takesArgument(0, named("org.redisson.client.protocol.CommandData"))),
+                RedissonInstrumentation.class.getName() + "$RedissonCommandAdvice");
+
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("send"))
+                        .and(takesArgument(0, named("org.redisson.client.protocol.CommandsData"))),
+                RedissonInstrumentation.class.getName() + "$RedissonCommandsAdvice");
     }
-  }
+
+    public static class RedissonCommandAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(0) final CommandData<?, ?> command, @Advice.This RedisConnection thiz) {
+            if (command.getPromise() == null) {
+                return null;
+            }
+            final AgentSpan span = startSpan("redis-command", RedissonClientDecorator.OPERATION_NAME);
+            RedissonClientDecorator.DECORATE.afterStart(span);
+            RedissonClientDecorator.DECORATE.onPeerConnection(
+                    span, thiz.getRedisClient().getAddr());
+            RedissonClientDecorator.DECORATE.onStatement(
+                    span, command.getCommand().getName());
+            ((RFuture<?>) command.getPromise()).addListener(new SpanFinishListener(span.captureWithContext()));
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
+
+    public static class RedissonCommandsAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(0) final CommandsData command, @Advice.This final RedisConnection thiz) {
+            if (command.getPromise() == null) {
+                return null;
+            }
+
+            final AgentSpan span = startSpan("redis-command", RedissonClientDecorator.OPERATION_NAME);
+            RedissonClientDecorator.DECORATE.afterStart(span);
+            RedissonClientDecorator.DECORATE.onPeerConnection(
+                    span, thiz.getRedisClient().getAddr());
+
+            List<String> commandResourceNames = new ArrayList<>();
+            for (CommandData<?, ?> commandData : command.getCommands()) {
+                commandResourceNames.add(commandData.getCommand().getName());
+            }
+            RedissonClientDecorator.DECORATE.onStatement(span, String.join(";", commandResourceNames));
+            ((RFuture<?>) command.getPromise()).addListener(new SpanFinishListener(span.captureWithContext()));
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
 }

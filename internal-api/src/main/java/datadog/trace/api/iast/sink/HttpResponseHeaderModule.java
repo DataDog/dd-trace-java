@@ -8,7 +8,7 @@ import javax.annotation.Nonnull;
 @OptOut
 public interface HttpResponseHeaderModule extends IastModule {
 
-  void onHeader(@Nonnull String name, String value);
+    void onHeader(@Nonnull String name, String value);
 
-  void onCookie(@Nonnull Cookie cookie);
+    void onCookie(@Nonnull Cookie cookie);
 }

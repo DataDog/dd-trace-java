@@ -25,60 +25,59 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class GetPartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public GetPartsInstrumentation() {
-    super("liberty");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "com.ibm.ws.webcontainer.srt.SRTServletRequest",
-      "com.ibm.ws.webcontainer31.srt.SRTServletRequest31",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("getParts")).and(isPublic()).and(takesArguments(0)),
-        GetPartsInstrumentation.class.getName() + "$GetFilenamesAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class GetFilenamesAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return Collection<?> parts,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null) {
-        return;
-      }
-      List<String> filenames = PartHelper.extractFilenames(parts);
-      if (filenames.isEmpty()) {
-        return;
-      }
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null) {
-        return;
-      }
-      Flow<Void> flow = callback.apply(reqCtx, filenames);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (multipart file upload)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
-        }
-      }
+    public GetPartsInstrumentation() {
+        super("liberty");
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "com.ibm.ws.webcontainer.srt.SRTServletRequest", "com.ibm.ws.webcontainer31.srt.SRTServletRequest31",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("getParts")).and(isPublic()).and(takesArguments(0)),
+                GetPartsInstrumentation.class.getName() + "$GetFilenamesAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class GetFilenamesAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return Collection<?> parts,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (t != null) {
+                return;
+            }
+            List<String> filenames = PartHelper.extractFilenames(parts);
+            if (filenames.isEmpty()) {
+                return;
+            }
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+                    cbp.getCallback(EVENTS.requestFilesFilenames());
+            if (callback == null) {
+                return;
+            }
+            Flow<Void> flow = callback.apply(reqCtx, filenames);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+                if (brf != null) {
+                    brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                    if (t == null) {
+                        t = new BlockingException("Blocked request (multipart file upload)");
+                        reqCtx.getTraceSegment().effectivelyBlocked();
+                    }
+                }
+            }
+        }
+    }
 }

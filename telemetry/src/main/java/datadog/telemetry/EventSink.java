@@ -15,49 +15,49 @@ import datadog.trace.api.telemetry.ProductChange;
  * failing attempt.
  */
 interface EventSink {
-  void addConfigChangeEvent(ConfigSetting event);
+    void addConfigChangeEvent(ConfigSetting event);
 
-  void addIntegrationEvent(Integration event);
+    void addIntegrationEvent(Integration event);
 
-  void addDependencyEvent(Dependency event);
+    void addDependencyEvent(Dependency event);
 
-  void addMetricEvent(Metric event);
+    void addMetricEvent(Metric event);
 
-  void addDistributionSeriesEvent(DistributionSeries event);
+    void addDistributionSeriesEvent(DistributionSeries event);
 
-  void addLogMessageEvent(LogMessage event);
+    void addLogMessageEvent(LogMessage event);
 
-  void addProductChangeEvent(ProductChange event);
+    void addProductChangeEvent(ProductChange event);
 
-  void addEndpointEvent(Endpoint event);
+    void addEndpointEvent(Endpoint event);
 
-  EventSink NOOP = new Noop();
+    EventSink NOOP = new Noop();
 
-  class Noop implements EventSink {
-    private Noop() {}
+    class Noop implements EventSink {
+        private Noop() {}
 
-    @Override
-    public void addConfigChangeEvent(ConfigSetting event) {}
+        @Override
+        public void addConfigChangeEvent(ConfigSetting event) {}
 
-    @Override
-    public void addIntegrationEvent(Integration event) {}
+        @Override
+        public void addIntegrationEvent(Integration event) {}
 
-    @Override
-    public void addDependencyEvent(Dependency event) {}
+        @Override
+        public void addDependencyEvent(Dependency event) {}
 
-    @Override
-    public void addMetricEvent(Metric event) {}
+        @Override
+        public void addMetricEvent(Metric event) {}
 
-    @Override
-    public void addDistributionSeriesEvent(DistributionSeries event) {}
+        @Override
+        public void addDistributionSeriesEvent(DistributionSeries event) {}
 
-    @Override
-    public void addLogMessageEvent(LogMessage event) {}
+        @Override
+        public void addLogMessageEvent(LogMessage event) {}
 
-    @Override
-    public void addProductChangeEvent(ProductChange event) {}
+        @Override
+        public void addProductChangeEvent(ProductChange event) {}
 
-    @Override
-    public void addEndpointEvent(Endpoint event) {}
-  }
+        @Override
+        public void addEndpointEvent(Endpoint event) {}
+    }
 }

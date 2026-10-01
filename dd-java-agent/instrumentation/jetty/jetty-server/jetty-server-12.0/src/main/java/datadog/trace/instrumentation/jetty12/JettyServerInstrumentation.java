@@ -17,50 +17,50 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
-  public JettyServerInstrumentation() {
-    super("jetty");
-  }
+    public JettyServerInstrumentation() {
+        super("jetty");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.server.internal.HttpChannelState";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.eclipse.jetty.server.internal.HttpChannelState";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      packageName + ".JettyRunnableWrapper"
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ExtractAdapter",
+            packageName + ".ExtractAdapter$Request",
+            packageName + ".ExtractAdapter$Response",
+            packageName + ".JettyDecorator",
+            packageName + ".RequestURIDataAdapter",
+            packageName + ".JettyRunnableWrapper"
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        named("onRequest").and(takesArguments(1)),
-        packageName + ".JettyServerAdvice$HandleAdvice",
-        // note this is last while it should be first because this instrumentation advices on exit
-        packageName + ".JettyServerAdvice$ContextTrackingAdvice");
-    transformer.applyAdvice(
-        named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                named("onRequest").and(takesArguments(1)),
+                packageName + ".JettyServerAdvice$HandleAdvice",
+                // note this is last while it should be first because this instrumentation advices on exit
+                packageName + ".JettyServerAdvice$ContextTrackingAdvice");
+        transformer.applyAdvice(
+                named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
+    }
 
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return Collections.singletonMap(
-        RUNNABLE,
-        Arrays.asList(
-            "org.eclipse.jetty.util.thread.strategy.ProduceConsume",
-            "org.eclipse.jetty.util.thread.strategy.ExecuteProduceConsume",
-            "org.eclipse.jetty.io.ManagedSelector",
-            "org.eclipse.jetty.util.thread.TimerScheduler",
-            "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask",
-            "org.eclipse.jetty.util.thread.SerializedInvoker$NamedRunnable"));
-  }
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return Collections.singletonMap(
+                RUNNABLE,
+                Arrays.asList(
+                        "org.eclipse.jetty.util.thread.strategy.ProduceConsume",
+                        "org.eclipse.jetty.util.thread.strategy.ExecuteProduceConsume",
+                        "org.eclipse.jetty.io.ManagedSelector",
+                        "org.eclipse.jetty.util.thread.TimerScheduler",
+                        "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask",
+                        "org.eclipse.jetty.util.thread.SerializedInvoker$NamedRunnable"));
+    }
 }

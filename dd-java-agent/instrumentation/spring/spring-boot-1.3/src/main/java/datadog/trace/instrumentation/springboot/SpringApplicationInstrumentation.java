@@ -18,85 +18,85 @@ import org.springframework.core.env.ConfigurableEnvironment;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SpringApplicationInstrumentation() {
-    super("spring-boot");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.boot.SpringApplicationRunListeners";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("environmentPrepared")
-            .and(takesArgument(0, named("org.springframework.core.env.ConfigurableEnvironment"))),
-        getClass().getName() + "$EnvironmentReadyV1Advice");
-    // >= 2.4.0
-    transformer.applyAdvice(
-        named("environmentPrepared")
-            .and(takesArgument(1, named("org.springframework.core.env.ConfigurableEnvironment"))),
-        getClass().getName() + "$EnvironmentReadyV2Advice");
-  }
-
-  public static class EnvironmentReadyV1Advice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterEnvironmentPostProcessed(
-        @Advice.Argument(0) final ConfigurableEnvironment environment) {
-      if (environment == null
-          || DeploymentHelper.runningFromWar
-          || Config.get().isServiceNameSetByUser()) {
-        return;
-      }
-
-      final String applicationName = environment.getProperty("spring.application.name");
-      if (applicationName != null && !applicationName.isEmpty()) {
-        AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
-        ProcessTags.addTag("springboot.application", applicationName);
-      }
-      if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
-        final String[] profiles = environment.getActiveProfiles();
-        if (profiles != null && profiles.length > 0) {
-          ProcessTags.addTag("springboot.profile", profiles[0]);
-        } else {
-          final String[] defaultProfiles = environment.getDefaultProfiles();
-          if (defaultProfiles != null && defaultProfiles.length > 0) {
-            ProcessTags.addTag("springboot.profile", defaultProfiles[0]);
-          }
-        }
-      }
+    public SpringApplicationInstrumentation() {
+        super("spring-boot");
     }
-  }
 
-  public static class EnvironmentReadyV2Advice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterEnvironmentPostProcessed(
-        @Advice.Argument(1) final ConfigurableEnvironment environment) {
-      if (environment == null
-          || DeploymentHelper.runningFromWar
-          || Config.get().isServiceNameSetByUser()) {
-        return;
-      }
-
-      final String applicationName = environment.getProperty("spring.application.name");
-      if (applicationName != null && !applicationName.isEmpty()) {
-        AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
-        ProcessTags.addTag("springboot.application", applicationName);
-      }
-      if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
-        final String[] profiles = environment.getActiveProfiles();
-        if (profiles != null && profiles.length > 0) {
-          ProcessTags.addTag("springboot.profile", profiles[0]);
-        } else {
-          final String[] defaultProfiles = environment.getDefaultProfiles();
-          if (defaultProfiles != null && defaultProfiles.length > 0) {
-            ProcessTags.addTag("springboot.profile", defaultProfiles[0]);
-          }
-        }
-      }
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.boot.SpringApplicationRunListeners";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("environmentPrepared")
+                        .and(takesArgument(0, named("org.springframework.core.env.ConfigurableEnvironment"))),
+                getClass().getName() + "$EnvironmentReadyV1Advice");
+        // >= 2.4.0
+        transformer.applyAdvice(
+                named("environmentPrepared")
+                        .and(takesArgument(1, named("org.springframework.core.env.ConfigurableEnvironment"))),
+                getClass().getName() + "$EnvironmentReadyV2Advice");
+    }
+
+    public static class EnvironmentReadyV1Advice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterEnvironmentPostProcessed(
+                @Advice.Argument(0) final ConfigurableEnvironment environment) {
+            if (environment == null
+                    || DeploymentHelper.runningFromWar
+                    || Config.get().isServiceNameSetByUser()) {
+                return;
+            }
+
+            final String applicationName = environment.getProperty("spring.application.name");
+            if (applicationName != null && !applicationName.isEmpty()) {
+                AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
+                ProcessTags.addTag("springboot.application", applicationName);
+            }
+            if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
+                final String[] profiles = environment.getActiveProfiles();
+                if (profiles != null && profiles.length > 0) {
+                    ProcessTags.addTag("springboot.profile", profiles[0]);
+                } else {
+                    final String[] defaultProfiles = environment.getDefaultProfiles();
+                    if (defaultProfiles != null && defaultProfiles.length > 0) {
+                        ProcessTags.addTag("springboot.profile", defaultProfiles[0]);
+                    }
+                }
+            }
+        }
+    }
+
+    public static class EnvironmentReadyV2Advice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterEnvironmentPostProcessed(
+                @Advice.Argument(1) final ConfigurableEnvironment environment) {
+            if (environment == null
+                    || DeploymentHelper.runningFromWar
+                    || Config.get().isServiceNameSetByUser()) {
+                return;
+            }
+
+            final String applicationName = environment.getProperty("spring.application.name");
+            if (applicationName != null && !applicationName.isEmpty()) {
+                AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
+                ProcessTags.addTag("springboot.application", applicationName);
+            }
+            if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
+                final String[] profiles = environment.getActiveProfiles();
+                if (profiles != null && profiles.length > 0) {
+                    ProcessTags.addTag("springboot.profile", profiles[0]);
+                } else {
+                    final String[] defaultProfiles = environment.getDefaultProfiles();
+                    if (defaultProfiles != null && defaultProfiles.length > 0) {
+                        ProcessTags.addTag("springboot.profile", defaultProfiles[0]);
+                    }
+                }
+            }
+        }
+    }
 }

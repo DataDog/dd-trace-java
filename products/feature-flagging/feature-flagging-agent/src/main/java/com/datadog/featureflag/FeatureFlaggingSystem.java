@@ -14,200 +14,192 @@ import org.slf4j.LoggerFactory;
 
 public class FeatureFlaggingSystem {
 
-  @FunctionalInterface
-  interface SystemInitializer {
-    void initialize(SharedCommunicationObjects sco, Config config);
-  }
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
-
-  private static volatile ConfigurationSourceService CONFIG_SERVICE;
-  private static volatile ExposureWriter EXPOSURE_WRITER;
-  private static volatile FlagEvaluationWriter FLAG_EVAL_WRITER;
-  private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
-  private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
-  private static volatile boolean STARTED;
-
-  private FeatureFlaggingSystem() {}
-
-  public static void start(final SharedCommunicationObjects sco) {
-    start(sco, FeatureFlaggingSystem::initializeSystem);
-  }
-
-  static synchronized void start(
-      final SharedCommunicationObjects sco, final SystemInitializer systemInitializer) {
-    if (STARTED) {
-      LOGGER.debug("Feature Flagging system already started");
-      return;
-    }
-    LOGGER.debug("Feature Flagging system starting");
-    final Config config = Config.get();
-    STARTED = true;
-
-    if (!config.isFeatureFlaggingProviderEnabled()) {
-      LOGGER.debug("Feature Flagging system disabled");
-      return;
+    @FunctionalInterface
+    interface SystemInitializer {
+        void initialize(SharedCommunicationObjects sco, Config config);
     }
 
-    if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
-      final FeatureFlaggingGateway.ActivationListener activationListener =
-          () -> activateAgentless(sco, config, systemInitializer);
-      ACTIVATION_LISTENER = activationListener;
-      FeatureFlaggingGateway.addActivationListener(activationListener);
-      LOGGER.debug("Feature Flagging system awaiting application provider activation");
-      return;
+    private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
+
+    private static volatile ConfigurationSourceService CONFIG_SERVICE;
+    private static volatile ExposureWriter EXPOSURE_WRITER;
+    private static volatile FlagEvaluationWriter FLAG_EVAL_WRITER;
+    private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
+    private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
+    private static volatile boolean STARTED;
+
+    private FeatureFlaggingSystem() {}
+
+    public static void start(final SharedCommunicationObjects sco) {
+        start(sco, FeatureFlaggingSystem::initializeSystem);
     }
 
-    initializeOrRollBack(sco, config, systemInitializer);
-  }
-
-  private static synchronized void activateAgentless(
-      final SharedCommunicationObjects sco,
-      final Config config,
-      final SystemInitializer systemInitializer) {
-    final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
-    if (!STARTED || activationListener == null) {
-      return;
-    }
-    ACTIVATION_LISTENER = null;
-    FeatureFlaggingGateway.removeActivationListener(activationListener);
-    initializeOrRollBack(sco, config, systemInitializer);
-  }
-
-  // Any failure leaves the subsystem fully stopped: stop() releases whatever initializeSystem
-  // managed to publish before it threw, so a later start() begins from a clean state.
-  private static void initializeOrRollBack(
-      final SharedCommunicationObjects sco,
-      final Config config,
-      final SystemInitializer systemInitializer) {
-    try {
-      systemInitializer.initialize(sco, config);
-    } catch (final RuntimeException | Error e) {
-      stop();
-      throw e;
-    }
-  }
-
-  private static void initializeSystem(final SharedCommunicationObjects sco, final Config config) {
-    final ConfigurationSourceService configService = createConfigurationSourceService(sco, config);
-    if (configService == null) {
-      LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
-      return;
-    }
-    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
-    initialize(configService, exposureWriter);
-
-    final boolean evalCountsEnabled =
-        config
-            .configProvider()
-            .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
-    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
-    if (evalCountsEnabled) {
-      final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
-      // Publish before start() so a failed start is still reachable by the rollback in stop().
-      FLAG_EVAL_WRITER = evalWriter;
-      evalWriter.start();
-      LOGGER.debug("Flag evaluation EVP writer started");
-    } else {
-      FeatureFlaggingGateway.setFlagEvalWriter(null);
-      LOGGER.debug(
-          "Flag evaluation EVP writer disabled ({}=false)",
-          FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED);
-    }
-
-    // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
-    // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
-    // (which the tracer cannot remove) instead of registering a second, rejected one. Cheap: it
-    // only accumulates once the provider's gate-on capture hook dispatches events, and registers
-    // its interceptor lazily on the first such event.
-    SPAN_ENRICHMENT_WRITER = SpanEnrichmentWriter.getInstance();
-    SPAN_ENRICHMENT_WRITER.init();
-
-    LOGGER.debug("Feature Flagging system started");
-  }
-
-  static void initialize(
-      final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
-    try {
-      if (configService != null) {
-        configService.init();
-      }
-      exposureWriter.init();
-      CONFIG_SERVICE = configService;
-      EXPOSURE_WRITER = exposureWriter;
-    } catch (final RuntimeException | Error e) {
-      try {
-        exposureWriter.close();
-      } finally {
-        if (configService != null) {
-          configService.close();
+    static synchronized void start(final SharedCommunicationObjects sco, final SystemInitializer systemInitializer) {
+        if (STARTED) {
+            LOGGER.debug("Feature Flagging system already started");
+            return;
         }
-      }
-      throw e;
+        LOGGER.debug("Feature Flagging system starting");
+        final Config config = Config.get();
+        STARTED = true;
+
+        if (!config.isFeatureFlaggingProviderEnabled()) {
+            LOGGER.debug("Feature Flagging system disabled");
+            return;
+        }
+
+        if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
+            final FeatureFlaggingGateway.ActivationListener activationListener =
+                    () -> activateAgentless(sco, config, systemInitializer);
+            ACTIVATION_LISTENER = activationListener;
+            FeatureFlaggingGateway.addActivationListener(activationListener);
+            LOGGER.debug("Feature Flagging system awaiting application provider activation");
+            return;
+        }
+
+        initializeOrRollBack(sco, config, systemInitializer);
     }
-  }
 
-  static ConfigurationSourceService createConfigurationSourceService(
-      final SharedCommunicationObjects sco, final Config config) {
-    final String configurationSource = config.getFeatureFlaggingConfigurationSource();
-    if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(configurationSource)) {
-      if (!config.isRemoteConfigEnabled()) {
-        throw new IllegalStateException("Feature Flagging system started without RC");
-      }
-      return new RemoteConfigServiceImpl(sco, config);
+    private static synchronized void activateAgentless(
+            final SharedCommunicationObjects sco, final Config config, final SystemInitializer systemInitializer) {
+        final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
+        if (!STARTED || activationListener == null) {
+            return;
+        }
+        ACTIVATION_LISTENER = null;
+        FeatureFlaggingGateway.removeActivationListener(activationListener);
+        initializeOrRollBack(sco, config, systemInitializer);
     }
-    if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
-      return new AgentlessConfigurationSource(config);
+
+    // Any failure leaves the subsystem fully stopped: stop() releases whatever initializeSystem
+    // managed to publish before it threw, so a later start() begins from a clean state.
+    private static void initializeOrRollBack(
+            final SharedCommunicationObjects sco, final Config config, final SystemInitializer systemInitializer) {
+        try {
+            systemInitializer.initialize(sco, config);
+        } catch (final RuntimeException | Error e) {
+            stop();
+            throw e;
+        }
     }
-    return null;
-  }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
-  public static synchronized void stop() {
-    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
-    FeatureFlaggingGateway.setFlagEvalWriter(null);
-    final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
-    final FlagEvaluationWriter flagEvalWriter = FLAG_EVAL_WRITER;
-    final SpanEnrichmentWriter spanEnrichmentWriter = SPAN_ENRICHMENT_WRITER;
-    final ExposureWriter exposureWriter = EXPOSURE_WRITER;
-    final ConfigurationSourceService configService = CONFIG_SERVICE;
-    STARTED = false;
-    ACTIVATION_LISTENER = null;
-    FLAG_EVAL_WRITER = null;
-    SPAN_ENRICHMENT_WRITER = null;
-    EXPOSURE_WRITER = null;
-    CONFIG_SERVICE = null;
-    if (activationListener != null) {
-      FeatureFlaggingGateway.removeActivationListener(activationListener);
+    private static void initializeSystem(final SharedCommunicationObjects sco, final Config config) {
+        final ConfigurationSourceService configService = createConfigurationSourceService(sco, config);
+        if (configService == null) {
+            LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
+            return;
+        }
+        final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
+        initialize(configService, exposureWriter);
+
+        final boolean evalCountsEnabled =
+                config.configProvider().getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
+        FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
+        if (evalCountsEnabled) {
+            final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
+            // Publish before start() so a failed start is still reachable by the rollback in stop().
+            FLAG_EVAL_WRITER = evalWriter;
+            evalWriter.start();
+            LOGGER.debug("Flag evaluation EVP writer started");
+        } else {
+            FeatureFlaggingGateway.setFlagEvalWriter(null);
+            LOGGER.debug(
+                    "Flag evaluation EVP writer disabled ({}=false)",
+                    FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED);
+        }
+
+        // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
+        // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
+        // (which the tracer cannot remove) instead of registering a second, rejected one. Cheap: it
+        // only accumulates once the provider's gate-on capture hook dispatches events, and registers
+        // its interceptor lazily on the first such event.
+        SPAN_ENRICHMENT_WRITER = SpanEnrichmentWriter.getInstance();
+        SPAN_ENRICHMENT_WRITER.init();
+
+        LOGGER.debug("Feature Flagging system started");
     }
-    closeQuietly(flagEvalWriter);
-    closeQuietly(spanEnrichmentWriter);
-    closeQuietly(exposureWriter);
-    closeQuietly(configService);
-    LOGGER.debug("Feature Flagging system stopped");
-  }
 
-  static boolean isAwaitingApplicationActivation() {
-    return ACTIVATION_LISTENER != null;
-  }
-
-  static boolean isExposureWriterStarted() {
-    return EXPOSURE_WRITER != null;
-  }
-
-  static boolean isConfigurationSourceStarted() {
-    return CONFIG_SERVICE != null;
-  }
-
-  private static void closeQuietly(final AutoCloseable resource) {
-    if (resource != null) {
-      try {
-        resource.close();
-      } catch (Exception ignored) {
-      }
+    static void initialize(final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
+        try {
+            if (configService != null) {
+                configService.init();
+            }
+            exposureWriter.init();
+            CONFIG_SERVICE = configService;
+            EXPOSURE_WRITER = exposureWriter;
+        } catch (final RuntimeException | Error e) {
+            try {
+                exposureWriter.close();
+            } finally {
+                if (configService != null) {
+                    configService.close();
+                }
+            }
+            throw e;
+        }
     }
-  }
+
+    static ConfigurationSourceService createConfigurationSourceService(
+            final SharedCommunicationObjects sco, final Config config) {
+        final String configurationSource = config.getFeatureFlaggingConfigurationSource();
+        if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(configurationSource)) {
+            if (!config.isRemoteConfigEnabled()) {
+                throw new IllegalStateException("Feature Flagging system started without RC");
+            }
+            return new RemoteConfigServiceImpl(sco, config);
+        }
+        if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
+            return new AgentlessConfigurationSource(config);
+        }
+        return null;
+    }
+
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification =
+                    "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
+    public static synchronized void stop() {
+        FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
+        FeatureFlaggingGateway.setFlagEvalWriter(null);
+        final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
+        final FlagEvaluationWriter flagEvalWriter = FLAG_EVAL_WRITER;
+        final SpanEnrichmentWriter spanEnrichmentWriter = SPAN_ENRICHMENT_WRITER;
+        final ExposureWriter exposureWriter = EXPOSURE_WRITER;
+        final ConfigurationSourceService configService = CONFIG_SERVICE;
+        STARTED = false;
+        ACTIVATION_LISTENER = null;
+        FLAG_EVAL_WRITER = null;
+        SPAN_ENRICHMENT_WRITER = null;
+        EXPOSURE_WRITER = null;
+        CONFIG_SERVICE = null;
+        if (activationListener != null) {
+            FeatureFlaggingGateway.removeActivationListener(activationListener);
+        }
+        closeQuietly(flagEvalWriter);
+        closeQuietly(spanEnrichmentWriter);
+        closeQuietly(exposureWriter);
+        closeQuietly(configService);
+        LOGGER.debug("Feature Flagging system stopped");
+    }
+
+    static boolean isAwaitingApplicationActivation() {
+        return ACTIVATION_LISTENER != null;
+    }
+
+    static boolean isExposureWriterStarted() {
+        return EXPOSURE_WRITER != null;
+    }
+
+    static boolean isConfigurationSourceStarted() {
+        return CONFIG_SERVICE != null;
+    }
+
+    private static void closeQuietly(final AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
 }

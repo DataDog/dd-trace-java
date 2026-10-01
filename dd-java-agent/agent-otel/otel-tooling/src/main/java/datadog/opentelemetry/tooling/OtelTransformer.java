@@ -7,8 +7,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Replaces OpenTelemetry's {@code TypeTransformer} callback when mapping extensions. */
 public interface OtelTransformer {
 
-  void applyAdviceToMethod(
-      ElementMatcher<? super MethodDescription> methodMatcher, String adviceClassName);
+    void applyAdviceToMethod(ElementMatcher<? super MethodDescription> methodMatcher, String adviceClassName);
 
-  void applyTransformer(AgentBuilder.Transformer transformer);
+    void applyTransformer(AgentBuilder.Transformer transformer);
 }

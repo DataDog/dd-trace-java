@@ -20,53 +20,51 @@ import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(InstrumenterModule.class)
 public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public LoggerNodeInstrumentation() {
-    super("jboss-logmanager");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.jboss.logmanager.LoggerNode";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.jboss.logmanager.ExtLogRecord", AgentSpanContext.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("publish"))
-            .and(takesArgument(0, named("org.jboss.logmanager.ExtLogRecord"))),
-        LoggerNodeInstrumentation.class.getName() + "$AttachContextAdvice");
-  }
-
-  public static class AttachContextAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean attachContext(@Advice.Argument(0) ExtLogRecord record) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(ExtLogRecord.class);
-      if (callDepth > 0) {
-        return false;
-      }
-
-      AgentSpan span = activeSpan();
-
-      if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class)
-            .put(record, span.spanContext());
-      }
-
-      return true;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public LoggerNodeInstrumentation() {
+        super("jboss-logmanager");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void resetDepth(@Advice.Enter boolean shouldReset) {
-      if (shouldReset) {
-        CallDepthThreadLocalMap.reset(ExtLogRecord.class);
-      }
+    @Override
+    public String instrumentedType() {
+        return "org.jboss.logmanager.LoggerNode";
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.jboss.logmanager.ExtLogRecord", AgentSpanContext.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("publish")).and(takesArgument(0, named("org.jboss.logmanager.ExtLogRecord"))),
+                LoggerNodeInstrumentation.class.getName() + "$AttachContextAdvice");
+    }
+
+    public static class AttachContextAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static boolean attachContext(@Advice.Argument(0) ExtLogRecord record) {
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(ExtLogRecord.class);
+            if (callDepth > 0) {
+                return false;
+            }
+
+            AgentSpan span = activeSpan();
+
+            if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
+                InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class)
+                        .put(record, span.spanContext());
+            }
+
+            return true;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void resetDepth(@Advice.Enter boolean shouldReset) {
+            if (shouldReset) {
+                CallDepthThreadLocalMap.reset(ExtLogRecord.class);
+            }
+        }
+    }
 }

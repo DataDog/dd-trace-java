@@ -14,20 +14,19 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  */
 class SmokeCliAppTest {
 
-  @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("test-cli")
-          .mainClass("datadog.smoketest.TestCliApp")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .build();
+    @RegisterExtension
+    static final SmokeCliApp app = SmokeCliApp.named("test-cli")
+            .mainClass("datadog.smoketest.TestCliApp")
+            .backend(AgentBackend.mockAgent())
+            .noAgent()
+            .build();
 
-  @Test
-  void retainsStartupLogsForAssertion() {
-    // The marker was printed during beforeAll; per-test log clearing (which a server does) must not
-    // apply to a one-shot CLI app, so waitForLogLine still finds it here.
-    assertTrue(
-        app.waitForLogLine(line -> line.contains("CLI-STARTUP-MARKER")),
-        "one-shot start-up output is retained for the test to assert on");
-  }
+    @Test
+    void retainsStartupLogsForAssertion() {
+        // The marker was printed during beforeAll; per-test log clearing (which a server does) must not
+        // apply to a one-shot CLI app, so waitForLogLine still finds it here.
+        assertTrue(
+                app.waitForLogLine(line -> line.contains("CLI-STARTUP-MARKER")),
+                "one-shot start-up output is retained for the test to assert on");
+    }
 }

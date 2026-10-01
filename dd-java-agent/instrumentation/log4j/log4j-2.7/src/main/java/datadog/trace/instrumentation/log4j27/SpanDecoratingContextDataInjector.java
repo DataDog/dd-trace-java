@@ -21,55 +21,55 @@ import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.apache.logging.log4j.util.StringMap;
 
 public final class SpanDecoratingContextDataInjector implements ContextDataInjector {
-  private final ContextDataInjector delegate;
+    private final ContextDataInjector delegate;
 
-  public SpanDecoratingContextDataInjector(ContextDataInjector delegate) {
-    this.delegate = delegate;
-  }
-
-  @Override
-  public StringMap injectContextData(List<Property> list, StringMap reusable) {
-    StringMap contextData = delegate.injectContextData(list, reusable);
-
-    AgentSpan span = activeSpan();
-
-    if (!traceConfig(span).isLogsInjectionEnabled()) {
-      return contextData;
+    public SpanDecoratingContextDataInjector(ContextDataInjector delegate) {
+        this.delegate = delegate;
     }
 
-    // We're at most adding 5 tags
-    StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
+    @Override
+    public StringMap injectContextData(List<Property> list, StringMap reusable) {
+        StringMap contextData = delegate.injectContextData(list, reusable);
 
-    String env = Config.get().getEnv();
-    if (null != env && !env.isEmpty()) {
-      newContextData.putValue(Tags.DD_ENV, env);
-    }
-    String serviceName = Config.get().getServiceName();
-    if (null != serviceName && !serviceName.isEmpty()) {
-      newContextData.putValue(Tags.DD_SERVICE, serviceName);
-    }
-    String version = Config.get().getVersion();
-    if (null != version && !version.isEmpty()) {
-      newContextData.putValue(Tags.DD_VERSION, version);
+        AgentSpan span = activeSpan();
+
+        if (!traceConfig(span).isLogsInjectionEnabled()) {
+            return contextData;
+        }
+
+        // We're at most adding 5 tags
+        StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
+
+        String env = Config.get().getEnv();
+        if (null != env && !env.isEmpty()) {
+            newContextData.putValue(Tags.DD_ENV, env);
+        }
+        String serviceName = Config.get().getServiceName();
+        if (null != serviceName && !serviceName.isEmpty()) {
+            newContextData.putValue(Tags.DD_SERVICE, serviceName);
+        }
+        String version = Config.get().getVersion();
+        if (null != version && !version.isEmpty()) {
+            newContextData.putValue(Tags.DD_VERSION, version);
+        }
+
+        if (span != null) {
+            DDTraceId traceId = span.spanContext().getTraceId();
+            String traceIdValue = Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
+                    ? traceId.toHexString()
+                    : traceId.toString();
+            newContextData.putValue(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
+            newContextData.putValue(
+                    CorrelationIdentifier.getSpanIdKey(),
+                    DDSpanId.toString(span.spanContext().getSpanId()));
+        }
+
+        newContextData.putAll(contextData);
+        return newContextData;
     }
 
-    if (span != null) {
-      DDTraceId traceId = span.spanContext().getTraceId();
-      String traceIdValue =
-          Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
-              ? traceId.toHexString()
-              : traceId.toString();
-      newContextData.putValue(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
-      newContextData.putValue(
-          CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(span.spanContext().getSpanId()));
+    @Override
+    public ReadOnlyStringMap rawContextData() {
+        return delegate.rawContextData();
     }
-
-    newContextData.putAll(contextData);
-    return newContextData;
-  }
-
-  @Override
-  public ReadOnlyStringMap rawContextData() {
-    return delegate.rawContextData();
-  }
 }

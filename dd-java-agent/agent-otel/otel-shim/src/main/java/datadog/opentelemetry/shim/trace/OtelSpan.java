@@ -33,243 +33,243 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
-  private final AgentSpan delegate;
-  private StatusCode statusCode = UNSET;
-  private volatile boolean recording = true;
+    private final AgentSpan delegate;
+    private StatusCode statusCode = UNSET;
+    private volatile boolean recording = true;
 
-  /**
-   * Span events ({@code null} until an event is added).
-   *
-   * <p>Volatile so {@link #onSpanFinished()} can skip the lock in common no-events case; writes and
-   * the rare non-null read synchronize on {@code this} to guard against concurrent recording from
-   * another thread.
-   */
-  private volatile List<OtelSpanEvent> events;
+    /**
+     * Span events ({@code null} until an event is added).
+     *
+     * <p>Volatile so {@link #onSpanFinished()} can skip the lock in common no-events case; writes and
+     * the rare non-null read synchronize on {@code this} to guard against concurrent recording from
+     * another thread.
+     */
+    private volatile List<OtelSpanEvent> events;
 
-  public OtelSpan(AgentSpan delegate) {
-    this.delegate = delegate;
-    if (delegate instanceof AttachableWrapper) {
-      ((AttachableWrapper) delegate).attachWrapper(this);
+    public OtelSpan(AgentSpan delegate) {
+        this.delegate = delegate;
+        if (delegate instanceof AttachableWrapper) {
+            ((AttachableWrapper) delegate).attachWrapper(this);
+        }
+        delegate.spanContext().setIntegrationName("otel");
     }
-    delegate.spanContext().setIntegrationName("otel");
-  }
 
-  public static Span invalid() {
-    return NoopSpan.INSTANCE;
-  }
-
-  @Override
-  public <T> Span setAttribute(AttributeKey<T> key, T value) {
-    if (this.recording && !applyReservedAttribute(this.delegate, key, value)) {
-      switch (key.getType()) {
-        case STRING_ARRAY:
-        case BOOLEAN_ARRAY:
-        case LONG_ARRAY:
-        case DOUBLE_ARRAY:
-          if (value instanceof List) {
-            List<?> valueList = (List<?>) value;
-            if (valueList.isEmpty()) {
-              // Store as object to prevent delegate to remove tag when value is empty
-              this.delegate.setTag(key.getKey(), (Object) "");
-            } else {
-              for (int index = 0; index < valueList.size(); index++) {
-                this.delegate.setTag(key.getKey() + "." + index, valueList.get(index));
-              }
-            }
-          }
-          break;
-        default:
-          this.delegate.setTag(key.getKey(), value);
-          break;
-      }
+    public static Span invalid() {
+        return NoopSpan.INSTANCE;
     }
-    return this;
-  }
-
-  @Override
-  public Span addEvent(String name, Attributes attributes) {
-    if (this.recording) {
-      doAddEvent(new OtelSpanEvent(name, attributes));
-    }
-    return this;
-  }
-
-  @Override
-  public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
-    if (this.recording) {
-      doAddEvent(new OtelSpanEvent(name, attributes, timestamp, unit));
-    }
-    return this;
-  }
-
-  private synchronized void doAddEvent(OtelSpanEvent event) {
-    List<OtelSpanEvent> eventsSnapshot = this.events;
-    if (eventsSnapshot == null) {
-      this.events = eventsSnapshot = new ArrayList<>();
-    }
-    eventsSnapshot.add(event);
-  }
-
-  @Override
-  public Span setStatus(StatusCode statusCode, String description) {
-    if (this.recording) {
-      if (this.statusCode == UNSET) {
-        this.statusCode = statusCode;
-        this.delegate.setError(statusCode == ERROR, ErrorPriorities.MANUAL_INSTRUMENTATION);
-        this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
-      } else if (this.statusCode == ERROR && statusCode == OK) {
-        this.statusCode = statusCode;
-        this.delegate.setError(false, ErrorPriorities.MANUAL_INSTRUMENTATION);
-        this.delegate.setErrorMessage(null);
-      }
-    }
-    return this;
-  }
-
-  @Override
-  public Span recordException(Throwable exception, Attributes additionalAttributes) {
-    if (this.recording) {
-      additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
-      applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
-      doAddEvent(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
-    }
-    return this;
-  }
-
-  @Override
-  public Span updateName(String name) {
-    if (this.recording) {
-      this.delegate.setResourceName(name, ResourceNamePriorities.MANUAL_INSTRUMENTATION);
-    }
-    return this;
-  }
-
-  @Override
-  public void end() {
-    this.recording = false;
-    this.delegate.finish();
-  }
-
-  @Override
-  public void end(long timestamp, TimeUnit unit) {
-    this.recording = false;
-    this.delegate.finish(unit.toMicros(timestamp));
-  }
-
-  @Override
-  public SpanContext getSpanContext() {
-    return OtelSpanContext.fromLocalSpan(this.delegate);
-  }
-
-  @Override
-  public boolean isRecording() {
-    return this.recording;
-  }
-
-  public ContextScope activate() {
-    return activateSpan(this.delegate);
-  }
-
-  public AgentSpanContext getAgentSpanContext() {
-    return this.delegate.spanContext();
-  }
-
-  @Override
-  public AgentSpan asAgentSpan() {
-    return this.delegate;
-  }
-
-  @Override
-  public void onSpanFinished() {
-    applyNamingConvention(this.delegate);
-    // Fast path: skip the lock when there are no events (the common case)
-    if (this.events != null) {
-      List<OtelSpanEvent> eventsSnapshot;
-      synchronized (this) {
-        // detach events for serialization
-        eventsSnapshot = this.events;
-        this.events = null;
-      }
-      setEventsAsTag(this.delegate, eventsSnapshot);
-    }
-  }
-
-  private static class NoopSpan implements Span {
-    private static final Span INSTANCE = new NoopSpan();
 
     @Override
     public <T> Span setAttribute(AttributeKey<T> key, T value) {
-      return this;
+        if (this.recording && !applyReservedAttribute(this.delegate, key, value)) {
+            switch (key.getType()) {
+                case STRING_ARRAY:
+                case BOOLEAN_ARRAY:
+                case LONG_ARRAY:
+                case DOUBLE_ARRAY:
+                    if (value instanceof List) {
+                        List<?> valueList = (List<?>) value;
+                        if (valueList.isEmpty()) {
+                            // Store as object to prevent delegate to remove tag when value is empty
+                            this.delegate.setTag(key.getKey(), (Object) "");
+                        } else {
+                            for (int index = 0; index < valueList.size(); index++) {
+                                this.delegate.setTag(key.getKey() + "." + index, valueList.get(index));
+                            }
+                        }
+                    }
+                    break;
+                default:
+                    this.delegate.setTag(key.getKey(), value);
+                    break;
+            }
+        }
+        return this;
     }
 
     @Override
     public Span addEvent(String name, Attributes attributes) {
-      return this;
+        if (this.recording) {
+            doAddEvent(new OtelSpanEvent(name, attributes));
+        }
+        return this;
     }
 
     @Override
     public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
-      return this;
+        if (this.recording) {
+            doAddEvent(new OtelSpanEvent(name, attributes, timestamp, unit));
+        }
+        return this;
+    }
+
+    private synchronized void doAddEvent(OtelSpanEvent event) {
+        List<OtelSpanEvent> eventsSnapshot = this.events;
+        if (eventsSnapshot == null) {
+            this.events = eventsSnapshot = new ArrayList<>();
+        }
+        eventsSnapshot.add(event);
     }
 
     @Override
     public Span setStatus(StatusCode statusCode, String description) {
-      return this;
+        if (this.recording) {
+            if (this.statusCode == UNSET) {
+                this.statusCode = statusCode;
+                this.delegate.setError(statusCode == ERROR, ErrorPriorities.MANUAL_INSTRUMENTATION);
+                this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
+            } else if (this.statusCode == ERROR && statusCode == OK) {
+                this.statusCode = statusCode;
+                this.delegate.setError(false, ErrorPriorities.MANUAL_INSTRUMENTATION);
+                this.delegate.setErrorMessage(null);
+            }
+        }
+        return this;
     }
 
     @Override
     public Span recordException(Throwable exception, Attributes additionalAttributes) {
-      return this;
+        if (this.recording) {
+            additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
+            applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
+            doAddEvent(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
+        }
+        return this;
     }
 
     @Override
     public Span updateName(String name) {
-      return this;
+        if (this.recording) {
+            this.delegate.setResourceName(name, ResourceNamePriorities.MANUAL_INSTRUMENTATION);
+        }
+        return this;
     }
 
     @Override
-    public void end() {}
+    public void end() {
+        this.recording = false;
+        this.delegate.finish();
+    }
 
     @Override
-    public void end(long timestamp, TimeUnit unit) {}
+    public void end(long timestamp, TimeUnit unit) {
+        this.recording = false;
+        this.delegate.finish(unit.toMicros(timestamp));
+    }
 
     @Override
     public SpanContext getSpanContext() {
-      return NoopSpanContext.INSTANCE;
+        return OtelSpanContext.fromLocalSpan(this.delegate);
     }
 
     @Override
     public boolean isRecording() {
-      return false;
-    }
-  }
-
-  private static class NoopSpanContext implements SpanContext {
-    private static final SpanContext INSTANCE = new NoopSpanContext();
-
-    @Override
-    public String getTraceId() {
-      return "00000000000000000000000000000000";
+        return this.recording;
     }
 
-    @Override
-    public String getSpanId() {
-      return "0000000000000000";
+    public ContextScope activate() {
+        return activateSpan(this.delegate);
+    }
+
+    public AgentSpanContext getAgentSpanContext() {
+        return this.delegate.spanContext();
     }
 
     @Override
-    public TraceFlags getTraceFlags() {
-      return TraceFlags.getDefault();
+    public AgentSpan asAgentSpan() {
+        return this.delegate;
     }
 
     @Override
-    public TraceState getTraceState() {
-      return TraceState.getDefault();
+    public void onSpanFinished() {
+        applyNamingConvention(this.delegate);
+        // Fast path: skip the lock when there are no events (the common case)
+        if (this.events != null) {
+            List<OtelSpanEvent> eventsSnapshot;
+            synchronized (this) {
+                // detach events for serialization
+                eventsSnapshot = this.events;
+                this.events = null;
+            }
+            setEventsAsTag(this.delegate, eventsSnapshot);
+        }
     }
 
-    @Override
-    public boolean isRemote() {
-      return false;
+    private static class NoopSpan implements Span {
+        private static final Span INSTANCE = new NoopSpan();
+
+        @Override
+        public <T> Span setAttribute(AttributeKey<T> key, T value) {
+            return this;
+        }
+
+        @Override
+        public Span addEvent(String name, Attributes attributes) {
+            return this;
+        }
+
+        @Override
+        public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
+            return this;
+        }
+
+        @Override
+        public Span setStatus(StatusCode statusCode, String description) {
+            return this;
+        }
+
+        @Override
+        public Span recordException(Throwable exception, Attributes additionalAttributes) {
+            return this;
+        }
+
+        @Override
+        public Span updateName(String name) {
+            return this;
+        }
+
+        @Override
+        public void end() {}
+
+        @Override
+        public void end(long timestamp, TimeUnit unit) {}
+
+        @Override
+        public SpanContext getSpanContext() {
+            return NoopSpanContext.INSTANCE;
+        }
+
+        @Override
+        public boolean isRecording() {
+            return false;
+        }
     }
-  }
+
+    private static class NoopSpanContext implements SpanContext {
+        private static final SpanContext INSTANCE = new NoopSpanContext();
+
+        @Override
+        public String getTraceId() {
+            return "00000000000000000000000000000000";
+        }
+
+        @Override
+        public String getSpanId() {
+            return "0000000000000000";
+        }
+
+        @Override
+        public TraceFlags getTraceFlags() {
+            return TraceFlags.getDefault();
+        }
+
+        @Override
+        public TraceState getTraceState() {
+            return TraceState.getDefault();
+        }
+
+        @Override
+        public boolean isRemote() {
+            return false;
+        }
+    }
 }

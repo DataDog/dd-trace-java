@@ -19,66 +19,64 @@ import org.reactivestreams.Subscriber;
  * This instrumentation is responsible for propagating the state on the downstream signals (onNext,
  * onError, onComplete).
  */
-public class SubscriberInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+public class SubscriberInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(namedOneOf("onNext", "onError")),
-        getClass().getName() + "$SubscriberDownStreamAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("onComplete")), getClass().getName() + "$SubscriberCompleteAdvice");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.reactivestreams.Subscriber";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return HierarchyMatchers.implementsInterface(NameMatchers.named(hierarchyMarkerType()));
-  }
-
-  /**
-   * This advice propagate the downstream signals onNext and onError. The context on reactor is
-   * propagating bottom up, but we can have processing pipelines that wants to propagate the state
-   * downstream (i.e. state coming from the source). For this reason we allow to let the active
-   * context propagate downstream if any. If missing, we'll use the one captured on subscribe.
-   */
-  public static class SubscriberDownStreamAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(@Advice.This final Subscriber self) {
-      return ReactiveStreamsContextPropagation.activateOnSignal(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(namedOneOf("onNext", "onError")), getClass().getName() + "$SubscriberDownStreamAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("onComplete")), getClass().getName() + "$SubscriberCompleteAdvice");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
-    }
-  }
-
-  /**
-   * Propagates the context captured onSubscribe when the onComplete method is called. We do not let
-   * to propagate the active context if different from the context captured on subscribe because we
-   * need to ensure that late subscriptions that kicks onComplete have the right context.
-   */
-  public static class SubscriberCompleteAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(@Advice.This final Subscriber self) {
-      return ReactiveStreamsContextPropagation.activateOnComplete(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.reactivestreams.Subscriber";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return HierarchyMatchers.implementsInterface(NameMatchers.named(hierarchyMarkerType()));
     }
-  }
+
+    /**
+     * This advice propagate the downstream signals onNext and onError. The context on reactor is
+     * propagating bottom up, but we can have processing pipelines that wants to propagate the state
+     * downstream (i.e. state coming from the source). For this reason we allow to let the active
+     * context propagate downstream if any. If missing, we'll use the one captured on subscribe.
+     */
+    public static class SubscriberDownStreamAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(@Advice.This final Subscriber self) {
+            return ReactiveStreamsContextPropagation.activateOnSignal(
+                    self, InstrumentationContext.get(Subscriber.class, Context.class));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
+
+    /**
+     * Propagates the context captured onSubscribe when the onComplete method is called. We do not let
+     * to propagate the active context if different from the context captured on subscribe because we
+     * need to ensure that late subscriptions that kicks onComplete have the right context.
+     */
+    public static class SubscriberCompleteAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(@Advice.This final Subscriber self) {
+            return ReactiveStreamsContextPropagation.activateOnComplete(
+                    self, InstrumentationContext.get(Subscriber.class, Context.class));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
 }

@@ -28,84 +28,96 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class OpenJdkRecordingDataTest {
 
-  private static final String TEST_NAME = "recording name";
+    private static final String TEST_NAME = "recording name";
 
-  @Mock Instant start;
-  @Mock Instant end;
-  @Mock Instant customStart;
-  @Mock Instant customEnd;
-  @Mock private InputStream stream;
-  @Mock private InputStream customStream;
-  @Mock private Recording recording;
+    @Mock
+    Instant start;
 
-  private OpenJdkRecordingData recordingData;
-  private OpenJdkRecordingData customRecordingData;
+    @Mock
+    Instant end;
 
-  @BeforeEach
-  public void setup() throws IOException {
-    assumeFalse(JavaVirtualMachine.isJ9());
-    when(recording.getStream(start, end)).thenReturn(stream);
-    when(recording.getStream(customStart, customEnd)).thenReturn(customStream);
-    when(recording.getStartTime()).thenReturn(start);
-    when(recording.getStopTime()).thenReturn(end);
-    when(recording.getName()).thenReturn(TEST_NAME);
+    @Mock
+    Instant customStart;
 
-    recordingData = new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
-    customRecordingData =
-        new OpenJdkRecordingData(
-            recording, customStart, customEnd, ProfilingSnapshot.Kind.PERIODIC);
-  }
+    @Mock
+    Instant customEnd;
 
-  @Test
-  public void testGetStream() throws IOException {
-    assertNotNull(recordingData.getStream());
-    verify(recording, VerificationModeFactory.times(1)).getStream(start, end);
-  }
+    @Mock
+    private InputStream stream;
 
-  @Test
-  public void testRelease() {
-    recordingData.release();
-    verify(recording).close();
-  }
+    @Mock
+    private InputStream customStream;
 
-  @Test
-  public void testGetName() {
-    assertEquals(TEST_NAME, recordingData.getName());
-  }
+    @Mock
+    private Recording recording;
 
-  @Test
-  public void testToString() {
-    assertTrue(recordingData.toString().contains(TEST_NAME));
-  }
+    private OpenJdkRecordingData recordingData;
+    private OpenJdkRecordingData customRecordingData;
 
-  @Test
-  public void testGetStart() {
-    assertEquals(start, recordingData.getStart());
-  }
+    @BeforeEach
+    public void setup() throws IOException {
+        assumeFalse(JavaVirtualMachine.isJ9());
+        when(recording.getStream(start, end)).thenReturn(stream);
+        when(recording.getStream(customStart, customEnd)).thenReturn(customStream);
+        when(recording.getStartTime()).thenReturn(start);
+        when(recording.getStopTime()).thenReturn(end);
+        when(recording.getName()).thenReturn(TEST_NAME);
 
-  @Test
-  public void testGetEnd() {
-    assertEquals(end, recordingData.getEnd());
-  }
+        recordingData = new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
+        customRecordingData =
+                new OpenJdkRecordingData(recording, customStart, customEnd, ProfilingSnapshot.Kind.PERIODIC);
+    }
 
-  @Test
-  public void testCustomGetStream() throws IOException {
-    assertNotNull(customRecordingData.getStream());
-    verify(recording, VerificationModeFactory.times(1)).getStream(customStart, customEnd);
-  }
+    @Test
+    public void testGetStream() throws IOException {
+        assertNotNull(recordingData.getStream());
+        verify(recording, VerificationModeFactory.times(1)).getStream(start, end);
+    }
 
-  @Test
-  public void testCustomGetStart() {
-    assertEquals(customStart, customRecordingData.getStart());
-  }
+    @Test
+    public void testRelease() {
+        recordingData.release();
+        verify(recording).close();
+    }
 
-  @Test
-  public void testCustomGetEnd() {
-    assertEquals(customEnd, customRecordingData.getEnd());
-  }
+    @Test
+    public void testGetName() {
+        assertEquals(TEST_NAME, recordingData.getName());
+    }
 
-  @Test
-  public void getRecording() {
-    assertEquals(recording, recordingData.getRecording());
-  }
+    @Test
+    public void testToString() {
+        assertTrue(recordingData.toString().contains(TEST_NAME));
+    }
+
+    @Test
+    public void testGetStart() {
+        assertEquals(start, recordingData.getStart());
+    }
+
+    @Test
+    public void testGetEnd() {
+        assertEquals(end, recordingData.getEnd());
+    }
+
+    @Test
+    public void testCustomGetStream() throws IOException {
+        assertNotNull(customRecordingData.getStream());
+        verify(recording, VerificationModeFactory.times(1)).getStream(customStart, customEnd);
+    }
+
+    @Test
+    public void testCustomGetStart() {
+        assertEquals(customStart, customRecordingData.getStart());
+    }
+
+    @Test
+    public void testCustomGetEnd() {
+        assertEquals(customEnd, customRecordingData.getEnd());
+    }
+
+    @Test
+    public void getRecording() {
+        assertEquals(recording, recordingData.getRecording());
+    }
 }

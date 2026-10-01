@@ -11,113 +11,109 @@ import java.util.Map;
  * @param <T> the type of the result
  */
 public interface Flow<T> {
-  Flow.Action getAction();
+    Flow.Action getAction();
 
-  T getResult();
+    T getResult();
 
-  interface Action {
-    boolean isBlocking();
+    interface Action {
+        boolean isBlocking();
 
-    class Noop implements Action {
-      public static Action INSTANCE = new Noop();
+        class Noop implements Action {
+            public static Action INSTANCE = new Noop();
 
-      private Noop() {}
+            private Noop() {}
 
-      public boolean isBlocking() {
-        return false;
-      }
+            public boolean isBlocking() {
+                return false;
+            }
+        }
+
+        class RequestBlockingAction implements Action {
+            private final int statusCode;
+            private final BlockingContentType blockingContentType;
+            private final Map<String, String> extraHeaders;
+            private final String securityResponseId;
+
+            public RequestBlockingAction(
+                    int statusCode, BlockingContentType blockingContentType, Map<String, String> extraHeaders) {
+                this(statusCode, blockingContentType, extraHeaders, null);
+            }
+
+            public RequestBlockingAction(
+                    int statusCode,
+                    BlockingContentType blockingContentType,
+                    Map<String, String> extraHeaders,
+                    String securityResponseId) {
+                this.statusCode = statusCode;
+                this.blockingContentType = blockingContentType;
+                this.extraHeaders = extraHeaders;
+                this.securityResponseId = securityResponseId;
+            }
+
+            public RequestBlockingAction(int statusCode, BlockingContentType blockingContentType) {
+                this(statusCode, blockingContentType, Collections.emptyMap(), null);
+            }
+
+            public static RequestBlockingAction forRedirect(int statusCode, String location) {
+                return forRedirect(statusCode, location, null);
+            }
+
+            public static RequestBlockingAction forRedirect(
+                    int statusCode, String location, String securityResponseId) {
+                return new RequestBlockingAction(
+                        statusCode,
+                        BlockingContentType.NONE,
+                        Collections.singletonMap("Location", location),
+                        securityResponseId);
+            }
+
+            @Override
+            public boolean isBlocking() {
+                return true;
+            }
+
+            public int getStatusCode() {
+                return statusCode;
+            }
+
+            public BlockingContentType getBlockingContentType() {
+                return blockingContentType;
+            }
+
+            public Map<String, String> getExtraHeaders() {
+                return extraHeaders;
+            }
+
+            public String getSecurityResponseId() {
+                return securityResponseId;
+            }
+        }
     }
 
-    class RequestBlockingAction implements Action {
-      private final int statusCode;
-      private final BlockingContentType blockingContentType;
-      private final Map<String, String> extraHeaders;
-      private final String securityResponseId;
+    @SuppressFBWarnings(value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR", justification = "Not a singleton")
+    class ResultFlow<R> implements Flow<R> {
+        @SuppressWarnings("rawtypes")
+        private static final ResultFlow EMPTY = new ResultFlow<>(null);
 
-      public RequestBlockingAction(
-          int statusCode,
-          BlockingContentType blockingContentType,
-          Map<String, String> extraHeaders) {
-        this(statusCode, blockingContentType, extraHeaders, null);
-      }
+        @SuppressWarnings("unchecked")
+        public static <R> ResultFlow<R> empty() {
+            return (ResultFlow<R>) EMPTY;
+        }
 
-      public RequestBlockingAction(
-          int statusCode,
-          BlockingContentType blockingContentType,
-          Map<String, String> extraHeaders,
-          String securityResponseId) {
-        this.statusCode = statusCode;
-        this.blockingContentType = blockingContentType;
-        this.extraHeaders = extraHeaders;
-        this.securityResponseId = securityResponseId;
-      }
+        private final R result;
 
-      public RequestBlockingAction(int statusCode, BlockingContentType blockingContentType) {
-        this(statusCode, blockingContentType, Collections.emptyMap(), null);
-      }
+        public ResultFlow(R result) {
+            this.result = result;
+        }
 
-      public static RequestBlockingAction forRedirect(int statusCode, String location) {
-        return forRedirect(statusCode, location, null);
-      }
+        @Override
+        public Action getAction() {
+            return Action.Noop.INSTANCE;
+        }
 
-      public static RequestBlockingAction forRedirect(
-          int statusCode, String location, String securityResponseId) {
-        return new RequestBlockingAction(
-            statusCode,
-            BlockingContentType.NONE,
-            Collections.singletonMap("Location", location),
-            securityResponseId);
-      }
-
-      @Override
-      public boolean isBlocking() {
-        return true;
-      }
-
-      public int getStatusCode() {
-        return statusCode;
-      }
-
-      public BlockingContentType getBlockingContentType() {
-        return blockingContentType;
-      }
-
-      public Map<String, String> getExtraHeaders() {
-        return extraHeaders;
-      }
-
-      public String getSecurityResponseId() {
-        return securityResponseId;
-      }
+        @Override
+        public R getResult() {
+            return result;
+        }
     }
-  }
-
-  @SuppressFBWarnings(
-      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-      justification = "Not a singleton")
-  class ResultFlow<R> implements Flow<R> {
-    @SuppressWarnings("rawtypes")
-    private static final ResultFlow EMPTY = new ResultFlow<>(null);
-
-    @SuppressWarnings("unchecked")
-    public static <R> ResultFlow<R> empty() {
-      return (ResultFlow<R>) EMPTY;
-    }
-
-    private final R result;
-
-    public ResultFlow(R result) {
-      this.result = result;
-    }
-
-    @Override
-    public Action getAction() {
-      return Action.Noop.INSTANCE;
-    }
-
-    @Override
-    public R getResult() {
-      return result;
-    }
-  }
 }

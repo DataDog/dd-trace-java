@@ -15,33 +15,33 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class SqlConnectionBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SqlConnectionBaseInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public SqlConnectionBaseInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
-    contextStores.put("io.vertx.sqlclient.PreparedStatement", "datadog.trace.api.Pair");
-    return contextStores;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStores = new HashMap<>();
+        contextStores.put("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
+        contextStores.put("io.vertx.sqlclient.PreparedStatement", "datadog.trace.api.Pair");
+        return contextStores;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.sqlclient.impl.SqlConnectionBase";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.sqlclient.impl.SqlConnectionBase";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("prepare"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("java.lang.String")))
-            .and(takesArgument(1, named("io.vertx.core.Handler"))),
-        packageName + ".SqlConnectionBasePrepareAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("prepare"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("java.lang.String")))
+                        .and(takesArgument(1, named("io.vertx.core.Handler"))),
+                packageName + ".SqlConnectionBasePrepareAdvice");
+    }
 }

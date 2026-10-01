@@ -16,54 +16,53 @@ import org.mule.runtime.module.launcher.DefaultMuleContainer;
  * mule directory.
  */
 public class MuleTestContainer {
-  DefaultMuleContainer container;
+    DefaultMuleContainer container;
 
-  public MuleTestContainer(File muleBaseDirectory) throws IOException {
-    if (!muleBaseDirectory.exists()) {
-      muleBaseDirectory.mkdirs();
+    public MuleTestContainer(File muleBaseDirectory) throws IOException {
+        if (!muleBaseDirectory.exists()) {
+            muleBaseDirectory.mkdirs();
+        }
+        String basePath = muleBaseDirectory.getCanonicalPath();
+        // Makes sure that Mule doesn't try to configure its own logging
+        System.setProperty(MuleSystemProperties.MULE_SIMPLE_LOG, "true");
+        // This is the Mule runtime folder where files are stored
+        System.setProperty(MuleProperties.MULE_BASE_DIRECTORY_PROPERTY, basePath);
+        System.setProperty(MuleProperties.MULE_HOME_DIRECTORY_PROPERTY, basePath);
+        System.setProperty("mule.classloader.container.jpmsModuleLayer", "false");
+        // Mule is a bit picky with some directories existing, so let's create them
+        for (String dirName : new String[] {"domains/default", "apps"}) {
+            File dir = new File(muleBaseDirectory, dirName);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+        }
+        try {
+            this.container = DefaultMuleContainer.class.newInstance();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            try {
+                this.container = DefaultMuleContainer.class
+                        .getDeclaredConstructor(String[].class)
+                        .newInstance((Object) new String[0]);
+            } catch (Throwable t2) {
+                throw new RuntimeException("Unable to instantiate MuleContainer", t2);
+            }
+        }
     }
-    String basePath = muleBaseDirectory.getCanonicalPath();
-    // Makes sure that Mule doesn't try to configure its own logging
-    System.setProperty(MuleSystemProperties.MULE_SIMPLE_LOG, "true");
-    // This is the Mule runtime folder where files are stored
-    System.setProperty(MuleProperties.MULE_BASE_DIRECTORY_PROPERTY, basePath);
-    System.setProperty(MuleProperties.MULE_HOME_DIRECTORY_PROPERTY, basePath);
-    System.setProperty("mule.classloader.container.jpmsModuleLayer", "false");
-    // Mule is a bit picky with some directories existing, so let's create them
-    for (String dirName : new String[] {"domains/default", "apps"}) {
-      File dir = new File(muleBaseDirectory, dirName);
-      if (!dir.exists()) {
-        dir.mkdirs();
-      }
+
+    public void start() throws MuleException {
+        container.start(false);
     }
-    try {
-      this.container = DefaultMuleContainer.class.newInstance();
-    } catch (Throwable t) {
-      t.printStackTrace();
-      try {
-        this.container =
-            DefaultMuleContainer.class
-                .getDeclaredConstructor(String[].class)
-                .newInstance((Object) new String[0]);
-      } catch (Throwable t2) {
-        throw new RuntimeException("Unable to instantiate MuleContainer", t2);
-      }
+
+    public void deploy(URI app, Properties appProperties) throws IOException {
+        container.getDeploymentService().deploy(app, appProperties);
     }
-  }
 
-  public void start() throws MuleException {
-    container.start(false);
-  }
+    public void undeploy(String appName) {
+        container.getDeploymentService().undeploy(appName);
+    }
 
-  public void deploy(URI app, Properties appProperties) throws IOException {
-    container.getDeploymentService().deploy(app, appProperties);
-  }
-
-  public void undeploy(String appName) {
-    container.getDeploymentService().undeploy(appName);
-  }
-
-  public void stop() throws Exception {
-    container.shutdown();
-  }
+    public void stop() throws Exception {
+        container.shutdown();
+    }
 }

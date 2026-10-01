@@ -16,13 +16,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @WithConfig(key = TELEMETRY_DEPENDENCY_COLLECTION_ENABLED, value = "false")
 class DisabledDependencyServiceTest {
 
-  @Test
-  void installsDisabledDependencyServiceAndVerifyTransformer() {
-    Instrumentation instrumentation = mock(Instrumentation.class);
+    @Test
+    void installsDisabledDependencyServiceAndVerifyTransformer() {
+        Instrumentation instrumentation = mock(Instrumentation.class);
 
-    DependencyService dependencyService = TelemetrySystem.createDependencyService(instrumentation);
+        DependencyService dependencyService = TelemetrySystem.createDependencyService(instrumentation);
 
-    verifyNoInteractions(instrumentation);
-    assertNull(dependencyService);
-  }
+        verifyNoInteractions(instrumentation);
+        assertNull(dependencyService);
+    }
 }

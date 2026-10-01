@@ -27,87 +27,87 @@ import org.apache.commons.httpclient.HttpMethod;
 
 @AutoService(InstrumenterModule.class)
 public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CommonsHttpClientInstrumentation() {
-    super("commons-http-client");
-  }
+    public CommonsHttpClientInstrumentation() {
+        super("commons-http-client");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.apache.commons.httpclient.HttpClient";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.commons.httpclient.HttpClient";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("executeMethod"))
-            .and(takesArguments(3))
-            .and(takesArgument(1, named("org.apache.commons.httpclient.HttpMethod"))),
-        CommonsHttpClientInstrumentation.class.getName() + "$ExecAdvice",
-        CommonsHttpClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("executeMethod"))
+                        .and(takesArguments(3))
+                        .and(takesArgument(1, named("org.apache.commons.httpclient.HttpMethod"))),
+                CommonsHttpClientInstrumentation.class.getName() + "$ExecAdvice",
+                CommonsHttpClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
+    }
 
-  public static class ExecAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
+    public static class ExecAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
 
-      ContextScope scope = null;
-      try {
-        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-        if (callDepth > 0) {
-          return null;
+            ContextScope scope = null;
+            try {
+                final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+                if (callDepth > 0) {
+                    return null;
+                }
+
+                final AgentSpan span = startSpan("commons-http-client", HTTP_REQUEST);
+                scope = activateSpan(span);
+
+                DECORATE.afterStart(span);
+                DECORATE.onRequest(span, httpMethod);
+
+                return scope;
+            } catch (BlockingException e) {
+                CallDepthThreadLocalMap.reset(HttpClient.class);
+                if (scope != null) {
+                    final AgentSpan span = spanFromScope(scope);
+                    try {
+                        DECORATE.onError(span, e);
+                        DECORATE.beforeFinish(span);
+                    } finally {
+                        scope.close();
+                        span.finish();
+                    }
+                }
+                // re-throw blocking exceptions
+                throw e;
+            }
         }
 
-        final AgentSpan span = startSpan("commons-http-client", HTTP_REQUEST);
-        scope = activateSpan(span);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Argument(1) final HttpMethod httpMethod,
+                @Advice.Thrown final Throwable throwable) {
 
-        DECORATE.afterStart(span);
-        DECORATE.onRequest(span, httpMethod);
-
-        return scope;
-      } catch (BlockingException e) {
-        CallDepthThreadLocalMap.reset(HttpClient.class);
-        if (scope != null) {
-          final AgentSpan span = spanFromScope(scope);
-          try {
-            DECORATE.onError(span, e);
+            if (scope == null) {
+                return;
+            }
+            final AgentSpan span = spanFromScope(scope);
+            DECORATE.onResponse(span, httpMethod);
+            DECORATE.onError(span, throwable);
             DECORATE.beforeFinish(span);
-          } finally {
             scope.close();
             span.finish();
-          }
+            CallDepthThreadLocalMap.reset(HttpClient.class);
         }
-        // re-throw blocking exceptions
-        throw e;
-      }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Argument(1) final HttpMethod httpMethod,
-        @Advice.Thrown final Throwable throwable) {
-
-      if (scope == null) {
-        return;
-      }
-      final AgentSpan span = spanFromScope(scope);
-      DECORATE.onResponse(span, httpMethod);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-      CallDepthThreadLocalMap.reset(HttpClient.class);
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
+            DECORATE.injectContext(currentContext(), httpMethod, SETTER);
+        }
     }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      DECORATE.injectContext(currentContext(), httpMethod, SETTER);
-    }
-  }
 }

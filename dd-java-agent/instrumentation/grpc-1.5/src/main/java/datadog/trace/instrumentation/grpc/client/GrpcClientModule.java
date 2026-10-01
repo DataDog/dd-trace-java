@@ -14,25 +14,25 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public class GrpcClientModule extends InstrumenterModule.Tracing {
 
-  public GrpcClientModule() {
-    super("grpc", "grpc-client", "grpc-message");
-  }
+    public GrpcClientModule() {
+        super("grpc", "grpc-client", "grpc-message");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("io.grpc.ClientCall", AgentSpan.class.getName());
-    contextStores.put("io.grpc.internal.ClientStreamListener", AgentSpan.class.getName());
-    contextStores.put(Runnable.class.getName(), State.class.getName());
-    return contextStores;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStores = new HashMap<>();
+        contextStores.put("io.grpc.ClientCall", AgentSpan.class.getName());
+        contextStores.put("io.grpc.internal.ClientStreamListener", AgentSpan.class.getName());
+        contextStores.put(Runnable.class.getName(), State.class.getName());
+        return contextStores;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new ClientCallImplInstrumentation(),
-        new AbstractClientStreamInstrumentation(),
-        new ClientStreamListenerImplInstrumentation(),
-        new MessagesAvailableInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new ClientCallImplInstrumentation(),
+                new AbstractClientStreamInstrumentation(),
+                new ClientStreamListenerImplInstrumentation(),
+                new MessagesAvailableInstrumentation());
+    }
 }

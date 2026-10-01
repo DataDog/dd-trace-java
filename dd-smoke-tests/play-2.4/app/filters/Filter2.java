@@ -4,7 +4,7 @@ import javax.inject.Singleton;
 
 @Singleton
 public class Filter2 extends AbstractFilter {
-  public Filter2() {
-    super("filter2");
-  }
+    public Filter2() {
+        super("filter2");
+    }
 }

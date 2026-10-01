@@ -19,47 +19,44 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class PreparedQueryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public PreparedQueryInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public PreparedQueryInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.vertx.sqlclient.PreparedQuery";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.vertx.sqlclient.PreparedQuery";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("execute"))
-            .and(takesArguments(2))
-            .and(takesArgument(1, named("io.vertx.core.Handler"))),
-        packageName + ".QueryAdvice$Execute");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("executeBatch"))
-            .and(takesArguments(2))
-            .and(takesArgument(1, named("io.vertx.core.Handler"))),
-        packageName + ".QueryAdvice$Execute");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isVirtual())
-            .and(named("copy"))
-            .and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
-        packageName + ".QueryAdvice$Copy");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("execute"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(1, named("io.vertx.core.Handler"))),
+                packageName + ".QueryAdvice$Execute");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("executeBatch"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(1, named("io.vertx.core.Handler"))),
+                packageName + ".QueryAdvice$Execute");
+        transformer.applyAdvice(
+                isMethod().and(isVirtual()).and(named("copy")).and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
+                packageName + ".QueryAdvice$Copy");
+    }
 }

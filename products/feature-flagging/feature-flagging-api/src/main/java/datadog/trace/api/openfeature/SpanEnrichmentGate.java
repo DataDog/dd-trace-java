@@ -12,14 +12,14 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
  */
 final class SpanEnrichmentGate {
 
-  private SpanEnrichmentGate() {}
+    private SpanEnrichmentGate() {}
 
-  static boolean isEnabled() {
-    try {
-      return ConfigProvider.getInstance()
-          .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
-    } catch (final Throwable t) {
-      return false; // never let config reading break construction
+    static boolean isEnabled() {
+        try {
+            return ConfigProvider.getInstance()
+                    .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
+        } catch (final Throwable t) {
+            return false; // never let config reading break construction
+        }
     }
-  }
 }

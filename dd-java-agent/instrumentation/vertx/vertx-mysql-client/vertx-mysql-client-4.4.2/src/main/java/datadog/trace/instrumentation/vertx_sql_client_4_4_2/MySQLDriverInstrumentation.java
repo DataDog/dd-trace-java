@@ -14,28 +14,28 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class MySQLDriverInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public MySQLDriverInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+    public MySQLDriverInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.mysqlclient.spi.MySQLDriver";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.mysqlclient.spi.MySQLDriver";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isPrivate()
-            .and(named("newPoolImpl"))
-            .and(takesArguments(4).and(takesArgument(1, named("java.util.function.Supplier")))),
-        packageName + ".MySQLDriverAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isPrivate()
+                        .and(named("newPoolImpl"))
+                        .and(takesArguments(4).and(takesArgument(1, named("java.util.function.Supplier")))),
+                packageName + ".MySQLDriverAdvice");
+    }
 }

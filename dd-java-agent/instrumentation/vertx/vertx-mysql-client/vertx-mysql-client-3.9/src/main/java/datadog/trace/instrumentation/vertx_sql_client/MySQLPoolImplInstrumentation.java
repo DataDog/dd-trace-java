@@ -13,25 +13,25 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class MySQLPoolImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public MySQLPoolImplInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public MySQLPoolImplInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.mysqlclient.impl.MySQLPoolImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.mysqlclient.impl.MySQLPoolImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(2, named("io.vertx.mysqlclient.MySQLConnectOptions"))),
-        packageName + ".MySQLPoolImplConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(2, named("io.vertx.mysqlclient.MySQLConnectOptions"))),
+                packageName + ".MySQLPoolImplConstructorAdvice");
+    }
 }

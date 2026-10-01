@@ -19,64 +19,60 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
 public class ELIntegrationSanityTest {
-  static class Name {
-    private String value;
+    static class Name {
+        private String value;
 
-    public Name(String value) {
-      this.value = value;
+        public Name(String value) {
+            this.value = value;
+        }
     }
-  }
 
-  static class Person {
-    private static final String C1 = "constant1";
-    private static final int C2 = 42;
-    private static List<String> list = new ArrayList<>();
-    private String strVal = "strval";
-    private int intVal = 24;
-    private Map<String, String> mapVal = new HashMap<>();
-    private Object[] objArray = new Object[] {new AtomicLong()};
-    private Name name = new Name("name");
-  }
+    static class Person {
+        private static final String C1 = "constant1";
+        private static final int C2 = 42;
+        private static List<String> list = new ArrayList<>();
+        private String strVal = "strval";
+        private int intVal = 24;
+        private Map<String, String> mapVal = new HashMap<>();
+        private Object[] objArray = new Object[] {new AtomicLong()};
+        private Name name = new Name("name");
+    }
 
-  @Test
-  void extractAfterEl() throws IllegalAccessException {
-    JsonSnapshotSerializer serializer =
-        new JsonSnapshotSerializer(); // Mockito.spy(new JsonSnapshotSerializer());
-    DebuggerContext.initValueSerializer(serializer);
-    Person p = new Person();
-    // set the limit not to follow references to fields
-    Limits initialLimits = new Limits(2, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
-    // create new captured context
-    CapturedContext capturedContext = new CapturedContext();
-    CapturedContext.CapturedValue thisValue =
-        CapturedContext.CapturedValue.of(
-            "this",
-            Person.class.getName(),
-            p,
-            initialLimits.maxReferenceDepth,
-            initialLimits.maxCollectionSize,
-            initialLimits.maxLength,
-            initialLimits.maxFieldCount);
-    capturedContext.addArguments(new CapturedContext.CapturedValue[] {thisValue});
+    @Test
+    void extractAfterEl() throws IllegalAccessException {
+        JsonSnapshotSerializer serializer = new JsonSnapshotSerializer(); // Mockito.spy(new JsonSnapshotSerializer());
+        DebuggerContext.initValueSerializer(serializer);
+        Person p = new Person();
+        // set the limit not to follow references to fields
+        Limits initialLimits = new Limits(2, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        // create new captured context
+        CapturedContext capturedContext = new CapturedContext();
+        CapturedContext.CapturedValue thisValue = CapturedContext.CapturedValue.of(
+                "this",
+                Person.class.getName(),
+                p,
+                initialLimits.maxReferenceDepth,
+                initialLimits.maxCollectionSize,
+                initialLimits.maxLength,
+                initialLimits.maxFieldCount);
+        capturedContext.addArguments(new CapturedContext.CapturedValue[] {thisValue});
 
-    // '.name.value' is not present in the snapshot - it needs to be retrieved via reflection
-    Value<?> val =
-        DSL.getMember(DSL.ref("name"), "value")
-            .evaluate(
-                new EvalContext(
-                    capturedContext, TimeoutChecker.create(Config.get(), Duration.ofMillis(1000))));
-    // make sure the nested field was properly resolved
-    assertEquals(p.name.value, val.getValue());
+        // '.name.value' is not present in the snapshot - it needs to be retrieved via reflection
+        Value<?> val = DSL.getMember(DSL.ref("name"), "value")
+                .evaluate(
+                        new EvalContext(capturedContext, TimeoutChecker.create(Config.get(), Duration.ofMillis(1000))));
+        // make sure the nested field was properly resolved
+        assertEquals(p.name.value, val.getValue());
 
-    // freeze the captured context
-    capturedContext.freeze(TimeoutChecker.create(Config.get(), Duration.of(1, ChronoUnit.SECONDS)));
+        // freeze the captured context
+        capturedContext.freeze(TimeoutChecker.create(Config.get(), Duration.of(1, ChronoUnit.SECONDS)));
 
-    // after freezing the original value is removed and only the serialized json representation
-    // remains
-    Map<String, CapturedContext.CapturedValue> thisFields =
-        getFields(capturedContext.getArguments().get("this"));
-    Map<String, CapturedContext.CapturedValue> name =
-        (Map<String, CapturedContext.CapturedValue>) thisFields.get("name").getValue();
-    assertEquals(p.name.value, name.get("value").getValue());
-  }
+        // after freezing the original value is removed and only the serialized json representation
+        // remains
+        Map<String, CapturedContext.CapturedValue> thisFields =
+                getFields(capturedContext.getArguments().get("this"));
+        Map<String, CapturedContext.CapturedValue> name = (Map<String, CapturedContext.CapturedValue>)
+                thisFields.get("name").getValue();
+        assertEquals(p.name.value, name.get("value").getValue());
+    }
 }

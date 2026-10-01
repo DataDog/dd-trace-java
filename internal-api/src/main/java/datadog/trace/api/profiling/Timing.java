@@ -1,31 +1,31 @@
 package datadog.trace.api.profiling;
 
 public interface Timing {
-  void report();
+    void report();
 
-  boolean sample();
+    boolean sample();
 
-  class NoOp implements Timing, QueueTiming {
-    public static final Timing INSTANCE = new NoOp();
+    class NoOp implements Timing, QueueTiming {
+        public static final Timing INSTANCE = new NoOp();
 
-    @Override
-    public void report() {}
+        @Override
+        public void report() {}
 
-    @Override
-    public boolean sample() {
-      return false;
+        @Override
+        public boolean sample() {
+            return false;
+        }
+
+        @Override
+        public void setTask(Object task) {}
+
+        @Override
+        public void setScheduler(Class<?> scheduler) {}
+
+        @Override
+        public void setQueue(Class<?> queue) {}
+
+        @Override
+        public void setQueueLength(int queueLength) {}
     }
-
-    @Override
-    public void setTask(Object task) {}
-
-    @Override
-    public void setScheduler(Class<?> scheduler) {}
-
-    @Override
-    public void setQueue(Class<?> queue) {}
-
-    @Override
-    public void setQueueLength(int queueLength) {}
-  }
 }

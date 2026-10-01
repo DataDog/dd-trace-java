@@ -14,20 +14,19 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpServerTestHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public HttpServerTestHandlerInstrumentation() {
-    super("mule4-http-server-test-handler");
-  }
+    public HttpServerTestHandlerInstrumentation() {
+        super("mule4-http-server-test-handler");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "mule4.HttpServerTestHandler";
-  }
+    @Override
+    public String instrumentedType() {
+        return "mule4.HttpServerTestHandler";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("testHandle").and(isStatic()), "mule4.HttpServerTestHandlerAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(named("testHandle").and(isStatic()), "mule4.HttpServerTestHandlerAdvice");
+    }
 }

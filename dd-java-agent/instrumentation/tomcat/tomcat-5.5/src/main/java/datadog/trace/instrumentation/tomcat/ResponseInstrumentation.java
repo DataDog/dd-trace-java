@@ -18,72 +18,71 @@ import org.apache.catalina.connector.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class ResponseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ResponseInstrumentation() {
-    super("tomcat");
-  }
+    public ResponseInstrumentation() {
+        super("tomcat");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.apache.catalina.connector.Response";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.catalina.connector.Response";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".TomcatDecorator",
-      packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
-      packageName + ".TomcatBlockingHelper",
-      packageName + ".RequestURIDataAdapter",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ExtractAdapter",
+            packageName + ".ExtractAdapter$Request",
+            packageName + ".ExtractAdapter$Response",
+            packageName + ".TomcatDecorator",
+            packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
+            packageName + ".TomcatBlockingHelper",
+            packageName + ".RequestURIDataAdapter",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("recycle").and(takesNoArguments()),
-        ResponseInstrumentation.class.getName() + "$RecycleAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("recycle").and(takesNoArguments()), ResponseInstrumentation.class.getName() + "$RecycleAdvice");
+    }
 
-  /**
-   * Tomcat recycles request/response objects after the response is sent. This provides a reliable
-   * point to finish the server span at the last possible moment.
-   */
-  public static class RecycleAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void stopSpan(@Advice.This final Response resp) {
-      Request req = resp.getRequest();
+    /**
+     * Tomcat recycles request/response objects after the response is sent. This provides a reliable
+     * point to finish the server span at the last possible moment.
+     */
+    public static class RecycleAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void stopSpan(@Advice.This final Response resp) {
+            Request req = resp.getRequest();
 
-      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
 
-      if (contextObj instanceof Context) {
-        /**
-         * This advice will be called for both Request and Response. The context is removed from the
-         * request so the advice only applies the first invocation. (So it doesn't matter which is
-         * recycled first.)
-         */
-        // values set on the coyote request, so we must remove directly from there.
-        req.getCoyoteRequest().setAttribute(DD_CONTEXT_ATTRIBUTE, null);
+            if (contextObj instanceof Context) {
+                /**
+                 * This advice will be called for both Request and Response. The context is removed from the
+                 * request so the advice only applies the first invocation. (So it doesn't matter which is
+                 * recycled first.)
+                 */
+                // values set on the coyote request, so we must remove directly from there.
+                req.getCoyoteRequest().setAttribute(DD_CONTEXT_ATTRIBUTE, null);
 
-        final Context context = (Context) contextObj;
-        final AgentSpan span = spanFromContext(context);
-        if (span != null) {
-          DECORATE.onResponse(span, resp);
-          DECORATE.beforeFinish(context);
-          span.finish();
-        } else {
-          DECORATE.beforeFinish(context);
+                final Context context = (Context) contextObj;
+                final AgentSpan span = spanFromContext(context);
+                if (span != null) {
+                    DECORATE.onResponse(span, resp);
+                    DECORATE.beforeFinish(context);
+                    span.finish();
+                } else {
+                    DECORATE.beforeFinish(context);
+                }
+            }
         }
-      }
-    }
 
-    private void muzzleCheck(CoyoteAdapter adapter, Response response) throws Exception {
-      adapter.service(null, null);
-      response.recycle();
+        private void muzzleCheck(CoyoteAdapter adapter, Response response) throws Exception {
+            adapter.service(null, null);
+            response.recycle();
+        }
     }
-  }
 }

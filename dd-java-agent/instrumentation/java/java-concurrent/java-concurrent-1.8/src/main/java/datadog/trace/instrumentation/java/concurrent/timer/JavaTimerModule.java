@@ -14,17 +14,17 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class JavaTimerModule extends InstrumenterModule.ContextTracking {
-  public JavaTimerModule() {
-    super("java_timer", EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
-  }
+    public JavaTimerModule() {
+        super("java_timer", EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.lang.Runnable", State.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.lang.Runnable", State.class.getName());
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(new JavaTimerInstrumentation(), new TimerTaskInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(new JavaTimerInstrumentation(), new TimerTaskInstrumentation());
+    }
 }

@@ -9,31 +9,31 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class Listener implements FutureEventListener<Response> {
-  private final ContextScope scope;
+    private final ContextScope scope;
 
-  public Listener(final ContextScope scope) {
-    this.scope = scope;
-  }
-
-  @Override
-  public void onSuccess(final Response response) {
-    final AgentSpan span = AgentSpan.fromContext(scope.context());
-    // Don't use DECORATE.onResponse because this is the controller span
-    if (Config.get().getHttpServerErrorStatuses().get(DECORATE.status(response))) {
-      span.setError(true);
+    public Listener(final ContextScope scope) {
+        this.scope = scope;
     }
 
-    DECORATE.beforeFinish(scope.context());
-    scope.close();
-    span.finish();
-  }
+    @Override
+    public void onSuccess(final Response response) {
+        final AgentSpan span = AgentSpan.fromContext(scope.context());
+        // Don't use DECORATE.onResponse because this is the controller span
+        if (Config.get().getHttpServerErrorStatuses().get(DECORATE.status(response))) {
+            span.setError(true);
+        }
 
-  @Override
-  public void onFailure(final Throwable cause) {
-    final AgentSpan span = AgentSpan.fromContext(scope.context());
-    DECORATE.onError(span, cause);
-    DECORATE.beforeFinish(scope.context());
-    scope.close();
-    span.finish();
-  }
+        DECORATE.beforeFinish(scope.context());
+        scope.close();
+        span.finish();
+    }
+
+    @Override
+    public void onFailure(final Throwable cause) {
+        final AgentSpan span = AgentSpan.fromContext(scope.context());
+        DECORATE.onError(span, cause);
+        DECORATE.beforeFinish(scope.context());
+        scope.close();
+        span.finish();
+    }
 }

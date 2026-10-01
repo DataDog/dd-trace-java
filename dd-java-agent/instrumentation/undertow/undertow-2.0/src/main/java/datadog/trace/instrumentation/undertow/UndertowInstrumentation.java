@@ -12,33 +12,33 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class UndertowInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public UndertowInstrumentation() {
-    super("undertow", "undertow-2.0");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.undertow.server.HttpServerExchange";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("dispatch"))
-            .and(takesArgument(0, named("java.util.concurrent.Executor")))
-            .and(takesArgument(1, named("java.lang.Runnable"))),
-        getClass().getName() + "$DispatchAdvice");
-  }
-
-  public static class DispatchAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void dispatchEnter(
-        @Advice.Argument(value = 1, readOnly = false) Runnable task,
-        @Advice.This final HttpServerExchange current) {
-      task = UndertowRunnableWrapper.wrapIfNeeded(task, current);
+    public UndertowInstrumentation() {
+        super("undertow", "undertow-2.0");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.undertow.server.HttpServerExchange";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("dispatch"))
+                        .and(takesArgument(0, named("java.util.concurrent.Executor")))
+                        .and(takesArgument(1, named("java.lang.Runnable"))),
+                getClass().getName() + "$DispatchAdvice");
+    }
+
+    public static class DispatchAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void dispatchEnter(
+                @Advice.Argument(value = 1, readOnly = false) Runnable task,
+                @Advice.This final HttpServerExchange current) {
+            task = UndertowRunnableWrapper.wrapIfNeeded(task, current);
+        }
+    }
 }

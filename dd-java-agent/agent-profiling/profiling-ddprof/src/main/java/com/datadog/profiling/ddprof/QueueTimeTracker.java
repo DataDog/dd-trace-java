@@ -5,56 +5,56 @@ import java.lang.ref.WeakReference;
 
 public class QueueTimeTracker implements QueueTiming {
 
-  private final DatadogProfiler profiler;
-  private final Thread origin;
-  private final long startTicks;
-  private final long startMillis;
-  private WeakReference<Object> weakTask;
-  // FIXME this can be eliminated by altering the instrumentation
-  //  since it is known when the item is polled from the queue
-  private Class<?> scheduler;
-  private Class<?> queue;
-  private int queueLength;
+    private final DatadogProfiler profiler;
+    private final Thread origin;
+    private final long startTicks;
+    private final long startMillis;
+    private WeakReference<Object> weakTask;
+    // FIXME this can be eliminated by altering the instrumentation
+    //  since it is known when the item is polled from the queue
+    private Class<?> scheduler;
+    private Class<?> queue;
+    private int queueLength;
 
-  public QueueTimeTracker(DatadogProfiler profiler, long startTicks) {
-    this.profiler = profiler;
-    this.origin = Thread.currentThread();
-    this.startTicks = startTicks;
-    this.startMillis = System.currentTimeMillis();
-  }
-
-  @Override
-  public void setTask(Object task) {
-    this.weakTask = new WeakReference<>(task);
-  }
-
-  @Override
-  public void setScheduler(Class<?> scheduler) {
-    this.scheduler = scheduler;
-  }
-
-  @Override
-  public void setQueue(Class<?> queue) {
-    this.queue = queue;
-  }
-
-  @Override
-  public void setQueueLength(int queueLength) {
-    this.queueLength = queueLength;
-  }
-
-  @Override
-  public void report() {
-    assert weakTask != null && scheduler != null;
-    Object task = this.weakTask.get();
-    if (task != null) {
-      // indirection reduces shallow size of the tracker instance
-      profiler.recordQueueTimeEvent(startTicks, task, scheduler, queue, queueLength, origin);
+    public QueueTimeTracker(DatadogProfiler profiler, long startTicks) {
+        this.profiler = profiler;
+        this.origin = Thread.currentThread();
+        this.startTicks = startTicks;
+        this.startMillis = System.currentTimeMillis();
     }
-  }
 
-  @Override
-  public boolean sample() {
-    return profiler.shouldRecordQueueTimeEvent(startMillis);
-  }
+    @Override
+    public void setTask(Object task) {
+        this.weakTask = new WeakReference<>(task);
+    }
+
+    @Override
+    public void setScheduler(Class<?> scheduler) {
+        this.scheduler = scheduler;
+    }
+
+    @Override
+    public void setQueue(Class<?> queue) {
+        this.queue = queue;
+    }
+
+    @Override
+    public void setQueueLength(int queueLength) {
+        this.queueLength = queueLength;
+    }
+
+    @Override
+    public void report() {
+        assert weakTask != null && scheduler != null;
+        Object task = this.weakTask.get();
+        if (task != null) {
+            // indirection reduces shallow size of the tracker instance
+            profiler.recordQueueTimeEvent(startTicks, task, scheduler, queue, queueLength, origin);
+        }
+    }
+
+    @Override
+    public boolean sample() {
+        return profiler.shouldRecordQueueTimeEvent(startMillis);
+    }
 }

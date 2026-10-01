@@ -36,69 +36,67 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariConcurrentBagInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public HikariConcurrentBagInstrumentation() {
-    super("jdbc", "hikari");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.zaxxer.hikari.util.ConcurrentBag";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    // The contextStore Map is populated by HikariPoolInstrumentation
-    return singletonMap("com.zaxxer.hikari.util.ConcurrentBag", String.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("borrow"), HikariConcurrentBagInstrumentation.class.getName() + "$BorrowAdvice");
-  }
-
-  /**
-   * Instead of always starting and ending a span, a pool.waiting span is only created if blocking
-   * is detected when attempting to get a connection from the pool.
-   */
-  public static class BorrowAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Long onEnter() {
-      HikariBlockedTracker.clearBlocked();
-      return System.currentTimeMillis();
+    public HikariConcurrentBagInstrumentation() {
+        super("jdbc", "hikari");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This ConcurrentBag thiz,
-        @Advice.Enter final Long startTimeMillis,
-        @Advice.Thrown final Throwable throwable) {
-      if (HikariBlockedTracker.wasBlocked()) {
-        final AgentSpan span =
-            startSpan(
-                JAVA_JDBC_POOL_WAITING.toString(),
-                POOL_WAITING,
-                TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
-        DECORATE.afterStart(span);
-        DECORATE.onError(span, throwable);
-        span.setResourceName("hikari.waiting");
-        final String poolName =
-            InstrumentationContext.get(ConcurrentBag.class, String.class).get(thiz);
-        if (poolName != null) {
-          span.setTag(DB_POOL_NAME, poolName);
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "com.zaxxer.hikari.util.ConcurrentBag";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        // The contextStore Map is populated by HikariPoolInstrumentation
+        return singletonMap("com.zaxxer.hikari.util.ConcurrentBag", String.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(named("borrow"), HikariConcurrentBagInstrumentation.class.getName() + "$BorrowAdvice");
+    }
+
+    /**
+     * Instead of always starting and ending a span, a pool.waiting span is only created if blocking
+     * is detected when attempting to get a connection from the pool.
+     */
+    public static class BorrowAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static Long onEnter() {
+            HikariBlockedTracker.clearBlocked();
+            return System.currentTimeMillis();
         }
 
-        span.finish();
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.This ConcurrentBag thiz,
+                @Advice.Enter final Long startTimeMillis,
+                @Advice.Thrown final Throwable throwable) {
+            if (HikariBlockedTracker.wasBlocked()) {
+                final AgentSpan span = startSpan(
+                        JAVA_JDBC_POOL_WAITING.toString(),
+                        POOL_WAITING,
+                        TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+                DECORATE.afterStart(span);
+                DECORATE.onError(span, throwable);
+                span.setResourceName("hikari.waiting");
+                final String poolName = InstrumentationContext.get(ConcurrentBag.class, String.class)
+                        .get(thiz);
+                if (poolName != null) {
+                    span.setTag(DB_POOL_NAME, poolName);
+                }
 
-        HikariBlockedTracker.clearBlocked();
-      }
+                span.finish();
+
+                HikariBlockedTracker.clearBlocked();
+            }
+        }
     }
-  }
 }

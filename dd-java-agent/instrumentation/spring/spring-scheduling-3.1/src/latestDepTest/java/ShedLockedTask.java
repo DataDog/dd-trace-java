@@ -9,25 +9,25 @@ import org.springframework.stereotype.Component;
 @Component
 public class ShedLockedTask {
 
-  private final CountDownLatch latch = new CountDownLatch(2);
-  private final AtomicInteger invoked = new AtomicInteger();
+    private final CountDownLatch latch = new CountDownLatch(2);
+    private final AtomicInteger invoked = new AtomicInteger();
 
-  @Scheduled(fixedRate = 250)
-  @SchedulerLock(name = "schedlockedTask", lockAtMostFor = "10000", lockAtLeastFor = "10000")
-  public void schedlockedTask() {
-    LockAssert.assertLocked();
-    invoked.incrementAndGet();
-    latch.countDown();
-  }
-
-  public int invocationCount() {
-    return invoked.get();
-  }
-
-  public void awaitInvocation(long time, TimeUnit timeUnit) {
-    try {
-      latch.await(time, timeUnit);
-    } catch (InterruptedException ignored) {
+    @Scheduled(fixedRate = 250)
+    @SchedulerLock(name = "schedlockedTask", lockAtMostFor = "10000", lockAtLeastFor = "10000")
+    public void schedlockedTask() {
+        LockAssert.assertLocked();
+        invoked.incrementAndGet();
+        latch.countDown();
     }
-  }
+
+    public int invocationCount() {
+        return invoked.get();
+    }
+
+    public void awaitInvocation(long time, TimeUnit timeUnit) {
+        try {
+            latch.await(time, timeUnit);
+        } catch (InterruptedException ignored) {
+        }
+    }
 }

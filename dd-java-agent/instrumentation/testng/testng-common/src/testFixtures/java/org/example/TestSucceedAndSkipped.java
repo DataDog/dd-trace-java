@@ -7,13 +7,13 @@ import org.testng.annotations.Test;
 
 public class TestSucceedAndSkipped {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void test_skipped() {
-    throw new SkipException("Ignore reason in test");
-  }
+    @Test
+    public void test_skipped() {
+        throw new SkipException("Ignore reason in test");
+    }
 }

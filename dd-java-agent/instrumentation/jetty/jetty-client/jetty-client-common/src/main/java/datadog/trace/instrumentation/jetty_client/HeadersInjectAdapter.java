@@ -7,10 +7,10 @@ import org.eclipse.jetty.client.api.Request;
 @ParametersAreNonnullByDefault
 public class HeadersInjectAdapter implements CarrierSetter<Request> {
 
-  public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
+    public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 
-  @Override
-  public void set(final Request carrier, final String key, final String value) {
-    carrier.header(key, value);
-  }
+    @Override
+    public void set(final Request carrier, final String key, final String value) {
+        carrier.header(key, value);
+    }
 }

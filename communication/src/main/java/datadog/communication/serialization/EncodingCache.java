@@ -3,5 +3,5 @@ package datadog.communication.serialization;
 // TODO @FunctionalInterface
 public interface EncodingCache {
 
-  byte[] encode(CharSequence s);
+    byte[] encode(CharSequence s);
 }

@@ -16,63 +16,62 @@ import javax.annotation.Nullable;
 
 public class TaintedObjectsWithTelemetry implements TaintedObjects, Wrapper<TaintedObjects> {
 
-  public static TaintedObjects build(final Verbosity verbosity, final IastContext ctx) {
-    final TaintedObjects delegate = ctx.getTaintedObjects();
-    if (verbosity.isInformationEnabled()) {
-      return new TaintedObjectsWithTelemetry(verbosity.isDebugEnabled(), delegate, ctx);
+    public static TaintedObjects build(final Verbosity verbosity, final IastContext ctx) {
+        final TaintedObjects delegate = ctx.getTaintedObjects();
+        if (verbosity.isInformationEnabled()) {
+            return new TaintedObjectsWithTelemetry(verbosity.isDebugEnabled(), delegate, ctx);
+        }
+        return delegate;
     }
-    return delegate;
-  }
 
-  private final TaintedObjects delegate;
-  private final boolean debug;
-  private final IastContext ctx;
+    private final TaintedObjects delegate;
+    private final boolean debug;
+    private final IastContext ctx;
 
-  protected TaintedObjectsWithTelemetry(
-      final boolean debug, final TaintedObjects delegate, final IastContext ctx) {
-    this.delegate = delegate;
-    this.debug = debug;
-    this.ctx = ctx;
-  }
-
-  @Nullable
-  @Override
-  public TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges) {
-    final TaintedObject result = delegate.taint(obj, ranges);
-    if (debug) {
-      IastMetricCollector.add(EXECUTED_TAINTED, 1, ctx);
+    protected TaintedObjectsWithTelemetry(final boolean debug, final TaintedObjects delegate, final IastContext ctx) {
+        this.delegate = delegate;
+        this.debug = debug;
+        this.ctx = ctx;
     }
-    return result;
-  }
 
-  @Nullable
-  @Override
-  public TaintedObject get(@Nonnull Object obj) {
-    return delegate.get(obj);
-  }
-
-  @Override
-  public void clear() {
-    try {
-      IastMetricCollector.add(REQUEST_TAINTED, count(), ctx);
-    } finally {
-      delegate.clear();
+    @Nullable
+    @Override
+    public TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges) {
+        final TaintedObject result = delegate.taint(obj, ranges);
+        if (debug) {
+            IastMetricCollector.add(EXECUTED_TAINTED, 1, ctx);
+        }
+        return result;
     }
-  }
 
-  @Nonnull
-  @Override
-  public Iterator<TaintedObject> iterator() {
-    return delegate.iterator();
-  }
+    @Nullable
+    @Override
+    public TaintedObject get(@Nonnull Object obj) {
+        return delegate.get(obj);
+    }
 
-  @Override
-  public int count() {
-    return delegate.count();
-  }
+    @Override
+    public void clear() {
+        try {
+            IastMetricCollector.add(REQUEST_TAINTED, count(), ctx);
+        } finally {
+            delegate.clear();
+        }
+    }
 
-  @Override
-  public TaintedObjects unwrap() {
-    return delegate;
-  }
+    @Nonnull
+    @Override
+    public Iterator<TaintedObject> iterator() {
+        return delegate.iterator();
+    }
+
+    @Override
+    public int count() {
+        return delegate.count();
+    }
+
+    @Override
+    public TaintedObjects unwrap() {
+        return delegate;
+    }
 }

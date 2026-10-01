@@ -23,63 +23,61 @@ import org.mockito.ArgumentCaptor;
 
 class TelemetrySystemTest {
 
-  @AfterEach
-  void cleanup() {
-    TelemetrySystem.stop();
-  }
-
-  @Test
-  void installsDependenciesTransformer() {
-    Instrumentation instrumentation = mock(Instrumentation.class);
-
-    DependencyService dependencyService = TelemetrySystem.createDependencyService(instrumentation);
-    try {
-      ArgumentCaptor<ClassFileTransformer> transformerCaptor =
-          ArgumentCaptor.forClass(ClassFileTransformer.class);
-      verify(instrumentation, times(1)).addTransformer(transformerCaptor.capture());
-      assertEquals(
-          "datadog.telemetry.dependency.LocationsCollectingTransformer",
-          transformerCaptor.getValue().getClass().getName());
-    } finally {
-      dependencyService.stop();
+    @AfterEach
+    void cleanup() {
+        TelemetrySystem.stop();
     }
-  }
 
-  @Test
-  void createTelemetryThread() {
-    TelemetryService telemetryService = mock(TelemetryService.class);
-    DependencyService dependencyService = mock(DependencyService.class);
+    @Test
+    void installsDependenciesTransformer() {
+        Instrumentation instrumentation = mock(Instrumentation.class);
 
-    Thread thread =
-        TelemetrySystem.createTelemetryRunnable(telemetryService, dependencyService, true);
+        DependencyService dependencyService = TelemetrySystem.createDependencyService(instrumentation);
+        try {
+            ArgumentCaptor<ClassFileTransformer> transformerCaptor =
+                    ArgumentCaptor.forClass(ClassFileTransformer.class);
+            verify(instrumentation, times(1)).addTransformer(transformerCaptor.capture());
+            assertEquals(
+                    "datadog.telemetry.dependency.LocationsCollectingTransformer",
+                    transformerCaptor.getValue().getClass().getName());
+        } finally {
+            dependencyService.stop();
+        }
+    }
 
-    assertNotNull(thread);
-  }
+    @Test
+    void createTelemetryThread() {
+        TelemetryService telemetryService = mock(TelemetryService.class);
+        DependencyService dependencyService = mock(DependencyService.class);
 
-  @Test
-  @WithConfig(key = GeneralConfig.SITE, value = "datad0g.com")
-  @WithConfig(key = GeneralConfig.API_KEY, value = "api-key")
-  void startStopTelemetrySystem() {
-    Instrumentation instrumentation = mock(Instrumentation.class);
+        Thread thread = TelemetrySystem.createTelemetryRunnable(telemetryService, dependencyService, true);
 
-    TelemetrySystem.startTelemetry(instrumentation, sharedCommunicationObjects());
+        assertNotNull(thread);
+    }
 
-    assertNotNull(TelemetrySystem.getTelemetryThread());
+    @Test
+    @WithConfig(key = GeneralConfig.SITE, value = "datad0g.com")
+    @WithConfig(key = GeneralConfig.API_KEY, value = "api-key")
+    void startStopTelemetrySystem() {
+        Instrumentation instrumentation = mock(Instrumentation.class);
 
-    TelemetrySystem.stop();
+        TelemetrySystem.startTelemetry(instrumentation, sharedCommunicationObjects());
 
-    assertTrue(
-        TelemetrySystem.getTelemetryThread() == null
-            || TelemetrySystem.getTelemetryThread().isInterrupted()
-            || !TelemetrySystem.getTelemetryThread().isAlive());
-  }
+        assertNotNull(TelemetrySystem.getTelemetryThread());
 
-  private SharedCommunicationObjects sharedCommunicationObjects() {
-    SharedCommunicationObjects sco = new SharedCommunicationObjects();
-    sco.agentHttpClient = mock(OkHttpClient.class);
-    sco.monitoring = mock(Monitoring.class);
-    sco.agentUrl = HttpUrl.get("https://example.com");
-    sco.setFeaturesDiscovery(mock(DDAgentFeaturesDiscovery.class));
-    return sco;
-  }
+        TelemetrySystem.stop();
+
+        assertTrue(TelemetrySystem.getTelemetryThread() == null
+                || TelemetrySystem.getTelemetryThread().isInterrupted()
+                || !TelemetrySystem.getTelemetryThread().isAlive());
+    }
+
+    private SharedCommunicationObjects sharedCommunicationObjects() {
+        SharedCommunicationObjects sco = new SharedCommunicationObjects();
+        sco.agentHttpClient = mock(OkHttpClient.class);
+        sco.monitoring = mock(Monitoring.class);
+        sco.agentUrl = HttpUrl.get("https://example.com");
+        sco.setFeaturesDiscovery(mock(DDAgentFeaturesDiscovery.class));
+        return sco;
+    }
 }

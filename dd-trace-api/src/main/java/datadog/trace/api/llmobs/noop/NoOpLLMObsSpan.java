@@ -7,75 +7,75 @@ import java.util.List;
 import java.util.Map;
 
 public class NoOpLLMObsSpan implements LLMObsSpan {
-  public static final LLMObsSpan INSTANCE = new NoOpLLMObsSpan();
+    public static final LLMObsSpan INSTANCE = new NoOpLLMObsSpan();
 
-  @Override
-  public void annotateIO(List<LLMObs.LLMMessage> inputData, List<LLMObs.LLMMessage> outputData) {}
+    @Override
+    public void annotateIO(List<LLMObs.LLMMessage> inputData, List<LLMObs.LLMMessage> outputData) {}
 
-  @Override
-  public void annotateIO(String inputData, String outputData) {}
+    @Override
+    public void annotateIO(String inputData, String outputData) {}
 
-  @Override
-  public void annotatePrompt(LLMObs.Prompt prompt) {}
+    @Override
+    public void annotatePrompt(LLMObs.Prompt prompt) {}
 
-  @Override
-  public void annotateAgentManifest(LLMObs.AgentManifest manifest) {}
+    @Override
+    public void annotateAgentManifest(LLMObs.AgentManifest manifest) {}
 
-  @Override
-  public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
+    @Override
+    public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
 
-  @Override
-  public void setMetadata(Map<String, Object> metadata) {}
+    @Override
+    public void setMetadata(Map<String, Object> metadata) {}
 
-  @Override
-  public void setMetrics(Map<String, Number> metrics) {}
+    @Override
+    public void setMetrics(Map<String, Number> metrics) {}
 
-  @Override
-  public void setMetric(CharSequence key, int value) {}
+    @Override
+    public void setMetric(CharSequence key, int value) {}
 
-  @Override
-  public void setMetric(CharSequence key, long value) {}
+    @Override
+    public void setMetric(CharSequence key, long value) {}
 
-  @Override
-  public void setMetric(CharSequence key, double value) {}
+    @Override
+    public void setMetric(CharSequence key, double value) {}
 
-  @Override
-  public void setTags(Map<String, Object> tags) {}
+    @Override
+    public void setTags(Map<String, Object> tags) {}
 
-  @Override
-  public void setTag(String key, String value) {}
+    @Override
+    public void setTag(String key, String value) {}
 
-  @Override
-  public void setTag(String key, boolean value) {}
+    @Override
+    public void setTag(String key, boolean value) {}
 
-  @Override
-  public void setTag(String key, int value) {}
+    @Override
+    public void setTag(String key, int value) {}
 
-  @Override
-  public void setTag(String key, long value) {}
+    @Override
+    public void setTag(String key, long value) {}
 
-  @Override
-  public void setTag(String key, double value) {}
+    @Override
+    public void setTag(String key, double value) {}
 
-  @Override
-  public void setError(boolean error) {}
+    @Override
+    public void setError(boolean error) {}
 
-  @Override
-  public void setErrorMessage(String errorMessage) {}
+    @Override
+    public void setErrorMessage(String errorMessage) {}
 
-  @Override
-  public void addThrowable(Throwable throwable) {}
+    @Override
+    public void addThrowable(Throwable throwable) {}
 
-  @Override
-  public void finish() {}
+    @Override
+    public void finish() {}
 
-  @Override
-  public DDTraceId getTraceId() {
-    return DDTraceId.ZERO;
-  }
+    @Override
+    public DDTraceId getTraceId() {
+        return DDTraceId.ZERO;
+    }
 
-  @Override
-  public long getSpanId() {
-    return 0;
-  }
+    @Override
+    public long getSpanId() {
+        return 0;
+    }
 }

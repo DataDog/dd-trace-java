@@ -18,80 +18,79 @@ import org.junit.jupiter.api.Test;
 
 class FileCoverageStoreTest {
 
-  private static final class ResolvableClassA {}
+    private static final class ResolvableClassA {}
 
-  private static final class DuplicateKeyClass {}
+    private static final class DuplicateKeyClass {}
 
-  private static final class ResolvableClassC {}
+    private static final class ResolvableClassC {}
 
-  @Test
-  void duplicateKeyClassReturnsAllCandidatePathsInCoverageReport() {
-    CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
-    SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
-    when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
-        .thenReturn(singletonList("src/main/java/com/example/ClassA.java"));
-    when(sourcePathResolver.getSourcePaths(DuplicateKeyClass.class))
-        .thenReturn(
-            asList(
-                "src/debug/java/com/example/DuplicateKeyClass.java",
-                "src/release/java/com/example/DuplicateKeyClass.java"));
-    when(sourcePathResolver.getSourcePaths(ResolvableClassC.class))
-        .thenReturn(singletonList("src/main/java/com/example/ClassC.java"));
+    @Test
+    void duplicateKeyClassReturnsAllCandidatePathsInCoverageReport() {
+        CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
+        SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
+        when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
+                .thenReturn(singletonList("src/main/java/com/example/ClassA.java"));
+        when(sourcePathResolver.getSourcePaths(DuplicateKeyClass.class))
+                .thenReturn(asList(
+                        "src/debug/java/com/example/DuplicateKeyClass.java",
+                        "src/release/java/com/example/DuplicateKeyClass.java"));
+        when(sourcePathResolver.getSourcePaths(ResolvableClassC.class))
+                .thenReturn(singletonList("src/main/java/com/example/ClassC.java"));
 
-    CoverageStore store = new FileCoverageStore.Factory(metrics, sourcePathResolver).create(null);
-    store.getProbes().record(ResolvableClassA.class);
-    store.getProbes().record(DuplicateKeyClass.class);
-    store.getProbes().record(ResolvableClassC.class);
+        CoverageStore store = new FileCoverageStore.Factory(metrics, sourcePathResolver).create(null);
+        store.getProbes().record(ResolvableClassA.class);
+        store.getProbes().record(DuplicateKeyClass.class);
+        store.getProbes().record(ResolvableClassC.class);
 
-    boolean result = store.report(DDTraceId.ONE, 1L, 1L);
+        boolean result = store.report(DDTraceId.ONE, 1L, 1L);
 
-    assertTrue(result);
-    TestReport report = store.getReport();
-    assertNotNull(report);
-    assertEquals(4, report.getTestReportFileEntries().size());
-  }
+        assertTrue(result);
+        TestReport report = store.getReport();
+        assertNotNull(report);
+        assertEquals(4, report.getTestReportFileEntries().size());
+    }
 
-  @Test
-  void coverageReportSucceedsForNonDuplicateClasses() {
-    CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
-    SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
-    when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
-        .thenReturn(singletonList("src/main/java/com/example/ClassA.java"));
-    when(sourcePathResolver.getSourcePaths(ResolvableClassC.class))
-        .thenReturn(singletonList("src/main/java/com/example/ClassC.java"));
+    @Test
+    void coverageReportSucceedsForNonDuplicateClasses() {
+        CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
+        SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
+        when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
+                .thenReturn(singletonList("src/main/java/com/example/ClassA.java"));
+        when(sourcePathResolver.getSourcePaths(ResolvableClassC.class))
+                .thenReturn(singletonList("src/main/java/com/example/ClassC.java"));
 
-    CoverageStore store = new FileCoverageStore.Factory(metrics, sourcePathResolver).create(null);
-    store.getProbes().record(ResolvableClassA.class);
-    store.getProbes().record(ResolvableClassC.class);
+        CoverageStore store = new FileCoverageStore.Factory(metrics, sourcePathResolver).create(null);
+        store.getProbes().record(ResolvableClassA.class);
+        store.getProbes().record(ResolvableClassC.class);
 
-    boolean result = store.report(DDTraceId.ONE, 1L, 1L);
+        boolean result = store.report(DDTraceId.ONE, 1L, 1L);
 
-    assertTrue(result);
-    TestReport report = store.getReport();
-    assertNotNull(report);
-    assertEquals(2, report.getTestReportFileEntries().size());
-  }
+        assertTrue(result);
+        TestReport report = store.getReport();
+        assertNotNull(report);
+        assertEquals(2, report.getTestReportFileEntries().size());
+    }
 
-  @Test
-  void emptySourcePathsForOneClassDoesNotKillCoverageReport() {
-    CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
-    SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
-    when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
-        .thenReturn(singletonList("src/main/java/com/example/ClassA.java"));
-    when(sourcePathResolver.getSourcePaths(DuplicateKeyClass.class)).thenReturn(emptyList());
-    when(sourcePathResolver.getSourcePaths(ResolvableClassC.class))
-        .thenReturn(singletonList("src/main/java/com/example/ClassC.java"));
+    @Test
+    void emptySourcePathsForOneClassDoesNotKillCoverageReport() {
+        CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
+        SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
+        when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
+                .thenReturn(singletonList("src/main/java/com/example/ClassA.java"));
+        when(sourcePathResolver.getSourcePaths(DuplicateKeyClass.class)).thenReturn(emptyList());
+        when(sourcePathResolver.getSourcePaths(ResolvableClassC.class))
+                .thenReturn(singletonList("src/main/java/com/example/ClassC.java"));
 
-    CoverageStore store = new FileCoverageStore.Factory(metrics, sourcePathResolver).create(null);
-    store.getProbes().record(ResolvableClassA.class);
-    store.getProbes().record(DuplicateKeyClass.class);
-    store.getProbes().record(ResolvableClassC.class);
+        CoverageStore store = new FileCoverageStore.Factory(metrics, sourcePathResolver).create(null);
+        store.getProbes().record(ResolvableClassA.class);
+        store.getProbes().record(DuplicateKeyClass.class);
+        store.getProbes().record(ResolvableClassC.class);
 
-    boolean result = store.report(DDTraceId.ONE, 1L, 1L);
+        boolean result = store.report(DDTraceId.ONE, 1L, 1L);
 
-    assertTrue(result);
-    TestReport report = store.getReport();
-    assertNotNull(report);
-    assertEquals(2, report.getTestReportFileEntries().size());
-  }
+        assertTrue(result);
+        TestReport report = store.getReport();
+        assertNotNull(report);
+        assertEquals(2, report.getTestReportFileEntries().size());
+    }
 }

@@ -46,88 +46,86 @@ import org.slf4j.LoggerFactory;
  */
 final class SpanEnrichmentInterceptor implements TraceInterceptor {
 
-  private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentInterceptor.class);
+    private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentInterceptor.class);
 
-  /**
-   * Unique priority in the "trace data enrichment" band, after {@code GIT_METADATA} (3) and before
-   * the custom-sampling band ({@code Integer.MAX_VALUE - 2}). Distinct from every value in {@code
-   * AbstractTraceInterceptor.Priority} and from the CI Visibility interceptors.
-   */
-  static final int PRIORITY = 4;
+    /**
+     * Unique priority in the "trace data enrichment" band, after {@code GIT_METADATA} (3) and before
+     * the custom-sampling band ({@code Integer.MAX_VALUE - 2}). Distinct from every value in {@code
+     * AbstractTraceInterceptor.Priority} and from the CI Visibility interceptors.
+     */
+    static final int PRIORITY = 4;
 
-  private final SpanEnrichmentStates states;
+    private final SpanEnrichmentStates states;
 
-  SpanEnrichmentInterceptor(final SpanEnrichmentStates states) {
-    this.states = states;
-  }
-
-  @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      final Collection<? extends MutableSpan> trace) {
-    try {
-      // Fast path: no accumulated state at all → skip the per-flush scan + lock entirely. This is
-      // the common case for services that never evaluate a flag on a given trace.
-      if (trace == null || trace.isEmpty() || states.isEmpty()) {
-        return trace;
-      }
-      // Resolve the local root for this fragment, then require that the root is actually PRESENT in
-      // this collection. A partial flush excludes the still-open root, so its absence means "not
-      // the final write" — keep the accumulator and bail.
-      final MutableSpan localRoot = findLocalRootInFragment(trace);
-      if (!(localRoot instanceof AgentSpan)) {
-        return trace; // partial flush, or no resolvable in-fragment root: keep state untouched
-      }
-      // Key by the local-root span object to match the capture-side keying.
-      final SpanEnrichmentAccumulator state = states.remove((AgentSpan) localRoot);
-      if (state == null || !state.hasData()) {
-        return trace;
-      }
-      // toSpanTags() only ever returns present, non-empty values, so write them directly.
-      for (final Map.Entry<String, String> tag : state.toSpanTags().entrySet()) {
-        localRoot.setTag(tag.getKey(), tag.getValue());
-      }
-    } catch (final Throwable t) {
-      // Never let span enrichment break trace finish; a debug line aids diagnosis if it does.
-      log.debug("Span-enrichment tag write failed", t);
+    SpanEnrichmentInterceptor(final SpanEnrichmentStates states) {
+        this.states = states;
     }
-    return trace;
-  }
 
-  /**
-   * Resolves the local root span for this fragment and returns it ONLY if it is actually present in
-   * the fragment by reference identity. Returns {@code null} when the root is not in the collection
-   * (a partial flush excludes the still-open root) or when no root can be safely identified.
-   *
-   * <p>We never guess: a non-root span is never returned. If the first span reports a non-null
-   * local root, we accept it only after confirming that exact object is in the fragment; otherwise
-   * we look for a span that is provably its own local root and present.
-   */
-  private static MutableSpan findLocalRootInFragment(
-      final Collection<? extends MutableSpan> trace) {
-    final MutableSpan first = trace.iterator().next();
-    final MutableSpan candidate = first.getLocalRootSpan();
-    if (candidate != null) {
-      // Accept the reported local root only if it is genuinely part of THIS fragment. On a partial
-      // flush the root is reachable by reference but NOT in the collection → reject (keep state).
-      for (final MutableSpan span : trace) {
-        if (span == candidate) {
-          return candidate;
+    @Override
+    public Collection<? extends MutableSpan> onTraceComplete(final Collection<? extends MutableSpan> trace) {
+        try {
+            // Fast path: no accumulated state at all → skip the per-flush scan + lock entirely. This is
+            // the common case for services that never evaluate a flag on a given trace.
+            if (trace == null || trace.isEmpty() || states.isEmpty()) {
+                return trace;
+            }
+            // Resolve the local root for this fragment, then require that the root is actually PRESENT in
+            // this collection. A partial flush excludes the still-open root, so its absence means "not
+            // the final write" — keep the accumulator and bail.
+            final MutableSpan localRoot = findLocalRootInFragment(trace);
+            if (!(localRoot instanceof AgentSpan)) {
+                return trace; // partial flush, or no resolvable in-fragment root: keep state untouched
+            }
+            // Key by the local-root span object to match the capture-side keying.
+            final SpanEnrichmentAccumulator state = states.remove((AgentSpan) localRoot);
+            if (state == null || !state.hasData()) {
+                return trace;
+            }
+            // toSpanTags() only ever returns present, non-empty values, so write them directly.
+            for (final Map.Entry<String, String> tag : state.toSpanTags().entrySet()) {
+                localRoot.setTag(tag.getKey(), tag.getValue());
+            }
+        } catch (final Throwable t) {
+            // Never let span enrichment break trace finish; a debug line aids diagnosis if it does.
+            log.debug("Span-enrichment tag write failed", t);
         }
-      }
-      return null; // root excluded from this fragment → partial flush, do not flush/remove
+        return trace;
     }
-    // Local root unknown for the first span: only accept a span that is provably its own local root
-    // and present here. Never fall back to an arbitrary span.
-    for (final MutableSpan span : trace) {
-      if (span.getLocalRootSpan() == span) {
-        return span;
-      }
-    }
-    return null;
-  }
 
-  @Override
-  public int priority() {
-    return PRIORITY;
-  }
+    /**
+     * Resolves the local root span for this fragment and returns it ONLY if it is actually present in
+     * the fragment by reference identity. Returns {@code null} when the root is not in the collection
+     * (a partial flush excludes the still-open root) or when no root can be safely identified.
+     *
+     * <p>We never guess: a non-root span is never returned. If the first span reports a non-null
+     * local root, we accept it only after confirming that exact object is in the fragment; otherwise
+     * we look for a span that is provably its own local root and present.
+     */
+    private static MutableSpan findLocalRootInFragment(final Collection<? extends MutableSpan> trace) {
+        final MutableSpan first = trace.iterator().next();
+        final MutableSpan candidate = first.getLocalRootSpan();
+        if (candidate != null) {
+            // Accept the reported local root only if it is genuinely part of THIS fragment. On a partial
+            // flush the root is reachable by reference but NOT in the collection → reject (keep state).
+            for (final MutableSpan span : trace) {
+                if (span == candidate) {
+                    return candidate;
+                }
+            }
+            return null; // root excluded from this fragment → partial flush, do not flush/remove
+        }
+        // Local root unknown for the first span: only accept a span that is provably its own local root
+        // and present here. Never fall back to an arbitrary span.
+        for (final MutableSpan span : trace) {
+            if (span.getLocalRootSpan() == span) {
+                return span;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public int priority() {
+        return PRIORITY;
+    }
 }

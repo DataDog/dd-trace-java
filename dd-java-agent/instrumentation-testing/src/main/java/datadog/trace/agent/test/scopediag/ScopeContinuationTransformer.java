@@ -50,120 +50,80 @@ import net.bytebuddy.asm.Advice;
  * leak-free.
  */
 final class ScopeContinuationTransformer {
-  private static volatile ResettableClassFileTransformer transformer;
+    private static volatile ResettableClassFileTransformer transformer;
 
-  private ScopeContinuationTransformer() {}
+    private ScopeContinuationTransformer() {}
 
-  static synchronized void install() {
-    if (transformer != null) {
-      return;
-    }
-    try {
-      // Related core types can otherwise load these targets reentrantly while they are transformed.
-      ClassLoader loader = ScopeContinuationTransformer.class.getClassLoader();
-      Class.forName("datadog.trace.core.scopemanager.ScopeContinuation", false, loader);
-      Class.forName("datadog.trace.core.scopemanager.ScopeStack", false, loader);
-    } catch (ClassNotFoundException missingCoreTracer) {
-      throw new IllegalStateException(
-          "Scope continuation diagnostics require dd-trace-core", missingCoreTracer);
-    }
-    Instrumentation instrumentation = ByteBuddyAgent.getInstrumentation();
-    transformer =
-        new AgentBuilder.Default()
-            .disableClassFormatChanges()
-            .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
-            .type(named("datadog.trace.core.scopemanager.ScopeContinuation"))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder
-                        .visit(
-                            Advice.to(ContinuationAdvice.Register.class)
-                                .on(
-                                    isMethod()
+    static synchronized void install() {
+        if (transformer != null) {
+            return;
+        }
+        try {
+            // Related core types can otherwise load these targets reentrantly while they are transformed.
+            ClassLoader loader = ScopeContinuationTransformer.class.getClassLoader();
+            Class.forName("datadog.trace.core.scopemanager.ScopeContinuation", false, loader);
+            Class.forName("datadog.trace.core.scopemanager.ScopeStack", false, loader);
+        } catch (ClassNotFoundException missingCoreTracer) {
+            throw new IllegalStateException("Scope continuation diagnostics require dd-trace-core", missingCoreTracer);
+        }
+        Instrumentation instrumentation = ByteBuddyAgent.getInstrumentation();
+        transformer = new AgentBuilder.Default()
+                .disableClassFormatChanges()
+                .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+                .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
+                .type(named("datadog.trace.core.scopemanager.ScopeContinuation"))
+                .transform((builder, type, classLoader, module, pd) -> builder.visit(Advice.to(
+                                        ContinuationAdvice.Register.class)
+                                .on(isMethod()
                                         .and(named("register"))
                                         .and(takesArguments(0))
-                                        .and(
-                                            returns(
-                                                named(
-                                                    "datadog.trace.core.scopemanager.ScopeContinuation")))))
-                        .visit(
-                            Advice.to(ContinuationAdvice.Activate.class)
-                                .on(
-                                    isMethod()
+                                        .and(returns(named("datadog.trace.core.scopemanager.ScopeContinuation")))))
+                        .visit(Advice.to(ContinuationAdvice.Activate.class)
+                                .on(isMethod()
                                         .and(named("resume"))
                                         .and(takesArguments(0))
                                         .and(returns(named("datadog.context.ContextScope")))))
-                        .visit(
-                            Advice.to(ContinuationAdvice.Cancel.class)
-                                .on(
-                                    isMethod()
-                                        .and(
-                                            named("release")
-                                                .or(named("cancelFromContinuedScopeClose")))
+                        .visit(Advice.to(ContinuationAdvice.Cancel.class)
+                                .on(isMethod()
+                                        .and(named("release").or(named("cancelFromContinuedScopeClose")))
                                         .and(takesArguments(0))
                                         .and(returns(void.class)))))
-            .type(named("datadog.trace.core.PendingTrace"))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder.visit(
-                        Advice.to(PendingTraceAdvice.Write.class)
-                            .on(
-                                isMethod()
-                                    .and(named("write"))
-                                    .and(takesArguments(boolean.class))
-                                    .and(returns(int.class)))))
-            .type(named("datadog.trace.core.scopemanager.ContinuableScope"))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder
-                        .visit(
-                            Advice.to(ContinuableScopeAdvice.OnProperClose.class)
-                                .on(
-                                    isMethod()
-                                        .and(named("onProperClose"))
-                                        .and(takesArguments(0))
-                                        .and(returns(void.class))))
-                        .visit(
-                            Advice.to(ContinuableScopeAdvice.Close.class)
-                                .on(
-                                    isMethod()
+                .type(named("datadog.trace.core.PendingTrace"))
+                .transform((builder, type, classLoader, module, pd) ->
+                        builder.visit(Advice.to(PendingTraceAdvice.Write.class)
+                                .on(isMethod()
+                                        .and(named("write"))
+                                        .and(takesArguments(boolean.class))
+                                        .and(returns(int.class)))))
+                .type(named("datadog.trace.core.scopemanager.ContinuableScope"))
+                .transform((builder, type, classLoader, module, pd) -> builder.visit(
+                                Advice.to(ContinuableScopeAdvice.OnProperClose.class)
+                                        .on(isMethod()
+                                                .and(named("onProperClose"))
+                                                .and(takesArguments(0))
+                                                .and(returns(void.class))))
+                        .visit(Advice.to(ContinuableScopeAdvice.Close.class)
+                                .on(isMethod()
                                         .and(named("close"))
                                         .and(takesArguments(0))
                                         .and(returns(void.class)))))
-            .type(named("datadog.trace.core.scopemanager.ScopeStack"))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder.visit(
-                        Advice.to(ScopeStackAdvice.Push.class)
-                            .on(
-                                isMethod()
-                                    .and(named("push"))
-                                    .and(takesArguments(1))
-                                    .and(
-                                        takesArgument(
-                                            0,
-                                            named(
-                                                "datadog.trace.core.scopemanager.ContinuableScope")))
-                                    .and(returns(void.class)))))
-            .type(named("datadog.trace.core.scopemanager.ContinuableScopeManager"))
-            .transform(
-                (builder, type, classLoader, module, pd) ->
-                    builder.visit(
-                        Advice.to(ContinuableScopeManagerAdvice.ScheduleRootIterationCleanup.class)
-                            .on(
-                                isMethod()
-                                    .and(named("scheduleRootIterationScopeCleanup"))
-                                    .and(takesArguments(2))
-                                    .and(
-                                        takesArgument(
-                                            0, named("datadog.trace.core.scopemanager.ScopeStack")))
-                                    .and(
-                                        takesArgument(
-                                            1,
-                                            named(
-                                                "datadog.trace.core.scopemanager.ContinuableScope")))
-                                    .and(returns(void.class)))))
-            .installOn(instrumentation);
-  }
+                .type(named("datadog.trace.core.scopemanager.ScopeStack"))
+                .transform((builder, type, classLoader, module, pd) -> builder.visit(Advice.to(
+                                ScopeStackAdvice.Push.class)
+                        .on(isMethod()
+                                .and(named("push"))
+                                .and(takesArguments(1))
+                                .and(takesArgument(0, named("datadog.trace.core.scopemanager.ContinuableScope")))
+                                .and(returns(void.class)))))
+                .type(named("datadog.trace.core.scopemanager.ContinuableScopeManager"))
+                .transform((builder, type, classLoader, module, pd) -> builder.visit(Advice.to(
+                                ContinuableScopeManagerAdvice.ScheduleRootIterationCleanup.class)
+                        .on(isMethod()
+                                .and(named("scheduleRootIterationScopeCleanup"))
+                                .and(takesArguments(2))
+                                .and(takesArgument(0, named("datadog.trace.core.scopemanager.ScopeStack")))
+                                .and(takesArgument(1, named("datadog.trace.core.scopemanager.ContinuableScope")))
+                                .and(returns(void.class)))))
+                .installOn(instrumentation);
+    }
 }

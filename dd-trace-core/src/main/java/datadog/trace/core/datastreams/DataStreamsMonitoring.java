@@ -8,25 +8,25 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 
 public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoCloseable {
-  void start();
+    void start();
 
-  /**
-   * Gets the propagator for DSM concern.
-   *
-   * @return The propagator for DSM concern.
-   */
-  Propagator propagator();
+    /**
+     * Gets the propagator for DSM concern.
+     *
+     * @return The propagator for DSM concern.
+     */
+    Propagator propagator();
 
-  /**
-   * Injects DSM {@link PathwayContext} into a span {@link AgentSpanContext}.
-   *
-   * @param span The span to update.
-   * @param carrier The carrier of the {@link PathwayContext} to extract and inject.
-   */
-  void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier);
+    /**
+     * Injects DSM {@link PathwayContext} into a span {@link AgentSpanContext}.
+     *
+     * @param span The span to update.
+     * @param carrier The carrier of the {@link PathwayContext} to extract and inject.
+     */
+    void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier);
 
-  void clear();
+    void clear();
 
-  @Override
-  void close();
+    @Override
+    void close();
 }

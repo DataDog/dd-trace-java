@@ -13,14 +13,13 @@ import java.io.OutputStream;
  */
 public class HandlerStreamingSimulatesHttpFrameworkResource implements RequestStreamHandler {
 
-  @Override
-  public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
-      throws IOException {
-    AgentSpan span = AgentTracer.activeSpan();
-    if (span != null) {
-      span.setResourceName("POST /api/simulated", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+    @Override
+    public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) throws IOException {
+        AgentSpan span = AgentTracer.activeSpan();
+        if (span != null) {
+            span.setResourceName("POST /api/simulated", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+        }
+        outputStream.write('O');
+        outputStream.write('K');
     }
-    outputStream.write('O');
-    outputStream.write('K');
-  }
 }

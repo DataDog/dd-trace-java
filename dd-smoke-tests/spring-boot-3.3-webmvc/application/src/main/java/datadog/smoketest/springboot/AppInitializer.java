@@ -7,16 +7,16 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class AppInitializer implements InitializingBean {
-  private final FruitRepository fruitRepository;
+    private final FruitRepository fruitRepository;
 
-  public AppInitializer(FruitRepository fruitRepository) {
-    this.fruitRepository = fruitRepository;
-  }
+    public AppInitializer(FruitRepository fruitRepository) {
+        this.fruitRepository = fruitRepository;
+    }
 
-  @Override
-  public void afterPropertiesSet() throws Exception {
-    fruitRepository.save(new Fruit("apple"));
-    fruitRepository.save(new Fruit("banana"));
-    fruitRepository.save(new Fruit("orange"));
-  }
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        fruitRepository.save(new Fruit("apple"));
+        fruitRepository.save(new Fruit("banana"));
+        fruitRepository.save(new Fruit("orange"));
+    }
 }

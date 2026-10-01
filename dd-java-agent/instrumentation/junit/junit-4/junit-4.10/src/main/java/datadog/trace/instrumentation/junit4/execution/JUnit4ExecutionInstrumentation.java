@@ -33,93 +33,91 @@ import org.junit.runners.model.Statement;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
+    private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
-  public JUnit4ExecutionInstrumentation() {
-    super("ci-visibility", "junit-4", "test-retry");
-  }
+    public JUnit4ExecutionInstrumentation() {
+        super("ci-visibility", "junit-4", "test-retry");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
-  }
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.junit.runners.ParentRunner";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.junit.runners.ParentRunner";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionTracker.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.junit.runner.Description", TestExecutionTracker.class.getName());
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("runLeaf")
-            .and(takesArgument(0, named("org.junit.runners.model.Statement")))
-            .and(takesArgument(1, named("org.junit.runner.Description")))
-            .and(takesArgument(2, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4ExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("runLeaf")
+                        .and(takesArgument(0, named("org.junit.runners.model.Statement")))
+                        .and(takesArgument(1, named("org.junit.runner.Description")))
+                        .and(takesArgument(2, named("org.junit.runner.notification.RunNotifier"))),
+                JUnit4ExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
+    }
 
-  public static class ExecutionAdvice {
-    @SuppressWarnings("bytebuddy-exception-suppression")
-    @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
-    @Advice.OnMethodEnter(skipOn = Boolean.class)
-    public static Boolean apply(
-        @Advice.Origin Method runTest,
-        @Advice.This ParentRunner<?> runner,
-        @Advice.Argument(0) Statement statement,
-        @Advice.Argument(1) Description description,
-        @Advice.Argument(2) RunNotifier notifier) {
-      if (notifier instanceof FailureSuppressingNotifier) {
-        // notifier already wrapped, run original method
-        return null;
-      }
+    public static class ExecutionAdvice {
+        @SuppressWarnings("bytebuddy-exception-suppression")
+        @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
+        @Advice.OnMethodEnter(skipOn = Boolean.class)
+        public static Boolean apply(
+                @Advice.Origin Method runTest,
+                @Advice.This ParentRunner<?> runner,
+                @Advice.Argument(0) Statement statement,
+                @Advice.Argument(1) Description description,
+                @Advice.Argument(2) RunNotifier notifier) {
+            if (notifier instanceof FailureSuppressingNotifier) {
+                // notifier already wrapped, run original method
+                return null;
+            }
 
-      TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
-      TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
-      Collection<String> testTags =
-          JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.JUNIT4)
-              .executionPolicy(testIdentifier, testSourceData, testTags);
-      if (!executionPolicy.applicable()) {
-        // retries not applicable, run original method
-        return null;
-      }
+            TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
+            TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
+            Collection<String> testTags =
+                    JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
+            TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+                    .get(TestFrameworkInstrumentation.JUNIT4)
+                    .executionPolicy(testIdentifier, testSourceData, testTags);
+            if (!executionPolicy.applicable()) {
+                // retries not applicable, run original method
+                return null;
+            }
 
-      InstrumentationContext.get(Description.class, TestExecutionTracker.class)
-          .put(description, executionPolicy);
+            InstrumentationContext.get(Description.class, TestExecutionTracker.class)
+                    .put(description, executionPolicy);
 
-      FailureSuppressingNotifier failureSuppressingNotifier =
-          new FailureSuppressingNotifier(executionPolicy, notifier);
-      do {
-        try {
-          runTest.setAccessible(true);
-          runTest.invoke(runner, statement, description, failureSuppressingNotifier);
-        } catch (Throwable ignored) {
+            FailureSuppressingNotifier failureSuppressingNotifier =
+                    new FailureSuppressingNotifier(executionPolicy, notifier);
+            do {
+                try {
+                    runTest.setAccessible(true);
+                    runTest.invoke(runner, statement, description, failureSuppressingNotifier);
+                } catch (Throwable ignored) {
+                }
+            } while (executionPolicy.applicable());
+
+            // skip original method
+            return Boolean.TRUE;
         }
-      } while (executionPolicy.applicable());
 
-      // skip original method
-      return Boolean.TRUE;
+        // JUnit 4.10 and above
+        public static void muzzleCheck(final RuleChain ruleChain) {
+            ruleChain.apply(null, null);
+        }
     }
-
-    // JUnit 4.10 and above
-    public static void muzzleCheck(final RuleChain ruleChain) {
-      ruleChain.apply(null, null);
-    }
-  }
 }

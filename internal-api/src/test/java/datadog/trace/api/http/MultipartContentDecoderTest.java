@@ -15,209 +15,199 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class MultipartContentDecoderTest {
 
-  @Test
-  void decodeBytesUsesDeclaredUtf8Charset() {
-    String text = "héllo wörld";
-    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-    assertEquals(
-        text,
-        MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=UTF-8"));
-  }
+    @Test
+    void decodeBytesUsesDeclaredUtf8Charset() {
+        String text = "héllo wörld";
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=UTF-8"));
+    }
 
-  @Test
-  void decodeBytesUsesDeclaredIso88591Charset() {
-    String text = "café";
-    byte[] bytes = text.getBytes(StandardCharsets.ISO_8859_1);
-    assertEquals(
-        text,
-        MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=ISO-8859-1"));
-  }
+    @Test
+    void decodeBytesUsesDeclaredIso88591Charset() {
+        String text = "café";
+        byte[] bytes = text.getBytes(StandardCharsets.ISO_8859_1);
+        assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=ISO-8859-1"));
+    }
 
-  @Test
-  void decodeBytesDefaultsToMachineDefaultWhenNoCharset() {
-    String text = "hello world";
-    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-    assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain"));
-  }
+    @Test
+    void decodeBytesDefaultsToMachineDefaultWhenNoCharset() {
+        String text = "hello world";
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain"));
+    }
 
-  @Test
-  void decodeBytesDefaultsToMachineDefaultWhenNullContentType() {
-    String text = "hello world";
-    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-    assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, null));
-  }
+    @Test
+    void decodeBytesDefaultsToMachineDefaultWhenNullContentType() {
+        String text = "hello world";
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, null));
+    }
 
-  @Test
-  void decodeBytesRespectsLengthParameter() {
-    byte[] bytes = "hello world".getBytes(StandardCharsets.UTF_8);
-    assertEquals("hello", MultipartContentDecoder.decodeBytes(bytes, 5, null));
-  }
+    @Test
+    void decodeBytesRespectsLengthParameter() {
+        byte[] bytes = "hello world".getBytes(StandardCharsets.UTF_8);
+        assertEquals("hello", MultipartContentDecoder.decodeBytes(bytes, 5, null));
+    }
 
-  @Test
-  void decodeBytesReturnsEmptyStringForZeroLength() {
-    assertEquals("", MultipartContentDecoder.decodeBytes(new byte[16], 0, null));
-  }
+    @Test
+    void decodeBytesReturnsEmptyStringForZeroLength() {
+        assertEquals("", MultipartContentDecoder.decodeBytes(new byte[16], 0, null));
+    }
 
-  @Test
-  void decodeBytesReplacesMalformedBytesWithReplacementCharacterUsingDeclaredCharset() {
-    // 0xE9 (ISO-8859-1 'é') is not valid UTF-8; REPLACE substitutes U+FFFD
-    byte[] bytes = "café".getBytes(StandardCharsets.ISO_8859_1);
-    assertEquals(
-        "caf�",
-        MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=UTF-8"));
-  }
+    @Test
+    void decodeBytesReplacesMalformedBytesWithReplacementCharacterUsingDeclaredCharset() {
+        // 0xE9 (ISO-8859-1 'é') is not valid UTF-8; REPLACE substitutes U+FFFD
+        byte[] bytes = "café".getBytes(StandardCharsets.ISO_8859_1);
+        assertEquals("caf�", MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=UTF-8"));
+    }
 
-  @Test
-  void decodeBytesHandlesTruncationAtMultibyteCharacterBoundary() {
-    // "€" encodes as 3 bytes in UTF-8: E2 82 AC
-    byte[] complete = "hello€".getBytes(StandardCharsets.UTF_8); // 8 bytes
-    // Pass only 6 bytes: "hello" + first byte of "€" (incomplete sequence)
-    String result = MultipartContentDecoder.decodeBytes(complete, 6, "text/plain; charset=UTF-8");
-    // Incomplete sequence → U+FFFD with declared charset, not fallback to JVM default
-    assertEquals("hello�", result);
-  }
+    @Test
+    void decodeBytesHandlesTruncationAtMultibyteCharacterBoundary() {
+        // "€" encodes as 3 bytes in UTF-8: E2 82 AC
+        byte[] complete = "hello€".getBytes(StandardCharsets.UTF_8); // 8 bytes
+        // Pass only 6 bytes: "hello" + first byte of "€" (incomplete sequence)
+        String result = MultipartContentDecoder.decodeBytes(complete, 6, "text/plain; charset=UTF-8");
+        // Incomplete sequence → U+FFFD with declared charset, not fallback to JVM default
+        assertEquals("hello�", result);
+    }
 
-  @ParameterizedTest
-  @NullAndEmptySource
-  void extractCharsetReturnsNullForNullOrEmptyContentType(String contentType) {
-    assertNull(MultipartContentDecoder.extractCharset(contentType));
-  }
+    @ParameterizedTest
+    @NullAndEmptySource
+    void extractCharsetReturnsNullForNullOrEmptyContentType(String contentType) {
+        assertNull(MultipartContentDecoder.extractCharset(contentType));
+    }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"text/plain", "image/jpeg", "application/octet-stream"})
-  void extractCharsetReturnsNullForContentTypeWithoutCharset(String contentType) {
-    assertNull(MultipartContentDecoder.extractCharset(contentType));
-  }
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "image/jpeg", "application/octet-stream"})
+    void extractCharsetReturnsNullForContentTypeWithoutCharset(String contentType) {
+        assertNull(MultipartContentDecoder.extractCharset(contentType));
+    }
 
-  @Test
-  void extractCharsetReturnsNullForInvalidCharsetName() {
-    assertNull(MultipartContentDecoder.extractCharset("text/plain; charset=NOTACHARSET"));
-  }
+    @Test
+    void extractCharsetReturnsNullForInvalidCharsetName() {
+        assertNull(MultipartContentDecoder.extractCharset("text/plain; charset=NOTACHARSET"));
+    }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "text/plain; CHARSET=UTF-8",
-        "text/plain; Charset=UTF-8",
-        "text/plain; charset=utf-8"
-      })
-  void extractCharsetIsCaseInsensitive(String contentType) {
-    assertEquals("UTF-8", MultipartContentDecoder.extractCharset(contentType).name());
-  }
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain; CHARSET=UTF-8", "text/plain; Charset=UTF-8", "text/plain; charset=utf-8"})
+    void extractCharsetIsCaseInsensitive(String contentType) {
+        assertEquals(
+                "UTF-8", MultipartContentDecoder.extractCharset(contentType).name());
+    }
 
-  @ParameterizedTest
-  @CsvSource({"text/plain; charset=UTF-8, UTF-8", "text/xml; charset=ISO-8859-1, ISO-8859-1"})
-  void extractCharsetFromStandardContentType(String contentType, String expectedCharset) {
-    assertEquals(expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
-  }
+    @ParameterizedTest
+    @CsvSource({"text/plain; charset=UTF-8, UTF-8", "text/xml; charset=ISO-8859-1, ISO-8859-1"})
+    void extractCharsetFromStandardContentType(String contentType, String expectedCharset) {
+        assertEquals(
+                expectedCharset,
+                MultipartContentDecoder.extractCharset(contentType).name());
+    }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "text/plain;\tcharset=ISO-8859-1",
-        "text/plain; \tcharset=ISO-8859-1",
-        "text/plain;\t charset=ISO-8859-1"
-      })
-  void extractCharsetAcceptsTabAsParameterBoundary(String contentType) {
-    // RFC 7230 optional whitespace (OWS) allows both space and horizontal tab before a parameter
-    assertEquals("ISO-8859-1", MultipartContentDecoder.extractCharset(contentType).name());
-  }
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "text/plain;\tcharset=ISO-8859-1",
+                "text/plain; \tcharset=ISO-8859-1",
+                "text/plain;\t charset=ISO-8859-1"
+            })
+    void extractCharsetAcceptsTabAsParameterBoundary(String contentType) {
+        // RFC 7230 optional whitespace (OWS) allows both space and horizontal tab before a parameter
+        assertEquals(
+                "ISO-8859-1",
+                MultipartContentDecoder.extractCharset(contentType).name());
+    }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "text/plain; charset = ISO-8859-1",
-        "text/plain; charset =ISO-8859-1",
-        "text/plain; charset= ISO-8859-1"
-      })
-  void extractCharsetAcceptsWhitespaceAroundEqualsSign(String contentType) {
-    assertEquals("ISO-8859-1", MultipartContentDecoder.extractCharset(contentType).name());
-  }
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "text/plain; charset = ISO-8859-1",
+                "text/plain; charset =ISO-8859-1",
+                "text/plain; charset= ISO-8859-1"
+            })
+    void extractCharsetAcceptsWhitespaceAroundEqualsSign(String contentType) {
+        assertEquals(
+                "ISO-8859-1",
+                MultipartContentDecoder.extractCharset(contentType).name());
+    }
 
-  @Test
-  void extractCharsetContinuesSearchAfterInvalidCharsetValue() {
-    // The first "charset" parameter is invalid; a later, valid one must still be found.
-    assertEquals(
-        "UTF-8",
-        MultipartContentDecoder.extractCharset("text/plain; charset=NOTACHARSET; charset=UTF-8")
-            .name());
-  }
+    @Test
+    void extractCharsetContinuesSearchAfterInvalidCharsetValue() {
+        // The first "charset" parameter is invalid; a later, valid one must still be found.
+        assertEquals(
+                "UTF-8",
+                MultipartContentDecoder.extractCharset("text/plain; charset=NOTACHARSET; charset=UTF-8")
+                        .name());
+    }
 
-  @Test
-  void extractCharsetIgnoresCharsetLookingSubstringInsideQuotedParameterValue() {
-    // The quoted boundary value contains "charset=" but must be treated as opaque text, not a
-    // real charset parameter; the actual charset= that follows must be used.
-    assertEquals(
-        "UTF-8",
-        MultipartContentDecoder.extractCharset(
-                "text/plain; boundary=\"charset=oops\"; charset=UTF-8")
-            .name());
-  }
+    @Test
+    void extractCharsetIgnoresCharsetLookingSubstringInsideQuotedParameterValue() {
+        // The quoted boundary value contains "charset=" but must be treated as opaque text, not a
+        // real charset parameter; the actual charset= that follows must be used.
+        assertEquals(
+                "UTF-8",
+                MultipartContentDecoder.extractCharset("text/plain; boundary=\"charset=oops\"; charset=UTF-8")
+                        .name());
+    }
 
-  @Test
-  void extractCharsetReturnsNullWhenOnlyMatchIsInsideQuotedParameterValue() {
-    assertNull(MultipartContentDecoder.extractCharset("text/plain; boundary=\"charset=oops\""));
-  }
+    @Test
+    void extractCharsetReturnsNullWhenOnlyMatchIsInsideQuotedParameterValue() {
+        assertNull(MultipartContentDecoder.extractCharset("text/plain; boundary=\"charset=oops\""));
+    }
 
-  @Test
-  void extractCharsetIgnoresSubstringMatchInParameterName() {
-    // "xcharset=UTF-16" must not match; the real "charset=UTF-8" that follows must be used
-    assertEquals(
-        "UTF-8",
-        MultipartContentDecoder.extractCharset("text/plain; xcharset=UTF-16; charset=UTF-8")
-            .name());
-  }
+    @Test
+    void extractCharsetIgnoresSubstringMatchInParameterName() {
+        // "xcharset=UTF-16" must not match; the real "charset=UTF-8" that follows must be used
+        assertEquals(
+                "UTF-8",
+                MultipartContentDecoder.extractCharset("text/plain; xcharset=UTF-16; charset=UTF-8")
+                        .name());
+    }
 
-  @Test
-  void extractCharsetReturnsNullWhenOnlySubstringMatchExists() {
-    assertNull(MultipartContentDecoder.extractCharset("text/plain; xcharset=UTF-8"));
-  }
+    @Test
+    void extractCharsetReturnsNullWhenOnlySubstringMatchExists() {
+        assertNull(MultipartContentDecoder.extractCharset("text/plain; xcharset=UTF-8"));
+    }
 
-  @Test
-  void extractCharsetHandlesAdditionalParameters() {
-    assertEquals(
-        "UTF-8",
-        MultipartContentDecoder.extractCharset("text/plain; charset=UTF-8; boundary=something")
-            .name());
-  }
+    @Test
+    void extractCharsetHandlesAdditionalParameters() {
+        assertEquals(
+                "UTF-8",
+                MultipartContentDecoder.extractCharset("text/plain; charset=UTF-8; boundary=something")
+                        .name());
+    }
 
-  @ParameterizedTest
-  @CsvSource({
-    "text/plain; charset=\"UTF-8\", UTF-8",
-    "text/xml; charset=\"ISO-8859-1\", ISO-8859-1"
-  })
-  void extractCharsetHandlesQuotedCharsetValue(String contentType, String expectedCharset) {
-    assertEquals(expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
-  }
+    @ParameterizedTest
+    @CsvSource({"text/plain; charset=\"UTF-8\", UTF-8", "text/xml; charset=\"ISO-8859-1\", ISO-8859-1"})
+    void extractCharsetHandlesQuotedCharsetValue(String contentType, String expectedCharset) {
+        assertEquals(
+                expectedCharset,
+                MultipartContentDecoder.extractCharset(contentType).name());
+    }
 
-  @Test
-  void decodeBytesUsesQuotedDeclaredCharset() {
-    String text = "café";
-    byte[] bytes = text.getBytes(StandardCharsets.ISO_8859_1);
-    assertEquals(
-        text,
-        MultipartContentDecoder.decodeBytes(
-            bytes, bytes.length, "text/plain; charset=\"ISO-8859-1\""));
-  }
+    @Test
+    void decodeBytesUsesQuotedDeclaredCharset() {
+        String text = "café";
+        byte[] bytes = text.getBytes(StandardCharsets.ISO_8859_1);
+        assertEquals(
+                text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=\"ISO-8859-1\""));
+    }
 
-  @Test
-  void readInputStreamTruncatesAtMaxBytes() throws IOException {
-    byte[] data = "hello world".getBytes(StandardCharsets.UTF_8);
-    assertEquals(
-        "hello", MultipartContentDecoder.readInputStream(new ByteArrayInputStream(data), 5, null));
-  }
+    @Test
+    void readInputStreamTruncatesAtMaxBytes() throws IOException {
+        byte[] data = "hello world".getBytes(StandardCharsets.UTF_8);
+        assertEquals("hello", MultipartContentDecoder.readInputStream(new ByteArrayInputStream(data), 5, null));
+    }
 
-  @Test
-  void readInputStreamHandlesMultipleReadCallsToFillBuffer() throws IOException {
-    byte[] data = "hello world".getBytes(StandardCharsets.UTF_8);
-    // InputStream that returns 2 bytes per read() call to exercise the accumulation loop.
-    InputStream slow =
-        new ByteArrayInputStream(data) {
-          @Override
-          public synchronized int read(byte[] b, int off, int len) {
-            return super.read(b, off, Math.min(len, 2));
-          }
+    @Test
+    void readInputStreamHandlesMultipleReadCallsToFillBuffer() throws IOException {
+        byte[] data = "hello world".getBytes(StandardCharsets.UTF_8);
+        // InputStream that returns 2 bytes per read() call to exercise the accumulation loop.
+        InputStream slow = new ByteArrayInputStream(data) {
+            @Override
+            public synchronized int read(byte[] b, int off, int len) {
+                return super.read(b, off, Math.min(len, 2));
+            }
         };
-    assertEquals("hello world", MultipartContentDecoder.readInputStream(slow, data.length, null));
-  }
+        assertEquals("hello world", MultipartContentDecoder.readInputStream(slow, data.length, null));
+    }
 }

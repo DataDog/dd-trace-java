@@ -24,95 +24,88 @@ import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @AutoService(InstrumenterModule.class)
 public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public MultipartFormDataReaderInstrumentation() {
-    super("resteasy");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "multipart";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataReader";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("readFrom")
-            .and(takesArguments(6))
-            .and(
-                returns(
-                    named(
-                        "org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput"))),
-        MultipartFormDataReaderInstrumentation.class.getName() + "$ReadFromAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class ReadFromAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return final MultipartFormDataInput ret,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (ret == null || t != null) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
-      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
-          cbp.getCallback(EVENTS.requestFilesContent());
-      if (callback == null && filenamesCallback == null && contentCallback == null) {
-        return;
-      }
-
-      if (callback != null) {
-        Map<String, List<String>> m = MultipartHelper.collectBodyMap(ret);
-
-        Flow<Void> flow = callback.apply(reqCtx, m);
-        BlockingException be =
-            MultipartHelper.tryBlock(
-                reqCtx, flow, "Blocked request (for MultipartFormDataInput/readFrom)");
-        if (be != null) {
-          t = be;
-        }
-      }
-
-      if (filenamesCallback != null) {
-        List<String> filenames = MultipartHelper.collectFilenames(ret);
-        if (!filenames.isEmpty()) {
-          Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
-          if (t == null) {
-            BlockingException be =
-                MultipartHelper.tryBlock(
-                    reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
-            if (be != null) {
-              t = be;
-            }
-          }
-        }
-      }
-
-      if (t == null && contentCallback != null) {
-        List<String> filesContent = MultipartHelper.collectFilesContent(ret);
-        if (!filesContent.isEmpty()) {
-          Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-          BlockingException be =
-              MultipartHelper.tryBlock(
-                  reqCtx, contentFlow, "Blocked request (multipart file upload content)");
-          if (be != null) {
-            t = be;
-          }
-        }
-      }
+    public MultipartFormDataReaderInstrumentation() {
+        super("resteasy");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "multipart";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataReader";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("readFrom")
+                        .and(takesArguments(6))
+                        .and(returns(named("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput"))),
+                MultipartFormDataReaderInstrumentation.class.getName() + "$ReadFromAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class ReadFromAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return final MultipartFormDataInput ret,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (ret == null || t != null) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.requestBodyProcessed());
+            BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+                    cbp.getCallback(EVENTS.requestFilesFilenames());
+            BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+                    cbp.getCallback(EVENTS.requestFilesContent());
+            if (callback == null && filenamesCallback == null && contentCallback == null) {
+                return;
+            }
+
+            if (callback != null) {
+                Map<String, List<String>> m = MultipartHelper.collectBodyMap(ret);
+
+                Flow<Void> flow = callback.apply(reqCtx, m);
+                BlockingException be =
+                        MultipartHelper.tryBlock(reqCtx, flow, "Blocked request (for MultipartFormDataInput/readFrom)");
+                if (be != null) {
+                    t = be;
+                }
+            }
+
+            if (filenamesCallback != null) {
+                List<String> filenames = MultipartHelper.collectFilenames(ret);
+                if (!filenames.isEmpty()) {
+                    Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
+                    if (t == null) {
+                        BlockingException be = MultipartHelper.tryBlock(
+                                reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+                        if (be != null) {
+                            t = be;
+                        }
+                    }
+                }
+            }
+
+            if (t == null && contentCallback != null) {
+                List<String> filesContent = MultipartHelper.collectFilesContent(ret);
+                if (!filesContent.isEmpty()) {
+                    Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+                    BlockingException be = MultipartHelper.tryBlock(
+                            reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+                    if (be != null) {
+                        t = be;
+                    }
+                }
+            }
+        }
+    }
 }

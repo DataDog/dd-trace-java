@@ -21,75 +21,71 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JUnit4CucumberInstrumentation() {
-    super("ci-visibility", "junit-4", "junit-4-cucumber");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.cucumber.junit.Cucumber";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CucumberUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".CucumberTracingListener",
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionTracker.class.getName());
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return CucumberUtils.MuzzleHelper.additionalMuzzleReferences();
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("childrenInvoker")
-            .and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4CucumberInstrumentation.class.getName() + "$CucumberAdvice");
-  }
-
-  public static class CucumberAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addTracingListener(
-        @Advice.FieldValue("children") List<ParentRunner<?>> children,
-        @Advice.Argument(value = 0, readOnly = false) RunNotifier runNotifier) {
-
-      RunNotifier replacedNotifier = new RunNotifier();
-
-      // copy listeners to new notifier
-      List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
-      if (runListeners != null) {
-        for (RunListener listener : runListeners) {
-          RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
-          // skip JUnit 4 listener, we will install Cucumber listener instead
-          if (tracingListener == null) {
-            replacedNotifier.addListener(listener);
-          }
-        }
-      }
-
-      TestEventsHandlerHolder.start(
-          TestFrameworkInstrumentation.CUCUMBER, CucumberUtils.CAPABILITIES);
-
-      replacedNotifier.addListener(
-          new CucumberTracingListener(
-              InstrumentationContext.get(Description.class, TestExecutionTracker.class), children));
-      runNotifier = replacedNotifier;
+    public JUnit4CucumberInstrumentation() {
+        super("ci-visibility", "junit-4", "junit-4-cucumber");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.cucumber.junit.Cucumber";
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".CucumberUtils",
+            packageName + ".TestEventsHandlerHolder",
+            packageName + ".SkippedByDatadog",
+            packageName + ".JUnit4Utils",
+            packageName + ".TracingListener",
+            packageName + ".CucumberTracingListener",
+        };
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.junit.runner.Description", TestExecutionTracker.class.getName());
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return CucumberUtils.MuzzleHelper.additionalMuzzleReferences();
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("childrenInvoker").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
+                JUnit4CucumberInstrumentation.class.getName() + "$CucumberAdvice");
+    }
+
+    public static class CucumberAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void addTracingListener(
+                @Advice.FieldValue("children") List<ParentRunner<?>> children,
+                @Advice.Argument(value = 0, readOnly = false) RunNotifier runNotifier) {
+
+            RunNotifier replacedNotifier = new RunNotifier();
+
+            // copy listeners to new notifier
+            List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
+            if (runListeners != null) {
+                for (RunListener listener : runListeners) {
+                    RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
+                    // skip JUnit 4 listener, we will install Cucumber listener instead
+                    if (tracingListener == null) {
+                        replacedNotifier.addListener(listener);
+                    }
+                }
+            }
+
+            TestEventsHandlerHolder.start(TestFrameworkInstrumentation.CUCUMBER, CucumberUtils.CAPABILITIES);
+
+            replacedNotifier.addListener(new CucumberTracingListener(
+                    InstrumentationContext.get(Description.class, TestExecutionTracker.class), children));
+            runNotifier = replacedNotifier;
+        }
+    }
 }

@@ -16,138 +16,137 @@ import org.junit.jupiter.api.condition.JRE;
 
 @NonRetryable
 public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegrationTest {
-  private List<String> additionalJvmArgs = new ArrayList<>();
+    private List<String> additionalJvmArgs = new ArrayList<>();
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    // remove the dynamic instrumentation flag
-    commandParams.remove("-Ddd.dynamic.instrumentation.enabled=true");
-    commandParams.addAll(additionalJvmArgs);
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
-  }
-
-  @Test
-  @DisplayName("testDynamicInstrumentationEnablement")
-  void testDynamicInstrumentationEnablement() throws Exception {
-    appUrl = startAppAndAndGetUrl();
-    setConfigOverrides(createConfigOverrides(true, false));
-    LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
-    setCurrentConfiguration(createConfig(probe));
-    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
-    waitForInstrumentation(appUrl);
-    // disable DI
-    setConfigOverrides(createConfigOverrides(false, false));
-    waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
-    waitForReTransformation(appUrl); // wait for retransformation of removed probe
-  }
-
-  @Flaky
-  @Test
-  @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
-  void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
-    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
-    // internal flag required to avoid racing source file tracking and class loading as
-    // source file tracking information may be missing when looking for class to retransform
-    additionalJvmArgs.add(
-        "-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true");
-    appUrl = startAppAndAndGetUrl();
-    setConfigOverrides(createConfigOverrides(true, false));
-    LogProbe probe =
-        LogProbe.builder()
-            .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 329)
-            .build();
-    setCurrentConfiguration(createConfig(probe));
-    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
-    execute(appUrl, "topLevelMethod", "");
-    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel", true);
-    // disable DI
-    setConfigOverrides(createConfigOverrides(false, false));
-    waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
-    waitForReTransformation(
-        appUrl,
-        "datadog.smoketest.debugger.TopLevel"); // wait for retransformation of removed probe
-  }
-
-  @Test
-  @DisplayName("testDynamicInstrumentationEnablementStaticallyDisabled")
-  void testDynamicInstrumentationEnablementStaticallyDisabled() throws Exception {
-    // explicitly disable dynamic instrumentation, preventing enablement
-    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.enabled=false");
-    appUrl = startAppAndAndGetUrl();
-    setConfigOverrides(createConfigOverrides(true, false));
-    LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
-    setCurrentConfiguration(createConfig(probe));
-    waitForSpecificLine(appUrl, "Feature dynamic.instrumentation.enabled is explicitly disabled");
-  }
-
-  @Test
-  @DisplayName("testExceptionReplayEnablement")
-  @EnabledForJreRange(min = JRE.JAVA_11)
-  void testExceptionReplayEnablement() throws Exception {
-    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
-    appUrl = startAppAndAndGetUrl();
-    setConfigOverrides(createConfigOverrides(false, true));
-    waitForFeatureStarted(appUrl, "Exception Replay");
-    execute(appUrl, TRACED_METHOD_NAME, "oops"); // instrumenting first exception
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
-    // disable ER
-    setConfigOverrides(createConfigOverrides(false, false));
-    waitForFeatureStopped(appUrl, "Exception Replay");
-    waitForReTransformation(appUrl); // wait for retransformation of removed probes
-  }
-
-  // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
-  // TODO by not providing endpoints
-
-  @Flaky
-  @Test
-  @DisplayName("testExceptionReplayEnablementFailure")
-  @EnabledForJreRange(min = JRE.JAVA_11)
-  void testExceptionReplayEnablementFailure() throws Exception {
-    additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
-    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
-    this.probeMockDispatcher.setDispatcher(this::noEndpointDispatch);
-    appUrl = startAppAndAndGetUrl();
-    waitForSpecificLine(appUrl, "Failed to init common component for debugger agent");
-    probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
-    setConfigOverrides(createConfigOverrides(true, true));
-    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
-    waitForFeatureStarted(appUrl, "Exception Replay");
-  }
-
-  private MockResponse noEndpointDispatch(RecordedRequest request) {
-    if (request.getPath().equals("/info")) {
-      // no debugger endpoints
-      String info =
-          "{\"endpoints\": [\"" + TRACE_URL_PATH + "\", \"" + LOG_UPLOAD_URL_PATH + "\"]}";
-      return new MockResponse().setResponseCode(200).setBody(info);
+    @Override
+    protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
+        List<String> commandParams = getDebuggerCommandParams();
+        // remove the dynamic instrumentation flag
+        commandParams.remove("-Ddd.dynamic.instrumentation.enabled=true");
+        commandParams.addAll(additionalJvmArgs);
+        return ProcessBuilderHelper.createProcessBuilder(commandParams, logFilePath, getAppClass(), params);
     }
-    return datadogAgentDispatch(request);
-  }
 
-  private void waitForFeatureStarted(String appUrl, String feature) throws IOException {
-    String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Started " + feature;
-    waitForSpecificLine(appUrl, line);
-    LOG.info("feature {} started", feature);
-  }
+    @Test
+    @DisplayName("testDynamicInstrumentationEnablement")
+    void testDynamicInstrumentationEnablement() throws Exception {
+        appUrl = startAppAndAndGetUrl();
+        setConfigOverrides(createConfigOverrides(true, false));
+        LogProbe probe = LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
+                .build();
+        setCurrentConfiguration(createConfig(probe));
+        waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+        waitForInstrumentation(appUrl);
+        // disable DI
+        setConfigOverrides(createConfigOverrides(false, false));
+        waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
+        waitForReTransformation(appUrl); // wait for retransformation of removed probe
+    }
 
-  private void waitForFeatureStopped(String appUrl, String feature) throws IOException {
-    String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Stopping " + feature;
-    waitForSpecificLine(appUrl, line);
-    LOG.info("feature {} stopped", feature);
-  }
+    @Flaky
+    @Test
+    @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
+    void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
+        additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+        // internal flag required to avoid racing source file tracking and class loading as
+        // source file tracking information may be missing when looking for class to retransform
+        additionalJvmArgs.add("-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true");
+        appUrl = startAppAndAndGetUrl();
+        setConfigOverrides(createConfigOverrides(true, false));
+        LogProbe probe = LogProbe.builder()
+                .probeId(LINE_PROBE_ID1)
+                .where("ServerDebuggerTestApplication.java", 329)
+                .build();
+        setCurrentConfiguration(createConfig(probe));
+        waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+        execute(appUrl, "topLevelMethod", "");
+        waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel", true);
+        // disable DI
+        setConfigOverrides(createConfigOverrides(false, false));
+        waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
+        waitForReTransformation(
+                appUrl, "datadog.smoketest.debugger.TopLevel"); // wait for retransformation of removed probe
+    }
 
-  private static ConfigOverrides createConfigOverrides(
-      boolean dynamicInstrumentationEnabled, boolean exceptionReplayEnabled) {
-    ConfigOverrides config = new ConfigOverrides();
-    config.libConfig = new LibConfig();
-    config.libConfig.dynamicInstrumentationEnabled = dynamicInstrumentationEnabled;
-    config.libConfig.exceptionReplayEnabled = exceptionReplayEnabled;
-    return config;
-  }
+    @Test
+    @DisplayName("testDynamicInstrumentationEnablementStaticallyDisabled")
+    void testDynamicInstrumentationEnablementStaticallyDisabled() throws Exception {
+        // explicitly disable dynamic instrumentation, preventing enablement
+        additionalJvmArgs.add("-Ddd.dynamic.instrumentation.enabled=false");
+        appUrl = startAppAndAndGetUrl();
+        setConfigOverrides(createConfigOverrides(true, false));
+        LogProbe probe = LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
+                .build();
+        setCurrentConfiguration(createConfig(probe));
+        waitForSpecificLine(appUrl, "Feature dynamic.instrumentation.enabled is explicitly disabled");
+    }
+
+    @Test
+    @DisplayName("testExceptionReplayEnablement")
+    @EnabledForJreRange(min = JRE.JAVA_11)
+    void testExceptionReplayEnablement() throws Exception {
+        additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+        appUrl = startAppAndAndGetUrl();
+        setConfigOverrides(createConfigOverrides(false, true));
+        waitForFeatureStarted(appUrl, "Exception Replay");
+        execute(appUrl, TRACED_METHOD_NAME, "oops"); // instrumenting first exception
+        waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
+        // disable ER
+        setConfigOverrides(createConfigOverrides(false, false));
+        waitForFeatureStopped(appUrl, "Exception Replay");
+        waitForReTransformation(appUrl); // wait for retransformation of removed probes
+    }
+
+    // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
+    // TODO by not providing endpoints
+
+    @Flaky
+    @Test
+    @DisplayName("testExceptionReplayEnablementFailure")
+    @EnabledForJreRange(min = JRE.JAVA_11)
+    void testExceptionReplayEnablementFailure() throws Exception {
+        additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
+        additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+        this.probeMockDispatcher.setDispatcher(this::noEndpointDispatch);
+        appUrl = startAppAndAndGetUrl();
+        waitForSpecificLine(appUrl, "Failed to init common component for debugger agent");
+        probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
+        setConfigOverrides(createConfigOverrides(true, true));
+        waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+        waitForFeatureStarted(appUrl, "Exception Replay");
+    }
+
+    private MockResponse noEndpointDispatch(RecordedRequest request) {
+        if (request.getPath().equals("/info")) {
+            // no debugger endpoints
+            String info = "{\"endpoints\": [\"" + TRACE_URL_PATH + "\", \"" + LOG_UPLOAD_URL_PATH + "\"]}";
+            return new MockResponse().setResponseCode(200).setBody(info);
+        }
+        return datadogAgentDispatch(request);
+    }
+
+    private void waitForFeatureStarted(String appUrl, String feature) throws IOException {
+        String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Started " + feature;
+        waitForSpecificLine(appUrl, line);
+        LOG.info("feature {} started", feature);
+    }
+
+    private void waitForFeatureStopped(String appUrl, String feature) throws IOException {
+        String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Stopping " + feature;
+        waitForSpecificLine(appUrl, line);
+        LOG.info("feature {} stopped", feature);
+    }
+
+    private static ConfigOverrides createConfigOverrides(
+            boolean dynamicInstrumentationEnabled, boolean exceptionReplayEnabled) {
+        ConfigOverrides config = new ConfigOverrides();
+        config.libConfig = new LibConfig();
+        config.libConfig.dynamicInstrumentationEnabled = dynamicInstrumentationEnabled;
+        config.libConfig.exceptionReplayEnabled = exceptionReplayEnabled;
+        return config;
+    }
 }

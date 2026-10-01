@@ -12,51 +12,51 @@ import org.junit.jupiter.api.BeforeEach;
 
 /** This class is a base test class for the {@link HttpCodec.Injector} tests. */
 abstract class AbstractHttpInjectorTest extends DDCoreJavaSpecification {
-  protected CoreTracer tracer;
-  protected HttpCodec.Injector injector;
+    protected CoreTracer tracer;
+    protected HttpCodec.Injector injector;
 
-  /**
-   * Creates the injector under test.
-   *
-   * @return {@code null} by default for tests that build injectors per test case.
-   */
-  protected HttpCodec.Injector newInjector() {
-    return null;
-  }
+    /**
+     * Creates the injector under test.
+     *
+     * @return {@code null} by default for tests that build injectors per test case.
+     */
+    protected HttpCodec.Injector newInjector() {
+        return null;
+    }
 
-  @BeforeEach
-  void setupInjectorTest() {
-    this.tracer = tracerBuilder().writer(new ListWriter()).build();
-    this.injector = newInjector();
-  }
+    @BeforeEach
+    void setupInjectorTest() {
+        this.tracer = tracerBuilder().writer(new ListWriter()).build();
+        this.injector = newInjector();
+    }
 
-  /** Builds a span context with the standard fake service/operation/resource values. */
-  protected DDSpanContext mockSpanContext(
-      DDTraceId traceId,
-      long spanId,
-      int samplingPriority,
-      CharSequence origin,
-      Map<String, String> baggage,
-      PropagationTags propagationTags) {
-    return new DDSpanContext(
-        traceId,
-        spanId,
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
-        propagationTags);
-  }
+    /** Builds a span context with the standard fake service/operation/resource values. */
+    protected DDSpanContext mockSpanContext(
+            DDTraceId traceId,
+            long spanId,
+            int samplingPriority,
+            CharSequence origin,
+            Map<String, String> baggage,
+            PropagationTags propagationTags) {
+        return new DDSpanContext(
+                traceId,
+                spanId,
+                DDSpanId.ZERO,
+                null,
+                "fakeService",
+                "fakeOperation",
+                "fakeResource",
+                samplingPriority,
+                origin,
+                baggage,
+                false,
+                "fakeType",
+                0,
+                this.tracer.createTraceCollector(DDTraceId.ONE),
+                null,
+                null,
+                NoopPathwayContext.INSTANCE,
+                false,
+                propagationTags);
+    }
 }

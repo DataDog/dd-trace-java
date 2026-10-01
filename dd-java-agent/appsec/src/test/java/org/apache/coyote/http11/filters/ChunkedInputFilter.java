@@ -5,5 +5,5 @@ package org.apache.coyote.http11.filters;
 // Preserves the method signature used by ScaRealLibraryBytecodeTest.
 public class ChunkedInputFilter {
 
-  public void parseChunkHeader() {}
+    public void parseChunkHeader() {}
 }

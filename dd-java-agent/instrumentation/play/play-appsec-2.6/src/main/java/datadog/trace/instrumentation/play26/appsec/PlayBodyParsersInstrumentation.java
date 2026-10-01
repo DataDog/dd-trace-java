@@ -25,123 +25,112 @@ import scala.xml.NodeSeq;
  */
 @AutoService(InstrumenterModule.class)
 public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  private static final String TRAIT_NAME = "play.api.mvc.PlayBodyParsers";
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    private static final String TRAIT_NAME = "play.api.mvc.PlayBodyParsers";
 
-  public PlayBodyParsersInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {TRAIT_NAME, TRAIT_NAME + "$class"};
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "tolerantFormUrlEncoded", is(int.class).or(is(long.class)))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        PlayBodyParsersInstrumentation.class.getName() + "$UrlEncodedAdvice");
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "tolerantText", long.class)
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        PlayBodyParsersInstrumentation.class.getName() + "$TextAdvice");
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "text", long.class)
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        PlayBodyParsersInstrumentation.class.getName() + "$TextAdvice");
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "multipartFormData", "scala.Function1", long.class, boolean.class)
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        PlayBodyParsersInstrumentation.class.getName() + "$MultipartFormDataAdvice");
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "multipartFormData", "scala.Function1", long.class)
-            .and(returns(named("play.api.mvc.BodyParser")))
-            .and(
-                /* only if prev didn't match */
-                hasNoDeclaredMethod(
-                    isTraitMethod(
-                            TRAIT_NAME,
-                            "multipartFormData",
-                            "scala.Function1",
-                            long.class,
-                            boolean.class)
-                        .and(returns(named("play.api.mvc.BodyParser"))))),
-        PlayBodyParsersInstrumentation.class.getName() + "$MultipartFormDataAdvice");
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "tolerantJson", is(int.class).or(is(long.class)))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        PlayBodyParsersInstrumentation.class.getName() + "$JsonAdvice");
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "tolerantXml", is(int.class).or(is(long.class)))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        PlayBodyParsersInstrumentation.class.getName() + "$XmlAdvice");
-  }
-
-  static class UrlEncodedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.Return(readOnly = false) BodyParser<Map<String, Seq<String>>> parser) {
-
-      parser =
-          parser.map(
-              BodyParserHelpers.getHandleUrlEncodedMapF(),
-              Execution.Implicits$.MODULE$.trampoline());
-    }
-  }
-
-  static class TextAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before() {
-      CallDepthThreadLocalMap.incrementCallDepth(PlayBodyParsers.class);
+    public PlayBodyParsersInstrumentation() {
+        super("play");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return(readOnly = false) BodyParser<String> parser, @Advice.Thrown Throwable t) {
-      int depth = CallDepthThreadLocalMap.decrementCallDepth(PlayBodyParsers.class);
-      if (depth > 0 || t != null) {
-        return;
-      }
-
-      parser =
-          parser.map(
-              BodyParserHelpers.getHandleStringMapF(), Execution.Implicits$.MODULE$.trampoline());
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
     }
-  }
 
-  static class MultipartFormDataAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return(readOnly = false) BodyParser<MultipartFormData<?>> parser) {
-
-      parser =
-          parser.map(
-              BodyParserHelpers.getHandleMultipartFormDataF(),
-              Execution.Implicits$.MODULE$.trampoline());
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {TRAIT_NAME, TRAIT_NAME + "$class"};
     }
-  }
 
-  static class JsonAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return(readOnly = false) BodyParser<JsValue> parser) {
-
-      parser =
-          parser.map(BodyParserHelpers.getHandleJsonF(), Execution.Implicits$.MODULE$.trampoline());
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isTraitMethod(
+                                TRAIT_NAME,
+                                "tolerantFormUrlEncoded",
+                                is(int.class).or(is(long.class)))
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                PlayBodyParsersInstrumentation.class.getName() + "$UrlEncodedAdvice");
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "tolerantText", long.class).and(returns(named("play.api.mvc.BodyParser"))),
+                PlayBodyParsersInstrumentation.class.getName() + "$TextAdvice");
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "text", long.class).and(returns(named("play.api.mvc.BodyParser"))),
+                PlayBodyParsersInstrumentation.class.getName() + "$TextAdvice");
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "multipartFormData", "scala.Function1", long.class, boolean.class)
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                PlayBodyParsersInstrumentation.class.getName() + "$MultipartFormDataAdvice");
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "multipartFormData", "scala.Function1", long.class)
+                        .and(returns(named("play.api.mvc.BodyParser")))
+                        .and(
+                                /* only if prev didn't match */
+                                hasNoDeclaredMethod(isTraitMethod(
+                                                TRAIT_NAME,
+                                                "multipartFormData",
+                                                "scala.Function1",
+                                                long.class,
+                                                boolean.class)
+                                        .and(returns(named("play.api.mvc.BodyParser"))))),
+                PlayBodyParsersInstrumentation.class.getName() + "$MultipartFormDataAdvice");
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "tolerantJson", is(int.class).or(is(long.class)))
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                PlayBodyParsersInstrumentation.class.getName() + "$JsonAdvice");
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "tolerantXml", is(int.class).or(is(long.class)))
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                PlayBodyParsersInstrumentation.class.getName() + "$XmlAdvice");
     }
-  }
 
-  static class XmlAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return(readOnly = false) BodyParser<NodeSeq> parser) {
+    static class UrlEncodedAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) BodyParser<Map<String, Seq<String>>> parser) {
 
-      parser =
-          parser.map(BodyParserHelpers.getHandleXmlF(), Execution.Implicits$.MODULE$.trampoline());
+            parser = parser.map(BodyParserHelpers.getHandleUrlEncodedMapF(), Execution.Implicits$.MODULE$.trampoline());
+        }
     }
-  }
+
+    static class TextAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void before() {
+            CallDepthThreadLocalMap.incrementCallDepth(PlayBodyParsers.class);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) BodyParser<String> parser, @Advice.Thrown Throwable t) {
+            int depth = CallDepthThreadLocalMap.decrementCallDepth(PlayBodyParsers.class);
+            if (depth > 0 || t != null) {
+                return;
+            }
+
+            parser = parser.map(BodyParserHelpers.getHandleStringMapF(), Execution.Implicits$.MODULE$.trampoline());
+        }
+    }
+
+    static class MultipartFormDataAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) BodyParser<MultipartFormData<?>> parser) {
+
+            parser = parser.map(
+                    BodyParserHelpers.getHandleMultipartFormDataF(), Execution.Implicits$.MODULE$.trampoline());
+        }
+    }
+
+    static class JsonAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) BodyParser<JsValue> parser) {
+
+            parser = parser.map(BodyParserHelpers.getHandleJsonF(), Execution.Implicits$.MODULE$.trampoline());
+        }
+    }
+
+    static class XmlAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) BodyParser<NodeSeq> parser) {
+
+            parser = parser.map(BodyParserHelpers.getHandleXmlF(), Execution.Implicits$.MODULE$.trampoline());
+        }
+    }
 }

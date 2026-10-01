@@ -17,77 +17,76 @@ import org.testng.annotations.CustomAttribute;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private final String parentPackageName = Strings.getPackageName(TestNGUtils.class.getName());
+    private final String parentPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
-  public TestNGOrderInstrumentation() {
-    super("ci-visibility", "testng", "test-order");
-  }
+    public TestNGOrderInstrumentation() {
+        super("ci-visibility", "testng", "test-order");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
-  }
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.testng.TestNG";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.testng.TestNG";
+    }
 
-  @Override
-  public int order() {
-    // Depends on datadog.trace.instrumentation.testng.TestNGInstrumentation,
-    // as it needs datadog.trace.instrumentation.testng.TestEventsHandlerHolder.start to be called;
-    // The bytecode insertion order is inverse:
-    // for lower order values the bytecode instructions are executed later
-    // (at least for @Advice.OnMethodExit methods)
-    return TestNGInstrumentation.ORDER - 1;
-  }
+    @Override
+    public int order() {
+        // Depends on datadog.trace.instrumentation.testng.TestNGInstrumentation,
+        // as it needs datadog.trace.instrumentation.testng.TestEventsHandlerHolder.start to be called;
+        // The bytecode insertion order is inverse:
+        // for lower order values the bytecode instructions are executed later
+        // (at least for @Advice.OnMethodExit methods)
+        return TestNGInstrumentation.ORDER - 1;
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        MethodDescription::isConstructor,
-        TestNGOrderInstrumentation.class.getName() + "$InsertInterceptorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                MethodDescription::isConstructor,
+                TestNGOrderInstrumentation.class.getName() + "$InsertInterceptorAdvice");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      parentPackageName + ".TestNGClassListener",
-      parentPackageName + ".TestNGUtils",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailFastOrderInterceptor",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            parentPackageName + ".TestNGClassListener",
+            parentPackageName + ".TestNGUtils",
+            parentPackageName + ".TestEventsHandlerHolder",
+            packageName + ".FailFastOrderInterceptor",
+        };
+    }
 
-  public static class InsertInterceptorAdvice {
-    @SuppressWarnings("bytebuddy-exception-suppression")
-    @Advice.OnMethodExit
-    public static void prependFailFastInterceptor(
-        @Advice.FieldValue("m_methodInterceptors") List<IMethodInterceptor> methodInterceptors) {
-      String testOrder = Config.get().getCiVisibilityTestOrder();
-      if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
-        for (IMethodInterceptor methodInterceptor : methodInterceptors) {
-          if (methodInterceptor instanceof FailFastOrderInterceptor) {
-            return;
-          }
+    public static class InsertInterceptorAdvice {
+        @SuppressWarnings("bytebuddy-exception-suppression")
+        @Advice.OnMethodExit
+        public static void prependFailFastInterceptor(
+                @Advice.FieldValue("m_methodInterceptors") List<IMethodInterceptor> methodInterceptors) {
+            String testOrder = Config.get().getCiVisibilityTestOrder();
+            if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
+                for (IMethodInterceptor methodInterceptor : methodInterceptors) {
+                    if (methodInterceptor instanceof FailFastOrderInterceptor) {
+                        return;
+                    }
+                }
+
+                // adding our interceptor as the first one:
+                // that way custom interceptors added by the users will have higher priority
+                methodInterceptors.add(0, new FailFastOrderInterceptor(TestEventsHandlerHolder.TEST_EVENTS_HANDLER));
+
+            } else {
+                throw new IllegalArgumentException("Unknown test order: " + testOrder);
+            }
         }
 
-        // adding our interceptor as the first one:
-        // that way custom interceptors added by the users will have higher priority
-        methodInterceptors.add(
-            0, new FailFastOrderInterceptor(TestEventsHandlerHolder.TEST_EVENTS_HANDLER));
-
-      } else {
-        throw new IllegalArgumentException("Unknown test order: " + testOrder);
-      }
+        // TestNG 7.0 and above
+        public static String muzzleCheck(final CustomAttribute customAttribute) {
+            return customAttribute.name();
+        }
     }
-
-    // TestNG 7.0 and above
-    public static String muzzleCheck(final CustomAttribute customAttribute) {
-      return customAttribute.name();
-    }
-  }
 }

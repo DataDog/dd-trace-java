@@ -9,26 +9,26 @@ import java.util.concurrent.Future;
 
 public final class NoOpMetricsAggregator implements MetricsAggregator {
 
-  public static final NoOpMetricsAggregator INSTANCE = new NoOpMetricsAggregator();
+    public static final NoOpMetricsAggregator INSTANCE = new NoOpMetricsAggregator();
 
-  @Override
-  public void start() {}
+    @Override
+    public void start() {}
 
-  @Override
-  public boolean report() {
-    return false;
-  }
+    @Override
+    public boolean report() {
+        return false;
+    }
 
-  @Override
-  public Future<Boolean> forceReport() {
-    return CompletableFuture.completedFuture(FALSE);
-  }
+    @Override
+    public Future<Boolean> forceReport() {
+        return CompletableFuture.completedFuture(FALSE);
+    }
 
-  @Override
-  public boolean publish(List<? extends CoreSpan<?>> trace) {
-    return false;
-  }
+    @Override
+    public boolean publish(List<? extends CoreSpan<?>> trace) {
+        return false;
+    }
 
-  @Override
-  public void close() {}
+    @Override
+    public void close() {}
 }

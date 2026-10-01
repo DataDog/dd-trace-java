@@ -7,13 +7,13 @@ import javax.annotation.Nonnull;
 
 public class NoHttpOnlyCookieModuleImpl implements NoHttpOnlyCookieModule<VulnerabilityType> {
 
-  @Override
-  public boolean isVulnerable(@Nonnull final Cookie cookie) {
-    return !cookie.isHttpOnly();
-  }
+    @Override
+    public boolean isVulnerable(@Nonnull final Cookie cookie) {
+        return !cookie.isHttpOnly();
+    }
 
-  @Override
-  public VulnerabilityType getType() {
-    return VulnerabilityType.NO_HTTPONLY_COOKIE;
-  }
+    @Override
+    public VulnerabilityType getType() {
+        return VulnerabilityType.NO_HTTPONLY_COOKIE;
+    }
 }

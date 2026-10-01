@@ -9,17 +9,17 @@ import java.util.Map;
 /** Repackaged AWS SDK instrumentations for Amazon EMR. */
 @AutoService(InstrumenterModule.class)
 public class EmrSdkModule extends AwsSdkModule {
-  public EmrSdkModule() {
-    super("com.amazon.ws.emr.hadoop.fs.shaded.com.amazonaws", "emr-aws-sdk");
-  }
+    public EmrSdkModule() {
+        super("com.amazon.ws.emr.hadoop.fs.shaded.com.amazonaws", "emr-aws-sdk");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "emr-aws-sdk";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "emr-aws-sdk";
+    }
 
-  @Override
-  public Map<String, String> adviceShading() {
-    return singletonMap("com.amazonaws", "com.amazon.ws.emr.hadoop.fs.shaded.com.amazonaws");
-  }
+    @Override
+    public Map<String, String> adviceShading() {
+        return singletonMap("com.amazonaws", "com.amazon.ws.emr.hadoop.fs.shaded.com.amazonaws");
+    }
 }

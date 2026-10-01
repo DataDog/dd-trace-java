@@ -9,24 +9,24 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class ResultsStatusInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ResultsStatusInstrumentation() {
-    super("play");
-  }
+    public ResultsStatusInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_25_ONLY;
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_25_ONLY;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "play.api.mvc.Results$Status";
-  }
+    @Override
+    public String instrumentedType() {
+        return "play.api.mvc.Results$Status";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(named("apply"), packageName + ".ResultsStatusApplyAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(named("apply"), packageName + ".ResultsStatusApplyAdvice");
+    }
 }

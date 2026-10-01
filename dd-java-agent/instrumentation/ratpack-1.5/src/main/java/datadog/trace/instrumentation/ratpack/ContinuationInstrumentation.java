@@ -18,42 +18,42 @@ import ratpack.path.PathBinding;
 
 @AutoService(InstrumenterModule.class)
 public final class ContinuationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public ContinuationInstrumentation() {
-    super("ratpack");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "ratpack.exec.internal.Continuation";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return nameStartsWith("ratpack.exec.").and(implementsInterface(named(hierarchyMarkerType())));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("resume").and(takesArgument(0, named("ratpack.func.Block"))),
-        ContinuationInstrumentation.class.getName() + "$ResumeAdvice");
-  }
-
-  public static class ResumeAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void wrap(@Advice.Argument(value = 0, readOnly = false) Block block) {
-      block = BlockWrapper.wrapIfNeeded(block, activeSpan());
+    public ContinuationInstrumentation() {
+        super("ratpack");
     }
 
-    public void muzzleCheck(final PathBinding binding, final HostAndPort host) {
-      // This was added in 1.4.  Added here to ensure consistency with other instrumentation.
-      binding.getDescription();
-
-      // This is available in Guava 20 which was required starting in 1.5
-      host.getHost();
+    @Override
+    public String hierarchyMarkerType() {
+        return "ratpack.exec.internal.Continuation";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return nameStartsWith("ratpack.exec.").and(implementsInterface(named(hierarchyMarkerType())));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("resume").and(takesArgument(0, named("ratpack.func.Block"))),
+                ContinuationInstrumentation.class.getName() + "$ResumeAdvice");
+    }
+
+    public static class ResumeAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void wrap(@Advice.Argument(value = 0, readOnly = false) Block block) {
+            block = BlockWrapper.wrapIfNeeded(block, activeSpan());
+        }
+
+        public void muzzleCheck(final PathBinding binding, final HostAndPort host) {
+            // This was added in 1.4.  Added here to ensure consistency with other instrumentation.
+            binding.getDescription();
+
+            // This is available in Guava 20 which was required starting in 1.5
+            host.getHost();
+        }
+    }
 }

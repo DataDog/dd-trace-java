@@ -4,32 +4,32 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** What kind of CI provider is running the test session. */
 public enum Provider implements TagValue {
-  APPVEYOR,
-  AWS,
-  AZP,
-  BAZEL,
-  BITBUCKET,
-  BITRISE,
-  BUILDKITE,
-  CIRCLECI,
-  CODEFRESH,
-  GITHUBACTIONS,
-  GITLAB,
-  JENKINS,
-  TEAMCITY,
-  TRAVISCI,
-  BUDDYCI,
-  DRONE,
-  UNSUPPORTED;
+    APPVEYOR,
+    AWS,
+    AZP,
+    BAZEL,
+    BITBUCKET,
+    BITRISE,
+    BUILDKITE,
+    CIRCLECI,
+    CODEFRESH,
+    GITHUBACTIONS,
+    GITLAB,
+    JENKINS,
+    TEAMCITY,
+    TRAVISCI,
+    BUDDYCI,
+    DRONE,
+    UNSUPPORTED;
 
-  private final String s;
+    private final String s;
 
-  Provider() {
-    s = "provider:" + name().toLowerCase();
-  }
+    Provider() {
+        s = "provider:" + name().toLowerCase();
+    }
 
-  @Override
-  public String asString() {
-    return s;
-  }
+    @Override
+    public String asString() {
+        return s;
+    }
 }

@@ -5,10 +5,10 @@ import datadog.context.propagation.CarrierSetter;
 
 public final class SofaRpcInjectAdapter implements CarrierSetter<SofaRequest> {
 
-  public static final SofaRpcInjectAdapter SETTER = new SofaRpcInjectAdapter();
+    public static final SofaRpcInjectAdapter SETTER = new SofaRpcInjectAdapter();
 
-  @Override
-  public void set(SofaRequest carrier, String key, String value) {
-    carrier.addRequestProp(key, value);
-  }
+    @Override
+    public void set(SofaRequest carrier, String key, String value) {
+        carrier.addRequestProp(key, value);
+    }
 }

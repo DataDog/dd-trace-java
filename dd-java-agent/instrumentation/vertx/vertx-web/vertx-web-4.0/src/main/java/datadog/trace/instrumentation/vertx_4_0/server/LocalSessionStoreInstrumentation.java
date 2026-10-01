@@ -19,52 +19,52 @@ import net.bytebuddy.asm.Advice;
 /** Keeps session-store maintenance timers from retaining an unrelated request's continuation. */
 @AutoService(InstrumenterModule.class)
 public final class LocalSessionStoreInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public LocalSessionStoreInstrumentation() {
-    super("vertx");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.ext.web.sstore.impl.LocalSessionStoreImpl";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    // Vert.x 3.9 has the same class and timer methods.
-    return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // Initialization also starts the PRNG refresh timer; neither timer belongs to a request.
-    transformer.applyAdvice(
-        named("init")
-            .and(isPublic())
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("io.vertx.core.Vertx")))
-            .and(takesArgument(1, named("io.vertx.core.json.JsonObject"))),
-        getClass().getName() + "$DisablePropagationAdvice");
-    transformer.applyAdvice(
-        named("setTimer").and(isPrivate()).and(takesNoArguments()).and(returns(void.class)),
-        getClass().getName() + "$DisablePropagationAdvice");
-  }
-
-  public static final class DisablePropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before() {
-      if (isAsyncPropagationEnabled()) {
-        setAsyncPropagationEnabled(false);
-        return true;
-      }
-      return false;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public LocalSessionStoreInstrumentation() {
+        super("vertx");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter boolean wasEnabled) {
-      if (wasEnabled) {
-        setAsyncPropagationEnabled(true);
-      }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.ext.web.sstore.impl.LocalSessionStoreImpl";
     }
-  }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        // Vert.x 3.9 has the same class and timer methods.
+        return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // Initialization also starts the PRNG refresh timer; neither timer belongs to a request.
+        transformer.applyAdvice(
+                named("init")
+                        .and(isPublic())
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("io.vertx.core.Vertx")))
+                        .and(takesArgument(1, named("io.vertx.core.json.JsonObject"))),
+                getClass().getName() + "$DisablePropagationAdvice");
+        transformer.applyAdvice(
+                named("setTimer").and(isPrivate()).and(takesNoArguments()).and(returns(void.class)),
+                getClass().getName() + "$DisablePropagationAdvice");
+    }
+
+    public static final class DisablePropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static boolean before() {
+            if (isAsyncPropagationEnabled()) {
+                setAsyncPropagationEnabled(false);
+                return true;
+            }
+            return false;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter boolean wasEnabled) {
+            if (wasEnabled) {
+                setAsyncPropagationEnabled(true);
+            }
+        }
+    }
 }

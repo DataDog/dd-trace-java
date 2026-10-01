@@ -7,20 +7,20 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
 public class SpanFinishListener implements FutureListener<Object> {
-  private final ContextContinuation continuation;
+    private final ContextContinuation continuation;
 
-  public SpanFinishListener(final ContextContinuation continuation) {
-    this.continuation = continuation;
-  }
-
-  @Override
-  public void operationComplete(Future<Object> future) throws Exception {
-    try (final ContextScope scope = continuation.resume()) {
-      if (!future.isSuccess()) {
-        RedissonClientDecorator.DECORATE.onError(scope, future.cause());
-      }
-      RedissonClientDecorator.DECORATE.beforeFinish(scope);
-      AgentSpan.fromContext(scope.context()).finish();
+    public SpanFinishListener(final ContextContinuation continuation) {
+        this.continuation = continuation;
     }
-  }
+
+    @Override
+    public void operationComplete(Future<Object> future) throws Exception {
+        try (final ContextScope scope = continuation.resume()) {
+            if (!future.isSuccess()) {
+                RedissonClientDecorator.DECORATE.onError(scope, future.cause());
+            }
+            RedissonClientDecorator.DECORATE.beforeFinish(scope);
+            AgentSpan.fromContext(scope.context()).finish();
+        }
+    }
 }

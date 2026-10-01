@@ -2,11 +2,11 @@ package datadog.trace.api.civisibility.telemetry;
 
 public interface TagValue {
 
-  String asString();
+    String asString();
 
-  /** see {@link Enum#getDeclaringClass()} */
-  Class<? extends TagValue> getDeclaringClass();
+    /** see {@link Enum#getDeclaringClass()} */
+    Class<? extends TagValue> getDeclaringClass();
 
-  /** see {@link Enum#ordinal()} */
-  int ordinal();
+    /** see {@link Enum#ordinal()} */
+    int ordinal();
 }

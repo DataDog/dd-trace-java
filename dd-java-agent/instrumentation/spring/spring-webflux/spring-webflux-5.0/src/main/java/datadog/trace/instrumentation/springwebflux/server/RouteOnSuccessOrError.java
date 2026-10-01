@@ -16,70 +16,64 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 
 public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
 
-  private static final Pattern SPECIAL_CHARACTERS_REGEX = Pattern.compile("[\\(\\)&|]");
-  private static final Pattern SPACES_REGEX = Pattern.compile("[ \\t]+");
-  private static final Pattern ROUTER_FUNCTION_REGEX = Pattern.compile("\\s*->.*$");
-  private static final Pattern METHOD_REGEX =
-      Pattern.compile("^(GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH) ");
-  private static final Function<String, String> PATH_EXTRACTOR =
-      arg ->
-          METHOD_REGEX
-              .matcher(
-                  SPACES_REGEX
-                      .matcher(SPECIAL_CHARACTERS_REGEX.matcher(arg).replaceAll(""))
-                      .replaceAll(" ")
-                      .trim())
-              .replaceAll("");
+    private static final Pattern SPECIAL_CHARACTERS_REGEX = Pattern.compile("[\\(\\)&|]");
+    private static final Pattern SPACES_REGEX = Pattern.compile("[ \\t]+");
+    private static final Pattern ROUTER_FUNCTION_REGEX = Pattern.compile("\\s*->.*$");
+    private static final Pattern METHOD_REGEX =
+            Pattern.compile("^(GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH) ");
+    private static final Function<String, String> PATH_EXTRACTOR = arg -> METHOD_REGEX
+            .matcher(SPACES_REGEX
+                    .matcher(SPECIAL_CHARACTERS_REGEX.matcher(arg).replaceAll(""))
+                    .replaceAll(" ")
+                    .trim())
+            .replaceAll("");
 
-  private static final DDCache<String, String> PARSED_ROUTE_CACHE = DDCaches.newFixedSizeCache(64);
+    private static final DDCache<String, String> PARSED_ROUTE_CACHE = DDCaches.newFixedSizeCache(64);
 
-  private final RouterFunction routerFunction;
-  private final ServerRequest serverRequest;
+    private final RouterFunction routerFunction;
+    private final ServerRequest serverRequest;
 
-  public RouteOnSuccessOrError(
-      final RouterFunction routerFunction, final ServerRequest serverRequest) {
-    this.routerFunction = routerFunction;
-    this.serverRequest = serverRequest;
-  }
-
-  private String parsePredicateString() {
-    final String routerFunctionString = routerFunction.toString();
-    // Router functions containing lambda predicates should not end up in span tags since they are
-    // confusing
-    if (routerFunctionString.startsWith(
-        "org.springframework.web.reactive.function.server.RequestPredicates$$Lambda")) {
-      return null;
-    } else {
-      return ROUTER_FUNCTION_REGEX.matcher(routerFunctionString).replaceFirst("");
+    public RouteOnSuccessOrError(final RouterFunction routerFunction, final ServerRequest serverRequest) {
+        this.routerFunction = routerFunction;
+        this.serverRequest = serverRequest;
     }
-  }
 
-  @Nonnull
-  private String parseRoute(@Nonnull String routerString) {
-    return PARSED_ROUTE_CACHE.computeIfAbsent(routerString, PATH_EXTRACTOR);
-  }
-
-  @Override
-  public void accept(HandlerFunction<?> handlerFunction) {
-    if (handlerFunction == null) {
-      // in this case the route is added by instrumenting the method annotation. we stop here.
-      return;
-    }
-    final String predicateString = parsePredicateString();
-    if (predicateString != null) {
-      final AgentSpan span = (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
-      if (span != null) {
-        span.setTag("request.predicate", predicateString);
-      }
-      final AgentSpan parentSpan =
-          (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
-      if (parentSpan != null) {
-        final HttpMethod httpMethod = serverRequest.method();
-        if (httpMethod != null) {
-          HTTP_RESOURCE_DECORATOR.withRoute(
-              parentSpan, httpMethod.name(), parseRoute(predicateString));
+    private String parsePredicateString() {
+        final String routerFunctionString = routerFunction.toString();
+        // Router functions containing lambda predicates should not end up in span tags since they are
+        // confusing
+        if (routerFunctionString.startsWith(
+                "org.springframework.web.reactive.function.server.RequestPredicates$$Lambda")) {
+            return null;
+        } else {
+            return ROUTER_FUNCTION_REGEX.matcher(routerFunctionString).replaceFirst("");
         }
-      }
     }
-  }
+
+    @Nonnull
+    private String parseRoute(@Nonnull String routerString) {
+        return PARSED_ROUTE_CACHE.computeIfAbsent(routerString, PATH_EXTRACTOR);
+    }
+
+    @Override
+    public void accept(HandlerFunction<?> handlerFunction) {
+        if (handlerFunction == null) {
+            // in this case the route is added by instrumenting the method annotation. we stop here.
+            return;
+        }
+        final String predicateString = parsePredicateString();
+        if (predicateString != null) {
+            final AgentSpan span = (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
+            if (span != null) {
+                span.setTag("request.predicate", predicateString);
+            }
+            final AgentSpan parentSpan = (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
+            if (parentSpan != null) {
+                final HttpMethod httpMethod = serverRequest.method();
+                if (httpMethod != null) {
+                    HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, httpMethod.name(), parseRoute(predicateString));
+                }
+            }
+        }
+    }
 }

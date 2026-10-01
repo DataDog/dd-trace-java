@@ -27,49 +27,49 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ConsumerTaskInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public ConsumerTaskInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, "consumer-task");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "java.util.concurrent.SubmissionPublisher$ConsumerTask";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    // execution will be instrumented as ForkJoinTask
-    transformer.applyAdvice(named("run"), getClass().getName() + "$Run");
-  }
-
-  public static class Construct {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void construct(@Advice.This ForkJoinTask<?> task) {
-      Context context = currentContext();
-      if (shouldCapture(context)) {
-        State state = State.FACTORY.create();
-        state.captureAndSetContinuation(context);
-        InstrumentationContext.get(ForkJoinTask.class, State.class).put(task, state);
-      }
-    }
-  }
-
-  public static final class Run {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
-      return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public ConsumerTaskInstrumentation() {
+        super(EXECUTOR_INSTRUMENTATION_NAME, "consumer-task");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public String instrumentedType() {
+        return "java.util.concurrent.SubmissionPublisher$ConsumerTask";
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+        // execution will be instrumented as ForkJoinTask
+        transformer.applyAdvice(named("run"), getClass().getName() + "$Run");
+    }
+
+    public static class Construct {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void construct(@Advice.This ForkJoinTask<?> task) {
+            Context context = currentContext();
+            if (shouldCapture(context)) {
+                State state = State.FACTORY.create();
+                state.captureAndSetContinuation(context);
+                InstrumentationContext.get(ForkJoinTask.class, State.class).put(task, state);
+            }
+        }
+    }
+
+    public static final class Run {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
+            return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
 }

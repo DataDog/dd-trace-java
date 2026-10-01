@@ -15,45 +15,43 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public HttpHeadersInstrumentation() {
-    super("java-http-client");
-  }
+    public HttpHeadersInstrumentation() {
+        super("java-http-client");
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("java.net.http.HttpRequest");
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return hasClassNamed("java.net.http.HttpRequest");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return JavaVirtualMachine.isJavaVersionAtLeast(11) && super.isEnabled();
-  }
+    @Override
+    public boolean isEnabled() {
+        return JavaVirtualMachine.isJavaVersionAtLeast(11) && super.isEnabled();
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return null;
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return null;
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return nameStartsWith("java.net.")
-        .or(nameStartsWith("jdk.internal."))
-        .and(extendsClass(named("java.net.http.HttpRequest")));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return nameStartsWith("java.net.")
+                .or(nameStartsWith("jdk.internal."))
+                .and(extendsClass(named("java.net.http.HttpRequest")));
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpHeadersInjectAdapter", packageName + ".JavaNetClientDecorator",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".HttpHeadersInjectAdapter", packageName + ".JavaNetClientDecorator",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(isMethod().and(named("headers")), packageName + ".HeadersAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(isMethod().and(named("headers")), packageName + ".HeadersAdvice");
+    }
 }

@@ -11,17 +11,17 @@ import org.springframework.web.filter.GenericFilterBean;
 
 public class JwtAuthenticationFilter extends GenericFilterBean {
 
-  @Override
-  public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
-      throws IOException, ServletException {
-    String authorization = ((HttpServletRequest) request).getHeader("Authorization");
-    if (authorization != null && !authorization.startsWith("Basic ")) {
-      if (authorization.contains("Bearer ")) {
-        authorization = authorization.replace("Bearer ", "").trim();
-      }
-      JwtAuthentication authentication = new JwtAuthentication(authorization);
-      SecurityContextHolder.getContext().setAuthentication(authentication);
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
+            throws IOException, ServletException {
+        String authorization = ((HttpServletRequest) request).getHeader("Authorization");
+        if (authorization != null && !authorization.startsWith("Basic ")) {
+            if (authorization.contains("Bearer ")) {
+                authorization = authorization.replace("Bearer ", "").trim();
+            }
+            JwtAuthentication authentication = new JwtAuthentication(authorization);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
+        filterChain.doFilter(request, response);
     }
-    filterChain.doFilter(request, response);
-  }
 }

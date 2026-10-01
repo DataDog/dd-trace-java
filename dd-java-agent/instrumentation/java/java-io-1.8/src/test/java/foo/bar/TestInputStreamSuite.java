@@ -5,7 +5,7 @@ import java.io.PushbackInputStream;
 
 public class TestInputStreamSuite {
 
-  public static InputStream pushbackInputStreamFromIS(final InputStream is) {
-    return new PushbackInputStream(is);
-  }
+    public static InputStream pushbackInputStreamFromIS(final InputStream is) {
+        return new PushbackInputStream(is);
+    }
 }

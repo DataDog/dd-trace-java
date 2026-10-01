@@ -6,39 +6,39 @@ import org.glassfish.grizzly.http.HttpRequestPacket;
 
 final class HTTPRequestPacketURIDataAdapter extends URIRawDataAdapter {
 
-  private final HttpRequestPacket packet;
+    private final HttpRequestPacket packet;
 
-  HTTPRequestPacketURIDataAdapter(HttpRequestPacket packet) {
-    this.packet = packet;
-  }
+    HTTPRequestPacketURIDataAdapter(HttpRequestPacket packet) {
+        this.packet = packet;
+    }
 
-  @Override
-  public String scheme() {
-    return packet.isSecure() ? "https" : "http";
-  }
+    @Override
+    public String scheme() {
+        return packet.isSecure() ? "https" : "http";
+    }
 
-  @Override
-  public String host() {
-    return packet.serverName().toString(StandardCharsets.UTF_8);
-  }
+    @Override
+    public String host() {
+        return packet.serverName().toString(StandardCharsets.UTF_8);
+    }
 
-  @Override
-  public int port() {
-    return packet.getServerPort();
-  }
+    @Override
+    public int port() {
+        return packet.getServerPort();
+    }
 
-  @Override
-  protected String innerRawPath() {
-    return packet.getRequestURI();
-  }
+    @Override
+    protected String innerRawPath() {
+        return packet.getRequestURI();
+    }
 
-  @Override
-  public String fragment() {
-    return null;
-  }
+    @Override
+    public String fragment() {
+        return null;
+    }
 
-  @Override
-  protected String innerRawQuery() {
-    return packet.getQueryString();
-  }
+    @Override
+    protected String innerRawQuery() {
+        return packet.getQueryString();
+    }
 }

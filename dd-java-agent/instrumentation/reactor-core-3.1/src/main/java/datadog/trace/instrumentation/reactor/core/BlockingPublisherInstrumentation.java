@@ -19,37 +19,36 @@ import org.reactivestreams.Publisher;
  * methods are called. This because the mechanism they handle this differs a bit of the standard
  * {@link Publisher#subscribe}
  */
-public class BlockingPublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+public class BlockingPublisherInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "reactor.core.publisher.Mono";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
-  }
-
-  public static class BlockingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(@Advice.This final Publisher self) {
-      return ReactorContextBridge.activateForBlocking(
-          self, InstrumentationContext.get(Publisher.class, HandoffContext.class));
+    @Override
+    public String hierarchyMarkerType() {
+        return "reactor.core.publisher.Mono";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
+    }
+
+    public static class BlockingAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(@Advice.This final Publisher self) {
+            return ReactorContextBridge.activateForBlocking(
+                    self, InstrumentationContext.get(Publisher.class, HandoffContext.class));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
 }

@@ -13,19 +13,19 @@ import ratpack.server.internal.RequestBody;
  */
 @AutoService(InstrumenterModule.class)
 public class RatpackRequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RatpackRequestBodyInstrumentation() {
-    super("ratpack-request-body");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RatpackRequestBodyInstrumentation() {
+        super("ratpack-request-body");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "ratpack.server.internal.RequestBody";
-  }
+    @Override
+    public String instrumentedType() {
+        return "ratpack.server.internal.RequestBody";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("readStream").and(takesArguments(0)), packageName + ".RatpackBodyReadStreamAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("readStream").and(takesArguments(0)), packageName + ".RatpackBodyReadStreamAdvice");
+    }
 }

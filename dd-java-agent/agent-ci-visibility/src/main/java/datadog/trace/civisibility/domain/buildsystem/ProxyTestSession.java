@@ -26,69 +26,69 @@ import javax.annotation.Nullable;
  */
 public class ProxyTestSession implements TestFrameworkSession {
 
-  private final AgentSpanContext parentProcessModuleContext;
-  private final Config config;
-  private final CiVisibilityMetricCollector metricCollector;
-  private final TestDecorator testDecorator;
-  private final SourcePathResolver sourcePathResolver;
-  private final Codeowners codeowners;
-  private final LinesResolver linesResolver;
-  private final CoverageStore.Factory coverageStoreFactory;
-  private final ChildProcessCoverageReporter childProcessCoverageReporter;
-  private final SignalClient.Factory signalClientFactory;
-  private final ExecutionStrategy executionStrategy;
-  private final Collection<LibraryCapability> capabilities;
+    private final AgentSpanContext parentProcessModuleContext;
+    private final Config config;
+    private final CiVisibilityMetricCollector metricCollector;
+    private final TestDecorator testDecorator;
+    private final SourcePathResolver sourcePathResolver;
+    private final Codeowners codeowners;
+    private final LinesResolver linesResolver;
+    private final CoverageStore.Factory coverageStoreFactory;
+    private final ChildProcessCoverageReporter childProcessCoverageReporter;
+    private final SignalClient.Factory signalClientFactory;
+    private final ExecutionStrategy executionStrategy;
+    private final Collection<LibraryCapability> capabilities;
 
-  public ProxyTestSession(
-      AgentSpanContext parentProcessModuleContext,
-      Config config,
-      CiVisibilityMetricCollector metricCollector,
-      TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver,
-      Codeowners codeowners,
-      LinesResolver linesResolver,
-      CoverageStore.Factory coverageStoreFactory,
-      ChildProcessCoverageReporter childProcessCoverageReporter,
-      SignalClient.Factory signalClientFactory,
-      ExecutionStrategy executionStrategy,
-      @Nonnull Collection<LibraryCapability> capabilities) {
-    this.parentProcessModuleContext = parentProcessModuleContext;
-    this.config = config;
-    this.metricCollector = metricCollector;
-    this.testDecorator = testDecorator;
-    this.sourcePathResolver = sourcePathResolver;
-    this.codeowners = codeowners;
-    this.linesResolver = linesResolver;
-    this.coverageStoreFactory = coverageStoreFactory;
-    this.childProcessCoverageReporter = childProcessCoverageReporter;
-    this.signalClientFactory = signalClientFactory;
-    this.executionStrategy = executionStrategy;
-    this.capabilities = capabilities;
-  }
+    public ProxyTestSession(
+            AgentSpanContext parentProcessModuleContext,
+            Config config,
+            CiVisibilityMetricCollector metricCollector,
+            TestDecorator testDecorator,
+            SourcePathResolver sourcePathResolver,
+            Codeowners codeowners,
+            LinesResolver linesResolver,
+            CoverageStore.Factory coverageStoreFactory,
+            ChildProcessCoverageReporter childProcessCoverageReporter,
+            SignalClient.Factory signalClientFactory,
+            ExecutionStrategy executionStrategy,
+            @Nonnull Collection<LibraryCapability> capabilities) {
+        this.parentProcessModuleContext = parentProcessModuleContext;
+        this.config = config;
+        this.metricCollector = metricCollector;
+        this.testDecorator = testDecorator;
+        this.sourcePathResolver = sourcePathResolver;
+        this.codeowners = codeowners;
+        this.linesResolver = linesResolver;
+        this.coverageStoreFactory = coverageStoreFactory;
+        this.childProcessCoverageReporter = childProcessCoverageReporter;
+        this.signalClientFactory = signalClientFactory;
+        this.executionStrategy = executionStrategy;
+        this.capabilities = capabilities;
+    }
 
-  @Override
-  public void end(Long startTime) {
-    // flushing written traces synchronously:
-    // as soon as all tests have been executed,
-    // the process can be killed by the build system
-    AgentTracer.get().flush();
-  }
+    @Override
+    public void end(Long startTime) {
+        // flushing written traces synchronously:
+        // as soon as all tests have been executed,
+        // the process can be killed by the build system
+        AgentTracer.get().flush();
+    }
 
-  @Override
-  public TestFrameworkModule testModuleStart(String moduleName, @Nullable Long startTime) {
-    return new ProxyTestModule(
-        parentProcessModuleContext,
-        moduleName,
-        executionStrategy,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        coverageStoreFactory,
-        childProcessCoverageReporter,
-        signalClientFactory,
-        capabilities);
-  }
+    @Override
+    public TestFrameworkModule testModuleStart(String moduleName, @Nullable Long startTime) {
+        return new ProxyTestModule(
+                parentProcessModuleContext,
+                moduleName,
+                executionStrategy,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                coverageStoreFactory,
+                childProcessCoverageReporter,
+                signalClientFactory,
+                capabilities);
+    }
 }

@@ -9,33 +9,33 @@ import org.junit.jupiter.api.Test;
 
 class EmrUtilsTest {
 
-  private String originalUserDir;
+    private String originalUserDir;
 
-  @BeforeEach
-  void saveUserDir() {
-    originalUserDir = System.getProperty("user.dir");
-  }
+    @BeforeEach
+    void saveUserDir() {
+        originalUserDir = System.getProperty("user.dir");
+    }
 
-  @AfterEach
-  void restoreUserDir() {
-    System.setProperty("user.dir", originalUserDir);
-  }
+    @AfterEach
+    void restoreUserDir() {
+        System.setProperty("user.dir", originalUserDir);
+    }
 
-  @Test
-  void returnsStepIdWhenWorkdirMatchesEmrPattern() {
-    System.setProperty("user.dir", "/mnt/var/lib/hadoop/steps/s-07767992IY7VC5NVV854");
-    assertEquals("s-07767992IY7VC5NVV854", EmrUtils.getEmrStepId());
-  }
+    @Test
+    void returnsStepIdWhenWorkdirMatchesEmrPattern() {
+        System.setProperty("user.dir", "/mnt/var/lib/hadoop/steps/s-07767992IY7VC5NVV854");
+        assertEquals("s-07767992IY7VC5NVV854", EmrUtils.getEmrStepId());
+    }
 
-  @Test
-  void returnsNullWhenWorkdirDoesNotMatchEmrPattern() {
-    System.setProperty("user.dir", "/home/hadoop");
-    assertNull(EmrUtils.getEmrStepId());
-  }
+    @Test
+    void returnsNullWhenWorkdirDoesNotMatchEmrPattern() {
+        System.setProperty("user.dir", "/home/hadoop");
+        assertNull(EmrUtils.getEmrStepId());
+    }
 
-  @Test
-  void returnsNullForApplicationIdWorkdir() {
-    System.setProperty("user.dir", "/home/hadoop/application_1234567890_0001");
-    assertNull(EmrUtils.getEmrStepId());
-  }
+    @Test
+    void returnsNullForApplicationIdWorkdir() {
+        System.setProperty("user.dir", "/home/hadoop/application_1234567890_0001");
+        assertNull(EmrUtils.getEmrStepId());
+    }
 }

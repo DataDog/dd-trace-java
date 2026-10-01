@@ -23,135 +23,129 @@ import org.slf4j.LoggerFactory;
 
 public class JettyOnCommitBlockingHelper {
 
-  private static final Logger log = LoggerFactory.getLogger(JettyOnCommitBlockingHelper.class);
-  private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
+    private static final Logger log = LoggerFactory.getLogger(JettyOnCommitBlockingHelper.class);
+    private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
 
-  public static boolean block(
-      HttpChannel channel,
-      HttpTransport transport,
-      Flow.Action.RequestBlockingAction rba,
-      Callback cb) {
-    if (!CloseCallback.isInitialized()) {
-      return false;
-    }
-
-    Request request = channel.getRequest();
-    Response response = channel.getResponse();
-    request.setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
-
-    try {
-      int statusCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
-
-      String acceptHeader = request.getHeader("Accept");
-      HttpFields fields = new HttpFields();
-      for (Map.Entry<String, String> e : rba.getExtraHeaders().entrySet()) {
-        fields.put(e.getKey(), e.getValue());
-      }
-
-      BlockingContentType bct = rba.getBlockingContentType();
-      MetaData.Response info;
-      Callback closeCb = new CloseCallback(cb, channel);
-      if (bct != BlockingContentType.NONE && !request.isHead()) {
-        BlockingActionHelper.TemplateType type =
-            BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-        fields.put("Content-type", BlockingActionHelper.getContentType(type));
-        byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
-        fields.put("Content-length", Integer.toString(template.length));
-
-        info = new MetaData.Response(request.getHttpVersion(), statusCode, fields, template.length);
-        if (!commit(channel, info)) {
-          return false;
+    public static boolean block(
+            HttpChannel channel, HttpTransport transport, Flow.Action.RequestBlockingAction rba, Callback cb) {
+        if (!CloseCallback.isInitialized()) {
+            return false;
         }
 
-        // we need to update the upper layers too
-        // so that the correct status code/headers get reported correctly on the span`
-        response.reset();
-        response.setStatus(statusCode);
-        response.setContentType(BlockingActionHelper.getContentType(type));
-        response.setContentLength(template.length);
+        Request request = channel.getRequest();
+        Response response = channel.getResponse();
+        request.setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
 
-        log.debug("Sending blocking response (non-empty body)");
-        transport.send(info, false, ByteBuffer.wrap(template), true, closeCb);
-      } else {
-        info = new MetaData.Response(request.getHttpVersion(), statusCode, fields);
+        try {
+            int statusCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
 
-        response.reset();
-        response.setStatus(statusCode);
+            String acceptHeader = request.getHeader("Accept");
+            HttpFields fields = new HttpFields();
+            for (Map.Entry<String, String> e : rba.getExtraHeaders().entrySet()) {
+                fields.put(e.getKey(), e.getValue());
+            }
 
-        transport.send(info, request.isHead(), EMPTY_BB, true, closeCb);
-      }
-    } catch (Exception x) {
-      log.warn("Error committing blocking response", x);
-      return false;
-    }
-    return true;
-  }
+            BlockingContentType bct = rba.getBlockingContentType();
+            MetaData.Response info;
+            Callback closeCb = new CloseCallback(cb, channel);
+            if (bct != BlockingContentType.NONE && !request.isHead()) {
+                BlockingActionHelper.TemplateType type = BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+                fields.put("Content-type", BlockingActionHelper.getContentType(type));
+                byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
+                fields.put("Content-length", Integer.toString(template.length));
 
-  private static boolean commit(HttpChannel channel, MetaData.Response info) {
-    try {
-      Method commit = HttpChannel.class.getDeclaredMethod("commit", MetaData.Response.class);
-      commit.setAccessible(true);
-      commit.invoke(channel, info);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-      log.warn("Failed calling commit(MetaData.Response) when writing blocking response", e);
-      return false;
-    }
-    return true;
-  }
+                info = new MetaData.Response(request.getHttpVersion(), statusCode, fields, template.length);
+                if (!commit(channel, info)) {
+                    return false;
+                }
 
-  public static final class CloseCallback implements Callback {
-    private static final Logger log = LoggerFactory.getLogger(CloseCallback.class);
-    private static final MethodHandle CLOSED;
-    private final Callback delegate;
-    private final HttpChannel channel;
+                // we need to update the upper layers too
+                // so that the correct status code/headers get reported correctly on the span`
+                response.reset();
+                response.setStatus(statusCode);
+                response.setContentType(BlockingActionHelper.getContentType(type));
+                response.setContentLength(template.length);
 
-    static {
-      MethodHandle mh = null;
-      try {
-        Method closed = HttpOutput.class.getDeclaredMethod("closed");
-        closed.setAccessible(true);
-        mh = MethodHandles.lookup().unreflect(closed);
-      } catch (NoSuchMethodException | IllegalAccessException e) {
-        log.warn(
-            "Could not find HttpOutput#closed(). " + "Blocking for responses will not be available",
-            e);
-      }
-      CLOSED = mh;
+                log.debug("Sending blocking response (non-empty body)");
+                transport.send(info, false, ByteBuffer.wrap(template), true, closeCb);
+            } else {
+                info = new MetaData.Response(request.getHttpVersion(), statusCode, fields);
+
+                response.reset();
+                response.setStatus(statusCode);
+
+                transport.send(info, request.isHead(), EMPTY_BB, true, closeCb);
+            }
+        } catch (Exception x) {
+            log.warn("Error committing blocking response", x);
+            return false;
+        }
+        return true;
     }
 
-    public static boolean isInitialized() {
-      return CLOSED != null;
+    private static boolean commit(HttpChannel channel, MetaData.Response info) {
+        try {
+            Method commit = HttpChannel.class.getDeclaredMethod("commit", MetaData.Response.class);
+            commit.setAccessible(true);
+            commit.invoke(channel, info);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            log.warn("Failed calling commit(MetaData.Response) when writing blocking response", e);
+            return false;
+        }
+        return true;
     }
 
-    public CloseCallback(Callback delegate, HttpChannel channel) {
-      this.delegate = delegate;
-      this.channel = channel;
-    }
+    public static final class CloseCallback implements Callback {
+        private static final Logger log = LoggerFactory.getLogger(CloseCallback.class);
+        private static final MethodHandle CLOSED;
+        private final Callback delegate;
+        private final HttpChannel channel;
 
-    private void close() {
-      closed(channel.getResponse().getHttpOutput());
-      channel.getEndPoint().close();
-    }
+        static {
+            MethodHandle mh = null;
+            try {
+                Method closed = HttpOutput.class.getDeclaredMethod("closed");
+                closed.setAccessible(true);
+                mh = MethodHandles.lookup().unreflect(closed);
+            } catch (NoSuchMethodException | IllegalAccessException e) {
+                log.warn("Could not find HttpOutput#closed(). " + "Blocking for responses will not be available", e);
+            }
+            CLOSED = mh;
+        }
 
-    private void closed(HttpOutput httpOutput) {
-      try {
-        CLOSED.invoke(httpOutput);
-      } catch (Throwable e) {
-        log.debug("Error invoked closed()", e);
-      }
-    }
+        public static boolean isInitialized() {
+            return CLOSED != null;
+        }
 
-    @Override
-    public void succeeded() {
-      close();
-      delegate.succeeded();
-    }
+        public CloseCallback(Callback delegate, HttpChannel channel) {
+            this.delegate = delegate;
+            this.channel = channel;
+        }
 
-    @Override
-    public void failed(final Throwable x) {
-      log.debug("Exception sending blocking response", x);
-      close();
-      delegate.failed(x);
+        private void close() {
+            closed(channel.getResponse().getHttpOutput());
+            channel.getEndPoint().close();
+        }
+
+        private void closed(HttpOutput httpOutput) {
+            try {
+                CLOSED.invoke(httpOutput);
+            } catch (Throwable e) {
+                log.debug("Error invoked closed()", e);
+            }
+        }
+
+        @Override
+        public void succeeded() {
+            close();
+            delegate.succeeded();
+        }
+
+        @Override
+        public void failed(final Throwable x) {
+            log.debug("Exception sending blocking response", x);
+            close();
+            delegate.failed(x);
+        }
     }
-  }
 }

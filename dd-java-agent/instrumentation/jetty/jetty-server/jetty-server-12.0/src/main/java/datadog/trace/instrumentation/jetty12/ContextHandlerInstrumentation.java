@@ -13,28 +13,26 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class ContextHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public ContextHandlerInstrumentation() {
-    super("jetty");
-  }
+    public ContextHandlerInstrumentation() {
+        super("jetty");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.eclipse.jetty.server.handler.ContextHandler";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.eclipse.jetty.server.handler.ContextHandler";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("handle")
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.eclipse.jetty.server.Request"))),
-        packageName + ".SetContextPathAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("handle").and(takesArguments(3)).and(takesArgument(0, named("org.eclipse.jetty.server.Request"))),
+                packageName + ".SetContextPathAdvice");
+    }
 }

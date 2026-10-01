@@ -19,40 +19,38 @@ import org.slf4j.LoggerFactory;
  */
 public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
-  private static final Logger log = LoggerFactory.getLogger(AsmStandaloneSampler.class);
-  private static final int RATE_IN_MILLISECONDS = 60000; // 1 minute
+    private static final Logger log = LoggerFactory.getLogger(AsmStandaloneSampler.class);
+    private static final int RATE_IN_MILLISECONDS = 60000; // 1 minute
 
-  private final AtomicLong lastSampleTime;
-  private final Clock clock;
+    private final AtomicLong lastSampleTime;
+    private final Clock clock;
 
-  public AsmStandaloneSampler(final Clock clock) {
-    this.clock = clock;
-    this.lastSampleTime = new AtomicLong(clock.millis() - RATE_IN_MILLISECONDS);
-  }
-
-  @Override
-  public <T extends CoreSpan<T>> boolean sample(final T span) {
-    // Priority sampling sends all traces to the core agent, including traces marked dropped.
-    // This allows the core agent to collect stats on all traces.
-    return true;
-  }
-
-  @Override
-  public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
-
-    if (shouldSample()) {
-      log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
-      span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
-    } else {
-      log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
-      span.setSamplingPriority(SAMPLER_DROP, SamplingMechanism.APPSEC);
+    public AsmStandaloneSampler(final Clock clock) {
+        this.clock = clock;
+        this.lastSampleTime = new AtomicLong(clock.millis() - RATE_IN_MILLISECONDS);
     }
-  }
 
-  private boolean shouldSample() {
-    long now = clock.millis();
-    return lastSampleTime.updateAndGet(
-            lastTime -> now - lastTime >= RATE_IN_MILLISECONDS ? now : lastTime)
-        == now;
-  }
+    @Override
+    public <T extends CoreSpan<T>> boolean sample(final T span) {
+        // Priority sampling sends all traces to the core agent, including traces marked dropped.
+        // This allows the core agent to collect stats on all traces.
+        return true;
+    }
+
+    @Override
+    public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
+
+        if (shouldSample()) {
+            log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
+            span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
+        } else {
+            log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
+            span.setSamplingPriority(SAMPLER_DROP, SamplingMechanism.APPSEC);
+        }
+    }
+
+    private boolean shouldSample() {
+        long now = clock.millis();
+        return lastSampleTime.updateAndGet(lastTime -> now - lastTime >= RATE_IN_MILLISECONDS ? now : lastTime) == now;
+    }
 }

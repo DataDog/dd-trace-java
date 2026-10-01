@@ -27,75 +27,72 @@ import io.vertx.redis.client.impl.RequestImpl;
 import net.bytebuddy.asm.Advice;
 
 public class RedisSendAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope beforeSend(
-      @Advice.Argument(value = 0, readOnly = false) Request request,
-      @Advice.Argument(value = 1, readOnly = false) Handler<AsyncResult<Response>> handler)
-      throws Throwable {
-    // If we had already wrapped the innermost handler in the RedisAPI call, then we should
-    // not wrap it again here. See comment in RedisAPICallAdvice
-    boolean nested = CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope beforeSend(
+            @Advice.Argument(value = 0, readOnly = false) Request request,
+            @Advice.Argument(value = 1, readOnly = false) Handler<AsyncResult<Response>> handler)
+            throws Throwable {
+        // If we had already wrapped the innermost handler in the RedisAPI call, then we should
+        // not wrap it again here. See comment in RedisAPICallAdvice
+        boolean nested = CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0;
 
-    if (null == handler || handler instanceof ResponseHandlerWrapper) {
-      return null;
+        if (null == handler || handler instanceof ResponseHandlerWrapper) {
+            return null;
+        }
+
+        ContextStore<Request, Boolean> ctxt = InstrumentationContext.get(Request.class, Boolean.class);
+        Boolean handled = ctxt.get(request);
+        if (null != handled && handled) {
+            return null;
+        }
+        // Create a shallow copy of the Request here to make sure that reused Requests get spans
+        if (request instanceof Cloneable) {
+            // Other library code do this downcast, so we can do it as well
+            request = (Request) ((RequestImpl) request).clone();
+        }
+        ctxt.put(request, Boolean.TRUE);
+
+        // Mark the request handled even when nested, so a later async re-send of the same
+        // Request (e.g. via a pooled connection) isn't mistaken for a brand-new command.
+        if (nested) {
+            return null;
+        }
+
+        AgentSpan parentSpan = activeSpan();
+
+        if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
+            return null;
+        }
+
+        ContextContinuation parentContinuation =
+                null == parentSpan ? noopSpan().captureWithContext() : parentSpan.captureWithContext();
+        final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(
+                request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
+
+        handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
+        return activateSpan(clientSpan);
     }
 
-    ContextStore<Request, Boolean> ctxt = InstrumentationContext.get(Request.class, Boolean.class);
-    Boolean handled = ctxt.get(request);
-    if (null != handled && handled) {
-      return null;
-    }
-    // Create a shallow copy of the Request here to make sure that reused Requests get spans
-    if (request instanceof Cloneable) {
-      // Other library code do this downcast, so we can do it as well
-      request = (Request) ((RequestImpl) request).clone();
-    }
-    ctxt.put(request, Boolean.TRUE);
-
-    // Mark the request handled even when nested, so a later async re-send of the same
-    // Request (e.g. via a pooled connection) isn't mistaken for a brand-new command.
-    if (nested) {
-      return null;
-    }
-
-    AgentSpan parentSpan = activeSpan();
-
-    if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
-      return null;
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterSend(@Advice.Enter final ContextScope clientScope, @Advice.This final Object thiz) {
+        CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+        if (thiz instanceof RedisConnection) {
+            final SocketAddress socketAddress = InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
+                    .get((RedisConnection) thiz);
+            final AgentSpan span = clientScope != null ? spanFromScope(clientScope) : activeSpan();
+            // Verify the activeSpan() fallback is actually a REDIS_COMMAND span
+            if (socketAddress != null && span != null && REDIS_COMMAND.equals(span.getOperationName())) {
+                DECORATE.onConnection(span, socketAddress);
+                DECORATE.setPeerPort(span, socketAddress.port());
+            }
+        }
+        if (null != clientScope) {
+            clientScope.close();
+        }
     }
 
-    ContextContinuation parentContinuation =
-        null == parentSpan ? noopSpan().captureWithContext() : parentSpan.captureWithContext();
-    final AgentSpan clientSpan =
-        DECORATE.startAndDecorateSpan(
-            request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
-
-    handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
-    return activateSpan(clientSpan);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterSend(
-      @Advice.Enter final ContextScope clientScope, @Advice.This final Object thiz) {
-    CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
-    if (thiz instanceof RedisConnection) {
-      final SocketAddress socketAddress =
-          InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
-              .get((RedisConnection) thiz);
-      final AgentSpan span = clientScope != null ? spanFromScope(clientScope) : activeSpan();
-      // Verify the activeSpan() fallback is actually a REDIS_COMMAND span
-      if (socketAddress != null && span != null && REDIS_COMMAND.equals(span.getOperationName())) {
-        DECORATE.onConnection(span, socketAddress);
-        DECORATE.setPeerPort(span, socketAddress.port());
-      }
+    // Only apply this advice for versions that we instrument 3.9.x
+    private static void muzzleCheck() {
+        Redis.createClient(null, "somehost"); // added in 3.9.x
     }
-    if (null != clientScope) {
-      clientScope.close();
-    }
-  }
-
-  // Only apply this advice for versions that we instrument 3.9.x
-  private static void muzzleCheck() {
-    Redis.createClient(null, "somehost"); // added in 3.9.x
-  }
 }

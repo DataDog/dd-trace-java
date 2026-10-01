@@ -37,165 +37,157 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class StatementInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public StatementInstrumentation() {
-    super("jdbc");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("java.sql.Statement"));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.sql.Connection", JDBCConnectionContext.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
-        StatementInstrumentation.class.getName() + "$StatementAdvice");
-  }
-
-  public static class StatementAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(value = 0, readOnly = false) String sql,
-        @Advice.AllArguments() Object[] args,
-        @Advice.This final Statement statement) {
-      // TODO consider matching known non-wrapper implementations to avoid this check
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
-      if (callDepth > 0) {
-        return null;
-      }
-      try {
-        final Connection connection = statement.getConnection();
-        final JDBCConnectionContext connectionContext =
-            JDBCDecorator.parseConnectionContext(
-                connection,
-                InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
-        final DBInfo dbInfo = connectionContext.getDbInfo();
-        boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-        final AgentSpan span;
-        final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
-        final boolean isOracle = DECORATE.isOracle(dbInfo);
-
-        final String oracleServiceHash =
-            DECORATE.setServiceHashAction(connection, connectionContext);
-
-        if (INJECT_COMMENT && injectTraceContext) {
-          if (isSqlServer) {
-            // The span ID is pre-determined so that we can reference it when setting the context
-            final long spanID = DECORATE.setContextInfo(connection, connectionContext);
-            // we then force that pre-determined span ID for the span covering the actual query
-            span =
-                AgentTracer.get()
-                    .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
-                    .withSpanId(spanID)
-                    .start();
-          } else if (isOracle) {
-            span = startSpan("java-jdbc-statement", DATABASE_QUERY);
-            DECORATE.setAction(span, connection);
-          } else {
-            span = startSpan("java-jdbc-statement", DATABASE_QUERY);
-          }
-        } else {
-          span = startSpan("java-jdbc-statement", DATABASE_QUERY);
-        }
-
-        DECORATE.afterStart(span);
-        DECORATE.onConnection(span, connectionContext);
-        final String copy = sql;
-        if (span != null && DECORATE.shouldInjectSqlComment(dbInfo)) {
-          String traceParent = null;
-
-          if (injectTraceContext) {
-            Integer priority = span.forceSamplingDecision();
-            if (priority != null) {
-              if (!isSqlServer) {
-                traceParent = W3CTraceParent.from(span);
-              }
-              // set the dbm trace injected tag on the span
-              span.setTag(DBM_TRACE_INJECTED, true);
-            }
-          }
-          // For SQL Server and Oracle, trace context is propagated via
-          // context_info and v$session.action respectively.
-          // we should not also inject it into SQL comments to avoid duplication
-          final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
-
-          // prepend mode will prepend the SQL comment to the raw sql query
-          boolean appendComment = DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT;
-
-          // There is a bug in the SQL Server JDBC driver that prevents
-          // the generated keys from being returned when the
-          // SQL comment is prepended to the SQL query.
-          // We only append in this case to avoid the comment from being truncated.
-          // @see https://github.com/microsoft/mssql-jdbc/issues/2729
-          if (isSqlServer
-              && !appendComment
-              && args.length == 2
-              && args[1] instanceof Integer
-              && (Integer) args[1] == Statement.RETURN_GENERATED_KEYS) {
-            appendComment = true;
-          }
-
-          final String dbService;
-          if (isOracle) {
-            String oracleService = DECORATE.getDbService(dbInfo);
-            if (oracleService != null) {
-              oracleService =
-                  traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
-            }
-            dbService = oracleService;
-          } else {
-            dbService = span.getServiceName();
-          }
-          sql =
-              SQLCommenter.inject(
-                  sql,
-                  dbService,
-                  dbInfo.getType(),
-                  dbInfo.getHost(),
-                  dbInfo.getDb(),
-                  injectTraceInComment ? traceParent : null,
-                  appendComment);
-        }
-        DECORATE.onStatement(span, copy);
-        DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
-        return activateSpan(span);
-      } catch (SQLException e) {
-        // if we can't get the connection for any reason
-        return null;
-      } catch (BlockingException e) {
-        CallDepthThreadLocalMap.reset(Statement.class);
-        // re-throw blocking exceptions
-        throw e;
-      }
+    public StatementInstrumentation() {
+        super("jdbc");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
-      if (scope == null) {
-        return;
-      }
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named("java.sql.Statement"));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.sql.Connection", JDBCConnectionContext.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
+                StatementInstrumentation.class.getName() + "$StatementAdvice");
+    }
+
+    public static class StatementAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(value = 0, readOnly = false) String sql,
+                @Advice.AllArguments() Object[] args,
+                @Advice.This final Statement statement) {
+            // TODO consider matching known non-wrapper implementations to avoid this check
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+            if (callDepth > 0) {
+                return null;
+            }
+            try {
+                final Connection connection = statement.getConnection();
+                final JDBCConnectionContext connectionContext = JDBCDecorator.parseConnectionContext(
+                        connection, InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
+                final DBInfo dbInfo = connectionContext.getDbInfo();
+                boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+                final AgentSpan span;
+                final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
+                final boolean isOracle = DECORATE.isOracle(dbInfo);
+
+                final String oracleServiceHash = DECORATE.setServiceHashAction(connection, connectionContext);
+
+                if (INJECT_COMMENT && injectTraceContext) {
+                    if (isSqlServer) {
+                        // The span ID is pre-determined so that we can reference it when setting the context
+                        final long spanID = DECORATE.setContextInfo(connection, connectionContext);
+                        // we then force that pre-determined span ID for the span covering the actual query
+                        span = AgentTracer.get()
+                                .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
+                                .withSpanId(spanID)
+                                .start();
+                    } else if (isOracle) {
+                        span = startSpan("java-jdbc-statement", DATABASE_QUERY);
+                        DECORATE.setAction(span, connection);
+                    } else {
+                        span = startSpan("java-jdbc-statement", DATABASE_QUERY);
+                    }
+                } else {
+                    span = startSpan("java-jdbc-statement", DATABASE_QUERY);
+                }
+
+                DECORATE.afterStart(span);
+                DECORATE.onConnection(span, connectionContext);
+                final String copy = sql;
+                if (span != null && DECORATE.shouldInjectSqlComment(dbInfo)) {
+                    String traceParent = null;
+
+                    if (injectTraceContext) {
+                        Integer priority = span.forceSamplingDecision();
+                        if (priority != null) {
+                            if (!isSqlServer) {
+                                traceParent = W3CTraceParent.from(span);
+                            }
+                            // set the dbm trace injected tag on the span
+                            span.setTag(DBM_TRACE_INJECTED, true);
+                        }
+                    }
+                    // For SQL Server and Oracle, trace context is propagated via
+                    // context_info and v$session.action respectively.
+                    // we should not also inject it into SQL comments to avoid duplication
+                    final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
+
+                    // prepend mode will prepend the SQL comment to the raw sql query
+                    boolean appendComment = DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT;
+
+                    // There is a bug in the SQL Server JDBC driver that prevents
+                    // the generated keys from being returned when the
+                    // SQL comment is prepended to the SQL query.
+                    // We only append in this case to avoid the comment from being truncated.
+                    // @see https://github.com/microsoft/mssql-jdbc/issues/2729
+                    if (isSqlServer
+                            && !appendComment
+                            && args.length == 2
+                            && args[1] instanceof Integer
+                            && (Integer) args[1] == Statement.RETURN_GENERATED_KEYS) {
+                        appendComment = true;
+                    }
+
+                    final String dbService;
+                    if (isOracle) {
+                        String oracleService = DECORATE.getDbService(dbInfo);
+                        if (oracleService != null) {
+                            oracleService =
+                                    traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
+                        }
+                        dbService = oracleService;
+                    } else {
+                        dbService = span.getServiceName();
+                    }
+                    sql = SQLCommenter.inject(
+                            sql,
+                            dbService,
+                            dbInfo.getType(),
+                            dbInfo.getHost(),
+                            dbInfo.getDb(),
+                            injectTraceInComment ? traceParent : null,
+                            appendComment);
+                }
+                DECORATE.onStatement(span, copy);
+                DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
+                return activateSpan(span);
+            } catch (SQLException e) {
+                // if we can't get the connection for any reason
+                return null;
+            } catch (BlockingException e) {
+                CallDepthThreadLocalMap.reset(Statement.class);
+                // re-throw blocking exceptions
+                throw e;
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
+            if (scope == null) {
+                return;
+            }
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

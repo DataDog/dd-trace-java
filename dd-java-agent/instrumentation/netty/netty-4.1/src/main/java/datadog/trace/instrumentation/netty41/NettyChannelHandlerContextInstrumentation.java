@@ -26,71 +26,71 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelHandlerContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public NettyChannelHandlerContextInstrumentation() {
-    super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.netty.channel.ChannelHandlerContext";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-      packageName + ".ServerRequestContext",
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler"
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        // this may be overly aggressive:
-        isMethod().and(nameStartsWith("fire")).and(isPublic()),
-        NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice");
-  }
-
-  public static class FireAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
-      final AgentSpan channelSpan =
-          spanFromContext(ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get());
-      if (channelSpan == null || channelSpan == activeSpan()) {
-        // don't modify the scope
-        return null;
-      }
-      return activateSpan(channelSpan);
+    public NettyChannelHandlerContextInstrumentation() {
+        super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void close(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.netty.channel.ChannelHandlerContext";
     }
 
-    @SuppressWarnings("DataFlowIssue")
-    private void muzzleCheck() {
-      NettyHttpClientDecorator.DECORATE.afterStart(null);
-      NettyHttpServerDecorator.DECORATE.afterStart(null);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
     }
-  }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".AttributeKeys",
+            packageName + ".ServerRequestContext",
+            packageName + ".client.NettyHttpClientDecorator",
+            packageName + ".server.ResponseExtractAdapter",
+            packageName + ".server.NettyHttpServerDecorator",
+            packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+            packageName + ".server.BlockingResponseHandler",
+            packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+            packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
+            packageName + ".server.HttpServerRequestTracingHandler",
+            packageName + ".server.HttpServerResponseTracingHandler",
+            packageName + ".server.HttpServerTracingHandler"
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                // this may be overly aggressive:
+                isMethod().and(nameStartsWith("fire")).and(isPublic()),
+                NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice");
+    }
+
+    public static class FireAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
+            final AgentSpan channelSpan =
+                    spanFromContext(ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get());
+            if (channelSpan == null || channelSpan == activeSpan()) {
+                // don't modify the scope
+                return null;
+            }
+            return activateSpan(channelSpan);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void close(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+
+        @SuppressWarnings("DataFlowIssue")
+        private void muzzleCheck() {
+            NettyHttpClientDecorator.DECORATE.afterStart(null);
+            NettyHttpServerDecorator.DECORATE.afterStart(null);
+        }
+    }
 }

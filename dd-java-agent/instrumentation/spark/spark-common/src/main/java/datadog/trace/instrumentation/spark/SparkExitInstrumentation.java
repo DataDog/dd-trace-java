@@ -10,26 +10,25 @@ import datadog.trace.api.InstrumenterConfig;
 
 @AutoService(InstrumenterModule.class)
 public class SparkExitInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, Instrumenter.ForBootstrap {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, Instrumenter.ForBootstrap {
 
-  public SparkExitInstrumentation() {
-    super("spark-exit");
-  }
+    public SparkExitInstrumentation() {
+        super("spark-exit");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isDataJobsEnabled();
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isDataJobsEnabled();
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "java.lang.Runtime";
-  }
+    @Override
+    public String instrumentedType() {
+        return "java.lang.Runtime";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("exit").and(isDeclaredBy(named("java.lang.Runtime"))),
-        packageName + ".SparkExitAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("exit").and(isDeclaredBy(named("java.lang.Runtime"))), packageName + ".SparkExitAdvice");
+    }
 }

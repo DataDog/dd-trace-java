@@ -15,34 +15,34 @@ import jdk.jfr.Period;
 @Period(value = "57 s")
 @Enabled
 public class DeadlockEvent extends Event {
-  private static final DeadlockEventFactory EVENT_FACTORY = new DeadlockEventFactory();
+    private static final DeadlockEventFactory EVENT_FACTORY = new DeadlockEventFactory();
 
-  @Label("Deadlock ID")
-  @Description("Referential index for data related to a particular deadlock")
-  private final long id;
+    @Label("Deadlock ID")
+    @Description("Referential index for data related to a particular deadlock")
+    private final long id;
 
-  @Label("Deadlocked Thread Count")
-  private final int threadCount;
+    @Label("Deadlocked Thread Count")
+    private final int threadCount;
 
-  DeadlockEvent() {
-    this.id = Long.MIN_VALUE;
-    this.threadCount = Integer.MIN_VALUE;
-  }
+    DeadlockEvent() {
+        this.id = Long.MIN_VALUE;
+        this.threadCount = Integer.MIN_VALUE;
+    }
 
-  public DeadlockEvent(long id, int threadCount) {
-    this.id = id;
-    this.threadCount = threadCount;
-  }
+    public DeadlockEvent(long id, int threadCount) {
+        this.id = id;
+        this.threadCount = threadCount;
+    }
 
-  public static void emit() {
-    EVENT_FACTORY.collectEvents().forEach(Event::commit);
-  }
+    public static void emit() {
+        EVENT_FACTORY.collectEvents().forEach(Event::commit);
+    }
 
-  long getId() {
-    return id;
-  }
+    long getId() {
+        return id;
+    }
 
-  int getThreadCount() {
-    return threadCount;
-  }
+    int getThreadCount() {
+        return threadCount;
+    }
 }

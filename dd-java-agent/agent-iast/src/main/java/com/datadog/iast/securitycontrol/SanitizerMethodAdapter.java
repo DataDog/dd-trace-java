@@ -7,25 +7,22 @@ import org.objectweb.asm.Type;
 
 public class SanitizerMethodAdapter extends AbstractMethodAdapter {
 
-  public SanitizerMethodAdapter(
-      final MethodVisitor mv,
-      final SecurityControl securityControl,
-      final int accessFlags,
-      final Type method) {
-    super(mv, securityControl, accessFlags, method);
-  }
-
-  @Override
-  public void visitInsn(int opcode) {
-    if (opcode == Opcodes.ARETURN) {
-      processSanitizer();
+    public SanitizerMethodAdapter(
+            final MethodVisitor mv, final SecurityControl securityControl, final int accessFlags, final Type method) {
+        super(mv, securityControl, accessFlags, method);
     }
-    super.visitInsn(opcode);
-  }
 
-  private void processSanitizer() {
-    // Duplicate the return value on the stack
-    mv.visitInsn(Opcodes.DUP);
-    loadMarksAndCallHelper();
-  }
+    @Override
+    public void visitInsn(int opcode) {
+        if (opcode == Opcodes.ARETURN) {
+            processSanitizer();
+        }
+        super.visitInsn(opcode);
+    }
+
+    private void processSanitizer() {
+        // Duplicate the return value on the stack
+        mv.visitInsn(Opcodes.DUP);
+        loadMarksAndCallHelper();
+    }
 }

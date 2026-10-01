@@ -17,14 +17,14 @@ package datadog.trace.api.profiling;
 
 /** Listener for getting notified when new recording data is becoming available. */
 public interface RecordingDataListener {
-  /**
-   * Called when new recording data becomes available. Handle quickly, e.g. typically schedule
-   * streaming of the new available data in another thread. Do not forget to {@link
-   * RecordingData#release()} when the data has been uploaded.
-   *
-   * @param type type of the recording
-   * @param data the new data available
-   * @param handleSynchronously whether to handle the data synchronously
-   */
-  void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously);
+    /**
+     * Called when new recording data becomes available. Handle quickly, e.g. typically schedule
+     * streaming of the new available data in another thread. Do not forget to {@link
+     * RecordingData#release()} when the data has been uploaded.
+     *
+     * @param type type of the recording
+     * @param data the new data available
+     * @param handleSynchronously whether to handle the data synchronously
+     */
+    void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously);
 }

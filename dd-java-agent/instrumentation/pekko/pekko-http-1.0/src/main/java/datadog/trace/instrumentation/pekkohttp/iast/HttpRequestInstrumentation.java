@@ -35,83 +35,87 @@ import scala.collection.immutable.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public HttpRequestInstrumentation() {
-    super("pekko-http");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public HttpRequestInstrumentation() {
+        super("pekko-http");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.apache.pekko.http.scaladsl.model.HttpRequest";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.pekko.http.scaladsl.model.HttpRequest";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("headers"))
-            .and(returns(named("scala.collection.immutable.Seq")))
-            .and(takesArguments(0)),
-        HttpRequestInstrumentation.class.getName() + "$RequestHeadersAdvice");
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("headers"))
+                        .and(returns(named("scala.collection.immutable.Seq")))
+                        .and(takesArguments(0)),
+                HttpRequestInstrumentation.class.getName() + "$RequestHeadersAdvice");
 
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(not(isStatic())).and(named("entity")).and(takesArguments(0)),
-        HttpRequestInstrumentation.class.getName() + "$EntityAdvice");
-  }
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(not(isStatic()))
+                        .and(named("entity"))
+                        .and(takesArguments(0)),
+                HttpRequestInstrumentation.class.getName() + "$EntityAdvice");
+    }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  static class RequestHeadersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE)
-    static void onExit(
-        @Advice.This HttpRequest thiz,
-        @Advice.Return(readOnly = false) Seq<HttpHeader> headers,
-        @ActiveRequestContext RequestContext reqCtx) {
-      PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null || headers == null || headers.isEmpty()) {
-        return;
-      }
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    static class RequestHeadersAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_HEADER_VALUE)
+        static void onExit(
+                @Advice.This HttpRequest thiz,
+                @Advice.Return(readOnly = false) Seq<HttpHeader> headers,
+                @ActiveRequestContext RequestContext reqCtx) {
+            PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+            if (propagation == null || headers == null || headers.isEmpty()) {
+                return;
+            }
 
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+            final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
 
-      if (!propagation.isTainted(ctx, thiz)) {
-        return;
-      }
+            if (!propagation.isTainted(ctx, thiz)) {
+                return;
+            }
 
-      Iterator<HttpHeader> iterator = headers.iterator();
-      while (iterator.hasNext()) {
-        HttpHeader h = iterator.next();
-        if (propagation.isTainted(ctx, h)) {
-          continue;
+            Iterator<HttpHeader> iterator = headers.iterator();
+            while (iterator.hasNext()) {
+                HttpHeader h = iterator.next();
+                if (propagation.isTainted(ctx, h)) {
+                    continue;
+                }
+                // unfortunately, the call to h.value() is instrumented, but
+                // because the call to taint() only happens after, the call is a noop
+                propagation.taintObject(ctx, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
+            }
         }
-        // unfortunately, the call to h.value() is instrumented, but
-        // because the call to taint() only happens after, the call is a noop
-        propagation.taintObject(ctx, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
-      }
     }
-  }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  static class EntityAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    static void onExit(
-        @Advice.This HttpRequest thiz,
-        @Advice.Return(readOnly = false, typing = DYNAMIC) Object entity,
-        @ActiveRequestContext RequestContext reqCtx) {
-      PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null || entity == null) {
-        return;
-      }
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    static class EntityAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        static void onExit(
+                @Advice.This HttpRequest thiz,
+                @Advice.Return(readOnly = false, typing = DYNAMIC) Object entity,
+                @ActiveRequestContext RequestContext reqCtx) {
+            PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+            if (propagation == null || entity == null) {
+                return;
+            }
 
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+            IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
 
-      if (propagation.isTainted(ctx, entity)) {
-        return;
-      }
+            if (propagation.isTainted(ctx, entity)) {
+                return;
+            }
 
-      propagation.taintObjectIfTainted(ctx, entity, thiz);
+            propagation.taintObjectIfTainted(ctx, entity, thiz);
+        }
     }
-  }
 }

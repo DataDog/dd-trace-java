@@ -10,24 +10,24 @@ import org.openjdk.jmh.annotations.State;
 @AuxCounters(AuxCounters.Type.EVENTS)
 public class SamplerCounters {
 
-  long tests;
-  long sampled;
+    long tests;
+    long sampled;
 
-  public long tests() {
-    return tests;
-  }
+    public long tests() {
+        return tests;
+    }
 
-  public long sampled() {
-    return sampled;
-  }
+    public long sampled() {
+        return sampled;
+    }
 
-  public double sampleRate() {
-    return (double) sampled / tests;
-  }
+    public double sampleRate() {
+        return (double) sampled / tests;
+    }
 
-  @Setup(Level.Iteration)
-  public void reset() {
-    tests = 0;
-    sampled = 0;
-  }
+    @Setup(Level.Iteration)
+    public void reset() {
+        tests = 0;
+        sampled = 0;
+    }
 }

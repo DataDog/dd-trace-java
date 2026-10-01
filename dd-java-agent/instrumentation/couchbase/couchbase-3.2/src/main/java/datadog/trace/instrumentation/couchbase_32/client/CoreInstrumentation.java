@@ -19,51 +19,49 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CoreInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public CoreInstrumentation() {
-    super("couchbase");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.couchbase.client.core.Core";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(2, named("java.util.Set"))),
-        CoreInstrumentation.class.getName() + "$CoreConstructorSeedNodeAdvice");
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(2, named("com.couchbase.client.core.util.ConnectionString"))),
-        CoreInstrumentation.class.getName() + "$CoreConstructorConnectionStringAdvice");
-  }
-
-  public static class CoreConstructorSeedNodeAdvice {
-    @Advice.OnMethodExit
-    public static void afterConstruct(
-        @Advice.Argument(2) final Set<SeedNode> seedNodes, @Advice.This final Core core) {
-      InstrumentationContext.get(Core.class, String.class)
-          .put(core, SeedNodeHelper.toStringForm(seedNodes));
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public CoreInstrumentation() {
+        super("couchbase");
     }
 
-    public static void muzzleCheck(RequestSpan requestSpan) {
-      requestSpan.status(RequestSpan.StatusCode.ERROR);
+    @Override
+    public String instrumentedType() {
+        return "com.couchbase.client.core.Core";
     }
-  }
 
-  public static class CoreConstructorConnectionStringAdvice {
-    @Advice.OnMethodExit
-    public static void afterConstruct(
-        @Advice.Argument(2) final ConnectionString connectionString, @Advice.This final Core core) {
-      InstrumentationContext.get(Core.class, String.class)
-          .put(core, ConnectionStringHelper.toHostPortList(connectionString));
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(2, named("java.util.Set"))),
+                CoreInstrumentation.class.getName() + "$CoreConstructorSeedNodeAdvice");
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(2, named("com.couchbase.client.core.util.ConnectionString"))),
+                CoreInstrumentation.class.getName() + "$CoreConstructorConnectionStringAdvice");
+    }
+
+    public static class CoreConstructorSeedNodeAdvice {
+        @Advice.OnMethodExit
+        public static void afterConstruct(
+                @Advice.Argument(2) final Set<SeedNode> seedNodes, @Advice.This final Core core) {
+            InstrumentationContext.get(Core.class, String.class).put(core, SeedNodeHelper.toStringForm(seedNodes));
+        }
+
+        public static void muzzleCheck(RequestSpan requestSpan) {
+            requestSpan.status(RequestSpan.StatusCode.ERROR);
+        }
+    }
+
+    public static class CoreConstructorConnectionStringAdvice {
+        @Advice.OnMethodExit
+        public static void afterConstruct(
+                @Advice.Argument(2) final ConnectionString connectionString, @Advice.This final Core core) {
+            InstrumentationContext.get(Core.class, String.class)
+                    .put(core, ConnectionStringHelper.toHostPortList(connectionString));
+        }
+    }
 }

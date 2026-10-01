@@ -21,52 +21,49 @@ import net.bytebuddy.asm.Advice;
  * {@link AmazonClientException} (for example an error thrown by another handler). In these cases
  * {@link RequestHandler2#afterError} is not called.
  */
-public class AWSHttpClientInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  private final String namespace;
+public class AWSHttpClientInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    private final String namespace;
 
-  public AWSHttpClientInstrumentation(String namespace) {
-    this.namespace = namespace;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return namespace + ".http.AmazonHttpClient";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("doExecute")),
-        AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
-  }
-
-  public static class HttpClientAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Argument(value = 0, optional = true) final Request<?> request,
-        @Advice.Thrown final Throwable throwable) {
-
-      final AgentSpan activeSpan = activeSpan();
-      // check name in case TracingRequestHandler failed to activate the span
-      if (activeSpan != null
-          && (AwsNameCache.spanName(request).equals(activeSpan.getSpanName())
-              || !activeSpan.isValid())) {
-        closeActive();
-      }
-
-      if (throwable != null && request != null) {
-        final Context context = request.getHandlerContext(CONTEXT_CONTEXT_KEY);
-        if (context != null) {
-          request.addHandlerContext(CONTEXT_CONTEXT_KEY, null);
-          final AgentSpan span = spanFromContext(context);
-          if (span != null) {
-            DECORATE.onError(span, throwable);
-            DECORATE.beforeFinish(span);
-            span.finish();
-          }
-        }
-      }
+    public AWSHttpClientInstrumentation(String namespace) {
+        this.namespace = namespace;
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return namespace + ".http.AmazonHttpClient";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("doExecute")), AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
+    }
+
+    public static class HttpClientAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Argument(value = 0, optional = true) final Request<?> request,
+                @Advice.Thrown final Throwable throwable) {
+
+            final AgentSpan activeSpan = activeSpan();
+            // check name in case TracingRequestHandler failed to activate the span
+            if (activeSpan != null
+                    && (AwsNameCache.spanName(request).equals(activeSpan.getSpanName()) || !activeSpan.isValid())) {
+                closeActive();
+            }
+
+            if (throwable != null && request != null) {
+                final Context context = request.getHandlerContext(CONTEXT_CONTEXT_KEY);
+                if (context != null) {
+                    request.addHandlerContext(CONTEXT_CONTEXT_KEY, null);
+                    final AgentSpan span = spanFromContext(context);
+                    if (span != null) {
+                        DECORATE.onError(span, throwable);
+                        DECORATE.beforeFinish(span);
+                        span.finish();
+                    }
+                }
+            }
+        }
+    }
 }

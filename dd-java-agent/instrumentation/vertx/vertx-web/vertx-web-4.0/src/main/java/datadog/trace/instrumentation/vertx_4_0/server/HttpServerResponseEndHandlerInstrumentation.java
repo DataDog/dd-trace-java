@@ -12,33 +12,33 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public HttpServerResponseEndHandlerInstrumentation() {
-    super("vertx", "vertx-4.0");
-  }
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    public HttpServerResponseEndHandlerInstrumentation() {
+        super("vertx", "vertx-4.0");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.vertx.core.http.impl.Http1xServerResponse",
-      "io.vertx.core.http.impl.Http2ServerResponse",
-      "io.vertx.core.http.impl.http1.Http1ServerResponse", // HTTP/1 response when v >= 5.1
-      "io.vertx.core.http.impl.HttpServerResponseImpl" // HTTP/2 response when v >= 5.1
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.vertx.core.http.impl.Http1xServerResponse",
+            "io.vertx.core.http.impl.Http2ServerResponse",
+            "io.vertx.core.http.impl.http1.Http1ServerResponse", // HTTP/1 response when v >= 5.1
+            "io.vertx.core.http.impl.HttpServerResponseImpl" // HTTP/2 response when v >= 5.1
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("endHandler"))
-            .and(isPublic())
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
-        packageName + ".EndHandlerWrapperAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("endHandler"))
+                        .and(isPublic())
+                        .and(takesArgument(0, named("io.vertx.core.Handler"))),
+                packageName + ".EndHandlerWrapperAdvice");
+    }
 }

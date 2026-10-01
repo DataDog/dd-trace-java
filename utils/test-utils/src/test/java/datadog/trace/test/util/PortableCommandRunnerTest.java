@@ -17,63 +17,56 @@ import org.junit.jupiter.api.Test;
  * about why a command misbehaved, so the dispatch is driven directly here.
  */
 class PortableCommandRunnerTest {
-  @Test
-  void echoes() throws Exception {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    @Test
+    void echoes() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-    PortableCommandRunner.execute(new String[] {"echo", "value"}, emptyInput(), output);
+        PortableCommandRunner.execute(new String[] {"echo", "value"}, emptyInput(), output);
 
-    assertEquals("value" + System.lineSeparator(), new String(output.toByteArray(), UTF_8));
-  }
+        assertEquals("value" + System.lineSeparator(), new String(output.toByteArray(), UTF_8));
+    }
 
-  @Test
-  void copiesInput() throws Exception {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    InputStream input = new ByteArrayInputStream("payload".getBytes(UTF_8));
+    @Test
+    void copiesInput() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        InputStream input = new ByteArrayInputStream("payload".getBytes(UTF_8));
 
-    PortableCommandRunner.execute(new String[] {"cat"}, input, output);
+        PortableCommandRunner.execute(new String[] {"cat"}, input, output);
 
-    assertEquals("payload", new String(output.toByteArray(), UTF_8));
-  }
+        assertEquals("payload", new String(output.toByteArray(), UTF_8));
+    }
 
-  @Test
-  void sleeps() throws Exception {
-    long start = System.nanoTime();
+    @Test
+    void sleeps() throws Exception {
+        long start = System.nanoTime();
 
-    PortableCommandRunner.execute(
-        new String[] {"sleep", "50"}, emptyInput(), new ByteArrayOutputStream());
+        PortableCommandRunner.execute(new String[] {"sleep", "50"}, emptyInput(), new ByteArrayOutputStream());
 
-    assertTrue((System.nanoTime() - start) / 1_000_000 >= 40, "sleep returned immediately");
-  }
+        assertTrue((System.nanoTime() - start) / 1_000_000 >= 40, "sleep returned immediately");
+    }
 
-  @Test
-  void rejectsMissingCommand() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            PortableCommandRunner.execute(
-                new String[0], emptyInput(), new ByteArrayOutputStream()));
-  }
+    @Test
+    void rejectsMissingCommand() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PortableCommandRunner.execute(new String[0], emptyInput(), new ByteArrayOutputStream()));
+    }
 
-  @Test
-  void rejectsUnknownCommand() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            PortableCommandRunner.execute(
-                new String[] {"rm"}, emptyInput(), new ByteArrayOutputStream()));
-  }
+    @Test
+    void rejectsUnknownCommand() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PortableCommandRunner.execute(new String[] {"rm"}, emptyInput(), new ByteArrayOutputStream()));
+    }
 
-  @Test
-  void rejectsMissingArgument() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            PortableCommandRunner.execute(
-                new String[] {"echo"}, emptyInput(), new ByteArrayOutputStream()));
-  }
+    @Test
+    void rejectsMissingArgument() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PortableCommandRunner.execute(new String[] {"echo"}, emptyInput(), new ByteArrayOutputStream()));
+    }
 
-  private static InputStream emptyInput() {
-    return new ByteArrayInputStream(new byte[0]);
-  }
+    private static InputStream emptyInput() {
+        return new ByteArrayInputStream(new byte[0]);
+    }
 }

@@ -44,41 +44,41 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class TagMapReadThroughBenchmark {
 
-  @Param({"3", "7", "15"})
-  int traceTagCount;
+    @Param({"3", "7", "15"})
+    int traceTagCount;
 
-  private TagMap traceTags;
+    private TagMap traceTags;
 
-  @Setup(Level.Trial)
-  public void setup() {
-    TagMap m = TagMap.create(Math.max(16, traceTagCount * 2));
-    for (int i = 0; i < traceTagCount; i++) {
-      m.set("_dd.trace.tag." + i, "trace-value-" + i);
+    @Setup(Level.Trial)
+    public void setup() {
+        TagMap m = TagMap.create(Math.max(16, traceTagCount * 2));
+        for (int i = 0; i < traceTagCount; i++) {
+            m.set("_dd.trace.tag." + i, "trace-value-" + i);
+        }
+        this.traceTags = m.freeze();
     }
-    this.traceTags = m.freeze();
-  }
 
-  @Benchmark
-  public TagMap copyDown() {
-    TagMap m = TagMap.create(16);
-    m.putAll(traceTags); // putAll-into-empty: shares frozen entries, clones BucketGroups
-    setSpanTags(m);
-    return m;
-  }
+    @Benchmark
+    public TagMap copyDown() {
+        TagMap m = TagMap.create(16);
+        m.putAll(traceTags); // putAll-into-empty: shares frozen entries, clones BucketGroups
+        setSpanTags(m);
+        return m;
+    }
 
-  @Benchmark
-  public TagMap readThrough() {
-    // no copy; trace tags read through the shared frozen parent (fixed at construction)
-    TagMap m = TagMap.createFromParent(traceTags);
-    setSpanTags(m);
-    return m;
-  }
+    @Benchmark
+    public TagMap readThrough() {
+        // no copy; trace tags read through the shared frozen parent (fixed at construction)
+        TagMap m = TagMap.createFromParent(traceTags);
+        setSpanTags(m);
+        return m;
+    }
 
-  private static void setSpanTags(TagMap m) {
-    m.set("http.method", "GET");
-    m.set("http.url", "/api/checkout/cart");
-    m.set("component", "spring-web-controller");
-    m.set("span.kind", "server");
-    m.set("http.status_code", 200);
-  }
+    private static void setSpanTags(TagMap m) {
+        m.set("http.method", "GET");
+        m.set("http.url", "/api/checkout/cart");
+        m.set("component", "spring-web-controller");
+        m.set("span.kind", "server");
+        m.set("http.status_code", 200);
+    }
 }

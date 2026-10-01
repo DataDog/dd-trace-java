@@ -6,27 +6,26 @@ import datadog.trace.api.datastreams.NoopDataStreamsMonitoring;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public final class DisabledDataStreamsMonitoring extends NoopDataStreamsMonitoring
-    implements DataStreamsMonitoring {
+public final class DisabledDataStreamsMonitoring extends NoopDataStreamsMonitoring implements DataStreamsMonitoring {
 
-  public static final DisabledDataStreamsMonitoring INSTANCE = new DisabledDataStreamsMonitoring();
+    public static final DisabledDataStreamsMonitoring INSTANCE = new DisabledDataStreamsMonitoring();
 
-  private DisabledDataStreamsMonitoring() {}
+    private DisabledDataStreamsMonitoring() {}
 
-  @Override
-  public void start() {}
+    @Override
+    public void start() {}
 
-  @Override
-  public Propagator propagator() {
-    return Propagators.noop();
-  }
+    @Override
+    public Propagator propagator() {
+        return Propagators.noop();
+    }
 
-  @Override
-  public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {}
+    @Override
+    public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {}
 
-  @Override
-  public void clear() {}
+    @Override
+    public void clear() {}
 
-  @Override
-  public void close() {}
+    @Override
+    public void close() {}
 }

@@ -10,9 +10,9 @@ import org.junit.jupiter.api.Test;
 /** Verifies that CWS retains scope-listener notifications on every virtual-thread mount. */
 @WithConfig(key = "cws.enabled", value = "true")
 class VirtualThreadCwsInstrumentationForkedTest extends VirtualThreadApiInstrumentationTest {
-  @DisplayName("test per-mount path is selected for CWS")
-  @Test
-  void testPerMountPathSelected() {
-    assertTrue(VirtualThreadState.usePerMountContext());
-  }
+    @DisplayName("test per-mount path is selected for CWS")
+    @Test
+    void testPerMountPathSelected() {
+        assertTrue(VirtualThreadState.usePerMountContext());
+    }
 }

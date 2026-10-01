@@ -63,107 +63,107 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 public class HashtableD1Benchmark {
 
-  static final int N_KEYS = 64;
-  static final int CAPACITY = 128;
+    static final int N_KEYS = 64;
+    static final int CAPACITY = 128;
 
-  static final String[] SOURCE_KEYS = new String[N_KEYS];
+    static final String[] SOURCE_KEYS = new String[N_KEYS];
 
-  static {
-    for (int i = 0; i < N_KEYS; ++i) {
-      SOURCE_KEYS[i] = "key-" + i;
-    }
-  }
-
-  static final class D1Counter extends Hashtable.D1.Entry<String> {
-    long count;
-
-    D1Counter(String key) {
-      super(key);
-    }
-  }
-
-  /** Reusable iteration consumer — avoids per-call lambda capture allocation. */
-  static final class BhD1Consumer implements Consumer<D1Counter> {
-    Blackhole bh;
-
-    @Override
-    public void accept(D1Counter e) {
-      bh.consume(e.key);
-      bh.consume(e.count);
-    }
-  }
-
-  @State(Scope.Thread)
-  public static class D1State {
-    Hashtable.D1<String, D1Counter> table;
-    HashMap<String, Long> hashMap;
-    String[] keys;
-    int cursor;
-    final BhD1Consumer consumer = new BhD1Consumer();
-
-    @Setup(Level.Iteration)
-    public void setUp() {
-      table = new Hashtable.D1<>(CAPACITY);
-      hashMap = new HashMap<>(CAPACITY);
-      keys = SOURCE_KEYS;
-      for (int i = 0; i < N_KEYS; ++i) {
-        table.insert(new D1Counter(keys[i]));
-        hashMap.put(keys[i], 0L);
-      }
-      cursor = 0;
+    static {
+        for (int i = 0; i < N_KEYS; ++i) {
+            SOURCE_KEYS[i] = "key-" + i;
+        }
     }
 
-    String nextKey() {
-      int i = cursor;
-      cursor = (i + 1) & (N_KEYS - 1);
-      return keys[i];
+    static final class D1Counter extends Hashtable.D1.Entry<String> {
+        long count;
+
+        D1Counter(String key) {
+            super(key);
+        }
     }
-  }
 
-  @Benchmark
-  @OperationsPerInvocation(N_KEYS)
-  public void add_hashtable(D1State s) {
-    Hashtable.D1<String, D1Counter> t = s.table;
-    String[] keys = s.keys;
-    t.clear();
-    for (int i = 0; i < N_KEYS; ++i) {
-      t.insert(new D1Counter(keys[i]));
+    /** Reusable iteration consumer — avoids per-call lambda capture allocation. */
+    static final class BhD1Consumer implements Consumer<D1Counter> {
+        Blackhole bh;
+
+        @Override
+        public void accept(D1Counter e) {
+            bh.consume(e.key);
+            bh.consume(e.count);
+        }
     }
-  }
 
-  @Benchmark
-  @OperationsPerInvocation(N_KEYS)
-  public void add_hashMap(D1State s) {
-    HashMap<String, Long> m = s.hashMap;
-    String[] keys = s.keys;
-    m.clear();
-    for (int i = 0; i < N_KEYS; ++i) {
-      m.put(keys[i], (long) i);
+    @State(Scope.Thread)
+    public static class D1State {
+        Hashtable.D1<String, D1Counter> table;
+        HashMap<String, Long> hashMap;
+        String[] keys;
+        int cursor;
+        final BhD1Consumer consumer = new BhD1Consumer();
+
+        @Setup(Level.Iteration)
+        public void setUp() {
+            table = new Hashtable.D1<>(CAPACITY);
+            hashMap = new HashMap<>(CAPACITY);
+            keys = SOURCE_KEYS;
+            for (int i = 0; i < N_KEYS; ++i) {
+                table.insert(new D1Counter(keys[i]));
+                hashMap.put(keys[i], 0L);
+            }
+            cursor = 0;
+        }
+
+        String nextKey() {
+            int i = cursor;
+            cursor = (i + 1) & (N_KEYS - 1);
+            return keys[i];
+        }
     }
-  }
 
-  @Benchmark
-  public long update_hashtable(D1State s) {
-    D1Counter e = s.table.get(s.nextKey());
-    return ++e.count;
-  }
-
-  @Benchmark
-  public Long update_hashMap(D1State s) {
-    return s.hashMap.merge(s.nextKey(), 1L, Long::sum);
-  }
-
-  @Benchmark
-  public void iterate_hashtable(D1State s, Blackhole bh) {
-    s.consumer.bh = bh;
-    s.table.forEach(s.consumer);
-  }
-
-  @Benchmark
-  public void iterate_hashMap(D1State s, Blackhole bh) {
-    for (Map.Entry<String, Long> entry : s.hashMap.entrySet()) {
-      bh.consume(entry.getKey());
-      bh.consume(entry.getValue());
+    @Benchmark
+    @OperationsPerInvocation(N_KEYS)
+    public void add_hashtable(D1State s) {
+        Hashtable.D1<String, D1Counter> t = s.table;
+        String[] keys = s.keys;
+        t.clear();
+        for (int i = 0; i < N_KEYS; ++i) {
+            t.insert(new D1Counter(keys[i]));
+        }
     }
-  }
+
+    @Benchmark
+    @OperationsPerInvocation(N_KEYS)
+    public void add_hashMap(D1State s) {
+        HashMap<String, Long> m = s.hashMap;
+        String[] keys = s.keys;
+        m.clear();
+        for (int i = 0; i < N_KEYS; ++i) {
+            m.put(keys[i], (long) i);
+        }
+    }
+
+    @Benchmark
+    public long update_hashtable(D1State s) {
+        D1Counter e = s.table.get(s.nextKey());
+        return ++e.count;
+    }
+
+    @Benchmark
+    public Long update_hashMap(D1State s) {
+        return s.hashMap.merge(s.nextKey(), 1L, Long::sum);
+    }
+
+    @Benchmark
+    public void iterate_hashtable(D1State s, Blackhole bh) {
+        s.consumer.bh = bh;
+        s.table.forEach(s.consumer);
+    }
+
+    @Benchmark
+    public void iterate_hashMap(D1State s, Blackhole bh) {
+        for (Map.Entry<String, Long> entry : s.hashMap.entrySet()) {
+            bh.consume(entry.getKey());
+            bh.consume(entry.getValue());
+        }
+    }
 }

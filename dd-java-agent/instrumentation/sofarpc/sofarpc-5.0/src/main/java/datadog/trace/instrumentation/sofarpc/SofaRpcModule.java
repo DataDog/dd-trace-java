@@ -10,18 +10,18 @@ import java.util.List;
 @AutoService(InstrumenterModule.class)
 public class SofaRpcModule extends InstrumenterModule.Tracing {
 
-  public SofaRpcModule() {
-    super("sofarpc");
-  }
+    public SofaRpcModule() {
+        super("sofarpc");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new AbstractClusterInstrumentation(),
-        new BoltServerProcessorInstrumentation(),
-        new H2cServerTaskInstrumentation(),
-        new RestServerHandlerInstrumentation(),
-        new TripleServerInstrumentation(),
-        new ProviderProxyInvokerInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new AbstractClusterInstrumentation(),
+                new BoltServerProcessorInstrumentation(),
+                new H2cServerTaskInstrumentation(),
+                new RestServerHandlerInstrumentation(),
+                new TripleServerInstrumentation(),
+                new ProviderProxyInvokerInstrumentation());
+    }
 }

@@ -16,43 +16,41 @@ import org.gradle.internal.UncheckedException;
  * all test classes to order them before execution.
  */
 public class DDCollectAllTestClassesExecutor implements Action<String> {
-  private final List<Class<?>> testClasses = new ArrayList<>();
-  private final Action<String> delegate;
-  private final ClassLoader classLoader;
+    private final List<Class<?>> testClasses = new ArrayList<>();
+    private final Action<String> delegate;
+    private final ClassLoader classLoader;
 
-  public DDCollectAllTestClassesExecutor(Action<String> delegate, ClassLoader junitClassLoader) {
-    this.delegate = delegate;
-    this.classLoader = junitClassLoader;
-  }
-
-  @Override
-  public void execute(@Nonnull String testClassName) {
-    Class<?> clazz = loadClass(testClassName);
-
-    TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
-    if (framework == TestFrameworkInstrumentation.JUNIT4) {
-      TestEventsHandlerHolder.start(
-          TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(true));
+    public DDCollectAllTestClassesExecutor(Action<String> delegate, ClassLoader junitClassLoader) {
+        this.delegate = delegate;
+        this.classLoader = junitClassLoader;
     }
 
-    testClasses.add(clazz);
-  }
+    @Override
+    public void execute(@Nonnull String testClassName) {
+        Class<?> clazz = loadClass(testClassName);
 
-  public void processAllTestClasses() {
-    testClasses.sort(
-        new JUnit4FailFastClassOrderer(
-            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+        TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
+        if (framework == TestFrameworkInstrumentation.JUNIT4) {
+            TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(true));
+        }
 
-    for (Class<?> clazz : testClasses) {
-      delegate.execute(clazz.getName());
+        testClasses.add(clazz);
     }
-  }
 
-  private Class<?> loadClass(String testClassName) {
-    try {
-      return Class.forName(testClassName, false, classLoader);
-    } catch (ClassNotFoundException e) {
-      throw UncheckedException.throwAsUncheckedException(e);
+    public void processAllTestClasses() {
+        testClasses.sort(new JUnit4FailFastClassOrderer(
+                TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+
+        for (Class<?> clazz : testClasses) {
+            delegate.execute(clazz.getName());
+        }
     }
-  }
+
+    private Class<?> loadClass(String testClassName) {
+        try {
+            return Class.forName(testClassName, false, classLoader);
+        } catch (ClassNotFoundException e) {
+            throw UncheckedException.throwAsUncheckedException(e);
+        }
+    }
 }

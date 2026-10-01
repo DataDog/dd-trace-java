@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test;
 
 public class TestSucceedUnskippable {
 
-  @Test
-  @Tags({@Tag(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)})
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    @Tags({@Tag(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)})
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

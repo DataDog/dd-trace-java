@@ -8,19 +8,17 @@ import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
 
 public class ValueScriptHelper {
-  public static void serializeValue(
-      StringBuilder sb, String expr, Object value, CapturedContext.Status status, Limits limits) {
-    Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
-    TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
-    SerializerWithLimits serializer =
-        new SerializerWithLimits(new StringTokenWriter(sb, status.getErrors()), timeoutChecker);
-    try {
-      serializer.serialize(
-          value,
-          value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
-          limits);
-    } catch (Exception ex) {
-      status.addError(new EvaluationError(expr, ex.getMessage()));
+    public static void serializeValue(
+            StringBuilder sb, String expr, Object value, CapturedContext.Status status, Limits limits) {
+        Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+        SerializerWithLimits serializer =
+                new SerializerWithLimits(new StringTokenWriter(sb, status.getErrors()), timeoutChecker);
+        try {
+            serializer.serialize(
+                    value, value != null ? value.getClass().getTypeName() : Object.class.getTypeName(), limits);
+        } catch (Exception ex) {
+            status.addError(new EvaluationError(expr, ex.getMessage()));
+        }
     }
-  }
 }

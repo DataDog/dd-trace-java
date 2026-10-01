@@ -9,42 +9,42 @@ import io.servicetalk.concurrent.api.Scope;
 import io.servicetalk.context.api.ContextMap;
 
 public final class DatadogCapturedContextProvider implements CapturedContextProvider {
-  @Override
-  public CapturedContext captureContext(CapturedContext underlying) {
-    return captureContextCopy(underlying);
-  }
-
-  @Override
-  public CapturedContext captureContextCopy(CapturedContext underlying) {
-    AgentSpan activeSpan = AgentTracer.activeSpan();
-    if (activeSpan == null) {
-      return underlying;
-    }
-    return new WithDatadogCapturedContext(activeSpan, underlying);
-  }
-
-  private static final class WithDatadogCapturedContext implements CapturedContext {
-    private final AgentSpan agentSpan;
-    private final CapturedContext underlying;
-
-    public WithDatadogCapturedContext(AgentSpan agentSpan, CapturedContext underlying) {
-      this.agentSpan = agentSpan;
-      this.underlying = underlying;
+    @Override
+    public CapturedContext captureContext(CapturedContext underlying) {
+        return captureContextCopy(underlying);
     }
 
     @Override
-    public ContextMap captured() {
-      return underlying.captured();
+    public CapturedContext captureContextCopy(CapturedContext underlying) {
+        AgentSpan activeSpan = AgentTracer.activeSpan();
+        if (activeSpan == null) {
+            return underlying;
+        }
+        return new WithDatadogCapturedContext(activeSpan, underlying);
     }
 
-    @Override
-    public Scope attachContext() {
-      Scope stScope = underlying.attachContext();
-      ContextScope ddScope = AgentTracer.activateSpan(agentSpan);
-      return () -> {
-        ddScope.close();
-        stScope.close();
-      };
+    private static final class WithDatadogCapturedContext implements CapturedContext {
+        private final AgentSpan agentSpan;
+        private final CapturedContext underlying;
+
+        public WithDatadogCapturedContext(AgentSpan agentSpan, CapturedContext underlying) {
+            this.agentSpan = agentSpan;
+            this.underlying = underlying;
+        }
+
+        @Override
+        public ContextMap captured() {
+            return underlying.captured();
+        }
+
+        @Override
+        public Scope attachContext() {
+            Scope stScope = underlying.attachContext();
+            ContextScope ddScope = AgentTracer.activateSpan(agentSpan);
+            return () -> {
+                ddScope.close();
+                stScope.close();
+            };
+        }
     }
-  }
 }

@@ -13,33 +13,33 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS SDK v2 Step Function instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class SfnClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SfnClientInstrumentation() {
-    super("sfn", "aws-sdk");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("resolveExecutionInterceptors")),
-        SfnClientInstrumentation.class.getName() + "$AwsSfnBuilderAdvice");
-  }
-
-  public static class AwsSfnBuilderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      for (ExecutionInterceptor interceptor : interceptors) {
-        if (interceptor instanceof SfnInterceptor) {
-          return;
-        }
-      }
-      interceptors.add(new SfnInterceptor());
+    public SfnClientInstrumentation() {
+        super("sfn", "aws-sdk");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("resolveExecutionInterceptors")),
+                SfnClientInstrumentation.class.getName() + "$AwsSfnBuilderAdvice");
+    }
+
+    public static class AwsSfnBuilderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
+            for (ExecutionInterceptor interceptor : interceptors) {
+                if (interceptor instanceof SfnInterceptor) {
+                    return;
+                }
+            }
+            interceptors.add(new SfnInterceptor());
+        }
+    }
 }

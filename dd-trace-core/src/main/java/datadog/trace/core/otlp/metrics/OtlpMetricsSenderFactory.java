@@ -13,32 +13,32 @@ import javax.annotation.Nullable;
  * sync as protocols/endpoints evolve.
  */
 final class OtlpMetricsSenderFactory {
-  private OtlpMetricsSenderFactory() {}
+    private OtlpMetricsSenderFactory() {}
 
-  /**
-   * Builds the sender for {@code config}'s OTLP metrics protocol, or {@code null} if the protocol
-   * is unsupported.
-   */
-  @Nullable
-  static OtlpSender create(Config config) {
-    switch (config.getOtlpMetricsProtocol()) {
-      case GRPC:
-        return new OtlpGrpcSender(
-            config.getOtlpMetricsEndpoint(),
-            "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
-            config.getOtlpMetricsHeaders(),
-            config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
-      case HTTP_PROTOBUF:
-      case HTTP_JSON:
-        return new OtlpHttpSender(
-            config.getOtlpMetricsEndpoint(),
-            "/v1/metrics",
-            config.getOtlpMetricsHeaders(),
-            config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
-      default:
-        return null;
+    /**
+     * Builds the sender for {@code config}'s OTLP metrics protocol, or {@code null} if the protocol
+     * is unsupported.
+     */
+    @Nullable
+    static OtlpSender create(Config config) {
+        switch (config.getOtlpMetricsProtocol()) {
+            case GRPC:
+                return new OtlpGrpcSender(
+                        config.getOtlpMetricsEndpoint(),
+                        "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
+                        config.getOtlpMetricsHeaders(),
+                        config.getOtlpMetricsTimeout(),
+                        config.getOtlpMetricsCompression());
+            case HTTP_PROTOBUF:
+            case HTTP_JSON:
+                return new OtlpHttpSender(
+                        config.getOtlpMetricsEndpoint(),
+                        "/v1/metrics",
+                        config.getOtlpMetricsHeaders(),
+                        config.getOtlpMetricsTimeout(),
+                        config.getOtlpMetricsCompression());
+            default:
+                return null;
+        }
     }
-  }
 }

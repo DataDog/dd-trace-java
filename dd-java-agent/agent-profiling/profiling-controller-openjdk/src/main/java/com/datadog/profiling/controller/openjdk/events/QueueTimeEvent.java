@@ -18,66 +18,66 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public class QueueTimeEvent extends Event implements QueueTiming {
 
-  @Label("Local Root Span Id")
-  private long localRootSpanId;
+    @Label("Local Root Span Id")
+    private long localRootSpanId;
 
-  @Label("Span Id")
-  private long spanId;
+    @Label("Span Id")
+    private long spanId;
 
-  @Label("Origin")
-  private Thread origin;
+    @Label("Origin")
+    private Thread origin;
 
-  @Label("Task")
-  private Class<?> task;
+    @Label("Task")
+    private Class<?> task;
 
-  @Label("Scheduler")
-  private Class<?> scheduler;
+    @Label("Scheduler")
+    private Class<?> scheduler;
 
-  @Label("Queue")
-  private Class<?> queueType;
+    @Label("Queue")
+    private Class<?> queueType;
 
-  @Label("Queue Length on Entry")
-  private int queueLength;
+    @Label("Queue Length on Entry")
+    private int queueLength;
 
-  public QueueTimeEvent() {
-    this.origin = Thread.currentThread();
-    AgentSpan activeSpan = AgentTracer.activeSpan();
-    if (activeSpan != null) {
-      long spanId = activeSpan.getSpanId();
-      AgentSpan rootSpan = activeSpan.getLocalRootSpan();
-      this.localRootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
-      this.spanId = spanId;
+    public QueueTimeEvent() {
+        this.origin = Thread.currentThread();
+        AgentSpan activeSpan = AgentTracer.activeSpan();
+        if (activeSpan != null) {
+            long spanId = activeSpan.getSpanId();
+            AgentSpan rootSpan = activeSpan.getLocalRootSpan();
+            this.localRootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
+            this.spanId = spanId;
+        }
+        begin();
     }
-    begin();
-  }
 
-  @Override
-  public void setTask(Object task) {
-    this.task = TaskWrapper.getUnwrappedType(task);
-  }
+    @Override
+    public void setTask(Object task) {
+        this.task = TaskWrapper.getUnwrappedType(task);
+    }
 
-  @Override
-  public void setScheduler(Class<?> scheduler) {
-    this.scheduler = scheduler;
-  }
+    @Override
+    public void setScheduler(Class<?> scheduler) {
+        this.scheduler = scheduler;
+    }
 
-  @Override
-  public void setQueue(Class<?> queueType) {
-    this.queueType = queueType;
-  }
+    @Override
+    public void setQueue(Class<?> queueType) {
+        this.queueType = queueType;
+    }
 
-  @Override
-  public void setQueueLength(int queueLength) {
-    this.queueLength = queueLength;
-  }
+    @Override
+    public void setQueueLength(int queueLength) {
+        this.queueLength = queueLength;
+    }
 
-  @Override
-  public void report() {
-    commit();
-  }
+    @Override
+    public void report() {
+        commit();
+    }
 
-  @Override
-  public boolean sample() {
-    return shouldCommit();
-  }
+    @Override
+    public boolean sample() {
+        return shouldCommit();
+    }
 }

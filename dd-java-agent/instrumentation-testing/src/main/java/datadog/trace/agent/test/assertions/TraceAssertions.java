@@ -27,107 +27,104 @@ import java.util.function.UnaryOperator;
  * </ul>
  */
 public final class TraceAssertions {
-  /*
-   * Trace comparators.
-   */
-  /** Trace comparator to sort by start time. */
-  public static final Comparator<List<DDSpan>> TRACE_START_TIME_COMPARATOR =
-      Comparator.comparingLong(
-          trace -> trace.isEmpty() ? 0L : trace.get(0).getLocalRootSpan().getStartTime());
+    /*
+     * Trace comparators.
+     */
+    /** Trace comparator to sort by start time. */
+    public static final Comparator<List<DDSpan>> TRACE_START_TIME_COMPARATOR = Comparator.comparingLong(
+            trace -> trace.isEmpty() ? 0L : trace.get(0).getLocalRootSpan().getStartTime());
 
-  /** Trace comparator to sort by root span identifier. */
-  public static final Comparator<List<DDSpan>> TRACE_ROOT_SPAN_ID_COMPARATOR =
-      Comparator.comparingLong(
-          trace -> trace.isEmpty() ? 0L : trace.get(0).getLocalRootSpan().getSpanId());
+    /** Trace comparator to sort by root span identifier. */
+    public static final Comparator<List<DDSpan>> TRACE_ROOT_SPAN_ID_COMPARATOR = Comparator.comparingLong(
+            trace -> trace.isEmpty() ? 0L : trace.get(0).getLocalRootSpan().getSpanId());
 
-  /*
-   * Trace assertion options.
-   */
-  /** Ignores additional traces. If there are more traces than expected, do not fail. */
-  public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
-      Options::ignoreAdditionalTraces;
+    /*
+     * Trace assertion options.
+     */
+    /** Ignores additional traces. If there are more traces than expected, do not fail. */
+    public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES = Options::ignoreAdditionalTraces;
 
-  /** Sorts traces by start time. */
-  public static final UnaryOperator<Options> SORT_BY_START_TIME =
-      options -> options.sort(TRACE_START_TIME_COMPARATOR);
+    /** Sorts traces by start time. */
+    public static final UnaryOperator<Options> SORT_BY_START_TIME =
+            options -> options.sort(TRACE_START_TIME_COMPARATOR);
 
-  /** Sorts traces by their root span identifier. */
-  public static final UnaryOperator<Options> SORT_BY_ROOT_SPAN_ID =
-      options -> options.sort(TRACE_ROOT_SPAN_ID_COMPARATOR);
+    /** Sorts traces by their root span identifier. */
+    public static final UnaryOperator<Options> SORT_BY_ROOT_SPAN_ID =
+            options -> options.sort(TRACE_ROOT_SPAN_ID_COMPARATOR);
 
-  private TraceAssertions() {}
+    private TraceAssertions() {}
 
-  /**
-   * Checks a trace structure.
-   *
-   * @param trace The trace to check.
-   * @param matcher The matcher to verify the trace structure.
-   */
-  public static void assertTrace(List<DDSpan> trace, TraceMatcher matcher) {
-    matcher.assertTrace(trace, 0);
-  }
-
-  /**
-   * Checks the structure of a trace collection.
-   *
-   * @param traces The trace collection to check.
-   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
-   */
-  public static void assertTraces(List<List<DDSpan>> traces, TraceMatcher... matchers) {
-    assertTraces(traces, identity(), matchers);
-  }
-
-  /**
-   * Checks the structure of a trace collection.
-   *
-   * @param traces The trace collection to check.
-   * @param options The {@link Options} to configure the checks.
-   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
-   */
-  public static void assertTraces(
-      List<List<DDSpan>> traces, UnaryOperator<Options> options, TraceMatcher... matchers) {
-    Options opts = options.apply(new Options());
-    int expectedTraceCount = matchers.length;
-    int traceCount = traces.size();
-    if (opts.ignoredAdditionalTraces) {
-      if (traceCount < expectedTraceCount) {
-        assertionFailure()
-            .message("Not enough of traces")
-            .expected(expectedTraceCount)
-            .actual(traceCount)
-            .buildAndThrow();
-      }
-    } else {
-      if (traceCount != expectedTraceCount) {
-        assertionFailure()
-            .message("Invalid number of traces")
-            .expected(expectedTraceCount)
-            .actual(traceCount)
-            .buildAndThrow();
-      }
-    }
-    if (opts.comparator != null) {
-      traces = new ArrayList<>(traces);
-      traces.sort(opts.comparator);
-    }
-    for (int i = 0; i < expectedTraceCount; i++) {
-      List<DDSpan> trace = traces.get(i);
-      matchers[i].assertTrace(trace, i);
-    }
-  }
-
-  public static final class Options {
-    private boolean ignoredAdditionalTraces = false;
-    private Comparator<List<DDSpan>> comparator = TRACE_START_TIME_COMPARATOR;
-
-    public Options ignoreAdditionalTraces() {
-      this.ignoredAdditionalTraces = true;
-      return this;
+    /**
+     * Checks a trace structure.
+     *
+     * @param trace The trace to check.
+     * @param matcher The matcher to verify the trace structure.
+     */
+    public static void assertTrace(List<DDSpan> trace, TraceMatcher matcher) {
+        matcher.assertTrace(trace, 0);
     }
 
-    public Options sort(Comparator<List<DDSpan>> comparator) {
-      this.comparator = comparator;
-      return this;
+    /**
+     * Checks the structure of a trace collection.
+     *
+     * @param traces The trace collection to check.
+     * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
+     */
+    public static void assertTraces(List<List<DDSpan>> traces, TraceMatcher... matchers) {
+        assertTraces(traces, identity(), matchers);
     }
-  }
+
+    /**
+     * Checks the structure of a trace collection.
+     *
+     * @param traces The trace collection to check.
+     * @param options The {@link Options} to configure the checks.
+     * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
+     */
+    public static void assertTraces(
+            List<List<DDSpan>> traces, UnaryOperator<Options> options, TraceMatcher... matchers) {
+        Options opts = options.apply(new Options());
+        int expectedTraceCount = matchers.length;
+        int traceCount = traces.size();
+        if (opts.ignoredAdditionalTraces) {
+            if (traceCount < expectedTraceCount) {
+                assertionFailure()
+                        .message("Not enough of traces")
+                        .expected(expectedTraceCount)
+                        .actual(traceCount)
+                        .buildAndThrow();
+            }
+        } else {
+            if (traceCount != expectedTraceCount) {
+                assertionFailure()
+                        .message("Invalid number of traces")
+                        .expected(expectedTraceCount)
+                        .actual(traceCount)
+                        .buildAndThrow();
+            }
+        }
+        if (opts.comparator != null) {
+            traces = new ArrayList<>(traces);
+            traces.sort(opts.comparator);
+        }
+        for (int i = 0; i < expectedTraceCount; i++) {
+            List<DDSpan> trace = traces.get(i);
+            matchers[i].assertTrace(trace, i);
+        }
+    }
+
+    public static final class Options {
+        private boolean ignoredAdditionalTraces = false;
+        private Comparator<List<DDSpan>> comparator = TRACE_START_TIME_COMPARATOR;
+
+        public Options ignoreAdditionalTraces() {
+            this.ignoredAdditionalTraces = true;
+            return this;
+        }
+
+        public Options sort(Comparator<List<DDSpan>> comparator) {
+            this.comparator = comparator;
+            return this;
+        }
+    }
 }

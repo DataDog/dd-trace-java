@@ -25,68 +25,59 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class SslSocketInstrumentation extends InstrumenterModule.Usm
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public SslSocketInstrumentation() {
-    super("sslsocket");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return null;
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("javax.net.ssl.SSLSocket")).and(concreteClass());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("close").and(takesArguments(0))),
-        SslSocketInstrumentation.class.getName() + "$CloseAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("getInputStream")),
-        SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("getOutputStream")),
-        SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice");
-  }
-
-  public static final class CloseAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void close(@Advice.This final SSLSocket socket) {
-      boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection =
-          new UsmConnection(
-              socket.getLocalAddress(),
-              socket.getLocalPort(),
-              socket.getInetAddress(),
-              socket.getPort(),
-              isIPv6);
-      UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
-      UsmExtractor.Supplier.send(message);
+    public SslSocketInstrumentation() {
+        super("sslsocket");
     }
-  }
 
-  public static final class GetOutputStreamAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void getOutputStream(
-        @Advice.This final SSLSocket socket,
-        @Advice.Return(readOnly = false) OutputStream retValue) {
-      retValue = new UsmFilterOutputStream(retValue, socket);
+    @Override
+    public String hierarchyMarkerType() {
+        return null;
     }
-  }
 
-  public static final class GetInputStreamAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void getInputStream(
-        @Advice.This final SSLSocket socket,
-        @Advice.Return(readOnly = false) InputStream retValue) {
-      retValue = new UsmFilterInputStream(retValue, socket);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("javax.net.ssl.SSLSocket")).and(concreteClass());
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("close").and(takesArguments(0))),
+                SslSocketInstrumentation.class.getName() + "$CloseAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("getInputStream")),
+                SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("getOutputStream")),
+                SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice");
+    }
+
+    public static final class CloseAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void close(@Advice.This final SSLSocket socket) {
+            boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
+            UsmConnection connection = new UsmConnection(
+                    socket.getLocalAddress(), socket.getLocalPort(), socket.getInetAddress(), socket.getPort(), isIPv6);
+            UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
+            UsmExtractor.Supplier.send(message);
+        }
+    }
+
+    public static final class GetOutputStreamAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void getOutputStream(
+                @Advice.This final SSLSocket socket, @Advice.Return(readOnly = false) OutputStream retValue) {
+            retValue = new UsmFilterOutputStream(retValue, socket);
+        }
+    }
+
+    public static final class GetInputStreamAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void getInputStream(
+                @Advice.This final SSLSocket socket, @Advice.Return(readOnly = false) InputStream retValue) {
+            retValue = new UsmFilterInputStream(retValue, socket);
+        }
+    }
 }

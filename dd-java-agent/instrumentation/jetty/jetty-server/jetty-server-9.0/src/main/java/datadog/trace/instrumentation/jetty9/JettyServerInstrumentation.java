@@ -51,202 +51,199 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
+        implements Instrumenter.ForSingleType,
+                Instrumenter.HasTypeAdvice,
+                Instrumenter.HasMethodAdvice,
+                ExcludeFilterProvider {
 
-  public JettyServerInstrumentation() {
-    super("jetty");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "9_full_series";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.server.HttpChannel";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
-    };
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        takesNoArguments()
-            .and(
-                named("handle")
-                    .or(
-                        // In 9.0.3 the handle logic was extracted out to "handle"
-                        // but we still want to instrument run in case handle is missing
-                        // (without the risk of double instrumenting).
-                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
-        JettyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
-        JettyServerInstrumentation.class.getName() + "$HandleAdvice");
-    transformer.applyAdvice(
-        // name changed to recycle in 9.3.0
-        namedOneOf("reset", "recycle").and(takesNoArguments()),
-        JettyServerInstrumentation.class.getName() + "$ResetAdvice");
-
-    if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
-      transformer.applyAdvice(
-          named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
-          JettyServerInstrumentation.class.getName() + "$HandleExceptionAdvice");
-    }
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return Collections.singletonMap(
-        RUNNABLE,
-        Arrays.asList(
-            "org.eclipse.jetty.util.thread.strategy.ProduceConsume",
-            "org.eclipse.jetty.util.thread.strategy.ExecuteProduceConsume",
-            "org.eclipse.jetty.io.ManagedSelector",
-            "org.eclipse.jetty.util.thread.TimerScheduler",
-            "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
-  }
-
-  public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
-
-    @Override
-    public int mergeWriter(int flags) {
-      return flags | ClassWriter.COMPUTE_MAXS;
+    public JettyServerInstrumentation() {
+        super("jetty");
     }
 
     @Override
-    public int mergeReader(int flags) {
-      return flags;
+    public String muzzleDirective() {
+        return "9_full_series";
     }
 
     @Override
-    public ClassVisitor wrap(
-        TypeDescription instrumentedType,
-        ClassVisitor classVisitor,
-        Implementation.Context implementationContext,
-        TypePool typePool,
-        FieldList<FieldDescription.InDefinedShape> fields,
-        MethodList<?> methods,
-        int writerFlags,
-        int readerFlags) {
-      if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
-        return classVisitor;
-      }
-
-      return new HttpChannelHandleVisitor(Opcodes.ASM7, classVisitor);
-    }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void extractParent(
-        @Advice.This final HttpChannel<?> channel,
-        @Advice.Local("parentScope") ContextScope parentScope) {
-      Request req = channel.getRequest();
-      if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
-        return; // skip re-entry: span already created for this request
-      }
-      final Context parentContext = DECORATE.extract(req);
-      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
-      parentScope = parentContext.attach();
+    public String instrumentedType() {
+        return "org.eclipse.jetty.server.HttpChannel";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) parentScope.close();
-    }
-  }
-
-  public static class HandleAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final HttpChannel<?> channel, @Advice.Local("agentSpan") AgentSpan span) {
-      Request req = channel.getRequest();
-
-      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      if (existingContext instanceof Context) {
-        return ((Context) existingContext).attach();
-      }
-
-      Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-      Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
-      final Context context = DECORATE.startSpan(req, parentContext);
-      final ContextScope scope = context.attach();
-      span = spanFromContext(context);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req, parentContext);
-
-      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-      req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-      return scope;
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ExtractAdapter",
+            packageName + ".ExtractAdapter$Request",
+            packageName + ".ExtractAdapter$Response",
+            packageName + ".JettyDecorator",
+            packageName + ".RequestURIDataAdapter",
+            "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+            "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        };
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      scope.close();
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
     }
-  }
 
-  /**
-   * Jetty ensures that connections are reset immediately after the response is sent. This provides
-   * a reliable point to finish the server span at the last possible moment.
-   */
-  public static class ResetAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void stopSpan(@Advice.This final HttpChannel<?> channel) {
-      Request req = channel.getRequest();
-      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      if (contextObj instanceof Context) {
-        final Context context = (Context) contextObj;
-        final AgentSpan span = spanFromContext(context);
-        if (span != null) {
-          DECORATE.onResponse(span, channel);
-          DECORATE.beforeFinish(context);
-          span.finish();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                takesNoArguments()
+                        .and(named("handle")
+                                .or(
+                                        // In 9.0.3 the handle logic was extracted out to "handle"
+                                        // but we still want to instrument run in case handle is missing
+                                        // (without the risk of double instrumenting).
+                                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
+                JettyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
+                JettyServerInstrumentation.class.getName() + "$HandleAdvice");
+        transformer.applyAdvice(
+                // name changed to recycle in 9.3.0
+                namedOneOf("reset", "recycle").and(takesNoArguments()),
+                JettyServerInstrumentation.class.getName() + "$ResetAdvice");
+
+        if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
+            transformer.applyAdvice(
+                    named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
+                    JettyServerInstrumentation.class.getName() + "$HandleExceptionAdvice");
         }
-      }
     }
 
-    private void muzzleCheck(HttpChannel<?> connection) {
-      connection.run();
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return Collections.singletonMap(
+                RUNNABLE,
+                Arrays.asList(
+                        "org.eclipse.jetty.util.thread.strategy.ProduceConsume",
+                        "org.eclipse.jetty.util.thread.strategy.ExecuteProduceConsume",
+                        "org.eclipse.jetty.io.ManagedSelector",
+                        "org.eclipse.jetty.util.thread.TimerScheduler",
+                        "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
     }
-  }
 
-  static class HandleExceptionAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void enter(@Advice.Argument(0) Throwable t) {
-      if (!(t instanceof BlockingException)) {
-        return;
-      }
+    public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
 
-      AgentSpan agentSpan = AgentTracer.activeSpan();
-      if (agentSpan == null) {
-        return;
-      }
-      JettyDecorator.DECORATE.onError(agentSpan, t);
+        @Override
+        public int mergeWriter(int flags) {
+            return flags | ClassWriter.COMPUTE_MAXS;
+        }
+
+        @Override
+        public int mergeReader(int flags) {
+            return flags;
+        }
+
+        @Override
+        public ClassVisitor wrap(
+                TypeDescription instrumentedType,
+                ClassVisitor classVisitor,
+                Implementation.Context implementationContext,
+                TypePool typePool,
+                FieldList<FieldDescription.InDefinedShape> fields,
+                MethodList<?> methods,
+                int writerFlags,
+                int readerFlags) {
+            if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
+                return classVisitor;
+            }
+
+            return new HttpChannelHandleVisitor(Opcodes.ASM7, classVisitor);
+        }
     }
-  }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void extractParent(
+                @Advice.This final HttpChannel<?> channel, @Advice.Local("parentScope") ContextScope parentScope) {
+            Request req = channel.getRequest();
+            if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
+                return; // skip re-entry: span already created for this request
+            }
+            final Context parentContext = DECORATE.extract(req);
+            req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+            parentScope = parentContext.attach();
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
+            if (parentScope != null) parentScope.close();
+        }
+    }
+
+    public static class HandleAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final HttpChannel<?> channel, @Advice.Local("agentSpan") AgentSpan span) {
+            Request req = channel.getRequest();
+
+            Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            if (existingContext instanceof Context) {
+                return ((Context) existingContext).attach();
+            }
+
+            Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+            Context parentContext = (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
+            final Context context = DECORATE.startSpan(req, parentContext);
+            final ContextScope scope = context.attach();
+            span = spanFromContext(context);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, req, req, parentContext);
+
+            req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
+            req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+            req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+            return scope;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Enter final ContextScope scope) {
+            scope.close();
+        }
+    }
+
+    /**
+     * Jetty ensures that connections are reset immediately after the response is sent. This provides
+     * a reliable point to finish the server span at the last possible moment.
+     */
+    public static class ResetAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void stopSpan(@Advice.This final HttpChannel<?> channel) {
+            Request req = channel.getRequest();
+            Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            if (contextObj instanceof Context) {
+                final Context context = (Context) contextObj;
+                final AgentSpan span = spanFromContext(context);
+                if (span != null) {
+                    DECORATE.onResponse(span, channel);
+                    DECORATE.beforeFinish(context);
+                    span.finish();
+                }
+            }
+        }
+
+        private void muzzleCheck(HttpChannel<?> connection) {
+            connection.run();
+        }
+    }
+
+    static class HandleExceptionAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void enter(@Advice.Argument(0) Throwable t) {
+            if (!(t instanceof BlockingException)) {
+                return;
+            }
+
+            AgentSpan agentSpan = AgentTracer.activeSpan();
+            if (agentSpan == null) {
+                return;
+            }
+            JettyDecorator.DECORATE.onError(agentSpan, t);
+        }
+    }
 }

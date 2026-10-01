@@ -10,19 +10,19 @@ import javax.annotation.Nonnull;
 
 public class WeakHashModuleImpl extends SinkModuleBase implements WeakHashModule {
 
-  private Config config;
+    private Config config;
 
-  public WeakHashModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-    config = dependencies.getConfig();
-  }
-
-  @Override
-  public void onHashingAlgorithm(@Nonnull final String algorithm) {
-    final String algorithmId = algorithm.toUpperCase(Locale.ROOT);
-    if (!config.getIastWeakHashAlgorithms().contains(algorithmId)) {
-      return;
+    public WeakHashModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
+        config = dependencies.getConfig();
     }
-    report(VulnerabilityType.WEAK_HASH, new Evidence(algorithm));
-  }
+
+    @Override
+    public void onHashingAlgorithm(@Nonnull final String algorithm) {
+        final String algorithmId = algorithm.toUpperCase(Locale.ROOT);
+        if (!config.getIastWeakHashAlgorithms().contains(algorithmId)) {
+            return;
+        }
+        report(VulnerabilityType.WEAK_HASH, new Evidence(algorithm));
+    }
 }

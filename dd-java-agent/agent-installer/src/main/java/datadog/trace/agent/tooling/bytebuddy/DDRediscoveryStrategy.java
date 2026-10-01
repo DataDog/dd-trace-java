@@ -27,84 +27,84 @@ import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy;
  * @see Instrumentation#addTransformer(ClassFileTransformer, boolean)
  */
 public final class DDRediscoveryStrategy implements RedefinitionStrategy.DiscoveryStrategy {
-  static final int MAX_ROUNDS = 10;
+    static final int MAX_ROUNDS = 10;
 
-  @Override
-  public Iterable<Iterable<Class<?>>> resolve(final Instrumentation instrumentation) {
-    return new Iterable<Iterable<Class<?>>>() {
-      @Override
-      public Iterator<Iterable<Class<?>>> iterator() {
-        final Set<Class<?>> visited = new HashSet<>(256);
-        return new Iterator<Iterable<Class<?>>>() {
-          private int round = 0;
+    @Override
+    public Iterable<Iterable<Class<?>>> resolve(final Instrumentation instrumentation) {
+        return new Iterable<Iterable<Class<?>>>() {
+            @Override
+            public Iterator<Iterable<Class<?>>> iterator() {
+                final Set<Class<?>> visited = new HashSet<>(256);
+                return new Iterator<Iterable<Class<?>>>() {
+                    private int round = 0;
 
-          @Override
-          public boolean hasNext() {
-            return round < MAX_ROUNDS;
-          }
+                    @Override
+                    public boolean hasNext() {
+                        return round < MAX_ROUNDS;
+                    }
 
-          @Override
-          public Iterable<Class<?>> next() {
-            if (!hasNext()) {
-              throw new NoSuchElementException();
+                    @Override
+                    public Iterable<Class<?>> next() {
+                        if (!hasNext()) {
+                            throw new NoSuchElementException();
+                        }
+                        List<Class<?>> next = selectClassesForRetransformation(instrumentation, visited);
+                        if (next.isEmpty()) {
+                            round = MAX_ROUNDS; // halt iterator, nothing more to re-transform
+                        } else {
+                            visited.addAll(next); // mark as visited so they're not transformed again
+                            round++;
+                        }
+                        return next;
+                    }
+
+                    @Override
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
+                };
             }
-            List<Class<?>> next = selectClassesForRetransformation(instrumentation, visited);
-            if (next.isEmpty()) {
-              round = MAX_ROUNDS; // halt iterator, nothing more to re-transform
-            } else {
-              visited.addAll(next); // mark as visited so they're not transformed again
-              round++;
-            }
-            return next;
-          }
-
-          @Override
-          public void remove() {
-            throw new UnsupportedOperationException();
-          }
         };
-      }
-    };
-  }
-
-  /** Selects classes to retransform from already loaded classes that we haven't previously seen. */
-  static List<Class<?>> selectClassesForRetransformation(
-      final Instrumentation instrumentation, final Set<Class<?>> visited) {
-    List<Class<?>> retransforming = new ArrayList<>();
-    for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
-      if (clazz == null) {
-        // getAllLoadedClasses can return null classes (Class Unloading)
-        continue;
-      }
-      ClassLoader classLoader = clazz.getClassLoader();
-      if (null != classLoader) {
-        if (canSkipClassLoaderByName(classLoader)) {
-          continue;
-        }
-        Class<?> loaderClass = classLoader.getClass();
-        // postpone transforming types if their class-loader has yet to be transformed
-        // (this stops us from accidentally marking the class-loader as skipped when we
-        // haven't yet patched it to delegate to the boot-class-path for tracer types)
-        if (!visited.contains(loaderClass) && allowRetransform(loaderClass)) {
-          continue;
-        }
-      }
-      if (!visited.contains(clazz) && allowRetransform(clazz)) {
-        retransforming.add(clazz);
-      }
     }
-    return retransforming;
-  }
 
-  private static boolean allowRetransform(Class<?> clazz) {
-    switch (IgnoredClassNameTrie.apply(clazz.getName())) {
-      case 0:
-        return true; // explicitly allowed
-      case -1:
-        // unknown type; if it's from the boot-class-path ignore it, otherwise allow
-        return null != clazz.getClassLoader();
-      default:
-        return false; // explicitly ignored
+    /** Selects classes to retransform from already loaded classes that we haven't previously seen. */
+    static List<Class<?>> selectClassesForRetransformation(
+            final Instrumentation instrumentation, final Set<Class<?>> visited) {
+        List<Class<?>> retransforming = new ArrayList<>();
+        for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
+            if (clazz == null) {
+                // getAllLoadedClasses can return null classes (Class Unloading)
+                continue;
+            }
+            ClassLoader classLoader = clazz.getClassLoader();
+            if (null != classLoader) {
+                if (canSkipClassLoaderByName(classLoader)) {
+                    continue;
+                }
+                Class<?> loaderClass = classLoader.getClass();
+                // postpone transforming types if their class-loader has yet to be transformed
+                // (this stops us from accidentally marking the class-loader as skipped when we
+                // haven't yet patched it to delegate to the boot-class-path for tracer types)
+                if (!visited.contains(loaderClass) && allowRetransform(loaderClass)) {
+                    continue;
+                }
+            }
+            if (!visited.contains(clazz) && allowRetransform(clazz)) {
+                retransforming.add(clazz);
+            }
+        }
+        return retransforming;
     }
-  }
+
+    private static boolean allowRetransform(Class<?> clazz) {
+        switch (IgnoredClassNameTrie.apply(clazz.getName())) {
+            case 0:
+                return true; // explicitly allowed
+            case -1:
+                // unknown type; if it's from the boot-class-path ignore it, otherwise allow
+                return null != clazz.getClassLoader();
+            default:
+                return false; // explicitly ignored
+        }
+    }
 }

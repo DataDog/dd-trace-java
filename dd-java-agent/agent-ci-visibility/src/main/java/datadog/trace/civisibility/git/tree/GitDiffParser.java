@@ -15,50 +15,48 @@ import javax.annotation.Nonnull;
 
 public class GitDiffParser {
 
-  private static final Pattern CHANGED_FILE_PATTERN =
-      Pattern.compile("^diff --git (?<oldfilename>.+) (?<newfilename>.+)$");
-  private static final Pattern CHANGED_LINES_PATTERN =
-      Pattern.compile("^@@ -\\d+(,\\d+)? \\+(?<startline>\\d+)(,(?<count>\\d+))? @@");
+    private static final Pattern CHANGED_FILE_PATTERN =
+            Pattern.compile("^diff --git (?<oldfilename>.+) (?<newfilename>.+)$");
+    private static final Pattern CHANGED_LINES_PATTERN =
+            Pattern.compile("^@@ -\\d+(,\\d+)? \\+(?<startline>\\d+)(,(?<count>\\d+))? @@");
 
-  public static @Nonnull LineDiff parse(InputStream input) throws IOException {
-    Map<String, BitSet> linesByRelativePath = new HashMap<>();
+    public static @Nonnull LineDiff parse(InputStream input) throws IOException {
+        Map<String, BitSet> linesByRelativePath = new HashMap<>();
 
-    BufferedReader bufferedReader =
-        new BufferedReader(new InputStreamReader(input, Charset.defaultCharset()));
-    String changedFile = null;
-    BitSet changedLines = null;
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(input, Charset.defaultCharset()));
+        String changedFile = null;
+        BitSet changedLines = null;
 
-    String line;
-    while ((line = bufferedReader.readLine()) != null) {
-      Matcher changedFileMatcher = CHANGED_FILE_PATTERN.matcher(line);
-      if (changedFileMatcher.matches()) {
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            Matcher changedFileMatcher = CHANGED_FILE_PATTERN.matcher(line);
+            if (changedFileMatcher.matches()) {
+                if (changedFile != null) {
+                    linesByRelativePath.put(changedFile, changedLines);
+                }
+                changedFile = changedFileMatcher.group("newfilename");
+                changedLines = new BitSet();
+
+            } else {
+                Matcher changedLinesMatcher = CHANGED_LINES_PATTERN.matcher(line);
+                while (changedLinesMatcher.find()) {
+                    int startLine = Integer.parseInt(changedLinesMatcher.group("startline"));
+                    String stringCount = changedLinesMatcher.group("count");
+                    int count = stringCount != null ? Integer.parseInt(stringCount) : 1;
+                    if (changedLines == null) {
+                        throw new IllegalStateException("Line "
+                                + line
+                                + " contains changed lines information, but no changed file info is available");
+                    }
+                    changedLines.set(startLine, startLine + count);
+                }
+            }
+        }
+
         if (changedFile != null) {
-          linesByRelativePath.put(changedFile, changedLines);
+            linesByRelativePath.put(changedFile, changedLines);
         }
-        changedFile = changedFileMatcher.group("newfilename");
-        changedLines = new BitSet();
 
-      } else {
-        Matcher changedLinesMatcher = CHANGED_LINES_PATTERN.matcher(line);
-        while (changedLinesMatcher.find()) {
-          int startLine = Integer.parseInt(changedLinesMatcher.group("startline"));
-          String stringCount = changedLinesMatcher.group("count");
-          int count = stringCount != null ? Integer.parseInt(stringCount) : 1;
-          if (changedLines == null) {
-            throw new IllegalStateException(
-                "Line "
-                    + line
-                    + " contains changed lines information, but no changed file info is available");
-          }
-          changedLines.set(startLine, startLine + count);
-        }
-      }
+        return new LineDiff(linesByRelativePath);
     }
-
-    if (changedFile != null) {
-      linesByRelativePath.put(changedFile, changedLines);
-    }
-
-    return new LineDiff(linesByRelativePath);
-  }
 }

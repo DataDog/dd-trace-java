@@ -5,9 +5,9 @@ import javax.annotation.Nullable;
 
 public interface SqlInjectionModule extends IastModule {
 
-  String DATABASE_PARAMETER = "DATABASE";
+    String DATABASE_PARAMETER = "DATABASE";
 
-  void onJdbcQuery(@Nullable String sql);
+    void onJdbcQuery(@Nullable String sql);
 
-  void onJdbcQuery(@Nullable String sql, @Nullable String database);
+    void onJdbcQuery(@Nullable String sql, @Nullable String database);
 }

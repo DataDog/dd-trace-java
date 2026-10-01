@@ -14,12 +14,12 @@ import org.junit.jupiter.params.provider.Arguments;
 
 @WithConfig(key = "trace.propagation.style", value = "b3multi")
 class B3MultiPropagatorTest extends AgentPropagatorTest {
-  private static final String TRACE_ID_KEY = "X-B3-TraceId";
-  private static final String SPAN_ID_KEY = "X-B3-SpanId";
-  private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
+    private static final String TRACE_ID_KEY = "X-B3-TraceId";
+    private static final String SPAN_ID_KEY = "X-B3-SpanId";
+    private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
 
-  static Stream<Arguments> values() {
-    // spotless:off
+    static Stream<Arguments> values() {
+        // spotless:off
     return Stream.of(
         arguments(
             headers(TRACE_ID_KEY, "1", SPAN_ID_KEY, "2"),
@@ -50,19 +50,18 @@ class B3MultiPropagatorTest extends AgentPropagatorTest {
             "2222222222222222",
             SAMPLER_KEEP));
     // spotless:on
-  }
+    }
 
-  @Override
-  Object expectedTraceId(String traceId) {
-    return B3TraceId.fromHex(traceId);
-  }
+    @Override
+    Object expectedTraceId(String traceId) {
+        return B3TraceId.fromHex(traceId);
+    }
 
-  @Override
-  void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
-    String priorityKey = sampling == SAMPLER_DROP ? "0" : "1";
-    assertEquals(zeroPadLeft(traceId, 32), headers.get(TRACE_ID_KEY));
-    assertEquals(zeroPadLeft(spanId, 8), headers.get(SPAN_ID_KEY));
-    assertEquals(priorityKey, headers.get(SAMPLING_PRIORITY_KEY));
-  }
+    @Override
+    void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, byte sampling) {
+        String priorityKey = sampling == SAMPLER_DROP ? "0" : "1";
+        assertEquals(zeroPadLeft(traceId, 32), headers.get(TRACE_ID_KEY));
+        assertEquals(zeroPadLeft(spanId, 8), headers.get(SPAN_ID_KEY));
+        assertEquals(priorityKey, headers.get(SAMPLING_PRIORITY_KEY));
+    }
 }

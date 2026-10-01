@@ -14,47 +14,47 @@ import org.springframework.transaction.PlatformTransactionManager;
 @EnableJpaRepositories(basePackages = "spring/hibernate/jpa")
 public class PersistenceConfig {
 
-  @Bean(name = "transactionManager")
-  public PlatformTransactionManager dbTransactionManager() {
-    final JpaTransactionManager transactionManager = new JpaTransactionManager();
-    transactionManager.setEntityManagerFactory(entityManagerFactory().getObject());
-    return transactionManager;
-  }
+    @Bean(name = "transactionManager")
+    public PlatformTransactionManager dbTransactionManager() {
+        final JpaTransactionManager transactionManager = new JpaTransactionManager();
+        transactionManager.setEntityManagerFactory(entityManagerFactory().getObject());
+        return transactionManager;
+    }
 
-  @Bean
-  public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+    @Bean
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
 
-    final HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
-    vendorAdapter.setDatabase(Database.HSQL);
-    vendorAdapter.setGenerateDdl(true);
+        final HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+        vendorAdapter.setDatabase(Database.HSQL);
+        vendorAdapter.setGenerateDdl(true);
 
-    final LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
-    em.setDataSource(dataSource());
-    em.setPackagesToScan("spring/hibernate/jpa");
-    em.setJpaVendorAdapter(vendorAdapter);
-    em.setJpaProperties(additionalProperties());
+        final LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
+        em.setDataSource(dataSource());
+        em.setPackagesToScan("spring/hibernate/jpa");
+        em.setJpaVendorAdapter(vendorAdapter);
+        em.setJpaProperties(additionalProperties());
 
-    return em;
-  }
+        return em;
+    }
 
-  @Bean
-  public DataSource dataSource() {
-    final DriverManagerDataSource dataSource = new DriverManagerDataSource();
-    dataSource.setDriverClassName("org.hsqldb.jdbcDriver");
-    dataSource.setUrl("jdbc:hsqldb:mem:test");
-    dataSource.setUsername("sa");
-    dataSource.setPassword("1");
-    return dataSource;
-  }
+    @Bean
+    public DataSource dataSource() {
+        final DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.hsqldb.jdbcDriver");
+        dataSource.setUrl("jdbc:hsqldb:mem:test");
+        dataSource.setUsername("sa");
+        dataSource.setPassword("1");
+        return dataSource;
+    }
 
-  private Properties additionalProperties() {
-    final Properties properties = new Properties();
-    properties.setProperty("hibernate.show_sql", "true");
-    properties.setProperty("hibernate.hbm2ddl.auto", "create");
-    properties.setProperty("hibernate.dialect", "org.hibernate.dialect.HSQLDialect");
-    //    properties.setProperty(
-    //        "hibernate.format_sql",
-    // env.getProperty("spring.jpa.properties.hibernate.format_sql"));
-    return properties;
-  }
+    private Properties additionalProperties() {
+        final Properties properties = new Properties();
+        properties.setProperty("hibernate.show_sql", "true");
+        properties.setProperty("hibernate.hbm2ddl.auto", "create");
+        properties.setProperty("hibernate.dialect", "org.hibernate.dialect.HSQLDialect");
+        //    properties.setProperty(
+        //        "hibernate.format_sql",
+        // env.getProperty("spring.jpa.properties.hibernate.format_sql"));
+        return properties;
+    }
 }

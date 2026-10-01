@@ -31,166 +31,160 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class WebsocketDecorator extends BaseDecorator {
-  private static final Logger log = LoggerFactory.getLogger(WebsocketDecorator.class);
+    private static final Logger log = LoggerFactory.getLogger(WebsocketDecorator.class);
 
-  private static final CharSequence WEBSOCKET = UTF8BytesString.create("websocket");
-  private static final String[] INSTRUMENTATION_NAMES = {WEBSOCKET.toString()};
-  private static final CharSequence WEBSOCKET_RECEIVE = UTF8BytesString.create("websocket.receive");
-  private static final CharSequence WEBSOCKET_SEND = UTF8BytesString.create("websocket.send");
-  private static final CharSequence WEBSOCKET_CLOSE = UTF8BytesString.create("websocket.close");
+    private static final CharSequence WEBSOCKET = UTF8BytesString.create("websocket");
+    private static final String[] INSTRUMENTATION_NAMES = {WEBSOCKET.toString()};
+    private static final CharSequence WEBSOCKET_RECEIVE = UTF8BytesString.create("websocket.receive");
+    private static final CharSequence WEBSOCKET_SEND = UTF8BytesString.create("websocket.send");
+    private static final CharSequence WEBSOCKET_CLOSE = UTF8BytesString.create("websocket.close");
 
-  private static final SpanAttributes SPAN_ATTRIBUTES_RECEIVE =
-      SpanAttributes.builder().put("dd.kind", "executed_from").build();
-  private static final SpanAttributes SPAN_ATTRIBUTES_SEND =
-      SpanAttributes.builder().put("dd.kind", "resuming").build();
+    private static final SpanAttributes SPAN_ATTRIBUTES_RECEIVE =
+            SpanAttributes.builder().put("dd.kind", "executed_from").build();
+    private static final SpanAttributes SPAN_ATTRIBUTES_SEND =
+            SpanAttributes.builder().put("dd.kind", "resuming").build();
 
-  public static final WebsocketDecorator DECORATE = new WebsocketDecorator();
+    public static final WebsocketDecorator DECORATE = new WebsocketDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return INSTRUMENTATION_NAMES;
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.WEBSOCKET;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return WEBSOCKET;
-  }
-
-  @Override
-  protected void doAfterStart(@Nonnull AgentSpan span) {
-    super.doAfterStart(span);
-    span.setMeasured(true);
-  }
-
-  @Nonnull
-  public AgentSpan startInboundFrameSpan(
-      final HandlerContext.Receiver handlerContext, final Object data, boolean partialDelivery) {
-    handlerContext.recordChunkData(data, partialDelivery);
-    return onFrameStart(
-        WEBSOCKET_RECEIVE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true);
-  }
-
-  @Nonnull
-  public AgentSpan startOutboundCloseSpan(
-      final HandlerContext.Sender handlerContext, CharSequence closeReason, int closeCode) {
-    return onFrameStart(
-            WEBSOCKET_CLOSE, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false)
-        .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
-        .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
-  }
-
-  @Nonnull
-  public AgentSpan startInboundCloseSpan(
-      final HandlerContext.Receiver handlerContext, CharSequence closeReason, int closeCode) {
-    return onFrameStart(
-            WEBSOCKET_CLOSE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true)
-        .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
-        .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
-  }
-
-  @Nonnull
-  public AgentSpan startOutboundFrameSpan(
-      final HandlerContext.Sender handlerContext, final CharSequence msgType, final int msgSize) {
-    handlerContext.recordChunkData(msgType, msgSize);
-    return onFrameStart(
-        WEBSOCKET_SEND, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false);
-  }
-
-  public final void onFrameEnd(final HandlerContext handlerContext) {
-    try {
-      doOnFrameEnd(handlerContext);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on frame end", t);
+    @Override
+    protected String[] instrumentationNames() {
+        return INSTRUMENTATION_NAMES;
     }
-  }
 
-  protected void doOnFrameEnd(final HandlerContext handlerContext) {
-    if (handlerContext == null) {
-      return;
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.WEBSOCKET;
     }
-    final AgentSpan wsSpan = handlerContext.getWebsocketSpan();
-    if (wsSpan == null) {
-      return;
-    }
-    try {
-      final long startTime = handlerContext.getFirstFrameTimestamp();
-      if (startTime > 0) {
-        wsSpan.setTag(
-            WEBSOCKET_MESSAGE_RECEIVE_TIME,
-            SystemTimeSource.INSTANCE.getCurrentTimeNanos() - startTime);
-      }
-      final long chunks = handlerContext.getMsgChunks();
-      if (chunks > 0) {
-        wsSpan.setTag(WEBSOCKET_MESSAGE_FRAMES, chunks);
-        wsSpan.setTag(WEBSOCKET_MESSAGE_LENGTH, handlerContext.getMsgSize());
-        wsSpan.setTag(WEBSOCKET_MESSAGE_TYPE, handlerContext.getMessageType());
-      }
-      beforeFinish(wsSpan);
-      wsSpan.finish();
-    } finally {
-      handlerContext.reset();
-    }
-  }
 
-  private AgentSpan onFrameStart(
-      final CharSequence operationName,
-      final CharSequence spanKind,
-      final HandlerContext handlerContext,
-      final SpanAttributes linkAttributes,
-      boolean traceStarter) {
-    AgentSpan wsSpan = handlerContext.getWebsocketSpan();
-    if (wsSpan == null) {
-      final Config config = Config.get();
-      final AgentSpan handshakeSpan = handlerContext.getHandshakeSpan();
-      boolean inheritSampling = config.isWebsocketMessagesInheritSampling();
-      boolean useDedicatedTraces = config.isWebsocketMessagesSeparateTraces();
-      if (traceStarter) {
-        if (useDedicatedTraces) {
-          wsSpan = startSpan(WEBSOCKET.toString(), operationName, null);
-          if (inheritSampling) {
-            wsSpan.copyPropagationAndBaggage(handshakeSpan);
-            wsSpan.setTag(DECISION_MAKER_INHERITED, 1);
-            wsSpan.setTag(DECISION_MAKER_SERVICE, handshakeSpan.getServiceName());
-            wsSpan.setTag(DECISION_MAKER_RESOURCE, handshakeSpan.getResourceName());
-          }
-        } else {
-          wsSpan = startSpan(WEBSOCKET.toString(), operationName, handshakeSpan.spanContext());
+    @Override
+    protected CharSequence component() {
+        return WEBSOCKET;
+    }
+
+    @Override
+    protected void doAfterStart(@Nonnull AgentSpan span) {
+        super.doAfterStart(span);
+        span.setMeasured(true);
+    }
+
+    @Nonnull
+    public AgentSpan startInboundFrameSpan(
+            final HandlerContext.Receiver handlerContext, final Object data, boolean partialDelivery) {
+        handlerContext.recordChunkData(data, partialDelivery);
+        return onFrameStart(WEBSOCKET_RECEIVE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true);
+    }
+
+    @Nonnull
+    public AgentSpan startOutboundCloseSpan(
+            final HandlerContext.Sender handlerContext, CharSequence closeReason, int closeCode) {
+        return onFrameStart(WEBSOCKET_CLOSE, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false)
+                .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
+                .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
+    }
+
+    @Nonnull
+    public AgentSpan startInboundCloseSpan(
+            final HandlerContext.Receiver handlerContext, CharSequence closeReason, int closeCode) {
+        return onFrameStart(WEBSOCKET_CLOSE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true)
+                .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
+                .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
+    }
+
+    @Nonnull
+    public AgentSpan startOutboundFrameSpan(
+            final HandlerContext.Sender handlerContext, final CharSequence msgType, final int msgSize) {
+        handlerContext.recordChunkData(msgType, msgSize);
+        return onFrameStart(WEBSOCKET_SEND, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false);
+    }
+
+    public final void onFrameEnd(final HandlerContext handlerContext) {
+        try {
+            doOnFrameEnd(handlerContext);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span on frame end", t);
         }
-      } else {
-        wsSpan = startSpan(WEBSOCKET.toString(), operationName);
-      }
-      handlerContext.setWebsocketSpan(wsSpan);
-      afterStart(wsSpan);
-      wsSpan.setTag(SPAN_KIND, spanKind);
-      wsSpan.setResourceName(handlerContext.getWsResourceName());
-      // carry over peer information for inferred services
-      final String handshakePeerAddress = (String) handshakeSpan.getTag(Tags.PEER_HOSTNAME);
-      if (handshakePeerAddress != null) {
-        wsSpan.setTag(Tags.PEER_HOSTNAME, handshakePeerAddress);
-      }
-      if (config.isWebsocketTagSessionId()) {
-        wsSpan.setTag(WEBSOCKET_SESSION_ID, handlerContext.getSessionId());
-      }
-      if (useDedicatedTraces || !traceStarter) {
-        // the link is not added if the user wants to have receive frames on the same trace as the
-        // handshake
-        wsSpan.addLink(
-            SpanLink.from(
-                inheritSampling
-                    ? handshakeSpan.spanContext()
-                    : new NotSampledSpanContext(handshakeSpan.spanContext()),
-                SpanLink.DEFAULT_FLAGS,
-                "",
-                linkAttributes));
-      }
     }
-    return wsSpan;
-  }
+
+    protected void doOnFrameEnd(final HandlerContext handlerContext) {
+        if (handlerContext == null) {
+            return;
+        }
+        final AgentSpan wsSpan = handlerContext.getWebsocketSpan();
+        if (wsSpan == null) {
+            return;
+        }
+        try {
+            final long startTime = handlerContext.getFirstFrameTimestamp();
+            if (startTime > 0) {
+                wsSpan.setTag(
+                        WEBSOCKET_MESSAGE_RECEIVE_TIME, SystemTimeSource.INSTANCE.getCurrentTimeNanos() - startTime);
+            }
+            final long chunks = handlerContext.getMsgChunks();
+            if (chunks > 0) {
+                wsSpan.setTag(WEBSOCKET_MESSAGE_FRAMES, chunks);
+                wsSpan.setTag(WEBSOCKET_MESSAGE_LENGTH, handlerContext.getMsgSize());
+                wsSpan.setTag(WEBSOCKET_MESSAGE_TYPE, handlerContext.getMessageType());
+            }
+            beforeFinish(wsSpan);
+            wsSpan.finish();
+        } finally {
+            handlerContext.reset();
+        }
+    }
+
+    private AgentSpan onFrameStart(
+            final CharSequence operationName,
+            final CharSequence spanKind,
+            final HandlerContext handlerContext,
+            final SpanAttributes linkAttributes,
+            boolean traceStarter) {
+        AgentSpan wsSpan = handlerContext.getWebsocketSpan();
+        if (wsSpan == null) {
+            final Config config = Config.get();
+            final AgentSpan handshakeSpan = handlerContext.getHandshakeSpan();
+            boolean inheritSampling = config.isWebsocketMessagesInheritSampling();
+            boolean useDedicatedTraces = config.isWebsocketMessagesSeparateTraces();
+            if (traceStarter) {
+                if (useDedicatedTraces) {
+                    wsSpan = startSpan(WEBSOCKET.toString(), operationName, null);
+                    if (inheritSampling) {
+                        wsSpan.copyPropagationAndBaggage(handshakeSpan);
+                        wsSpan.setTag(DECISION_MAKER_INHERITED, 1);
+                        wsSpan.setTag(DECISION_MAKER_SERVICE, handshakeSpan.getServiceName());
+                        wsSpan.setTag(DECISION_MAKER_RESOURCE, handshakeSpan.getResourceName());
+                    }
+                } else {
+                    wsSpan = startSpan(WEBSOCKET.toString(), operationName, handshakeSpan.spanContext());
+                }
+            } else {
+                wsSpan = startSpan(WEBSOCKET.toString(), operationName);
+            }
+            handlerContext.setWebsocketSpan(wsSpan);
+            afterStart(wsSpan);
+            wsSpan.setTag(SPAN_KIND, spanKind);
+            wsSpan.setResourceName(handlerContext.getWsResourceName());
+            // carry over peer information for inferred services
+            final String handshakePeerAddress = (String) handshakeSpan.getTag(Tags.PEER_HOSTNAME);
+            if (handshakePeerAddress != null) {
+                wsSpan.setTag(Tags.PEER_HOSTNAME, handshakePeerAddress);
+            }
+            if (config.isWebsocketTagSessionId()) {
+                wsSpan.setTag(WEBSOCKET_SESSION_ID, handlerContext.getSessionId());
+            }
+            if (useDedicatedTraces || !traceStarter) {
+                // the link is not added if the user wants to have receive frames on the same trace as the
+                // handshake
+                wsSpan.addLink(SpanLink.from(
+                        inheritSampling
+                                ? handshakeSpan.spanContext()
+                                : new NotSampledSpanContext(handshakeSpan.spanContext()),
+                        SpanLink.DEFAULT_FLAGS,
+                        "",
+                        linkAttributes));
+            }
+        }
+        return wsSpan;
+    }
 }

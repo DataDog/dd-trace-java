@@ -21,317 +21,312 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
-  private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
-  private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
-  private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
-  private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
-  private static final byte[] LANG = "Lang".getBytes(ISO_8859_1);
-  private static final byte[] TRACER_VERSION = "TracerVersion".getBytes(ISO_8859_1);
-  private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
-  private static final byte[] START = "Start".getBytes(ISO_8859_1);
-  private static final byte[] DURATION = "Duration".getBytes(ISO_8859_1);
-  private static final byte[] PATHWAY_LATENCY = "PathwayLatency".getBytes(ISO_8859_1);
-  private static final byte[] EDGE_LATENCY = "EdgeLatency".getBytes(ISO_8859_1);
-  private static final byte[] PAYLOAD_SIZE = "PayloadSize".getBytes(ISO_8859_1);
-  private static final byte[] SERVICE = "Service".getBytes(ISO_8859_1);
-  private static final byte[] EDGE_TAGS = "EdgeTags".getBytes(ISO_8859_1);
-  private static final byte[] BACKLOGS = "Backlogs".getBytes(ISO_8859_1);
-  private static final byte[] HASH = "Hash".getBytes(ISO_8859_1);
-  private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
-  private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
-  private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
-  private static final byte[] SCHEMA_REGISTRY_USAGES = "SchemaRegistryUsages".getBytes(ISO_8859_1);
-  private static final byte[] TOPIC = "Topic".getBytes(ISO_8859_1);
-  private static final byte[] KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
-  private static final byte[] SCHEMA_ID = "SchemaId".getBytes(ISO_8859_1);
-  private static final byte[] COUNT = "Count".getBytes(ISO_8859_1);
-  private static final byte[] IS_SUCCESS = "IsSuccess".getBytes(ISO_8859_1);
-  private static final byte[] IS_KEY = "IsKey".getBytes(ISO_8859_1);
-  private static final byte[] OPERATION = "Operation".getBytes(ISO_8859_1);
-  private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
-  private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
-  private static final byte[] TRANSACTIONS = "Transactions".getBytes(ISO_8859_1);
-  private static final byte[] TRANSACTION_CHECKPOINT_IDS =
-      "TransactionCheckpointIds".getBytes(ISO_8859_1);
-  private static final byte[] CONFIGS = "Configs".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_TYPE = "Type".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_CONSUMER_GROUP = "ConsumerGroup".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_MEMBER_ID = "MemberId".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_GENERATION_ID = "GenerationId".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_MEMBER_PROTOCOL = "MemberProtocol".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_ENTRIES = "Config".getBytes(ISO_8859_1);
+    private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
+    private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
+    private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
+    private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
+    private static final byte[] LANG = "Lang".getBytes(ISO_8859_1);
+    private static final byte[] TRACER_VERSION = "TracerVersion".getBytes(ISO_8859_1);
+    private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
+    private static final byte[] START = "Start".getBytes(ISO_8859_1);
+    private static final byte[] DURATION = "Duration".getBytes(ISO_8859_1);
+    private static final byte[] PATHWAY_LATENCY = "PathwayLatency".getBytes(ISO_8859_1);
+    private static final byte[] EDGE_LATENCY = "EdgeLatency".getBytes(ISO_8859_1);
+    private static final byte[] PAYLOAD_SIZE = "PayloadSize".getBytes(ISO_8859_1);
+    private static final byte[] SERVICE = "Service".getBytes(ISO_8859_1);
+    private static final byte[] EDGE_TAGS = "EdgeTags".getBytes(ISO_8859_1);
+    private static final byte[] BACKLOGS = "Backlogs".getBytes(ISO_8859_1);
+    private static final byte[] HASH = "Hash".getBytes(ISO_8859_1);
+    private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
+    private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
+    private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
+    private static final byte[] SCHEMA_REGISTRY_USAGES = "SchemaRegistryUsages".getBytes(ISO_8859_1);
+    private static final byte[] TOPIC = "Topic".getBytes(ISO_8859_1);
+    private static final byte[] KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
+    private static final byte[] SCHEMA_ID = "SchemaId".getBytes(ISO_8859_1);
+    private static final byte[] COUNT = "Count".getBytes(ISO_8859_1);
+    private static final byte[] IS_SUCCESS = "IsSuccess".getBytes(ISO_8859_1);
+    private static final byte[] IS_KEY = "IsKey".getBytes(ISO_8859_1);
+    private static final byte[] OPERATION = "Operation".getBytes(ISO_8859_1);
+    private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
+    private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
+    private static final byte[] TRANSACTIONS = "Transactions".getBytes(ISO_8859_1);
+    private static final byte[] TRANSACTION_CHECKPOINT_IDS = "TransactionCheckpointIds".getBytes(ISO_8859_1);
+    private static final byte[] CONFIGS = "Configs".getBytes(ISO_8859_1);
+    private static final byte[] CONFIG_TYPE = "Type".getBytes(ISO_8859_1);
+    private static final byte[] CONFIG_KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
+    private static final byte[] CONFIG_CONSUMER_GROUP = "ConsumerGroup".getBytes(ISO_8859_1);
+    private static final byte[] CONFIG_MEMBER_ID = "MemberId".getBytes(ISO_8859_1);
+    private static final byte[] CONFIG_GENERATION_ID = "GenerationId".getBytes(ISO_8859_1);
+    private static final byte[] CONFIG_MEMBER_PROTOCOL = "MemberProtocol".getBytes(ISO_8859_1);
+    private static final byte[] CONFIG_ENTRIES = "Config".getBytes(ISO_8859_1);
 
-  private static final int INITIAL_CAPACITY = 512 * 1024;
+    private static final int INITIAL_CAPACITY = 512 * 1024;
 
-  private final WritableFormatter writer;
-  private final Sink sink;
-  private final GrowableBuffer buffer;
-  private final WellKnownTags wellKnownTags;
-  private final byte[] tracerVersionValue;
-  private final byte[] primaryTagValue;
+    private final WritableFormatter writer;
+    private final Sink sink;
+    private final GrowableBuffer buffer;
+    private final WellKnownTags wellKnownTags;
+    private final byte[] tracerVersionValue;
+    private final byte[] primaryTagValue;
 
-  public MsgPackDatastreamsPayloadWriter(
-      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
-    buffer = new GrowableBuffer(INITIAL_CAPACITY);
-    writer = new MsgPackWriter(buffer);
-    this.sink = sink;
-    this.wellKnownTags = wellKnownTags;
-    tracerVersionValue = tracerVersion.getBytes(ISO_8859_1);
-    primaryTagValue = primaryTag == null ? new byte[0] : primaryTag.getBytes(ISO_8859_1);
-  }
-
-  public void reset() {
-    buffer.reset();
-  }
-
-  // extend the list as needed
-  private static final int APM_PRODUCT = 1; // 00000001
-  private static final int DSM_PRODUCT = 2; // 00000010
-  private static final int DJM_PRODUCT = 4; // 00000100
-  private static final int PROFILING_PRODUCT = 8; // 00001000
-
-  public long getProductsMask() {
-    long productsMask = APM_PRODUCT;
-    if (Config.get().isDataStreamsEnabled()) {
-      productsMask |= DSM_PRODUCT;
-    }
-    if (Config.get().isDataJobsEnabled()) {
-      productsMask |= DJM_PRODUCT;
-    }
-    if (Config.get().isProfilingEnabled()) {
-      productsMask |= PROFILING_PRODUCT;
+    public MsgPackDatastreamsPayloadWriter(
+            Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
+        buffer = new GrowableBuffer(INITIAL_CAPACITY);
+        writer = new MsgPackWriter(buffer);
+        this.sink = sink;
+        this.wellKnownTags = wellKnownTags;
+        tracerVersionValue = tracerVersion.getBytes(ISO_8859_1);
+        primaryTagValue = primaryTag == null ? new byte[0] : primaryTag.getBytes(ISO_8859_1);
     }
 
-    return productsMask;
-  }
-
-  @Override
-  public void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
-    final List<UTF8BytesString> processTags = ProcessTags.getTagsAsUTF8ByteStringList();
-    final boolean hasProcessTags = processTags != null;
-    writer.startMap(8 + (hasProcessTags ? 1 : 0));
-    /* 1 */
-    writer.writeUTF8(ENV);
-    writer.writeUTF8(wellKnownTags.getEnv());
-
-    /* 2 */
-    writer.writeUTF8(SERVICE);
-    if (serviceNameOverride != null && !serviceNameOverride.isEmpty()) {
-      writer.writeUTF8(serviceNameOverride.getBytes(ISO_8859_1));
-    } else {
-      writer.writeUTF8(wellKnownTags.getService());
+    public void reset() {
+        buffer.reset();
     }
 
-    /* 3 */
-    writer.writeUTF8(LANG);
-    writer.writeUTF8(wellKnownTags.getLanguage());
+    // extend the list as needed
+    private static final int APM_PRODUCT = 1; // 00000001
+    private static final int DSM_PRODUCT = 2; // 00000010
+    private static final int DJM_PRODUCT = 4; // 00000100
+    private static final int PROFILING_PRODUCT = 8; // 00001000
 
-    /* 4 */
-    writer.writeUTF8(PRIMARY_TAG);
-    writer.writeUTF8(primaryTagValue);
+    public long getProductsMask() {
+        long productsMask = APM_PRODUCT;
+        if (Config.get().isDataStreamsEnabled()) {
+            productsMask |= DSM_PRODUCT;
+        }
+        if (Config.get().isDataJobsEnabled()) {
+            productsMask |= DJM_PRODUCT;
+        }
+        if (Config.get().isProfilingEnabled()) {
+            productsMask |= PROFILING_PRODUCT;
+        }
 
-    /* 5 */
-    writer.writeUTF8(TRACER_VERSION);
-    writer.writeUTF8(tracerVersionValue);
+        return productsMask;
+    }
 
-    /* 6 */
-    writer.writeUTF8(VERSION);
-    writer.writeUTF8(wellKnownTags.getVersion());
+    @Override
+    public void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
+        final List<UTF8BytesString> processTags = ProcessTags.getTagsAsUTF8ByteStringList();
+        final boolean hasProcessTags = processTags != null;
+        writer.startMap(8 + (hasProcessTags ? 1 : 0));
+        /* 1 */
+        writer.writeUTF8(ENV);
+        writer.writeUTF8(wellKnownTags.getEnv());
 
-    /* 7 */
-    writer.writeUTF8(STATS);
-    writer.startArray(data.size());
+        /* 2 */
+        writer.writeUTF8(SERVICE);
+        if (serviceNameOverride != null && !serviceNameOverride.isEmpty()) {
+            writer.writeUTF8(serviceNameOverride.getBytes(ISO_8859_1));
+        } else {
+            writer.writeUTF8(wellKnownTags.getService());
+        }
 
-    for (StatsBucket bucket : data) {
-      boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      boolean hasTransactions = !bucket.getTransactions().isEmpty();
-      boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
-      boolean hasKafkaConfigs = !bucket.getKafkaConfigs().isEmpty();
-      writer.startMap(
-          3
-              + (hasBacklogs ? 1 : 0)
-              + (hasTransactions ? 2 : 0)
-              + (hasSchemaRegistryUsages ? 1 : 0)
-              + (hasKafkaConfigs ? 1 : 0));
+        /* 3 */
+        writer.writeUTF8(LANG);
+        writer.writeUTF8(wellKnownTags.getLanguage());
 
-      /* 1 */
-      writer.writeUTF8(START);
-      writer.writeLong(bucket.getStartTimeNanos());
-
-      /* 2 */
-      writer.writeUTF8(DURATION);
-      writer.writeLong(bucket.getBucketDurationNanos());
-
-      /* 3 */
-      writer.writeUTF8(STATS);
-      writeBucket(bucket, writer);
-
-      if (hasBacklogs) {
         /* 4 */
-        writeBacklogs(bucket.getBacklogs(), writer);
-      }
+        writer.writeUTF8(PRIMARY_TAG);
+        writer.writeUTF8(primaryTagValue);
 
-      if (hasSchemaRegistryUsages) {
         /* 5 */
-        writeSchemaRegistryUsages(bucket.getSchemaRegistryUsages(), writer);
-      }
+        writer.writeUTF8(TRACER_VERSION);
+        writer.writeUTF8(tracerVersionValue);
 
-      if (hasKafkaConfigs) {
-        writeKafkaConfigs(bucket.getKafkaConfigs(), writer);
-      }
-
-      if (hasTransactions) {
-        writer.writeUTF8(TRANSACTIONS);
-        writer.writeBinary(bucket.getTransactions().getData());
-        writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
-        writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
-      }
-    }
-
-    /* 8 */
-    writer.writeUTF8(PRODUCTS_MASK);
-    writer.writeLong(getProductsMask());
-
-    /* 9 */
-    if (hasProcessTags) {
-      writer.writeUTF8(PROCESS_TAGS);
-      writer.startArray(processTags.size());
-      processTags.forEach(writer::writeUTF8);
-    }
-
-    buffer.mark();
-    sink.accept(buffer.messageCount(), buffer.slice());
-    buffer.reset();
-  }
-
-  private void writeBucket(StatsBucket bucket, Writable packer) {
-    Collection<StatsGroup> groups = bucket.getGroups();
-    packer.startArray(groups.size());
-    for (StatsGroup group : groups) {
-      boolean firstNode = group.getTags().nonNullSize() == 0;
-      packer.startMap(firstNode ? 5 : 6);
-
-      /* 1 */
-      packer.writeUTF8(PATHWAY_LATENCY);
-      packer.writeBinary(group.getPathwayLatency().serialize());
-
-      /* 2 */
-      packer.writeUTF8(EDGE_LATENCY);
-      packer.writeBinary(group.getEdgeLatency().serialize());
-
-      /* 3 */
-      packer.writeUTF8(PAYLOAD_SIZE);
-      packer.writeBinary(group.getPayloadSize().serialize());
-
-      /* 4 */
-      packer.writeUTF8(HASH);
-      packer.writeUnsignedLong(group.getHash());
-
-      /* 5 */
-      packer.writeUTF8(PARENT_HASH);
-      packer.writeUnsignedLong(group.getParentHash());
-
-      if (!firstNode) {
         /* 6 */
-        packer.writeUTF8(EDGE_TAGS);
-        writeDataStreamsTags(group.getTags(), packer);
-      }
+        writer.writeUTF8(VERSION);
+        writer.writeUTF8(wellKnownTags.getVersion());
+
+        /* 7 */
+        writer.writeUTF8(STATS);
+        writer.startArray(data.size());
+
+        for (StatsBucket bucket : data) {
+            boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
+            boolean hasTransactions = !bucket.getTransactions().isEmpty();
+            boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
+            boolean hasKafkaConfigs = !bucket.getKafkaConfigs().isEmpty();
+            writer.startMap(3
+                    + (hasBacklogs ? 1 : 0)
+                    + (hasTransactions ? 2 : 0)
+                    + (hasSchemaRegistryUsages ? 1 : 0)
+                    + (hasKafkaConfigs ? 1 : 0));
+
+            /* 1 */
+            writer.writeUTF8(START);
+            writer.writeLong(bucket.getStartTimeNanos());
+
+            /* 2 */
+            writer.writeUTF8(DURATION);
+            writer.writeLong(bucket.getBucketDurationNanos());
+
+            /* 3 */
+            writer.writeUTF8(STATS);
+            writeBucket(bucket, writer);
+
+            if (hasBacklogs) {
+                /* 4 */
+                writeBacklogs(bucket.getBacklogs(), writer);
+            }
+
+            if (hasSchemaRegistryUsages) {
+                /* 5 */
+                writeSchemaRegistryUsages(bucket.getSchemaRegistryUsages(), writer);
+            }
+
+            if (hasKafkaConfigs) {
+                writeKafkaConfigs(bucket.getKafkaConfigs(), writer);
+            }
+
+            if (hasTransactions) {
+                writer.writeUTF8(TRANSACTIONS);
+                writer.writeBinary(bucket.getTransactions().getData());
+                writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
+                writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
+            }
+        }
+
+        /* 8 */
+        writer.writeUTF8(PRODUCTS_MASK);
+        writer.writeLong(getProductsMask());
+
+        /* 9 */
+        if (hasProcessTags) {
+            writer.writeUTF8(PROCESS_TAGS);
+            writer.startArray(processTags.size());
+            processTags.forEach(writer::writeUTF8);
+        }
+
+        buffer.mark();
+        sink.accept(buffer.messageCount(), buffer.slice());
+        buffer.reset();
     }
-  }
 
-  private void writeBacklogs(
-      Collection<Map.Entry<DataStreamsTags, Long>> backlogs, Writable packer) {
-    packer.writeUTF8(BACKLOGS);
-    packer.startArray(backlogs.size());
-    for (Map.Entry<DataStreamsTags, Long> entry : backlogs) {
-      packer.startMap(2);
+    private void writeBucket(StatsBucket bucket, Writable packer) {
+        Collection<StatsGroup> groups = bucket.getGroups();
+        packer.startArray(groups.size());
+        for (StatsGroup group : groups) {
+            boolean firstNode = group.getTags().nonNullSize() == 0;
+            packer.startMap(firstNode ? 5 : 6);
 
-      packer.writeUTF8(BACKLOG_TAGS);
-      writeDataStreamsTags(entry.getKey(), packer);
+            /* 1 */
+            packer.writeUTF8(PATHWAY_LATENCY);
+            packer.writeBinary(group.getPathwayLatency().serialize());
 
-      packer.writeUTF8(BACKLOG_VALUE);
-      packer.writeLong(entry.getValue());
+            /* 2 */
+            packer.writeUTF8(EDGE_LATENCY);
+            packer.writeBinary(group.getEdgeLatency().serialize());
+
+            /* 3 */
+            packer.writeUTF8(PAYLOAD_SIZE);
+            packer.writeBinary(group.getPayloadSize().serialize());
+
+            /* 4 */
+            packer.writeUTF8(HASH);
+            packer.writeUnsignedLong(group.getHash());
+
+            /* 5 */
+            packer.writeUTF8(PARENT_HASH);
+            packer.writeUnsignedLong(group.getParentHash());
+
+            if (!firstNode) {
+                /* 6 */
+                packer.writeUTF8(EDGE_TAGS);
+                writeDataStreamsTags(group.getTags(), packer);
+            }
+        }
     }
-  }
 
-  private void writeSchemaRegistryUsages(
-      Collection<Map.Entry<StatsBucket.SchemaKey, Long>> usages, Writable packer) {
-    packer.writeUTF8(SCHEMA_REGISTRY_USAGES);
-    packer.startArray(usages.size());
-    for (Map.Entry<StatsBucket.SchemaKey, Long> entry : usages) {
-      StatsBucket.SchemaKey key = entry.getKey();
-      long count = entry.getValue();
+    private void writeBacklogs(Collection<Map.Entry<DataStreamsTags, Long>> backlogs, Writable packer) {
+        packer.writeUTF8(BACKLOGS);
+        packer.startArray(backlogs.size());
+        for (Map.Entry<DataStreamsTags, Long> entry : backlogs) {
+            packer.startMap(2);
 
-      packer.startMap(
-          7); // 7 fields: Topic, KafkaClusterId, SchemaId, IsSuccess, IsKey, Operation, Count
+            packer.writeUTF8(BACKLOG_TAGS);
+            writeDataStreamsTags(entry.getKey(), packer);
 
-      packer.writeUTF8(TOPIC);
-      packer.writeString(key.getTopic() != null ? key.getTopic() : "", null);
-
-      packer.writeUTF8(KAFKA_CLUSTER_ID);
-      packer.writeString(key.getClusterId() != null ? key.getClusterId() : "", null);
-
-      packer.writeUTF8(SCHEMA_ID);
-      packer.writeInt(key.getSchemaId());
-
-      packer.writeUTF8(IS_SUCCESS);
-      packer.writeBoolean(key.isSuccess());
-
-      packer.writeUTF8(IS_KEY);
-      packer.writeBoolean(key.isKey());
-
-      packer.writeUTF8(OPERATION);
-      packer.writeString(key.getOperation() != null ? key.getOperation() : "", null);
-
-      packer.writeUTF8(COUNT);
-      packer.writeLong(count);
+            packer.writeUTF8(BACKLOG_VALUE);
+            packer.writeLong(entry.getValue());
+        }
     }
-  }
 
-  private void writeKafkaConfigs(List<KafkaConfigReport> configs, Writable packer) {
-    packer.writeUTF8(CONFIGS);
-    packer.startArray(configs.size());
-    for (KafkaConfigReport config : configs) {
-      // Type, KafkaClusterId, ConsumerGroup, MemberId, GenerationId, MemberProtocol, Config
-      packer.startMap(7);
+    private void writeSchemaRegistryUsages(Collection<Map.Entry<StatsBucket.SchemaKey, Long>> usages, Writable packer) {
+        packer.writeUTF8(SCHEMA_REGISTRY_USAGES);
+        packer.startArray(usages.size());
+        for (Map.Entry<StatsBucket.SchemaKey, Long> entry : usages) {
+            StatsBucket.SchemaKey key = entry.getKey();
+            long count = entry.getValue();
 
-      packer.writeUTF8(CONFIG_TYPE);
-      packer.writeString(config.getType(), null);
+            packer.startMap(7); // 7 fields: Topic, KafkaClusterId, SchemaId, IsSuccess, IsKey, Operation, Count
 
-      packer.writeUTF8(CONFIG_KAFKA_CLUSTER_ID);
-      packer.writeString(config.getKafkaClusterId(), null);
+            packer.writeUTF8(TOPIC);
+            packer.writeString(key.getTopic() != null ? key.getTopic() : "", null);
 
-      packer.writeUTF8(CONFIG_CONSUMER_GROUP);
-      packer.writeString(config.getConsumerGroup(), null);
+            packer.writeUTF8(KAFKA_CLUSTER_ID);
+            packer.writeString(key.getClusterId() != null ? key.getClusterId() : "", null);
 
-      packer.writeUTF8(CONFIG_MEMBER_ID);
-      packer.writeString(config.getMemberId(), null);
+            packer.writeUTF8(SCHEMA_ID);
+            packer.writeInt(key.getSchemaId());
 
-      packer.writeUTF8(CONFIG_GENERATION_ID);
-      packer.writeInt(config.getGenerationId());
+            packer.writeUTF8(IS_SUCCESS);
+            packer.writeBoolean(key.isSuccess());
 
-      packer.writeUTF8(CONFIG_MEMBER_PROTOCOL);
-      packer.writeString(config.getMemberProtocol(), null);
+            packer.writeUTF8(IS_KEY);
+            packer.writeBoolean(key.isKey());
 
-      packer.writeUTF8(CONFIG_ENTRIES);
-      Map<String, String> entries = config.getConfig();
-      packer.startMap(entries.size());
-      for (Map.Entry<String, String> entry : entries.entrySet()) {
-        packer.writeString(entry.getKey(), null);
-        packer.writeString(entry.getValue() != null ? entry.getValue() : "", null);
-      }
+            packer.writeUTF8(OPERATION);
+            packer.writeString(key.getOperation() != null ? key.getOperation() : "", null);
+
+            packer.writeUTF8(COUNT);
+            packer.writeLong(count);
+        }
     }
-  }
 
-  private void writeDataStreamsTags(DataStreamsTags tags, Writable packer) {
-    packer.startArray(tags.nonNullSize());
+    private void writeKafkaConfigs(List<KafkaConfigReport> configs, Writable packer) {
+        packer.writeUTF8(CONFIGS);
+        packer.startArray(configs.size());
+        for (KafkaConfigReport config : configs) {
+            // Type, KafkaClusterId, ConsumerGroup, MemberId, GenerationId, MemberProtocol, Config
+            packer.startMap(7);
 
-    for (int i = 0; i < tags.size(); i++) {
-      String val = tags.tagByIndex(i);
-      if (val != null) {
-        packer.writeString(val, null);
-      }
+            packer.writeUTF8(CONFIG_TYPE);
+            packer.writeString(config.getType(), null);
+
+            packer.writeUTF8(CONFIG_KAFKA_CLUSTER_ID);
+            packer.writeString(config.getKafkaClusterId(), null);
+
+            packer.writeUTF8(CONFIG_CONSUMER_GROUP);
+            packer.writeString(config.getConsumerGroup(), null);
+
+            packer.writeUTF8(CONFIG_MEMBER_ID);
+            packer.writeString(config.getMemberId(), null);
+
+            packer.writeUTF8(CONFIG_GENERATION_ID);
+            packer.writeInt(config.getGenerationId());
+
+            packer.writeUTF8(CONFIG_MEMBER_PROTOCOL);
+            packer.writeString(config.getMemberProtocol(), null);
+
+            packer.writeUTF8(CONFIG_ENTRIES);
+            Map<String, String> entries = config.getConfig();
+            packer.startMap(entries.size());
+            for (Map.Entry<String, String> entry : entries.entrySet()) {
+                packer.writeString(entry.getKey(), null);
+                packer.writeString(entry.getValue() != null ? entry.getValue() : "", null);
+            }
+        }
     }
-  }
+
+    private void writeDataStreamsTags(DataStreamsTags tags, Writable packer) {
+        packer.startArray(tags.nonNullSize());
+
+        for (int i = 0; i < tags.size(); i++) {
+            String val = tags.tagByIndex(i);
+            if (val != null) {
+                packer.writeString(val, null);
+            }
+        }
+    }
 }

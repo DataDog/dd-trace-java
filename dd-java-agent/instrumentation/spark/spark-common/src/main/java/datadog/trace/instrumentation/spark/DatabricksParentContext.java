@@ -22,90 +22,89 @@ import org.slf4j.LoggerFactory;
  * the same hash on both sides to link everything in the same trace
  */
 public class DatabricksParentContext implements AgentSpanContext {
-  private static final Logger log = LoggerFactory.getLogger(DatabricksParentContext.class);
+    private static final Logger log = LoggerFactory.getLogger(DatabricksParentContext.class);
 
-  private final DDTraceId traceId;
-  private final long spanId;
+    private final DDTraceId traceId;
+    private final long spanId;
 
-  public DatabricksParentContext(
-      String jobId, String jobRunId, String taskRunId, int attemptNumber) {
-    MessageDigest digest = null;
-    try {
-      digest = MessageDigest.getInstance("SHA-1");
-    } catch (NoSuchAlgorithmException e) {
-      log.debug("Unable to find SHA-1 algorithm", e);
+    public DatabricksParentContext(String jobId, String jobRunId, String taskRunId, int attemptNumber) {
+        MessageDigest digest = null;
+        try {
+            digest = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            log.debug("Unable to find SHA-1 algorithm", e);
+        }
+
+        if (digest != null && jobId != null && taskRunId != null) {
+            traceId = computeTraceId(digest, jobId, jobRunId, taskRunId, attemptNumber);
+            spanId = computeSpanId(digest, jobId, taskRunId);
+        } else {
+            traceId = DDTraceId.ZERO;
+            spanId = DDSpanId.ZERO;
+        }
     }
 
-    if (digest != null && jobId != null && taskRunId != null) {
-      traceId = computeTraceId(digest, jobId, jobRunId, taskRunId, attemptNumber);
-      spanId = computeSpanId(digest, jobId, taskRunId);
-    } else {
-      traceId = DDTraceId.ZERO;
-      spanId = DDSpanId.ZERO;
-    }
-  }
+    private DDTraceId computeTraceId(
+            MessageDigest digest, String jobId, String jobRunId, String taskRunId, int attemptNumber) {
+        byte[] inputBytes;
 
-  private DDTraceId computeTraceId(
-      MessageDigest digest, String jobId, String jobRunId, String taskRunId, int attemptNumber) {
-    byte[] inputBytes;
+        if (jobRunId != null) {
+            // Databricks reuses the same jobRunId when a run is repaired, so the original and repaired
+            // attempts would otherwise hash to the same trace id. The crawler side (dogweb) mixes the
+            // repair attempt index into the trace id to give each attempt its own trace; mirror that
+            // exactly so the spark spans land on the matching trace. attempt 0 stays bare for backward
+            // compatibility with runs that were never repaired.
+            String input = jobId + jobRunId;
+            if (attemptNumber > 0) {
+                input += "-" + attemptNumber;
+            }
+            inputBytes = input.getBytes(StandardCharsets.UTF_8);
+        } else {
+            inputBytes = (jobId + taskRunId).getBytes(StandardCharsets.UTF_8);
+        }
 
-    if (jobRunId != null) {
-      // Databricks reuses the same jobRunId when a run is repaired, so the original and repaired
-      // attempts would otherwise hash to the same trace id. The crawler side (dogweb) mixes the
-      // repair attempt index into the trace id to give each attempt its own trace; mirror that
-      // exactly so the spark spans land on the matching trace. attempt 0 stays bare for backward
-      // compatibility with runs that were never repaired.
-      String input = jobId + jobRunId;
-      if (attemptNumber > 0) {
-        input += "-" + attemptNumber;
-      }
-      inputBytes = input.getBytes(StandardCharsets.UTF_8);
-    } else {
-      inputBytes = (jobId + taskRunId).getBytes(StandardCharsets.UTF_8);
+        byte[] hash = digest.digest(inputBytes);
+        long traceIdLong = ByteBuffer.wrap(hash).getLong();
+        return DDTraceId.from(traceIdLong);
     }
 
-    byte[] hash = digest.digest(inputBytes);
-    long traceIdLong = ByteBuffer.wrap(hash).getLong();
-    return DDTraceId.from(traceIdLong);
-  }
+    private long computeSpanId(MessageDigest digest, String jobId, String taskRunId) {
+        byte[] hash = digest.digest((jobId + taskRunId).getBytes(StandardCharsets.UTF_8));
+        return ByteBuffer.wrap(hash).getLong();
+    }
 
-  private long computeSpanId(MessageDigest digest, String jobId, String taskRunId) {
-    byte[] hash = digest.digest((jobId + taskRunId).getBytes(StandardCharsets.UTF_8));
-    return ByteBuffer.wrap(hash).getLong();
-  }
+    @Override
+    public DDTraceId getTraceId() {
+        return traceId;
+    }
 
-  @Override
-  public DDTraceId getTraceId() {
-    return traceId;
-  }
+    @Override
+    public long getSpanId() {
+        return spanId;
+    }
 
-  @Override
-  public long getSpanId() {
-    return spanId;
-  }
+    @Override
+    public AgentTraceCollector getTraceCollector() {
+        return null;
+    }
 
-  @Override
-  public AgentTraceCollector getTraceCollector() {
-    return null;
-  }
+    @Override
+    public int getSamplingPriority() {
+        return PrioritySampling.UNSET;
+    }
 
-  @Override
-  public int getSamplingPriority() {
-    return PrioritySampling.UNSET;
-  }
+    @Override
+    public Iterable<Map.Entry<String, String>> baggageItems() {
+        return null;
+    }
 
-  @Override
-  public Iterable<Map.Entry<String, String>> baggageItems() {
-    return null;
-  }
+    @Override
+    public PathwayContext getPathwayContext() {
+        return null;
+    }
 
-  @Override
-  public PathwayContext getPathwayContext() {
-    return null;
-  }
-
-  @Override
-  public boolean isRemote() {
-    return false;
-  }
+    @Override
+    public boolean isRemote() {
+        return false;
+    }
 }

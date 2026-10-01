@@ -16,207 +16,207 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/xss")
 public class XssController {
 
-  @GetMapping("/write")
-  public void write(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().write(request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/write")
+    public void write(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            response.getWriter().write(request.getParameter("string"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/write2")
-  public void write2(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().write(request.getParameter("string").toCharArray());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/write2")
+    public void write2(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            response.getWriter().write(request.getParameter("string").toCharArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/write3")
-  public void write3(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String insecure = request.getParameter("string");
-      response.getWriter().write(insecure, 0, insecure.length());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/write3")
+    public void write3(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String insecure = request.getParameter("string");
+            response.getWriter().write(insecure, 0, insecure.length());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/write4")
-  public void write4(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      char[] buf = request.getParameter("string").toCharArray();
-      response.getWriter().write(buf, 0, buf.length);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/write4")
+    public void write4(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            char[] buf = request.getParameter("string").toCharArray();
+            response.getWriter().write(buf, 0, buf.length);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/print")
-  public void print(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().print(request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/print")
+    public void print(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            response.getWriter().print(request.getParameter("string"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/print2")
-  public void print2(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().print(request.getParameter("string").toCharArray());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/print2")
+    public void print2(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            response.getWriter().print(request.getParameter("string").toCharArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/println")
-  public void println(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().println(request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/println")
+    public void println(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            response.getWriter().println(request.getParameter("string"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/println2")
-  public void println2(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().println(request.getParameter("string").toCharArray());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/println2")
+    public void println2(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            response.getWriter().println(request.getParameter("string").toCharArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/printf")
-  public void printf(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = request.getParameter("string");
-      response.getWriter().printf(format, "A", "B");
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/printf")
+    public void printf(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = request.getParameter("string");
+            response.getWriter().printf(format, "A", "B");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/printf2")
-  public void printf2(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = "Formatted like: %1$s and %2$s.";
-      response.getWriter().printf(format, "A", request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/printf2")
+    public void printf2(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = "Formatted like: %1$s and %2$s.";
+            response.getWriter().printf(format, "A", request.getParameter("string"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/printf3")
-  public void printf3(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = request.getParameter("string");
-      response.getWriter().printf(Locale.getDefault(), format, "A", "B");
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/printf3")
+    public void printf3(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = request.getParameter("string");
+            response.getWriter().printf(Locale.getDefault(), format, "A", "B");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/printf4")
-  public void printf4(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = "Formatted like: %1$s and %2$s.";
-      response.getWriter().printf(Locale.getDefault(), format, "A", request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/printf4")
+    public void printf4(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = "Formatted like: %1$s and %2$s.";
+            response.getWriter().printf(Locale.getDefault(), format, "A", request.getParameter("string"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/format")
-  public void format(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = request.getParameter("string");
-      response.getWriter().format(format, "A", "B");
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/format")
+    public void format(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = request.getParameter("string");
+            response.getWriter().format(format, "A", "B");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/format2")
-  public void format2(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = "Formatted like: %1$s and %2$s.";
-      response.getWriter().format(format, "A", request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/format2")
+    public void format2(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = "Formatted like: %1$s and %2$s.";
+            response.getWriter().format(format, "A", request.getParameter("string"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/format3")
-  public void format3(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = request.getParameter("string");
-      response.getWriter().format(Locale.getDefault(), format, "A", "B");
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/format3")
+    public void format3(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = request.getParameter("string");
+            response.getWriter().format(Locale.getDefault(), format, "A", "B");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/format4")
-  public void format4(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String format = "Formatted like: %1$s and %2$s.";
-      response.getWriter().format(Locale.getDefault(), format, "A", request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/format4")
+    public void format4(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String format = "Formatted like: %1$s and %2$s.";
+            response.getWriter().format(Locale.getDefault(), format, "A", request.getParameter("string"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping(value = "/responseBody", produces = MediaType.APPLICATION_JSON_VALUE)
-  @ResponseBody
-  public String responseBody(final HttpServletRequest request, final HttpServletResponse response) {
-    return request.getParameter("string");
-  }
-
-  @GetMapping("/sanitize")
-  public void sanitize(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().write(Sanitizer.sanitize(request.getParameter("string")));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping(value = "/responseBody", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public String responseBody(final HttpServletRequest request, final HttpServletResponse response) {
+        return request.getParameter("string");
     }
-  }
 
-  @GetMapping("/validateAll")
-  public void validateAll(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String s = request.getParameter("string");
-      InputValidator.validateAll(s);
-      response.getWriter().write(s);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/sanitize")
+    public void sanitize(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            response.getWriter().write(Sanitizer.sanitize(request.getParameter("string")));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/validateAll2")
-  public void validate2(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String string1 = request.getParameter("string");
-      String string2 = request.getParameter("string2");
-      InputValidator.validateAll(string1, string2);
-      response.getWriter().write(string1 + string2);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/validateAll")
+    public void validateAll(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String s = request.getParameter("string");
+            InputValidator.validateAll(s);
+            response.getWriter().write(s);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @GetMapping("/validate")
-  public void validate(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      String string1 = request.getParameter("string");
-      String string2 = request.getParameter("string2");
-      InputValidator.validate(null, string1, string2);
-      response.getWriter().write(string1 + string2);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    @GetMapping("/validateAll2")
+    public void validate2(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String string1 = request.getParameter("string");
+            String string2 = request.getParameter("string2");
+            InputValidator.validateAll(string1, string2);
+            response.getWriter().write(string1 + string2);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
+
+    @GetMapping("/validate")
+    public void validate(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            String string1 = request.getParameter("string");
+            String string2 = request.getParameter("string2");
+            InputValidator.validate(null, string1, string2);
+            response.getWriter().write(string1 + string2);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

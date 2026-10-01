@@ -14,70 +14,70 @@ import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
 
 public class GetMemberExpression implements ValueExpression<Value<?>> {
-  private final ValueExpression<?> target;
-  private final String memberName;
+    private final ValueExpression<?> target;
+    private final String memberName;
 
-  public GetMemberExpression(ValueExpression<?> target, String memberName) {
-    this.target = target;
-    this.memberName = memberName;
-  }
-
-  @Override
-  public Value<?> evaluate(EvalContext evalContext) {
-    Value<?> targetValue = target.evaluate(evalContext);
-    if (targetValue == Value.undefined()) {
-      return targetValue;
+    public GetMemberExpression(ValueExpression<?> target, String memberName) {
+        this.target = target;
+        this.memberName = memberName;
     }
-    CapturedContext.CapturedValue member;
-    try {
-      member = evalContext.getValueRefResolver().getMember(targetValue.getValue(), memberName);
-    } catch (RuntimeException ex) {
-      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
+
+    @Override
+    public Value<?> evaluate(EvalContext evalContext) {
+        Value<?> targetValue = target.evaluate(evalContext);
+        if (targetValue == Value.undefined()) {
+            return targetValue;
+        }
+        CapturedContext.CapturedValue member;
+        try {
+            member = evalContext.getValueRefResolver().getMember(targetValue.getValue(), memberName);
+        } catch (RuntimeException ex) {
+            throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
+        }
+        Object memberValue = null;
+        if (member != null) {
+            memberValue = member.getValue();
+        }
+        if (memberValue != null
+                && (memberValue == Redaction.REDACTED_VALUE
+                        || Redaction.isRedactedType(memberValue.getClass().getTypeName()))) {
+            ExpressionHelper.throwRedactedException(this);
+        }
+        checkTimeout(evalContext.getTimeoutChecker(), this);
+        return Value.of(member.getValue(), ValueType.of(member.getType()));
     }
-    Object memberValue = null;
-    if (member != null) {
-      memberValue = member.getValue();
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GetMemberExpression that = (GetMemberExpression) o;
+        return Objects.equals(target, that.target) && Objects.equals(memberName, that.memberName);
     }
-    if (memberValue != null
-        && (memberValue == Redaction.REDACTED_VALUE
-            || Redaction.isRedactedType(memberValue.getClass().getTypeName()))) {
-      ExpressionHelper.throwRedactedException(this);
+
+    @Generated
+    @Override
+    public int hashCode() {
+        return Objects.hash(target, memberName);
     }
-    checkTimeout(evalContext.getTimeoutChecker(), this);
-    return Value.of(member.getValue(), ValueType.of(member.getType()));
-  }
 
-  @Generated
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    GetMemberExpression that = (GetMemberExpression) o;
-    return Objects.equals(target, that.target) && Objects.equals(memberName, that.memberName);
-  }
+    @Generated
+    @Override
+    public String toString() {
+        return "GetMemberExpression{" + "target=" + target + ", memberName='" + memberName + '\'' + '}';
+    }
 
-  @Generated
-  @Override
-  public int hashCode() {
-    return Objects.hash(target, memberName);
-  }
+    public ValueExpression<?> getTarget() {
+        return target;
+    }
 
-  @Generated
-  @Override
-  public String toString() {
-    return "GetMemberExpression{" + "target=" + target + ", memberName='" + memberName + '\'' + '}';
-  }
+    public String getMemberName() {
+        return memberName;
+    }
 
-  public ValueExpression<?> getTarget() {
-    return target;
-  }
-
-  public String getMemberName() {
-    return memberName;
-  }
-
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

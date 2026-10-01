@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.debugger;
 
 public interface CapturedContextProbe {
-  boolean isCaptureSnapshot();
+    boolean isCaptureSnapshot();
 
-  boolean hasCondition();
+    boolean hasCondition();
 
-  boolean isReadyToCapture();
+    boolean isReadyToCapture();
 }

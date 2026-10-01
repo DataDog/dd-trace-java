@@ -13,29 +13,29 @@ import datadog.trace.bootstrap.debugger.el.Values;
  * computation.
  */
 public final class UndefinedValue extends Literal<Object> {
-  public static final UndefinedValue INSTANCE = new UndefinedValue();
+    public static final UndefinedValue INSTANCE = new UndefinedValue();
 
-  private UndefinedValue() {
-    super(Values.UNDEFINED_OBJECT, ValueType.OBJECT);
-  }
+    private UndefinedValue() {
+        super(Values.UNDEFINED_OBJECT, ValueType.OBJECT);
+    }
 
-  @SuppressWarnings("unchecked")
-  public static <T> Value<T> instance() {
-    return (Value<T>) INSTANCE;
-  }
+    @SuppressWarnings("unchecked")
+    public static <T> Value<T> instance() {
+        return (Value<T>) INSTANCE;
+    }
 
-  @Override
-  public boolean isUndefined() {
-    return true;
-  }
+    @Override
+    public boolean isUndefined() {
+        return true;
+    }
 
-  @Override
-  public boolean isNull() {
-    return false;
-  }
+    @Override
+    public boolean isNull() {
+        return false;
+    }
 
-  @Override
-  public String toString() {
-    return "UNDEFINED";
-  }
+    @Override
+    public String toString() {
+        return "UNDEFINED";
+    }
 }

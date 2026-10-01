@@ -5,8 +5,8 @@ package opentelemetry147.metrics;
 // GlobalOpenTelemetry holds static state that must reset between variants.
 class OpenTelemetryMetricsDisableByDefaultForkedTest extends OpenTelemetryMetricsActivationTest {
 
-  @Override
-  boolean shouldBeInjected() {
-    return false;
-  }
+    @Override
+    boolean shouldBeInjected() {
+        return false;
+    }
 }

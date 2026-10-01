@@ -16,20 +16,20 @@ import java.util.function.Supplier;
  */
 final class OpmStampingInjector implements HttpCodec.Injector {
 
-  private final HttpCodec.Injector delegate;
-  private final Supplier<String> localOpmSupplier;
+    private final HttpCodec.Injector delegate;
+    private final Supplier<String> localOpmSupplier;
 
-  OpmStampingInjector(HttpCodec.Injector delegate, Supplier<String> localOpmSupplier) {
-    this.delegate = delegate;
-    this.localOpmSupplier = localOpmSupplier;
-  }
-
-  @Override
-  public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-    String localOpm = localOpmSupplier.get();
-    if (localOpm != null) {
-      context.getPropagationTags().updateOrgPropagationMarker(localOpm);
+    OpmStampingInjector(HttpCodec.Injector delegate, Supplier<String> localOpmSupplier) {
+        this.delegate = delegate;
+        this.localOpmSupplier = localOpmSupplier;
     }
-    delegate.inject(context, carrier, setter);
-  }
+
+    @Override
+    public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
+        String localOpm = localOpmSupplier.get();
+        if (localOpm != null) {
+            context.getPropagationTags().updateOrgPropagationMarker(localOpm);
+        }
+        delegate.inject(context, carrier, setter);
+    }
 }

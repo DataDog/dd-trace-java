@@ -20,57 +20,55 @@ import scala.collection.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class PredefinedFromEntityUnmarshallersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  private static final String TRAIT_NAME =
-      "akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers";
+    private static final String TRAIT_NAME = "akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers";
 
-  public PredefinedFromEntityUnmarshallersInstrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      TRAIT_NAME, TRAIT_NAME + "$class",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isTraitMethod(
-                TRAIT_NAME,
-                "urlEncodedFormDataUnmarshaller",
-                namedOneOf("scala.collection.Seq", "scala.collection.immutable.Seq"))
-            .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        PredefinedFromEntityUnmarshallersInstrumentation.class.getName()
-            + "$UrlEncodedUnmarshallerWrappingAdvice");
-    transformer.applyAdvice(
-        isTraitMethod(TRAIT_NAME, "stringUnmarshaller")
-            .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        PredefinedFromEntityUnmarshallersInstrumentation.class.getName()
-            + "$StringUnmarshallerWrappingAdvice");
-  }
-
-  static class UrlEncodedUnmarshallerWrappingAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return(readOnly = false) Unmarshaller unmarshaller) {
-      unmarshaller = UnmarshallerHelpers.transformUrlEncodedUnmarshaller(unmarshaller);
+    public PredefinedFromEntityUnmarshallersInstrumentation() {
+        super("akka-http");
     }
-  }
 
-  static class StringUnmarshallerWrappingAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.Return(readOnly = false)
-            Unmarshaller<akka.http.scaladsl.model.HttpEntity, String> unmarshaller) {
-      unmarshaller = UnmarshallerHelpers.transformStringUnmarshaller(unmarshaller);
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            TRAIT_NAME, TRAIT_NAME + "$class",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isTraitMethod(
+                                TRAIT_NAME,
+                                "urlEncodedFormDataUnmarshaller",
+                                namedOneOf("scala.collection.Seq", "scala.collection.immutable.Seq"))
+                        .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+                PredefinedFromEntityUnmarshallersInstrumentation.class.getName()
+                        + "$UrlEncodedUnmarshallerWrappingAdvice");
+        transformer.applyAdvice(
+                isTraitMethod(TRAIT_NAME, "stringUnmarshaller")
+                        .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+                PredefinedFromEntityUnmarshallersInstrumentation.class.getName() + "$StringUnmarshallerWrappingAdvice");
+    }
+
+    static class UrlEncodedUnmarshallerWrappingAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) Unmarshaller unmarshaller) {
+            unmarshaller = UnmarshallerHelpers.transformUrlEncodedUnmarshaller(unmarshaller);
+        }
+    }
+
+    static class StringUnmarshallerWrappingAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(
+                @Advice.Return(readOnly = false)
+                        Unmarshaller<akka.http.scaladsl.model.HttpEntity, String> unmarshaller) {
+            unmarshaller = UnmarshallerHelpers.transformStringUnmarshaller(unmarshaller);
+        }
+    }
 }

@@ -55,173 +55,172 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(value = 1)
 public class VirtualThreadContextBenchmark {
 
-  static final CoreTracer TRACER = CoreTracer.builder().build();
+    static final CoreTracer TRACER = CoreTracer.builder().build();
 
-  ContinuableScopeManager plainManager; // profiling off
-  ContinuableScopeManager profiledManager; // profiling on
-  StubProfiling stubProfiling;
+    ContinuableScopeManager plainManager; // profiling off
+    ContinuableScopeManager profiledManager; // profiling on
+    StubProfiling stubProfiling;
 
-  @Setup
-  public void setup() {
-    plainManager = new ContinuableScopeManager(0, false);
-    stubProfiling = new StubProfiling();
-    profiledManager = new ContinuableScopeManager(0, false, stubProfiling, HealthMetrics.NO_OP);
-  }
-
-  @State(Scope.Thread)
-  public static class ThreadState {
-    AgentSpan span;
-    Context spanContext;
-    Context plainContext;
-    Context profiledContext;
-
-    @Setup(Level.Trial)
-    public void setup(VirtualThreadContextBenchmark bench) {
-      span = TRACER.startSpan("benchmark", "vt");
-      spanContext = span;
-      plainContext = spanContext;
-      profiledContext = spanContext;
-      bench.stubProfiling.initializeThread();
+    @Setup
+    public void setup() {
+        plainManager = new ContinuableScopeManager(0, false);
+        stubProfiling = new StubProfiling();
+        profiledManager = new ContinuableScopeManager(0, false, stubProfiling, HealthMetrics.NO_OP);
     }
 
-    @TearDown(Level.Trial)
-    public void tearDown(VirtualThreadContextBenchmark bench) {
-      bench.stubProfiling.clearThread();
-      span.finish();
+    @State(Scope.Thread)
+    public static class ThreadState {
+        AgentSpan span;
+        Context spanContext;
+        Context plainContext;
+        Context profiledContext;
+
+        @Setup(Level.Trial)
+        public void setup(VirtualThreadContextBenchmark bench) {
+            span = TRACER.startSpan("benchmark", "vt");
+            spanContext = span;
+            plainContext = spanContext;
+            profiledContext = spanContext;
+            bench.stubProfiling.initializeThread();
+        }
+
+        @TearDown(Level.Trial)
+        public void tearDown(VirtualThreadContextBenchmark bench) {
+            bench.stubProfiling.clearThread();
+            span.finish();
+        }
     }
-  }
 
-  @Benchmark
-  public void currentCycle_profilingOff(ThreadState t) {
-    Context previous = plainManager.swap(t.plainContext);
-    t.plainContext = plainManager.swap(previous);
-  }
-
-  @Benchmark
-  public long currentCycle_profilingOn_javaStub(ThreadState t) {
-    Context previous = profiledManager.swap(t.profiledContext);
-    t.profiledContext = profiledManager.swap(previous);
-    return stubProfiling.currentValue();
-  }
-
-  // current() is the faithful upper bound for the seed-once steady state (a scope-stack read).
-  @Benchmark
-  public Context proposedSteady_profilingOff(ThreadState t) {
-    return plainManager.currentContext();
-  }
-
-  @Benchmark
-  public long proposedRebindUnbind_profilingOn_javaStub(ThreadState t) {
-    if (stubProfiling.isThreadContextBindingRequired()) {
-      stubProfiling.setContext(t.spanContext);
-      stubProfiling.setContext(Context.root());
+    @Benchmark
+    public void currentCycle_profilingOff(ThreadState t) {
+        Context previous = plainManager.swap(t.plainContext);
+        t.plainContext = plainManager.swap(previous);
     }
-    return stubProfiling.currentValue();
-  }
 
-  static final class StubProfiling implements ProfilingContextIntegration {
-    private final ThreadLocal<StubState> threadState = ThreadLocal.withInitial(StubState::new);
+    @Benchmark
+    public long currentCycle_profilingOn_javaStub(ThreadState t) {
+        Context previous = profiledManager.swap(t.profiledContext);
+        t.profiledContext = profiledManager.swap(previous);
+        return stubProfiling.currentValue();
+    }
 
-    private final Stateful contextManager =
-        new Stateful() {
-          @Override
-          public void activate(Object context) {
-            if (context instanceof ProfilerContext) {
-              threadState.get().activate((ProfilerContext) context);
+    // current() is the faithful upper bound for the seed-once steady state (a scope-stack read).
+    @Benchmark
+    public Context proposedSteady_profilingOff(ThreadState t) {
+        return plainManager.currentContext();
+    }
+
+    @Benchmark
+    public long proposedRebindUnbind_profilingOn_javaStub(ThreadState t) {
+        if (stubProfiling.isThreadContextBindingRequired()) {
+            stubProfiling.setContext(t.spanContext);
+            stubProfiling.setContext(Context.root());
+        }
+        return stubProfiling.currentValue();
+    }
+
+    static final class StubProfiling implements ProfilingContextIntegration {
+        private final ThreadLocal<StubState> threadState = ThreadLocal.withInitial(StubState::new);
+
+        private final Stateful contextManager = new Stateful() {
+            @Override
+            public void activate(Object context) {
+                if (context instanceof ProfilerContext) {
+                    threadState.get().activate((ProfilerContext) context);
+                }
             }
-          }
 
-          @Override
-          public void close() {
-            threadState.get().close();
-          }
+            @Override
+            public void close() {
+                threadState.get().close();
+            }
         };
 
-    @Override
-    public Stateful newScopeState(ProfilerContext profilerContext) {
-      return contextManager;
+        @Override
+        public Stateful newScopeState(ProfilerContext profilerContext) {
+            return contextManager;
+        }
+
+        @Override
+        public void setContext(Context context) {
+            AgentSpan span = AgentSpan.fromContext(context);
+            if (span != null) {
+                contextManager.activate(span.spanContext());
+            } else {
+                contextManager.close();
+            }
+        }
+
+        @Override
+        public boolean isThreadContextBindingRequired() {
+            return true;
+        }
+
+        void initializeThread() {
+            threadState.get();
+        }
+
+        void clearThread() {
+            threadState.remove();
+        }
+
+        long currentValue() {
+            return threadState.get().currentValue();
+        }
+
+        @Override
+        public String name() {
+            return "stub";
+        }
+
+        @Override
+        public ProfilingContextAttribute createContextAttribute(String attribute) {
+            return ProfilingContextAttribute.NoOp.INSTANCE;
+        }
+
+        @Override
+        public ProfilingScope newScope() {
+            return ProfilingScope.NO_OP;
+        }
+
+        @Override
+        public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {}
+
+        @Override
+        public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+            return EndpointTracker.NO_OP;
+        }
+
+        @Override
+        public Timing start(TimerType type) {
+            return Timing.NoOp.INSTANCE;
+        }
     }
 
-    @Override
-    public void setContext(Context context) {
-      AgentSpan span = AgentSpan.fromContext(context);
-      if (span != null) {
-        contextManager.activate(span.spanContext());
-      } else {
-        contextManager.close();
-      }
+    static final class StubState {
+        long rootSpanId;
+        long spanId;
+        long traceHigh;
+        long traceLow;
+        long previousValue;
+
+        void activate(ProfilerContext context) {
+            rootSpanId = context.getRootSpanId();
+            spanId = context.getSpanId();
+            traceHigh = context.getTraceIdHigh();
+            traceLow = context.getTraceIdLow();
+        }
+
+        void close() {
+            previousValue = rootSpanId ^ spanId ^ traceHigh ^ traceLow;
+            rootSpanId = 0;
+            spanId = 0;
+            traceHigh = 0;
+            traceLow = 0;
+        }
+
+        long currentValue() {
+            return previousValue ^ rootSpanId ^ spanId ^ traceHigh ^ traceLow;
+        }
     }
-
-    @Override
-    public boolean isThreadContextBindingRequired() {
-      return true;
-    }
-
-    void initializeThread() {
-      threadState.get();
-    }
-
-    void clearThread() {
-      threadState.remove();
-    }
-
-    long currentValue() {
-      return threadState.get().currentValue();
-    }
-
-    @Override
-    public String name() {
-      return "stub";
-    }
-
-    @Override
-    public ProfilingContextAttribute createContextAttribute(String attribute) {
-      return ProfilingContextAttribute.NoOp.INSTANCE;
-    }
-
-    @Override
-    public ProfilingScope newScope() {
-      return ProfilingScope.NO_OP;
-    }
-
-    @Override
-    public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {}
-
-    @Override
-    public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
-      return EndpointTracker.NO_OP;
-    }
-
-    @Override
-    public Timing start(TimerType type) {
-      return Timing.NoOp.INSTANCE;
-    }
-  }
-
-  static final class StubState {
-    long rootSpanId;
-    long spanId;
-    long traceHigh;
-    long traceLow;
-    long previousValue;
-
-    void activate(ProfilerContext context) {
-      rootSpanId = context.getRootSpanId();
-      spanId = context.getSpanId();
-      traceHigh = context.getTraceIdHigh();
-      traceLow = context.getTraceIdLow();
-    }
-
-    void close() {
-      previousValue = rootSpanId ^ spanId ^ traceHigh ^ traceLow;
-      rootSpanId = 0;
-      spanId = 0;
-      traceHigh = 0;
-      traceLow = 0;
-    }
-
-    long currentValue() {
-      return previousValue ^ rootSpanId ^ spanId ^ traceHigh ^ traceLow;
-    }
-  }
 }

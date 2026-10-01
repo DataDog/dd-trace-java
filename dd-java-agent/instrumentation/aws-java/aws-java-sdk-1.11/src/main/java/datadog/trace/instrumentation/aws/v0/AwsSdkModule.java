@@ -10,30 +10,30 @@ import java.util.Map;
 /** Groups the instrumentations for AWS SDK 1.11.0+. */
 @AutoService(InstrumenterModule.class)
 public class AwsSdkModule extends InstrumenterModule.Tracing {
-  private final String namespace;
+    private final String namespace;
 
-  public AwsSdkModule() {
-    this("com.amazonaws", "aws-sdk");
-  }
+    public AwsSdkModule() {
+        this("com.amazonaws", "aws-sdk");
+    }
 
-  protected AwsSdkModule(String namespace, String instrumentationName) {
-    super(instrumentationName);
-    this.namespace = namespace;
-  }
+    protected AwsSdkModule(String namespace, String instrumentationName) {
+        super(instrumentationName);
+        this.namespace = namespace;
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> map = new java.util.HashMap<>();
-    map.put(namespace + ".services.sqs.model.ReceiveMessageResult", "java.lang.String");
-    map.put(namespace + ".AmazonWebServiceRequest", "datadog.context.Context");
-    return map;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> map = new java.util.HashMap<>();
+        map.put(namespace + ".services.sqs.model.ReceiveMessageResult", "java.lang.String");
+        map.put(namespace + ".AmazonWebServiceRequest", "datadog.context.Context");
+        return map;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new AWSHttpClientInstrumentation(namespace),
-        new RequestExecutorInstrumentation(namespace),
-        new HandlerChainFactoryInstrumentation(namespace));
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new AWSHttpClientInstrumentation(namespace),
+                new RequestExecutorInstrumentation(namespace),
+                new HandlerChainFactoryInstrumentation(namespace));
+    }
 }

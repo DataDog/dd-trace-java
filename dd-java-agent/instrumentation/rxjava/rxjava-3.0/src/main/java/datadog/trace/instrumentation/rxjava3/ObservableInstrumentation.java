@@ -16,56 +16,55 @@ import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
 import net.bytebuddy.asm.Advice;
 
-public final class ObservableInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  @Override
-  public String instrumentedType() {
-    return "io.reactivex.rxjava3.core.Observable";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.reactivex.rxjava3.core.Observer"))),
-        getClass().getName() + "$PropagateParentSpanAdvice");
-  }
-
-  public static class CaptureParentSpanAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstruct(@Advice.This final Observable<?> observable) {
-      Context parentContext = currentContext();
-      if (parentContext != rootContext()) {
-        InstrumentationContext.get(Observable.class, Context.class).put(observable, parentContext);
-      }
+public final class ObservableInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    @Override
+    public String instrumentedType() {
+        return "io.reactivex.rxjava3.core.Observable";
     }
-  }
 
-  public static class PropagateParentSpanAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onSubscribe(
-        @Advice.This final Observable<?> observable,
-        @Advice.Argument(value = 0, readOnly = false) Observer<?> observer) {
-      if (observer != null) {
-        Context parentContext =
-            InstrumentationContext.get(Observable.class, Context.class).get(observable);
-        if (parentContext != null) {
-          observer = new TracingObserver<>(observer, parentContext);
-          // attach the context here in case additional observers are created during subscribe
-          return parentContext.attach();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("subscribe"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("io.reactivex.rxjava3.core.Observer"))),
+                getClass().getName() + "$PropagateParentSpanAdvice");
+    }
+
+    public static class CaptureParentSpanAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onConstruct(@Advice.This final Observable<?> observable) {
+            Context parentContext = currentContext();
+            if (parentContext != rootContext()) {
+                InstrumentationContext.get(Observable.class, Context.class).put(observable, parentContext);
+            }
         }
-      }
-      return null;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    public static class PropagateParentSpanAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onSubscribe(
+                @Advice.This final Observable<?> observable,
+                @Advice.Argument(value = 0, readOnly = false) Observer<?> observer) {
+            if (observer != null) {
+                Context parentContext = InstrumentationContext.get(Observable.class, Context.class)
+                        .get(observable);
+                if (parentContext != null) {
+                    observer = new TracingObserver<>(observer, parentContext);
+                    // attach the context here in case additional observers are created during subscribe
+                    return parentContext.attach();
+                }
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
     }
-  }
 }

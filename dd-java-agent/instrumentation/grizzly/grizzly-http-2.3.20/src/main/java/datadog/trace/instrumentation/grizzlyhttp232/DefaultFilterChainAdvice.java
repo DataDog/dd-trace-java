@@ -7,10 +7,9 @@ import org.glassfish.grizzly.filterchain.FilterChainContext;
 
 public class DefaultFilterChainAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void onFail(
-      @Advice.Argument(0) final FilterChainContext ctx,
-      @Advice.Argument(1) final Throwable throwable) {
-    onFilterChainFail(ctx, throwable);
-  }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onFail(
+            @Advice.Argument(0) final FilterChainContext ctx, @Advice.Argument(1) final Throwable throwable) {
+        onFilterChainFail(ctx, throwable);
+    }
 }

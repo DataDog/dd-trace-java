@@ -8,12 +8,12 @@ import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
 public class SpringbootApplication {
-  @Bean
-  public ConfigurableServletWebServerFactory webServerFactory() {
-    return new JettyServletWebServerFactory();
-  }
+    @Bean
+    public ConfigurableServletWebServerFactory webServerFactory() {
+        return new JettyServletWebServerFactory();
+    }
 
-  public static void main(final String[] args) {
-    SpringApplication.run(SpringbootApplication.class, args);
-  }
+    public static void main(final String[] args) {
+        SpringApplication.run(SpringbootApplication.class, args);
+    }
 }

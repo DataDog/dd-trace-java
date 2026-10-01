@@ -8,21 +8,21 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
 public class JettyBlockResponseFunction implements BlockResponseFunction {
-  private final Request request;
+    private final Request request;
 
-  public JettyBlockResponseFunction(Request request) {
-    this.request = request;
-  }
+    public JettyBlockResponseFunction(Request request) {
+        this.request = request;
+    }
 
-  @Override
-  public boolean tryCommitBlockingResponse(
-      TraceSegment segment,
-      int statusCode,
-      BlockingContentType templateType,
-      Map<String, String> extraHeaders,
-      String securityResponseId) {
-    Response response = request.getResponse();
-    return JettyBlockingHelper.block(
-        segment, request, response, statusCode, templateType, extraHeaders, securityResponseId);
-  }
+    @Override
+    public boolean tryCommitBlockingResponse(
+            TraceSegment segment,
+            int statusCode,
+            BlockingContentType templateType,
+            Map<String, String> extraHeaders,
+            String securityResponseId) {
+        Response response = request.getResponse();
+        return JettyBlockingHelper.block(
+                segment, request, response, statusCode, templateType, extraHeaders, securityResponseId);
+    }
 }

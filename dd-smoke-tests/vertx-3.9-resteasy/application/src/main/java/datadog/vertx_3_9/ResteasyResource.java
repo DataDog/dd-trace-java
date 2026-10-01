@@ -8,9 +8,9 @@ import javax.ws.rs.Produces;
 
 @Path("/factorial")
 public class ResteasyResource {
-  @GET
-  @Produces("text/plain")
-  public String factorial() {
-    return randomFactorial().toString();
-  }
+    @GET
+    @Produces("text/plain")
+    public String factorial() {
+        return randomFactorial().toString();
+    }
 }

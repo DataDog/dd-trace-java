@@ -8,13 +8,12 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class ResponseModule extends InstrumenterModule.Tracing {
-  public ResponseModule() {
-    super("openai-java");
-  }
+    public ResponseModule() {
+        super("openai-java");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new ResponseServiceAsyncInstrumentation(), new ResponseServiceInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(new ResponseServiceAsyncInstrumentation(), new ResponseServiceInstrumentation());
+    }
 }

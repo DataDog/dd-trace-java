@@ -12,31 +12,30 @@ import play.mvc.Result;
 import play.mvc.Results;
 
 public class TestHttpErrorHandler implements HttpErrorHandler {
-  private static final Logger log = LoggerFactory.getLogger(TestHttpErrorHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(TestHttpErrorHandler.class);
 
-  public static class CustomRuntimeException extends RuntimeException {
-    public CustomRuntimeException(String message) {
-      super(message);
-    }
-  }
-
-  public CompletionStage<Result> onClientError(
-      RequestHeader request, int statusCode, String message) {
-    return CompletableFuture.completedFuture(Results.status(statusCode, message));
-  }
-
-  public CompletionStage<Result> onServerError(RequestHeader request, Throwable exception) {
-    log.warn("server error", exception);
-
-    Throwable cause = exception.getCause();
-    if (cause != null) {
-      exception = cause;
-    }
-    if (exception instanceof CustomRuntimeException) {
-      return CompletableFuture.completedFuture(
-          Results.status(CUSTOM_EXCEPTION.getStatus(), exception.getMessage()));
+    public static class CustomRuntimeException extends RuntimeException {
+        public CustomRuntimeException(String message) {
+            super(message);
+        }
     }
 
-    return CompletableFuture.completedFuture(Results.internalServerError(exception.getMessage()));
-  }
+    public CompletionStage<Result> onClientError(RequestHeader request, int statusCode, String message) {
+        return CompletableFuture.completedFuture(Results.status(statusCode, message));
+    }
+
+    public CompletionStage<Result> onServerError(RequestHeader request, Throwable exception) {
+        log.warn("server error", exception);
+
+        Throwable cause = exception.getCause();
+        if (cause != null) {
+            exception = cause;
+        }
+        if (exception instanceof CustomRuntimeException) {
+            return CompletableFuture.completedFuture(
+                    Results.status(CUSTOM_EXCEPTION.getStatus(), exception.getMessage()));
+        }
+
+        return CompletableFuture.completedFuture(Results.internalServerError(exception.getMessage()));
+    }
 }

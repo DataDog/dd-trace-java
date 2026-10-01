@@ -43,187 +43,183 @@ import org.eclipse.jetty.server.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
 
-  public JettyServerInstrumentation() {
-    super("jetty");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.server.HttpConnection";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    // The lifecycle of these objects are aligned, and are recycled by jetty, minimizing leak risk.
-    return singletonMap("org.eclipse.jetty.http.Generator", "org.eclipse.jetty.server.Response");
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new ConnectionHandleRequestVisitorWrapper());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
-    transformer.applyAdvices(
-        named("handleRequest").and(takesNoArguments()),
-        JettyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
-        JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
-    transformer.applyAdvice(
-        named("reset").and(takesArgument(0, boolean.class)),
-        JettyServerInstrumentation.class.getName() + "$ResetAdvice");
-  }
-
-  public static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {
-
-    @Override
-    public int mergeWriter(int flags) {
-      return flags | ClassWriter.COMPUTE_MAXS;
+    public JettyServerInstrumentation() {
+        super("jetty");
     }
 
     @Override
-    public int mergeReader(int flags) {
-      return flags;
+    public String instrumentedType() {
+        return "org.eclipse.jetty.server.HttpConnection";
     }
 
     @Override
-    public ClassVisitor wrap(
-        TypeDescription instrumentedType,
-        ClassVisitor classVisitor,
-        Implementation.Context implementationContext,
-        TypePool typePool,
-        FieldList<FieldDescription.InDefinedShape> fields,
-        MethodList<?> methods,
-        int writerFlags,
-        int readerFlags) {
-      if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
-        return classVisitor;
-      }
-
-      return new ConnectionHandleRequestVisitor(
-          Opcodes.ASM7, classVisitor, "org/eclipse/jetty/server/HttpConnection");
-    }
-  }
-
-  /**
-   * HttpConnection's have both a generator and a response instance. The generator is what writes
-   * out the final bytes that are sent back to the requestor. We read the status code from the
-   * response in ResetAdvice, but in some cases the final status code is only set in the generator
-   * directly, not the response. (For example, this happens when an exception is thrown and jetty
-   * must send a 500 status.) We use the JettyGeneratorInstrumentation to ensure that the response
-   * is updated when the generator is. Since the status on the response is reset when the connection
-   * is reset, this minor change in behavior is inconsequential. This advice provides the needed
-   * link between generator -> response to enable this.
-   */
-  public static class ConstructorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void link(
-        @Advice.FieldValue("_generator") final Generator generator,
-        @Advice.FieldValue("_response") final Response response) {
-      InstrumentationContext.get(Generator.class, Response.class).put(generator, response);
-    }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.This final HttpConnection connection,
-        @Advice.Local("parentScope") ContextScope parentScope) {
-      Request req = connection.getRequest();
-      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      if (existingContext instanceof Context) {
-        return; // re-entry: HandleRequestAdvice will attach existing context
-      }
-      Context parentContext = DECORATE.extract(req);
-      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
-      parentScope = parentContext.attach();
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ExtractAdapter",
+            packageName + ".ExtractAdapter$Request",
+            packageName + ".ExtractAdapter$Response",
+            packageName + ".JettyDecorator",
+            packageName + ".RequestURIDataAdapter",
+            "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+            "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        };
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) {
-        parentScope.close();
-      }
-    }
-  }
-
-  /**
-   * The handleRequest call denotes the earliest point at which the incoming request is fully
-   * parsed. This allows us to read the headers from the request to extract propagation info.
-   */
-  public static class HandleRequestAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final HttpConnection connection, @Advice.Local("agentSpan") AgentSpan span) {
-      Request req = connection.getRequest();
-
-      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      if (existingContext instanceof Context) {
-        // Request already gone through initial processing, so just activate the context.
-        return ((Context) existingContext).attach();
-      }
-
-      final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-      final Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
-      final Context context = DECORATE.startSpan(req, parentContext);
-      final ContextScope scope = context.attach();
-      span = spanFromContext(context);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req, parentContext);
-
-      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-      req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-      return scope;
+    @Override
+    public Map<String, String> contextStore() {
+        // The lifecycle of these objects are aligned, and are recycled by jetty, minimizing leak risk.
+        return singletonMap("org.eclipse.jetty.http.Generator", "org.eclipse.jetty.server.Response");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      // Span is finished when the connection is reset, so we only need to close the scope here.
-      scope.close();
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new ConnectionHandleRequestVisitorWrapper());
     }
-  }
 
-  /**
-   * Jetty ensures that connections are reset immediately after the response is sent. This provides
-   * a reliable point to finish the server span at the last possible moment.
-   */
-  public static class ResetAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void stopSpan(@Advice.This final HttpConnection channel) {
-      Request req = channel.getRequest();
-      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      if (contextObj instanceof Context) {
-        final Context context = (Context) contextObj;
-        final AgentSpan span = spanFromContext(context);
-        if (span != null) {
-          DECORATE.onResponse(span, channel);
-          DECORATE.beforeFinish(context);
-          span.finish();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
+        transformer.applyAdvices(
+                named("handleRequest").and(takesNoArguments()),
+                JettyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
+                JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
+        transformer.applyAdvice(
+                named("reset").and(takesArgument(0, boolean.class)),
+                JettyServerInstrumentation.class.getName() + "$ResetAdvice");
+    }
+
+    public static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {
+
+        @Override
+        public int mergeWriter(int flags) {
+            return flags | ClassWriter.COMPUTE_MAXS;
         }
-      }
+
+        @Override
+        public int mergeReader(int flags) {
+            return flags;
+        }
+
+        @Override
+        public ClassVisitor wrap(
+                TypeDescription instrumentedType,
+                ClassVisitor classVisitor,
+                Implementation.Context implementationContext,
+                TypePool typePool,
+                FieldList<FieldDescription.InDefinedShape> fields,
+                MethodList<?> methods,
+                int writerFlags,
+                int readerFlags) {
+            if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
+                return classVisitor;
+            }
+
+            return new ConnectionHandleRequestVisitor(
+                    Opcodes.ASM7, classVisitor, "org/eclipse/jetty/server/HttpConnection");
+        }
     }
-  }
+
+    /**
+     * HttpConnection's have both a generator and a response instance. The generator is what writes
+     * out the final bytes that are sent back to the requestor. We read the status code from the
+     * response in ResetAdvice, but in some cases the final status code is only set in the generator
+     * directly, not the response. (For example, this happens when an exception is thrown and jetty
+     * must send a 500 status.) We use the JettyGeneratorInstrumentation to ensure that the response
+     * is updated when the generator is. Since the status on the response is reset when the connection
+     * is reset, this minor change in behavior is inconsequential. This advice provides the needed
+     * link between generator -> response to enable this.
+     */
+    public static class ConstructorAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void link(
+                @Advice.FieldValue("_generator") final Generator generator,
+                @Advice.FieldValue("_response") final Response response) {
+            InstrumentationContext.get(Generator.class, Response.class).put(generator, response);
+        }
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.This final HttpConnection connection, @Advice.Local("parentScope") ContextScope parentScope) {
+            Request req = connection.getRequest();
+            Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            if (existingContext instanceof Context) {
+                return; // re-entry: HandleRequestAdvice will attach existing context
+            }
+            Context parentContext = DECORATE.extract(req);
+            req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+            parentScope = parentContext.attach();
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+            if (parentScope != null) {
+                parentScope.close();
+            }
+        }
+    }
+
+    /**
+     * The handleRequest call denotes the earliest point at which the incoming request is fully
+     * parsed. This allows us to read the headers from the request to extract propagation info.
+     */
+    public static class HandleRequestAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final HttpConnection connection, @Advice.Local("agentSpan") AgentSpan span) {
+            Request req = connection.getRequest();
+
+            Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            if (existingContext instanceof Context) {
+                // Request already gone through initial processing, so just activate the context.
+                return ((Context) existingContext).attach();
+            }
+
+            final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+            final Context parentContext =
+                    (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
+            final Context context = DECORATE.startSpan(req, parentContext);
+            final ContextScope scope = context.attach();
+            span = spanFromContext(context);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, req, req, parentContext);
+
+            req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
+            req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+            req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+            return scope;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Enter final ContextScope scope) {
+            // Span is finished when the connection is reset, so we only need to close the scope here.
+            scope.close();
+        }
+    }
+
+    /**
+     * Jetty ensures that connections are reset immediately after the response is sent. This provides
+     * a reliable point to finish the server span at the last possible moment.
+     */
+    public static class ResetAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void stopSpan(@Advice.This final HttpConnection channel) {
+            Request req = channel.getRequest();
+            Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            if (contextObj instanceof Context) {
+                final Context context = (Context) contextObj;
+                final AgentSpan span = spanFromContext(context);
+                if (span != null) {
+                    DECORATE.onResponse(span, channel);
+                    DECORATE.beforeFinish(context);
+                    span.finish();
+                }
+            }
+        }
+    }
 }

@@ -16,33 +16,32 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class LettuceClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public LettuceClientInstrumentation() {
-    super("lettuce", "lettuce-5");
-  }
+    public LettuceClientInstrumentation() {
+        super("lettuce", "lettuce-5");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.lettuce.core.RedisClient";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.lettuce.core.RedisClient";
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPrivate())
-            .and(returns(named("io.lettuce.core.ConnectionFuture")))
-            .and(nameStartsWith("connect"))
-            .and(nameEndsWith("Async"))
-            .and(takesArgument(1, named("io.lettuce.core.RedisURI"))),
-        // Cannot reference class directly here because it would lead to class load failure on Java7
-        packageName + ".ConnectionFutureAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPrivate())
+                        .and(returns(named("io.lettuce.core.ConnectionFuture")))
+                        .and(nameStartsWith("connect"))
+                        .and(nameEndsWith("Async"))
+                        .and(takesArgument(1, named("io.lettuce.core.RedisURI"))),
+                // Cannot reference class directly here because it would lead to class load failure on Java7
+                packageName + ".ConnectionFutureAdvice");
+    }
 }

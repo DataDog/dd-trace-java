@@ -26,60 +26,70 @@ import java.util.regex.Pattern;
  */
 public final class VersionRangeParser {
 
-  private static final Pattern COMMA = Pattern.compile(",");
+    private static final Pattern COMMA = Pattern.compile(",");
 
-  private VersionRangeParser() {}
+    private VersionRangeParser() {}
 
-  /**
-   * Returns true if {@code version} matches at least one of the provided range strings.
-   *
-   * @param version the version to test (e.g. {@code "2.8.5"} or {@code "5.2.19.RELEASE"})
-   * @param versionRanges list of range strings from sca_cves.json
-   * @return true if the version falls within any range
-   */
-  public static boolean matchesAny(String version, List<String> versionRanges) {
-    if (version == null || version.isEmpty() || versionRanges == null || versionRanges.isEmpty()) {
-      return false;
-    }
-    ComparableVersion v = new ComparableVersion(version);
-    for (String range : versionRanges) {
-      if (matchesRange(v, range)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Returns true if {@code version} matches a single range string. Multiple conditions within a
-   * single string (comma-separated) are evaluated as AND.
-   */
-  static boolean matchesRange(ComparableVersion version, String versionRange) {
-    String[] conditions = COMMA.split(versionRange);
-    for (String condition : conditions) {
-      if (!matchesCondition(version, condition.trim())) {
+    /**
+     * Returns true if {@code version} matches at least one of the provided range strings.
+     *
+     * @param version the version to test (e.g. {@code "2.8.5"} or {@code "5.2.19.RELEASE"})
+     * @param versionRanges list of range strings from sca_cves.json
+     * @return true if the version falls within any range
+     */
+    public static boolean matchesAny(String version, List<String> versionRanges) {
+        if (version == null || version.isEmpty() || versionRanges == null || versionRanges.isEmpty()) {
+            return false;
+        }
+        ComparableVersion v = new ComparableVersion(version);
+        for (String range : versionRanges) {
+            if (matchesRange(v, range)) {
+                return true;
+            }
+        }
         return false;
-      }
     }
-    return true;
-  }
 
-  private static boolean matchesCondition(ComparableVersion version, String condition) {
-    if (condition.startsWith(">=")) {
-      return version.compareTo(new ComparableVersion(condition.substring(2).trim())) >= 0;
+    /**
+     * Returns true if {@code version} matches a single range string. Multiple conditions within a
+     * single string (comma-separated) are evaluated as AND.
+     */
+    static boolean matchesRange(ComparableVersion version, String versionRange) {
+        String[] conditions = COMMA.split(versionRange);
+        for (String condition : conditions) {
+            if (!matchesCondition(version, condition.trim())) {
+                return false;
+            }
+        }
+        return true;
     }
-    if (condition.startsWith("<=")) {
-      return version.compareTo(new ComparableVersion(condition.substring(2).trim())) <= 0;
+
+    private static boolean matchesCondition(ComparableVersion version, String condition) {
+        if (condition.startsWith(">=")) {
+            return version.compareTo(
+                            new ComparableVersion(condition.substring(2).trim()))
+                    >= 0;
+        }
+        if (condition.startsWith("<=")) {
+            return version.compareTo(
+                            new ComparableVersion(condition.substring(2).trim()))
+                    <= 0;
+        }
+        if (condition.startsWith(">")) {
+            return version.compareTo(
+                            new ComparableVersion(condition.substring(1).trim()))
+                    > 0;
+        }
+        if (condition.startsWith("<")) {
+            return version.compareTo(
+                            new ComparableVersion(condition.substring(1).trim()))
+                    < 0;
+        }
+        if (condition.startsWith("=")) {
+            return version.compareTo(
+                            new ComparableVersion(condition.substring(1).trim()))
+                    == 0;
+        }
+        throw new IllegalArgumentException("Unrecognised version condition: '" + condition + "'");
     }
-    if (condition.startsWith(">")) {
-      return version.compareTo(new ComparableVersion(condition.substring(1).trim())) > 0;
-    }
-    if (condition.startsWith("<")) {
-      return version.compareTo(new ComparableVersion(condition.substring(1).trim())) < 0;
-    }
-    if (condition.startsWith("=")) {
-      return version.compareTo(new ComparableVersion(condition.substring(1).trim())) == 0;
-    }
-    throw new IllegalArgumentException("Unrecognised version condition: '" + condition + "'");
-  }
 }

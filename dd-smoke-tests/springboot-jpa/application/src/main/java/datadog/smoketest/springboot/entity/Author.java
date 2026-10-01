@@ -20,15 +20,15 @@ import lombok.Setter;
 @EqualsAndHashCode(of = "id")
 public class Author {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.SEQUENCE)
-  private int id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private int id;
 
-  private String name;
+    private String name;
 
-  private int updateCount;
+    private int updateCount;
 
-  public void increaseUpdateCount() {
-    this.updateCount++;
-  }
+    public void increaseUpdateCount() {
+        this.updateCount++;
+    }
 }

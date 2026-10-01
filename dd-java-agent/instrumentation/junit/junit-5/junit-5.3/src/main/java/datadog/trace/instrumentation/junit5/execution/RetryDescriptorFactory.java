@@ -10,9 +10,9 @@ import org.junit.platform.engine.UniqueId;
  */
 public interface RetryDescriptorFactory {
 
-  /**
-   * @return a reconstructed, re-executable copy with the transformed id, or {@code null} to fall
-   *     back to the generic (Unsafe/reflection) clone.
-   */
-  TestDescriptor copy(TestDescriptor original, UnaryOperator<UniqueId> idTransform);
+    /**
+     * @return a reconstructed, re-executable copy with the transformed id, or {@code null} to fall
+     *     back to the generic (Unsafe/reflection) clone.
+     */
+    TestDescriptor copy(TestDescriptor original, UnaryOperator<UniqueId> idTransform);
 }

@@ -14,52 +14,50 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class SetValueTest {
-  private SetValue instance;
+    private SetValue instance;
 
-  @BeforeEach
-  void setup() throws Exception {
-    Set<String> set = new HashSet<>();
-    set.add("foo");
-    set.add("bar");
-    instance = new SetValue(set);
-  }
+    @BeforeEach
+    void setup() throws Exception {
+        Set<String> set = new HashSet<>();
+        set.add("foo");
+        set.add("bar");
+        instance = new SetValue(set);
+    }
 
-  @Test
-  void prettyPrint() {
-    assertEquals("Set", print(instance));
-  }
+    @Test
+    void prettyPrint() {
+        assertEquals("Set", print(instance));
+    }
 
-  @Test
-  void isEmpty() {
-    assertFalse(instance.isEmpty());
-  }
+    @Test
+    void isEmpty() {
+        assertFalse(instance.isEmpty());
+    }
 
-  @Test
-  void count() {
-    assertEquals(2, instance.count());
-  }
+    @Test
+    void count() {
+        assertEquals(2, instance.count());
+    }
 
-  @Test
-  void get() {
-    assertEquals(Value.of(true, ValueType.BOOLEAN), instance.get("foo"));
-    assertEquals(BooleanValue.TRUE, instance.get("foo"));
-    assertEquals(
-        Value.of(true, ValueType.BOOLEAN), instance.get(Value.of("foo", ValueType.OBJECT)));
-    assertEquals(Value.of(false, ValueType.BOOLEAN), instance.get("oof"));
-    assertEquals(BooleanValue.FALSE, instance.get("oof"));
-    assertEquals(
-        Value.of(false, ValueType.BOOLEAN), instance.get(Value.of("oof", ValueType.OBJECT)));
-    assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
-    assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
-  }
+    @Test
+    void get() {
+        assertEquals(Value.of(true, ValueType.BOOLEAN), instance.get("foo"));
+        assertEquals(BooleanValue.TRUE, instance.get("foo"));
+        assertEquals(Value.of(true, ValueType.BOOLEAN), instance.get(Value.of("foo", ValueType.OBJECT)));
+        assertEquals(Value.of(false, ValueType.BOOLEAN), instance.get("oof"));
+        assertEquals(BooleanValue.FALSE, instance.get("oof"));
+        assertEquals(Value.of(false, ValueType.BOOLEAN), instance.get(Value.of("oof", ValueType.OBJECT)));
+        assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
+        assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
+    }
 
-  @Test
-  void nullSet() {
-    SetValue setValue = new SetValue(null);
-    assertTrue(setValue.isEmpty());
-    assertTrue(setValue.isNull());
-    setValue = new SetValue(Values.NULL_OBJECT);
-    assertTrue(setValue.isEmpty());
-    assertTrue(setValue.isNull());
-  }
+    @Test
+    void nullSet() {
+        SetValue setValue = new SetValue(null);
+        assertTrue(setValue.isEmpty());
+        assertTrue(setValue.isNull());
+        setValue = new SetValue(Values.NULL_OBJECT);
+        assertTrue(setValue.isEmpty());
+        assertTrue(setValue.isNull());
+    }
 }

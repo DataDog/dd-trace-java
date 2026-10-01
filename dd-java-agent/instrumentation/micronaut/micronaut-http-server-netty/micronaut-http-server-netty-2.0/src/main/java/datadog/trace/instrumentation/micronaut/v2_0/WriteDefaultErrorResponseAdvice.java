@@ -10,21 +10,21 @@ import io.micronaut.http.server.netty.NettyHttpRequest;
 import net.bytebuddy.asm.Advice;
 
 public class WriteDefaultErrorResponseAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void beginRequest(
-      @Advice.Argument(1) final NettyHttpRequest nettyHttpRequest,
-      @Advice.Argument(2) final Throwable cause) {
-    AgentSpan span = nettyHttpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
-    if (null == span) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void beginRequest(
+            @Advice.Argument(1) final NettyHttpRequest nettyHttpRequest, @Advice.Argument(2) final Throwable cause) {
+        AgentSpan span =
+                nettyHttpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+        if (null == span) {
+            return;
+        }
+        DECORATE.onError(span, cause);
     }
-    DECORATE.onError(span, cause);
-  }
 
-  private static void muzzleCheck(MediaTypeConverter mediaTypeConverter) {
-    // Added in 2.0.0
-    HttpVersion version = HttpVersion.HTTP_2_0;
-    // Removed in 3.0.0
-    mediaTypeConverter.convert(null, null);
-  }
+    private static void muzzleCheck(MediaTypeConverter mediaTypeConverter) {
+        // Added in 2.0.0
+        HttpVersion version = HttpVersion.HTTP_2_0;
+        // Removed in 3.0.0
+        mediaTypeConverter.convert(null, null);
+    }
 }

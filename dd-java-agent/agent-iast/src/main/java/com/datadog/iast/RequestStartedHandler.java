@@ -8,23 +8,23 @@ import javax.annotation.Nonnull;
 
 public class RequestStartedHandler implements Supplier<Flow<Object>> {
 
-  private final OverheadController overheadController;
-  private final IastContext.Provider contextProvider;
+    private final OverheadController overheadController;
+    private final IastContext.Provider contextProvider;
 
-  public RequestStartedHandler(@Nonnull final Dependencies dependencies) {
-    this.overheadController = dependencies.getOverheadController();
-    this.contextProvider = dependencies.contextProvider;
-  }
-
-  @Override
-  public Flow<Object> get() {
-    if (!overheadController.acquireRequest()) {
-      return Flow.ResultFlow.empty();
+    public RequestStartedHandler(@Nonnull final Dependencies dependencies) {
+        this.overheadController = dependencies.getOverheadController();
+        this.contextProvider = dependencies.contextProvider;
     }
-    return new Flow.ResultFlow<>(newContext());
-  }
 
-  protected IastRequestContext newContext() {
-    return (IastRequestContext) contextProvider.buildRequestContext();
-  }
+    @Override
+    public Flow<Object> get() {
+        if (!overheadController.acquireRequest()) {
+            return Flow.ResultFlow.empty();
+        }
+        return new Flow.ResultFlow<>(newContext());
+    }
+
+    protected IastRequestContext newContext() {
+        return (IastRequestContext) contextProvider.buildRequestContext();
+    }
 }

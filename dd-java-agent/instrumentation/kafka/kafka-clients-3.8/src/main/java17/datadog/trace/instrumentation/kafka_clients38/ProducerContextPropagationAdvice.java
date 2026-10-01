@@ -26,54 +26,51 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 @AppliesOn(CONTEXT_TRACKING)
 public class ProducerContextPropagationAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void onEnter(
-      @Advice.FieldValue("metadata") Metadata metadata,
-      @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
-    AgentSpan span = activeSpan();
-    if (span == null) return;
-    MetadataState metadataState =
-        InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-    String clusterId = metadataState != null ? metadataState.clusterId : null;
-    TextMapInjectAdapterInterface setter = NoopTextMapInjectAdapter.NOOP_SETTER;
-    // Please note that the minimum magic for kafka 3.8+ is 2 so there is no need to check this
-    if (Config.get().isKafkaClientPropagationEnabled()
-        && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-      setter = TextMapInjectAdapter.SETTER;
-    }
-    DataStreamsTags tags = create("kafka", OUTBOUND, record.topic(), null, clusterId);
-    try {
-      defaultPropagator().inject(span, record.headers(), setter);
-      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-          || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-        // inject the context in the headers, but delay sending the stats until we know the
-        // message size.
-        // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
-        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
-        dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-      }
-    } catch (final IllegalStateException e) {
-      // headers must be read-only from reused record. try again with new one.
-      record =
-          new ProducerRecord<>(
-              record.topic(),
-              record.partition(),
-              record.timestamp(),
-              record.key(),
-              record.value(),
-              record.headers());
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+            @Advice.FieldValue("metadata") Metadata metadata,
+            @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
+        AgentSpan span = activeSpan();
+        if (span == null) return;
+        MetadataState metadataState =
+                InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+        String clusterId = metadataState != null ? metadataState.clusterId : null;
+        TextMapInjectAdapterInterface setter = NoopTextMapInjectAdapter.NOOP_SETTER;
+        // Please note that the minimum magic for kafka 3.8+ is 2 so there is no need to check this
+        if (Config.get().isKafkaClientPropagationEnabled()
+                && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+            setter = TextMapInjectAdapter.SETTER;
+        }
+        DataStreamsTags tags = create("kafka", OUTBOUND, record.topic(), null, clusterId);
+        try {
+            defaultPropagator().inject(span, record.headers(), setter);
+            if (STREAMING_CONTEXT.isDisabledForTopic(record.topic()) || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+                // inject the context in the headers, but delay sending the stats until we know the
+                // message size.
+                // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
+                Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+                DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
+                dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
+            }
+        } catch (final IllegalStateException e) {
+            // headers must be read-only from reused record. try again with new one.
+            record = new ProducerRecord<>(
+                    record.topic(),
+                    record.partition(),
+                    record.timestamp(),
+                    record.key(),
+                    record.value(),
+                    record.headers());
 
-      defaultPropagator().inject(span, record.headers(), setter);
-      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-          || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
-        dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-      }
+            defaultPropagator().inject(span, record.headers(), setter);
+            if (STREAMING_CONTEXT.isDisabledForTopic(record.topic()) || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+                Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+                DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
+                dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
+            }
+        }
+        if (TIME_IN_QUEUE_ENABLED) {
+            setter.injectTimeInQueue(record.headers());
+        }
     }
-    if (TIME_IN_QUEUE_ENABLED) {
-      setter.injectTimeInQueue(record.headers());
-    }
-  }
 }

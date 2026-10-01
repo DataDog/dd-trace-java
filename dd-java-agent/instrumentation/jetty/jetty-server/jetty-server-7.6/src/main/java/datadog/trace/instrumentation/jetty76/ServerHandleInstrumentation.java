@@ -19,97 +19,97 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public ServerHandleInstrumentation() {
-    super("jetty");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public ServerHandleInstrumentation() {
+        super("jetty");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.server.Server";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.eclipse.jetty.server.Server";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ExtractAdapter",
+            packageName + ".ExtractAdapter$Request",
+            packageName + ".ExtractAdapter$Response",
+            packageName + ".JettyDecorator",
+            packageName + ".RequestURIDataAdapter",
+            "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+            "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("handle")
-            .or(named("handleAsync"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.eclipse.jetty.server.AbstractHttpConnection"))),
-        ServerHandleInstrumentation.class.getName() + "$HandleAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("handle")
+                        .or(named("handleAsync"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("org.eclipse.jetty.server.AbstractHttpConnection"))),
+                ServerHandleInstrumentation.class.getName() + "$HandleAdvice");
+    }
 
-  static class HandleAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static ContextScope onEnter(
-        @Advice.Argument(0) AbstractHttpConnection connection,
-        @Advice.Local("request") Request req,
-        @Advice.Local("agentSpan") AgentSpan span) {
-      req = connection.getRequest();
+    static class HandleAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static ContextScope onEnter(
+                @Advice.Argument(0) AbstractHttpConnection connection,
+                @Advice.Local("request") Request req,
+                @Advice.Local("agentSpan") AgentSpan span) {
+            req = connection.getRequest();
 
-      // First check if there's an existing context in the request (from main server span)
-      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            // First check if there's an existing context in the request (from main server span)
+            Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
 
-      // see comments in HandleRequestAdvice for jetty-9
-      Object dispatchSpan;
-      synchronized (req) {
-        dispatchSpan = req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
-      }
-      if (dispatchSpan instanceof AgentSpan) {
-        span = (AgentSpan) dispatchSpan;
+            // see comments in HandleRequestAdvice for jetty-9
+            Object dispatchSpan;
+            synchronized (req) {
+                dispatchSpan = req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+            }
+            if (dispatchSpan instanceof AgentSpan) {
+                span = (AgentSpan) dispatchSpan;
 
-        // If we have an existing context, create a new context with the dispatch span
-        // Otherwise just attach the dispatch span
-        if (existingContext instanceof Context) {
-          Context contextWithDispatchSpan = ((Context) existingContext).with(span);
-          return contextWithDispatchSpan.attach();
-        } else {
-          return span.attach();
+                // If we have an existing context, create a new context with the dispatch span
+                // Otherwise just attach the dispatch span
+                if (existingContext instanceof Context) {
+                    Context contextWithDispatchSpan = ((Context) existingContext).with(span);
+                    return contextWithDispatchSpan.attach();
+                } else {
+                    return span.attach();
+                }
+            }
+
+            return null;
         }
-      }
 
-      return null;
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Local("agentSpan") AgentSpan span,
+                @Advice.Local("request") Request req,
+                @Advice.Thrown Throwable t) {
+            if (scope == null) {
+                return;
+            }
+
+            if (t != null) {
+                DECORATE.onError(span, t);
+            }
+            if (!req.getAsyncContinuation().isAsyncStarted()) {
+                // finish will be handled by the async listener
+                // Use the full context from the scope for beforeFinish
+                DECORATE.beforeFinish(scope.context());
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+            }
+
+            synchronized (req) {
+                req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+            }
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Local("agentSpan") AgentSpan span,
-        @Advice.Local("request") Request req,
-        @Advice.Thrown Throwable t) {
-      if (scope == null) {
-        return;
-      }
-
-      if (t != null) {
-        DECORATE.onError(span, t);
-      }
-      if (!req.getAsyncContinuation().isAsyncStarted()) {
-        // finish will be handled by the async listener
-        // Use the full context from the scope for beforeFinish
-        DECORATE.beforeFinish(scope.context());
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-      }
-
-      synchronized (req) {
-        req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
-      }
-    }
-  }
 }

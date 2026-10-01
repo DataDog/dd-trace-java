@@ -19,19 +19,19 @@ import jdk.jfr.StackTrace;
 @Enabled
 public class DirectAllocationTotalEvent extends Event {
 
-  @Label("Allocating Class")
-  private final String allocatingClass;
+    @Label("Allocating Class")
+    private final String allocatingClass;
 
-  @Label("Allocation Type")
-  private final String source;
+    @Label("Allocation Type")
+    private final String source;
 
-  @Label("Allocated")
-  @DataAmount
-  private final long allocated;
+    @Label("Allocated")
+    @DataAmount
+    private final long allocated;
 
-  public DirectAllocationTotalEvent(String allocatingClass, String allocationType, long allocated) {
-    this.allocatingClass = allocatingClass;
-    this.source = allocationType;
-    this.allocated = allocated;
-  }
+    public DirectAllocationTotalEvent(String allocatingClass, String allocationType, long allocated) {
+        this.allocatingClass = allocatingClass;
+        this.source = allocationType;
+        this.allocated = allocated;
+    }
 }

@@ -6,10 +6,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 class OTTextMapSetter implements CarrierSetter<TextMap> {
-  static final OTTextMapSetter INSTANCE = new OTTextMapSetter();
+    static final OTTextMapSetter INSTANCE = new OTTextMapSetter();
 
-  @Override
-  public void set(final TextMap carrier, final String key, final String value) {
-    carrier.put(key, value);
-  }
+    @Override
+    public void set(final TextMap carrier, final String key, final String value) {
+        carrier.put(key, value);
+    }
 }

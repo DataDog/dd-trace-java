@@ -14,32 +14,32 @@ import jdk.jfr.Name;
 @Category("Datadog")
 public class DirectAllocationSampleEvent extends Event implements ContextualEvent {
 
-  @Label("Bytes Allocated")
-  @DataAmount
-  private final long allocated;
+    @Label("Bytes Allocated")
+    @DataAmount
+    private final long allocated;
 
-  @Label("Allocation Source")
-  private final String source;
+    @Label("Allocation Source")
+    private final String source;
 
-  @Label("Allocating Class")
-  private final String allocatingClass;
+    @Label("Allocating Class")
+    private final String allocatingClass;
 
-  @Label("Local Root Span Id")
-  private long localRootSpanId;
+    @Label("Local Root Span Id")
+    private long localRootSpanId;
 
-  @Label("Span Id")
-  private long spanId;
+    @Label("Span Id")
+    private long spanId;
 
-  public DirectAllocationSampleEvent(String allocatingClass, String source, long allocated) {
-    this.allocatingClass = allocatingClass;
-    this.allocated = allocated;
-    this.source = source;
-    captureContext();
-  }
+    public DirectAllocationSampleEvent(String allocatingClass, String source, long allocated) {
+        this.allocatingClass = allocatingClass;
+        this.allocated = allocated;
+        this.source = source;
+        captureContext();
+    }
 
-  @Override
-  public void setContext(long localRootSpanId, long spanId) {
-    this.localRootSpanId = localRootSpanId;
-    this.spanId = spanId;
-  }
+    @Override
+    public void setContext(long localRootSpanId, long spanId) {
+        this.localRootSpanId = localRootSpanId;
+        this.spanId = spanId;
+    }
 }

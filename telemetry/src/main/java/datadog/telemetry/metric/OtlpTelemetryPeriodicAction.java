@@ -6,9 +6,9 @@ import javax.annotation.Nonnull;
 
 public class OtlpTelemetryPeriodicAction extends MetricPeriodicAction {
 
-  @Override
-  @Nonnull
-  public MetricCollector collector() {
-    return OtlpTelemetry.getInstance();
-  }
+    @Override
+    @Nonnull
+    public MetricCollector collector() {
+        return OtlpTelemetry.getInstance();
+    }
 }

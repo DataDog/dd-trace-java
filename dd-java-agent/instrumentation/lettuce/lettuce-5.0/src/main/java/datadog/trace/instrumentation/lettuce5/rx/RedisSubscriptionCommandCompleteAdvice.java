@@ -12,34 +12,34 @@ import org.reactivestreams.Subscription;
 
 public class RedisSubscriptionCommandCompleteAdvice {
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterComplete(
-      @Advice.Origin("#m") String method,
-      @Advice.This RedisCommand command,
-      @Advice.FieldValue("subscription") Subscription subscription) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterComplete(
+            @Advice.Origin("#m") String method,
+            @Advice.This RedisCommand command,
+            @Advice.FieldValue("subscription") Subscription subscription) {
 
-    AgentSpan span = InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(command);
+        AgentSpan span =
+                InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(command);
 
-    if (span != null) {
-      ContextStore<Subscription, RedisSubscriptionState> store =
-          InstrumentationContext.get(
-              "io.lettuce.core.RedisPublisher$RedisSubscription",
-              "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
+        if (span != null) {
+            ContextStore<Subscription, RedisSubscriptionState> store = InstrumentationContext.get(
+                    "io.lettuce.core.RedisPublisher$RedisSubscription",
+                    "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
 
-      RedisSubscriptionState state = store.get(subscription);
-      if (state != null) {
-        if (state.count > 1) {
-          span.setTag("db.command.results.count", state.count);
+            RedisSubscriptionState state = store.get(subscription);
+            if (state != null) {
+                if (state.count > 1) {
+                    span.setTag("db.command.results.count", state.count);
+                }
+            }
+            if (state != null && state.cancelled) {
+                span.setTag("db.command.cancelled", true);
+            }
+            if (expectsResponse(command) || "cancel".equals(method)) {
+                DECORATE.beforeFinish(span);
+                span.finish();
+                store.put(subscription, null);
+            }
         }
-      }
-      if (state != null && state.cancelled) {
-        span.setTag("db.command.cancelled", true);
-      }
-      if (expectsResponse(command) || "cancel".equals(method)) {
-        DECORATE.beforeFinish(span);
-        span.finish();
-        store.put(subscription, null);
-      }
     }
-  }
 }

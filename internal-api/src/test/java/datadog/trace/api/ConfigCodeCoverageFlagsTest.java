@@ -21,78 +21,77 @@ import org.slf4j.LoggerFactory;
 @ExtendWith(WithConfigExtension.class)
 class ConfigCodeCoverageFlagsTest {
 
-  @Test
-  void defaultsToNoFlags() {
-    assertEquals(Collections.emptyList(), Config.get().getCodeCoverageFlags());
-  }
+    @Test
+    void defaultsToNoFlags() {
+        assertEquals(Collections.emptyList(), Config.get().getCodeCoverageFlags());
+    }
 
-  @Test
-  void removesWhitespaceAndEmptyFlagsWhilePreservingOrderAndDuplicates() {
-    Config config = configWithFlags(" type:unit-tests, ,jvm-21,, type:unit-tests ");
+    @Test
+    void removesWhitespaceAndEmptyFlagsWhilePreservingOrderAndDuplicates() {
+        Config config = configWithFlags(" type:unit-tests, ,jvm-21,, type:unit-tests ");
 
-    assertEquals(
-        Arrays.asList("type:unit-tests", "jvm-21", "type:unit-tests"),
-        config.getCodeCoverageFlags());
-  }
+        assertEquals(Arrays.asList("type:unit-tests", "jvm-21", "type:unit-tests"), config.getCodeCoverageFlags());
+    }
 
-  @Test
-  void readsFlagsFromCanonicalEnvironmentVariable() {
-    WithConfigExtension.injectEnvConfig("DD_CODE_COVERAGE_FLAGS", "type:unit-tests,jvm-21", false);
+    @Test
+    void readsFlagsFromCanonicalEnvironmentVariable() {
+        WithConfigExtension.injectEnvConfig("DD_CODE_COVERAGE_FLAGS", "type:unit-tests,jvm-21", false);
 
-    assertEquals(Arrays.asList("type:unit-tests", "jvm-21"), Config.get().getCodeCoverageFlags());
-  }
+        assertEquals(Arrays.asList("type:unit-tests", "jvm-21"), Config.get().getCodeCoverageFlags());
+    }
 
-  @Test
-  void producesNoFlagsForEmptyInput() {
-    assertEquals(Collections.emptyList(), configWithFlags(" , , ").getCodeCoverageFlags());
-  }
+    @Test
+    void producesNoFlagsForEmptyInput() {
+        assertEquals(Collections.emptyList(), configWithFlags(" , , ").getCodeCoverageFlags());
+    }
 
-  @Test
-  void acceptsExactlyThirtyTwoFlagsAndReturnsImmutableSnapshot() {
-    List<String> expectedFlags = flags(32);
-    Config config = configWithFlags(String.join(",", expectedFlags));
+    @Test
+    void acceptsExactlyThirtyTwoFlagsAndReturnsImmutableSnapshot() {
+        List<String> expectedFlags = flags(32);
+        Config config = configWithFlags(String.join(",", expectedFlags));
 
-    assertEquals(expectedFlags, config.getCodeCoverageFlags());
-    assertThrows(
-        UnsupportedOperationException.class, () -> config.getCodeCoverageFlags().add("extra"));
-  }
+        assertEquals(expectedFlags, config.getCodeCoverageFlags());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> config.getCodeCoverageFlags().add("extra"));
+    }
 
-  @Test
-  void omitsAllFlagsWhenMoreThanThirtyTwoAreConfigured() {
-    Logger logger = (Logger) LoggerFactory.getLogger(Config.class);
-    ListAppender<ILoggingEvent> appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
+    @Test
+    void omitsAllFlagsWhenMoreThanThirtyTwoAreConfigured() {
+        Logger logger = (Logger) LoggerFactory.getLogger(Config.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
 
-    try {
-      Config config = configWithFlags(String.join(",", flags(33)));
+        try {
+            Config config = configWithFlags(String.join(",", flags(33)));
 
-      assertEquals(Collections.emptyList(), config.getCodeCoverageFlags());
-      List<ILoggingEvent> overflowWarnings = new ArrayList<>();
-      for (ILoggingEvent event : appender.list) {
-        if (event.getLevel() == Level.WARN
-            && event.getFormattedMessage().contains("code coverage report flags")) {
-          overflowWarnings.add(event);
+            assertEquals(Collections.emptyList(), config.getCodeCoverageFlags());
+            List<ILoggingEvent> overflowWarnings = new ArrayList<>();
+            for (ILoggingEvent event : appender.list) {
+                if (event.getLevel() == Level.WARN
+                        && event.getFormattedMessage().contains("code coverage report flags")) {
+                    overflowWarnings.add(event);
+                }
+            }
+            assertEquals(1, overflowWarnings.size());
+            assertTrue(overflowWarnings.get(0).getFormattedMessage().contains("33"));
+            assertTrue(overflowWarnings.get(0).getFormattedMessage().contains("32"));
+        } finally {
+            logger.detachAppender(appender);
         }
-      }
-      assertEquals(1, overflowWarnings.size());
-      assertTrue(overflowWarnings.get(0).getFormattedMessage().contains("33"));
-      assertTrue(overflowWarnings.get(0).getFormattedMessage().contains("32"));
-    } finally {
-      logger.detachAppender(appender);
     }
-  }
 
-  private static Config configWithFlags(String flags) {
-    WithConfigExtension.injectSysConfig(CODE_COVERAGE_FLAGS, flags);
-    return Config.get();
-  }
-
-  private static List<String> flags(int count) {
-    List<String> flags = new ArrayList<>(count);
-    for (int i = 0; i < count; i++) {
-      flags.add("flag-" + i);
+    private static Config configWithFlags(String flags) {
+        WithConfigExtension.injectSysConfig(CODE_COVERAGE_FLAGS, flags);
+        return Config.get();
     }
-    return flags;
-  }
+
+    private static List<String> flags(int count) {
+        List<String> flags = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            flags.add("flag-" + i);
+        }
+        return flags;
+    }
 }

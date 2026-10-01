@@ -33,40 +33,40 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Group)
 public class Utf8ConcurrentBenchmark {
-  static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(64, 128);
-  static final SimpleUtf8Cache SIMPLE_VALUE_CACHE = new SimpleUtf8Cache(128);
+    static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(64, 128);
+    static final SimpleUtf8Cache SIMPLE_VALUE_CACHE = new SimpleUtf8Cache(128);
 
-  @Benchmark
-  @Group("generational")
-  @GroupThreads(7)
-  public void generational_lookup(Blackhole bh) {
-    for (int i = 0; i < NUM_LOOKUPS; ++i) {
-      String tag = nextTag();
-      bh.consume(VALUE_CACHE.getUtf8(nextValue(tag)));
+    @Benchmark
+    @Group("generational")
+    @GroupThreads(7)
+    public void generational_lookup(Blackhole bh) {
+        for (int i = 0; i < NUM_LOOKUPS; ++i) {
+            String tag = nextTag();
+            bh.consume(VALUE_CACHE.getUtf8(nextValue(tag)));
+        }
     }
-  }
 
-  @Benchmark
-  @Group("generational")
-  @GroupThreads(1)
-  public void generational_recalibrate() {
-    VALUE_CACHE.recalibrate();
-  }
-
-  @Benchmark
-  @Group("simple")
-  @GroupThreads(7)
-  public void simple_lookup(Blackhole bh) {
-    for (int i = 0; i < NUM_LOOKUPS; ++i) {
-      String tag = nextTag();
-      bh.consume(SIMPLE_VALUE_CACHE.getUtf8(nextValue(tag)));
+    @Benchmark
+    @Group("generational")
+    @GroupThreads(1)
+    public void generational_recalibrate() {
+        VALUE_CACHE.recalibrate();
     }
-  }
 
-  @Benchmark
-  @Group("simple")
-  @GroupThreads(1)
-  public void simple_recalibrate() {
-    SIMPLE_VALUE_CACHE.recalibrate();
-  }
+    @Benchmark
+    @Group("simple")
+    @GroupThreads(7)
+    public void simple_lookup(Blackhole bh) {
+        for (int i = 0; i < NUM_LOOKUPS; ++i) {
+            String tag = nextTag();
+            bh.consume(SIMPLE_VALUE_CACHE.getUtf8(nextValue(tag)));
+        }
+    }
+
+    @Benchmark
+    @Group("simple")
+    @GroupThreads(1)
+    public void simple_recalibrate() {
+        SIMPLE_VALUE_CACHE.recalibrate();
+    }
 }

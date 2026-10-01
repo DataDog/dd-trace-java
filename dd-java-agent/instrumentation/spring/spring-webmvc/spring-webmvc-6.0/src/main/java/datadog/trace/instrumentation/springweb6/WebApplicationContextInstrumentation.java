@@ -20,48 +20,45 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class WebApplicationContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public WebApplicationContextInstrumentation() {
-    super("spring-web", "spring-path-filter");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public WebApplicationContextInstrumentation() {
+        super("spring-web", "spring-path-filter");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return false;
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.web.context.WebApplicationContext";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.web.context.WebApplicationContext";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("org.springframework.context.support.AbstractApplicationContext"))
-        .and(implementsInterface(named(hierarchyMarkerType())));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("org.springframework.context.support.AbstractApplicationContext"))
+                .and(implementsInterface(named(hierarchyMarkerType())));
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
-      packageName + ".PathMatchingHttpServletRequestWrapper",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".SpringWebHttpServerDecorator",
+            packageName + ".ServletRequestURIAdapter",
+            packageName + ".HandlerMappingResourceNameFilter",
+            packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
+            packageName + ".PathMatchingHttpServletRequestWrapper",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("postProcessBeanFactory"))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
-        packageName + ".FilterInjectingAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("postProcessBeanFactory"))
+                        .and(takesArgument(
+                                0, named("org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
+                packageName + ".FilterInjectingAdvice");
+    }
 }

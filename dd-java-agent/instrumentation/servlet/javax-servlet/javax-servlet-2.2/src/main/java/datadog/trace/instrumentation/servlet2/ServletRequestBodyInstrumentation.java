@@ -42,169 +42,168 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public ServletRequestBodyInstrumentation() {
-    super("servlet-request-body");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "servlet-2.x-and-3.0.x";
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching request bodies after 3.0.x which have their own instrumentation
-    return not(hasClassNamed("javax.servlet.ReadListener"));
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.servlet.http.HttpServletRequest";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        // ignore wrappers that ship with servlet-api
-        .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
-        .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getInputStream")
-            .and(takesNoArguments())
-            .and(returns(named("javax.servlet.ServletInputStream")))
-            .and(isPublic()),
-        getClass().getName() + "$HttpServletGetInputStreamAdvice");
-    transformer.applyAdvice(
-        named("getReader")
-            .and(takesNoArguments())
-            .and(returns(named("java.io.BufferedReader")))
-            .and(isPublic()),
-        getClass().getName() + "$HttpServletGetReaderAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
-      "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
-      "datadog.trace.instrumentation.servlet2.ServletInputStreamWrapper"
-    };
-  }
-
-  @Override
-  public int order() {
-    // apply this instrumentation after the regular servlet one.
-    return 1;
-  }
-
-  @SuppressWarnings("Duplicates")
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  static class HttpServletGetInputStreamAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.This final HttpServletRequest req,
-        @Advice.Return(readOnly = false) ServletInputStream is,
-        @ActiveRequestContext RequestContext reqCtx) {
-      if (is == null) {
-        return;
-      }
-
-      Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
-      if (alreadyWrapped != null || is instanceof ServletInputStreamWrapper) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
-          cbp.getCallback(EVENTS.requestBodyStart());
-      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
-          cbp.getCallback(EVENTS.requestBodyDone());
-      if (requestStartCb == null || requestEndedCb == null) {
-        return;
-      }
-
-      req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
-
-      int lengthHint = 0;
-      String lengthHeader = req.getHeader("content-length");
-      if (lengthHeader != null) {
-        try {
-          lengthHint = Integer.parseInt(lengthHeader);
-        } catch (NumberFormatException nfe) {
-          // purposefully left blank
-        }
-      }
-
-      String encoding = req.getCharacterEncoding();
-      Charset charset = null;
-      try {
-        if (encoding != null) {
-          charset = Charset.forName(encoding);
-        }
-      } catch (IllegalArgumentException iae) {
-        // purposefully left blank
-      }
-
-      StoredByteBody storedByteBody =
-          new StoredByteBody(reqCtx, requestStartCb, requestEndedCb, charset, lengthHint);
-
-      is = new ServletInputStreamWrapper(is, storedByteBody);
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public ServletRequestBodyInstrumentation() {
+        super("servlet-request-body");
     }
-  }
 
-  @SuppressWarnings("Duplicates")
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  static class HttpServletGetReaderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.This final HttpServletRequest req,
-        @Advice.Return(readOnly = false) BufferedReader reader) {
-      if (reader == null) {
-        return;
-      }
-
-      AgentSpan agentSpan = activeSpan();
-      if (agentSpan == null) {
-        return;
-      }
-      Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
-      if (alreadyWrapped != null || reader instanceof BufferedReaderWrapper) {
-        return;
-      }
-      RequestContext requestContext = agentSpan.getRequestContext();
-      if (requestContext == null) {
-        return;
-      }
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
-          cbp.getCallback(EVENTS.requestBodyStart());
-      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
-          cbp.getCallback(EVENTS.requestBodyDone());
-      if (requestStartCb == null || requestEndedCb == null) {
-        return;
-      }
-
-      req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
-
-      int lengthHint = 0;
-      String lengthHeader = req.getHeader("content-length");
-      if (lengthHeader != null) {
-        try {
-          lengthHint = Integer.parseInt(lengthHeader);
-        } catch (NumberFormatException nfe) {
-          // purposefully left blank
-        }
-      }
-
-      StoredCharBody storedCharBody =
-          new StoredCharBody(requestContext, requestStartCb, requestEndedCb, lengthHint);
-
-      reader = new BufferedReaderWrapper(reader, storedCharBody);
+    @Override
+    public String muzzleDirective() {
+        return "servlet-2.x-and-3.0.x";
     }
-  }
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching request bodies after 3.0.x which have their own instrumentation
+        return not(hasClassNamed("javax.servlet.ReadListener"));
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.servlet.http.HttpServletRequest";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()))
+                // ignore wrappers that ship with servlet-api
+                .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
+                .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getInputStream")
+                        .and(takesNoArguments())
+                        .and(returns(named("javax.servlet.ServletInputStream")))
+                        .and(isPublic()),
+                getClass().getName() + "$HttpServletGetInputStreamAdvice");
+        transformer.applyAdvice(
+                named("getReader")
+                        .and(takesNoArguments())
+                        .and(returns(named("java.io.BufferedReader")))
+                        .and(isPublic()),
+                getClass().getName() + "$HttpServletGetReaderAdvice");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
+            "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
+            "datadog.trace.instrumentation.servlet2.ServletInputStreamWrapper"
+        };
+    }
+
+    @Override
+    public int order() {
+        // apply this instrumentation after the regular servlet one.
+        return 1;
+    }
+
+    @SuppressWarnings("Duplicates")
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    static class HttpServletGetInputStreamAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(
+                @Advice.This final HttpServletRequest req,
+                @Advice.Return(readOnly = false) ServletInputStream is,
+                @ActiveRequestContext RequestContext reqCtx) {
+            if (is == null) {
+                return;
+            }
+
+            Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
+            if (alreadyWrapped != null || is instanceof ServletInputStreamWrapper) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
+                    cbp.getCallback(EVENTS.requestBodyStart());
+            BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
+                    cbp.getCallback(EVENTS.requestBodyDone());
+            if (requestStartCb == null || requestEndedCb == null) {
+                return;
+            }
+
+            req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
+
+            int lengthHint = 0;
+            String lengthHeader = req.getHeader("content-length");
+            if (lengthHeader != null) {
+                try {
+                    lengthHint = Integer.parseInt(lengthHeader);
+                } catch (NumberFormatException nfe) {
+                    // purposefully left blank
+                }
+            }
+
+            String encoding = req.getCharacterEncoding();
+            Charset charset = null;
+            try {
+                if (encoding != null) {
+                    charset = Charset.forName(encoding);
+                }
+            } catch (IllegalArgumentException iae) {
+                // purposefully left blank
+            }
+
+            StoredByteBody storedByteBody =
+                    new StoredByteBody(reqCtx, requestStartCb, requestEndedCb, charset, lengthHint);
+
+            is = new ServletInputStreamWrapper(is, storedByteBody);
+        }
+    }
+
+    @SuppressWarnings("Duplicates")
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    static class HttpServletGetReaderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(
+                @Advice.This final HttpServletRequest req, @Advice.Return(readOnly = false) BufferedReader reader) {
+            if (reader == null) {
+                return;
+            }
+
+            AgentSpan agentSpan = activeSpan();
+            if (agentSpan == null) {
+                return;
+            }
+            Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
+            if (alreadyWrapped != null || reader instanceof BufferedReaderWrapper) {
+                return;
+            }
+            RequestContext requestContext = agentSpan.getRequestContext();
+            if (requestContext == null) {
+                return;
+            }
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
+                    cbp.getCallback(EVENTS.requestBodyStart());
+            BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
+                    cbp.getCallback(EVENTS.requestBodyDone());
+            if (requestStartCb == null || requestEndedCb == null) {
+                return;
+            }
+
+            req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
+
+            int lengthHint = 0;
+            String lengthHeader = req.getHeader("content-length");
+            if (lengthHeader != null) {
+                try {
+                    lengthHint = Integer.parseInt(lengthHeader);
+                } catch (NumberFormatException nfe) {
+                    // purposefully left blank
+                }
+            }
+
+            StoredCharBody storedCharBody =
+                    new StoredCharBody(requestContext, requestStartCb, requestEndedCb, lengthHint);
+
+            reader = new BufferedReaderWrapper(reader, storedCharBody);
+        }
+    }
 }

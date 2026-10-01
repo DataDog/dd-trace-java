@@ -17,48 +17,48 @@ import javax.annotation.Nullable;
  */
 public interface TestExecutionTracker {
 
-  /**
-   * Records the result of a test execution and returns the outcome.
-   *
-   * @param status result of the execution: pass, fail or skip
-   * @param durationMillis duration of current test execution in milliseconds
-   */
-  ExecutionOutcome registerExecution(TestStatus status, long durationMillis);
-
-  /**
-   * @return {@code true} if the test should be instrumented by FTR
-   */
-  boolean failedTestReplayApplicable();
-
-  interface ExecutionOutcome {
     /**
-     * @return {@code true} if this execution failed and the failure was suppressed
+     * Records the result of a test execution and returns the outcome.
+     *
+     * @param status result of the execution: pass, fail or skip
+     * @param durationMillis duration of current test execution in milliseconds
      */
-    boolean failureSuppressed();
+    ExecutionOutcome registerExecution(TestStatus status, long durationMillis);
 
     /**
-     * @return {@code true} if this execution is the last one (only for policies that allow multiple
-     *     retries)
+     * @return {@code true} if the test should be instrumented by FTR
      */
-    boolean lastExecution();
+    boolean failedTestReplayApplicable();
 
-    /**
-     * @return Aggregated results across all executions so far
-     */
-    ExecutionAggregation aggregation();
+    interface ExecutionOutcome {
+        /**
+         * @return {@code true} if this execution failed and the failure was suppressed
+         */
+        boolean failureSuppressed();
 
-    /**
-     * @return retry reason for current test execution ({@code null} if current execution is not a
-     *     retry)
-     */
-    @Nullable
-    RetryReason retryReason();
+        /**
+         * @return {@code true} if this execution is the last one (only for policies that allow multiple
+         *     retries)
+         */
+        boolean lastExecution();
 
-    /**
-     * @return Final status of the test as seen by the testing framework. Only applicable if {@code
-     *     lastExecution()} is true.
-     */
-    @Nullable
-    TestStatus finalStatus();
-  }
+        /**
+         * @return Aggregated results across all executions so far
+         */
+        ExecutionAggregation aggregation();
+
+        /**
+         * @return retry reason for current test execution ({@code null} if current execution is not a
+         *     retry)
+         */
+        @Nullable
+        RetryReason retryReason();
+
+        /**
+         * @return Final status of the test as seen by the testing framework. Only applicable if {@code
+         *     lastExecution()} is true.
+         */
+        @Nullable
+        TestStatus finalStatus();
+    }
 }

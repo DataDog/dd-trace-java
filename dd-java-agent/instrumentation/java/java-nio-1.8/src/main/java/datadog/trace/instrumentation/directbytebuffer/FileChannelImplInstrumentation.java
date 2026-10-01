@@ -16,36 +16,35 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(InstrumenterModule.class)
 public final class FileChannelImplInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public FileChannelImplInstrumentation() {
-    super("mmap", "directallocation");
-  }
+    public FileChannelImplInstrumentation() {
+        super("mmap", "directallocation");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return JavaVirtualMachine.isJavaVersionAtLeast(11)
-        && super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT)
-        && Platform.hasJfr();
-  }
+    @Override
+    public boolean isEnabled() {
+        return JavaVirtualMachine.isJavaVersionAtLeast(11)
+                && super.isEnabled()
+                && ConfigProvider.getInstance()
+                        .getBoolean(PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT)
+                && Platform.hasJfr();
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "sun.nio.ch.FileChannelImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "sun.nio.ch.FileChannelImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("map"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("java.nio.channels.FileChannel$MapMode")))
-            .and(takesArgument(1, long.class))
-            .and(takesArgument(2, long.class)),
-        packageName + ".MemoryMappingAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("map"))
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, named("java.nio.channels.FileChannel$MapMode")))
+                        .and(takesArgument(1, long.class))
+                        .and(takesArgument(2, long.class)),
+                packageName + ".MemoryMappingAdvice");
+    }
 }

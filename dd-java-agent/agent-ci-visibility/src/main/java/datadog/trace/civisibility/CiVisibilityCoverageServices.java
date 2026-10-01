@@ -24,74 +24,67 @@ import java.util.Map;
  */
 public class CiVisibilityCoverageServices {
 
-  /** Services used in the parent process (build system). */
-  static class Parent {
-    final ModuleSignalRouter moduleSignalRouter;
-    final CoverageProcessor.Factory<?> coverageProcessorFactory;
+    /** Services used in the parent process (build system). */
+    static class Parent {
+        final ModuleSignalRouter moduleSignalRouter;
+        final CoverageProcessor.Factory<?> coverageProcessorFactory;
 
-    Parent(CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
-      moduleSignalRouter = new ModuleSignalRouter();
+        Parent(CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
+            moduleSignalRouter = new ModuleSignalRouter();
 
-      ExecutionSettings executionSettings =
-          repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
-      CoverageReportUploader coverageReportUploader =
-          executionSettings.isCodeCoverageReportUploadEnabled()
-              ? new CoverageReportUploader(
-                  services.ciIntake,
-                  repoServices.ciTags,
-                  services.config.getCodeCoverageFlags(),
-                  services.metricCollector)
-              : null;
+            ExecutionSettings executionSettings =
+                    repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
+            CoverageReportUploader coverageReportUploader = executionSettings.isCodeCoverageReportUploadEnabled()
+                    ? new CoverageReportUploader(
+                            services.ciIntake,
+                            repoServices.ciTags,
+                            services.config.getCodeCoverageFlags(),
+                            services.metricCollector)
+                    : null;
 
-      coverageProcessorFactory =
-          new JacocoCoverageProcessor.Factory(
-              services.config,
-              repoServices.repoIndexProvider,
-              coverageReportUploader,
-              repoServices.repoRoot,
-              moduleSignalRouter);
-    }
-  }
-
-  /** Services used in the children processes (JVMs forked to run tests). */
-  static class Child {
-    final CoverageStore.Factory coverageStoreFactory;
-    final ChildProcessCoverageReporter coverageReporter;
-
-    Child(
-        CiVisibilityServices services,
-        CiVisibilityRepoServices repoServices,
-        ExecutionSettings executionSettings) {
-      coverageReporter =
-          new JacocoChildProcessCoverageReporter(CoveragePercentageBridge::getJacocoCoverageData);
-
-      coverageStoreFactory = buildCoverageStoreFactory(services, repoServices, executionSettings);
+            coverageProcessorFactory = new JacocoCoverageProcessor.Factory(
+                    services.config,
+                    repoServices.repoIndexProvider,
+                    coverageReportUploader,
+                    repoServices.repoRoot,
+                    moduleSignalRouter);
+        }
     }
 
-    private static CoverageStore.Factory buildCoverageStoreFactory(
-        CiVisibilityServices services,
-        CiVisibilityRepoServices repoServices,
-        ExecutionSettings executionSettings) {
+    /** Services used in the children processes (JVMs forked to run tests). */
+    static class Child {
+        final CoverageStore.Factory coverageStoreFactory;
+        final ChildProcessCoverageReporter coverageReporter;
 
-      CoverageStore.Factory factory;
-      if (!services.config.isCiVisibilityCodeCoverageEnabled()) {
-        factory = new NoOpCoverageStore.Factory();
-      } else if (services.config.isCiVisibilityCoverageLinesEnabled()) {
-        factory =
-            new LineCoverageStore.Factory(
-                services.metricCollector, repoServices.sourcePathResolver);
-      } else {
-        factory =
-            new FileCoverageStore.Factory(
-                services.metricCollector, repoServices.sourcePathResolver);
-      }
+        Child(
+                CiVisibilityServices services,
+                CiVisibilityRepoServices repoServices,
+                ExecutionSettings executionSettings) {
+            coverageReporter = new JacocoChildProcessCoverageReporter(CoveragePercentageBridge::getJacocoCoverageData);
 
-      if (executionSettings.isItrEnabled()) {
-        Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
-        return new SkippableAwareCoverageStoreFactory(skippableTests.keySet(), factory);
-      } else {
-        return factory;
-      }
+            coverageStoreFactory = buildCoverageStoreFactory(services, repoServices, executionSettings);
+        }
+
+        private static CoverageStore.Factory buildCoverageStoreFactory(
+                CiVisibilityServices services,
+                CiVisibilityRepoServices repoServices,
+                ExecutionSettings executionSettings) {
+
+            CoverageStore.Factory factory;
+            if (!services.config.isCiVisibilityCodeCoverageEnabled()) {
+                factory = new NoOpCoverageStore.Factory();
+            } else if (services.config.isCiVisibilityCoverageLinesEnabled()) {
+                factory = new LineCoverageStore.Factory(services.metricCollector, repoServices.sourcePathResolver);
+            } else {
+                factory = new FileCoverageStore.Factory(services.metricCollector, repoServices.sourcePathResolver);
+            }
+
+            if (executionSettings.isItrEnabled()) {
+                Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
+                return new SkippableAwareCoverageStoreFactory(skippableTests.keySet(), factory);
+            } else {
+                return factory;
+            }
+        }
     }
-  }
 }

@@ -13,33 +13,32 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RatpackTypedDataInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RatpackTypedDataInstrumentation() {
-    super("ratpack-request-body");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RatpackTypedDataInstrumentation() {
+        super("ratpack-request-body");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "ratpack.http.internal.ByteBufBackedTypedData";
-  }
+    @Override
+    public String instrumentedType() {
+        return "ratpack.http.internal.ByteBufBackedTypedData";
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "ratpack.http.internal.ByteBufBackedTypedData", Boolean.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("ratpack.http.internal.ByteBufBackedTypedData", Boolean.class.getName());
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getBuffer")
-            .and(takesArguments(0))
-            .or(named("getBytes").and(takesArguments(0)))
-            .or(named("writeTo").and(takesArguments(OutputStream.class)))
-            .or(named("getInputStream").and(takesArguments(0))),
-        packageName + ".RatpackRequestBodyCallGetBufferAdvice");
-    transformer.applyAdvice(
-        named("getText").and(takesArguments(0).or(takesArguments(Charset.class))),
-        packageName + ".RatpackRequestBodyGetTextCalledAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getBuffer")
+                        .and(takesArguments(0))
+                        .or(named("getBytes").and(takesArguments(0)))
+                        .or(named("writeTo").and(takesArguments(OutputStream.class)))
+                        .or(named("getInputStream").and(takesArguments(0))),
+                packageName + ".RatpackRequestBodyCallGetBufferAdvice");
+        transformer.applyAdvice(
+                named("getText").and(takesArguments(0).or(takesArguments(Charset.class))),
+                packageName + ".RatpackRequestBodyGetTextCalledAdvice");
+    }
 }

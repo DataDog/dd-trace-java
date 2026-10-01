@@ -56,409 +56,408 @@ import org.opentest4j.AssertionFailedError;
  * </ul>
  */
 public final class SpanMatcher {
-  private Matcher<DDTraceId> traceIdMatcher;
-  private Matcher<Long> idMatcher;
-  private Matcher<Long> parentIdMatcher;
-  private int parentSpanIndex;
-  private Matcher<String> serviceNameMatcher;
-  private Matcher<CharSequence> operationNameMatcher;
-  private Matcher<CharSequence> resourceNameMatcher;
-  private Matcher<Duration> durationMatcher;
-  private Matcher<String> typeMatcher;
-  private Matcher<Boolean> errorMatcher;
-  private Matcher<Boolean> measuredMatcher;
-  private Matcher<Boolean> topLevelMatcher;
-  private TagsMatcher[] tagMatchers;
-  private SpanLinkMatcher[] linkMatchers;
+    private Matcher<DDTraceId> traceIdMatcher;
+    private Matcher<Long> idMatcher;
+    private Matcher<Long> parentIdMatcher;
+    private int parentSpanIndex;
+    private Matcher<String> serviceNameMatcher;
+    private Matcher<CharSequence> operationNameMatcher;
+    private Matcher<CharSequence> resourceNameMatcher;
+    private Matcher<Duration> durationMatcher;
+    private Matcher<String> typeMatcher;
+    private Matcher<Boolean> errorMatcher;
+    private Matcher<Boolean> measuredMatcher;
+    private Matcher<Boolean> topLevelMatcher;
+    private TagsMatcher[] tagMatchers;
+    private SpanLinkMatcher[] linkMatchers;
 
-  private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
+    private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
-  private SpanMatcher() {
-    this.parentSpanIndex = -1;
-    this.serviceNameMatcher = validates(s -> s != null && !s.isEmpty());
-    this.typeMatcher = isNull();
-    this.errorMatcher = isFalse();
-  }
-
-  /**
-   * Checks a span and its attributes.
-   *
-   * @return A new {@link SpanMatcher} instance to configure span matching constraints.
-   */
-  public static SpanMatcher span() {
-    return new SpanMatcher();
-  }
-
-  /**
-   * Checks the trace identifier matches the given value.
-   *
-   * @param traceId The trace identifier to match against.
-   * @return The current {@link SpanMatcher} instance with the specified trace identifier constraint
-   *     applied.
-   */
-  public SpanMatcher traceId(DDTraceId traceId) {
-    this.traceIdMatcher = Matchers.is(traceId);
-    return this;
-  }
-
-  /**
-   * Checks the span identifier matches the given value.
-   *
-   * @param id The identifier of the span to match against.
-   * @return The current {@link SpanMatcher} instance with the specified identifier constraint
-   *     applied.
-   */
-  public SpanMatcher id(long id) {
-    this.idMatcher = is(id);
-    return this;
-  }
-
-  /**
-   * Checks the span is a root span (i.e., a span with no parent).
-   *
-   * @return The current {@link SpanMatcher} instance with the root constraint applied.
-   */
-  public SpanMatcher root() {
-    return childOf(0L);
-  }
-
-  /**
-   * Checks the span is a direct child of the specified parent span.
-   *
-   * @param parentId The identifier of the parent span to match against.
-   * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
-   */
-  public SpanMatcher childOf(long parentId) {
-    this.parentIdMatcher = is(parentId);
-    this.parentSpanIndex = -1;
-    return this;
-  }
-
-  /**
-   * Checks the span is a direct child of the immediately preceding span in the trace.
-   *
-   * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
-   */
-  public SpanMatcher childOfPrevious() {
-    this.parentIdMatcher = CHILD_OF_PREVIOUS_MATCHER;
-    this.parentSpanIndex = -1;
-    return this;
-  }
-
-  /**
-   * Checks the span is a direct child of the span at the specified index in the trace.
-   *
-   * @param parentSpanIndex The index of the parent span in the trace.
-   * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
-   */
-  public SpanMatcher childOfIndex(int parentSpanIndex) {
-    if (parentSpanIndex < 0) {
-      throw new AssertionFailedError("index  must be >= 0");
+    private SpanMatcher() {
+        this.parentSpanIndex = -1;
+        this.serviceNameMatcher = validates(s -> s != null && !s.isEmpty());
+        this.typeMatcher = isNull();
+        this.errorMatcher = isFalse();
     }
-    this.parentIdMatcher = null;
-    this.parentSpanIndex = parentSpanIndex;
-    return this;
-  }
 
-  /**
-   * Checks the span has service name defined.
-   *
-   * @return The current {@link SpanMatcher} instance with a defined service name constraint
-   *     applied.
-   */
-  public SpanMatcher serviceNameDefined() {
-    this.serviceNameMatcher = isNonNull();
-    return this;
-  }
-
-  /**
-   * Checks the span service name matches the given value.
-   *
-   * @param serviceName The service name to match against.
-   * @return The current {@link SpanMatcher} instance updated with the specified service name
-   *     constraint.
-   */
-  public SpanMatcher serviceName(String serviceName) {
-    this.serviceNameMatcher = is(serviceName);
-    return this;
-  }
-
-  /**
-   * Checks the span operation name matches the given value.
-   *
-   * @param operationName The operation name to match against.
-   * @return The current {@link SpanMatcher} instance updated with the specified operation name
-   *     constraint.
-   */
-  public SpanMatcher operationName(String operationName) {
-    this.operationNameMatcher = is(operationName);
-    return this;
-  }
-
-  /**
-   * Checks the span operation name matches the provided regular expression pattern.
-   *
-   * @param pattern The {@link Pattern} to match the operation name against.
-   * @return The current {@link SpanMatcher} instance updated with the specified operation name
-   *     constraint.
-   */
-  public SpanMatcher operationName(Pattern pattern) {
-    this.operationNameMatcher = matches(pattern);
-    return this;
-  }
-
-  /**
-   * Checks the span resource name matches the given value.
-   *
-   * @param resourceName The resource name to match against.
-   * @return The current {@link SpanMatcher} instance updated with the specified resource name
-   *     constraint.
-   */
-  public SpanMatcher resourceName(String resourceName) {
-    this.resourceNameMatcher = is(resourceName);
-    return this;
-  }
-
-  /**
-   * Checks the span resource name matches the provided regular expression pattern.
-   *
-   * @param pattern The {@link Pattern} used to match the resource name against.
-   * @return The current {@link SpanMatcher} instance updated with the specified resource name
-   *     constraint.
-   */
-  public SpanMatcher resourceName(Pattern pattern) {
-    this.resourceNameMatcher = matches(pattern);
-    return this;
-  }
-
-  /**
-   * Checks the span resource name matches the provided validator.
-   *
-   * @param validator The {@link Predicate} used to validate the resource name.
-   * @return The current {@link SpanMatcher} instance updated with the specified resource name
-   *     constraint.
-   */
-  public SpanMatcher resourceName(Predicate<CharSequence> validator) {
-    this.resourceNameMatcher = validates(validator);
-    return this;
-  }
-
-  /**
-   * Checks the span duration is shorter than the given value.
-   *
-   * @param duration The maximum allowed duration.
-   * @return The current {@link SpanMatcher} instance updated with the specified duration
-   *     constraint.
-   */
-  public SpanMatcher durationShorterThan(Duration duration) {
-    this.durationMatcher = validates(d -> d.compareTo(duration) < 0);
-    return this;
-  }
-
-  /**
-   * Checks the span duration is longer than the given value.
-   *
-   * @param duration The minimum allowed duration.
-   * @return The current {@link SpanMatcher} instance updated with the specified duration
-   *     constraint.
-   */
-  public SpanMatcher durationLongerThan(Duration duration) {
-    this.durationMatcher = validates(d -> d.compareTo(duration) > 0);
-    return this;
-  }
-
-  /**
-   * Checks the span duration matches the given validator.
-   *
-   * @param validator The validator to check the span duration.
-   * @return The current {@link SpanMatcher} instance updated with the specified duration
-   *     constraint.
-   */
-  public SpanMatcher duration(Predicate<Duration> validator) {
-    this.durationMatcher = validates(validator);
-    return this;
-  }
-
-  /**
-   * Checks the span type matches the given value.
-   *
-   * @param type The span type to match against.
-   * @return The current {@link SpanMatcher} instance updated with the specified span type
-   *     constraint.
-   */
-  public SpanMatcher type(String type) {
-    this.typeMatcher = is(type);
-    return this;
-  }
-
-  /**
-   * Checks the span is an error span.
-   *
-   * @return The current {@link SpanMatcher} instance updated with the specified error constraint.
-   */
-  public SpanMatcher error() {
-    return error(true);
-  }
-
-  /**
-   * Checks the span error status matches the given value.
-   *
-   * @param errored The expected error status.
-   * @return The current {@link SpanMatcher} instance updated with the specified error constraint.
-   */
-  public SpanMatcher error(boolean errored) {
-    this.errorMatcher = errored ? isTrue() : isFalse();
-    return this;
-  }
-
-  /**
-   * Checks the span is measured.
-   *
-   * @return The current {@link SpanMatcher} instance updated with the specified measured
-   *     constraint.
-   */
-  public SpanMatcher measured() {
-    return measured(true);
-  }
-
-  /**
-   * Checks the span measured status matches the given value.
-   *
-   * @param measured The expected measured status.
-   * @return The current {@link SpanMatcher} instance updated with the specified measured
-   *     constraint.
-   */
-  public SpanMatcher measured(boolean measured) {
-    this.measuredMatcher = measured ? isTrue() : isFalse();
-    return this;
-  }
-
-  /**
-   * Checks the span is a top-level span.
-   *
-   * @return The current {@link SpanMatcher} instance updated with the specified top-level
-   *     constraint.
-   */
-  public SpanMatcher topLevel() {
-    return topLevel(true);
-  }
-
-  /**
-   * Checks the span top-level status matches the given value.
-   *
-   * @param topLevel The expected top-level status.
-   * @return The current {@link SpanMatcher} instance updated with the specified top-level
-   *     constraint.
-   */
-  public SpanMatcher topLevel(boolean topLevel) {
-    this.topLevelMatcher = topLevel ? isTrue() : isFalse();
-    return this;
-  }
-
-  public SpanMatcher tags(TagsMatcher... matchers) {
-    this.tagMatchers = matchers;
-    return this;
-  }
-
-  /**
-   * Checks the span links structure.
-   *
-   * @param matchers The {@link SpanLinkMatcher} to very the span links structure, one per link.
-   * @return The current {@link SpanMatcher} instance updated with the specified span link
-   *     constraints.
-   */
-  public SpanMatcher links(SpanLinkMatcher... matchers) {
-    this.linkMatchers = matchers;
-    return this;
-  }
-
-  void assertSpan(List<DDSpan> trace, int spanIndex) {
-    DDSpan span = trace.get(spanIndex);
-    // Apply parent span index
-    if (this.parentSpanIndex >= 0) {
-      this.parentIdMatcher = is(trace.get(this.parentSpanIndex).getSpanId());
+    /**
+     * Checks a span and its attributes.
+     *
+     * @return A new {@link SpanMatcher} instance to configure span matching constraints.
+     */
+    public static SpanMatcher span() {
+        return new SpanMatcher();
     }
-    // Apply parent id matcher from the previous span
-    else if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
-      if (spanIndex == 0) {
-        throw new IllegalStateException("Cannot use childOfPrevious() matcher on the first span");
-      }
-      DDSpan previousSpan = trace.get(spanIndex - 1);
-      this.parentIdMatcher = is(previousSpan.getSpanId());
-    }
-    // Assert span values
-    assertValue(this.traceIdMatcher, span.getTraceId(), "Unexpected trace identifier");
-    assertValue(this.idMatcher, span.getSpanId(), "Unexpected identifier");
-    assertValue(this.parentIdMatcher, span.getParentId(), "Unexpected parent identifier");
-    assertValue(this.serviceNameMatcher, span.getServiceName(), "Unexpected service name");
-    assertValue(this.operationNameMatcher, span.getOperationName(), "Unexpected operation name");
-    assertValue(this.resourceNameMatcher, span.getResourceName(), "Unexpected resource name");
-    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Unexpected duration");
-    assertValue(this.typeMatcher, span.getSpanType(), "Unexpected span type");
-    assertValue(this.errorMatcher, span.isError(), "Unexpected error status");
-    assertValue(this.measuredMatcher, span.isMeasured(), "Unexpected measured status");
-    assertValue(this.topLevelMatcher, span.isTopLevel(), "Unexpected top-level status");
-    assertSpanTags(span.getTags());
-    assertSpanLinks(spanLinks(span));
-  }
 
-  private void assertSpanTags(TagMap tags) {
-    // Check if tags should be asserted at all
-    if (this.tagMatchers == null) {
-      return;
+    /**
+     * Checks the trace identifier matches the given value.
+     *
+     * @param traceId The trace identifier to match against.
+     * @return The current {@link SpanMatcher} instance with the specified trace identifier constraint
+     *     applied.
+     */
+    public SpanMatcher traceId(DDTraceId traceId) {
+        this.traceIdMatcher = Matchers.is(traceId);
+        return this;
     }
-    // Collect all matchers
-    Map<String, Matcher<?>> matchers = new HashMap<>();
-    for (TagsMatcher tagMatcher : this.tagMatchers) {
-      matchers.putAll(tagMatcher.tagMatchers);
+
+    /**
+     * Checks the span identifier matches the given value.
+     *
+     * @param id The identifier of the span to match against.
+     * @return The current {@link SpanMatcher} instance with the specified identifier constraint
+     *     applied.
+     */
+    public SpanMatcher id(long id) {
+        this.idMatcher = is(id);
+        return this;
     }
-    // Assert all tags
-    List<String> uncheckedTagNames = new ArrayList<>();
-    tags.forEach(
-        (key, value) -> {
-          Matcher<Object> matcher = (Matcher) matchers.remove(key);
-          if (matcher == null) {
-            uncheckedTagNames.add(key);
-          } else {
-            assertValue(matcher, value, "Unexpected " + key + " tag value");
-          }
+
+    /**
+     * Checks the span is a root span (i.e., a span with no parent).
+     *
+     * @return The current {@link SpanMatcher} instance with the root constraint applied.
+     */
+    public SpanMatcher root() {
+        return childOf(0L);
+    }
+
+    /**
+     * Checks the span is a direct child of the specified parent span.
+     *
+     * @param parentId The identifier of the parent span to match against.
+     * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
+     */
+    public SpanMatcher childOf(long parentId) {
+        this.parentIdMatcher = is(parentId);
+        this.parentSpanIndex = -1;
+        return this;
+    }
+
+    /**
+     * Checks the span is a direct child of the immediately preceding span in the trace.
+     *
+     * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
+     */
+    public SpanMatcher childOfPrevious() {
+        this.parentIdMatcher = CHILD_OF_PREVIOUS_MATCHER;
+        this.parentSpanIndex = -1;
+        return this;
+    }
+
+    /**
+     * Checks the span is a direct child of the span at the specified index in the trace.
+     *
+     * @param parentSpanIndex The index of the parent span in the trace.
+     * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
+     */
+    public SpanMatcher childOfIndex(int parentSpanIndex) {
+        if (parentSpanIndex < 0) {
+            throw new AssertionFailedError("index  must be >= 0");
+        }
+        this.parentIdMatcher = null;
+        this.parentSpanIndex = parentSpanIndex;
+        return this;
+    }
+
+    /**
+     * Checks the span has service name defined.
+     *
+     * @return The current {@link SpanMatcher} instance with a defined service name constraint
+     *     applied.
+     */
+    public SpanMatcher serviceNameDefined() {
+        this.serviceNameMatcher = isNonNull();
+        return this;
+    }
+
+    /**
+     * Checks the span service name matches the given value.
+     *
+     * @param serviceName The service name to match against.
+     * @return The current {@link SpanMatcher} instance updated with the specified service name
+     *     constraint.
+     */
+    public SpanMatcher serviceName(String serviceName) {
+        this.serviceNameMatcher = is(serviceName);
+        return this;
+    }
+
+    /**
+     * Checks the span operation name matches the given value.
+     *
+     * @param operationName The operation name to match against.
+     * @return The current {@link SpanMatcher} instance updated with the specified operation name
+     *     constraint.
+     */
+    public SpanMatcher operationName(String operationName) {
+        this.operationNameMatcher = is(operationName);
+        return this;
+    }
+
+    /**
+     * Checks the span operation name matches the provided regular expression pattern.
+     *
+     * @param pattern The {@link Pattern} to match the operation name against.
+     * @return The current {@link SpanMatcher} instance updated with the specified operation name
+     *     constraint.
+     */
+    public SpanMatcher operationName(Pattern pattern) {
+        this.operationNameMatcher = matches(pattern);
+        return this;
+    }
+
+    /**
+     * Checks the span resource name matches the given value.
+     *
+     * @param resourceName The resource name to match against.
+     * @return The current {@link SpanMatcher} instance updated with the specified resource name
+     *     constraint.
+     */
+    public SpanMatcher resourceName(String resourceName) {
+        this.resourceNameMatcher = is(resourceName);
+        return this;
+    }
+
+    /**
+     * Checks the span resource name matches the provided regular expression pattern.
+     *
+     * @param pattern The {@link Pattern} used to match the resource name against.
+     * @return The current {@link SpanMatcher} instance updated with the specified resource name
+     *     constraint.
+     */
+    public SpanMatcher resourceName(Pattern pattern) {
+        this.resourceNameMatcher = matches(pattern);
+        return this;
+    }
+
+    /**
+     * Checks the span resource name matches the provided validator.
+     *
+     * @param validator The {@link Predicate} used to validate the resource name.
+     * @return The current {@link SpanMatcher} instance updated with the specified resource name
+     *     constraint.
+     */
+    public SpanMatcher resourceName(Predicate<CharSequence> validator) {
+        this.resourceNameMatcher = validates(validator);
+        return this;
+    }
+
+    /**
+     * Checks the span duration is shorter than the given value.
+     *
+     * @param duration The maximum allowed duration.
+     * @return The current {@link SpanMatcher} instance updated with the specified duration
+     *     constraint.
+     */
+    public SpanMatcher durationShorterThan(Duration duration) {
+        this.durationMatcher = validates(d -> d.compareTo(duration) < 0);
+        return this;
+    }
+
+    /**
+     * Checks the span duration is longer than the given value.
+     *
+     * @param duration The minimum allowed duration.
+     * @return The current {@link SpanMatcher} instance updated with the specified duration
+     *     constraint.
+     */
+    public SpanMatcher durationLongerThan(Duration duration) {
+        this.durationMatcher = validates(d -> d.compareTo(duration) > 0);
+        return this;
+    }
+
+    /**
+     * Checks the span duration matches the given validator.
+     *
+     * @param validator The validator to check the span duration.
+     * @return The current {@link SpanMatcher} instance updated with the specified duration
+     *     constraint.
+     */
+    public SpanMatcher duration(Predicate<Duration> validator) {
+        this.durationMatcher = validates(validator);
+        return this;
+    }
+
+    /**
+     * Checks the span type matches the given value.
+     *
+     * @param type The span type to match against.
+     * @return The current {@link SpanMatcher} instance updated with the specified span type
+     *     constraint.
+     */
+    public SpanMatcher type(String type) {
+        this.typeMatcher = is(type);
+        return this;
+    }
+
+    /**
+     * Checks the span is an error span.
+     *
+     * @return The current {@link SpanMatcher} instance updated with the specified error constraint.
+     */
+    public SpanMatcher error() {
+        return error(true);
+    }
+
+    /**
+     * Checks the span error status matches the given value.
+     *
+     * @param errored The expected error status.
+     * @return The current {@link SpanMatcher} instance updated with the specified error constraint.
+     */
+    public SpanMatcher error(boolean errored) {
+        this.errorMatcher = errored ? isTrue() : isFalse();
+        return this;
+    }
+
+    /**
+     * Checks the span is measured.
+     *
+     * @return The current {@link SpanMatcher} instance updated with the specified measured
+     *     constraint.
+     */
+    public SpanMatcher measured() {
+        return measured(true);
+    }
+
+    /**
+     * Checks the span measured status matches the given value.
+     *
+     * @param measured The expected measured status.
+     * @return The current {@link SpanMatcher} instance updated with the specified measured
+     *     constraint.
+     */
+    public SpanMatcher measured(boolean measured) {
+        this.measuredMatcher = measured ? isTrue() : isFalse();
+        return this;
+    }
+
+    /**
+     * Checks the span is a top-level span.
+     *
+     * @return The current {@link SpanMatcher} instance updated with the specified top-level
+     *     constraint.
+     */
+    public SpanMatcher topLevel() {
+        return topLevel(true);
+    }
+
+    /**
+     * Checks the span top-level status matches the given value.
+     *
+     * @param topLevel The expected top-level status.
+     * @return The current {@link SpanMatcher} instance updated with the specified top-level
+     *     constraint.
+     */
+    public SpanMatcher topLevel(boolean topLevel) {
+        this.topLevelMatcher = topLevel ? isTrue() : isFalse();
+        return this;
+    }
+
+    public SpanMatcher tags(TagsMatcher... matchers) {
+        this.tagMatchers = matchers;
+        return this;
+    }
+
+    /**
+     * Checks the span links structure.
+     *
+     * @param matchers The {@link SpanLinkMatcher} to very the span links structure, one per link.
+     * @return The current {@link SpanMatcher} instance updated with the specified span link
+     *     constraints.
+     */
+    public SpanMatcher links(SpanLinkMatcher... matchers) {
+        this.linkMatchers = matchers;
+        return this;
+    }
+
+    void assertSpan(List<DDSpan> trace, int spanIndex) {
+        DDSpan span = trace.get(spanIndex);
+        // Apply parent span index
+        if (this.parentSpanIndex >= 0) {
+            this.parentIdMatcher = is(trace.get(this.parentSpanIndex).getSpanId());
+        }
+        // Apply parent id matcher from the previous span
+        else if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
+            if (spanIndex == 0) {
+                throw new IllegalStateException("Cannot use childOfPrevious() matcher on the first span");
+            }
+            DDSpan previousSpan = trace.get(spanIndex - 1);
+            this.parentIdMatcher = is(previousSpan.getSpanId());
+        }
+        // Assert span values
+        assertValue(this.traceIdMatcher, span.getTraceId(), "Unexpected trace identifier");
+        assertValue(this.idMatcher, span.getSpanId(), "Unexpected identifier");
+        assertValue(this.parentIdMatcher, span.getParentId(), "Unexpected parent identifier");
+        assertValue(this.serviceNameMatcher, span.getServiceName(), "Unexpected service name");
+        assertValue(this.operationNameMatcher, span.getOperationName(), "Unexpected operation name");
+        assertValue(this.resourceNameMatcher, span.getResourceName(), "Unexpected resource name");
+        assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Unexpected duration");
+        assertValue(this.typeMatcher, span.getSpanType(), "Unexpected span type");
+        assertValue(this.errorMatcher, span.isError(), "Unexpected error status");
+        assertValue(this.measuredMatcher, span.isMeasured(), "Unexpected measured status");
+        assertValue(this.topLevelMatcher, span.isTopLevel(), "Unexpected top-level status");
+        assertSpanTags(span.getTags());
+        assertSpanLinks(spanLinks(span));
+    }
+
+    private void assertSpanTags(TagMap tags) {
+        // Check if tags should be asserted at all
+        if (this.tagMatchers == null) {
+            return;
+        }
+        // Collect all matchers
+        Map<String, Matcher<?>> matchers = new HashMap<>();
+        for (TagsMatcher tagMatcher : this.tagMatchers) {
+            matchers.putAll(tagMatcher.tagMatchers);
+        }
+        // Assert all tags
+        List<String> uncheckedTagNames = new ArrayList<>();
+        tags.forEach((key, value) -> {
+            Matcher<Object> matcher = (Matcher) matchers.remove(key);
+            if (matcher == null) {
+                uncheckedTagNames.add(key);
+            } else {
+                assertValue(matcher, value, "Unexpected " + key + " tag value");
+            }
         });
-    // Remove matchers that accept missing tags
-    Collection<Matcher<?>> values = matchers.values();
-    values.removeIf(matcher -> matcher instanceof Any);
-    values.removeIf(matcher -> matcher instanceof IsNull);
-    // Fails if any tags are missing
-    if (!matchers.isEmpty()) {
-      throw new AssertionFailedError("Missing tags: " + String.join(", ", matchers.keySet()));
+        // Remove matchers that accept missing tags
+        Collection<Matcher<?>> values = matchers.values();
+        values.removeIf(matcher -> matcher instanceof Any);
+        values.removeIf(matcher -> matcher instanceof IsNull);
+        // Fails if any tags are missing
+        if (!matchers.isEmpty()) {
+            throw new AssertionFailedError("Missing tags: " + String.join(", ", matchers.keySet()));
+        }
+        // Fails if any unexpected tags are present
+        if (!uncheckedTagNames.isEmpty()) {
+            throw new AssertionFailedError("Unexpected tags: " + String.join(", ", uncheckedTagNames));
+        }
     }
-    // Fails if any unexpected tags are present
-    if (!uncheckedTagNames.isEmpty()) {
-      throw new AssertionFailedError("Unexpected tags: " + String.join(", ", uncheckedTagNames));
-    }
-  }
 
-  /*
-   * Right now, it's expecting to have as many matchers as links, and in the same order.
-   * It might evolve into partial link collection testing, matching links using TID/SIP.
-   */
-  private void assertSpanLinks(List<AgentSpanLink> links) {
-    // Check if links should be asserted at all
-    if (this.linkMatchers == null) {
-      return;
+    /*
+     * Right now, it's expecting to have as many matchers as links, and in the same order.
+     * It might evolve into partial link collection testing, matching links using TID/SIP.
+     */
+    private void assertSpanLinks(List<AgentSpanLink> links) {
+        // Check if links should be asserted at all
+        if (this.linkMatchers == null) {
+            return;
+        }
+        int linkCount = links == null ? 0 : links.size();
+        int expectedLinkCount = this.linkMatchers.length;
+        if (linkCount != expectedLinkCount) {
+            throw assertionFailure()
+                    .message("Unexpected span link count")
+                    .expected(expectedLinkCount)
+                    .actual(linkCount)
+                    .build();
+        }
+        for (int i = 0; i < expectedLinkCount; i++) {
+            SpanLinkMatcher linkMatcher = this.linkMatchers[i];
+            AgentSpanLink link = links.get(i);
+            linkMatcher.assertLink(link);
+        }
     }
-    int linkCount = links == null ? 0 : links.size();
-    int expectedLinkCount = this.linkMatchers.length;
-    if (linkCount != expectedLinkCount) {
-      throw assertionFailure()
-          .message("Unexpected span link count")
-          .expected(expectedLinkCount)
-          .actual(linkCount)
-          .build();
-    }
-    for (int i = 0; i < expectedLinkCount; i++) {
-      SpanLinkMatcher linkMatcher = this.linkMatchers[i];
-      AgentSpanLink link = links.get(i);
-      linkMatcher.assertLink(link);
-    }
-  }
 }

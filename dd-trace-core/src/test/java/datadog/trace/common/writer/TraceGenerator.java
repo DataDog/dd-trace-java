@@ -31,495 +31,493 @@ import java.util.concurrent.TimeUnit;
 
 public class TraceGenerator {
 
-  public static List<List<PojoSpan>> generateRandomTraces(int howMany, boolean lowCardinality) {
-    List<List<PojoSpan>> traces = new ArrayList<>(howMany);
-    for (int i = 0; i < howMany; ++i) {
-      int traceSize = ThreadLocalRandom.current().nextInt(2, 20);
-      traces.add(generateRandomTrace(traceSize, lowCardinality));
-    }
-    return traces;
-  }
-
-  private static List<PojoSpan> generateRandomTrace(int size, boolean lowCardinality) {
-    List<PojoSpan> trace = new ArrayList<>(size);
-    long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
-    for (int i = 0; i < size; ++i) {
-      String spanType = "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100);
-      trace.add(randomSpan(traceId, lowCardinality, spanType, Collections.emptyMap()));
-    }
-    return trace;
-  }
-
-  private static final IdGenerationStrategy ID_GENERATION_STRATEGY =
-      IdGenerationStrategy.fromName("RANDOM");
-
-  public static PojoSpan generateRandomSpan(CharSequence type, Map<String, Object> extraTags) {
-    long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
-    return randomSpan(traceId, true, type, extraTags);
-  }
-
-  private static PojoSpan randomSpan(
-      long traceId, boolean lowCardinality, CharSequence type, Map<String, Object> extraTags) {
-    ThreadLocalRandom random = ThreadLocalRandom.current();
-    Map<String, String> baggage = new HashMap<>();
-    if (random.nextBoolean()) {
-      baggage.put("baggage-key", lowCardinality ? "x" : randomString(100));
-      if (random.nextBoolean()) {
-        baggage.put("tag.1", "bar");
-        baggage.put("tag.2", "qux");
-      }
-    }
-    Map<String, Object> tags = new HashMap<>(extraTags);
-    int tagCount = random.nextInt(0, 20);
-    for (int i = 0; i < tagCount; ++i) {
-      tags.put("tag." + i, random.nextBoolean() ? "foo" : randomString(2000));
-      tags.put("tag.1." + i, lowCardinality ? "y" : UUID.randomUUID());
-      tags.put("tag.2." + i, random.nextBoolean());
-      switch (random.nextInt(8)) {
-        case 0:
-          tags.put("tag.3." + i, BigDecimal.valueOf(random.nextDouble()));
-          break;
-        case 1:
-          tags.put("tag.3." + i, BigInteger.valueOf(random.nextLong()));
-          break;
-        default:
-          break;
-      }
-    }
-    int metricCount = random.nextInt(0, 20);
-    for (int i = 0; i < metricCount; ++i) {
-      String name = "metric." + i;
-      Number metric = null;
-      switch (random.nextInt(4)) {
-        case 0:
-          metric = random.nextInt();
-          break;
-        case 1:
-          metric = random.nextLong();
-          break;
-        case 2:
-          metric = random.nextFloat();
-          break;
-        case 3:
-          metric = random.nextDouble();
-          break;
-      }
-      tags.put(name, metric);
-    }
-
-    return new PojoSpan(
-        "service-" + random.nextInt(lowCardinality ? 1 : 10),
-        "operation-" + random.nextInt(lowCardinality ? 1 : 100),
-        UTF8BytesString.create("resource-" + random.nextInt(lowCardinality ? 1 : 100)),
-        DDTraceId.from(traceId),
-        ID_GENERATION_STRATEGY.generateSpanId(),
-        DDSpanId.ZERO,
-        TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
-        random.nextLong(500, 10_000_000),
-        random.nextInt(2),
-        baggage,
-        tags,
-        type,
-        random.nextBoolean(),
-        PrioritySampling.SAMPLER_KEEP,
-        200,
-        "some-origin");
-  }
-
-  private static String randomString(int maxLength) {
-    char[] chars = new char[ThreadLocalRandom.current().nextInt(maxLength)];
-    for (int i = 0; i < chars.length; ++i) {
-      char next = (char) ThreadLocalRandom.current().nextInt((int) Character.MAX_VALUE);
-      if (Character.isSurrogate(next)) {
-        if (i < chars.length - 1) {
-          chars[i++] = '\uD801';
-          chars[i] = '\uDC01';
-        } else {
-          chars[i] = 'a';
+    public static List<List<PojoSpan>> generateRandomTraces(int howMany, boolean lowCardinality) {
+        List<List<PojoSpan>> traces = new ArrayList<>(howMany);
+        for (int i = 0; i < howMany; ++i) {
+            int traceSize = ThreadLocalRandom.current().nextInt(2, 20);
+            traces.add(generateRandomTrace(traceSize, lowCardinality));
         }
-      } else {
-        chars[i] = next;
-      }
-    }
-    return new String(chars);
-  }
-
-  public static class PojoSpan implements CoreSpan<PojoSpan> {
-
-    private final CharSequence serviceName;
-    private final CharSequence operationName;
-    private final CharSequence resourceName;
-    private final DDTraceId traceId;
-    private final long spanId;
-    private final long parentId;
-    private final long start;
-    private final long duration;
-    private final int error;
-    private final CharSequence type;
-    private final boolean measured;
-    private final Metadata metadata;
-    private short httpStatusCode;
-    private final int samplingPriority;
-    private final Map<String, Object> metaStruct = new HashMap<>();
-
-    public PojoSpan(
-        String serviceName,
-        String operationName,
-        CharSequence resourceName,
-        DDTraceId traceId,
-        long spanId,
-        long parentId,
-        long start,
-        long duration,
-        int error,
-        Map<String, String> baggage,
-        Map<String, Object> tags,
-        CharSequence type,
-        boolean measured,
-        int samplingPriority,
-        int statusCode,
-        CharSequence origin) {
-      this(
-          serviceName,
-          operationName,
-          resourceName,
-          traceId,
-          spanId,
-          parentId,
-          start,
-          duration,
-          error,
-          baggage,
-          tags,
-          type,
-          measured,
-          samplingPriority,
-          statusCode,
-          origin,
-          emptyList());
+        return traces;
     }
 
-    public PojoSpan(
-        String serviceName,
-        String operationName,
-        CharSequence resourceName,
-        DDTraceId traceId,
-        long spanId,
-        long parentId,
-        long start,
-        long duration,
-        int error,
-        Map<String, String> baggage,
-        Map<String, Object> tags,
-        CharSequence type,
-        boolean measured,
-        int samplingPriority,
-        int statusCode,
-        CharSequence origin,
-        List<AgentSpanLink> spanLinks) {
-      this.serviceName = UTF8BytesString.create(serviceName);
-      this.operationName = UTF8BytesString.create(operationName);
-      this.resourceName = UTF8BytesString.create(resourceName);
-      this.traceId = traceId;
-      this.spanId = spanId;
-      this.parentId = parentId;
-      this.start = start;
-      this.duration = duration;
-      this.error = error;
-      this.type = type;
-      this.measured = measured;
-      this.samplingPriority = samplingPriority;
-      this.httpStatusCode = (short) statusCode;
-      this.metadata =
-          new Metadata(
-              Thread.currentThread().getId(),
-              UTF8BytesString.create(Thread.currentThread().getName()),
-              TagMap.fromMap(tags),
-              baggage,
-              samplingPriority,
-              measured,
-              isTopLevel(),
-              statusCode,
-              origin,
-              0,
-              ProcessTags.getTagsForSerialization(),
-              UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
-              spanLinks);
+    private static List<PojoSpan> generateRandomTrace(int size, boolean lowCardinality) {
+        List<PojoSpan> trace = new ArrayList<>(size);
+        long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+        for (int i = 0; i < size; ++i) {
+            String spanType = "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100);
+            trace.add(randomSpan(traceId, lowCardinality, spanType, Collections.emptyMap()));
+        }
+        return trace;
     }
 
-    @Override
-    public PojoSpan getLocalRootSpan() {
-      return this;
+    private static final IdGenerationStrategy ID_GENERATION_STRATEGY = IdGenerationStrategy.fromName("RANDOM");
+
+    public static PojoSpan generateRandomSpan(CharSequence type, Map<String, Object> extraTags) {
+        long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+        return randomSpan(traceId, true, type, extraTags);
     }
 
-    @Override
-    public String getServiceName() {
-      return serviceName.toString();
+    private static PojoSpan randomSpan(
+            long traceId, boolean lowCardinality, CharSequence type, Map<String, Object> extraTags) {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        Map<String, String> baggage = new HashMap<>();
+        if (random.nextBoolean()) {
+            baggage.put("baggage-key", lowCardinality ? "x" : randomString(100));
+            if (random.nextBoolean()) {
+                baggage.put("tag.1", "bar");
+                baggage.put("tag.2", "qux");
+            }
+        }
+        Map<String, Object> tags = new HashMap<>(extraTags);
+        int tagCount = random.nextInt(0, 20);
+        for (int i = 0; i < tagCount; ++i) {
+            tags.put("tag." + i, random.nextBoolean() ? "foo" : randomString(2000));
+            tags.put("tag.1." + i, lowCardinality ? "y" : UUID.randomUUID());
+            tags.put("tag.2." + i, random.nextBoolean());
+            switch (random.nextInt(8)) {
+                case 0:
+                    tags.put("tag.3." + i, BigDecimal.valueOf(random.nextDouble()));
+                    break;
+                case 1:
+                    tags.put("tag.3." + i, BigInteger.valueOf(random.nextLong()));
+                    break;
+                default:
+                    break;
+            }
+        }
+        int metricCount = random.nextInt(0, 20);
+        for (int i = 0; i < metricCount; ++i) {
+            String name = "metric." + i;
+            Number metric = null;
+            switch (random.nextInt(4)) {
+                case 0:
+                    metric = random.nextInt();
+                    break;
+                case 1:
+                    metric = random.nextLong();
+                    break;
+                case 2:
+                    metric = random.nextFloat();
+                    break;
+                case 3:
+                    metric = random.nextDouble();
+                    break;
+            }
+            tags.put(name, metric);
+        }
+
+        return new PojoSpan(
+                "service-" + random.nextInt(lowCardinality ? 1 : 10),
+                "operation-" + random.nextInt(lowCardinality ? 1 : 100),
+                UTF8BytesString.create("resource-" + random.nextInt(lowCardinality ? 1 : 100)),
+                DDTraceId.from(traceId),
+                ID_GENERATION_STRATEGY.generateSpanId(),
+                DDSpanId.ZERO,
+                TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
+                random.nextLong(500, 10_000_000),
+                random.nextInt(2),
+                baggage,
+                tags,
+                type,
+                random.nextBoolean(),
+                PrioritySampling.SAMPLER_KEEP,
+                200,
+                "some-origin");
     }
 
-    @Override
-    public CharSequence getOperationName() {
-      return operationName;
+    private static String randomString(int maxLength) {
+        char[] chars = new char[ThreadLocalRandom.current().nextInt(maxLength)];
+        for (int i = 0; i < chars.length; ++i) {
+            char next = (char) ThreadLocalRandom.current().nextInt((int) Character.MAX_VALUE);
+            if (Character.isSurrogate(next)) {
+                if (i < chars.length - 1) {
+                    chars[i++] = '\uD801';
+                    chars[i] = '\uDC01';
+                } else {
+                    chars[i] = 'a';
+                }
+            } else {
+                chars[i] = next;
+            }
+        }
+        return new String(chars);
     }
 
-    @Override
-    public CharSequence getResourceName() {
-      return resourceName;
-    }
+    public static class PojoSpan implements CoreSpan<PojoSpan> {
 
-    @Override
-    public DDTraceId getTraceId() {
-      return traceId;
-    }
+        private final CharSequence serviceName;
+        private final CharSequence operationName;
+        private final CharSequence resourceName;
+        private final DDTraceId traceId;
+        private final long spanId;
+        private final long parentId;
+        private final long start;
+        private final long duration;
+        private final int error;
+        private final CharSequence type;
+        private final boolean measured;
+        private final Metadata metadata;
+        private short httpStatusCode;
+        private final int samplingPriority;
+        private final Map<String, Object> metaStruct = new HashMap<>();
 
-    @Override
-    public long getSpanId() {
-      return spanId;
-    }
+        public PojoSpan(
+                String serviceName,
+                String operationName,
+                CharSequence resourceName,
+                DDTraceId traceId,
+                long spanId,
+                long parentId,
+                long start,
+                long duration,
+                int error,
+                Map<String, String> baggage,
+                Map<String, Object> tags,
+                CharSequence type,
+                boolean measured,
+                int samplingPriority,
+                int statusCode,
+                CharSequence origin) {
+            this(
+                    serviceName,
+                    operationName,
+                    resourceName,
+                    traceId,
+                    spanId,
+                    parentId,
+                    start,
+                    duration,
+                    error,
+                    baggage,
+                    tags,
+                    type,
+                    measured,
+                    samplingPriority,
+                    statusCode,
+                    origin,
+                    emptyList());
+        }
 
-    @Override
-    public long getParentId() {
-      return parentId;
-    }
+        public PojoSpan(
+                String serviceName,
+                String operationName,
+                CharSequence resourceName,
+                DDTraceId traceId,
+                long spanId,
+                long parentId,
+                long start,
+                long duration,
+                int error,
+                Map<String, String> baggage,
+                Map<String, Object> tags,
+                CharSequence type,
+                boolean measured,
+                int samplingPriority,
+                int statusCode,
+                CharSequence origin,
+                List<AgentSpanLink> spanLinks) {
+            this.serviceName = UTF8BytesString.create(serviceName);
+            this.operationName = UTF8BytesString.create(operationName);
+            this.resourceName = UTF8BytesString.create(resourceName);
+            this.traceId = traceId;
+            this.spanId = spanId;
+            this.parentId = parentId;
+            this.start = start;
+            this.duration = duration;
+            this.error = error;
+            this.type = type;
+            this.measured = measured;
+            this.samplingPriority = samplingPriority;
+            this.httpStatusCode = (short) statusCode;
+            this.metadata = new Metadata(
+                    Thread.currentThread().getId(),
+                    UTF8BytesString.create(Thread.currentThread().getName()),
+                    TagMap.fromMap(tags),
+                    baggage,
+                    samplingPriority,
+                    measured,
+                    isTopLevel(),
+                    statusCode,
+                    origin,
+                    0,
+                    ProcessTags.getTagsForSerialization(),
+                    UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
+                    spanLinks);
+        }
 
-    @Override
-    public long getStartTime() {
-      return start;
-    }
+        @Override
+        public PojoSpan getLocalRootSpan() {
+            return this;
+        }
 
-    @Override
-    public long getDurationNano() {
-      return duration;
-    }
+        @Override
+        public String getServiceName() {
+            return serviceName.toString();
+        }
 
-    @Override
-    public int getError() {
-      return error;
-    }
+        @Override
+        public CharSequence getOperationName() {
+            return operationName;
+        }
 
-    @Override
-    public PojoSpan setMeasured(boolean measured) {
-      return this;
-    }
+        @Override
+        public CharSequence getResourceName() {
+            return resourceName;
+        }
 
-    @Override
-    public PojoSpan setErrorMessage(String errorMessage) {
-      return this;
-    }
+        @Override
+        public DDTraceId getTraceId() {
+            return traceId;
+        }
 
-    @Override
-    public PojoSpan addThrowable(Throwable error) {
-      return this;
-    }
+        @Override
+        public long getSpanId() {
+            return spanId;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, String value) {
-      return this;
-    }
+        @Override
+        public long getParentId() {
+            return parentId;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, boolean value) {
-      return this;
-    }
+        @Override
+        public long getStartTime() {
+            return start;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, int value) {
-      return this;
-    }
+        @Override
+        public long getDurationNano() {
+            return duration;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, long value) {
-      return this;
-    }
+        @Override
+        public int getError() {
+            return error;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, double value) {
-      return this;
-    }
+        @Override
+        public PojoSpan setMeasured(boolean measured) {
+            return this;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, Number value) {
-      return this;
-    }
+        @Override
+        public PojoSpan setErrorMessage(String errorMessage) {
+            return this;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, CharSequence value) {
-      return this;
-    }
+        @Override
+        public PojoSpan addThrowable(Throwable error) {
+            return this;
+        }
 
-    @Override
-    public PojoSpan setTag(String tag, Object value) {
-      return this;
-    }
+        @Override
+        public PojoSpan setTag(String tag, String value) {
+            return this;
+        }
 
-    @Override
-    public PojoSpan removeTag(String tag) {
-      metadata.getTags().remove(tag);
-      return this;
-    }
+        @Override
+        public PojoSpan setTag(String tag, boolean value) {
+            return this;
+        }
 
-    @Override
-    public boolean isMeasured() {
-      return measured;
-    }
+        @Override
+        public PojoSpan setTag(String tag, int value) {
+            return this;
+        }
 
-    @Override
-    public boolean isTopLevel() {
-      return false;
-    }
+        @Override
+        public PojoSpan setTag(String tag, long value) {
+            return this;
+        }
 
-    @Override
-    public boolean isForceKeep() {
-      return false;
-    }
+        @Override
+        public PojoSpan setTag(String tag, double value) {
+            return this;
+        }
 
-    @Override
-    public short getHttpStatusCode() {
-      return httpStatusCode;
-    }
+        @Override
+        public PojoSpan setTag(String tag, Number value) {
+            return this;
+        }
 
-    @Override
-    public CharSequence getOrigin() {
-      return metadata.getOrigin();
-    }
+        @Override
+        public PojoSpan setTag(String tag, CharSequence value) {
+            return this;
+        }
 
-    public Map<String, String> getBaggage() {
-      return metadata.getBaggage();
-    }
+        @Override
+        public PojoSpan setTag(String tag, Object value) {
+            return this;
+        }
 
-    public Map<String, Object> getTags() {
-      return metadata.getTags();
-    }
+        @Override
+        public PojoSpan removeTag(String tag) {
+            metadata.getTags().remove(tag);
+            return this;
+        }
 
-    @Override
-    public CharSequence getType() {
-      return this.type;
-    }
+        @Override
+        public boolean isMeasured() {
+            return measured;
+        }
 
-    @Override
-    public void processServiceTags() {}
+        @Override
+        public boolean isTopLevel() {
+            return false;
+        }
 
-    @Override
-    public void processTagsAndBaggage(MetadataConsumer consumer) {
-      consumer.accept(metadata);
-    }
+        @Override
+        public boolean isForceKeep() {
+            return false;
+        }
 
-    @Override
-    public PojoSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {
-      return this;
-    }
+        @Override
+        public short getHttpStatusCode() {
+            return httpStatusCode;
+        }
 
-    @Override
-    public PojoSpan setSamplingPriority(
-        int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
-      return this;
-    }
+        @Override
+        public CharSequence getOrigin() {
+            return metadata.getOrigin();
+        }
 
-    @Override
-    public PojoSpan setSpanSamplingPriority(double rate, int limit) {
-      return this;
-    }
+        public Map<String, String> getBaggage() {
+            return metadata.getBaggage();
+        }
 
-    @Override
-    public PojoSpan setMetric(CharSequence name, int value) {
-      return this;
-    }
+        public Map<String, Object> getTags() {
+            return metadata.getTags();
+        }
 
-    @Override
-    public PojoSpan setMetric(CharSequence name, long value) {
-      return this;
-    }
+        @Override
+        public CharSequence getType() {
+            return this.type;
+        }
 
-    @Override
-    public PojoSpan setMetric(CharSequence name, float value) {
-      return this;
-    }
+        @Override
+        public void processServiceTags() {}
 
-    @Override
-    public PojoSpan setMetric(CharSequence name, double value) {
-      return this;
-    }
+        @Override
+        public void processTagsAndBaggage(MetadataConsumer consumer) {
+            consumer.accept(metadata);
+        }
 
-    @Override
-    public PojoSpan setFlag(CharSequence name, boolean value) {
-      return this;
-    }
+        @Override
+        public PojoSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {
+            return this;
+        }
 
-    @Override
-    public int samplingPriority() {
-      return samplingPriority;
-    }
+        @Override
+        public PojoSpan setSamplingPriority(
+                int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+            return this;
+        }
 
-    @Override
-    public <U> U getTag(CharSequence name, U defaultValue) {
-      U value = getTag(name);
-      return null == value ? defaultValue : value;
-    }
+        @Override
+        public PojoSpan setSpanSamplingPriority(double rate, int limit) {
+            return this;
+        }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public <U> U getTag(CharSequence name) {
-      // replicate logic here because DDSpanContext has to pretend some of its
-      // fields are elements of a map for backward compatibility reasons
-      String tag = String.valueOf(name);
-      Object value = null;
-      switch (tag) {
-        case DDTags.THREAD_ID:
-          value = metadata.getThreadId();
-          break;
-        case DDTags.THREAD_NAME:
-          value = metadata.getThreadName();
-          break;
-        default:
-          value = metadata.getTags().get(tag);
-      }
-      return (U) value;
-    }
+        @Override
+        public PojoSpan setMetric(CharSequence name, int value) {
+            return this;
+        }
 
-    @Override
-    public boolean hasSamplingPriority() {
-      return samplingPriority != UNSET;
-    }
+        @Override
+        public PojoSpan setMetric(CharSequence name, long value) {
+            return this;
+        }
 
-    @Override
-    public Map<String, Object> getMetaStruct() {
-      return metaStruct;
-    }
+        @Override
+        public PojoSpan setMetric(CharSequence name, float value) {
+            return this;
+        }
 
-    @Override
-    public PojoSpan setMetaStruct(String field, Object value) {
-      if (value == null) {
-        metaStruct.remove(field);
-      } else {
-        metaStruct.put(field, value);
-      }
-      return this;
-    }
+        @Override
+        public PojoSpan setMetric(CharSequence name, double value) {
+            return this;
+        }
 
-    @Override
-    public int getLongRunningVersion() {
-      return 0;
-    }
+        @Override
+        public PojoSpan setFlag(CharSequence name, boolean value) {
+            return this;
+        }
 
-    @Override
-    public CharSequence getServiceNameSource() {
-      return null;
-    }
+        @Override
+        public int samplingPriority() {
+            return samplingPriority;
+        }
 
-    @Override
-    public boolean isKind(SpanKindFilter filter) {
-      Object kind = unsafeGetTag(Tags.SPAN_KIND);
-      return filter.matches(kind == null ? null : kind.toString());
-    }
+        @Override
+        public <U> U getTag(CharSequence name, U defaultValue) {
+            U value = getTag(name);
+            return null == value ? defaultValue : value;
+        }
 
-    @Override
-    public <U> U unsafeGetTag(CharSequence name, U defaultValue) {
-      return getTag(name, defaultValue);
-    }
+        @Override
+        @SuppressWarnings("unchecked")
+        public <U> U getTag(CharSequence name) {
+            // replicate logic here because DDSpanContext has to pretend some of its
+            // fields are elements of a map for backward compatibility reasons
+            String tag = String.valueOf(name);
+            Object value = null;
+            switch (tag) {
+                case DDTags.THREAD_ID:
+                    value = metadata.getThreadId();
+                    break;
+                case DDTags.THREAD_NAME:
+                    value = metadata.getThreadName();
+                    break;
+                default:
+                    value = metadata.getTags().get(tag);
+            }
+            return (U) value;
+        }
 
-    @Override
-    public <U> U unsafeGetTag(CharSequence name) {
-      return getTag(name);
+        @Override
+        public boolean hasSamplingPriority() {
+            return samplingPriority != UNSET;
+        }
+
+        @Override
+        public Map<String, Object> getMetaStruct() {
+            return metaStruct;
+        }
+
+        @Override
+        public PojoSpan setMetaStruct(String field, Object value) {
+            if (value == null) {
+                metaStruct.remove(field);
+            } else {
+                metaStruct.put(field, value);
+            }
+            return this;
+        }
+
+        @Override
+        public int getLongRunningVersion() {
+            return 0;
+        }
+
+        @Override
+        public CharSequence getServiceNameSource() {
+            return null;
+        }
+
+        @Override
+        public boolean isKind(SpanKindFilter filter) {
+            Object kind = unsafeGetTag(Tags.SPAN_KIND);
+            return filter.matches(kind == null ? null : kind.toString());
+        }
+
+        @Override
+        public <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+            return getTag(name, defaultValue);
+        }
+
+        @Override
+        public <U> U unsafeGetTag(CharSequence name) {
+            return getTag(name);
+        }
     }
-  }
 }

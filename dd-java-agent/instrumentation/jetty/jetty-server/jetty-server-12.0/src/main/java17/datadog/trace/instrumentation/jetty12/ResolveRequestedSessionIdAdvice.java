@@ -20,27 +20,25 @@ import net.bytebuddy.asm.Advice;
  */
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class ResolveRequestedSessionIdAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void resolveRequestedSessionId(
-      @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Return final RequestedSession requestedSession) {
-    final String requestedSessionId =
-        requestedSession == null ? null : requestedSession.sessionId();
-    if (requestedSessionId != null && reqCtx != null) {
-      final CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      if (cbp == null) {
-        return;
-      }
-      final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
-          cbp.getCallback(EVENTS.requestSession());
-      if (addrCallback == null) {
-        return;
-      }
-      final Flow<Void> flow = addrCallback.apply(reqCtx, requestedSessionId);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        throw new BlockingException("Blocked request (for sessionId)");
-      }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void resolveRequestedSessionId(
+            @ActiveRequestContext RequestContext reqCtx, @Advice.Return final RequestedSession requestedSession) {
+        final String requestedSessionId = requestedSession == null ? null : requestedSession.sessionId();
+        if (requestedSessionId != null && reqCtx != null) {
+            final CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            if (cbp == null) {
+                return;
+            }
+            final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
+                    cbp.getCallback(EVENTS.requestSession());
+            if (addrCallback == null) {
+                return;
+            }
+            final Flow<Void> flow = addrCallback.apply(reqCtx, requestedSessionId);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                throw new BlockingException("Blocked request (for sessionId)");
+            }
+        }
     }
-  }
 }

@@ -34,18 +34,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Repeatable(WithConfigs.class)
 @ExtendWith(WithConfigExtension.class)
 public @interface WithConfig {
-  /**
-   * Config key (e.g. {@code "trace.resolver.enabled"}). The {@code dd.}/{@code DD_} prefix is
-   * auto-added unless {@link #addPrefix()} is {@code false}.
-   */
-  String key();
+    /**
+     * Config key (e.g. {@code "trace.resolver.enabled"}). The {@code dd.}/{@code DD_} prefix is
+     * auto-added unless {@link #addPrefix()} is {@code false}.
+     */
+    String key();
 
-  /** Config value. */
-  String value();
+    /** Config value. */
+    String value();
 
-  /** If {@code true}, sets an environment variable instead of a system property. */
-  boolean env() default false;
+    /** If {@code true}, sets an environment variable instead of a system property. */
+    boolean env() default false;
 
-  /** If {@code false}, the key is used as-is without adding the {@code dd.}/{@code DD_} prefix. */
-  boolean addPrefix() default true;
+    /** If {@code false}, the key is used as-is without adding the {@code dd.}/{@code DD_} prefix. */
+    boolean addPrefix() default true;
 }

@@ -12,23 +12,23 @@ import io.opentelemetry.context.Scope;
  * touches, including some types we are not embedding. This simple replacement fixes this issue.
  */
 final class StrictContextStorage implements ContextStorage {
-  private final ContextStorage delegate;
+    private final ContextStorage delegate;
 
-  static StrictContextStorage create(ContextStorage delegate) {
-    return new StrictContextStorage(delegate);
-  }
+    static StrictContextStorage create(ContextStorage delegate) {
+        return new StrictContextStorage(delegate);
+    }
 
-  public StrictContextStorage(ContextStorage delegate) {
-    this.delegate = delegate;
-  }
+    public StrictContextStorage(ContextStorage delegate) {
+        this.delegate = delegate;
+    }
 
-  @Override
-  public Scope attach(Context context) {
-    return delegate.attach(context);
-  }
+    @Override
+    public Scope attach(Context context) {
+        return delegate.attach(context);
+    }
 
-  @Override
-  public Context current() {
-    return delegate.current();
-  }
+    @Override
+    public Context current() {
+        return delegate.current();
+    }
 }

@@ -18,90 +18,89 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TracerInstaller {
-  private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
+    private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
 
-  /** Register a global tracer if no global tracer is already registered. */
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards one-time tracer install.")
-  public static synchronized void installGlobalTracer(
-      SharedCommunicationObjects sharedCommunicationObjects,
-      ProfilingContextIntegration profilingContextIntegration) {
-    if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
-      if (!(GlobalTracer.get() instanceof CoreTracer)) {
-        CoreTracer tracer =
-            CoreTracer.builder()
-                .sharedCommunicationObjects(sharedCommunicationObjects)
-                .profilingContextIntegration(profilingContextIntegration)
-                .reportInTracerFlare()
-                .pollForTracingConfiguration()
-                .serviceDiscoveryFactory(serviceDiscoveryFactory())
-                .build();
-        installGlobalTracer(tracer);
-      } else {
-        log.debug("GlobalTracer already registered.");
-      }
-    } else {
-      log.debug("Tracing is disabled, not installing GlobalTracer.");
+    /** Register a global tracer if no global tracer is already registered. */
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification =
+                    "Agent-internal class; Class object does not escape to app code and lock only guards one-time tracer install.")
+    public static synchronized void installGlobalTracer(
+            SharedCommunicationObjects sharedCommunicationObjects,
+            ProfilingContextIntegration profilingContextIntegration) {
+        if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
+            if (!(GlobalTracer.get() instanceof CoreTracer)) {
+                CoreTracer tracer = CoreTracer.builder()
+                        .sharedCommunicationObjects(sharedCommunicationObjects)
+                        .profilingContextIntegration(profilingContextIntegration)
+                        .reportInTracerFlare()
+                        .pollForTracingConfiguration()
+                        .serviceDiscoveryFactory(serviceDiscoveryFactory())
+                        .build();
+                installGlobalTracer(tracer);
+            } else {
+                log.debug("GlobalTracer already registered.");
+            }
+        } else {
+            log.debug("Tracing is disabled, not installing GlobalTracer.");
+        }
     }
-  }
 
-  private static ServiceDiscoveryFactory serviceDiscoveryFactory() {
-    if (!Config.get().isServiceDiscoveryEnabled()) {
-      return null;
+    private static ServiceDiscoveryFactory serviceDiscoveryFactory() {
+        if (!Config.get().isServiceDiscoveryEnabled()) {
+            return null;
+        }
+        if (!OperatingSystem.isLinux()) {
+            log.debug("service discovery not supported outside linux");
+            return null;
+        }
+        // make sure this branch is not considered possible for graalvm artifact
+        if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
+            log.debug("service discovery not supported on native images");
+            return null;
+        }
+        return TracerInstaller::initServiceDiscovery;
     }
-    if (!OperatingSystem.isLinux()) {
-      log.debug("service discovery not supported outside linux");
-      return null;
+
+    private static ServiceDiscovery initServiceDiscovery() {
+        final ForeignMemoryWriter writer = new ForeignMemoryWriterFactory().get();
+        if (writer != null) {
+            return new ServiceDiscovery(writer);
+        }
+        return null;
     }
-    // make sure this branch is not considered possible for graalvm artifact
-    if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
-      log.debug("service discovery not supported on native images");
-      return null;
+
+    public static void installGlobalTracer(final CoreTracer tracer) {
+        try {
+            GlobalTracer.registerIfAbsent(tracer);
+            AgentTracer.registerIfAbsent(tracer);
+
+            if (Platform.isNativeImage()) {
+                // TagsPostProcessorFactory (dd-trace-core) caches its tag processors, including
+                // InternalTagsAdder which stamps _dd.base_service, in a holder class that GraalVM
+                // native-image initializes at build time by default. At that point Config resolves
+                // to a build-time fallback service name (typically the native-image builder's own
+                // process identity), not the real DD_SERVICE the app is run with. Force the cache to
+                // recompute here, now that Config reflects the actual runtime environment.
+                TagsPostProcessorFactory.reset();
+            }
+
+            log.debug("Global tracer installed");
+        } catch (final RuntimeException re) {
+            log.warn("Failed to register tracer: {}", tracer, re);
+        }
     }
-    return TracerInstaller::initServiceDiscovery;
-  }
 
-  private static ServiceDiscovery initServiceDiscovery() {
-    final ForeignMemoryWriter writer = new ForeignMemoryWriterFactory().get();
-    if (writer != null) {
-      return new ServiceDiscovery(writer);
+    public static void forceInstallGlobalTracer(CoreTracer tracer) {
+        try {
+            log.warn("Overriding installed global tracer.  This is not intended for production use");
+
+            GlobalTracer.forceRegister(tracer);
+            AgentTracer.forceRegister(tracer);
+
+            log.debug("Global tracer installed");
+        } catch (final RuntimeException re) {
+            log.warn("Failed to register tracer: {}", tracer, re);
+        }
     }
-    return null;
-  }
-
-  public static void installGlobalTracer(final CoreTracer tracer) {
-    try {
-      GlobalTracer.registerIfAbsent(tracer);
-      AgentTracer.registerIfAbsent(tracer);
-
-      if (Platform.isNativeImage()) {
-        // TagsPostProcessorFactory (dd-trace-core) caches its tag processors, including
-        // InternalTagsAdder which stamps _dd.base_service, in a holder class that GraalVM
-        // native-image initializes at build time by default. At that point Config resolves
-        // to a build-time fallback service name (typically the native-image builder's own
-        // process identity), not the real DD_SERVICE the app is run with. Force the cache to
-        // recompute here, now that Config reflects the actual runtime environment.
-        TagsPostProcessorFactory.reset();
-      }
-
-      log.debug("Global tracer installed");
-    } catch (final RuntimeException re) {
-      log.warn("Failed to register tracer: {}", tracer, re);
-    }
-  }
-
-  public static void forceInstallGlobalTracer(CoreTracer tracer) {
-    try {
-      log.warn("Overriding installed global tracer.  This is not intended for production use");
-
-      GlobalTracer.forceRegister(tracer);
-      AgentTracer.forceRegister(tracer);
-
-      log.debug("Global tracer installed");
-    } catch (final RuntimeException re) {
-      log.warn("Failed to register tracer: {}", tracer, re);
-    }
-  }
 }

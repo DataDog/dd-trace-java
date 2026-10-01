@@ -6,10 +6,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class InjectAdapter implements CarrierSetter<Request> {
-  public static final InjectAdapter SETTER = new InjectAdapter();
+    public static final InjectAdapter SETTER = new InjectAdapter();
 
-  @Override
-  public void set(final Request carrier, final String key, final String value) {
-    carrier.getHeaders().replaceWith(key, value);
-  }
+    @Override
+    public void set(final Request carrier, final String key, final String value) {
+        carrier.getHeaders().replaceWith(key, value);
+    }
 }

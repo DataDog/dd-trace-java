@@ -9,18 +9,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DynamicAutoTestRetry extends AutoTestRetry {
 
-  private final DynamicAutoTestRetrySettings settings;
+    private final DynamicAutoTestRetrySettings settings;
 
-  public DynamicAutoTestRetry(
-      DynamicAutoTestRetrySettings settings,
-      boolean suppressFailures,
-      AtomicInteger totalRetryCount) {
-    super(2, suppressFailures, totalRetryCount);
-    this.settings = settings;
-  }
+    public DynamicAutoTestRetry(
+            DynamicAutoTestRetrySettings settings, boolean suppressFailures, AtomicInteger totalRetryCount) {
+        super(2, suppressFailures, totalRetryCount);
+        this.settings = settings;
+    }
 
-  @Override
-  protected int maxExecutionsForDuration(long durationMillis) {
-    return settings.executionsForDuration(durationMillis);
-  }
+    @Override
+    protected int maxExecutionsForDuration(long durationMillis) {
+        return settings.executionsForDuration(durationMillis);
+    }
 }

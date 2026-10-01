@@ -4,10 +4,10 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** Whether remote settings response has ITR skipping enabled */
 public enum ItrSkipEnabled implements TagValue {
-  TRUE;
+    TRUE;
 
-  @Override
-  public String asString() {
-    return "itrskip_enabled:true";
-  }
+    @Override
+    public String asString() {
+        return "itrskip_enabled:true";
+    }
 }

@@ -32,60 +32,59 @@ import java.util.Properties;
  * parse XML.
  */
 public final class JfpUtils {
-  public static final String DEFAULT_JFP = "jfr/dd.jfp";
+    public static final String DEFAULT_JFP = "jfr/dd.jfp";
 
-  public static final String SAFEPOINTS_JFP = "jfr/safepoints.jfp";
-  private static final String OVERRIDES_PATH = "jfr/overrides/";
-  public static final String JFP_EXTENSION = ".jfp";
+    public static final String SAFEPOINTS_JFP = "jfr/safepoints.jfp";
+    private static final String OVERRIDES_PATH = "jfr/overrides/";
+    public static final String JFP_EXTENSION = ".jfp";
 
-  private JfpUtils() {
-    throw new UnsupportedOperationException("Toolkit!");
-  }
-
-  private static Map<String, String> readJfpFile(final InputStream stream) throws IOException {
-    if (stream == null) {
-      throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
+    private JfpUtils() {
+        throw new UnsupportedOperationException("Toolkit!");
     }
-    final Properties props = new Properties();
-    props.load(stream);
-    final Map<String, String> map = new HashMap<>();
-    for (final Entry<Object, Object> o : props.entrySet()) {
-      map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
-    }
-    return map;
-  }
 
-  private static InputStream getNamedResource(final String name) {
-    return JfpUtils.class.getClassLoader().getResourceAsStream(name);
-  }
-
-  public static Map<String, String> readJfpResources(final String name, String overridesFileName)
-      throws IOException {
-    Map<String, String> result = readNamedJfpResource(name);
-    result.putAll(readOverrideJfpResource(overridesFileName));
-    return result;
-  }
-
-  public static Map<String, String> readNamedJfpResource(final String name) throws IOException {
-    try (final InputStream stream = getNamedResource(name)) {
-      return readJfpFile(stream);
-    }
-  }
-
-  public static Map<String, String> readOverrideJfpResource(String name) throws IOException {
-    if (name != null) {
-      if (!name.toLowerCase(Locale.ROOT).endsWith(JFP_EXTENSION)) {
-        name = name + JFP_EXTENSION;
-      }
-      final File file = new File(name);
-      try (final InputStream stream =
-          file.exists() ? new FileInputStream(file) : getNamedResource(OVERRIDES_PATH + name)) {
+    private static Map<String, String> readJfpFile(final InputStream stream) throws IOException {
         if (stream == null) {
-          throw new IOException("Invalid override file " + name);
+            throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
         }
-        return readJfpFile(stream);
-      }
+        final Properties props = new Properties();
+        props.load(stream);
+        final Map<String, String> map = new HashMap<>();
+        for (final Entry<Object, Object> o : props.entrySet()) {
+            map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
+        }
+        return map;
     }
-    return new HashMap<>();
-  }
+
+    private static InputStream getNamedResource(final String name) {
+        return JfpUtils.class.getClassLoader().getResourceAsStream(name);
+    }
+
+    public static Map<String, String> readJfpResources(final String name, String overridesFileName) throws IOException {
+        Map<String, String> result = readNamedJfpResource(name);
+        result.putAll(readOverrideJfpResource(overridesFileName));
+        return result;
+    }
+
+    public static Map<String, String> readNamedJfpResource(final String name) throws IOException {
+        try (final InputStream stream = getNamedResource(name)) {
+            return readJfpFile(stream);
+        }
+    }
+
+    public static Map<String, String> readOverrideJfpResource(String name) throws IOException {
+        if (name != null) {
+            if (!name.toLowerCase(Locale.ROOT).endsWith(JFP_EXTENSION)) {
+                name = name + JFP_EXTENSION;
+            }
+            final File file = new File(name);
+            try (final InputStream stream =
+                    file.exists() ? new FileInputStream(file) : getNamedResource(OVERRIDES_PATH + name)) {
+                if (stream == null) {
+                    throw new IOException("Invalid override file " + name);
+                }
+                return readJfpFile(stream);
+            }
+        }
+        return new HashMap<>();
+    }
 }

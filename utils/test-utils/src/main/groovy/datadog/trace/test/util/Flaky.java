@@ -15,26 +15,26 @@ import org.junit.jupiter.api.Tag;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Tag("flaky")
 public @interface Flaky {
-  /** Reason why the test is flaky (optional). */
-  String value() default "";
+    /** Reason why the test is flaky (optional). */
+    String value() default "";
 
-  /**
-   * Fully qualified name of the test suite classes where this test is flaky. Only required when the
-   * test is flaky only when run in a subclass.
-   */
-  String[] suites() default {};
+    /**
+     * Fully qualified name of the test suite classes where this test is flaky. Only required when the
+     * test is flaky only when run in a subclass.
+     */
+    String[] suites() default {};
 
-  /**
-   * Closure with a predicate to test at runtime if the actual spec is flaky (e.g. check the JVM
-   * vendor), the parameter is the actual name of the spec under test
-   */
-  Class<? extends Predicate<String>> condition() default True.class;
+    /**
+     * Closure with a predicate to test at runtime if the actual spec is flaky (e.g. check the JVM
+     * vendor), the parameter is the actual name of the spec under test
+     */
+    Class<? extends Predicate<String>> condition() default True.class;
 
-  class True implements Predicate<String> {
+    class True implements Predicate<String> {
 
-    @Override
-    public boolean test(final String spec) {
-      return true;
+        @Override
+        public boolean test(final String spec) {
+            return true;
+        }
     }
-  }
 }

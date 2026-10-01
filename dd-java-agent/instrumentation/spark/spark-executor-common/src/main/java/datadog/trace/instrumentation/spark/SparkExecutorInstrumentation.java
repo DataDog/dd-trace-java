@@ -19,55 +19,53 @@ import org.apache.spark.executor.Executor;
 
 @AutoService(InstrumenterModule.class)
 public class SparkExecutorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SparkExecutorInstrumentation() {
-    super("spark-executor");
-  }
-
-  @Override
-  public boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.spark.executor.Executor$TaskRunner";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("run"))
-            .and(isDeclaredBy(named("org.apache.spark.executor.Executor$TaskRunner"))),
-        SparkExecutorInstrumentation.class.getName() + "$RunAdvice");
-  }
-
-  public static final class RunAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter(@Advice.This Executor.TaskRunner taskRunner) {
-      final AgentSpan span = startSpan("spark", SPARK_TASK);
-
-      DECORATE.afterStart(span);
-      DECORATE.onTaskStart(span, taskRunner);
-
-      return activateSpan(span);
+    public SparkExecutorInstrumentation() {
+        super("spark-executor");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(
-        @Advice.Enter final ContextScope scope, @Advice.This final Executor.TaskRunner taskRunner) {
-      if (scope == null) {
-        return;
-      }
-
-      final AgentSpan span = spanFromScope(scope);
-
-      DECORATE.onTaskEnd(span, taskRunner);
-      DECORATE.beforeFinish(scope);
-      scope.close();
-      span.finish();
+    @Override
+    public boolean defaultEnabled() {
+        return false;
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.apache.spark.executor.Executor$TaskRunner";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("run")).and(isDeclaredBy(named("org.apache.spark.executor.Executor$TaskRunner"))),
+                SparkExecutorInstrumentation.class.getName() + "$RunAdvice");
+    }
+
+    public static final class RunAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter(@Advice.This Executor.TaskRunner taskRunner) {
+            final AgentSpan span = startSpan("spark", SPARK_TASK);
+
+            DECORATE.afterStart(span);
+            DECORATE.onTaskStart(span, taskRunner);
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit(
+                @Advice.Enter final ContextScope scope, @Advice.This final Executor.TaskRunner taskRunner) {
+            if (scope == null) {
+                return;
+            }
+
+            final AgentSpan span = spanFromScope(scope);
+
+            DECORATE.onTaskEnd(span, taskRunner);
+            DECORATE.beforeFinish(scope);
+            scope.close();
+            span.finish();
+        }
+    }
 }

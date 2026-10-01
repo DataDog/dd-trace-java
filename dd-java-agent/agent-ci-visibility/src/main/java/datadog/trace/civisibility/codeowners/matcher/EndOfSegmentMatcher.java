@@ -2,15 +2,15 @@ package datadog.trace.civisibility.codeowners.matcher;
 
 public class EndOfSegmentMatcher implements Matcher {
 
-  public static final Matcher INSTANCE = new EndOfSegmentMatcher();
+    public static final Matcher INSTANCE = new EndOfSegmentMatcher();
 
-  @Override
-  public int consume(String line, int offset) {
-    return offset == line.length() || line.charAt(offset) == '/' ? 0 : -1;
-  }
+    @Override
+    public int consume(String line, int offset) {
+        return offset == line.length() || line.charAt(offset) == '/' ? 0 : -1;
+    }
 
-  @Override
-  public boolean multi() {
-    return false;
-  }
+    @Override
+    public boolean multi() {
+        return false;
+    }
 }

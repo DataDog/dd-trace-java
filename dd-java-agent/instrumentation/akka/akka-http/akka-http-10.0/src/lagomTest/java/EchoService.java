@@ -9,12 +9,12 @@ import com.lightbend.lagom.javadsl.api.ServiceCall;
 
 public interface EchoService extends Service {
 
-  ServiceCall<Source<String, NotUsed>, Source<String, NotUsed>> echo();
+    ServiceCall<Source<String, NotUsed>, Source<String, NotUsed>> echo();
 
-  ServiceCall<Source<String, NotUsed>, Source<String, NotUsed>> error();
+    ServiceCall<Source<String, NotUsed>, Source<String, NotUsed>> error();
 
-  @Override
-  default Descriptor descriptor() {
-    return named("echo").withCalls(namedCall("echo", this::echo), namedCall("error", this::error));
-  }
+    @Override
+    default Descriptor descriptor() {
+        return named("echo").withCalls(namedCall("echo", this::echo), namedCall("error", this::error));
+    }
 }

@@ -6,8 +6,8 @@ import org.testng.annotations.Test;
 
 public class TestSucceed {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

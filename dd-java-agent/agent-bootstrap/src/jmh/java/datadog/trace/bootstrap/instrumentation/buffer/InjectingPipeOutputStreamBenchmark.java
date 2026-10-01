@@ -33,33 +33,32 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class InjectingPipeOutputStreamBenchmark {
-  private static final List<String> htmlContent;
-  private static final byte[] marker;
-  private static final byte[] content;
+    private static final List<String> htmlContent;
+    private static final byte[] marker;
+    private static final byte[] content;
 
-  static {
-    try (InputStream is = new URL("https://www.google.com").openStream()) {
-      htmlContent = IOUtils.readLines(is, StandardCharsets.UTF_8);
-    } catch (IOException ioe) {
-      throw new RuntimeException(ioe);
+    static {
+        try (InputStream is = new URL("https://www.google.com").openStream()) {
+            htmlContent = IOUtils.readLines(is, StandardCharsets.UTF_8);
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+        marker = "</head>".getBytes(StandardCharsets.UTF_8);
+        content = "<script/>".getBytes(StandardCharsets.UTF_8);
     }
-    marker = "</head>".getBytes(StandardCharsets.UTF_8);
-    content = "<script/>".getBytes(StandardCharsets.UTF_8);
-  }
 
-  @Benchmark
-  public void withPipe() throws Exception {
-    try (final PrintWriter out =
-        new PrintWriter(
-            new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content))) {
-      htmlContent.forEach(out::println);
+    @Benchmark
+    public void withPipe() throws Exception {
+        try (final PrintWriter out =
+                new PrintWriter(new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content))) {
+            htmlContent.forEach(out::println);
+        }
     }
-  }
 
-  @Benchmark
-  public void withoutPipe() throws Exception {
-    try (final PrintWriter out = new PrintWriter(new ByteArrayOutputStream())) {
-      htmlContent.forEach(out::println);
+    @Benchmark
+    public void withoutPipe() throws Exception {
+        try (final PrintWriter out = new PrintWriter(new ByteArrayOutputStream())) {
+            htmlContent.forEach(out::println);
+        }
     }
-  }
 }

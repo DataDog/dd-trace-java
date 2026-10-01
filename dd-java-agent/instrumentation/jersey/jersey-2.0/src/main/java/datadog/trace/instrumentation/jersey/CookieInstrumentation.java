@@ -21,58 +21,57 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CookieInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public CookieInstrumentation() {
-    super("jersey");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getName").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
-        CookieInstrumentation.class.getName() + "$InstrumenterAdviceGetName");
-    transformer.applyAdvice(
-        named("getValue").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
-        CookieInstrumentation.class.getName() + "$GetValueAdvice");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"jakarta.ws.rs.core.Cookie", "javax.ws.rs.core.Cookie"};
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class InstrumenterAdviceGetName {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_NAME)
-    public static void onExit(
-        @Advice.Return String cookieName,
-        @Advice.This Object self,
-        @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintStringIfTainted(
-            ctx, cookieName, self, SourceTypes.REQUEST_COOKIE_NAME, cookieName);
-      }
+    public CookieInstrumentation() {
+        super("jersey");
     }
-  }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class GetValueAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onExit(
-        @Advice.Return String cookieValue,
-        @Advice.FieldValue("name") String name,
-        @Advice.This Object self,
-        @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintStringIfTainted(ctx, cookieValue, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getName").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
+                CookieInstrumentation.class.getName() + "$InstrumenterAdviceGetName");
+        transformer.applyAdvice(
+                named("getValue").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
+                CookieInstrumentation.class.getName() + "$GetValueAdvice");
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"jakarta.ws.rs.core.Cookie", "javax.ws.rs.core.Cookie"};
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class InstrumenterAdviceGetName {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_COOKIE_NAME)
+        public static void onExit(
+                @Advice.Return String cookieName,
+                @Advice.This Object self,
+                @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                module.taintStringIfTainted(ctx, cookieName, self, SourceTypes.REQUEST_COOKIE_NAME, cookieName);
+            }
+        }
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class GetValueAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_COOKIE_VALUE)
+        public static void onExit(
+                @Advice.Return String cookieValue,
+                @Advice.FieldValue("name") String name,
+                @Advice.This Object self,
+                @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                module.taintStringIfTainted(ctx, cookieValue, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
+            }
+        }
+    }
 }

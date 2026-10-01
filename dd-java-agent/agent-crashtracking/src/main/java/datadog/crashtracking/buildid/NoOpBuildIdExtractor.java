@@ -7,18 +7,18 @@ import java.nio.file.Path;
  * not available.
  */
 public class NoOpBuildIdExtractor implements BuildIdExtractor {
-  @Override
-  public String extractBuildId(Path file) {
-    return null; // No build ID on this platform
-  }
+    @Override
+    public String extractBuildId(Path file) {
+        return null; // No build ID on this platform
+    }
 
-  @Override
-  public BuildInfo.FileType fileType() {
-    return null;
-  }
+    @Override
+    public BuildInfo.FileType fileType() {
+        return null;
+    }
 
-  @Override
-  public BuildInfo.BuildIdType buildIdType() {
-    return null;
-  }
+    @Override
+    public BuildInfo.BuildIdType buildIdType() {
+        return null;
+    }
 }

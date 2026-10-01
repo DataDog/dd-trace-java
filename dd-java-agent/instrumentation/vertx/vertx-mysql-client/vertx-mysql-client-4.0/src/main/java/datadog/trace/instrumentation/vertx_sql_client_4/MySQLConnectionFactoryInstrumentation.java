@@ -14,27 +14,27 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class MySQLConnectionFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public MySQLConnectionFactoryInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public MySQLConnectionFactoryInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.mysqlclient.impl.MySQLConnectionFactory", DBInfo.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.mysqlclient.impl.MySQLConnectionFactory", DBInfo.class.getName());
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.mysqlclient.impl.MySQLConnectionFactory";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.mysqlclient.impl.MySQLConnectionFactory";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArguments(2))
-            .and(takesArgument(1, named("io.vertx.mysqlclient.MySQLConnectOptions"))),
-        packageName + ".MySQLConnectionFactoryConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArguments(2))
+                        .and(takesArgument(1, named("io.vertx.mysqlclient.MySQLConnectOptions"))),
+                packageName + ".MySQLConnectionFactoryConstructorAdvice");
+    }
 }

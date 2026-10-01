@@ -26,59 +26,58 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JsonParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
+    static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
 
-  public JsonParserInstrumentation() {
-    super("jackson", "jackson-2");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    final String className = JsonParserInstrumentation.class.getName();
-    transformer.applyAdvice(
-        namedOneOf("getText", "getValueAsString")
-            .and(isPublic())
-            .and(takesNoArguments())
-            .and(returns(String.class)),
-        className + "$TextAdvice");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return TARGET_TYPE;
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(namedOneOf("getText", "getValueAsString"))
-        .and(
-            extendsClass(named(hierarchyMarkerType()))
-                .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(TARGET_TYPE, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
-  }
-
-  public static class TextAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      if (jsonParser != null && result != null) {
-        final ContextStore<JsonParser, NamedContext> store =
-            InstrumentationContext.get(JsonParser.class, NamedContext.class);
-        final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
-        final JsonToken current = jsonParser.getCurrentToken();
-        if (current == JsonToken.FIELD_NAME) {
-          context.taintName(result);
-        } else if (current == JsonToken.VALUE_STRING) {
-          context.taintValue(result);
-        }
-      }
+    public JsonParserInstrumentation() {
+        super("jackson", "jackson-2");
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        final String className = JsonParserInstrumentation.class.getName();
+        transformer.applyAdvice(
+                namedOneOf("getText", "getValueAsString")
+                        .and(isPublic())
+                        .and(takesNoArguments())
+                        .and(returns(String.class)),
+                className + "$TextAdvice");
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return TARGET_TYPE;
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return declaresMethod(namedOneOf("getText", "getValueAsString"))
+                .and(extendsClass(named(hierarchyMarkerType()))
+                        .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(TARGET_TYPE, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
+    }
+
+    public static class TextAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
+            if (jsonParser != null && result != null) {
+                final ContextStore<JsonParser, NamedContext> store =
+                        InstrumentationContext.get(JsonParser.class, NamedContext.class);
+                final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
+                final JsonToken current = jsonParser.getCurrentToken();
+                if (current == JsonToken.FIELD_NAME) {
+                    context.taintName(result);
+                } else if (current == JsonToken.VALUE_STRING) {
+                    context.taintValue(result);
+                }
+            }
+        }
+    }
 }

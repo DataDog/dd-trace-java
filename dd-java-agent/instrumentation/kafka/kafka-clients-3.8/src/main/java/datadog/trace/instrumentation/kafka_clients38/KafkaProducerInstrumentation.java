@@ -17,71 +17,70 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public KafkaProducerInstrumentation() {
-    super("kafka", "kafka-3.8");
-  }
+    public KafkaProducerInstrumentation() {
+        super("kafka", "kafka-3.8");
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.apache.kafka.clients.producer.KafkaProducer";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.kafka.clients.producer.KafkaProducer";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KafkaDecorator",
-      packageName + ".TextMapInjectAdapterInterface",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TextMapExtractAdapter",
-      packageName + ".NoopTextMapInjectAdapter",
-      packageName + ".KafkaProducerCallback",
-      "datadog.trace.instrumentation.kafka_common.StreamingContext",
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      "datadog.trace.instrumentation.kafka_common.Utils",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".KafkaDecorator",
+            packageName + ".TextMapInjectAdapterInterface",
+            packageName + ".TextMapInjectAdapter",
+            packageName + ".TextMapExtractAdapter",
+            packageName + ".NoopTextMapInjectAdapter",
+            packageName + ".KafkaProducerCallback",
+            "datadog.trace.instrumentation.kafka_common.StreamingContext",
+            "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+            "datadog.trace.instrumentation.kafka_common.Utils",
+            "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+            "datadog.trace.instrumentation.kafka_common.PendingConfig",
+            "datadog.trace.instrumentation.kafka_common.MetadataState",
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.apache.kafka.clients.Metadata",
-        "datadog.trace.instrumentation.kafka_common.MetadataState");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(
+                "org.apache.kafka.clients.Metadata", "datadog.trace.instrumentation.kafka_common.MetadataState");
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
-            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
-            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
-        packageName + ".ProducerConstructorAdvice");
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
+                        .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
+                        .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
+                packageName + ".ProducerConstructorAdvice");
 
-    transformer.applyAdvices(
-        isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
-            .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
-        packageName + ".ProducerAdvice",
-        packageName + ".ProducerContextPropagationAdvice");
+        transformer.applyAdvices(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("send"))
+                        .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
+                        .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
+                packageName + ".ProducerAdvice",
+                packageName + ".ProducerContextPropagationAdvice");
 
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPrivate())
-            .and(takesArgument(0, int.class))
-            .and(named("ensureValidRecordSize")), // intercepting this call allows us to see the
-        // estimated message size
-        packageName + ".PayloadSizeAdvice");
-  }
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPrivate())
+                        .and(takesArgument(0, int.class))
+                        .and(named("ensureValidRecordSize")), // intercepting this call allows us to see the
+                // estimated message size
+                packageName + ".PayloadSizeAdvice");
+    }
 }

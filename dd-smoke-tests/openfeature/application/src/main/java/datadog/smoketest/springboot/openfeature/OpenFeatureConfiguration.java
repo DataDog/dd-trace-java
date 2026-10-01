@@ -9,10 +9,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenFeatureConfiguration {
 
-  @Bean
-  public Client openFeatureClient() {
-    OpenFeatureAPI api = OpenFeatureAPI.getInstance();
-    api.setProviderAndWait(new Provider());
-    return api.getClient();
-  }
+    @Bean
+    public Client openFeatureClient() {
+        OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+        api.setProviderAndWait(new Provider());
+        return api.getClient();
+    }
 }

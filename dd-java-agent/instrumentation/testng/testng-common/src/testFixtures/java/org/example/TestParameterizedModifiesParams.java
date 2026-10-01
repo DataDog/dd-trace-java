@@ -10,14 +10,14 @@ import org.testng.annotations.Test;
 /** Inspired by a real-world example */
 public class TestParameterizedModifiesParams {
 
-  @DataProvider(name = "dataProvider")
-  public static Object[][] data() {
-    return new Object[][] {{"I will modify this set", new HashSet<>()}};
-  }
+    @DataProvider(name = "dataProvider")
+    public static Object[][] data() {
+        return new Object[][] {{"I will modify this set", new HashSet<>()}};
+    }
 
-  @Test(dataProvider = "dataProvider")
-  public void parameterized_test_succeed(final String str, final Set<String> set) {
-    set.add("why not");
-    assertEquals(1, set.size());
-  }
+    @Test(dataProvider = "dataProvider")
+    public void parameterized_test_succeed(final String str, final Set<String> set) {
+        set.add("why not");
+        assertEquals(1, set.size());
+    }
 }

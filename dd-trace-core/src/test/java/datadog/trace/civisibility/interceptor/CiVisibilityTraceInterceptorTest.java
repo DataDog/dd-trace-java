@@ -23,63 +23,64 @@ import org.tabletest.junit.TableTest;
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
 
-  private ListWriter writer;
-  private CoreTracer tracer;
+    private ListWriter writer;
+    private CoreTracer tracer;
 
-  @BeforeEach
-  void setup() {
-    writer = new ListWriter();
-    tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void cleanup() {
-    if (tracer != null) {
-      tracer.close();
+    @BeforeEach
+    void setup() {
+        writer = new ListWriter();
+        tracer = tracerBuilder().writer(writer).build();
     }
-  }
 
-  @Test
-  void discardATraceThatDoesNotComeFromCiApp() {
-    tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
-    tracer.buildSpan("datadog", "sample-span").start().finish();
+    @AfterEach
+    void cleanup() {
+        if (tracer != null) {
+            tracer.close();
+        }
+    }
 
-    assertEquals(0, writer.size());
-  }
+    @Test
+    void discardATraceThatDoesNotComeFromCiApp() {
+        tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+        tracer.buildSpan("datadog", "sample-span").start().finish();
 
-  @Test
-  void doNotDiscardATraceThatComesFromCiApp() {
-    tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+        assertEquals(0, writer.size());
+    }
 
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "sample-span").start();
-    span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
-    span.finish();
+    @Test
+    void doNotDiscardATraceThatComesFromCiApp() {
+        tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
 
-    // expect:
-    assertEquals(1, writer.size());
-  }
+        DDSpan span = (DDSpan) tracer.buildSpan("datadog", "sample-span").start();
+        span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
+        span.finish();
 
-  @TableTest({
-    "scenario         | spanType                    ",
-    "test             | DDSpanTypes.TEST            ",
-    "test suite end   | DDSpanTypes.TEST_SUITE_END  ",
-    "test module end  | DDSpanTypes.TEST_MODULE_END ",
-    "test session end | DDSpanTypes.TEST_SESSION_END"
-  })
-  void addTracerVersionToSpansOfType(@ConvertWith(DDSpanTypesConverter.class) String spanType)
-      throws InterruptedException, TimeoutException {
-    tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+        // expect:
+        assertEquals(1, writer.size());
+    }
 
-    DDSpan span =
-        (DDSpan) tracer.buildSpan("datadog", "sample-span").withSpanType(spanType).start();
-    span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
-    span.finish();
-    writer.waitForTraces(1);
+    @TableTest({
+      "scenario         | spanType                    ",
+      "test             | DDSpanTypes.TEST            ",
+      "test suite end   | DDSpanTypes.TEST_SUITE_END  ",
+      "test module end  | DDSpanTypes.TEST_MODULE_END ",
+      "test session end | DDSpanTypes.TEST_SESSION_END"
+    })
+    void addTracerVersionToSpansOfType(@ConvertWith(DDSpanTypesConverter.class) String spanType)
+            throws InterruptedException, TimeoutException {
+        tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
 
-    List<DDSpan> trace = writer.firstTrace();
-    assertEquals(1, trace.size());
+        DDSpan span = (DDSpan) tracer.buildSpan("datadog", "sample-span")
+                .withSpanType(spanType)
+                .start();
+        span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
+        span.finish();
+        writer.waitForTraces(1);
 
-    DDSpan receivedSpan = trace.get(0);
-    assertNotNull(receivedSpan.getTag(DDTags.LIBRARY_VERSION_TAG_KEY));
-  }
+        List<DDSpan> trace = writer.firstTrace();
+        assertEquals(1, trace.size());
+
+        DDSpan receivedSpan = trace.get(0);
+        assertNotNull(receivedSpan.getTag(DDTags.LIBRARY_VERSION_TAG_KEY));
+    }
 }

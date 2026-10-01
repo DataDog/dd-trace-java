@@ -12,39 +12,39 @@ import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
 @CallSite(
-    spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileIORaspHelper.class)
+        spi = {IastCallSites.class, RaspCallSites.class},
+        helpers = FileIORaspHelper.class)
 public class FileOutputStreamCallSite {
 
-  @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String)")
-  @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String, boolean)")
-  public static void beforeConstructor(@CallSite.Argument(0) @Nullable final String path) {
-    if (path != null) {
-      iastCallback(path);
-      raspCallback(path);
+    @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String)")
+    @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String, boolean)")
+    public static void beforeConstructor(@CallSite.Argument(0) @Nullable final String path) {
+        if (path != null) {
+            iastCallback(path);
+            raspCallback(path);
+        }
     }
-  }
 
-  @CallSite.Before("void java.io.FileOutputStream.<init>(java.io.File)")
-  @CallSite.Before("void java.io.FileOutputStream.<init>(java.io.File, boolean)")
-  public static void beforeConstructorFile(@CallSite.Argument(0) @Nullable final File file) {
-    if (file != null) {
-      raspCallback(file.getPath());
+    @CallSite.Before("void java.io.FileOutputStream.<init>(java.io.File)")
+    @CallSite.Before("void java.io.FileOutputStream.<init>(java.io.File, boolean)")
+    public static void beforeConstructorFile(@CallSite.Argument(0) @Nullable final File file) {
+        if (file != null) {
+            raspCallback(file.getPath());
+        }
     }
-  }
 
-  private static void iastCallback(String path) {
-    final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
-    if (module != null) {
-      try {
-        module.onPathTraversal(path);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("beforeConstructor threw", e);
-      }
+    private static void iastCallback(String path) {
+        final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
+        if (module != null) {
+            try {
+                module.onPathTraversal(path);
+            } catch (final Throwable e) {
+                module.onUnexpectedException("beforeConstructor threw", e);
+            }
+        }
     }
-  }
 
-  private static void raspCallback(String path) {
-    FileIORaspHelper.INSTANCE.beforeFileWritten(path);
-  }
+    private static void raspCallback(String path) {
+        FileIORaspHelper.INSTANCE.beforeFileWritten(path);
+    }
 }

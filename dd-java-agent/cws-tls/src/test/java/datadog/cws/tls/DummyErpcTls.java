@@ -4,14 +4,14 @@ import datadog.cws.erpc.Request;
 
 class DummyErpcTls extends ErpcTls {
 
-  Request lastRequest;
+    Request lastRequest;
 
-  public DummyErpcTls(int maxThread) {
-    super(maxThread, 5000);
-  }
+    public DummyErpcTls(int maxThread) {
+        super(maxThread, 5000);
+    }
 
-  @Override
-  public void sendRequest(Request request) {
-    lastRequest = request;
-  }
+    @Override
+    public void sendRequest(Request request) {
+        lastRequest = request;
+    }
 }

@@ -8,9 +8,9 @@ import java.util.List;
  * exposed as part of the public API.
  */
 public final class DDSpanAccessor {
-  private DDSpanAccessor() {}
+    private DDSpanAccessor() {}
 
-  public static List<AgentSpanLink> spanLinks(DDSpan span) {
-    return span.links;
-  }
+    public static List<AgentSpanLink> spanLinks(DDSpan span) {
+        return span.links;
+    }
 }

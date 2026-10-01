@@ -25,120 +25,117 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-public final class ClientInvocationInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class ClientInvocationInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.hazelcast.client.spi.impl.ClientInvocation";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("invokeOnSelection")), getClass().getName() + "$InvocationAdvice");
-    transformer.applyAdvice(
-        isConstructor()
-            .and(
-                takesArgument(
-                    0,
-                    namedOneOf(
-                        "com.hazelcast.client.impl.HazelcastClientInstanceImpl",
-                        "com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
-        getClass().getName() + "$ConstructAdvice");
-  }
-
-  /** Advice for instrumenting distributed object client proxy classes. */
-  public static class InvocationAdvice {
-
-    /** Method entry instrumentation. */
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(
-        @Advice.This final ClientInvocation that,
-        @Advice.FieldValue("objectName") final String objectName,
-        @Advice.FieldValue("clientMessage") final ClientMessage clientMessage) {
-
-      final String operationName =
-          InstrumentationContext.get(ClientMessage.class, String.class).get(clientMessage);
-
-      // Ensure that we only create a span for the top-level Hazelcast method; except in the
-      // case of async operations where we want visibility into how long the task was delayed from
-      // starting. Our call depth checker does not span threads, so the async case is handled
-      // automatically for us.
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(ClientInvocation.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      final AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPAN_NAME);
-      DECORATE.onHazelcastInstance(
-          span, InstrumentationContext.get(ClientInvocation.class, String.class).get(that));
-      DECORATE.afterStart(span);
-      DECORATE.onServiceExecution(
-          span, operationName, objectName, clientMessage.getCorrelationId());
-
-      return activateSpan(span);
+    @Override
+    public String instrumentedType() {
+        return "com.hazelcast.client.spi.impl.ClientInvocation";
     }
 
-    /** Method exit instrumentation. */
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.FieldValue("clientInvocationFuture") final ClientInvocationFuture future) {
-      if (scope == null) {
-        return;
-      }
-
-      // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        // There was a synchronous error,
-        // which means we shouldn't wait for a callback to close the span.
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        future.andThen(new SpanFinishingExecutionCallback(span));
-        scope.close();
-      }
-      CallDepthThreadLocalMap.reset(ClientInvocation.class); // reset call depth count
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("invokeOnSelection")), getClass().getName() + "$InvocationAdvice");
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(
+                                0,
+                                namedOneOf(
+                                        "com.hazelcast.client.impl.HazelcastClientInstanceImpl",
+                                        "com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
+                getClass().getName() + "$ConstructAdvice");
     }
 
-    public static void muzzleCheck(
-        // Moved in 4.0
-        ClientMapProxy proxy,
+    /** Advice for instrumenting distributed object client proxy classes. */
+    public static class InvocationAdvice {
 
-        // Renamed in 3.9
-        NonSmartClientInvocationService invocationService) {
-      proxy.getServiceName();
-      invocationService.start();
+        /** Method entry instrumentation. */
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(
+                @Advice.This final ClientInvocation that,
+                @Advice.FieldValue("objectName") final String objectName,
+                @Advice.FieldValue("clientMessage") final ClientMessage clientMessage) {
+
+            final String operationName = InstrumentationContext.get(ClientMessage.class, String.class)
+                    .get(clientMessage);
+
+            // Ensure that we only create a span for the top-level Hazelcast method; except in the
+            // case of async operations where we want visibility into how long the task was delayed from
+            // starting. Our call depth checker does not span threads, so the async case is handled
+            // automatically for us.
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(ClientInvocation.class);
+            if (callDepth > 0) {
+                return null;
+            }
+
+            final AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPAN_NAME);
+            DECORATE.onHazelcastInstance(
+                    span,
+                    InstrumentationContext.get(ClientInvocation.class, String.class)
+                            .get(that));
+            DECORATE.afterStart(span);
+            DECORATE.onServiceExecution(span, operationName, objectName, clientMessage.getCorrelationId());
+
+            return activateSpan(span);
+        }
+
+        /** Method exit instrumentation. */
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.FieldValue("clientInvocationFuture") final ClientInvocationFuture future) {
+            if (scope == null) {
+                return;
+            }
+
+            // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                // There was a synchronous error,
+                // which means we shouldn't wait for a callback to close the span.
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                future.andThen(new SpanFinishingExecutionCallback(span));
+                scope.close();
+            }
+            CallDepthThreadLocalMap.reset(ClientInvocation.class); // reset call depth count
+        }
+
+        public static void muzzleCheck(
+                // Moved in 4.0
+                ClientMapProxy proxy,
+
+                // Renamed in 3.9
+                NonSmartClientInvocationService invocationService) {
+            proxy.getServiceName();
+            invocationService.start();
+        }
     }
-  }
 
-  public static class ConstructAdvice {
+    public static class ConstructAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void constructorExit(
-        @Advice.This ClientInvocation that,
-        @Advice.Argument(0) final HazelcastInstance hazelcastInstance) {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void constructorExit(
+                @Advice.This ClientInvocation that, @Advice.Argument(0) final HazelcastInstance hazelcastInstance) {
 
-      if (hazelcastInstance.getLifecycleService() != null
-          && hazelcastInstance.getLifecycleService().isRunning()) {
-        InstrumentationContext.get(ClientInvocation.class, String.class)
-            .put(that, hazelcastInstance.getName());
-      }
+            if (hazelcastInstance.getLifecycleService() != null
+                    && hazelcastInstance.getLifecycleService().isRunning()) {
+                InstrumentationContext.get(ClientInvocation.class, String.class).put(that, hazelcastInstance.getName());
+            }
+        }
+
+        public static void muzzleCheck(
+                // Moved in 4.0
+                ClientMapProxy proxy,
+
+                // Renamed in 3.9
+                NonSmartClientInvocationService invocationService) {
+            proxy.getServiceName();
+            invocationService.start();
+        }
     }
-
-    public static void muzzleCheck(
-        // Moved in 4.0
-        ClientMapProxy proxy,
-
-        // Renamed in 3.9
-        NonSmartClientInvocationService invocationService) {
-      proxy.getServiceName();
-      invocationService.start();
-    }
-  }
 }

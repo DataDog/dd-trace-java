@@ -12,22 +12,21 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 public class WithSpanAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(@Advice.Origin final Method method) {
-    AgentSpan span = DECORATE.startMethodSpan(method);
-    return activateSpan(span);
-  }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.Origin final Method method) {
+        AgentSpan span = DECORATE.startMethodSpan(method);
+        return activateSpan(span);
+    }
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void stopSpan(
-      @Advice.Enter final ContextScope scope,
-      @Advice.Origin final MethodType methodType,
-      @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result,
-      @Advice.Thrown final Throwable throwable) {
-    DECORATE.onError(scope, throwable);
-    DECORATE.beforeFinish(scope);
-    scope.close();
-    result =
-        DECORATE.wrapAsyncResultOrFinishSpan(result, methodType.returnType(), spanFromScope(scope));
-  }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+            @Advice.Enter final ContextScope scope,
+            @Advice.Origin final MethodType methodType,
+            @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result,
+            @Advice.Thrown final Throwable throwable) {
+        DECORATE.onError(scope, throwable);
+        DECORATE.beforeFinish(scope);
+        scope.close();
+        result = DECORATE.wrapAsyncResultOrFinishSpan(result, methodType.returnType(), spanFromScope(scope));
+    }
 }

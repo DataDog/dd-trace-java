@@ -8,13 +8,13 @@ import org.junit.jupiter.api.Test;
 
 class AllSamplerTest {
 
-  private final DDSpan span = mock(DDSpan.class);
-  private final AllSampler sampler = new AllSampler();
+    private final DDSpan span = mock(DDSpan.class);
+    private final AllSampler sampler = new AllSampler();
 
-  @Test
-  void testAllSampler() {
-    for (int i = 0; i < 500; i++) {
-      assertTrue(sampler.sample(span));
+    @Test
+    void testAllSampler() {
+        for (int i = 0; i < 500; i++) {
+            assertTrue(sampler.sample(span));
+        }
     }
-  }
 }

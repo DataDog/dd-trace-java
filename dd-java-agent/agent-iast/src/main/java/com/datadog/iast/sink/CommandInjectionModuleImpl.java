@@ -12,33 +12,31 @@ import javax.annotation.Nullable;
 
 public class CommandInjectionModuleImpl extends SinkModuleBase implements CommandInjectionModule {
 
-  public CommandInjectionModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-  }
-
-  @Override
-  public void onRuntimeExec(@Nullable final String[] cmdArray) {
-    if (!canBeTainted(cmdArray)) {
-      return;
+    public CommandInjectionModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
     }
-    checkInjection(VulnerabilityType.COMMAND_INJECTION, Iterators.of(cmdArray));
-  }
 
-  @Override
-  public void onRuntimeExec(@Nullable final String[] env, @Nonnull final String[] command) {
-    if (!canBeTainted(command) && !canBeTainted(env)) {
-      return;
+    @Override
+    public void onRuntimeExec(@Nullable final String[] cmdArray) {
+        if (!canBeTainted(cmdArray)) {
+            return;
+        }
+        checkInjection(VulnerabilityType.COMMAND_INJECTION, Iterators.of(cmdArray));
     }
-    checkInjection(
-        VulnerabilityType.COMMAND_INJECTION,
-        Iterators.join(Iterators.of(env), Iterators.of(command)));
-  }
 
-  @Override
-  public void onProcessBuilderStart(@Nullable final List<String> command) {
-    if (!canBeTainted(command)) {
-      return;
+    @Override
+    public void onRuntimeExec(@Nullable final String[] env, @Nonnull final String[] command) {
+        if (!canBeTainted(command) && !canBeTainted(env)) {
+            return;
+        }
+        checkInjection(VulnerabilityType.COMMAND_INJECTION, Iterators.join(Iterators.of(env), Iterators.of(command)));
     }
-    checkInjection(VulnerabilityType.COMMAND_INJECTION, command.iterator());
-  }
+
+    @Override
+    public void onProcessBuilderStart(@Nullable final List<String> command) {
+        if (!canBeTainted(command)) {
+            return;
+        }
+        checkInjection(VulnerabilityType.COMMAND_INJECTION, command.iterator());
+    }
 }

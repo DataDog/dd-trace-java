@@ -20,40 +20,40 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 public abstract class AbstractConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
-  public AbstractConnectionInstrumentation(String instrumentationName, String... additionalNames) {
-    super(instrumentationName, additionalNames);
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.sql.Statement", DBQueryInfo.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        nameStartsWith("prepare")
-            .and(takesArgument(0, String.class))
-            // Also include CallableStatement, which is a subtype of PreparedStatement
-            .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
-        AbstractConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
-  }
-
-  public static class ConnectionPrepareAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void addDBInfo(
-        @Advice.This Connection connection,
-        @Advice.Argument(0) final String sql,
-        @Advice.Return final PreparedStatement statement) {
-      ContextStore<Statement, DBQueryInfo> contextStore =
-          InstrumentationContext.get(Statement.class, DBQueryInfo.class);
-      if (null == contextStore.get(statement)) {
-        DBQueryInfo info = DBQueryInfo.ofPreparedStatement(sql);
-        contextStore.put(statement, info);
-        logQueryInfoInjection(connection, statement, info);
-      }
+        implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
+    public AbstractConnectionInstrumentation(String instrumentationName, String... additionalNames) {
+        super(instrumentationName, additionalNames);
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.sql.Statement", DBQueryInfo.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                nameStartsWith("prepare")
+                        .and(takesArgument(0, String.class))
+                        // Also include CallableStatement, which is a subtype of PreparedStatement
+                        .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
+                AbstractConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
+    }
+
+    public static class ConnectionPrepareAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void addDBInfo(
+                @Advice.This Connection connection,
+                @Advice.Argument(0) final String sql,
+                @Advice.Return final PreparedStatement statement) {
+            ContextStore<Statement, DBQueryInfo> contextStore =
+                    InstrumentationContext.get(Statement.class, DBQueryInfo.class);
+            if (null == contextStore.get(statement)) {
+                DBQueryInfo info = DBQueryInfo.ofPreparedStatement(sql);
+                contextStore.put(statement, info);
+                logQueryInfoInjection(connection, statement, info);
+            }
+        }
+    }
 }

@@ -17,26 +17,25 @@ import jdk.jfr.StackTrace;
 @Category("Datadog")
 @StackTrace(false)
 public class AggregatedSmapEntryEvent extends Event {
-  private static final EventType TYPE = EventType.getEventType(AggregatedSmapEntryEvent.class);
+    private static final EventType TYPE = EventType.getEventType(AggregatedSmapEntryEvent.class);
 
-  @Label("NMT Category")
-  private final String nmtCategory;
+    @Label("NMT Category")
+    private final String nmtCategory;
 
-  @Label("Resident Set Size")
-  @DataAmount
-  private final long rss;
+    @Label("Resident Set Size")
+    @DataAmount
+    private final long rss;
 
-  public AggregatedSmapEntryEvent(String nmtCategory, long rss) {
-    this.nmtCategory = nmtCategory;
-    this.rss = rss;
-  }
-
-  static void emit(List<SmapEntryEvent> events) {
-    if (TYPE.isEnabled()) {
-      events.stream()
-          .collect(Collectors.groupingBy(e -> e.nmtCategory, Collectors.summingLong(e -> e.rss)))
-          .forEach(
-              (category, totalRss) -> new AggregatedSmapEntryEvent(category, totalRss).commit());
+    public AggregatedSmapEntryEvent(String nmtCategory, long rss) {
+        this.nmtCategory = nmtCategory;
+        this.rss = rss;
     }
-  }
+
+    static void emit(List<SmapEntryEvent> events) {
+        if (TYPE.isEnabled()) {
+            events.stream()
+                    .collect(Collectors.groupingBy(e -> e.nmtCategory, Collectors.summingLong(e -> e.rss)))
+                    .forEach((category, totalRss) -> new AggregatedSmapEntryEvent(category, totalRss).commit());
+        }
+    }
 }

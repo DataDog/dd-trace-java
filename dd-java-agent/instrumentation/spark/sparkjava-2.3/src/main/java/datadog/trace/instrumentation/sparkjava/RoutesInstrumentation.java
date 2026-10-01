@@ -17,42 +17,42 @@ import spark.routematch.RouteMatch;
 
 @AutoService(InstrumenterModule.class)
 public class RoutesInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public RoutesInstrumentation() {
-    super("sparkjava", "sparkjava-2.4");
-  }
-
-  @Override
-  public boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "spark.route.Routes";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("find")
-            .and(takesArgument(0, named("spark.route.HttpMethod")))
-            .and(returns(named("spark.routematch.RouteMatch")))
-            .and(isPublic()),
-        RoutesInstrumentation.class.getName() + "$RoutesAdvice");
-  }
-
-  public static class RoutesAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void routeMatchEnricher(
-        @Advice.Argument(0) final HttpMethod method, @Advice.Return final RouteMatch routeMatch) {
-
-      final AgentSpan span = activeSpan();
-      if (span != null && routeMatch != null) {
-        HTTP_RESOURCE_DECORATOR.withRoute(span, method.name(), routeMatch.getMatchUri());
-      }
+    public RoutesInstrumentation() {
+        super("sparkjava", "sparkjava-2.4");
     }
-  }
+
+    @Override
+    public boolean defaultEnabled() {
+        return false;
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "spark.route.Routes";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("find")
+                        .and(takesArgument(0, named("spark.route.HttpMethod")))
+                        .and(returns(named("spark.routematch.RouteMatch")))
+                        .and(isPublic()),
+                RoutesInstrumentation.class.getName() + "$RoutesAdvice");
+    }
+
+    public static class RoutesAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void routeMatchEnricher(
+                @Advice.Argument(0) final HttpMethod method, @Advice.Return final RouteMatch routeMatch) {
+
+            final AgentSpan span = activeSpan();
+            if (span != null && routeMatch != null) {
+                HTTP_RESOURCE_DECORATOR.withRoute(span, method.name(), routeMatch.getMatchUri());
+            }
+        }
+    }
 }

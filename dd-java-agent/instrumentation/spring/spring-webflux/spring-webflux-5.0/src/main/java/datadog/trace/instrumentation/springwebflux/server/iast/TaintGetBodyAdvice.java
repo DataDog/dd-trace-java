@@ -18,18 +18,17 @@ import reactor.core.publisher.Flux;
  */
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintGetBodyAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void after(
-      @Advice.Return(readOnly = false) Flux<DataBuffer> flux,
-      @ActiveRequestContext RequestContext reqCtx) {
-    PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-    if (propagation == null || flux == null) {
-      return;
-    }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void after(
+            @Advice.Return(readOnly = false) Flux<DataBuffer> flux, @ActiveRequestContext RequestContext reqCtx) {
+        PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+        if (propagation == null || flux == null) {
+            return;
+        }
 
-    // taint both the flux and the individual DataBuffers
-    IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    propagation.taintObject(ctx, flux, SourceTypes.REQUEST_BODY);
-    flux = flux.map(new TaintFluxElementsFunction<>(ctx, propagation));
-  }
+        // taint both the flux and the individual DataBuffers
+        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        propagation.taintObject(ctx, flux, SourceTypes.REQUEST_BODY);
+        flux = flux.map(new TaintFluxElementsFunction<>(ctx, propagation));
+    }
 }

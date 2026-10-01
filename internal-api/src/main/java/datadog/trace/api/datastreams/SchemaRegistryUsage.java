@@ -5,63 +5,63 @@ package datadog.trace.api.datastreams;
  * monitoring schema compatibility checks, registrations, and failures.
  */
 public class SchemaRegistryUsage implements InboxItem {
-  private final String topic;
-  private final String clusterId;
-  private final int schemaId;
-  private final boolean isSuccess;
-  private final boolean isKey;
-  private final String operation;
-  private final long timestampNanos;
-  private final String serviceNameOverride;
+    private final String topic;
+    private final String clusterId;
+    private final int schemaId;
+    private final boolean isSuccess;
+    private final boolean isKey;
+    private final String operation;
+    private final long timestampNanos;
+    private final String serviceNameOverride;
 
-  public SchemaRegistryUsage(
-      String topic,
-      String clusterId,
-      int schemaId,
-      boolean isSuccess,
-      boolean isKey,
-      String operation,
-      long timestampNanos,
-      String serviceNameOverride) {
-    this.topic = topic;
-    this.clusterId = clusterId;
-    this.schemaId = schemaId;
-    this.isSuccess = isSuccess;
-    this.isKey = isKey;
-    this.operation = operation;
-    this.timestampNanos = timestampNanos;
-    this.serviceNameOverride = serviceNameOverride;
-  }
+    public SchemaRegistryUsage(
+            String topic,
+            String clusterId,
+            int schemaId,
+            boolean isSuccess,
+            boolean isKey,
+            String operation,
+            long timestampNanos,
+            String serviceNameOverride) {
+        this.topic = topic;
+        this.clusterId = clusterId;
+        this.schemaId = schemaId;
+        this.isSuccess = isSuccess;
+        this.isKey = isKey;
+        this.operation = operation;
+        this.timestampNanos = timestampNanos;
+        this.serviceNameOverride = serviceNameOverride;
+    }
 
-  public String getTopic() {
-    return topic;
-  }
+    public String getTopic() {
+        return topic;
+    }
 
-  public String getClusterId() {
-    return clusterId;
-  }
+    public String getClusterId() {
+        return clusterId;
+    }
 
-  public int getSchemaId() {
-    return schemaId;
-  }
+    public int getSchemaId() {
+        return schemaId;
+    }
 
-  public boolean isSuccess() {
-    return isSuccess;
-  }
+    public boolean isSuccess() {
+        return isSuccess;
+    }
 
-  public boolean isKey() {
-    return isKey;
-  }
+    public boolean isKey() {
+        return isKey;
+    }
 
-  public String getOperation() {
-    return operation;
-  }
+    public String getOperation() {
+        return operation;
+    }
 
-  public long getTimestampNanos() {
-    return timestampNanos;
-  }
+    public long getTimestampNanos() {
+        return timestampNanos;
+    }
 
-  public String getServiceNameOverride() {
-    return serviceNameOverride;
-  }
+    public String getServiceNameOverride() {
+        return serviceNameOverride;
+    }
 }

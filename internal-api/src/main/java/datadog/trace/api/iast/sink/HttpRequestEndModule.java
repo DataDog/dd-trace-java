@@ -8,26 +8,26 @@ import java.util.Locale;
 
 public interface HttpRequestEndModule extends IastModule {
 
-  void onRequestEnd(IastContext ctx, IGSpanInfo span);
+    void onRequestEnd(IastContext ctx, IGSpanInfo span);
 
-  default boolean isHtmlResponse(final String value) {
-    if (value == null) {
-      return false;
+    default boolean isHtmlResponse(final String value) {
+        if (value == null) {
+            return false;
+        }
+        final String contentType = value.toLowerCase(Locale.ROOT);
+        return contentType.contains("text/html") || contentType.contains("application/xhtml+xml");
     }
-    final String contentType = value.toLowerCase(Locale.ROOT);
-    return contentType.contains("text/html") || contentType.contains("application/xhtml+xml");
-  }
 
-  default boolean isIgnorableResponseCode(final Integer httpStatus) {
-    if (httpStatus == null) {
-      return false;
+    default boolean isIgnorableResponseCode(final Integer httpStatus) {
+        if (httpStatus == null) {
+            return false;
+        }
+        return httpStatus == HttpURLConnection.HTTP_MOVED_PERM
+                || httpStatus == HttpURLConnection.HTTP_MOVED_TEMP
+                || httpStatus == HttpURLConnection.HTTP_NOT_MODIFIED
+                || httpStatus == HttpURLConnection.HTTP_NOT_FOUND
+                || httpStatus == HttpURLConnection.HTTP_GONE
+                || httpStatus == HttpURLConnection.HTTP_INTERNAL_ERROR
+                || httpStatus == 307;
     }
-    return httpStatus == HttpURLConnection.HTTP_MOVED_PERM
-        || httpStatus == HttpURLConnection.HTTP_MOVED_TEMP
-        || httpStatus == HttpURLConnection.HTTP_NOT_MODIFIED
-        || httpStatus == HttpURLConnection.HTTP_NOT_FOUND
-        || httpStatus == HttpURLConnection.HTTP_GONE
-        || httpStatus == HttpURLConnection.HTTP_INTERNAL_ERROR
-        || httpStatus == 307;
-  }
 }

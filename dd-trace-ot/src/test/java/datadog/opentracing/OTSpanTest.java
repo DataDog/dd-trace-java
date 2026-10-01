@@ -13,43 +13,42 @@ import org.junit.jupiter.api.Test;
 
 class OTSpanTest extends DDJavaSpecification {
 
-  static DDTracer tracer;
+    static DDTracer tracer;
 
-  @BeforeAll
-  static void setUpClass() {
-    tracer = DDTracer.builder().build();
-  }
-
-  @AfterAll
-  static void tearDownClass() throws Exception {
-    if (tracer != null) {
-      tracer.close();
+    @BeforeAll
+    static void setUpClass() {
+        tracer = DDTracer.builder().build();
     }
-  }
 
-  @Test
-  void testResourceNameAssignmentThroughMutableSpanCasting() {
-    OTSpan testSpan = (OTSpan) tracer.buildSpan("parent").withResourceName("test-resource").start();
-    OTScopeManager.OTScope testScope = (OTScopeManager.OTScope) tracer.activateSpan(testSpan);
+    @AfterAll
+    static void tearDownClass() throws Exception {
+        if (tracer != null) {
+            tracer.close();
+        }
+    }
 
-    Span active = tracer.activeSpan();
-    Span child = tracer.buildSpan("child").asChildOf(active).start();
-    Scope scope = tracer.activateSpan(child);
+    @Test
+    void testResourceNameAssignmentThroughMutableSpanCasting() {
+        OTSpan testSpan = (OTSpan)
+                tracer.buildSpan("parent").withResourceName("test-resource").start();
+        OTScopeManager.OTScope testScope = (OTScopeManager.OTScope) tracer.activateSpan(testSpan);
 
-    MutableSpan localRootSpan = ((MutableSpan) child).getLocalRootSpan();
-    localRootSpan.setResourceName("correct-resource");
+        Span active = tracer.activeSpan();
+        Span child = tracer.buildSpan("child").asChildOf(active).start();
+        Scope scope = tracer.activateSpan(child);
 
-    assertEquals("correct-resource", testSpan.getResourceName());
+        MutableSpan localRootSpan = ((MutableSpan) child).getLocalRootSpan();
+        localRootSpan.setResourceName("correct-resource");
 
-    testSpan
-        .getDelegate()
-        .setResourceName("should-be-ignored", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+        assertEquals("correct-resource", testSpan.getResourceName());
 
-    assertEquals("correct-resource", testSpan.getResourceName());
+        testSpan.getDelegate().setResourceName("should-be-ignored", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
 
-    scope.close();
-    child.finish();
-    testScope.close();
-    testSpan.finish();
-  }
+        assertEquals("correct-resource", testSpan.getResourceName());
+
+        scope.close();
+        child.finish();
+        testScope.close();
+        testSpan.finish();
+    }
 }

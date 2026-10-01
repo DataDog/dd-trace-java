@@ -9,104 +9,102 @@ import org.slf4j.LoggerFactory;
 
 /** Helper class to handle FunctionCallOutput method changes between openai-java versions. */
 public class FunctionCallOutputExtractor {
-  private static final Logger log = LoggerFactory.getLogger(FunctionCallOutputExtractor.class);
+    private static final Logger log = LoggerFactory.getLogger(FunctionCallOutputExtractor.class);
 
-  private static final Class<ResponseInputItem.FunctionCallOutput> FUNCTION_CALL_OUTPUT_CLASS =
-      ResponseInputItem.FunctionCallOutput.class;
-  private static final MethodHandles METHOD_HANDLES =
-      new MethodHandles(FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
+    private static final Class<ResponseInputItem.FunctionCallOutput> FUNCTION_CALL_OUTPUT_CLASS =
+            ResponseInputItem.FunctionCallOutput.class;
+    private static final MethodHandles METHOD_HANDLES = new MethodHandles(FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
 
-  private static final MethodHandle CALL_ID_METHOD;
-  private static final MethodHandle OUTPUT_METHOD;
-  private static final MethodHandle IS_STRING_METHOD;
-  private static final MethodHandle AS_STRING_METHOD;
+    private static final MethodHandle CALL_ID_METHOD;
+    private static final MethodHandle OUTPUT_METHOD;
+    private static final MethodHandle IS_STRING_METHOD;
+    private static final MethodHandle AS_STRING_METHOD;
 
-  static {
-    CALL_ID_METHOD = METHOD_HANDLES.method(FUNCTION_CALL_OUTPUT_CLASS, "callId");
-    OUTPUT_METHOD = METHOD_HANDLES.method(FUNCTION_CALL_OUTPUT_CLASS, "output");
+    static {
+        CALL_ID_METHOD = METHOD_HANDLES.method(FUNCTION_CALL_OUTPUT_CLASS, "callId");
+        OUTPUT_METHOD = METHOD_HANDLES.method(FUNCTION_CALL_OUTPUT_CLASS, "output");
 
-    Class<?> outputClass = null;
-    try {
-      outputClass =
-          Class.forName(
-              FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
-              false,
-              FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
-    } catch (Throwable t) {
-      log.debug("Output class not found, assuming openai-java version 3.x", t);
-    }
-
-    if (outputClass != null) {
-      IS_STRING_METHOD = METHOD_HANDLES.method(outputClass, "isString");
-      AS_STRING_METHOD = METHOD_HANDLES.method(outputClass, "asString");
-    } else {
-      IS_STRING_METHOD = null;
-      AS_STRING_METHOD = null;
-    }
-  }
-
-  /**
-   * Extracts the function call ID across openai-java versions.
-   *
-   * <ul>
-   *   <li>Versions before 4.54: {@code callId()} returns {@code String}.
-   *   <li>Version 4.54+: {@code callId()} returns {@code Optional<String>}.
-   * </ul>
-   */
-  public static String getCallIdAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
-    try {
-      Object callId = METHOD_HANDLES.invoke(CALL_ID_METHOD, functionCallOutput);
-      if (callId instanceof Optional) {
-        callId = ((Optional<?>) callId).orElse(null);
-      }
-      if (callId == null || callId instanceof String) {
-        return (String) callId;
-      }
-    } catch (Throwable ignored) {
-    }
-    return null;
-  }
-
-  /**
-   * Extracts the function call output across openai-java versions.
-   *
-   * <ul>
-   *   <li>Version 3.x: {@code output()} returns {@code String}.
-   *   <li>Version 4.0+: {@code output()} returns {@code Output}.
-   * </ul>
-   */
-  public static String getOutputAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
-    try {
-      Object output = METHOD_HANDLES.invoke(OUTPUT_METHOD, functionCallOutput);
-
-      if (output == null) {
-        return null;
-      }
-
-      // In v3.x, output() returns String directly
-      if (output instanceof String) {
-        return (String) output;
-      }
-
-      // In v4.0+, output() returns an Output object
-      if (IS_STRING_METHOD != null && AS_STRING_METHOD != null) {
-        Boolean isString = METHOD_HANDLES.invoke(IS_STRING_METHOD, output);
-        if (Boolean.TRUE.equals(isString)) {
-          return METHOD_HANDLES.invoke(AS_STRING_METHOD, output);
-        } else {
-          // FunctionCallOutput.output() returned non-string Output type, skipping
-          return null;
+        Class<?> outputClass = null;
+        try {
+            outputClass = Class.forName(
+                    FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
+                    false,
+                    FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
+        } catch (Throwable t) {
+            log.debug("Output class not found, assuming openai-java version 3.x", t);
         }
-      }
 
-      log.debug(
-          "Unable to extract string from FunctionCallOutput.output(): unexpected return type {}",
-          output.getClass().getName());
-      return null;
-
-    } catch (Throwable t) {
-      log.debug("Error extracting output from FunctionCallOutput", t);
-      return null;
+        if (outputClass != null) {
+            IS_STRING_METHOD = METHOD_HANDLES.method(outputClass, "isString");
+            AS_STRING_METHOD = METHOD_HANDLES.method(outputClass, "asString");
+        } else {
+            IS_STRING_METHOD = null;
+            AS_STRING_METHOD = null;
+        }
     }
-  }
+
+    /**
+     * Extracts the function call ID across openai-java versions.
+     *
+     * <ul>
+     *   <li>Versions before 4.54: {@code callId()} returns {@code String}.
+     *   <li>Version 4.54+: {@code callId()} returns {@code Optional<String>}.
+     * </ul>
+     */
+    public static String getCallIdAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
+        try {
+            Object callId = METHOD_HANDLES.invoke(CALL_ID_METHOD, functionCallOutput);
+            if (callId instanceof Optional) {
+                callId = ((Optional<?>) callId).orElse(null);
+            }
+            if (callId == null || callId instanceof String) {
+                return (String) callId;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the function call output across openai-java versions.
+     *
+     * <ul>
+     *   <li>Version 3.x: {@code output()} returns {@code String}.
+     *   <li>Version 4.0+: {@code output()} returns {@code Output}.
+     * </ul>
+     */
+    public static String getOutputAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
+        try {
+            Object output = METHOD_HANDLES.invoke(OUTPUT_METHOD, functionCallOutput);
+
+            if (output == null) {
+                return null;
+            }
+
+            // In v3.x, output() returns String directly
+            if (output instanceof String) {
+                return (String) output;
+            }
+
+            // In v4.0+, output() returns an Output object
+            if (IS_STRING_METHOD != null && AS_STRING_METHOD != null) {
+                Boolean isString = METHOD_HANDLES.invoke(IS_STRING_METHOD, output);
+                if (Boolean.TRUE.equals(isString)) {
+                    return METHOD_HANDLES.invoke(AS_STRING_METHOD, output);
+                } else {
+                    // FunctionCallOutput.output() returned non-string Output type, skipping
+                    return null;
+                }
+            }
+
+            log.debug(
+                    "Unable to extract string from FunctionCallOutput.output(): unexpected return type {}",
+                    output.getClass().getName());
+            return null;
+
+        } catch (Throwable t) {
+            log.debug("Error extracting output from FunctionCallOutput", t);
+            return null;
+        }
+    }
 }

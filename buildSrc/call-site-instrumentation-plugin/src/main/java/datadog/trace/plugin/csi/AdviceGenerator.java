@@ -11,26 +11,26 @@ import javax.annotation.Nonnull;
  */
 public interface AdviceGenerator {
 
-  @Nonnull
-  CallSiteResult generate(@Nonnull CallSiteSpecification callSite);
+    @Nonnull
+    CallSiteResult generate(@Nonnull CallSiteSpecification callSite);
 
-  final class CallSiteResult extends BaseValidationContext {
+    final class CallSiteResult extends BaseValidationContext {
 
-    private final CallSiteSpecification specification;
+        private final CallSiteSpecification specification;
 
-    private final File file;
+        private final File file;
 
-    public CallSiteResult(@Nonnull final CallSiteSpecification specification, final File file) {
-      this.specification = specification;
-      this.file = file;
+        public CallSiteResult(@Nonnull final CallSiteSpecification specification, final File file) {
+            this.specification = specification;
+            this.file = file;
+        }
+
+        public CallSiteSpecification getSpecification() {
+            return specification;
+        }
+
+        public File getFile() {
+            return file;
+        }
     }
-
-    public CallSiteSpecification getSpecification() {
-      return specification;
-    }
-
-    public File getFile() {
-      return file;
-    }
-  }
 }

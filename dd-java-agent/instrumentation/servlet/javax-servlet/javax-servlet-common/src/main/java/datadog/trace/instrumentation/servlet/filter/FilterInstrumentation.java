@@ -24,64 +24,63 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class FilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public FilterInstrumentation() {
-    super("servlet-filter");
-  }
-
-  @Override
-  public boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.servlet.Filter";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("doFilter")
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
-        getClass().getName() + "$FilterAdvice");
-  }
-
-  public static class FilterAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope start(@Advice.This final Filter filter) {
-      if (activeSpan() == null) {
-        // Don't want to generate a new top-level span
-        return null;
-      }
-
-      final AgentSpan span = startSpan(JAVA_WEB_SERVLET_FILTER.toString(), SERVLET_FILTER);
-      DECORATE.afterStart(span);
-
-      // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
-      span.setResourceName(DECORATE.spanNameForMethod(filter.getClass(), "doFilter"));
-
-      return activateSpan(span);
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public FilterInstrumentation() {
+        super("servlet-filter");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      DECORATE.onError(scope, throwable);
-      DECORATE.beforeFinish(scope);
-      scope.close();
-      spanFromScope(scope).finish();
+    @Override
+    public boolean defaultEnabled() {
+        return false;
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.servlet.Filter";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("doFilter")
+                        .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+                        .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+                        .and(isPublic()),
+                getClass().getName() + "$FilterAdvice");
+    }
+
+    public static class FilterAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope start(@Advice.This final Filter filter) {
+            if (activeSpan() == null) {
+                // Don't want to generate a new top-level span
+                return null;
+            }
+
+            final AgentSpan span = startSpan(JAVA_WEB_SERVLET_FILTER.toString(), SERVLET_FILTER);
+            DECORATE.afterStart(span);
+
+            // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
+            span.setResourceName(DECORATE.spanNameForMethod(filter.getClass(), "doFilter"));
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            DECORATE.onError(scope, throwable);
+            DECORATE.beforeFinish(scope);
+            scope.close();
+            spanFromScope(scope).finish();
+        }
+    }
 }

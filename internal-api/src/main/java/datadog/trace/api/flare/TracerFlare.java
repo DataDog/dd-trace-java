@@ -12,73 +12,72 @@ import java.util.zip.ZipOutputStream;
 
 public final class TracerFlare {
 
-  public interface Reporter {
-    default void prepareForFlare() {}
+    public interface Reporter {
+        default void prepareForFlare() {}
 
-    void addReportToFlare(ZipOutputStream zip) throws IOException;
+        void addReportToFlare(ZipOutputStream zip) throws IOException;
 
-    default void cleanupAfterFlare() {}
-  }
-
-  private static final Map<Class<?>, Reporter> reporters = new ConcurrentHashMap<>();
-
-  public static void prepareForFlare() {
-    for (Reporter reporter : reporters.values()) {
-      try {
-        reporter.prepareForFlare();
-      } catch (Throwable ignore) {
-      }
+        default void cleanupAfterFlare() {}
     }
-  }
 
-  public static void addReportsToFlare(ZipOutputStream zip) throws IOException {
-    List<Throwable> errors = null;
+    private static final Map<Class<?>, Reporter> reporters = new ConcurrentHashMap<>();
 
-    for (Reporter reporter : reporters.values()) {
-      try {
-        reporter.addReportToFlare(zip);
-      } catch (Throwable e) {
-        if (null == errors) {
-          errors = new ArrayList<>();
+    public static void prepareForFlare() {
+        for (Reporter reporter : reporters.values()) {
+            try {
+                reporter.prepareForFlare();
+            } catch (Throwable ignore) {
+            }
         }
-        errors.add(e);
-      }
     }
 
-    if (null != errors) {
-      zip.putNextEntry(new ZipEntry("flare_errors.txt"));
-      for (Throwable e : errors) {
-        zip.write(e.toString().getBytes(UTF_8));
-        zip.write('\n');
-      }
-    }
-  }
+    public static void addReportsToFlare(ZipOutputStream zip) throws IOException {
+        List<Throwable> errors = null;
 
-  public static void cleanupAfterFlare() {
-    for (Reporter reporter : reporters.values()) {
-      try {
-        reporter.cleanupAfterFlare();
-      } catch (Throwable ignore) {
-      }
-    }
-  }
+        for (Reporter reporter : reporters.values()) {
+            try {
+                reporter.addReportToFlare(zip);
+            } catch (Throwable e) {
+                if (null == errors) {
+                    errors = new ArrayList<>();
+                }
+                errors.add(e);
+            }
+        }
 
-  public static void addReporter(Reporter reporter) {
-    reporters.put(reporter.getClass(), reporter);
-  }
-
-  public static void addText(ZipOutputStream zip, String section, String text) throws IOException {
-    zip.putNextEntry(new ZipEntry(section));
-    if (null != text) {
-      zip.write(text.getBytes(UTF_8));
+        if (null != errors) {
+            zip.putNextEntry(new ZipEntry("flare_errors.txt"));
+            for (Throwable e : errors) {
+                zip.write(e.toString().getBytes(UTF_8));
+                zip.write('\n');
+            }
+        }
     }
-  }
 
-  public static void addBinary(ZipOutputStream zip, String section, byte[] bytes)
-      throws IOException {
-    zip.putNextEntry(new ZipEntry(section));
-    if (null != bytes) {
-      zip.write(bytes);
+    public static void cleanupAfterFlare() {
+        for (Reporter reporter : reporters.values()) {
+            try {
+                reporter.cleanupAfterFlare();
+            } catch (Throwable ignore) {
+            }
+        }
     }
-  }
+
+    public static void addReporter(Reporter reporter) {
+        reporters.put(reporter.getClass(), reporter);
+    }
+
+    public static void addText(ZipOutputStream zip, String section, String text) throws IOException {
+        zip.putNextEntry(new ZipEntry(section));
+        if (null != text) {
+            zip.write(text.getBytes(UTF_8));
+        }
+    }
+
+    public static void addBinary(ZipOutputStream zip, String section, byte[] bytes) throws IOException {
+        zip.putNextEntry(new ZipEntry(section));
+        if (null != bytes) {
+            zip.write(bytes);
+        }
+    }
 }

@@ -7,10 +7,10 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
  * if we're running on a default branch)
  */
 public enum ItrEnabled implements TagValue {
-  TRUE;
+    TRUE;
 
-  @Override
-  public String asString() {
-    return "itr_enabled:true";
-  }
+    @Override
+    public String asString() {
+        return "itr_enabled:true";
+    }
 }

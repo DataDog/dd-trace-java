@@ -26,37 +26,36 @@ import sun.rmi.transport.Target;
  * expected
  */
 public class ContextDispatcher implements Dispatcher {
-  private static final ContextDispatcher CONTEXT_DISPATCHER = new ContextDispatcher();
-  private static final NoopRemote NOOP_REMOTE = new NoopRemote();
+    private static final ContextDispatcher CONTEXT_DISPATCHER = new ContextDispatcher();
+    private static final NoopRemote NOOP_REMOTE = new NoopRemote();
 
-  public static Target newDispatcherTarget() {
-    return new Target(NOOP_REMOTE, CONTEXT_DISPATCHER, NOOP_REMOTE, DD_CONTEXT_CALL_ID, false);
-  }
-
-  @Override
-  public void dispatch(final Remote obj, final RemoteCall call) throws IOException {
-    final ObjectInput in = call.getInputStream();
-    final int operationId = in.readInt();
-    in.readLong(); // skip 8 bytes
-
-    if (PROPAGATOR.isOperationWithPayload(operationId)) {
-      final ContextPayload payload = ContextPayload.read(in);
-      if (payload != null) {
-        final AgentSpanContext context =
-            extractContextAndGetSpanContext(
-                payload.getContext(), ContextVisitors.stringValuesMap());
-        THREAD_LOCAL_CONTEXT.set(context);
-      }
+    public static Target newDispatcherTarget() {
+        return new Target(NOOP_REMOTE, CONTEXT_DISPATCHER, NOOP_REMOTE, DD_CONTEXT_CALL_ID, false);
     }
 
-    // send result stream the client is expecting
-    call.getResultStream(true);
+    @Override
+    public void dispatch(final Remote obj, final RemoteCall call) throws IOException {
+        final ObjectInput in = call.getInputStream();
+        final int operationId = in.readInt();
+        in.readLong(); // skip 8 bytes
 
-    // release held streams to allow next call to continue
-    call.releaseInputStream();
-    call.releaseOutputStream();
-    call.done();
-  }
+        if (PROPAGATOR.isOperationWithPayload(operationId)) {
+            final ContextPayload payload = ContextPayload.read(in);
+            if (payload != null) {
+                final AgentSpanContext context =
+                        extractContextAndGetSpanContext(payload.getContext(), ContextVisitors.stringValuesMap());
+                THREAD_LOCAL_CONTEXT.set(context);
+            }
+        }
 
-  public static class NoopRemote implements Remote {}
+        // send result stream the client is expecting
+        call.getResultStream(true);
+
+        // release held streams to allow next call to continue
+        call.releaseInputStream();
+        call.releaseOutputStream();
+        call.done();
+    }
+
+    public static class NoopRemote implements Remote {}
 }

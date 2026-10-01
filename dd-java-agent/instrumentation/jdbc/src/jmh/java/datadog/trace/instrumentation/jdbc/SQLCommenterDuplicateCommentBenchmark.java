@@ -49,29 +49,29 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class SQLCommenterDuplicateCommentBenchmark {
 
-  // Already-DD-commented SQL (append style, comment at the end). First needle hits at different
-  // depths: ddps first (cheap), traceparent-only (scans 8 before the match).
-  static final String[] SQL = {
-    "SELECT * FROM foo /*ddps='svc',dde='test',dddbs='mydb',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/",
-    "SELECT * FROM bar WHERE id = 42 /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/",
-  };
+    // Already-DD-commented SQL (append style, comment at the end). First needle hits at different
+    // depths: ddps first (cheap), traceparent-only (scans 8 before the match).
+    static final String[] SQL = {
+        "SELECT * FROM foo /*ddps='svc',dde='test',dddbs='mydb',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/",
+        "SELECT * FROM bar WHERE id = 42 /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/",
+    };
 
-  /** Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}. */
-  @State(Scope.Thread)
-  public static class Cursor {
-    int index = 0;
+    /** Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}. */
+    @State(Scope.Thread)
+    public static class Cursor {
+        int index = 0;
 
-    String next() {
-      int i = index;
-      index = (i + 1) % SQL.length;
-      return SQL[i];
+        String next() {
+            int i = index;
+            index = (i + 1) % SQL.length;
+            return SQL[i];
+        }
     }
-  }
 
-  @Benchmark
-  public boolean alreadyCommented(Cursor cursor) {
-    // dbType=null skips the first-word scan; the DD comment makes inject return early after the
-    // duplicate-comment check -- the path (B) optimizes. Returns the input sql (no new String).
-    return SQLCommenter.inject(cursor.next(), "mydb", null, "h", "n", null, true) != null;
-  }
+    @Benchmark
+    public boolean alreadyCommented(Cursor cursor) {
+        // dbType=null skips the first-word scan; the DD comment makes inject return early after the
+        // duplicate-comment check -- the path (B) optimizes. Returns the input sql (no new String).
+        return SQLCommenter.inject(cursor.next(), "mydb", null, "h", "n", null, true) != null;
+    }
 }

@@ -30,117 +30,116 @@ import java.util.function.ObjIntConsumer;
  * the scoped logs message and all its chunked log records to the payload. Once all the logs data
  * has been chunked we add the enclosing resource logs message to the start of the payload.
  */
-public final class OtlpLogsProtoCollector extends OtlpLogsCollector
-    implements OtlpLogsVisitor, OtlpScopedLogsVisitor {
+public final class OtlpLogsProtoCollector extends OtlpLogsCollector implements OtlpLogsVisitor, OtlpScopedLogsVisitor {
 
-  public static final OtlpLogsProtoCollector INSTANCE = new OtlpLogsProtoCollector();
+    public static final OtlpLogsProtoCollector INSTANCE = new OtlpLogsProtoCollector();
 
-  private final GrowableBuffer buf = new GrowableBuffer(512);
-  private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
+    private final GrowableBuffer buf = new GrowableBuffer(512);
+    private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
-  // total number of chunked bytes at different nesting levels
-  private int payloadBytes;
-  private int scopedBytes;
-  private int logRecordCount;
+    // total number of chunked bytes at different nesting levels
+    private int payloadBytes;
+    private int scopedBytes;
+    private int logRecordCount;
 
-  private OtelInstrumentationScope currentScope;
+    private OtelInstrumentationScope currentScope;
 
-  private OtlpLogsProtoCollector() {}
+    private OtlpLogsProtoCollector() {}
 
-  /**
-   * Collects OpenTelemetry logs and marshals them into a chunked payload.
-   *
-   * <p>This payload is only valid for the calling thread until the next collection.
-   */
-  @Override
-  public OtlpPayload waitForLogs(int intervalMillis) {
-    return collectLogs(OtelLogRecordProcessor.INSTANCE::waitForLogs, intervalMillis);
-  }
-
-  OtlpPayload collectLogs(ObjIntConsumer<OtlpLogsVisitor> processor, int intervalMillis) {
-    start();
-    try {
-      processor.accept(this, intervalMillis);
-      return completePayload();
-    } finally {
-      stop();
-    }
-  }
-
-  /** Prepare temporary elements to collect logs data. */
-  private void start() {
-    logRecordCount = 0;
-
-    // remove stale entries from caches
-    OtlpCommonProto.recalibrateCaches();
-  }
-
-  /** Cleanup elements used to collect logs data. */
-  private void stop() {
-    buf.reset();
-    protobuf.reset();
-
-    payloadBytes = 0;
-    scopedBytes = 0;
-
-    currentScope = null;
-  }
-
-  @Override
-  public int getLogRecordCount() {
-    return logRecordCount;
-  }
-
-  @Override
-  public OtlpScopedLogsVisitor visitScopedLogs(OtelInstrumentationScope scope) {
-    if (currentScope != null) {
-      completeScope();
-    }
-    currentScope = scope;
-    return this;
-  }
-
-  @Override
-  public void visitLogRecord(OtlpLogRecord logRecord) {
-    scopedBytes += recordLogRecordMessage(buf, logRecord, protobuf);
-    logRecordCount++;
-  }
-
-  @Override
-  public void visitAttribute(int type, String key, Object value) {
-    // add attribute to the log record currently being collected
-    writeTag(buf, 6, LEN_WIRE_TYPE);
-    writeAttribute(buf, type, key, value);
-  }
-
-  // called once we've processed all scopes and log record messages
-  private OtlpPayload completePayload() {
-    if (currentScope != null) {
-      completeScope();
+    /**
+     * Collects OpenTelemetry logs and marshals them into a chunked payload.
+     *
+     * <p>This payload is only valid for the calling thread until the next collection.
+     */
+    @Override
+    public OtlpPayload waitForLogs(int intervalMillis) {
+        return collectLogs(OtelLogRecordProcessor.INSTANCE::waitForLogs, intervalMillis);
     }
 
-    if (payloadBytes == 0) {
-      return OtlpPayload.EMPTY;
+    OtlpPayload collectLogs(ObjIntConsumer<OtlpLogsVisitor> processor, int intervalMillis) {
+        start();
+        try {
+            processor.accept(this, intervalMillis);
+            return completePayload();
+        } finally {
+            stop();
+        }
     }
 
-    // prepend the canned resource chunk
-    payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
+    /** Prepare temporary elements to collect logs data. */
+    private void start() {
+        logRecordCount = 0;
 
-    // finally prepend the total length of all collected chunks
-    protobuf.recordMessage(buf, 1, payloadBytes);
-    return protobuf.toPayload();
-  }
-
-  // called once we've processed all logs in a specific scope
-  private void completeScope() {
-
-    // add scoped logs message prefix to its nested chunks and promote to payload
-    if (scopedBytes > 0) {
-      payloadBytes += recordScopedLogsMessage(buf, currentScope, scopedBytes, protobuf);
+        // remove stale entries from caches
+        OtlpCommonProto.recalibrateCaches();
     }
 
-    // reset temporary elements for next scope
-    currentScope = null;
-    scopedBytes = 0;
-  }
+    /** Cleanup elements used to collect logs data. */
+    private void stop() {
+        buf.reset();
+        protobuf.reset();
+
+        payloadBytes = 0;
+        scopedBytes = 0;
+
+        currentScope = null;
+    }
+
+    @Override
+    public int getLogRecordCount() {
+        return logRecordCount;
+    }
+
+    @Override
+    public OtlpScopedLogsVisitor visitScopedLogs(OtelInstrumentationScope scope) {
+        if (currentScope != null) {
+            completeScope();
+        }
+        currentScope = scope;
+        return this;
+    }
+
+    @Override
+    public void visitLogRecord(OtlpLogRecord logRecord) {
+        scopedBytes += recordLogRecordMessage(buf, logRecord, protobuf);
+        logRecordCount++;
+    }
+
+    @Override
+    public void visitAttribute(int type, String key, Object value) {
+        // add attribute to the log record currently being collected
+        writeTag(buf, 6, LEN_WIRE_TYPE);
+        writeAttribute(buf, type, key, value);
+    }
+
+    // called once we've processed all scopes and log record messages
+    private OtlpPayload completePayload() {
+        if (currentScope != null) {
+            completeScope();
+        }
+
+        if (payloadBytes == 0) {
+            return OtlpPayload.EMPTY;
+        }
+
+        // prepend the canned resource chunk
+        payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
+
+        // finally prepend the total length of all collected chunks
+        protobuf.recordMessage(buf, 1, payloadBytes);
+        return protobuf.toPayload();
+    }
+
+    // called once we've processed all logs in a specific scope
+    private void completeScope() {
+
+        // add scoped logs message prefix to its nested chunks and promote to payload
+        if (scopedBytes > 0) {
+            payloadBytes += recordScopedLogsMessage(buf, currentScope, scopedBytes, protobuf);
+        }
+
+        // reset temporary elements for next scope
+        currentScope = null;
+        scopedBytes = 0;
+    }
 }

@@ -13,22 +13,22 @@ import jdk.jfr.StackTrace;
 @Category("Datadog")
 @StackTrace(false)
 public class ProfilerSettingEvent extends Event {
-  @Label("Setting Name")
-  private final String name;
+    @Label("Setting Name")
+    private final String name;
 
-  @Label("Setting Value")
-  private final String value;
+    @Label("Setting Value")
+    private final String value;
 
-  @Label("Setting Unit")
-  private final String unit;
+    @Label("Setting Unit")
+    private final String unit;
 
-  public ProfilerSettingEvent(String name, String value) {
-    this(name, value, "");
-  }
+    public ProfilerSettingEvent(String name, String value) {
+        this(name, value, "");
+    }
 
-  public ProfilerSettingEvent(String name, String value, String unit) {
-    this.name = name;
-    this.value = value;
-    this.unit = unit;
-  }
+    public ProfilerSettingEvent(String name, String value, String unit) {
+        this.name = name;
+        this.value = value;
+        this.unit = unit;
+    }
 }

@@ -19,25 +19,25 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public final class IgniteModule extends InstrumenterModule.Tracing {
 
-  public IgniteModule() {
-    super("ignite");
-  }
+    public IgniteModule() {
+        super("ignite");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return false;
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.apache.ignite.IgniteCache", "org.apache.ignite.Ignite");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.apache.ignite.IgniteCache", "org.apache.ignite.Ignite");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new IgniteInstrumentation(),
-        new IgniteCacheSyncInstrumentation(),
-        new IgniteCacheAsyncInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new IgniteInstrumentation(),
+                new IgniteCacheSyncInstrumentation(),
+                new IgniteCacheAsyncInstrumentation());
+    }
 }

@@ -6,15 +6,15 @@ import java.util.concurrent.atomic.DoubleAdder;
 
 /** Reports the sum of values since the last reset. */
 final class OtelDoubleSum extends OtelAggregator {
-  private final DoubleAdder total = new DoubleAdder();
+    private final DoubleAdder total = new DoubleAdder();
 
-  @Override
-  void doRecordDouble(double value) {
-    total.add(value);
-  }
+    @Override
+    void doRecordDouble(double value) {
+        total.add(value);
+    }
 
-  @Override
-  OtlpDataPoint doCollect(boolean reset) {
-    return new OtlpDoublePoint(reset ? total.sumThenReset() : total.sum());
-  }
+    @Override
+    OtlpDataPoint doCollect(boolean reset) {
+        return new OtlpDoublePoint(reset ? total.sumThenReset() : total.sum());
+    }
 }

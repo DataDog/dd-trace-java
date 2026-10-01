@@ -7,17 +7,16 @@ import java.util.Collection;
 
 @AutoService(TraceInterceptor.class)
 public class TestInterceptor implements TraceInterceptor {
-  // We set a high priority to avoid competing with real TraceInterceptors.
-  public static volatile int priority = 999;
+    // We set a high priority to avoid competing with real TraceInterceptors.
+    public static volatile int priority = 999;
 
-  @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      final Collection<? extends MutableSpan> trace) {
-    return trace;
-  }
+    @Override
+    public Collection<? extends MutableSpan> onTraceComplete(final Collection<? extends MutableSpan> trace) {
+        return trace;
+    }
 
-  @Override
-  public int priority() {
-    return priority;
-  }
+    @Override
+    public int priority() {
+        return priority;
+    }
 }

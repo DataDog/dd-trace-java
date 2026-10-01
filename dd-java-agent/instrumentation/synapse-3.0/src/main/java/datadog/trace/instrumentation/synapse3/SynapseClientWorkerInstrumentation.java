@@ -23,71 +23,66 @@ import org.apache.synapse.transport.passthru.TargetResponse;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseClientWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SynapseClientWorkerInstrumentation() {
-    super("synapse3-client", "synapse3");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.synapse.transport.passthru.ClientWorker";
-  }
-
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(2, named("org.apache.synapse.transport.passthru.TargetResponse"))),
-        getClass().getName() + "$NewClientWorkerAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("run")).and(takesNoArguments()),
-        getClass().getName() + "$ClientWorkerResponseAdvice");
-  }
-
-  public static final class NewClientWorkerAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void createWorker(@Advice.Argument(2) final TargetResponse response) {
-      ContextContinuation continuation = currentContext().capture();
-      if (continuation.context() != rootContext()) {
-        response.getConnection().getContext().setAttribute(SYNAPSE_CONTINUATION_KEY, continuation);
-      }
-    }
-  }
-
-  public static final class ClientWorkerResponseAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beginResponse(
-        @Advice.FieldValue("response") final TargetResponse response) {
-      Object continuation =
-          response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
-      return continuation instanceof ContextContinuation
-          ? ((ContextContinuation) continuation).resume()
-          : null;
+    public SynapseClientWorkerInstrumentation() {
+        super("synapse3-client", "synapse3");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void responseReceived(
-        @Advice.Enter final ContextScope scope,
-        @Advice.FieldValue("response") final TargetResponse response,
-        @Advice.Thrown final Throwable error) {
-      if (null == scope) {
-        return;
-      }
-      AgentSpan span = spanFromContext(scope.context());
-      HttpResponse httpResponse = response.getConnection().getHttpResponse();
+    @Override
+    public String instrumentedType() {
+        return "org.apache.synapse.transport.passthru.ClientWorker";
+    }
 
-      if (null != span) {
-        if (null != httpResponse) {
-          DECORATE.onResponse(span, httpResponse);
+    @Override
+    public void methodAdvice(final MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(2, named("org.apache.synapse.transport.passthru.TargetResponse"))),
+                getClass().getName() + "$NewClientWorkerAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("run")).and(takesNoArguments()),
+                getClass().getName() + "$ClientWorkerResponseAdvice");
+    }
+
+    public static final class NewClientWorkerAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void createWorker(@Advice.Argument(2) final TargetResponse response) {
+            ContextContinuation continuation = currentContext().capture();
+            if (continuation.context() != rootContext()) {
+                response.getConnection().getContext().setAttribute(SYNAPSE_CONTINUATION_KEY, continuation);
+            }
         }
-        if (null != error) {
-          DECORATE.onError(span, error);
-        }
-      }
-      DECORATE.beforeFinish(scope.context());
-      // no need to finish span because response event (which created the worker) does that
-      scope.close();
     }
-  }
+
+    public static final class ClientWorkerResponseAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beginResponse(@Advice.FieldValue("response") final TargetResponse response) {
+            Object continuation = response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
+            return continuation instanceof ContextContinuation ? ((ContextContinuation) continuation).resume() : null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void responseReceived(
+                @Advice.Enter final ContextScope scope,
+                @Advice.FieldValue("response") final TargetResponse response,
+                @Advice.Thrown final Throwable error) {
+            if (null == scope) {
+                return;
+            }
+            AgentSpan span = spanFromContext(scope.context());
+            HttpResponse httpResponse = response.getConnection().getHttpResponse();
+
+            if (null != span) {
+                if (null != httpResponse) {
+                    DECORATE.onResponse(span, httpResponse);
+                }
+                if (null != error) {
+                    DECORATE.onError(span, error);
+                }
+            }
+            DECORATE.beforeFinish(scope.context());
+            // no need to finish span because response event (which created the worker) does that
+            scope.close();
+        }
+    }
 }

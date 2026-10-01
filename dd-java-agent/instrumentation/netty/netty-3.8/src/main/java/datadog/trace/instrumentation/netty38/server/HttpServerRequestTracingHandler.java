@@ -17,62 +17,62 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 
 public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandler {
 
-  private final ContextStore<Channel, ChannelTraceContext> contextStore;
+    private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
-  public HttpServerRequestTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
-    this.contextStore = contextStore;
-  }
+    public HttpServerRequestTracingHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
+        this.contextStore = contextStore;
+    }
 
-  @Override
-  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg) {
-    final ChannelTraceContext channelTraceContext =
-        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+    @Override
+    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg) {
+        final ChannelTraceContext channelTraceContext =
+                contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
-    if (!(msg.getMessage() instanceof HttpRequest)) {
-      final Context storedContext = channelTraceContext.getServerContext();
-      if (storedContext == null) {
-        ctx.sendUpstream(msg); // superclass does not throw
-      } else {
-        try (final ContextScope scope = storedContext.attach()) {
-          ctx.sendUpstream(msg); // superclass does not throw
+        if (!(msg.getMessage() instanceof HttpRequest)) {
+            final Context storedContext = channelTraceContext.getServerContext();
+            if (storedContext == null) {
+                ctx.sendUpstream(msg); // superclass does not throw
+            } else {
+                try (final ContextScope scope = storedContext.attach()) {
+                    ctx.sendUpstream(msg); // superclass does not throw
+                }
+            }
+            return;
         }
-      }
-      return;
+
+        final HttpRequest request = (HttpRequest) msg.getMessage();
+        final HttpHeaders headers = request.headers();
+        final Context parentContext = DECORATE.extract(headers);
+        final Context context = DECORATE.startSpan(headers, parentContext);
+
+        channelTraceContext.reset();
+        channelTraceContext.setRequestHeaders(headers);
+
+        try (final ContextScope scope = context.attach()) {
+            final AgentSpan span = AgentSpan.fromContext(context);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, ctx.getChannel(), request, parentContext);
+
+            channelTraceContext.setServerContext(context);
+
+            Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+            if (rba != null) {
+                ctx.getPipeline()
+                        .addAfter(
+                                ctx.getName(),
+                                "blocking_handler",
+                                new BlockingResponseHandler(
+                                        span.getRequestContext().getTraceSegment(), rba));
+            }
+
+            try {
+                ctx.sendUpstream(msg);
+            } catch (final Throwable throwable) {
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(scope.context());
+                span.finish(); // Finish the span manually since finishSpanOnClose was false
+                throw throwable;
+            }
+        }
     }
-
-    final HttpRequest request = (HttpRequest) msg.getMessage();
-    final HttpHeaders headers = request.headers();
-    final Context parentContext = DECORATE.extract(headers);
-    final Context context = DECORATE.startSpan(headers, parentContext);
-
-    channelTraceContext.reset();
-    channelTraceContext.setRequestHeaders(headers);
-
-    try (final ContextScope scope = context.attach()) {
-      final AgentSpan span = AgentSpan.fromContext(context);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, ctx.getChannel(), request, parentContext);
-
-      channelTraceContext.setServerContext(context);
-
-      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
-      if (rba != null) {
-        ctx.getPipeline()
-            .addAfter(
-                ctx.getName(),
-                "blocking_handler",
-                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
-      }
-
-      try {
-        ctx.sendUpstream(msg);
-      } catch (final Throwable throwable) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(scope.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
-        throw throwable;
-      }
-    }
-  }
 }

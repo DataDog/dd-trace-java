@@ -13,28 +13,27 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
 @AutoService(InstrumenterModule.class)
 public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TemplateAndMatrixVariablesInstrumentation() {
-    super("spring-webflux");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public TemplateAndMatrixVariablesInstrumentation() {
+        super("spring-webflux");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.web.reactive.result.method.RequestMappingInfoHandlerMapping";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.web.reactive.result.method.RequestMappingInfoHandlerMapping";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isProtected())
-            .and(named("handleMatch"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.web.reactive.result.method.RequestMappingInfo")))
-            .and(takesArgument(1, named("org.springframework.web.method.HandlerMethod")))
-            .and(takesArgument(2, named("org.springframework.web.server.ServerWebExchange")))
-            .and(takesArguments(3)),
-        packageName + ".HandleMatchAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isProtected())
+                        .and(named("handleMatch"))
+                        .and(takesArgument(
+                                0, named("org.springframework.web.reactive.result.method.RequestMappingInfo")))
+                        .and(takesArgument(1, named("org.springframework.web.method.HandlerMethod")))
+                        .and(takesArgument(2, named("org.springframework.web.server.ServerWebExchange")))
+                        .and(takesArguments(3)),
+                packageName + ".HandleMatchAdvice");
+    }
 }

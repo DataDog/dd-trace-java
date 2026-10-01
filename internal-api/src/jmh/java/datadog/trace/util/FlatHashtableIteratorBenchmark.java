@@ -36,146 +36,142 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(1)
 @State(Scope.Thread)
 public class FlatHashtableIteratorBenchmark {
-  // All entries share this hash -> one contiguous probe-run "bucket" the iterator walks.
-  static final long BUCKET_HASH = 0x123456789ABCDEF0L;
-  static final int BUCKET_SIZE = 16;
+    // All entries share this hash -> one contiguous probe-run "bucket" the iterator walks.
+    static final long BUCKET_HASH = 0x123456789ABCDEF0L;
+    static final int BUCKET_SIZE = 16;
 
-  static final class ItEntry extends FlatHashtable.Entry {
-    final int value;
+    static final class ItEntry extends FlatHashtable.Entry {
+        final int value;
 
-    ItEntry(long hash, int value) {
-      super(hash);
-      this.value = value;
+        ItEntry(long hash, int value) {
+            super(hash);
+            this.value = value;
+        }
     }
-  }
 
-  // Four DISTINCT hashOf implementors, all reading entry.hash (identical behavior, different
-  // types).
-  // Loading them defeats CHA; driving all four through the shared traversal in setUp poisons the
-  // hashOf profile to megamorphic, so type-profile can't cleanly devirtualize it for the general
-  // path — the case the Entry-specialized iterator is immune to.
-  //
-  // Measured (MacBook M1, Zulu 21, F5, poisoned profile): iterate_general 18.06M ±0.18 vs
-  // iterate_specialized 37.88M ±0.16 ops/s (2.10x, tight non-overlapping CIs). Unpoisoned, the two
-  // tie (~37.8M) — type-profile does the general path's devirt then; the poisoning is what
-  // type-profile can't survive and the constant can.
-  static final class ItHashStrategyA implements FlatHashtable.HashStrategy<ItEntry> {
-    static final ItHashStrategyA INSTANCE = new ItHashStrategyA();
+    // Four DISTINCT hashOf implementors, all reading entry.hash (identical behavior, different
+    // types).
+    // Loading them defeats CHA; driving all four through the shared traversal in setUp poisons the
+    // hashOf profile to megamorphic, so type-profile can't cleanly devirtualize it for the general
+    // path — the case the Entry-specialized iterator is immune to.
+    //
+    // Measured (MacBook M1, Zulu 21, F5, poisoned profile): iterate_general 18.06M ±0.18 vs
+    // iterate_specialized 37.88M ±0.16 ops/s (2.10x, tight non-overlapping CIs). Unpoisoned, the two
+    // tie (~37.8M) — type-profile does the general path's devirt then; the poisoning is what
+    // type-profile can't survive and the constant can.
+    static final class ItHashStrategyA implements FlatHashtable.HashStrategy<ItEntry> {
+        static final ItHashStrategyA INSTANCE = new ItHashStrategyA();
 
-    private ItHashStrategyA() {}
+        private ItHashStrategyA() {}
 
-    @Override
-    public long hashOf(ItEntry entry) {
-      return entry.hash;
+        @Override
+        public long hashOf(ItEntry entry) {
+            return entry.hash;
+        }
     }
-  }
 
-  static final class ItHashStrategyB implements FlatHashtable.HashStrategy<ItEntry> {
-    static final ItHashStrategyB INSTANCE = new ItHashStrategyB();
+    static final class ItHashStrategyB implements FlatHashtable.HashStrategy<ItEntry> {
+        static final ItHashStrategyB INSTANCE = new ItHashStrategyB();
 
-    private ItHashStrategyB() {}
+        private ItHashStrategyB() {}
 
-    @Override
-    public long hashOf(ItEntry entry) {
-      return entry.hash;
+        @Override
+        public long hashOf(ItEntry entry) {
+            return entry.hash;
+        }
     }
-  }
 
-  static final class ItHashStrategyC implements FlatHashtable.HashStrategy<ItEntry> {
-    static final ItHashStrategyC INSTANCE = new ItHashStrategyC();
+    static final class ItHashStrategyC implements FlatHashtable.HashStrategy<ItEntry> {
+        static final ItHashStrategyC INSTANCE = new ItHashStrategyC();
 
-    private ItHashStrategyC() {}
+        private ItHashStrategyC() {}
 
-    @Override
-    public long hashOf(ItEntry entry) {
-      return entry.hash;
+        @Override
+        public long hashOf(ItEntry entry) {
+            return entry.hash;
+        }
     }
-  }
 
-  static final class ItHashStrategyD implements FlatHashtable.HashStrategy<ItEntry> {
-    static final ItHashStrategyD INSTANCE = new ItHashStrategyD();
+    static final class ItHashStrategyD implements FlatHashtable.HashStrategy<ItEntry> {
+        static final ItHashStrategyD INSTANCE = new ItHashStrategyD();
 
-    private ItHashStrategyD() {}
+        private ItHashStrategyD() {}
 
-    @Override
-    public long hashOf(ItEntry entry) {
-      return entry.hash;
+        @Override
+        public long hashOf(ItEntry entry) {
+            return entry.hash;
+        }
     }
-  }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  static final FlatHashtable.HashStrategy<ItEntry>[] STRATEGIES =
-      new FlatHashtable.HashStrategy[] {
-        ItHashStrategyA.INSTANCE,
-        ItHashStrategyB.INSTANCE,
-        ItHashStrategyC.INSTANCE,
-        ItHashStrategyD.INSTANCE,
-      };
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    static final FlatHashtable.HashStrategy<ItEntry>[] STRATEGIES = new FlatHashtable.HashStrategy[] {
+        ItHashStrategyA.INSTANCE, ItHashStrategyB.INSTANCE, ItHashStrategyC.INSTANCE, ItHashStrategyD.INSTANCE,
+    };
 
-  ItEntry[] table;
+    ItEntry[] table;
 
-  // Kept live so the profile-poisoning loop below can't be dead-code-eliminated.
-  static long POISON_SINK;
+    // Kept live so the profile-poisoning loop below can't be dead-code-eliminated.
+    static long POISON_SINK;
 
-  @Setup(Level.Trial)
-  public void setUp() {
-    // Sparse so the bucket is one contiguous run with a clean terminating empty slot.
-    table = FlatHashtable.create(ItEntry.class, BUCKET_SIZE, FlatHashtable.LOW_LOAD_FACTOR);
-    for (int i = 0; i < BUCKET_SIZE; ++i) {
-      FlatHashtable.insert(table, new ItEntry(BUCKET_HASH, i)); // all share the hash => one bucket
+    @Setup(Level.Trial)
+    public void setUp() {
+        // Sparse so the bucket is one contiguous run with a clean terminating empty slot.
+        table = FlatHashtable.create(ItEntry.class, BUCKET_SIZE, FlatHashtable.LOW_LOAD_FACTOR);
+        for (int i = 0; i < BUCKET_SIZE; ++i) {
+            FlatHashtable.insert(table, new ItEntry(BUCKET_HASH, i)); // all share the hash => one bucket
+        }
+        // Poison the shared HashIterator.advanceWith hashOf profile: drive the GENERAL iterator with
+        // four distinct strategy types, hot enough that C2 records the site as megamorphic. HotSpot
+        // keeps one per-bci profile shared across all inlining contexts (no context-sensitive profiling
+        // — tried in Zing, never robust), so those unrelated callers permanently pollute the profile.
+        long sink = 0;
+        for (int r = 0; r < 200_000; ++r) {
+            sink += poison();
+        }
+        POISON_SINK = sink;
     }
-    // Poison the shared HashIterator.advanceWith hashOf profile: drive the GENERAL iterator with
-    // four distinct strategy types, hot enough that C2 records the site as megamorphic. HotSpot
-    // keeps one per-bci profile shared across all inlining contexts (no context-sensitive profiling
-    // — tried in Zing, never robust), so those unrelated callers permanently pollute the profile.
-    long sink = 0;
-    for (int r = 0; r < 200_000; ++r) {
-      sink += poison();
-    }
-    POISON_SINK = sink;
-  }
 
-  /** Drives the general iterator once per distinct strategy type — the profile poisoner. */
-  private long poison() {
-    long sink = 0;
-    for (FlatHashtable.HashStrategy<ItEntry> s : STRATEGIES) {
-      Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH, s);
-      while (it.hasNext()) {
-        sink += it.next().value;
-      }
+    /** Drives the general iterator once per distinct strategy type — the profile poisoner. */
+    private long poison() {
+        long sink = 0;
+        for (FlatHashtable.HashStrategy<ItEntry> s : STRATEGIES) {
+            Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH, s);
+            while (it.hasNext()) {
+                sink += it.next().value;
+            }
+        }
+        return sink;
     }
-    return sink;
-  }
 
-  /**
-   * General iterator with a SINGLE strategy — looks monomorphic, but its {@code hashOf} still
-   * dispatches virtually because {@code setUp} already poisoned the shared profile with other
-   * strategy types. This is the cross-caller pollution failure mode: a caller degraded by callers
-   * it has nothing to do with. (Unpoisoned, this ties {@code iterate_specialized} — type-profile
-   * then devirtualizes it; the poisoning is what type-profile can't survive and the constant can.)
-   */
-  @Benchmark
-  public long iterate_general() {
-    long sum = 0;
-    Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH, ItHashStrategyA.INSTANCE);
-    while (it.hasNext()) {
-      sum += it.next().value;
+    /**
+     * General iterator with a SINGLE strategy — looks monomorphic, but its {@code hashOf} still
+     * dispatches virtually because {@code setUp} already poisoned the shared profile with other
+     * strategy types. This is the cross-caller pollution failure mode: a caller degraded by callers
+     * it has nothing to do with. (Unpoisoned, this ties {@code iterate_specialized} — type-profile
+     * then devirtualizes it; the poisoning is what type-profile can't survive and the constant can.)
+     */
+    @Benchmark
+    public long iterate_general() {
+        long sum = 0;
+        Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH, ItHashStrategyA.INSTANCE);
+        while (it.hasNext()) {
+            sum += it.next().value;
+        }
+        return sum;
     }
-    return sum;
-  }
 
-  /**
-   * Entry-specialized iterator: feeds the constant Entry-hash strategy into the shared template, so
-   * {@code hashOf} inlines to {@code entry.hash} <b>structurally</b> (constant type-flow, not
-   * profile) — immune to the poisoned profile that sinks {@code iterate_general}.
-   */
-  @Benchmark
-  public long iterate_specialized() {
-    long sum = 0;
-    Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH); // Entry overload
-    while (it.hasNext()) {
-      sum += it.next().value; // hashOf inlined to entry.hash via the constant strategy
+    /**
+     * Entry-specialized iterator: feeds the constant Entry-hash strategy into the shared template, so
+     * {@code hashOf} inlines to {@code entry.hash} <b>structurally</b> (constant type-flow, not
+     * profile) — immune to the poisoned profile that sinks {@code iterate_general}.
+     */
+    @Benchmark
+    public long iterate_specialized() {
+        long sum = 0;
+        Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH); // Entry overload
+        while (it.hasNext()) {
+            sum += it.next().value; // hashOf inlined to entry.hash via the constant strategy
+        }
+        return sum;
     }
-    return sum;
-  }
 }

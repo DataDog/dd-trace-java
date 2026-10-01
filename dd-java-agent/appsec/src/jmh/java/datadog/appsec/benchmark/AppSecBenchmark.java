@@ -53,217 +53,215 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(value = 3)
 public class AppSecBenchmark {
 
-  static {
-    BenchmarkUtil.disableLogging();
-  }
-
-  private InstrumentationGateway gw;
-  private CallbackProvider cbp;
-  private SubscriptionService ss;
-  private String method = "GET";
-  private URIDataAdapter uri;
-  private String ip = "0.0.0.0";
-  private int port = 5555;
-
-  @Setup(Level.Trial)
-  public void setUp() throws URISyntaxException {
-    gw = new InstrumentationGateway();
-    cbp = gw.getCallbackProvider(RequestContextSlot.APPSEC);
-    ss = gw.getSubscriptionService(RequestContextSlot.APPSEC);
-    SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
-    sharedCommunicationObjects.monitoring = Monitoring.DISABLED;
-    sharedCommunicationObjects.agentHttpClient = new StubOkHttpClient();
-    sharedCommunicationObjects.setFeaturesDiscovery(
-        new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.agentHttpClient));
-
-    AppSecSystem.start(ss, sharedCommunicationObjects);
-    uri = new URIDefaultDataAdapter(new URI("http://localhost:8080/test"));
-  }
-
-  private void maliciousRequest() throws Exception {
-    RequestContext context =
-        new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
-    cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
-    cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
-    cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Arachni/v1");
-    Flow<?> flow = cbp.getCallback(EVENTS.requestHeaderDone()).apply(context);
-    if (!flow.getAction().isBlocking()) {
-      throw new Exception("Request should be blocked");
+    static {
+        BenchmarkUtil.disableLogging();
     }
-    cbp.getCallback(EVENTS.requestEnded()).apply(context, null);
-  }
 
-  @Benchmark
-  public void maliciousRequestDefault() throws Exception {
-    maliciousRequest();
-  }
+    private InstrumentationGateway gw;
+    private CallbackProvider cbp;
+    private SubscriptionService ss;
+    private String method = "GET";
+    private URIDataAdapter uri;
+    private String ip = "0.0.0.0";
+    private int port = 5555;
 
-  @Benchmark
-  @Fork(jvmArgsAppend = "-DPOWERWAF_ENABLE_BYTE_BUFFERS=false")
-  public void maliciousRequestNoByteBuffers() throws Exception {
-    maliciousRequest();
-  }
+    @Setup(Level.Trial)
+    public void setUp() throws URISyntaxException {
+        gw = new InstrumentationGateway();
+        cbp = gw.getCallbackProvider(RequestContextSlot.APPSEC);
+        ss = gw.getSubscriptionService(RequestContextSlot.APPSEC);
+        SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
+        sharedCommunicationObjects.monitoring = Monitoring.DISABLED;
+        sharedCommunicationObjects.agentHttpClient = new StubOkHttpClient();
+        sharedCommunicationObjects.setFeaturesDiscovery(
+                new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.agentHttpClient));
 
-  private void normalRequest() {
-    RequestContext context =
-        new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
-    cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
-    cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
-    cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Mozilla/5.0");
-    Flow<?> flow = cbp.getCallback(EVENTS.requestHeaderDone()).apply(context);
-    cbp.getCallback(EVENTS.requestEnded()).apply(context, null);
-  }
+        AppSecSystem.start(ss, sharedCommunicationObjects);
+        uri = new URIDefaultDataAdapter(new URI("http://localhost:8080/test"));
+    }
 
-  @Benchmark
-  public void normalRequestDefault() throws Exception {
-    normalRequest();
-  }
+    private void maliciousRequest() throws Exception {
+        RequestContext context =
+                new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
+        cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
+        cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
+        cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Arachni/v1");
+        Flow<?> flow = cbp.getCallback(EVENTS.requestHeaderDone()).apply(context);
+        if (!flow.getAction().isBlocking()) {
+            throw new Exception("Request should be blocked");
+        }
+        cbp.getCallback(EVENTS.requestEnded()).apply(context, null);
+    }
 
-  @Fork(jvmArgsAppend = "-Ddd.appsec.waf.metrics=false")
-  @Benchmark
-  public void normalRequestNoWafMetrics() {
-    normalRequest();
-  }
+    @Benchmark
+    public void maliciousRequestDefault() throws Exception {
+        maliciousRequest();
+    }
 
-  static class StubOkHttpClient extends OkHttpClient {
-    @Override
-    public Call newCall(final Request request) {
-      final Response response =
-          new Response.Builder()
-              .request(request)
-              .protocol(Protocol.HTTP_1_0)
-              .code(200)
-              .message("OK")
-              .build();
+    @Benchmark
+    @Fork(jvmArgsAppend = "-DPOWERWAF_ENABLE_BYTE_BUFFERS=false")
+    public void maliciousRequestNoByteBuffers() throws Exception {
+        maliciousRequest();
+    }
 
-      return new Call() {
+    private void normalRequest() {
+        RequestContext context =
+                new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
+        cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
+        cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
+        cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Mozilla/5.0");
+        Flow<?> flow = cbp.getCallback(EVENTS.requestHeaderDone()).apply(context);
+        cbp.getCallback(EVENTS.requestEnded()).apply(context, null);
+    }
+
+    @Benchmark
+    public void normalRequestDefault() throws Exception {
+        normalRequest();
+    }
+
+    @Fork(jvmArgsAppend = "-Ddd.appsec.waf.metrics=false")
+    @Benchmark
+    public void normalRequestNoWafMetrics() {
+        normalRequest();
+    }
+
+    static class StubOkHttpClient extends OkHttpClient {
         @Override
-        public Request request() {
-          return request;
+        public Call newCall(final Request request) {
+            final Response response = new Response.Builder()
+                    .request(request)
+                    .protocol(Protocol.HTTP_1_0)
+                    .code(200)
+                    .message("OK")
+                    .build();
+
+            return new Call() {
+                @Override
+                public Request request() {
+                    return request;
+                }
+
+                @Override
+                public Response execute() throws IOException {
+                    return response;
+                }
+
+                @Override
+                public void enqueue(Callback responseCallback) {
+                    final Call thiz = this;
+                    new Thread(() -> {
+                                try {
+                                    responseCallback.onResponse(thiz, response);
+                                } catch (IOException e) {
+                                    throw new UndeclaredThrowableException(e);
+                                }
+                            })
+                            .start();
+                }
+
+                @Override
+                public void cancel() {}
+
+                @Override
+                public boolean isExecuted() {
+                    return true;
+                }
+
+                @Override
+                public boolean isCanceled() {
+                    return false;
+                }
+
+                @Override
+                public Timeout timeout() {
+                    return Timeout.NONE;
+                }
+
+                @Override
+                public Call clone() {
+                    throw new UnsupportedOperationException();
+                }
+            };
+        }
+    }
+
+    static class StubDDAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
+        public StubDDAgentFeaturesDiscovery(OkHttpClient client) {
+            super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), V0_4, false, false);
         }
 
         @Override
-        public Response execute() throws IOException {
-          return response;
+        public void discover() {}
+
+        @Override
+        public boolean supportsMetrics() {
+            return false;
         }
 
         @Override
-        public void enqueue(Callback responseCallback) {
-          final Call thiz = this;
-          new Thread(
-                  () -> {
-                    try {
-                      responseCallback.onResponse(thiz, response);
-                    } catch (IOException e) {
-                      throw new UndeclaredThrowableException(e);
-                    }
-                  })
-              .start();
+        public String getMetricsEndpoint() {
+            return null;
         }
 
         @Override
-        public void cancel() {}
-
-        @Override
-        public boolean isExecuted() {
-          return true;
+        public String getTraceEndpoint() {
+            return "http://localhost:8080/";
         }
 
         @Override
-        public boolean isCanceled() {
-          return false;
+        public String state() {
+            return "";
         }
 
         @Override
-        public Timeout timeout() {
-          return Timeout.NONE;
+        public boolean active() {
+            return false;
+        }
+    }
+
+    static class Context implements RequestContext {
+        private final Object data;
+
+        public Context(Object data) {
+            this.data = data;
         }
 
         @Override
-        public Call clone() {
-          throw new UnsupportedOperationException();
+        public Object getData(RequestContextSlot slot) {
+            if (slot == RequestContextSlot.APPSEC) {
+                return data;
+            } else {
+                return null;
+            }
         }
-      };
+
+        @Override
+        public TraceSegment getTraceSegment() {
+            return TraceSegment.NoOp.INSTANCE;
+        }
+
+        @Override
+        public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
+
+        @Override
+        public BlockResponseFunction getBlockResponseFunction() {
+            return null;
+        }
+
+        @Override
+        public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+            return null;
+        }
+
+        @Override
+        public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+        @Override
+        public ClientIpAddressData getClientIpAddressData() {
+            return null;
+        }
+
+        @Override
+        public void close() throws IOException {}
     }
-  }
-
-  static class StubDDAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
-    public StubDDAgentFeaturesDiscovery(OkHttpClient client) {
-      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), V0_4, false, false);
-    }
-
-    @Override
-    public void discover() {}
-
-    @Override
-    public boolean supportsMetrics() {
-      return false;
-    }
-
-    @Override
-    public String getMetricsEndpoint() {
-      return null;
-    }
-
-    @Override
-    public String getTraceEndpoint() {
-      return "http://localhost:8080/";
-    }
-
-    @Override
-    public String state() {
-      return "";
-    }
-
-    @Override
-    public boolean active() {
-      return false;
-    }
-  }
-
-  static class Context implements RequestContext {
-    private final Object data;
-
-    public Context(Object data) {
-      this.data = data;
-    }
-
-    @Override
-    public Object getData(RequestContextSlot slot) {
-      if (slot == RequestContextSlot.APPSEC) {
-        return data;
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public TraceSegment getTraceSegment() {
-      return TraceSegment.NoOp.INSTANCE;
-    }
-
-    @Override
-    public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
-
-    @Override
-    public BlockResponseFunction getBlockResponseFunction() {
-      return null;
-    }
-
-    @Override
-    public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
-      return null;
-    }
-
-    @Override
-    public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
-
-    @Override
-    public ClientIpAddressData getClientIpAddressData() {
-      return null;
-    }
-
-    @Override
-    public void close() throws IOException {}
-  }
 }

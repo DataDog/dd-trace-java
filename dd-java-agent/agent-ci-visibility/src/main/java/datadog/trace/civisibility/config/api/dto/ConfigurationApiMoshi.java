@@ -14,15 +14,15 @@ import datadog.trace.civisibility.config.api.dto.response.Meta;
  */
 public final class ConfigurationApiMoshi {
 
-  private ConfigurationApiMoshi() {}
+    private ConfigurationApiMoshi() {}
 
-  public static Moshi create() {
-    return new Moshi.Builder()
-        .add(ConfigurationsJsonAdapter.INSTANCE)
-        .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
-        .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
-        .add(TestManagementSettings.JsonAdapter.INSTANCE)
-        .add(Meta.JsonAdapter.INSTANCE)
-        .build();
-  }
+    public static Moshi create() {
+        return new Moshi.Builder()
+                .add(ConfigurationsJsonAdapter.INSTANCE)
+                .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
+                .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
+                .add(TestManagementSettings.JsonAdapter.INSTANCE)
+                .add(Meta.JsonAdapter.INSTANCE)
+                .build();
+    }
 }

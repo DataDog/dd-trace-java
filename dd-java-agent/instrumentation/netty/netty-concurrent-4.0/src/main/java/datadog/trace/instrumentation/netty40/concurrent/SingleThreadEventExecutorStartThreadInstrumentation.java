@@ -14,46 +14,48 @@ import net.bytebuddy.asm.Advice;
 
 /** Prevents Netty's lazily created event-loop maintenance tasks from inheriting user context. */
 @AutoService(InstrumenterModule.class)
-public final class SingleThreadEventExecutorStartThreadInstrumentation
-    extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+public final class SingleThreadEventExecutorStartThreadInstrumentation extends InstrumenterModule.ContextTracking
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public SingleThreadEventExecutorStartThreadInstrumentation() {
-    super("netty-concurrent", "netty-event-executor");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.netty.util.concurrent.SingleThreadEventExecutor",
-      "io.grpc.netty.shaded.io.netty.util.concurrent.SingleThreadEventExecutor",
-      "com.couchbase.client.deps.io.netty.util.concurrent.SingleThreadEventExecutor",
-      "play.shaded.ahc.io.netty.util.concurrent.SingleThreadEventExecutor",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("startThread").and(takesNoArguments()).and(returns(void.class)).and(isPrivate()),
-        getClass().getName() + "$DisableAsyncPropagation");
-  }
-
-  public static final class DisableAsyncPropagation {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before() {
-      if (isAsyncPropagationEnabled()) {
-        setAsyncPropagationEnabled(false);
-        return true;
-      }
-      return false;
+    public SingleThreadEventExecutorStartThreadInstrumentation() {
+        super("netty-concurrent", "netty-event-executor");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter boolean wasDisabled) {
-      if (wasDisabled) {
-        setAsyncPropagationEnabled(true);
-      }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.netty.util.concurrent.SingleThreadEventExecutor",
+            "io.grpc.netty.shaded.io.netty.util.concurrent.SingleThreadEventExecutor",
+            "com.couchbase.client.deps.io.netty.util.concurrent.SingleThreadEventExecutor",
+            "play.shaded.ahc.io.netty.util.concurrent.SingleThreadEventExecutor",
+        };
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("startThread")
+                        .and(takesNoArguments())
+                        .and(returns(void.class))
+                        .and(isPrivate()),
+                getClass().getName() + "$DisableAsyncPropagation");
+    }
+
+    public static final class DisableAsyncPropagation {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static boolean before() {
+            if (isAsyncPropagationEnabled()) {
+                setAsyncPropagationEnabled(false);
+                return true;
+            }
+            return false;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter boolean wasDisabled) {
+            if (wasDisabled) {
+                setAsyncPropagationEnabled(true);
+            }
+        }
+    }
 }

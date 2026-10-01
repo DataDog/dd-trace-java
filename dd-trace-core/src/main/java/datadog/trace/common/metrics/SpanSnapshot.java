@@ -12,77 +12,77 @@ import javax.annotation.Nullable;
  */
 final class SpanSnapshot implements InboxItem {
 
-  final CharSequence resourceName;
-  final String serviceName;
-  final CharSequence operationName;
-  final CharSequence serviceNameSource;
-  final CharSequence spanType;
-  final short httpStatusCode;
-  final boolean synthetic;
-  final boolean traceRoot;
-  final String spanKind;
+    final CharSequence resourceName;
+    final String serviceName;
+    final CharSequence operationName;
+    final CharSequence serviceNameSource;
+    final CharSequence spanType;
+    final short httpStatusCode;
+    final boolean synthetic;
+    final boolean traceRoot;
+    final String spanKind;
 
-  /**
-   * Schema for {@link #peerTagValues}. {@code null} when the span has no peer tags. The schema
-   * carries the names + {@link TagCardinalityHandler}s in parallel array form; {@code
-   * peerTagValues} holds the per-span tag values at the same indices.
-   */
-  final @Nullable PeerTagSchema peerTagSchema;
+    /**
+     * Schema for {@link #peerTagValues}. {@code null} when the span has no peer tags. The schema
+     * carries the names + {@link TagCardinalityHandler}s in parallel array form; {@code
+     * peerTagValues} holds the per-span tag values at the same indices.
+     */
+    final @Nullable PeerTagSchema peerTagSchema;
 
-  /**
-   * Peer tag values captured from the span, parallel to {@code peerTagSchema.names}. A {@code null}
-   * entry means the span didn't have that peer tag set. {@code null} (the whole array) when {@link
-   * #peerTagSchema} is {@code null}.
-   */
-  final @Nullable String[] peerTagValues;
+    /**
+     * Peer tag values captured from the span, parallel to {@code peerTagSchema.names}. A {@code null}
+     * entry means the span didn't have that peer tag set. {@code null} (the whole array) when {@link
+     * #peerTagSchema} is {@code null}.
+     */
+    final @Nullable String[] peerTagValues;
 
-  final @Nullable String httpMethod;
-  final @Nullable String httpEndpoint;
-  final @Nullable String grpcStatusCode;
+    final @Nullable String httpMethod;
+    final @Nullable String httpEndpoint;
+    final @Nullable String grpcStatusCode;
 
-  /**
-   * Additional metric tag values captured from the span, parallel to {@code
-   * additionalTagsSchema.names}. A {@code null} entry means the span didn't have that tag set.
-   * {@code null} (the whole array) when no additional tags are configured or none were set on the
-   * span. Length cap is applied on the aggregator thread; the producer carries raw values only.
-   */
-  final @Nullable String[] additionalTagValues;
+    /**
+     * Additional metric tag values captured from the span, parallel to {@code
+     * additionalTagsSchema.names}. A {@code null} entry means the span didn't have that tag set.
+     * {@code null} (the whole array) when no additional tags are configured or none were set on the
+     * span. Length cap is applied on the aggregator thread; the producer carries raw values only.
+     */
+    final @Nullable String[] additionalTagValues;
 
-  /** Duration in nanoseconds, OR-ed with {@code ERROR_TAG} / {@code TOP_LEVEL_TAG} as needed. */
-  final long tagAndDuration;
+    /** Duration in nanoseconds, OR-ed with {@code ERROR_TAG} / {@code TOP_LEVEL_TAG} as needed. */
+    final long tagAndDuration;
 
-  SpanSnapshot(
-      CharSequence resourceName,
-      String serviceName,
-      CharSequence operationName,
-      CharSequence serviceNameSource,
-      CharSequence spanType,
-      short httpStatusCode,
-      boolean synthetic,
-      boolean traceRoot,
-      String spanKind,
-      @Nullable PeerTagSchema peerTagSchema,
-      @Nullable String[] peerTagValues,
-      @Nullable String httpMethod,
-      @Nullable String httpEndpoint,
-      @Nullable String grpcStatusCode,
-      @Nullable String[] additionalTagValues,
-      long tagAndDuration) {
-    this.resourceName = resourceName;
-    this.serviceName = serviceName;
-    this.operationName = operationName;
-    this.serviceNameSource = serviceNameSource;
-    this.spanType = spanType;
-    this.httpStatusCode = httpStatusCode;
-    this.synthetic = synthetic;
-    this.traceRoot = traceRoot;
-    this.spanKind = spanKind;
-    this.peerTagSchema = peerTagSchema;
-    this.peerTagValues = peerTagValues;
-    this.httpMethod = httpMethod;
-    this.httpEndpoint = httpEndpoint;
-    this.grpcStatusCode = grpcStatusCode;
-    this.additionalTagValues = additionalTagValues;
-    this.tagAndDuration = tagAndDuration;
-  }
+    SpanSnapshot(
+            CharSequence resourceName,
+            String serviceName,
+            CharSequence operationName,
+            CharSequence serviceNameSource,
+            CharSequence spanType,
+            short httpStatusCode,
+            boolean synthetic,
+            boolean traceRoot,
+            String spanKind,
+            @Nullable PeerTagSchema peerTagSchema,
+            @Nullable String[] peerTagValues,
+            @Nullable String httpMethod,
+            @Nullable String httpEndpoint,
+            @Nullable String grpcStatusCode,
+            @Nullable String[] additionalTagValues,
+            long tagAndDuration) {
+        this.resourceName = resourceName;
+        this.serviceName = serviceName;
+        this.operationName = operationName;
+        this.serviceNameSource = serviceNameSource;
+        this.spanType = spanType;
+        this.httpStatusCode = httpStatusCode;
+        this.synthetic = synthetic;
+        this.traceRoot = traceRoot;
+        this.spanKind = spanKind;
+        this.peerTagSchema = peerTagSchema;
+        this.peerTagValues = peerTagValues;
+        this.httpMethod = httpMethod;
+        this.httpEndpoint = httpEndpoint;
+        this.grpcStatusCode = grpcStatusCode;
+        this.additionalTagValues = additionalTagValues;
+        this.tagAndDuration = tagAndDuration;
+    }
 }

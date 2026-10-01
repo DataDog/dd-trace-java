@@ -9,12 +9,12 @@ import java.io.IOException;
  */
 @FunctionalInterface
 public interface ConfigurationDeserializer<T> {
-  /**
-   * Deserializes a configuration value.
-   *
-   * @param content The binary representation of the configuration value.
-   * @return The deserialized typed configuration value.
-   * @throws IOException If the configuration value cannot be deserialized.
-   */
-  T deserialize(byte[] content) throws IOException;
+    /**
+     * Deserializes a configuration value.
+     *
+     * @param content The binary representation of the configuration value.
+     * @return The deserialized typed configuration value.
+     * @throws IOException If the configuration value cannot be deserialized.
+     */
+    T deserialize(byte[] content) throws IOException;
 }

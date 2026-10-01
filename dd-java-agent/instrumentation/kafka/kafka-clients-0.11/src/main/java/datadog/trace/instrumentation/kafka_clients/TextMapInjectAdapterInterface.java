@@ -4,5 +4,5 @@ import datadog.context.propagation.CarrierSetter;
 import org.apache.kafka.common.header.Headers;
 
 public interface TextMapInjectAdapterInterface extends CarrierSetter<Headers> {
-  void injectTimeInQueue(Headers headers);
+    void injectTimeInQueue(Headers headers);
 }

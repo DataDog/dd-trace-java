@@ -15,14 +15,14 @@ import org.springframework.stereotype.Component;
 @Component
 class ScaReachabilityInit {
 
-  @PostConstruct
-  void init() {
-    try {
-      // Loading the class triggers the SCA transformer, which schedules a retransform on the
-      // next heartbeat. The retransform injects method-level callbacks and registers the CVE
-      // with reached:[]. Neither createDirectory nor createFile is called here.
-      Class.forName("com.github.junrar.LocalFolderExtractor");
-    } catch (ClassNotFoundException ignored) {
+    @PostConstruct
+    void init() {
+        try {
+            // Loading the class triggers the SCA transformer, which schedules a retransform on the
+            // next heartbeat. The retransform injects method-level callbacks and registers the CVE
+            // with reached:[]. Neither createDirectory nor createFile is called here.
+            Class.forName("com.github.junrar.LocalFolderExtractor");
+        } catch (ClassNotFoundException ignored) {
+        }
     }
-  }
 }

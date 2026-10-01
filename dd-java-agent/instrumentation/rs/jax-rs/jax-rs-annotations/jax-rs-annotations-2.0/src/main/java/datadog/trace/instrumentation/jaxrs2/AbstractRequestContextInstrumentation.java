@@ -12,35 +12,35 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractRequestContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public AbstractRequestContextInstrumentation() {
-    super("jax-rs", "jaxrs", "jax-rs-filter");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public AbstractRequestContextInstrumentation() {
+        super("jax-rs", "jaxrs", "jax-rs-filter");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.ws.rs.container.ContainerRequestContext";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.ws.rs.container.ContainerRequestContext";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsAnnotationsDecorator", packageName + ".RequestFilterHelper",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".JaxRsAnnotationsDecorator", packageName + ".RequestFilterHelper",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("abortWith"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("javax.ws.rs.core.Response"))),
-        getClass().getName() + "$ContainerRequestContextAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("abortWith"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("javax.ws.rs.core.Response"))),
+                getClass().getName() + "$ContainerRequestContextAdvice");
+    }
 }

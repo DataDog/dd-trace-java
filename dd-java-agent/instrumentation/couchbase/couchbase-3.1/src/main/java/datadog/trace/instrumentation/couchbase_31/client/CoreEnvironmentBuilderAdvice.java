@@ -7,10 +7,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
 public class CoreEnvironmentBuilderAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void onExit(@Advice.This CoreEnvironment.Builder<?> builder) {
-    builder.requestTracer(
-        new DatadogRequestTracer(
-            AgentTracer.get(), InstrumentationContext.get(Core.class, String.class)));
-  }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.This CoreEnvironment.Builder<?> builder) {
+        builder.requestTracer(
+                new DatadogRequestTracer(AgentTracer.get(), InstrumentationContext.get(Core.class, String.class)));
+    }
 }

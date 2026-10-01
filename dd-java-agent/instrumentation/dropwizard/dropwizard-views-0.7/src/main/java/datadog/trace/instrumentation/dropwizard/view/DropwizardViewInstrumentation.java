@@ -23,73 +23,70 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class DropwizardViewInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-  public DropwizardViewInstrumentation() {
-    super("dropwizard", "dropwizard-view");
-  }
-
-  @Override
-  public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(true);
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.dropwizard.views.freemarker.FreemarkerViewRenderer",
-      "io.dropwizard.views.mustache.MustacheViewRenderer"
-    };
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.dropwizard.views.ViewRenderer";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("render"))
-            .and(takesArgument(0, named("io.dropwizard.views.View")))
-            .and(isPublic()),
-        DropwizardViewInstrumentation.class.getName() + "$RenderAdvice");
-  }
-
-  public static class RenderAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final Object obj, @Advice.Argument(0) final View view) {
-      if (activeSpan() == null) {
-        return null;
-      }
-      final AgentSpan span =
-          startSpan("dropwizard-view", "view.render").setTag(Tags.COMPONENT, "dropwizard-view");
-      span.spanContext().setIntegrationName("dropwizard-view");
-      span.setResourceName("View " + view.getTemplateName());
-      return activateSpan(span);
+    public DropwizardViewInstrumentation() {
+        super("dropwizard", "dropwizard-view");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        span.setError(true);
-        span.addThrowable(throwable);
-      }
-      scope.close();
-      span.finish();
+    @Override
+    public boolean onlyMatchKnownTypes() {
+        return isShortcutMatchingEnabled(true);
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.dropwizard.views.freemarker.FreemarkerViewRenderer", "io.dropwizard.views.mustache.MustacheViewRenderer"
+        };
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.dropwizard.views.ViewRenderer";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("render"))
+                        .and(takesArgument(0, named("io.dropwizard.views.View")))
+                        .and(isPublic()),
+                DropwizardViewInstrumentation.class.getName() + "$RenderAdvice");
+    }
+
+    public static class RenderAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(@Advice.This final Object obj, @Advice.Argument(0) final View view) {
+            if (activeSpan() == null) {
+                return null;
+            }
+            final AgentSpan span =
+                    startSpan("dropwizard-view", "view.render").setTag(Tags.COMPONENT, "dropwizard-view");
+            span.spanContext().setIntegrationName("dropwizard-view");
+            span.setResourceName("View " + view.getTemplateName());
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                span.setError(true);
+                span.addThrowable(throwable);
+            }
+            scope.close();
+            span.finish();
+        }
+    }
 }

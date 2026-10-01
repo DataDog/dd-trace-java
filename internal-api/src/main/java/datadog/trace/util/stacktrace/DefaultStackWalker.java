@@ -6,15 +6,15 @@ import java.util.stream.Stream;
 
 public class DefaultStackWalker extends AbstractStackWalker {
 
-  DefaultStackWalker() {}
+    DefaultStackWalker() {}
 
-  @Override
-  public boolean isEnabled() {
-    return true;
-  }
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
 
-  @Override
-  <T> T doGetStack(final Function<Stream<StackTraceElement>, T> consumer) {
-    return consumer.apply(Arrays.stream(new Throwable().getStackTrace()));
-  }
+    @Override
+    <T> T doGetStack(final Function<Stream<StackTraceElement>, T> consumer) {
+        return consumer.apply(Arrays.stream(new Throwable().getStackTrace()));
+    }
 }

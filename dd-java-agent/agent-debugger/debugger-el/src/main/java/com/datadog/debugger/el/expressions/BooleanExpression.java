@@ -6,38 +6,36 @@ import com.datadog.debugger.el.Visitor;
 
 /** A generic interface for expressions resolving to {@linkplain Boolean} */
 public interface BooleanExpression extends Expression<Boolean> {
-  BooleanExpression TRUE =
-      new BooleanExpression() {
+    BooleanExpression TRUE = new BooleanExpression() {
         @Override
         public Boolean evaluate(EvalContext evalContext) {
-          return Boolean.TRUE;
+            return Boolean.TRUE;
         }
 
         @Override
         public String toString() {
-          return "true";
+            return "true";
         }
 
         @Override
         public <R> R accept(Visitor<R> visitor) {
-          return visitor.visit(this);
+            return visitor.visit(this);
         }
-      };
-  BooleanExpression FALSE =
-      new BooleanExpression() {
+    };
+    BooleanExpression FALSE = new BooleanExpression() {
         @Override
         public Boolean evaluate(EvalContext evalContext) {
-          return Boolean.FALSE;
+            return Boolean.FALSE;
         }
 
         @Override
         public String toString() {
-          return "false";
+            return "false";
         }
 
         @Override
         public <R> R accept(Visitor<R> visitor) {
-          return visitor.visit(this);
+            return visitor.visit(this);
         }
-      };
+    };
 }

@@ -20,184 +20,185 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
 public class OutputThreads implements Closeable {
-  private static final long THREAD_JOIN_TIMEOUT_MILLIS = 10 * 1000;
-  private static final int MAX_LINE_SIZE = 1024 * 1024;
-  private static final int DEFAULT_TIMEOUT_MILLIS = 10_000;
+    private static final long THREAD_JOIN_TIMEOUT_MILLIS = 10 * 1000;
+    private static final int MAX_LINE_SIZE = 1024 * 1024;
+    private static final int DEFAULT_TIMEOUT_MILLIS = 10_000;
 
-  final ThreadGroup tg;
-  final List<String> testLogMessages = new ArrayList<>();
+    final ThreadGroup tg;
+    final List<String> testLogMessages = new ArrayList<>();
 
-  public OutputThreads() {
-    this(new ThreadGroup("smoke-output"));
-  }
-
-  @VisibleForTesting
-  OutputThreads(ThreadGroup tg) {
-    this.tg = tg;
-  }
-
-  public void close() {
-    tg.interrupt();
-    Thread[] threads = new Thread[tg.activeCount()];
-    int threadCount = tg.enumerate(threads);
-
-    for (int i = 0; i < threadCount; i++) {
-      try {
-        threads[i].join(THREAD_JOIN_TIMEOUT_MILLIS);
-      } catch (InterruptedException e) {
-        // ignore
-      }
-    }
-  }
-
-  class ProcessOutputRunnable implements Runnable {
-    final ReadableByteChannel rc;
-    ByteBuffer buffer = ByteBuffer.allocate(MAX_LINE_SIZE);
-    final WritableByteChannel wc;
-    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-
-    ProcessOutputRunnable(InputStream is, File output) throws FileNotFoundException {
-      rc = Channels.newChannel(is);
-      wc = Channels.newChannel(new FileOutputStream(output));
+    public OutputThreads() {
+        this(new ThreadGroup("smoke-output"));
     }
 
-    @Override
-    public void run() {
-      boolean online = true;
-      while (online) {
-        // we may have data in the buffer we did not consume for line splitting purposes
-        int skip = buffer.position();
+    @VisibleForTesting
+    OutputThreads(ThreadGroup tg) {
+        this.tg = tg;
+    }
 
-        try {
-          if (rc.read(buffer) == -1) {
-            online = false;
-          }
-        } catch (IOException ioe) {
-          online = false;
+    public void close() {
+        tg.interrupt();
+        Thread[] threads = new Thread[tg.activeCount()];
+        int threadCount = tg.enumerate(threads);
+
+        for (int i = 0; i < threadCount; i++) {
+            try {
+                threads[i].join(THREAD_JOIN_TIMEOUT_MILLIS);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
+
+    class ProcessOutputRunnable implements Runnable {
+        final ReadableByteChannel rc;
+        ByteBuffer buffer = ByteBuffer.allocate(MAX_LINE_SIZE);
+        final WritableByteChannel wc;
+        CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+
+        ProcessOutputRunnable(InputStream is, File output) throws FileNotFoundException {
+            rc = Channels.newChannel(is);
+            wc = Channels.newChannel(new FileOutputStream(output));
         }
 
-        buffer.flip();
-        // write to log file
-        try {
-          wc.write((ByteBuffer) buffer.duplicate().position(skip));
-        } catch (IOException e) {
-          System.out.println("ERROR WRITING TO LOG FILE: " + e.getMessage());
-          e.printStackTrace();
-          return;
-        }
+        @Override
+        public void run() {
+            boolean online = true;
+            while (online) {
+                // we may have data in the buffer we did not consume for line splitting purposes
+                int skip = buffer.position();
 
-        // subBuff will always start at the beginning of the next (potential) line
-        ByteBuffer subBuff = buffer.duplicate();
-        int consumed = 0;
+                try {
+                    if (rc.read(buffer) == -1) {
+                        online = false;
+                    }
+                } catch (IOException ioe) {
+                    online = false;
+                }
+
+                buffer.flip();
+                // write to log file
+                try {
+                    wc.write((ByteBuffer) buffer.duplicate().position(skip));
+                } catch (IOException e) {
+                    System.out.println("ERROR WRITING TO LOG FILE: " + e.getMessage());
+                    e.printStackTrace();
+                    return;
+                }
+
+                // subBuff will always start at the beginning of the next (potential) line
+                ByteBuffer subBuff = buffer.duplicate();
+                int consumed = 0;
+                while (true) {
+                    boolean hasRemaining = subBuff.hasRemaining();
+                    if (hasRemaining) {
+                        int c = subBuff.get();
+                        if (c != '\n' && c != '\r') {
+                            continue;
+                        }
+                        // found line end
+                    } else if (online && consumed > 0) {
+                        break;
+                        // did not find line end, but we already consumed a line
+                        // save the data for the next read iteration
+                    } // else we did not consume any line, or there will be no further reads.
+                    // Treat the buffer as single line despite lack of terminator
+
+                    consumed += subBuff.position();
+                    String line = null;
+                    try {
+                        line = decoder.decode((ByteBuffer) subBuff.duplicate().flip())
+                                .toString()
+                                .trim();
+                    } catch (CharacterCodingException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    if (!line.isEmpty()) {
+                        synchronized (testLogMessages) {
+                            testLogMessages.add(line);
+                            testLogMessages.notifyAll();
+                        }
+                    }
+
+                    if (hasRemaining) {
+                        subBuff = subBuff.slice();
+                    } else {
+                        break;
+                    }
+                }
+
+                buffer.position(consumed);
+                buffer.compact();
+            }
+        }
+    }
+
+    public void captureOutput(Process p, File outputFile) throws FileNotFoundException {
+        new Thread(tg, new ProcessOutputRunnable(p.getInputStream(), outputFile)).start();
+    }
+
+    /**
+     * Tries to find a log line that matches the given predicate. After reading all the log lines
+     * already collected, it will wait up to 10 seconds for a new line matching the predicate.
+     *
+     * @param predicate should return {@code true} if a match is found, {@code false} otherwise.
+     */
+    public boolean processTestLogLines(Predicate<String> predicate) throws TimeoutException {
+        return processTestLogLines(predicate, DEFAULT_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * Tries to find a log line that matches the given predicate. After reading all the log lines
+     * already collected, it will wait up to #timeoutMillis milliseconds for a new line matching the
+     * predicate.
+     *
+     * @param predicate should return {@code true} if a match is found, {@code false} otherwise.
+     * @param timeoutMillis The timeout to wait for the log line, in milliseconds.
+     */
+    public boolean processTestLogLines(Predicate<String> predicate, long timeoutMillis) throws TimeoutException {
+        int l = 0;
+        long waitStart = 0;
+
         while (true) {
-          boolean hasRemaining = subBuff.hasRemaining();
-          if (hasRemaining) {
-            int c = subBuff.get();
-            if (c != '\n' && c != '\r') {
-              continue;
-            }
-            // found line end
-          } else if (online && consumed > 0) {
-            break;
-            // did not find line end, but we already consumed a line
-            // save the data for the next read iteration
-          } // else we did not consume any line, or there will be no further reads.
-          // Treat the buffer as single line despite lack of terminator
-
-          consumed += subBuff.position();
-          String line = null;
-          try {
-            line = decoder.decode((ByteBuffer) subBuff.duplicate().flip()).toString().trim();
-          } catch (CharacterCodingException e) {
-            throw new RuntimeException(e);
-          }
-
-          if (!line.isEmpty()) {
+            String msg;
             synchronized (testLogMessages) {
-              testLogMessages.add(line);
-              testLogMessages.notifyAll();
+                if (l >= testLogMessages.size()) {
+                    long waitTime;
+                    if (waitStart != 0) {
+                        waitTime = timeoutMillis - (System.currentTimeMillis() - waitStart);
+                        if (waitTime <= 0) {
+                            throw new TimeoutException();
+                        }
+                    } else {
+                        waitStart = System.currentTimeMillis();
+                        if (timeoutMillis <= 0) {
+                            throw new TimeoutException();
+                        }
+                        waitTime = timeoutMillis;
+                    }
+                    try {
+                        testLogMessages.wait(waitTime);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                if (l >= testLogMessages.size()) {
+                    throw new TimeoutException();
+                }
+                // the array is only cleared at the end of the test, so index l exists
+                msg = testLogMessages.get(l++);
             }
-          }
 
-          if (hasRemaining) {
-            subBuff = subBuff.slice();
-          } else {
-            break;
-          }
-        }
-
-        buffer.position(consumed);
-        buffer.compact();
-      }
-    }
-  }
-
-  public void captureOutput(Process p, File outputFile) throws FileNotFoundException {
-    new Thread(tg, new ProcessOutputRunnable(p.getInputStream(), outputFile)).start();
-  }
-
-  /**
-   * Tries to find a log line that matches the given predicate. After reading all the log lines
-   * already collected, it will wait up to 10 seconds for a new line matching the predicate.
-   *
-   * @param predicate should return {@code true} if a match is found, {@code false} otherwise.
-   */
-  public boolean processTestLogLines(Predicate<String> predicate) throws TimeoutException {
-    return processTestLogLines(predicate, DEFAULT_TIMEOUT_MILLIS);
-  }
-
-  /**
-   * Tries to find a log line that matches the given predicate. After reading all the log lines
-   * already collected, it will wait up to #timeoutMillis milliseconds for a new line matching the
-   * predicate.
-   *
-   * @param predicate should return {@code true} if a match is found, {@code false} otherwise.
-   * @param timeoutMillis The timeout to wait for the log line, in milliseconds.
-   */
-  public boolean processTestLogLines(Predicate<String> predicate, long timeoutMillis)
-      throws TimeoutException {
-    int l = 0;
-    long waitStart = 0;
-
-    while (true) {
-      String msg;
-      synchronized (testLogMessages) {
-        if (l >= testLogMessages.size()) {
-          long waitTime;
-          if (waitStart != 0) {
-            waitTime = timeoutMillis - (System.currentTimeMillis() - waitStart);
-            if (waitTime <= 0) {
-              throw new TimeoutException();
+            if (predicate.test(msg)) {
+                return true;
             }
-          } else {
-            waitStart = System.currentTimeMillis();
-            if (timeoutMillis <= 0) {
-              throw new TimeoutException();
-            }
-            waitTime = timeoutMillis;
-          }
-          try {
-            testLogMessages.wait(waitTime);
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
         }
-        if (l >= testLogMessages.size()) {
-          throw new TimeoutException();
+    }
+
+    public void clearMessages() {
+        synchronized (testLogMessages) {
+            testLogMessages.clear();
         }
-        // the array is only cleared at the end of the test, so index l exists
-        msg = testLogMessages.get(l++);
-      }
-
-      if (predicate.test(msg)) {
-        return true;
-      }
     }
-  }
-
-  public void clearMessages() {
-    synchronized (testLogMessages) {
-      testLogMessages.clear();
-    }
-  }
 }

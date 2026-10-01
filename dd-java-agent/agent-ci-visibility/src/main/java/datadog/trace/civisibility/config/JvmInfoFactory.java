@@ -5,6 +5,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface JvmInfoFactory {
-  @Nonnull
-  JvmInfo getJvmInfo(@Nullable Path jvmExecutablePath);
+    @Nonnull
+    JvmInfo getJvmInfo(@Nullable Path jvmExecutablePath);
 }

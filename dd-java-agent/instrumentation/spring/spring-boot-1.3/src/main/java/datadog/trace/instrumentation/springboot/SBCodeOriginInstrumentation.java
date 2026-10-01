@@ -10,19 +10,18 @@ import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
 public class SBCodeOriginInstrumentation extends CodeOriginInstrumentation {
-  private static final String WEB_BIND_ANNOTATION = "org.springframework.web.bind.annotation.";
+    private static final String WEB_BIND_ANNOTATION = "org.springframework.web.bind.annotation.";
 
-  public SBCodeOriginInstrumentation() {
-    super("spring-boot-span-origin");
-  }
+    public SBCodeOriginInstrumentation() {
+        super("spring-boot-span-origin");
+    }
 
-  @Override
-  protected Set<String> getAnnotations() {
-    return new HashSet<>(
-        asList(
-            WEB_BIND_ANNOTATION + "GetMapping",
-            WEB_BIND_ANNOTATION + "PostMapping",
-            WEB_BIND_ANNOTATION + "PutMapping",
-            WEB_BIND_ANNOTATION + "PatchMapping"));
-  }
+    @Override
+    protected Set<String> getAnnotations() {
+        return new HashSet<>(asList(
+                WEB_BIND_ANNOTATION + "GetMapping",
+                WEB_BIND_ANNOTATION + "PostMapping",
+                WEB_BIND_ANNOTATION + "PutMapping",
+                WEB_BIND_ANNOTATION + "PatchMapping"));
+    }
 }

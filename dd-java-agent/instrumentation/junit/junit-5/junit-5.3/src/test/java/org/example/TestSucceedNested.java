@@ -7,16 +7,16 @@ import org.junit.jupiter.api.Test;
 
 public class TestSucceedNested {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
-
-  @Nested
-  class NestedSuite {
     @Test
-    public void test_succeed_nested() {
-      assertTrue(true);
+    public void test_succeed() {
+        assertTrue(true);
     }
-  }
+
+    @Nested
+    class NestedSuite {
+        @Test
+        public void test_succeed_nested() {
+            assertTrue(true);
+        }
+    }
 }

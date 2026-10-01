@@ -6,23 +6,23 @@ import java.util.List;
 
 /** Factory class providing the various HTTP client class implementations. */
 public abstract class HttpProvider {
-  public abstract HttpClient.Builder newClientBuilder();
+    public abstract HttpClient.Builder newClientBuilder();
 
-  public abstract HttpRequest.Builder newRequestBuilder();
+    public abstract HttpRequest.Builder newRequestBuilder();
 
-  public abstract HttpUrl.Builder newUrlBuilder();
+    public abstract HttpUrl.Builder newUrlBuilder();
 
-  public abstract HttpUrl httpUrlParse(String url);
+    public abstract HttpUrl httpUrlParse(String url);
 
-  public abstract HttpUrl httpUrlFrom(URI uri);
+    public abstract HttpUrl httpUrlFrom(URI uri);
 
-  public abstract HttpRequestBody requestBodyOfString(String content);
+    public abstract HttpRequestBody requestBodyOfString(String content);
 
-  public abstract HttpRequestBody requestBodyOfBytes(byte[] bytes);
+    public abstract HttpRequestBody requestBodyOfBytes(byte[] bytes);
 
-  public abstract HttpRequestBody requestBodyOfByteBuffers(List<ByteBuffer> buffers);
+    public abstract HttpRequestBody requestBodyOfByteBuffers(List<ByteBuffer> buffers);
 
-  public abstract HttpRequestBody requestBodyGzip(HttpRequestBody body);
+    public abstract HttpRequestBody requestBodyGzip(HttpRequestBody body);
 
-  public abstract HttpRequestBody.MultipartBuilder requestBodyMultipart();
+    public abstract HttpRequestBody.MultipartBuilder requestBodyMultipart();
 }

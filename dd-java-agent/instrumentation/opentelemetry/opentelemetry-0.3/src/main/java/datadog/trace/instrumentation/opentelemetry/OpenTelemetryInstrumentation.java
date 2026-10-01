@@ -15,48 +15,47 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public OpenTelemetryInstrumentation() {
-    super("opentelemetry-beta");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.opentelemetry.OpenTelemetry";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getTracerProvider").and(returns(named("io.opentelemetry.trace.TracerProvider"))),
-        OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
-    transformer.applyAdvice(
-        named("getPropagators")
-            .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
-        OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");
-  }
-
-  public static class TracerProviderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
-      result = OtelTracerProvider.INSTANCE;
-    }
-  }
-
-  public static class ContextPropagatorsAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators result) {
-      result = OtelContextPropagators.INSTANCE;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public OpenTelemetryInstrumentation() {
+        super("opentelemetry-beta");
     }
 
-    // Muzzle doesn't detect the advice method's argument type, so we have to help it a bit.
-    public static void muzzleCheck(final ContextPropagators propagators) {
-      propagators.getHttpTextFormat();
+    @Override
+    protected boolean defaultEnabled() {
+        return false;
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.opentelemetry.OpenTelemetry";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getTracerProvider").and(returns(named("io.opentelemetry.trace.TracerProvider"))),
+                OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
+        transformer.applyAdvice(
+                named("getPropagators").and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
+                OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");
+    }
+
+    public static class TracerProviderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
+            result = OtelTracerProvider.INSTANCE;
+        }
+    }
+
+    public static class ContextPropagatorsAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators result) {
+            result = OtelContextPropagators.INSTANCE;
+        }
+
+        // Muzzle doesn't detect the advice method's argument type, so we have to help it a bit.
+        public static void muzzleCheck(final ContextPropagators propagators) {
+            propagators.getHttpTextFormat();
+        }
+    }
 }

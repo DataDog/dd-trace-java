@@ -12,18 +12,18 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public final class AwsSdkModule extends InstrumenterModule.Tracing {
 
-  public AwsSdkModule() {
-    super("aws-sdk");
-  }
+    public AwsSdkModule() {
+        super("aws-sdk");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap(
+                "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(new AwsClientInstrumentation(), new AwsHttpClientInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(new AwsClientInstrumentation(), new AwsHttpClientInstrumentation());
+    }
 }

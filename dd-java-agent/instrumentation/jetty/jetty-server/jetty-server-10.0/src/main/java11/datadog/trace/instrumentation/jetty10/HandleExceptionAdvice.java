@@ -6,16 +6,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
 class HandleExceptionAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  static void enter(@Advice.Argument(0) Throwable t) {
-    if (!(t instanceof BlockingException)) {
-      return;
-    }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void enter(@Advice.Argument(0) Throwable t) {
+        if (!(t instanceof BlockingException)) {
+            return;
+        }
 
-    AgentSpan agentSpan = AgentTracer.activeSpan();
-    if (agentSpan == null) {
-      return;
+        AgentSpan agentSpan = AgentTracer.activeSpan();
+        if (agentSpan == null) {
+            return;
+        }
+        JettyDecorator.DECORATE.onError(agentSpan, t);
     }
-    JettyDecorator.DECORATE.onError(agentSpan, t);
-  }
 }

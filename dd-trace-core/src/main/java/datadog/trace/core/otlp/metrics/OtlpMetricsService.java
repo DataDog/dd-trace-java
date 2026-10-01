@@ -17,84 +17,77 @@ import org.slf4j.LoggerFactory;
 
 /** Periodic service to collect OpenTelemetry metrics and export them over OTLP. */
 public final class OtlpMetricsService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtlpMetricsService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OtlpMetricsService.class);
 
-  public static final OtlpMetricsService INSTANCE = new OtlpMetricsService(Config.get());
+    public static final OtlpMetricsService INSTANCE = new OtlpMetricsService(Config.get());
 
-  private final AgentTaskScheduler scheduler;
-  private final OtlpMetricsCollector collector;
-  private final OtlpSender sender;
+    private final AgentTaskScheduler scheduler;
+    private final OtlpMetricsCollector collector;
+    private final OtlpSender sender;
 
-  private final int intervalMillis;
+    private final int intervalMillis;
 
-  private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
+    private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
 
-  OtlpMetricsService(Config config) {
-    this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
-    this.sender = OtlpMetricsSenderFactory.create(config);
-    if (this.sender == null) {
-      LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
-      this.collector = null;
-    } else {
-      this.collector =
-          config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
-              ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
-              : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
+    OtlpMetricsService(Config config) {
+        this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
+        this.sender = OtlpMetricsSenderFactory.create(config);
+        if (this.sender == null) {
+            LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
+            this.collector = null;
+        } else {
+            this.collector = config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
+                    ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
+                    : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
+        }
+
+        this.intervalMillis = config.getMetricsOtelInterval();
     }
 
-    this.intervalMillis = config.getMetricsOtelInterval();
-  }
-
-  OtlpSender getSender() {
-    return sender;
-  }
-
-  OtlpMetricsCollector getCollector() {
-    return collector;
-  }
-
-  public void start() {
-    if (sender == null) {
-      return;
+    OtlpSender getSender() {
+        return sender;
     }
 
-    // add random jitter of up to 5 seconds to initial delay; avoids a fleet
-    // of apps starting at the same time from exporting OTLP metrics in sync
-    long initialMillis =
-        intervalMillis
-            + Math.min(
-                (long)
-                    (500d
-                        * Math.log(ThreadLocalRandom.current().nextDouble())
-                        / Math.log(1 - 0.25)),
-                5_000);
-
-    scheduledTask =
-        scheduler.scheduleAtFixedRate(
-            this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
-  }
-
-  public void flush() {
-    if (sender != null) {
-      scheduler.execute(this::export);
+    OtlpMetricsCollector getCollector() {
+        return collector;
     }
-  }
 
-  public void shutdown() {
-    if (scheduledTask != null) {
-      scheduledTask.cancel();
-    }
-    if (sender != null) {
-      sender.shutdown();
-    }
-  }
+    public void start() {
+        if (sender == null) {
+            return;
+        }
 
-  private void export() {
-    OtlpPayload payload = collector.collectMetrics();
-    if (payload != OtlpPayload.EMPTY) {
-      OtlpTelemetry.getInstance().onMetricsExportAttempt();
-      RemoteApi.Response response = sender.send(payload);
-      OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
+        // add random jitter of up to 5 seconds to initial delay; avoids a fleet
+        // of apps starting at the same time from exporting OTLP metrics in sync
+        long initialMillis = intervalMillis
+                + Math.min(
+                        (long) (500d * Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - 0.25)), 5_000);
+
+        scheduledTask =
+                scheduler.scheduleAtFixedRate(this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
     }
-  }
+
+    public void flush() {
+        if (sender != null) {
+            scheduler.execute(this::export);
+        }
+    }
+
+    public void shutdown() {
+        if (scheduledTask != null) {
+            scheduledTask.cancel();
+        }
+        if (sender != null) {
+            sender.shutdown();
+        }
+    }
+
+    private void export() {
+        OtlpPayload payload = collector.collectMetrics();
+        if (payload != OtlpPayload.EMPTY) {
+            OtlpTelemetry.getInstance().onMetricsExportAttempt();
+            RemoteApi.Response response = sender.send(payload);
+            OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
+        }
+    }
 }

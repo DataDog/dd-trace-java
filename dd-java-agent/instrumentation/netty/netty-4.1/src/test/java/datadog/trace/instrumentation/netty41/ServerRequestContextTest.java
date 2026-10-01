@@ -15,119 +15,119 @@ import io.netty.util.DefaultAttributeMap;
 import org.junit.jupiter.api.Test;
 
 class ServerRequestContextTest {
-  private static final int PIPELINING_LIMIT = 1000;
+    private static final int PIPELINING_LIMIT = 1000;
 
-  @Test
-  void clearsRequestContextAndReusesAttributeAcrossRequests() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-    ContextKey<String> key = ContextKey.named("request");
-    Attribute<Context> attribute = attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY);
+    @Test
+    void clearsRequestContextAndReusesAttributeAcrossRequests() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
+        ContextKey<String> key = ContextKey.named("request");
+        Attribute<Context> attribute = attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY);
 
-    for (String value : new String[] {"first", "second"}) {
-      Context context = Context.root().with(key, value);
-      ServerRequestContext request = ServerRequestContext.add(attributes, context, null);
+        for (String value : new String[] {"first", "second"}) {
+            Context context = Context.root().with(key, value);
+            ServerRequestContext request = ServerRequestContext.add(attributes, context, null);
 
-      assertSame(context, attribute.get());
-      ServerRequestContext.remove(attributes, request);
+            assertSame(context, attribute.get());
+            ServerRequestContext.remove(attributes, request);
 
-      assertNull(attribute.get());
-      assertSame(attribute, attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY));
-      assertNull(ServerRequestContext.nextResponse(attributes));
-    }
-  }
-
-  @Test
-  void disablesTrackingWhenPipeliningLimitIsExceeded() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-
-    for (int i = 0; i < PIPELINING_LIMIT; i++) {
-      assertNotNull(ServerRequestContext.add(attributes, Context.root(), null));
+            assertNull(attribute.get());
+            assertSame(attribute, attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY));
+            assertNull(ServerRequestContext.nextResponse(attributes));
+        }
     }
 
-    assertFalse(ServerRequestContext.canTrackRequest(attributes));
-    assertNull(ServerRequestContext.nextResponse(attributes));
-    assertNull(attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get());
-    assertNull(ServerRequestContext.add(attributes, Context.root(), null));
-  }
+    @Test
+    void disablesTrackingWhenPipeliningLimitIsExceeded() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
 
-  @Test
-  void capturesAcceptHeaderValue() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-    DefaultHttpHeaders headers = new DefaultHttpHeaders();
-    headers.set("accept", "text/html");
+        for (int i = 0; i < PIPELINING_LIMIT; i++) {
+            assertNotNull(ServerRequestContext.add(attributes, Context.root(), null));
+        }
 
-    ServerRequestContext serverContext =
-        ServerRequestContext.add(attributes, Context.root(), headers.get("accept"));
-    headers.set("accept", "application/json");
+        assertFalse(ServerRequestContext.canTrackRequest(attributes));
+        assertNull(ServerRequestContext.nextResponse(attributes));
+        assertNull(attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get());
+        assertNull(ServerRequestContext.add(attributes, Context.root(), null));
+    }
 
-    assertEquals("text/html", serverContext.acceptHeader());
-  }
+    @Test
+    void capturesAcceptHeaderValue() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
+        DefaultHttpHeaders headers = new DefaultHttpHeaders();
+        headers.set("accept", "text/html");
 
-  @Test
-  void reportsOnlyQueuedContextsAsPending() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-    ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);
+        ServerRequestContext serverContext =
+                ServerRequestContext.add(attributes, Context.root(), headers.get("accept"));
+        headers.set("accept", "application/json");
 
-    assertTrue(ServerRequestContext.isPending(attributes, serverContext));
+        assertEquals("text/html", serverContext.acceptHeader());
+    }
 
-    ServerRequestContext.remove(attributes, serverContext);
+    @Test
+    void reportsOnlyQueuedContextsAsPending() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
+        ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);
 
-    assertFalse(ServerRequestContext.isPending(attributes, serverContext));
-  }
+        assertTrue(ServerRequestContext.isPending(attributes, serverContext));
 
-  @Test
-  void preservesPipelinedContextWhenCompactingQueue() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-    ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
-    ServerRequestContext second = ServerRequestContext.add(attributes, Context.root(), null);
+        ServerRequestContext.remove(attributes, serverContext);
 
-    ServerRequestContext.remove(attributes, first);
+        assertFalse(ServerRequestContext.isPending(attributes, serverContext));
+    }
 
-    assertSame(second, ServerRequestContext.nextResponse(attributes));
-    ServerRequestContext.remove(attributes, second);
+    @Test
+    void preservesPipelinedContextWhenCompactingQueue() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
+        ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
+        ServerRequestContext second = ServerRequestContext.add(attributes, Context.root(), null);
 
-    ServerRequestContext next = ServerRequestContext.add(attributes, Context.root(), null);
-    assertSame(next, ServerRequestContext.nextResponse(attributes));
-  }
+        ServerRequestContext.remove(attributes, first);
 
-  @Test
-  void preservesFirstContextWhenCompactingAfterRequestFailure() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-    ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
-    ServerRequestContext failed = ServerRequestContext.add(attributes, Context.root(), null);
+        assertSame(second, ServerRequestContext.nextResponse(attributes));
+        ServerRequestContext.remove(attributes, second);
 
-    ServerRequestContext.remove(attributes, failed);
+        ServerRequestContext next = ServerRequestContext.add(attributes, Context.root(), null);
+        assertSame(next, ServerRequestContext.nextResponse(attributes));
+    }
 
-    assertSame(first, ServerRequestContext.nextResponse(attributes));
-  }
+    @Test
+    void preservesFirstContextWhenCompactingAfterRequestFailure() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
+        ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
+        ServerRequestContext failed = ServerRequestContext.add(attributes, Context.root(), null);
 
-  @Test
-  void tracksBlockedResponseUntilChannelClose() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
-    ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);
+        ServerRequestContext.remove(attributes, failed);
 
-    ServerRequestContext.markResponseBlocked(attributes);
-    ServerRequestContext.remove(attributes, serverContext);
+        assertSame(first, ServerRequestContext.nextResponse(attributes));
+    }
 
-    assertTrue(ServerRequestContext.isResponseBlocked(attributes));
+    @Test
+    void tracksBlockedResponseUntilChannelClose() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
+        ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);
 
-    ServerRequestContext.closeAll(attributes);
+        ServerRequestContext.markResponseBlocked(attributes);
+        ServerRequestContext.remove(attributes, serverContext);
 
-    assertFalse(ServerRequestContext.isResponseBlocked(attributes));
-  }
+        assertTrue(ServerRequestContext.isResponseBlocked(attributes));
 
-  @Test
-  void tracksBlockedRequestUntilChannelClose() {
-    DefaultAttributeMap attributes = new DefaultAttributeMap();
+        ServerRequestContext.closeAll(attributes);
 
-    assertFalse(ServerRequestContext.isRequestBlocked(attributes));
+        assertFalse(ServerRequestContext.isResponseBlocked(attributes));
+    }
 
-    ServerRequestContext.markRequestBlocked(attributes);
+    @Test
+    void tracksBlockedRequestUntilChannelClose() {
+        DefaultAttributeMap attributes = new DefaultAttributeMap();
 
-    assertTrue(ServerRequestContext.isRequestBlocked(attributes));
+        assertFalse(ServerRequestContext.isRequestBlocked(attributes));
 
-    ServerRequestContext.closeAll(attributes);
+        ServerRequestContext.markRequestBlocked(attributes);
 
-    assertFalse(ServerRequestContext.isRequestBlocked(attributes));
-  }
+        assertTrue(ServerRequestContext.isRequestBlocked(attributes));
+
+        ServerRequestContext.closeAll(attributes);
+
+        assertFalse(ServerRequestContext.isRequestBlocked(attributes));
+    }
 }

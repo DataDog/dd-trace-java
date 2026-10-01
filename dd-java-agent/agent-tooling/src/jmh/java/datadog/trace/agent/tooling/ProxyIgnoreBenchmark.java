@@ -32,55 +32,55 @@ ProxyIgnoreBenchmark.useTrie                                                 dat
 @Warmup(iterations = 1)
 @Fork(value = 1)
 public class ProxyIgnoreBenchmark {
-  @Param({
-    "org.springframework.util.ConcurrentReferenceHashMap$4",
-    "java.lang.invoke.LambdaForm$DMH/0x00007fe9f0388000",
-    "org.springframework.core.annotation.RepeatableContainers$StandardRepeatableContainers$$Lambda$315/0x00007fe9f03adc70",
-    // worst case for trie based
-    "datadog.test.package.redis.RedisTemplateProvider$$TestCGLIB$$FastClass$$0"
-  })
-  public String className;
+    @Param({
+        "org.springframework.util.ConcurrentReferenceHashMap$4",
+        "java.lang.invoke.LambdaForm$DMH/0x00007fe9f0388000",
+        "org.springframework.core.annotation.RepeatableContainers$StandardRepeatableContainers$$Lambda$315/0x00007fe9f03adc70",
+        // worst case for trie based
+        "datadog.test.package.redis.RedisTemplateProvider$$TestCGLIB$$FastClass$$0"
+    })
+    public String className;
 
-  @Benchmark
-  public void useContains(Blackhole bh) {
-    if (className.indexOf('$') > -1) {
-      if (className.contains("$JaxbAccessor")
-          || className.contains("CGLIB$$")
-          || className.contains("$__sisu")
-          || className.contains("$$EnhancerByGuice$$")
-          || className.contains("$$EnhancerByProxool$$")
-          || className.contains("$$$view")
-          || className.contains("$$$endpoint") // jboss mdb proxies
-          || className.contains("$$_Weld")
-          || className.contains("_$$_jvst")) {
+    @Benchmark
+    public void useContains(Blackhole bh) {
+        if (className.indexOf('$') > -1) {
+            if (className.contains("$JaxbAccessor")
+                    || className.contains("CGLIB$$")
+                    || className.contains("$__sisu")
+                    || className.contains("$$EnhancerByGuice$$")
+                    || className.contains("$$EnhancerByProxool$$")
+                    || className.contains("$$$view")
+                    || className.contains("$$$endpoint") // jboss mdb proxies
+                    || className.contains("$$_Weld")
+                    || className.contains("_$$_jvst")) {
+                bh.consume(true);
+            }
+        }
+    }
+
+    @Benchmark
+    public void useTrie(Blackhole bh) {
+        int last = -1;
+        int idx;
+        while (true) {
+            idx = className.indexOf('$', last + 1);
+            if (idx < 0) {
+                break;
+            }
+            if (last < 0 && className.contains("CGLIB$$")) {
+                break;
+            }
+            if (idx == last + 1) {
+                // skip the trie if consecutive $$ since, to be efficient, we can match prefixes from the
+                // first dollar
+                last = idx;
+                continue;
+            }
+            last = idx;
+            if (ProxyIgnoredClassNameTrie.apply(className, idx) >= 0) {
+                return;
+            }
+        }
         bh.consume(true);
-      }
     }
-  }
-
-  @Benchmark
-  public void useTrie(Blackhole bh) {
-    int last = -1;
-    int idx;
-    while (true) {
-      idx = className.indexOf('$', last + 1);
-      if (idx < 0) {
-        break;
-      }
-      if (last < 0 && className.contains("CGLIB$$")) {
-        break;
-      }
-      if (idx == last + 1) {
-        // skip the trie if consecutive $$ since, to be efficient, we can match prefixes from the
-        // first dollar
-        last = idx;
-        continue;
-      }
-      last = idx;
-      if (ProxyIgnoredClassNameTrie.apply(className, idx) >= 0) {
-        return;
-      }
-    }
-    bh.consume(true);
-  }
 }

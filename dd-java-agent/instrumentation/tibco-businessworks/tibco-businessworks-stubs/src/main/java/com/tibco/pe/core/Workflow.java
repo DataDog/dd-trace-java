@@ -1,9 +1,9 @@
 package com.tibco.pe.core;
 
 public interface Workflow {
-  String getName();
+    String getName();
 
-  Task getGroupEnd(String str);
+    Task getGroupEnd(String str);
 
-  Task getStartTask();
+    Task getStartTask();
 }

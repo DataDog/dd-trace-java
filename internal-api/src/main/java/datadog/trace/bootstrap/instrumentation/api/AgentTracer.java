@@ -33,823 +33,808 @@ import javax.annotation.Nonnull;
 
 public class AgentTracer {
 
-  /**
-   * @see TracerAPI#startSpan(String, CharSequence)
-   */
-  public static AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-    return get().startSpan(instrumentationName, spanName);
-  }
-
-  /**
-   * @see TracerAPI#startSpan(String, CharSequence, long)
-   */
-  public static AgentSpan startSpan(
-      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
-    return get().startSpan(instrumentationName, spanName, startTimeMicros);
-  }
-
-  /**
-   * @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext)
-   */
-  public static AgentSpan startSpan(
-      final String instrumentationName,
-      final CharSequence spanName,
-      final AgentSpanContext parent) {
-    return get().startSpan(instrumentationName, spanName, parent);
-  }
-
-  /**
-   * @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext, long)
-   */
-  public static AgentSpan startSpan(
-      final String instrumentationName,
-      final CharSequence spanName,
-      final AgentSpanContext parent,
-      final long startTimeMicros) {
-    return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
-  }
-
-  /**
-   * @see TracerAPI#startSpan(SpanPrototype, CharSequence)
-   */
-  public static AgentSpan startSpan(
-      @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
-    return get().startSpan(prototype, operationName);
-  }
-
-  public static ContextScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span);
-  }
-
-  /**
-   * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
-   *
-   * @deprecated This should only be used when the instrumented code doesn't align with a scope.
-   */
-  @Deprecated
-  public static void activateSpanWithoutScope(final AgentSpan span) {
-    get().activateSpanWithoutScope(span);
-  }
-
-  /**
-   * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
-   * outstanding scopes up to but not including the most recent checkpointed scope.
-   *
-   * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
-   *     be cleaned up by other means.
-   */
-  @Deprecated
-  public static void checkpointActiveForRollback() {
-    get().checkpointActiveForRollback();
-  }
-
-  /**
-   * Closes outstanding scopes up to but not including the most recent scope checkpointed with
-   * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
-   *
-   * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
-   *     be cleaned up by other means.
-   */
-  @Deprecated
-  public static void rollbackActiveToCheckpoint() {
-    get().rollbackActiveToCheckpoint();
-  }
-
-  /**
-   * Closes the scope for the currently active span.
-   *
-   * @deprecated This should only be used when the span was previously activated with {@link
-   *     #activateSpanWithoutScope} because the instrumented code didn't align with a scope.
-   */
-  @Deprecated
-  public static void closeActive() {
-    get().closeActive();
-  }
-
-  /**
-   * Closes the immediately previous iteration scope. Should be called before creating a new span
-   * for {@link #activateNext(AgentSpan)}.
-   */
-  public static void closePrevious(final boolean finishSpan) {
-    get().closePrevious(finishSpan);
-  }
-
-  /**
-   * Activates a new iteration scope; closes automatically after a fixed period.
-   *
-   * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
-   */
-  public static ContextScope activateNext(final AgentSpan span) {
-    return get().activateNext(span);
-  }
-
-  public static TraceConfig traceConfig(final AgentSpan span) {
-    return null != span ? span.traceConfig() : traceConfig();
-  }
-
-  public static TraceConfig traceConfig() {
-    return get().captureTraceConfig();
-  }
-
-  public static AgentSpan activeSpan() {
-    return get().activeSpan();
-  }
-
-  /**
-   * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
-   * asynchronous boundaries.
-   *
-   * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
-   */
-  public static boolean isAsyncPropagationEnabled() {
-    return get().isAsyncPropagationEnabled();
-  }
-
-  /**
-   * Enables or disables asynchronous propagation for the active span.
-   *
-   * <p>Asynchronous propagation is enabled by default from {@link
-   * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
-   *
-   * @param asyncPropagationEnabled {@code true} to enable asynchronous propagation, {@code false}
-   *     to disable it.
-   */
-  public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    get().setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  /**
-   * Returns the noop span instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop span instance.
-   */
-  public static AgentSpan noopSpan() {
-    return NoopSpan.INSTANCE;
-  }
-
-  public static AgentSpan blackholeSpan() {
-    return get().blackholeSpan();
-  }
-
-  /**
-   * Returns the noop span context instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop scope instance.
-   */
-  public static AgentSpanContext noopSpanContext() {
-    return NoopSpanContext.INSTANCE;
-  }
-
-  public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
-
-  private static volatile TracerAPI provider = NOOP_TRACER;
-
-  public static boolean isRegistered() {
-    return provider != NOOP_TRACER;
-  }
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static provider")
-  public static synchronized void registerIfAbsent(final TracerAPI tracer) {
-    if (tracer != null && tracer != NOOP_TRACER) {
-      provider = tracer;
-    }
-  }
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static provider")
-  public static synchronized void forceRegister(TracerAPI tracer) {
-    if (tracer == null) {
-      throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");
-    }
-    provider = tracer;
-  }
-
-  public static TracerAPI get() {
-    return provider;
-  }
-
-  // Not intended to be constructed.
-  private AgentTracer() {}
-
-  public interface TracerAPI
-      extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
-
     /**
-     * Create and start a new span.
-     *
-     * @param instrumentationName The instrumentation creating the span.
-     * @param spanName The span operation name.
-     * @return The new started span.
+     * @see TracerAPI#startSpan(String, CharSequence)
      */
-    AgentSpan startSpan(String instrumentationName, CharSequence spanName);
-
-    /**
-     * Create and start a new span with a given start time.
-     *
-     * @param instrumentationName The instrumentation creating the span.
-     * @param spanName The span operation name.
-     * @param startTimeMicros The span start time, in microseconds.
-     * @return The new started span.
-     */
-    AgentSpan startSpan(String instrumentationName, CharSequence spanName, long startTimeMicros);
-
-    /**
-     * Create and start a new span with an explicit parent.
-     *
-     * @param instrumentationName The instrumentation creating the span.
-     * @param spanName The span operation name.
-     * @param parent The parent span context.
-     * @return The new started span.
-     */
-    AgentSpan startSpan(String instrumentationName, CharSequence spanName, AgentSpanContext parent);
-
-    /**
-     * Create and start a new span with an explicit parent and a given start time.
-     *
-     * @param instrumentationName The instrumentation creating the span.
-     * @param spanName The span operation name.
-     * @param parent The parent span context.
-     * @param startTimeMicros The span start time, in microseconds.
-     * @return The new started span.
-     */
-    AgentSpan startSpan(
-        String instrumentationName,
-        CharSequence spanName,
-        AgentSpanContext parent,
-        long startTimeMicros);
-
-    /** Activate a span from inside auto-instrumentation. */
-    ContextScope activateSpan(AgentSpan span);
-
-    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
-    ContextScope activateManualSpan(AgentSpan span);
-
-    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
-    void activateSpanWithoutScope(AgentSpan span);
-
-    @Override
-    default TraceScope.Continuation captureActiveSpan() {
-      Context current = currentContext();
-      if (AgentSpan.fromContext(current) == null) {
-        return NoopTraceScope.NoopContinuation.INSTANCE;
-      }
-      // captureActiveSpan is deprecated; use a best-effort wrapper
-      return new TraceScopeContinuationWrapper(capture(current));
-    }
-
-    void checkpointActiveForRollback();
-
-    void rollbackActiveToCheckpoint();
-
-    void closeActive();
-
-    void closePrevious(boolean finishSpan);
-
-    ContextScope activateNext(AgentSpan span);
-
-    AgentSpan activeSpan();
-
-    default AgentSpan blackholeSpan() {
-      final AgentSpan active = activeSpan();
-      return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
+    public static AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
+        return get().startSpan(instrumentationName, spanName);
     }
 
     /**
-     * Returns a SpanBuilder that can be used to produce multiple spans. To minimize overhead, use
-     * of {@link #singleSpanBuilder(String, CharSequence)} is preferred when only a single span is
-     * being built.
+     * @see TracerAPI#startSpan(String, CharSequence, long)
      */
-    SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
-
-    /**
-     * Returns a SpanBuilder seeded from a {@link SpanPrototype}: the prototype supplies the
-     * instrumentation name, span type, and constant tags. {@code operationName} overrides the
-     * prototype's when non-null — the explicit value wins, the prototype is the fallback.
-     *
-     * <p>This default seeds identity only; a real tracer should override it to also seed the
-     * prototype's tags (see {@code CoreTracer}). The no-op tracer discards tags, so identity-only
-     * is correct there.
-     */
-    default SpanBuilder buildSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
-      return buildSpan(
-          prototype.instrumentationName(),
-          operationName != null ? operationName : prototype.operationName());
+    public static AgentSpan startSpan(
+            final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+        return get().startSpan(instrumentationName, spanName, startTimeMicros);
     }
 
     /**
-     * Creates and starts a span seeded from a {@link SpanPrototype}. This is the
-     * auto-instrumentation entry point mirroring {@link #startSpan(String, CharSequence)}; see
-     * {@link #buildSpan(SpanPrototype, CharSequence)}.
+     * @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext)
      */
-    default AgentSpan startSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
-      return buildSpan(prototype, operationName).start();
+    public static AgentSpan startSpan(
+            final String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
+        return get().startSpan(instrumentationName, spanName, parent);
     }
 
     /**
-     * Returns a SpanBuilder that can be used to produce one and only one span. By imposing the
-     * single span creation limitation, this method is more efficient than {@link #buildSpan}
+     * @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext, long)
      */
-    SpanBuilder singleSpanBuilder(String instrumentationName, CharSequence spanName);
-
-    void close();
+    public static AgentSpan startSpan(
+            final String instrumentationName,
+            final CharSequence spanName,
+            final AgentSpanContext parent,
+            final long startTimeMicros) {
+        return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
+    }
 
     /**
-     * Attach a scope listener to the global scope manager
-     *
-     * @param listener listener to attach
+     * @see TracerAPI#startSpan(SpanPrototype, CharSequence)
      */
-    void addScopeListener(ScopeListener listener);
+    public static AgentSpan startSpan(@Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+        return get().startSpan(prototype, operationName);
+    }
 
-    SubscriptionService getSubscriptionService(RequestContextSlot slot);
-
-    CallbackProvider getCallbackProvider(RequestContextSlot slot);
-
-    CallbackProvider getUniversalCallbackProvider();
-
-    AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId);
-
-    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
-
-    void notifyAppSecEnd(AgentSpan span, Object result);
-
-    AgentDataStreamsMonitoring getDataStreamsMonitoring();
-
-    String getTraceId(AgentSpan span);
-
-    String getSpanId(AgentSpan span);
-
-    TraceConfig captureTraceConfig();
-
-    ProfilingContextIntegration getProfilingContext();
+    public static ContextScope activateSpan(final AgentSpan span) {
+        return get().activateSpan(span);
+    }
 
     /**
-     * Sets the new service name to be used as a default.
+     * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
      *
-     * @param serviceName The service name to use as default.
-     * @param source the source which is setting it.
+     * @deprecated This should only be used when the instrumented code doesn't align with a scope.
      */
-    void updatePreferredServiceName(String serviceName, CharSequence source);
-
-    void addShutdownListener(Runnable listener);
-
-    // these methods are only used for legacy context manager migration
-
     @Deprecated
-    Context currentContext();
+    public static void activateSpanWithoutScope(final AgentSpan span) {
+        get().activateSpanWithoutScope(span);
+    }
 
+    /**
+     * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
+     * outstanding scopes up to but not including the most recent checkpointed scope.
+     *
+     * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
+     *     be cleaned up by other means.
+     */
     @Deprecated
-    ContextScope attach(Context context);
+    public static void checkpointActiveForRollback() {
+        get().checkpointActiveForRollback();
+    }
 
+    /**
+     * Closes outstanding scopes up to but not including the most recent scope checkpointed with
+     * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
+     *
+     * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
+     *     be cleaned up by other means.
+     */
     @Deprecated
-    Context swap(Context context);
+    public static void rollbackActiveToCheckpoint() {
+        get().rollbackActiveToCheckpoint();
+    }
 
+    /**
+     * Closes the scope for the currently active span.
+     *
+     * @deprecated This should only be used when the span was previously activated with {@link
+     *     #activateSpanWithoutScope} because the instrumented code didn't align with a scope.
+     */
     @Deprecated
-    ContextContinuation capture(Context context);
-  }
-
-  public interface SpanBuilder {
-    AgentSpan start();
-
-    SpanBuilder asChildOf(AgentSpanContext toContext);
-
-    SpanBuilder ignoreActiveSpan();
-
-    SpanBuilder withTag(String key, String value);
-
-    SpanBuilder withTag(String key, boolean value);
-
-    SpanBuilder withTag(String key, Number value);
-
-    SpanBuilder withTag(String tag, Object value);
-
-    SpanBuilder withStartTimestamp(long microseconds);
-
-    SpanBuilder withServiceName(String serviceName);
-
-    SpanBuilder withResourceName(String resourceName);
-
-    SpanBuilder withErrorFlag();
-
-    SpanBuilder withSpanType(CharSequence spanType);
-
-    <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
-
-    SpanBuilder withLink(AgentSpanLink link);
-
-    SpanBuilder withSpanId(long spanId);
-  }
-
-  static class NoopTracerAPI implements TracerAPI {
-
-    protected NoopTracerAPI() {}
-
-    @Override
-    public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-      return NoopSpan.INSTANCE;
+    public static void closeActive() {
+        get().closeActive();
     }
 
-    @Override
-    public AgentSpan startSpan(
-        @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
-      // The default routes through buildSpan(String,...), which is null on the noop tracer -> NPE.
-      return NoopSpan.INSTANCE;
+    /**
+     * Closes the immediately previous iteration scope. Should be called before creating a new span
+     * for {@link #activateNext(AgentSpan)}.
+     */
+    public static void closePrevious(final boolean finishSpan) {
+        get().closePrevious(finishSpan);
     }
 
-    @Override
-    public AgentSpan startSpan(
-        final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
-      return NoopSpan.INSTANCE;
+    /**
+     * Activates a new iteration scope; closes automatically after a fixed period.
+     *
+     * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
+     */
+    public static ContextScope activateNext(final AgentSpan span) {
+        return get().activateNext(span);
     }
 
-    @Override
-    public AgentSpan startSpan(
-        final String instrumentationName,
-        final CharSequence spanName,
-        final AgentSpanContext parent) {
-      return NoopSpan.INSTANCE;
+    public static TraceConfig traceConfig(final AgentSpan span) {
+        return null != span ? span.traceConfig() : traceConfig();
     }
 
-    @Override
-    public AgentSpan startSpan(
-        final String instrumentationName,
-        final CharSequence spanName,
-        final AgentSpanContext parent,
-        final long startTimeMicros) {
-      return NoopSpan.INSTANCE;
+    public static TraceConfig traceConfig() {
+        return get().captureTraceConfig();
     }
 
-    @Override
-    public ContextScope activateSpan(final AgentSpan span) {
-      return NoopScope.INSTANCE;
+    public static AgentSpan activeSpan() {
+        return get().activeSpan();
     }
 
-    @Override
-    public ContextScope activateManualSpan(final AgentSpan span) {
-      return NoopScope.INSTANCE;
+    /**
+     * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
+     * asynchronous boundaries.
+     *
+     * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
+     */
+    public static boolean isAsyncPropagationEnabled() {
+        return get().isAsyncPropagationEnabled();
     }
 
-    @Override
-    public void activateSpanWithoutScope(final AgentSpan span) {}
-
-    @Override
-    public boolean isAsyncPropagationEnabled() {
-      return false;
+    /**
+     * Enables or disables asynchronous propagation for the active span.
+     *
+     * <p>Asynchronous propagation is enabled by default from {@link
+     * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
+     *
+     * @param asyncPropagationEnabled {@code true} to enable asynchronous propagation, {@code false}
+     *     to disable it.
+     */
+    public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+        get().setAsyncPropagationEnabled(asyncPropagationEnabled);
     }
 
-    @Override
-    public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
-
-    @Override
-    public void checkpointActiveForRollback() {}
-
-    @Override
-    public void rollbackActiveToCheckpoint() {}
-
-    @Override
-    public void closeActive() {}
-
-    @Override
-    public void closePrevious(final boolean finishSpan) {}
-
-    @Override
-    public ContextScope activateNext(final AgentSpan span) {
-      return NoopScope.INSTANCE;
+    /**
+     * Returns the noop span instance.
+     *
+     * <p>This instance will always be the same, and can be safely tested using object identity (ie
+     * {@code ==}).
+     *
+     * @return the noop span instance.
+     */
+    public static AgentSpan noopSpan() {
+        return NoopSpan.INSTANCE;
     }
 
-    @Override
-    public AgentSpan activeSpan() {
-      return NoopSpan.INSTANCE;
+    public static AgentSpan blackholeSpan() {
+        return get().blackholeSpan();
     }
 
-    @Override
-    public AgentSpan blackholeSpan() {
-      return NoopSpan.INSTANCE; // no-op tracer stays no-op
+    /**
+     * Returns the noop span context instance.
+     *
+     * <p>This instance will always be the same, and can be safely tested using object identity (ie
+     * {@code ==}).
+     *
+     * @return the noop scope instance.
+     */
+    public static AgentSpanContext noopSpanContext() {
+        return NoopSpanContext.INSTANCE;
     }
 
-    @Override
-    public SpanBuilder buildSpan(final String instrumentationName, final CharSequence spanName) {
-      return null;
+    public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
+
+    private static volatile TracerAPI provider = NOOP_TRACER;
+
+    public static boolean isRegistered() {
+        return provider != NOOP_TRACER;
     }
 
-    @Override
-    public SpanBuilder buildSpan(
-        @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
-      // Mirrors buildSpan(String,...): the noop tracer returns a null builder. Callers that need a
-      // noop-safe entry point use startSpan(...), which is overridden above. A chainable
-      // NoopSpanBuilder would fix the null-vs-NoopSpan asymmetry, but that is a separate PR.
-      return null;
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Agent-internal static holder; class lock guards private static provider")
+    public static synchronized void registerIfAbsent(final TracerAPI tracer) {
+        if (tracer != null && tracer != NOOP_TRACER) {
+            provider = tracer;
+        }
     }
 
-    @Override
-    public SpanBuilder singleSpanBuilder(
-        final String instrumentationName, final CharSequence spanName) {
-      return null;
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Agent-internal static holder; class lock guards private static provider")
+    public static synchronized void forceRegister(TracerAPI tracer) {
+        if (tracer == null) {
+            throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");
+        }
+        provider = tracer;
     }
 
-    @Override
-    public void close() {}
-
-    @Override
-    public void addScopeListener(
-        Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {}
-
-    @Override
-    public void flush() {}
-
-    @Override
-    public void flushMetrics() {}
-
-    @Override
-    public void flushLogs() {}
-
-    @Override
-    public ProfilingContextIntegration getProfilingContext() {
-      return ProfilingContextIntegration.NoOp.INSTANCE;
+    public static TracerAPI get() {
+        return provider;
     }
 
-    @Override
-    public TraceSegment getTraceSegment() {
-      return null;
+    // Not intended to be constructed.
+    private AgentTracer() {}
+
+    public interface TracerAPI extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
+
+        /**
+         * Create and start a new span.
+         *
+         * @param instrumentationName The instrumentation creating the span.
+         * @param spanName The span operation name.
+         * @return The new started span.
+         */
+        AgentSpan startSpan(String instrumentationName, CharSequence spanName);
+
+        /**
+         * Create and start a new span with a given start time.
+         *
+         * @param instrumentationName The instrumentation creating the span.
+         * @param spanName The span operation name.
+         * @param startTimeMicros The span start time, in microseconds.
+         * @return The new started span.
+         */
+        AgentSpan startSpan(String instrumentationName, CharSequence spanName, long startTimeMicros);
+
+        /**
+         * Create and start a new span with an explicit parent.
+         *
+         * @param instrumentationName The instrumentation creating the span.
+         * @param spanName The span operation name.
+         * @param parent The parent span context.
+         * @return The new started span.
+         */
+        AgentSpan startSpan(String instrumentationName, CharSequence spanName, AgentSpanContext parent);
+
+        /**
+         * Create and start a new span with an explicit parent and a given start time.
+         *
+         * @param instrumentationName The instrumentation creating the span.
+         * @param spanName The span operation name.
+         * @param parent The parent span context.
+         * @param startTimeMicros The span start time, in microseconds.
+         * @return The new started span.
+         */
+        AgentSpan startSpan(
+                String instrumentationName, CharSequence spanName, AgentSpanContext parent, long startTimeMicros);
+
+        /** Activate a span from inside auto-instrumentation. */
+        ContextScope activateSpan(AgentSpan span);
+
+        /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+        ContextScope activateManualSpan(AgentSpan span);
+
+        /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
+        void activateSpanWithoutScope(AgentSpan span);
+
+        @Override
+        default TraceScope.Continuation captureActiveSpan() {
+            Context current = currentContext();
+            if (AgentSpan.fromContext(current) == null) {
+                return NoopTraceScope.NoopContinuation.INSTANCE;
+            }
+            // captureActiveSpan is deprecated; use a best-effort wrapper
+            return new TraceScopeContinuationWrapper(capture(current));
+        }
+
+        void checkpointActiveForRollback();
+
+        void rollbackActiveToCheckpoint();
+
+        void closeActive();
+
+        void closePrevious(boolean finishSpan);
+
+        ContextScope activateNext(AgentSpan span);
+
+        AgentSpan activeSpan();
+
+        default AgentSpan blackholeSpan() {
+            final AgentSpan active = activeSpan();
+            return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
+        }
+
+        /**
+         * Returns a SpanBuilder that can be used to produce multiple spans. To minimize overhead, use
+         * of {@link #singleSpanBuilder(String, CharSequence)} is preferred when only a single span is
+         * being built.
+         */
+        SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
+
+        /**
+         * Returns a SpanBuilder seeded from a {@link SpanPrototype}: the prototype supplies the
+         * instrumentation name, span type, and constant tags. {@code operationName} overrides the
+         * prototype's when non-null — the explicit value wins, the prototype is the fallback.
+         *
+         * <p>This default seeds identity only; a real tracer should override it to also seed the
+         * prototype's tags (see {@code CoreTracer}). The no-op tracer discards tags, so identity-only
+         * is correct there.
+         */
+        default SpanBuilder buildSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
+            return buildSpan(
+                    prototype.instrumentationName(), operationName != null ? operationName : prototype.operationName());
+        }
+
+        /**
+         * Creates and starts a span seeded from a {@link SpanPrototype}. This is the
+         * auto-instrumentation entry point mirroring {@link #startSpan(String, CharSequence)}; see
+         * {@link #buildSpan(SpanPrototype, CharSequence)}.
+         */
+        default AgentSpan startSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
+            return buildSpan(prototype, operationName).start();
+        }
+
+        /**
+         * Returns a SpanBuilder that can be used to produce one and only one span. By imposing the
+         * single span creation limitation, this method is more efficient than {@link #buildSpan}
+         */
+        SpanBuilder singleSpanBuilder(String instrumentationName, CharSequence spanName);
+
+        void close();
+
+        /**
+         * Attach a scope listener to the global scope manager
+         *
+         * @param listener listener to attach
+         */
+        void addScopeListener(ScopeListener listener);
+
+        SubscriptionService getSubscriptionService(RequestContextSlot slot);
+
+        CallbackProvider getCallbackProvider(RequestContextSlot slot);
+
+        CallbackProvider getUniversalCallbackProvider();
+
+        AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId);
+
+        void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
+
+        void notifyAppSecEnd(AgentSpan span, Object result);
+
+        AgentDataStreamsMonitoring getDataStreamsMonitoring();
+
+        String getTraceId(AgentSpan span);
+
+        String getSpanId(AgentSpan span);
+
+        TraceConfig captureTraceConfig();
+
+        ProfilingContextIntegration getProfilingContext();
+
+        /**
+         * Sets the new service name to be used as a default.
+         *
+         * @param serviceName The service name to use as default.
+         * @param source the source which is setting it.
+         */
+        void updatePreferredServiceName(String serviceName, CharSequence source);
+
+        void addShutdownListener(Runnable listener);
+
+        // these methods are only used for legacy context manager migration
+
+        @Deprecated
+        Context currentContext();
+
+        @Deprecated
+        ContextScope attach(Context context);
+
+        @Deprecated
+        Context swap(Context context);
+
+        @Deprecated
+        ContextContinuation capture(Context context);
     }
 
-    @Override
-    public String getTraceId() {
-      return null;
+    public interface SpanBuilder {
+        AgentSpan start();
+
+        SpanBuilder asChildOf(AgentSpanContext toContext);
+
+        SpanBuilder ignoreActiveSpan();
+
+        SpanBuilder withTag(String key, String value);
+
+        SpanBuilder withTag(String key, boolean value);
+
+        SpanBuilder withTag(String key, Number value);
+
+        SpanBuilder withTag(String tag, Object value);
+
+        SpanBuilder withStartTimestamp(long microseconds);
+
+        SpanBuilder withServiceName(String serviceName);
+
+        SpanBuilder withResourceName(String resourceName);
+
+        SpanBuilder withErrorFlag();
+
+        SpanBuilder withSpanType(CharSequence spanType);
+
+        <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
+
+        SpanBuilder withLink(AgentSpanLink link);
+
+        SpanBuilder withSpanId(long spanId);
     }
 
-    @Override
-    public String getSpanId() {
-      return null;
+    static class NoopTracerAPI implements TracerAPI {
+
+        protected NoopTracerAPI() {}
+
+        @Override
+        public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
+            return NoopSpan.INSTANCE;
+        }
+
+        @Override
+        public AgentSpan startSpan(@Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+            // The default routes through buildSpan(String,...), which is null on the noop tracer -> NPE.
+            return NoopSpan.INSTANCE;
+        }
+
+        @Override
+        public AgentSpan startSpan(
+                final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+            return NoopSpan.INSTANCE;
+        }
+
+        @Override
+        public AgentSpan startSpan(
+                final String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
+            return NoopSpan.INSTANCE;
+        }
+
+        @Override
+        public AgentSpan startSpan(
+                final String instrumentationName,
+                final CharSequence spanName,
+                final AgentSpanContext parent,
+                final long startTimeMicros) {
+            return NoopSpan.INSTANCE;
+        }
+
+        @Override
+        public ContextScope activateSpan(final AgentSpan span) {
+            return NoopScope.INSTANCE;
+        }
+
+        @Override
+        public ContextScope activateManualSpan(final AgentSpan span) {
+            return NoopScope.INSTANCE;
+        }
+
+        @Override
+        public void activateSpanWithoutScope(final AgentSpan span) {}
+
+        @Override
+        public boolean isAsyncPropagationEnabled() {
+            return false;
+        }
+
+        @Override
+        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
+
+        @Override
+        public void checkpointActiveForRollback() {}
+
+        @Override
+        public void rollbackActiveToCheckpoint() {}
+
+        @Override
+        public void closeActive() {}
+
+        @Override
+        public void closePrevious(final boolean finishSpan) {}
+
+        @Override
+        public ContextScope activateNext(final AgentSpan span) {
+            return NoopScope.INSTANCE;
+        }
+
+        @Override
+        public AgentSpan activeSpan() {
+            return NoopSpan.INSTANCE;
+        }
+
+        @Override
+        public AgentSpan blackholeSpan() {
+            return NoopSpan.INSTANCE; // no-op tracer stays no-op
+        }
+
+        @Override
+        public SpanBuilder buildSpan(final String instrumentationName, final CharSequence spanName) {
+            return null;
+        }
+
+        @Override
+        public SpanBuilder buildSpan(@Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+            // Mirrors buildSpan(String,...): the noop tracer returns a null builder. Callers that need a
+            // noop-safe entry point use startSpan(...), which is overridden above. A chainable
+            // NoopSpanBuilder would fix the null-vs-NoopSpan asymmetry, but that is a separate PR.
+            return null;
+        }
+
+        @Override
+        public SpanBuilder singleSpanBuilder(final String instrumentationName, final CharSequence spanName) {
+            return null;
+        }
+
+        @Override
+        public void close() {}
+
+        @Override
+        public void addScopeListener(Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {}
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void flushMetrics() {}
+
+        @Override
+        public void flushLogs() {}
+
+        @Override
+        public ProfilingContextIntegration getProfilingContext() {
+            return ProfilingContextIntegration.NoOp.INSTANCE;
+        }
+
+        @Override
+        public TraceSegment getTraceSegment() {
+            return null;
+        }
+
+        @Override
+        public String getTraceId() {
+            return null;
+        }
+
+        @Override
+        public String getSpanId() {
+            return null;
+        }
+
+        @Override
+        public String getTraceId(AgentSpan span) {
+            return null;
+        }
+
+        @Override
+        public String getSpanId(AgentSpan span) {
+            return null;
+        }
+
+        @Override
+        public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
+            return false;
+        }
+
+        @Override
+        public TraceScope muteTracing() {
+            return NoopTraceScope.INSTANCE;
+        }
+
+        @Override
+        public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+            return getDataStreamsMonitoring();
+        }
+
+        @Override
+        public void addShutdownListener(Runnable listener) {}
+
+        @Override
+        public void addScopeListener(final ScopeListener listener) {}
+
+        @Override
+        public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
+            return SubscriptionService.SubscriptionServiceNoop.INSTANCE;
+        }
+
+        @Override
+        public CallbackProvider getCallbackProvider(RequestContextSlot slot) {
+            return CallbackProvider.CallbackProviderNoop.INSTANCE;
+        }
+
+        @Override
+        public CallbackProvider getUniversalCallbackProvider() {
+            return CallbackProvider.CallbackProviderNoop.INSTANCE;
+        }
+
+        @Override
+        public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
+
+        @Override
+        public EndpointTracker onRootSpanStarted(AgentSpan root) {
+            return EndpointTracker.NO_OP;
+        }
+
+        @Override
+        public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+            return null;
+        }
+
+        @Override
+        public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
+
+        @Override
+        public void notifyAppSecEnd(AgentSpan span, Object result) {}
+
+        @Override
+        public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
+            return NoopDataStreamsMonitoring.INSTANCE;
+        }
+
+        @Override
+        public TraceConfig captureTraceConfig() {
+            return NoopTraceConfig.INSTANCE;
+        }
+
+        @Override
+        public void updatePreferredServiceName(String serviceName, CharSequence preferredServiceName) {
+            // no ops
+        }
+
+        @Override
+        public Context currentContext() {
+            return Context.root();
+        }
+
+        @Override
+        public ContextScope attach(Context context) {
+            return NoopScope.INSTANCE;
+        }
+
+        @Override
+        public Context swap(Context context) {
+            return Context.root();
+        }
+
+        @Override
+        public ContextContinuation capture(Context context) {
+            return NoopContinuation.INSTANCE;
+        }
     }
 
-    @Override
-    public String getTraceId(AgentSpan span) {
-      return null;
+    public static class NoopAgentTraceCollector implements AgentTraceCollector {
+        public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
+
+        @Override
+        public void registerContinuation(final ContextContinuation continuation) {}
+
+        @Override
+        public void removeContinuation(final ContextContinuation continuation) {}
     }
 
-    @Override
-    public String getSpanId(AgentSpan span) {
-      return null;
+    /** TraceConfig when there is no tracer; this is not the same as a default config. */
+    public static final class NoopTraceConfig implements TraceConfig {
+        public static final NoopTraceConfig INSTANCE = new NoopTraceConfig();
+
+        @Override
+        public boolean isTraceEnabled() {
+            return false;
+        }
+
+        @Override
+        public boolean isRuntimeMetricsEnabled() {
+            return false;
+        }
+
+        @Override
+        public boolean isLogsInjectionEnabled() {
+            return false;
+        }
+
+        @Override
+        public boolean isDataStreamsEnabled() {
+            return false;
+        }
+
+        @Override
+        public Map<String, String> getServiceMapping() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public Map<String, String> getRequestHeaderTags() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public Map<String, String> getResponseHeaderTags() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public Map<String, String> getBaggageMapping() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public Double getTraceSampleRate() {
+            return null;
+        }
+
+        @Override
+        public Map<String, String> getTracingTags() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public Pair<String, CharSequence> getPreferredServiceNameAndSource() {
+            return null;
+        }
+
+        @Override
+        public List<? extends SamplingRule.SpanSamplingRule> getSpanSamplingRules() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
+            return null;
+        }
     }
 
-    @Override
-    public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
-      return false;
+    /**
+     * Decides whether to install the legacy approach to managing contexts, which requires a tracer.
+     *
+     * <p>Must be called ahead of instrumentation, before any use of the Context API.
+     */
+    public static void maybeInstallLegacyContextManager() {
+        installLegacyContextManager(); // install everywhere to begin with
     }
 
-    @Override
-    public TraceScope muteTracing() {
-      return NoopTraceScope.INSTANCE;
+    /**
+     * Always install the legacy approach to managing contexts, which requires a tracer.
+     *
+     * <p>Must be called ahead of instrumentation, before any use of the Context API.
+     */
+    public static void installLegacyContextManager() {
+        ContextManager.register(LegacyContextManager.INSTANCE);
     }
 
-    @Override
-    public DataStreamsCheckpointer getDataStreamsCheckpointer() {
-      return getDataStreamsMonitoring();
+    /** Shim mapping new Context API to legacy scope manager. */
+    static final class LegacyContextManager implements ContextManager {
+        static final LegacyContextManager INSTANCE = new LegacyContextManager();
+
+        @Override
+        public Context current() {
+            return AgentTracer.get().currentContext();
+        }
+
+        @Override
+        public ContextScope attach(@Nonnull Context context) {
+            return AgentTracer.get().attach(context);
+        }
+
+        @Override
+        public Context swap(@Nonnull Context context) {
+            return AgentTracer.get().swap(context);
+        }
+
+        @Override
+        public ContextContinuation capture(@Nonnull Context context) {
+            return AgentTracer.get().capture(context);
+        }
+
+        @Override
+        public void addListener(@Nonnull ContextListener listener) {
+            // this method is never used in legacy mode...
+        }
     }
 
-    @Override
-    public void addShutdownListener(Runnable listener) {}
+    /** Adapts a {@link ContextContinuation} to the deprecated {@link TraceScope.Continuation} SPI. */
+    private static final class TraceScopeContinuationWrapper implements TraceScope.Continuation {
+        private final ContextContinuation continuation;
 
-    @Override
-    public void addScopeListener(final ScopeListener listener) {}
+        TraceScopeContinuationWrapper(ContextContinuation continuation) {
+            this.continuation = continuation;
+        }
 
-    @Override
-    public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
-      return SubscriptionService.SubscriptionServiceNoop.INSTANCE;
+        @Override
+        public TraceScope.Continuation hold() {
+            continuation.hold();
+            return this;
+        }
+
+        @Override
+        @SuppressWarnings("resource")
+        public TraceScope activate() {
+            ContextScope scope = continuation.resume();
+            return scope instanceof TraceScope ? (TraceScope) scope : scope::close;
+        }
+
+        @Override
+        public void cancel() {
+            continuation.release();
+        }
     }
-
-    @Override
-    public CallbackProvider getCallbackProvider(RequestContextSlot slot) {
-      return CallbackProvider.CallbackProviderNoop.INSTANCE;
-    }
-
-    @Override
-    public CallbackProvider getUniversalCallbackProvider() {
-      return CallbackProvider.CallbackProviderNoop.INSTANCE;
-    }
-
-    @Override
-    public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
-
-    @Override
-    public EndpointTracker onRootSpanStarted(AgentSpan root) {
-      return EndpointTracker.NO_OP;
-    }
-
-    @Override
-    public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
-      return null;
-    }
-
-    @Override
-    public void notifyExtensionEnd(
-        AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
-
-    @Override
-    public void notifyAppSecEnd(AgentSpan span, Object result) {}
-
-    @Override
-    public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
-      return NoopDataStreamsMonitoring.INSTANCE;
-    }
-
-    @Override
-    public TraceConfig captureTraceConfig() {
-      return NoopTraceConfig.INSTANCE;
-    }
-
-    @Override
-    public void updatePreferredServiceName(String serviceName, CharSequence preferredServiceName) {
-      // no ops
-    }
-
-    @Override
-    public Context currentContext() {
-      return Context.root();
-    }
-
-    @Override
-    public ContextScope attach(Context context) {
-      return NoopScope.INSTANCE;
-    }
-
-    @Override
-    public Context swap(Context context) {
-      return Context.root();
-    }
-
-    @Override
-    public ContextContinuation capture(Context context) {
-      return NoopContinuation.INSTANCE;
-    }
-  }
-
-  public static class NoopAgentTraceCollector implements AgentTraceCollector {
-    public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
-
-    @Override
-    public void registerContinuation(final ContextContinuation continuation) {}
-
-    @Override
-    public void removeContinuation(final ContextContinuation continuation) {}
-  }
-
-  /** TraceConfig when there is no tracer; this is not the same as a default config. */
-  public static final class NoopTraceConfig implements TraceConfig {
-    public static final NoopTraceConfig INSTANCE = new NoopTraceConfig();
-
-    @Override
-    public boolean isTraceEnabled() {
-      return false;
-    }
-
-    @Override
-    public boolean isRuntimeMetricsEnabled() {
-      return false;
-    }
-
-    @Override
-    public boolean isLogsInjectionEnabled() {
-      return false;
-    }
-
-    @Override
-    public boolean isDataStreamsEnabled() {
-      return false;
-    }
-
-    @Override
-    public Map<String, String> getServiceMapping() {
-      return Collections.emptyMap();
-    }
-
-    @Override
-    public Map<String, String> getRequestHeaderTags() {
-      return Collections.emptyMap();
-    }
-
-    @Override
-    public Map<String, String> getResponseHeaderTags() {
-      return Collections.emptyMap();
-    }
-
-    @Override
-    public Map<String, String> getBaggageMapping() {
-      return Collections.emptyMap();
-    }
-
-    @Override
-    public Double getTraceSampleRate() {
-      return null;
-    }
-
-    @Override
-    public Map<String, String> getTracingTags() {
-      return Collections.emptyMap();
-    }
-
-    @Override
-    public Pair<String, CharSequence> getPreferredServiceNameAndSource() {
-      return null;
-    }
-
-    @Override
-    public List<? extends SamplingRule.SpanSamplingRule> getSpanSamplingRules() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
-      return null;
-    }
-  }
-
-  /**
-   * Decides whether to install the legacy approach to managing contexts, which requires a tracer.
-   *
-   * <p>Must be called ahead of instrumentation, before any use of the Context API.
-   */
-  public static void maybeInstallLegacyContextManager() {
-    installLegacyContextManager(); // install everywhere to begin with
-  }
-
-  /**
-   * Always install the legacy approach to managing contexts, which requires a tracer.
-   *
-   * <p>Must be called ahead of instrumentation, before any use of the Context API.
-   */
-  public static void installLegacyContextManager() {
-    ContextManager.register(LegacyContextManager.INSTANCE);
-  }
-
-  /** Shim mapping new Context API to legacy scope manager. */
-  static final class LegacyContextManager implements ContextManager {
-    static final LegacyContextManager INSTANCE = new LegacyContextManager();
-
-    @Override
-    public Context current() {
-      return AgentTracer.get().currentContext();
-    }
-
-    @Override
-    public ContextScope attach(@Nonnull Context context) {
-      return AgentTracer.get().attach(context);
-    }
-
-    @Override
-    public Context swap(@Nonnull Context context) {
-      return AgentTracer.get().swap(context);
-    }
-
-    @Override
-    public ContextContinuation capture(@Nonnull Context context) {
-      return AgentTracer.get().capture(context);
-    }
-
-    @Override
-    public void addListener(@Nonnull ContextListener listener) {
-      // this method is never used in legacy mode...
-    }
-  }
-
-  /** Adapts a {@link ContextContinuation} to the deprecated {@link TraceScope.Continuation} SPI. */
-  private static final class TraceScopeContinuationWrapper implements TraceScope.Continuation {
-    private final ContextContinuation continuation;
-
-    TraceScopeContinuationWrapper(ContextContinuation continuation) {
-      this.continuation = continuation;
-    }
-
-    @Override
-    public TraceScope.Continuation hold() {
-      continuation.hold();
-      return this;
-    }
-
-    @Override
-    @SuppressWarnings("resource")
-    public TraceScope activate() {
-      ContextScope scope = continuation.resume();
-      return scope instanceof TraceScope ? (TraceScope) scope : scope::close;
-    }
-
-    @Override
-    public void cancel() {
-      continuation.release();
-    }
-  }
 }

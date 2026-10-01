@@ -10,22 +10,22 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public final class MessageReceiverWrapper implements MessageReceiver {
-  private final String subscription;
-  private final MessageReceiver delegate;
+    private final String subscription;
+    private final MessageReceiver delegate;
 
-  public MessageReceiverWrapper(String subscription, MessageReceiver delegate) {
-    this.subscription = subscription;
-    this.delegate = delegate;
-  }
-
-  @Override
-  public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
-    final AgentSpan span = CONSUMER_DECORATE.startConsumeSpan(message, subscription);
-    try (final ContextScope scope = activateSpan(span)) {
-      this.delegate.receiveMessage(message, consumer);
-    } finally {
-      CONSUMER_DECORATE.beforeFinish(span);
-      span.finish();
+    public MessageReceiverWrapper(String subscription, MessageReceiver delegate) {
+        this.subscription = subscription;
+        this.delegate = delegate;
     }
-  }
+
+    @Override
+    public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
+        final AgentSpan span = CONSUMER_DECORATE.startConsumeSpan(message, subscription);
+        try (final ContextScope scope = activateSpan(span)) {
+            this.delegate.receiveMessage(message, consumer);
+        } finally {
+            CONSUMER_DECORATE.beforeFinish(span);
+            span.finish();
+        }
+    }
 }

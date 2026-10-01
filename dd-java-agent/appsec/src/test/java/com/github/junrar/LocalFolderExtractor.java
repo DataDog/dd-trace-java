@@ -7,14 +7,14 @@ import java.io.File;
 // Preserves the constructor and method signatures used by ScaRealLibraryBytecodeTest.
 class LocalFolderExtractor {
 
-  @SuppressWarnings("unused")
-  private final File destinationFolder;
+    @SuppressWarnings("unused")
+    private final File destinationFolder;
 
-  LocalFolderExtractor(File destinationFolder) {
-    this.destinationFolder = destinationFolder;
-  }
+    LocalFolderExtractor(File destinationFolder) {
+        this.destinationFolder = destinationFolder;
+    }
 
-  void createDirectory(FileHeader header) {
-    // stub — the test verifies that the injected callback fires at method entry before this body
-  }
+    void createDirectory(FileHeader header) {
+        // stub — the test verifies that the injected callback fires at method entry before this body
+    }
 }

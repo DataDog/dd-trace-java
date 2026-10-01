@@ -5,9 +5,9 @@ import java.util.concurrent.TimeoutException;
 
 public interface HttpServer {
 
-  void start() throws TimeoutException;
+    void start() throws TimeoutException;
 
-  void stop();
+    void stop();
 
-  URI address();
+    URI address();
 }

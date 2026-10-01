@@ -12,32 +12,32 @@ import org.junit.jupiter.api.Test;
 
 class FunctionsBase64Test {
 
-  @Test
-  void utf8BytesToStringConvertsBytes() {
-    byte[] bytes = "hello".getBytes(UTF_8);
-    assertEquals("hello", UTF8_BYTES_TO_STRING.apply(bytes));
-  }
+    @Test
+    void utf8BytesToStringConvertsBytes() {
+        byte[] bytes = "hello".getBytes(UTF_8);
+        assertEquals("hello", UTF8_BYTES_TO_STRING.apply(bytes));
+    }
 
-  @Test
-  void base64DecodeDecodesValidInput() {
-    String original = "x-datadog-trace-id";
-    byte[] encoded = Base64.getEncoder().encode(original.getBytes(UTF_8));
-    assertEquals(original, BASE64_DECODE.apply(encoded));
-  }
+    @Test
+    void base64DecodeDecodesValidInput() {
+        String original = "x-datadog-trace-id";
+        byte[] encoded = Base64.getEncoder().encode(original.getBytes(UTF_8));
+        assertEquals(original, BASE64_DECODE.apply(encoded));
+    }
 
-  @Test
-  void base64DecodeReturnsNullForInvalidBase64() {
-    assertNull(BASE64_DECODE.apply("not-valid-base64!@#".getBytes(UTF_8)));
-  }
+    @Test
+    void base64DecodeReturnsNullForInvalidBase64() {
+        assertNull(BASE64_DECODE.apply("not-valid-base64!@#".getBytes(UTF_8)));
+    }
 
-  @Test
-  void base64DecodeReturnsNullForUrlSafeChars() {
-    // URL-safe Base64 uses '-' and '_' which the standard decoder rejects
-    assertNull(BASE64_DECODE.apply("abc-def_ghi".getBytes(UTF_8)));
-  }
+    @Test
+    void base64DecodeReturnsNullForUrlSafeChars() {
+        // URL-safe Base64 uses '-' and '_' which the standard decoder rejects
+        assertNull(BASE64_DECODE.apply("abc-def_ghi".getBytes(UTF_8)));
+    }
 
-  @Test
-  void base64DecodeIsNotNull() {
-    assertNotNull(BASE64_DECODE);
-  }
+    @Test
+    void base64DecodeIsNotNull() {
+        assertNotNull(BASE64_DECODE);
+    }
 }

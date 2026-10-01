@@ -18,53 +18,49 @@ import org.tabletest.junit.TableTest;
 
 class InternalTagsAdderTest extends DDJavaSpecification {
 
-  @TableTest({
-    "scenario          | serviceName | expectsBaseService",
-    "different service | anotherOne  | true              ",
-    "exact match       | test        | false             ",
-    "case insensitive  | TeSt        | false             "
-  })
-  void shouldAddBaseServiceWhenServiceDiffersToDdService(
-      String serviceName, boolean expectsBaseService) {
-    InternalTagsAdder calculator = new InternalTagsAdder("test", null);
-    DDSpanContext spanContext = mock(DDSpanContext.class);
-    when(spanContext.getServiceName()).thenReturn(serviceName);
+    @TableTest({
+      "scenario          | serviceName | expectsBaseService",
+      "different service | anotherOne  | true              ",
+      "exact match       | test        | false             ",
+      "case insensitive  | TeSt        | false             "
+    })
+    void shouldAddBaseServiceWhenServiceDiffersToDdService(String serviceName, boolean expectsBaseService) {
+        InternalTagsAdder calculator = new InternalTagsAdder("test", null);
+        DDSpanContext spanContext = mock(DDSpanContext.class);
+        when(spanContext.getServiceName()).thenReturn(serviceName);
 
-    TagMap unsafeTags = TagMap.fromMap(Collections.emptyMap());
-    calculator.processTags(unsafeTags, spanContext, link -> {});
+        TagMap unsafeTags = TagMap.fromMap(Collections.emptyMap());
+        calculator.processTags(unsafeTags, spanContext, link -> {});
 
-    verify(spanContext, times(1)).getServiceName();
+        verify(spanContext, times(1)).getServiceName();
 
-    if (expectsBaseService) {
-      assertEquals(UTF8BytesString.create("test"), unsafeTags.get("_dd.base_service"));
-    } else {
-      assertTrue(unsafeTags.isEmpty());
+        if (expectsBaseService) {
+            assertEquals(UTF8BytesString.create("test"), unsafeTags.get("_dd.base_service"));
+        } else {
+            assertTrue(unsafeTags.isEmpty());
+        }
     }
-  }
 
-  @TableTest({
-    "scenario                          | serviceName | ddVersion | initialVersion | expected",
-    "same service, no version          | same        |           |                |         ",
-    "different service with ddVersion  | different   | 1.0       |                |         ",
-    "different service, manual version | different   | 1.0       | 2.0            | 2.0     ",
-    "same service, no ddVersion        | same        |           | 2.0            | 2.0     ",
-    "same service, both versions       | same        | 1.0       | 2.0            | 2.0     ",
-    "same service, only ddVersion      | same        | 1.0       |                | 1.0     "
-  })
-  void shouldAddVersionWhenDdServiceEqualsServiceNameAndVersionSet(
-      String serviceName, String ddVersion, String initialVersion, String expected) {
-    InternalTagsAdder calculator = new InternalTagsAdder("same", ddVersion);
-    DDSpanContext spanContext = mock(DDSpanContext.class);
-    when(spanContext.getServiceName()).thenReturn(serviceName);
+    @TableTest({
+      "scenario                          | serviceName | ddVersion | initialVersion | expected",
+      "same service, no version          | same        |           |                |         ",
+      "different service with ddVersion  | different   | 1.0       |                |         ",
+      "different service, manual version | different   | 1.0       | 2.0            | 2.0     ",
+      "same service, no ddVersion        | same        |           | 2.0            | 2.0     ",
+      "same service, both versions       | same        | 1.0       | 2.0            | 2.0     ",
+      "same service, only ddVersion      | same        | 1.0       |                | 1.0     "
+    })
+    void shouldAddVersionWhenDdServiceEqualsServiceNameAndVersionSet(
+            String serviceName, String ddVersion, String initialVersion, String expected) {
+        InternalTagsAdder calculator = new InternalTagsAdder("same", ddVersion);
+        DDSpanContext spanContext = mock(DDSpanContext.class);
+        when(spanContext.getServiceName()).thenReturn(serviceName);
 
-    TagMap unsafeTags =
-        TagMap.fromMap(
-            initialVersion != null
-                ? Collections.singletonMap("version", initialVersion)
-                : Collections.emptyMap());
-    calculator.processTags(unsafeTags, spanContext, link -> {});
+        TagMap unsafeTags = TagMap.fromMap(
+                initialVersion != null ? Collections.singletonMap("version", initialVersion) : Collections.emptyMap());
+        calculator.processTags(unsafeTags, spanContext, link -> {});
 
-    verify(spanContext, times(1)).getServiceName();
-    assertEquals(expected, Objects.toString(unsafeTags.get(VERSION), null));
-  }
+        verify(spanContext, times(1)).getServiceName();
+        assertEquals(expected, Objects.toString(unsafeTags.get(VERSION), null));
+    }
 }

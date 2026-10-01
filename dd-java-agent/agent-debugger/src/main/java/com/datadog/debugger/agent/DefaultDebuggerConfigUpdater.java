@@ -14,83 +14,79 @@ import org.slf4j.LoggerFactory;
 
 class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDebuggerConfigUpdater.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDebuggerConfigUpdater.class);
 
-  private final Config config;
+    private final Config config;
 
-  public DefaultDebuggerConfigUpdater(Config config) {
-    this.config = config;
-  }
-
-  @Override
-  public void updateConfig(DebuggerConfigUpdate update) {
-    startOrStopFeature(
-        config,
-        DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED,
-        update.getDynamicInstrumentationEnabled(),
-        DebuggerAgent::startDynamicInstrumentation,
-        DebuggerAgent::stopDynamicInstrumentation);
-    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-      // Cannot remotely enable Exception Replay for JDK < 11 (JVM 8 bug)
-      startOrStopFeature(
-          config,
-          DebuggerConfig.EXCEPTION_REPLAY_ENABLED,
-          update.getExceptionReplayEnabled(),
-          DebuggerAgent::startExceptionReplay,
-          DebuggerAgent::stopExceptionReplay);
-    } else {
-      LOGGER.debug("Cannot start Exception Replay on JDK version < 11");
+    public DefaultDebuggerConfigUpdater(Config config) {
+        this.config = config;
     }
-    startOrStopFeature(
-        config,
-        TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED,
-        update.getCodeOriginEnabled(),
-        DebuggerAgent::startCodeOriginForSpans,
-        DebuggerAgent::stopCodeOriginForSpans);
-    startOrStopFeature(
-        config,
-        DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED,
-        update.getDistributedDebuggerEnabled(),
-        DebuggerAgent::startDistributedDebugger,
-        DebuggerAgent::stopDistributedDebugger);
-  }
 
-  @Override
-  public boolean isDynamicInstrumentationEnabled() {
-    return DebuggerAgent.dynamicInstrumentationEnabled.get();
-  }
-
-  @Override
-  public boolean isExceptionReplayEnabled() {
-    return DebuggerAgent.exceptionReplayEnabled.get();
-  }
-
-  @Override
-  public boolean isCodeOriginEnabled() {
-    return DebuggerAgent.codeOriginEnabled.get();
-  }
-
-  @Override
-  public boolean isDistributedDebuggerEnabled() {
-    return DebuggerAgent.distributedDebuggerEnabled.get();
-  }
-
-  private static void startOrStopFeature(
-      Config config,
-      String booleanKey,
-      Boolean currentStatus,
-      Consumer<Config> start,
-      Runnable stop) {
-    if (isExplicitlyDisabled(booleanKey)) {
-      LOGGER.debug("Feature {} is explicitly disabled", booleanKey);
-      return;
+    @Override
+    public void updateConfig(DebuggerConfigUpdate update) {
+        startOrStopFeature(
+                config,
+                DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED,
+                update.getDynamicInstrumentationEnabled(),
+                DebuggerAgent::startDynamicInstrumentation,
+                DebuggerAgent::stopDynamicInstrumentation);
+        if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+            // Cannot remotely enable Exception Replay for JDK < 11 (JVM 8 bug)
+            startOrStopFeature(
+                    config,
+                    DebuggerConfig.EXCEPTION_REPLAY_ENABLED,
+                    update.getExceptionReplayEnabled(),
+                    DebuggerAgent::startExceptionReplay,
+                    DebuggerAgent::stopExceptionReplay);
+        } else {
+            LOGGER.debug("Cannot start Exception Replay on JDK version < 11");
+        }
+        startOrStopFeature(
+                config,
+                TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED,
+                update.getCodeOriginEnabled(),
+                DebuggerAgent::startCodeOriginForSpans,
+                DebuggerAgent::stopCodeOriginForSpans);
+        startOrStopFeature(
+                config,
+                DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED,
+                update.getDistributedDebuggerEnabled(),
+                DebuggerAgent::startDistributedDebugger,
+                DebuggerAgent::stopDistributedDebugger);
     }
-    if (currentStatus != null) {
-      if (currentStatus) {
-        start.accept(config);
-      } else {
-        stop.run();
-      }
+
+    @Override
+    public boolean isDynamicInstrumentationEnabled() {
+        return DebuggerAgent.dynamicInstrumentationEnabled.get();
     }
-  }
+
+    @Override
+    public boolean isExceptionReplayEnabled() {
+        return DebuggerAgent.exceptionReplayEnabled.get();
+    }
+
+    @Override
+    public boolean isCodeOriginEnabled() {
+        return DebuggerAgent.codeOriginEnabled.get();
+    }
+
+    @Override
+    public boolean isDistributedDebuggerEnabled() {
+        return DebuggerAgent.distributedDebuggerEnabled.get();
+    }
+
+    private static void startOrStopFeature(
+            Config config, String booleanKey, Boolean currentStatus, Consumer<Config> start, Runnable stop) {
+        if (isExplicitlyDisabled(booleanKey)) {
+            LOGGER.debug("Feature {} is explicitly disabled", booleanKey);
+            return;
+        }
+        if (currentStatus != null) {
+            if (currentStatus) {
+                start.accept(config);
+            } else {
+                stop.run();
+            }
+        }
+    }
 }

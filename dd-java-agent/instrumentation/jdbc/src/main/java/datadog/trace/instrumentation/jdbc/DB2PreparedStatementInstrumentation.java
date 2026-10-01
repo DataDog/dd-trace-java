@@ -11,18 +11,18 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class DB2PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public DB2PreparedStatementInstrumentation() {
-    super("jdbc", "db2");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public DB2PreparedStatementInstrumentation() {
+        super("jdbc", "db2");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.ibm.db2.jcc.DB2PreparedStatement";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.ibm.db2.jcc.DB2PreparedStatement";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 }

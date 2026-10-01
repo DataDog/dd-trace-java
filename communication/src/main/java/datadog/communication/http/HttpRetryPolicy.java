@@ -39,152 +39,146 @@ import org.slf4j.LoggerFactory;
 @NotThreadSafe
 public class HttpRetryPolicy implements AutoCloseable {
 
-  private static final Logger log = LoggerFactory.getLogger(HttpRetryPolicy.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpRetryPolicy.class);
 
-  private static final int NO_RESPONSE_RECEIVED = -1;
-  private static final int TOO_MANY_REQUESTS_HTTP_CODE = 429;
-  private static final String X_RATELIMIT_RESET_HTTP_HEADER = "x-ratelimit-reset";
-  private static final int RATE_LIMIT_RESET_TIME_UNDEFINED = -1;
-  private static final int MAX_ALLOWED_WAIT_TIME_SECONDS = 10;
-  private static final int RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS = 401;
+    private static final int NO_RESPONSE_RECEIVED = -1;
+    private static final int TOO_MANY_REQUESTS_HTTP_CODE = 429;
+    private static final String X_RATELIMIT_RESET_HTTP_HEADER = "x-ratelimit-reset";
+    private static final int RATE_LIMIT_RESET_TIME_UNDEFINED = -1;
+    private static final int MAX_ALLOWED_WAIT_TIME_SECONDS = 10;
+    private static final int RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS = 401;
 
-  private int retriesLeft;
-  private long delay;
-  private boolean interrupted;
-  private final double delayFactor;
-  private final boolean suppressInterrupts;
-
-  /**
-   * Creates a retry policy.
-   *
-   * <p>Protected so products with a stricter cross-SDK retry contract can reuse the shared HTTP
-   * retry loop while supplying their own response, exception, and backoff rules.
-   */
-  protected HttpRetryPolicy(
-      int retriesLeft, long delay, double delayFactor, boolean suppressInterrupts) {
-    this.retriesLeft = retriesLeft;
-    this.delay = delay;
-    this.delayFactor = delayFactor;
-    this.suppressInterrupts = suppressInterrupts;
-  }
-
-  public boolean shouldRetry(Exception e) {
-    if (e instanceof ConnectException) {
-      return shouldRetry((okhttp3.Response) null);
-    }
-    if (e instanceof InterruptedIOException) {
-      if (suppressInterrupts) {
-        return shouldRetry((okhttp3.Response) null);
-      }
-    }
-    if (e instanceof InterruptedException) {
-      if (suppressInterrupts) {
-        // remember interrupted status to restore the thread's interrupted flag later
-        interrupted = true;
-        return shouldRetry((okhttp3.Response) null);
-      }
-    }
-    return false;
-  }
-
-  public boolean shouldRetry(@Nullable okhttp3.Response response) {
-    if (retriesLeft == 0) {
-      return false;
-    }
-
-    int responseCode = response != null ? response.code() : NO_RESPONSE_RECEIVED;
-    if (responseCode == TOO_MANY_REQUESTS_HTTP_CODE) {
-      long waitTimeSeconds = getRateLimitResetTime(response);
-      if (waitTimeSeconds == RATE_LIMIT_RESET_TIME_UNDEFINED) {
-        retriesLeft--; // doing a regular retry if proper reset time was not provided
-        return true;
-      }
-
-      if (waitTimeSeconds > MAX_ALLOWED_WAIT_TIME_SECONDS) {
-        return false; // too long to wait, will not retry
-      }
-
-      retriesLeft = 0;
-      delay =
-          TimeUnit.SECONDS.toMillis(waitTimeSeconds)
-              + ThreadLocalRandom.current().nextInt(RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS);
-      return true;
-
-    } else if (responseCode >= 500 || responseCode == NO_RESPONSE_RECEIVED) {
-      retriesLeft--;
-      return true;
-
-    } else {
-      return false;
-    }
-  }
-
-  private long getRateLimitResetTime(okhttp3.Response response) {
-    String rateLimitHeader = response.header(X_RATELIMIT_RESET_HTTP_HEADER);
-    if (rateLimitHeader == null) {
-      return RATE_LIMIT_RESET_TIME_UNDEFINED;
-    }
-
-    try {
-      return Long.parseLong(rateLimitHeader);
-    } catch (NumberFormatException e) {
-      log.error(
-          "Could not parse {} header contents: {}",
-          X_RATELIMIT_RESET_HTTP_HEADER,
-          rateLimitHeader,
-          e);
-      return RATE_LIMIT_RESET_TIME_UNDEFINED;
-    }
-  }
-
-  long getBackoffDelay() {
-    long currentDelay = delay;
-    delay = (long) (delay * delayFactor);
-    return currentDelay;
-  }
-
-  public void backoff() throws IOException {
-    try {
-      Thread.sleep(getBackoffDelay());
-    } catch (InterruptedException e) {
-      if (suppressInterrupts) {
-        // remember interrupted status to restore the thread's interrupted flag later
-        interrupted = true;
-      } else {
-        Thread.currentThread().interrupt();
-        throw new InterruptedIOException("thread interrupted");
-      }
-    }
-  }
-
-  @Override
-  public void close() {
-    if (interrupted) {
-      Thread.currentThread().interrupt();
-    }
-  }
-
-  public static class Factory {
-    public static final Factory NEVER_RETRY = new Factory(0, 0, 0);
-
-    private final int maxRetries;
-    private final long initialDelay;
+    private int retriesLeft;
+    private long delay;
+    private boolean interrupted;
     private final double delayFactor;
-    private final boolean retryInterrupts;
+    private final boolean suppressInterrupts;
 
-    public Factory(int maxRetries, int initialDelay, double delayFactor) {
-      this(maxRetries, initialDelay, delayFactor, false);
+    /**
+     * Creates a retry policy.
+     *
+     * <p>Protected so products with a stricter cross-SDK retry contract can reuse the shared HTTP
+     * retry loop while supplying their own response, exception, and backoff rules.
+     */
+    protected HttpRetryPolicy(int retriesLeft, long delay, double delayFactor, boolean suppressInterrupts) {
+        this.retriesLeft = retriesLeft;
+        this.delay = delay;
+        this.delayFactor = delayFactor;
+        this.suppressInterrupts = suppressInterrupts;
     }
 
-    public Factory(int maxRetries, int initialDelay, double delayFactor, boolean retryInterrupts) {
-      this.maxRetries = maxRetries;
-      this.initialDelay = initialDelay;
-      this.delayFactor = delayFactor;
-      this.retryInterrupts = retryInterrupts;
+    public boolean shouldRetry(Exception e) {
+        if (e instanceof ConnectException) {
+            return shouldRetry((okhttp3.Response) null);
+        }
+        if (e instanceof InterruptedIOException) {
+            if (suppressInterrupts) {
+                return shouldRetry((okhttp3.Response) null);
+            }
+        }
+        if (e instanceof InterruptedException) {
+            if (suppressInterrupts) {
+                // remember interrupted status to restore the thread's interrupted flag later
+                interrupted = true;
+                return shouldRetry((okhttp3.Response) null);
+            }
+        }
+        return false;
     }
 
-    public HttpRetryPolicy create() {
-      return new HttpRetryPolicy(maxRetries, initialDelay, delayFactor, retryInterrupts);
+    public boolean shouldRetry(@Nullable okhttp3.Response response) {
+        if (retriesLeft == 0) {
+            return false;
+        }
+
+        int responseCode = response != null ? response.code() : NO_RESPONSE_RECEIVED;
+        if (responseCode == TOO_MANY_REQUESTS_HTTP_CODE) {
+            long waitTimeSeconds = getRateLimitResetTime(response);
+            if (waitTimeSeconds == RATE_LIMIT_RESET_TIME_UNDEFINED) {
+                retriesLeft--; // doing a regular retry if proper reset time was not provided
+                return true;
+            }
+
+            if (waitTimeSeconds > MAX_ALLOWED_WAIT_TIME_SECONDS) {
+                return false; // too long to wait, will not retry
+            }
+
+            retriesLeft = 0;
+            delay = TimeUnit.SECONDS.toMillis(waitTimeSeconds)
+                    + ThreadLocalRandom.current().nextInt(RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS);
+            return true;
+
+        } else if (responseCode >= 500 || responseCode == NO_RESPONSE_RECEIVED) {
+            retriesLeft--;
+            return true;
+
+        } else {
+            return false;
+        }
     }
-  }
+
+    private long getRateLimitResetTime(okhttp3.Response response) {
+        String rateLimitHeader = response.header(X_RATELIMIT_RESET_HTTP_HEADER);
+        if (rateLimitHeader == null) {
+            return RATE_LIMIT_RESET_TIME_UNDEFINED;
+        }
+
+        try {
+            return Long.parseLong(rateLimitHeader);
+        } catch (NumberFormatException e) {
+            log.error("Could not parse {} header contents: {}", X_RATELIMIT_RESET_HTTP_HEADER, rateLimitHeader, e);
+            return RATE_LIMIT_RESET_TIME_UNDEFINED;
+        }
+    }
+
+    long getBackoffDelay() {
+        long currentDelay = delay;
+        delay = (long) (delay * delayFactor);
+        return currentDelay;
+    }
+
+    public void backoff() throws IOException {
+        try {
+            Thread.sleep(getBackoffDelay());
+        } catch (InterruptedException e) {
+            if (suppressInterrupts) {
+                // remember interrupted status to restore the thread's interrupted flag later
+                interrupted = true;
+            } else {
+                Thread.currentThread().interrupt();
+                throw new InterruptedIOException("thread interrupted");
+            }
+        }
+    }
+
+    @Override
+    public void close() {
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public static class Factory {
+        public static final Factory NEVER_RETRY = new Factory(0, 0, 0);
+
+        private final int maxRetries;
+        private final long initialDelay;
+        private final double delayFactor;
+        private final boolean retryInterrupts;
+
+        public Factory(int maxRetries, int initialDelay, double delayFactor) {
+            this(maxRetries, initialDelay, delayFactor, false);
+        }
+
+        public Factory(int maxRetries, int initialDelay, double delayFactor, boolean retryInterrupts) {
+            this.maxRetries = maxRetries;
+            this.initialDelay = initialDelay;
+            this.delayFactor = delayFactor;
+            this.retryInterrupts = retryInterrupts;
+        }
+
+        public HttpRetryPolicy create() {
+            return new HttpRetryPolicy(maxRetries, initialDelay, delayFactor, retryInterrupts);
+        }
+    }
 }

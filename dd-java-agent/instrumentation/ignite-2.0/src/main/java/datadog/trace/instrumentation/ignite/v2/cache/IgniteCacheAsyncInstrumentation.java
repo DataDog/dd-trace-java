@@ -19,144 +19,144 @@ import org.apache.ignite.lang.IgniteFuture;
 
 public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrumentation {
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "loadCacheAsync",
-                    "sizeAsync",
-                    "sizeLongAsync",
-                    "invokeAllAsync",
-                    "getAllAsync",
-                    "getEntriesAsync",
-                    "getAllOutTxAsync",
-                    "containsKeysAsync",
-                    "putAllAsync",
-                    "removeAllAsync")),
-        IgniteCacheAsyncInstrumentation.class.getName() + "$IgniteAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "getAndPutIfAbsentAsync",
-                    "getAsync",
-                    "getEntryAsync",
-                    "containsKeyAsync",
-                    "getAndPutAsync",
-                    "putAsync",
-                    "putIfAbsentAsync",
-                    "removeAsync",
-                    "getAndRemoveAsync",
-                    "replaceAsync",
-                    "getAndReplaceAsync",
-                    "clearAsync",
-                    "invokeAsync")),
-        IgniteCacheAsyncInstrumentation.class.getName() + "$KeyedAdvice");
-  }
-
-  public static class IgniteAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final IgniteCache<?, ?> that, @Advice.Origin("#m") final String methodName) {
-      // Ensure that we only create a span for the top-level cache method
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onIgnite(
-          span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
-      DECORATE.onOperation(span, that.getName(), methodName);
-
-      // Enable async propagation, so the newly spawned task will be associated back with this
-      // original trace.
-      return activateSpan(span);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(namedOneOf(
+                                "loadCacheAsync",
+                                "sizeAsync",
+                                "sizeLongAsync",
+                                "invokeAllAsync",
+                                "getAllAsync",
+                                "getEntriesAsync",
+                                "getAllOutTxAsync",
+                                "containsKeysAsync",
+                                "putAllAsync",
+                                "removeAllAsync")),
+                IgniteCacheAsyncInstrumentation.class.getName() + "$IgniteAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(namedOneOf(
+                                "getAndPutIfAbsentAsync",
+                                "getAsync",
+                                "getEntryAsync",
+                                "containsKeyAsync",
+                                "getAndPutAsync",
+                                "putAsync",
+                                "putIfAbsentAsync",
+                                "removeAsync",
+                                "getAndRemoveAsync",
+                                "replaceAsync",
+                                "getAndReplaceAsync",
+                                "clearAsync",
+                                "invokeAsync")),
+                IgniteCacheAsyncInstrumentation.class.getName() + "$KeyedAdvice");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Return final IgniteFuture<?> future) {
+    public static class IgniteAdvice {
 
-      if (scope == null) {
-        return;
-      }
-      // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        // There was a synchronous error,
-        // which means we shouldn't wait for a callback to close the span.
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        // We're calling an async operation, we still need to finish the span when it's
-        // complete and report the results; set an appropriate callback
-        future.listen(new SpanFinishingCallback(span));
-        scope.close();
-      }
-      // else span finished in SpanFinishingCallback
-      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final IgniteCache<?, ?> that, @Advice.Origin("#m") final String methodName) {
+            // Ensure that we only create a span for the top-level cache method
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
+            if (callDepth > 0) {
+                return null;
+            }
+
+            final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onIgnite(
+                    span,
+                    InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
+            DECORATE.onOperation(span, that.getName(), methodName);
+
+            // Enable async propagation, so the newly spawned task will be associated back with this
+            // original trace.
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Return final IgniteFuture<?> future) {
+
+            if (scope == null) {
+                return;
+            }
+            // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                // There was a synchronous error,
+                // which means we shouldn't wait for a callback to close the span.
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                // We're calling an async operation, we still need to finish the span when it's
+                // complete and report the results; set an appropriate callback
+                future.listen(new SpanFinishingCallback(span));
+                scope.close();
+            }
+            // else span finished in SpanFinishingCallback
+            CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        }
     }
-  }
 
-  public static class KeyedAdvice {
+    public static class KeyedAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final IgniteCache<?, ?> that,
-        @Advice.Origin("#m") final String methodName,
-        @Advice.Argument(value = 0, optional = true) final Object key) {
-      // Ensure that we only create a span for the top-level cache method
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
-      if (callDepth > 0) {
-        return null;
-      }
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final IgniteCache<?, ?> that,
+                @Advice.Origin("#m") final String methodName,
+                @Advice.Argument(value = 0, optional = true) final Object key) {
+            // Ensure that we only create a span for the top-level cache method
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
+            if (callDepth > 0) {
+                return null;
+            }
 
-      final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onIgnite(
-          span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
-      DECORATE.onOperation(span, that.getName(), methodName, key);
+            final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onIgnite(
+                    span,
+                    InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
+            DECORATE.onOperation(span, that.getName(), methodName, key);
 
-      // Enable async propagation, so the newly spawned task will be associated back with this
-      // original trace.
-      return activateSpan(span);
+            // Enable async propagation, so the newly spawned task will be associated back with this
+            // original trace.
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Return final IgniteFuture<?> future) {
+            if (scope == null) {
+                return;
+            }
+            // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                // There was a synchronous error,
+                // which means we shouldn't wait for a callback to close the span.
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                // We're calling an async operation, we still need to finish the span when it's
+                // complete and report the results; set an appropriate callback
+                future.listen(new SpanFinishingCallback(span));
+                scope.close();
+            } // else span finished in SpanFinishingCallback
+            CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Return final IgniteFuture<?> future) {
-      if (scope == null) {
-        return;
-      }
-      // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        // There was a synchronous error,
-        // which means we shouldn't wait for a callback to close the span.
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        // We're calling an async operation, we still need to finish the span when it's
-        // complete and report the results; set an appropriate callback
-        future.listen(new SpanFinishingCallback(span));
-        scope.close();
-      } // else span finished in SpanFinishingCallback
-      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-    }
-  }
 }

@@ -23,88 +23,85 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class DataStreamsPropagator implements Propagator {
-  private final DataStreamsMonitoring dataStreamsMonitoring;
-  private final TimeSource timeSource;
-  private final ThreadLocal<String> serviceNameOverride;
+    private final DataStreamsMonitoring dataStreamsMonitoring;
+    private final TimeSource timeSource;
+    private final ThreadLocal<String> serviceNameOverride;
 
-  public DataStreamsPropagator(
-      DataStreamsMonitoring dataStreamsMonitoring,
-      TimeSource timeSource,
-      ThreadLocal<String> serviceNameOverride) {
-    this.dataStreamsMonitoring = dataStreamsMonitoring;
-    this.timeSource = timeSource;
-    this.serviceNameOverride = serviceNameOverride;
-  }
-
-  @Override
-  public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    // TODO Pathway context needs to be stored into its own context element instead of span context
-    AgentSpan span;
-    PathwayContext pathwayContext;
-    DataStreamsContext dsmContext;
-    if ((span = AgentSpan.fromContext(context)) == null
-        || (pathwayContext = span.spanContext().getPathwayContext()) == null
-        || (dsmContext = DataStreamsContext.fromContext(context)) == null
-        || !traceConfig().isDataStreamsEnabled()) {
-      return;
+    public DataStreamsPropagator(
+            DataStreamsMonitoring dataStreamsMonitoring,
+            TimeSource timeSource,
+            ThreadLocal<String> serviceNameOverride) {
+        this.dataStreamsMonitoring = dataStreamsMonitoring;
+        this.timeSource = timeSource;
+        this.serviceNameOverride = serviceNameOverride;
     }
 
-    Consumer<StatsPoint> pointConsumer =
-        dsmContext.sendCheckpoint() ? this.dataStreamsMonitoring::add : pathwayContext::saveStats;
-    pathwayContext.setCheckpoint(dsmContext, pointConsumer);
-    boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
-    if (injected && pathwayContext.getHash() != 0) {
-      span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
-    }
-  }
+    @Override
+    public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
+        // TODO Pathway context needs to be stored into its own context element instead of span context
+        AgentSpan span;
+        PathwayContext pathwayContext;
+        DataStreamsContext dsmContext;
+        if ((span = AgentSpan.fromContext(context)) == null
+                || (pathwayContext = span.spanContext().getPathwayContext()) == null
+                || (dsmContext = DataStreamsContext.fromContext(context)) == null
+                || !traceConfig().isDataStreamsEnabled()) {
+            return;
+        }
 
-  private <C> boolean injectPathwayContext(
-      PathwayContext pathwayContext, C carrier, CarrierSetter<C> setter) {
-    try {
-      String encodedContext = pathwayContext.encode();
-      if (encodedContext != null) {
-        // LOGGER.debug("Injecting pathway context {}", pathwayContext);
-        setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
-        return true;
-      }
-    } catch (IOException e) {
-      // LOGGER.debug("Unable to set encode pathway context", e);
+        Consumer<StatsPoint> pointConsumer =
+                dsmContext.sendCheckpoint() ? this.dataStreamsMonitoring::add : pathwayContext::saveStats;
+        pathwayContext.setCheckpoint(dsmContext, pointConsumer);
+        boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
+        if (injected && pathwayContext.getHash() != 0) {
+            span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+        }
     }
-    return false;
-  }
 
-  @Override
-  public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
-    // TODO Pathway context needs to be stored into its own context element instead of span context
-    PathwayContext pathwayContext;
-    // Ensure if DSM is enabled and look for pathway context
-    if (traceConfig().isDataStreamsEnabled()
-        && (pathwayContext = extractDsmPathwayContext(carrier, visitor)) != null) {
-      // Get span context to store pathway context into
-      TagContext spanContext = getSpanContextOrNull(context);
-      if (spanContext == null) {
-        spanContext = new TagContext();
-        AgentSpan span = fromSpanContext(spanContext);
-        context = root().with(span);
-      }
-      // Store pathway context into span context
-      spanContext.withPathwayContext(pathwayContext);
+    private <C> boolean injectPathwayContext(PathwayContext pathwayContext, C carrier, CarrierSetter<C> setter) {
+        try {
+            String encodedContext = pathwayContext.encode();
+            if (encodedContext != null) {
+                // LOGGER.debug("Injecting pathway context {}", pathwayContext);
+                setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
+                return true;
+            }
+        } catch (IOException e) {
+            // LOGGER.debug("Unable to set encode pathway context", e);
+        }
+        return false;
     }
-    return context;
-  }
 
-  private TagContext getSpanContextOrNull(Context context) {
-    AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    AgentSpanContext extractedSpanContext;
-    if (extractedSpan != null
-        && (extractedSpanContext = extractedSpan.spanContext()) instanceof TagContext) {
-      return (TagContext) extractedSpanContext;
+    @Override
+    public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
+        // TODO Pathway context needs to be stored into its own context element instead of span context
+        PathwayContext pathwayContext;
+        // Ensure if DSM is enabled and look for pathway context
+        if (traceConfig().isDataStreamsEnabled()
+                && (pathwayContext = extractDsmPathwayContext(carrier, visitor)) != null) {
+            // Get span context to store pathway context into
+            TagContext spanContext = getSpanContextOrNull(context);
+            if (spanContext == null) {
+                spanContext = new TagContext();
+                AgentSpan span = fromSpanContext(spanContext);
+                context = root().with(span);
+            }
+            // Store pathway context into span context
+            spanContext.withPathwayContext(pathwayContext);
+        }
+        return context;
     }
-    return null;
-  }
 
-  private <C> PathwayContext extractDsmPathwayContext(C carrier, CarrierVisitor<C> visitor) {
-    return DefaultPathwayContext.extract(
-        carrier, visitor, this.timeSource, serviceNameOverride.get());
-  }
+    private TagContext getSpanContextOrNull(Context context) {
+        AgentSpan extractedSpan = AgentSpan.fromContext(context);
+        AgentSpanContext extractedSpanContext;
+        if (extractedSpan != null && (extractedSpanContext = extractedSpan.spanContext()) instanceof TagContext) {
+            return (TagContext) extractedSpanContext;
+        }
+        return null;
+    }
+
+    private <C> PathwayContext extractDsmPathwayContext(C carrier, CarrierVisitor<C> visitor) {
+        return DefaultPathwayContext.extract(carrier, visitor, this.timeSource, serviceNameOverride.get());
+    }
 }

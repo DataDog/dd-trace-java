@@ -34,192 +34,186 @@ import org.tabletest.junit.TableTest;
 
 class DDAgentWriterTest extends DDCoreJavaSpecification {
 
-  HealthMetrics monitor = mock(HealthMetrics.class);
-  TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
-  DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-  DDAgentApi api = mock(DDAgentApi.class);
-  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, SECONDS);
-  PayloadDispatcherImpl dispatcher =
-      new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, monitor, monitoring);
-  DDAgentWriter writer = new DDAgentWriter(worker, dispatcher, monitor, 1, SECONDS, false);
+    HealthMetrics monitor = mock(HealthMetrics.class);
+    TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    DDAgentApi api = mock(DDAgentApi.class);
+    MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, SECONDS);
+    PayloadDispatcherImpl dispatcher =
+            new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, monitor, monitoring);
+    DDAgentWriter writer = new DDAgentWriter(worker, dispatcher, monitor, 1, SECONDS, false);
 
-  // Only used to create spans
-  CoreTracer dummyTracer = tracerBuilder().writer(new ListWriter()).build();
+    // Only used to create spans
+    CoreTracer dummyTracer = tracerBuilder().writer(new ListWriter()).build();
 
-  @AfterEach
-  void cleanup() {
-    writer.close();
-    dummyTracer.close();
-  }
+    @AfterEach
+    void cleanup() {
+        writer.close();
+        dummyTracer.close();
+    }
 
-  @Test
-  void testWriterBuilder() {
-    DDAgentWriter builtWriter = DDAgentWriter.builder().build();
+    @Test
+    void testWriterBuilder() {
+        DDAgentWriter builtWriter = DDAgentWriter.builder().build();
 
-    assertNotNull(builtWriter);
-  }
+        assertNotNull(builtWriter);
+    }
 
-  @Test
-  void testWriterStart() {
-    int capacity = 5;
+    @Test
+    void testWriterStart() {
+        int capacity = 5;
 
-    when(worker.getCapacity()).thenReturn(capacity);
-    writer.start();
+        when(worker.getCapacity()).thenReturn(capacity);
+        writer.start();
 
-    verify(monitor).start();
-    verify(worker).start();
-    verify(worker).getCapacity();
-    verify(monitor).onStart(capacity);
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        verify(monitor).start();
+        verify(worker).start();
+        verify(worker).getCapacity();
+        verify(monitor).onStart(capacity);
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @Test
-  void testWriterStartClosed() {
-    writer.close();
-    clearInvocations(monitor, worker, discovery, api);
+    @Test
+    void testWriterStartClosed() {
+        writer.close();
+        clearInvocations(monitor, worker, discovery, api);
 
-    writer.start();
+        writer.start();
 
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @Test
-  void testWriterFlush() {
-    when(worker.flush(1, SECONDS)).thenReturn(true, false);
+    @Test
+    void testWriterFlush() {
+        when(worker.flush(1, SECONDS)).thenReturn(true, false);
 
-    // first flush succeeds
-    writer.flush();
+        // first flush succeeds
+        writer.flush();
 
-    // monitor is notified
-    verify(worker).flush(1, SECONDS);
-    verify(monitor).onFlush(false);
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
+        // monitor is notified
+        verify(worker).flush(1, SECONDS);
+        verify(monitor).onFlush(false);
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
 
-    clearInvocations(monitor, worker, discovery, api);
+        clearInvocations(monitor, worker, discovery, api);
 
-    // second flush returns false
-    writer.flush();
+        // second flush returns false
+        writer.flush();
 
-    // no additional monitor notifications
-    verify(worker).flush(1, SECONDS);
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        // no additional monitor notifications
+        verify(worker).flush(1, SECONDS);
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @Test
-  void testWriterFlushClosed() {
-    writer.close();
-    clearInvocations(monitor, worker, discovery, api);
+    @Test
+    void testWriterFlushClosed() {
+        writer.close();
+        clearInvocations(monitor, worker, discovery, api);
 
-    writer.flush();
+        writer.flush();
 
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @Test
-  void testWriterWritePublishSucceeds() {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    @Test
+    void testWriterWritePublishSucceeds() {
+        List<DDSpan> trace = Collections.singletonList(
+                (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
-    // publish succeeds
-    when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SERIALIZATION);
-    writer.write(trace);
+        // publish succeeds
+        when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SERIALIZATION);
+        writer.write(trace);
 
-    // monitor is notified of successful publication
-    verify(worker).publish(any(), anyInt(), eq(trace));
-    verify(monitor).onPublish(any(), anyInt());
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        // monitor is notified of successful publication
+        verify(worker).publish(any(), anyInt(), eq(trace));
+        verify(monitor).onPublish(any(), anyInt());
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @Test
-  void testWriterWritePublishForSingleSpanSampling() {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    @Test
+    void testWriterWritePublishForSingleSpanSampling() {
+        List<DDSpan> trace = Collections.singletonList(
+                (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
-    // publish succeeds (single span sampling)
-    when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SINGLE_SPAN_SAMPLING);
-    writer.write(trace);
+        // publish succeeds (single span sampling)
+        when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SINGLE_SPAN_SAMPLING);
+        writer.write(trace);
 
-    // monitor should not call onPublish for single span sampling
-    verify(worker).publish(any(), anyInt(), eq(trace));
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        // monitor should not call onPublish for single span sampling
+        verify(worker).publish(any(), anyInt(), eq(trace));
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @TableTest({
-    "scenario                      | publishResult                      ",
-    "buffer overflow               | DROPPED_BUFFER_OVERFLOW            ",
-    "buffer overflow (sampled out) | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT",
-    "dropped by policy             | DROPPED_BY_POLICY                  "
-  })
-  void testWriterWritePublishFails(PublishResult publishResult) {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    @TableTest({
+      "scenario                      | publishResult                      ",
+      "buffer overflow               | DROPPED_BUFFER_OVERFLOW            ",
+      "buffer overflow (sampled out) | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT",
+      "dropped by policy             | DROPPED_BY_POLICY                  "
+    })
+    void testWriterWritePublishFails(PublishResult publishResult) {
+        List<DDSpan> trace = Collections.singletonList(
+                (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
-    // publish fails
-    when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(publishResult);
-    writer.write(trace);
+        // publish fails
+        when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(publishResult);
+        writer.write(trace);
 
-    // monitor is notified of unsuccessful publication
-    verify(worker).publish(any(), anyInt(), eq(trace));
-    verify(monitor).onFailedPublish(anyInt(), anyInt());
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        // monitor is notified of unsuccessful publication
+        verify(worker).publish(any(), anyInt(), eq(trace));
+        verify(monitor).onFailedPublish(anyInt(), anyInt());
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @Test
-  void testEmptyTracesShouldBeReportedAsFailures() {
-    // trace is empty
-    writer.write(Collections.emptyList());
+    @Test
+    void testEmptyTracesShouldBeReportedAsFailures() {
+        // trace is empty
+        writer.write(Collections.emptyList());
 
-    // monitor is notified of unsuccessful publication
-    verify(monitor).onFailedPublish(anyInt(), anyInt());
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        // monitor is notified of unsuccessful publication
+        verify(monitor).onFailedPublish(anyInt(), anyInt());
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @Test
-  void testWriterWriteClosed() {
-    writer.close();
-    clearInvocations(monitor, worker, discovery, api);
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    @Test
+    void testWriterWriteClosed() {
+        writer.close();
+        clearInvocations(monitor, worker, discovery, api);
+        List<DDSpan> trace = Collections.singletonList(
+                (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
-    writer.write(trace);
+        writer.write(trace);
 
-    verify(monitor).onFailedPublish(anyInt(), anyInt());
-    verifyNoMoreInteractions(monitor, worker, discovery, api);
-  }
+        verify(monitor).onFailedPublish(anyInt(), anyInt());
+        verifyNoMoreInteractions(monitor, worker, discovery, api);
+    }
 
-  @TableTest({
-    "scenario                      | publishResult                      ",
-    "dropped by policy             | DROPPED_BY_POLICY                  ",
-    "buffer overflow               | DROPPED_BUFFER_OVERFLOW            ",
-    "buffer overflow (sampled out) | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT"
-  })
-  void testDroppedTraceIsCounted(PublishResult publishResult) {
-    // setup - use local mocks to avoid interference with instance-level mocks
-    TraceProcessingWorker localWorker = mock(TraceProcessingWorker.class);
-    HealthMetrics localMonitor = mock(HealthMetrics.class);
-    PayloadDispatcherImpl localDispatcher = mock(PayloadDispatcherImpl.class);
-    DDAgentWriter localWriter =
-        new DDAgentWriter(localWorker, localDispatcher, localMonitor, 1, SECONDS, false);
+    @TableTest({
+      "scenario                      | publishResult                      ",
+      "dropped by policy             | DROPPED_BY_POLICY                  ",
+      "buffer overflow               | DROPPED_BUFFER_OVERFLOW            ",
+      "buffer overflow (sampled out) | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT"
+    })
+    void testDroppedTraceIsCounted(PublishResult publishResult) {
+        // setup - use local mocks to avoid interference with instance-level mocks
+        TraceProcessingWorker localWorker = mock(TraceProcessingWorker.class);
+        HealthMetrics localMonitor = mock(HealthMetrics.class);
+        PayloadDispatcherImpl localDispatcher = mock(PayloadDispatcherImpl.class);
+        DDAgentWriter localWriter = new DDAgentWriter(localWorker, localDispatcher, localMonitor, 1, SECONDS, false);
 
-    DDSpan p0 = newSpan();
-    p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP);
-    List<DDSpan> trace = Arrays.asList(p0, newSpan());
+        DDSpan p0 = newSpan();
+        p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP);
+        List<DDSpan> trace = Arrays.asList(p0, newSpan());
 
-    when(localWorker.publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace)))
-        .thenReturn(publishResult);
-    localWriter.write(trace);
+        when(localWorker.publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace)))
+                .thenReturn(publishResult);
+        localWriter.write(trace);
 
-    verify(localWorker)
-        .publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace));
-    verify(localDispatcher).onDroppedTrace(trace.size());
-  }
+        verify(localWorker).publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace));
+        verify(localDispatcher).onDroppedTrace(trace.size());
+    }
 
-  DDSpan newSpan() {
-    // Use the UNSET-priority variant so setSamplingPriority() can change the priority later
-    return buildSpan(0L, "test.tag", "test.value", PropagationTags.factory().empty());
-  }
+    DDSpan newSpan() {
+        // Use the UNSET-priority variant so setSamplingPriority() can change the priority later
+        return buildSpan(0L, "test.tag", "test.value", PropagationTags.factory().empty());
+    }
 }

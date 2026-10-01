@@ -29,21 +29,21 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class JDBCConnectionContextBenchmark {
 
-  @State(Scope.Thread)
-  public static class ConnectionState {
-    private static final String BASE_HASH = "-6937226773133363462";
+    @State(Scope.Thread)
+    public static class ConnectionState {
+        private static final String BASE_HASH = "-6937226773133363462";
 
-    final JDBCConnectionContext context =
-        new JDBCConnectionContext(new DBInfo.Builder().type("oracle").build());
+        final JDBCConnectionContext context =
+                new JDBCConnectionContext(new DBInfo.Builder().type("oracle").build());
 
-    @Setup
-    public void setup() {
-      context.markOracleServiceHashSet(BASE_HASH);
+        @Setup
+        public void setup() {
+            context.markOracleServiceHashSet(BASE_HASH);
+        }
     }
-  }
 
-  @Benchmark
-  public boolean stableHash(ConnectionState state) {
-    return state.context.shouldSetOracleServiceHash(ConnectionState.BASE_HASH);
-  }
+    @Benchmark
+    public boolean stableHash(ConnectionState state) {
+        return state.context.shouldSetOracleServiceHash(ConnectionState.BASE_HASH);
+    }
 }

@@ -41,122 +41,121 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class RequestDispatcherInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public RequestDispatcherInstrumentation() {
-    super("servlet", "servlet-dispatcher");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.servlet.RequestDispatcher";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.servlet.RequestDispatcher", String.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        // error is Jetty's method that doesn't delegate to forward or include
-        namedOneOf("forward", "include", "error")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
-        getClass().getName() + "$RequestDispatcherAdvice");
-  }
-
-  public static class RequestDispatcherAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope start(
-        @Advice.Origin("#m") final String method,
-        @Advice.This final RequestDispatcher dispatcher,
-        @Advice.Local("_requestContext") Object requestContext,
-        @Advice.Argument(0) final ServletRequest request) {
-      final AgentSpan parentSpan = activeSpan();
-
-      final Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      final AgentSpan servletSpan =
-          contextAttr instanceof Context ? spanFromContext((Context) contextAttr) : null;
-
-      if (parentSpan == null && servletSpan == null) {
-        // Don't want to generate a new top-level span
-        return null;
-      }
-
-      final int depth = CallDepthThreadLocalMap.incrementCallDepth(RequestDispatcher.class);
-      if (depth > 0) {
-        return null;
-      }
-      final AgentSpanContext parent;
-      if (servletSpan == null || (parentSpan != null && servletSpan.isSameTrace(parentSpan))) {
-        // Use the parentSpan if the servletSpan is null or part of the same trace.
-        parent = parentSpan.spanContext();
-      } else {
-        // parentSpan is part of a different trace, so lets ignore it.
-        // This can happen with the way Tomcat does error handling.
-        parent = servletSpan.spanContext();
-      }
-
-      final AgentSpan span =
-          startSpan(
-              JAVA_WEB_SERVLET_DISPATCHER.toString(),
-              SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX),
-              parent);
-      DECORATE.afterStart(span);
-      span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
-      span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
-
-      final String target =
-          InstrumentationContext.get(RequestDispatcher.class, String.class).get(dispatcher);
-      span.setResourceName(target);
-      span.setSpanType(InternalSpanTypes.HTTP_SERVER);
-
-      // In case we lose context, inject trace into to the request.
-      DECORATE.injectContext(span, request, SETTER);
-
-      // temporarily replace from request to avoid spring resource name bubbling up:
-      requestContext = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
-
-      final ContextScope scope = span.attachWithContext();
-      // Set the context after activation so we have the proper Context object
-      request.setAttribute(DD_CONTEXT_ATTRIBUTE, scope.context());
-
-      return scope;
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public RequestDispatcherInstrumentation() {
+        super("servlet", "servlet-dispatcher");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stop(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Local("_requestContext") final Object requestContext,
-        @Advice.Argument(0) final ServletRequest request,
-        @Advice.Argument(1) final ServletResponse response,
-        @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.servlet.RequestDispatcher";
+    }
 
-      try {
-        if (requestContext != null) {
-          request.setAttribute(DD_CONTEXT_ATTRIBUTE, requestContext);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("javax.servlet.RequestDispatcher", String.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                // error is Jetty's method that doesn't delegate to forward or include
+                namedOneOf("forward", "include", "error")
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+                        .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+                        .and(isPublic()),
+                getClass().getName() + "$RequestDispatcherAdvice");
+    }
+
+    public static class RequestDispatcherAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope start(
+                @Advice.Origin("#m") final String method,
+                @Advice.This final RequestDispatcher dispatcher,
+                @Advice.Local("_requestContext") Object requestContext,
+                @Advice.Argument(0) final ServletRequest request) {
+            final AgentSpan parentSpan = activeSpan();
+
+            final Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            final AgentSpan servletSpan =
+                    contextAttr instanceof Context ? spanFromContext((Context) contextAttr) : null;
+
+            if (parentSpan == null && servletSpan == null) {
+                // Don't want to generate a new top-level span
+                return null;
+            }
+
+            final int depth = CallDepthThreadLocalMap.incrementCallDepth(RequestDispatcher.class);
+            if (depth > 0) {
+                return null;
+            }
+            final AgentSpanContext parent;
+            if (servletSpan == null || (parentSpan != null && servletSpan.isSameTrace(parentSpan))) {
+                // Use the parentSpan if the servletSpan is null or part of the same trace.
+                parent = parentSpan.spanContext();
+            } else {
+                // parentSpan is part of a different trace, so lets ignore it.
+                // This can happen with the way Tomcat does error handling.
+                parent = servletSpan.spanContext();
+            }
+
+            final AgentSpan span = startSpan(
+                    JAVA_WEB_SERVLET_DISPATCHER.toString(),
+                    SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX),
+                    parent);
+            DECORATE.afterStart(span);
+            span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
+            span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
+
+            final String target = InstrumentationContext.get(RequestDispatcher.class, String.class)
+                    .get(dispatcher);
+            span.setResourceName(target);
+            span.setSpanType(InternalSpanTypes.HTTP_SERVER);
+
+            // In case we lose context, inject trace into to the request.
+            DECORATE.injectContext(span, request, SETTER);
+
+            // temporarily replace from request to avoid spring resource name bubbling up:
+            requestContext = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+
+            final ContextScope scope = span.attachWithContext();
+            // Set the context after activation so we have the proper Context object
+            request.setAttribute(DD_CONTEXT_ATTRIBUTE, scope.context());
+
+            return scope;
         }
-      } finally {
-        CallDepthThreadLocalMap.reset(RequestDispatcher.class);
-      }
 
-      final AgentSpan span = spanFromContext(scope.context());
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(scope.context());
-      scope.close();
-      span.finish();
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stop(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Local("_requestContext") final Object requestContext,
+                @Advice.Argument(0) final ServletRequest request,
+                @Advice.Argument(1) final ServletResponse response,
+                @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+
+            try {
+                if (requestContext != null) {
+                    request.setAttribute(DD_CONTEXT_ATTRIBUTE, requestContext);
+                }
+            } finally {
+                CallDepthThreadLocalMap.reset(RequestDispatcher.class);
+            }
+
+            final AgentSpan span = spanFromContext(scope.context());
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(scope.context());
+            scope.close();
+            span.finish();
+        }
     }
-  }
 }

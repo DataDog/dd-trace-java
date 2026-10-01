@@ -4,5 +4,5 @@ import com.tibco.pvm.api.PmWorkUnit;
 import com.tibco.pvm.api.session.PmContext;
 
 public interface PmBehavior {
-  boolean isFinished(PmContext pmContext, PmWorkUnit wu);
+    boolean isFinished(PmContext pmContext, PmWorkUnit wu);
 }

@@ -21,51 +21,51 @@ import org.hibernate.SharedSessionContract;
 
 public final class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"org.hibernate.internal.SessionFactoryImpl"};
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.hibernate.SessionFactory";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(namedOneOf("openSession", "openStatelessSession"))
-            .and(takesArguments(0))
-            .and(returns(namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession"))),
-        SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
-  }
-
-  public static class SessionFactoryAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void openSession(@Advice.Return final SharedSessionContract session) {
-
-      final AgentSpan span = startSpan("java-hibernate", HIBERNATE_SESSION);
-      DECORATOR.afterStart(span);
-      DECORATOR.onConnection(span, session);
-
-      final ContextStore<SharedSessionContract, SessionState> contextStore =
-          InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
-      contextStore.getOrPut(session, new SessionState(span));
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"org.hibernate.internal.SessionFactoryImpl"};
     }
 
-    /**
-     * Some cases of instrumentation will match more broadly than others, so this unused method
-     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
-     */
-    public static void muzzleCheck(final SharedSessionContract contract) {
-      contract.createCriteria("");
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.hibernate.SessionFactory";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(namedOneOf("openSession", "openStatelessSession"))
+                        .and(takesArguments(0))
+                        .and(returns(namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession"))),
+                SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
+    }
+
+    public static class SessionFactoryAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void openSession(@Advice.Return final SharedSessionContract session) {
+
+            final AgentSpan span = startSpan("java-hibernate", HIBERNATE_SESSION);
+            DECORATOR.afterStart(span);
+            DECORATOR.onConnection(span, session);
+
+            final ContextStore<SharedSessionContract, SessionState> contextStore =
+                    InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
+            contextStore.getOrPut(session, new SessionState(span));
+        }
+
+        /**
+         * Some cases of instrumentation will match more broadly than others, so this unused method
+         * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+         */
+        public static void muzzleCheck(final SharedSessionContract contract) {
+            contract.createCriteria("");
+        }
+    }
 }

@@ -19,36 +19,36 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public IastRoutingContextImplInstrumentation() {
-    super("vertx", "vertx-4.0");
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.ext.web.impl.RoutingContextImpl";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("reroute").and(takesArguments(2)).and(takesArgument(1, String.class)),
-        IastRoutingContextImplInstrumentation.class.getName() + "$RerouteAdvice");
-  }
-
-  public static class RerouteAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onReroute(@Advice.Argument(1) final String path) {
-      final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
-      if (module != null) {
-        module.onRedirect(path);
-      }
+    public IastRoutingContextImplInstrumentation() {
+        super("vertx", "vertx-4.0");
     }
-  }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.ext.web.impl.RoutingContextImpl";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("reroute").and(takesArguments(2)).and(takesArgument(1, String.class)),
+                IastRoutingContextImplInstrumentation.class.getName() + "$RerouteAdvice");
+    }
+
+    public static class RerouteAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onReroute(@Advice.Argument(1) final String path) {
+            final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
+            if (module != null) {
+                module.onRedirect(path);
+            }
+        }
+    }
 }

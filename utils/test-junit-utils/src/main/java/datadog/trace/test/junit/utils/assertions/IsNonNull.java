@@ -8,20 +8,20 @@ import java.util.Optional;
  * @param <T> The type of the value being matched.
  */
 public class IsNonNull<T> implements Matcher<T> {
-  IsNonNull() {}
+    IsNonNull() {}
 
-  @Override
-  public Optional<T> expected() {
-    return Optional.empty();
-  }
+    @Override
+    public Optional<T> expected() {
+        return Optional.empty();
+    }
 
-  @Override
-  public String failureReason() {
-    return "Non-null value expected";
-  }
+    @Override
+    public String failureReason() {
+        return "Non-null value expected";
+    }
 
-  @Override
-  public boolean test(T t) {
-    return t != null;
-  }
+    @Override
+    public boolean test(T t) {
+        return t != null;
+    }
 }

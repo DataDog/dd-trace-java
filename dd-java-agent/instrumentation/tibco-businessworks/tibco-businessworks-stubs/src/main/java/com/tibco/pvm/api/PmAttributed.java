@@ -6,7 +6,7 @@ import com.tibco.pvm.api.util.attr.PmAttribute;
 import java.util.List;
 
 public interface PmAttributed {
-  Object getAttributeValue(PmContext pmContext, String str);
+    Object getAttributeValue(PmContext pmContext, String str);
 
-  List<PmAttribute> getAttributes(PmContext pmContext, PmAttrFilter pmAttrFilter);
+    List<PmAttribute> getAttributes(PmContext pmContext, PmAttrFilter pmAttrFilter);
 }

@@ -27,30 +27,30 @@ import java.util.concurrent.TimeUnit;
  * </ul>
  */
 public class OpenJ9CrashtrackingTestApplication {
-  public static void main(String[] args) throws Exception {
-    // Wait for the agent to write the crash-uploader script (proves initialization is done)
-    String scriptPath = System.getProperty("dd.test.crash_script");
-    if (scriptPath != null) {
-      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-      while (!Files.exists(Paths.get(scriptPath)) && System.nanoTime() < deadline) {
-        Thread.sleep(200);
-      }
-      if (!Files.exists(Paths.get(scriptPath))) {
-        System.err.println("Timeout: crash script not created at " + scriptPath);
-        System.exit(-1);
-      }
+    public static void main(String[] args) throws Exception {
+        // Wait for the agent to write the crash-uploader script (proves initialization is done)
+        String scriptPath = System.getProperty("dd.test.crash_script");
+        if (scriptPath != null) {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+            while (!Files.exists(Paths.get(scriptPath)) && System.nanoTime() < deadline) {
+                Thread.sleep(200);
+            }
+            if (!Files.exists(Paths.get(scriptPath))) {
+                System.err.println("Timeout: crash script not created at " + scriptPath);
+                System.exit(-1);
+            }
+        }
+
+        System.out.println("===> Crash script ready, crashing JVM via Unsafe.putAddress(0L, 0L)...");
+        System.out.flush();
+
+        // Write to address 0 via sun.misc.Unsafe to trigger a SIGSEGV (GPF event).
+        // Unsafe.getLong(0L) was not enough on OpenJ9 here; it threw a NullPointerException instead.
+        Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+        Field f = unsafeClass.getDeclaredField("theUnsafe");
+        f.setAccessible(true);
+        Object theUnsafe = f.get(null);
+        Method putAddress = unsafeClass.getDeclaredMethod("putAddress", long.class, long.class);
+        putAddress.invoke(theUnsafe, 0L, 0L);
     }
-
-    System.out.println("===> Crash script ready, crashing JVM via Unsafe.putAddress(0L, 0L)...");
-    System.out.flush();
-
-    // Write to address 0 via sun.misc.Unsafe to trigger a SIGSEGV (GPF event).
-    // Unsafe.getLong(0L) was not enough on OpenJ9 here; it threw a NullPointerException instead.
-    Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-    Field f = unsafeClass.getDeclaredField("theUnsafe");
-    f.setAccessible(true);
-    Object theUnsafe = f.get(null);
-    Method putAddress = unsafeClass.getDeclaredMethod("putAddress", long.class, long.class);
-    putAddress.invoke(theUnsafe, 0L, 0L);
-  }
 }

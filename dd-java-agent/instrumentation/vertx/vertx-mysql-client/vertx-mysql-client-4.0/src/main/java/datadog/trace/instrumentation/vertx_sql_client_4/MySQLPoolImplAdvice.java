@@ -9,23 +9,21 @@ import net.bytebuddy.asm.Advice;
 
 public class MySQLPoolImplAdvice {
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void afterCreate(
-      @Advice.Return final SqlClient zis, @Advice.Argument(2) MySQLConnectOptions options) {
-    DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
-    DBInfo info =
-        builder
-            .host(options.getHost())
-            .port(options.getPort())
-            .db(options.getDatabase())
-            .user(options.getUser())
-            .type("mysql")
-            .build();
-    InstrumentationContext.get(SqlClient.class, DBInfo.class).put(zis, info);
-  }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterCreate(
+            @Advice.Return final SqlClient zis, @Advice.Argument(2) MySQLConnectOptions options) {
+        DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
+        DBInfo info = builder.host(options.getHost())
+                .port(options.getPort())
+                .db(options.getDatabase())
+                .user(options.getUser())
+                .type("mysql")
+                .build();
+        InstrumentationContext.get(SqlClient.class, DBInfo.class).put(zis, info);
+    }
 
-  // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
-  private static void muzzleCheck(MySQLConnection connection) {
-    connection.ping();
-  }
+    // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
+    private static void muzzleCheck(MySQLConnection connection) {
+        connection.ping();
+    }
 }

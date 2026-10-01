@@ -23,77 +23,67 @@ import spock.config.RunnerConfiguration;
  */
 public final class SpockRetryDescriptorFactory implements RetryDescriptorFactory {
 
-  private static final MethodHandles METHOD_HANDLES =
-      new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
+    private static final MethodHandles METHOD_HANDLES = new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
 
-  private static final MethodHandle SIMPLE_FEATURE_NODE_CONSTRUCTOR =
-      METHOD_HANDLES.constructor(
-          SimpleFeatureNode.class,
-          UniqueId.class,
-          RunnerConfiguration.class,
-          FeatureInfo.class,
-          IterationNode.class);
+    private static final MethodHandle SIMPLE_FEATURE_NODE_CONSTRUCTOR = METHOD_HANDLES.constructor(
+            SimpleFeatureNode.class, UniqueId.class, RunnerConfiguration.class, FeatureInfo.class, IterationNode.class);
 
-  private static final MethodHandle ITERATION_NODE_CONSTRUCTOR =
-      METHOD_HANDLES.constructor(
-          IterationNode.class, UniqueId.class, RunnerConfiguration.class, IterationInfo.class);
+    private static final MethodHandle ITERATION_NODE_CONSTRUCTOR = METHOD_HANDLES.constructor(
+            IterationNode.class, UniqueId.class, RunnerConfiguration.class, IterationInfo.class);
 
-  private static final MethodHandle SIMPLE_FEATURE_NODE_DELEGATE =
-      METHOD_HANDLES.privateFieldGetter(SimpleFeatureNode.class, "delegate");
+    private static final MethodHandle SIMPLE_FEATURE_NODE_DELEGATE =
+            METHOD_HANDLES.privateFieldGetter(SimpleFeatureNode.class, "delegate");
 
-  private static final MethodHandle ITERATION_NODE_INFO =
-      METHOD_HANDLES.privateFieldGetter(IterationNode.class, "iterationInfo");
+    private static final MethodHandle ITERATION_NODE_INFO =
+            METHOD_HANDLES.privateFieldGetter(IterationNode.class, "iterationInfo");
 
-  @Override
-  public TestDescriptor copy(TestDescriptor original, UnaryOperator<UniqueId> idTransform) {
-    if (original instanceof SimpleFeatureNode) {
-      return copySimpleFeatureNode((SimpleFeatureNode) original, idTransform);
+    @Override
+    public TestDescriptor copy(TestDescriptor original, UnaryOperator<UniqueId> idTransform) {
+        if (original instanceof SimpleFeatureNode) {
+            return copySimpleFeatureNode((SimpleFeatureNode) original, idTransform);
+        }
+        if (original instanceof IterationNode) {
+            return copyIterationNode((IterationNode) original, idTransform);
+        }
+        return null; // unknown Spock node type -> fall back to the generic clone
     }
-    if (original instanceof IterationNode) {
-      return copyIterationNode((IterationNode) original, idTransform);
-    }
-    return null; // unknown Spock node type -> fall back to the generic clone
-  }
 
-  private static TestDescriptor copySimpleFeatureNode(
-      SimpleFeatureNode original, UnaryOperator<UniqueId> idTransform) {
-    if (SIMPLE_FEATURE_NODE_CONSTRUCTOR == null || ITERATION_NODE_CONSTRUCTOR == null) {
-      return null;
-    }
-    RunnerConfiguration configuration = original.getConfiguration();
-    FeatureInfo featureInfo = original.getNodeInfo();
-    IterationNode originalDelegate = METHOD_HANDLES.invoke(SIMPLE_FEATURE_NODE_DELEGATE, original);
-    if (originalDelegate == null) {
-      return null;
-    }
-    IterationInfo iterationInfo = METHOD_HANDLES.invoke(ITERATION_NODE_INFO, originalDelegate);
+    private static TestDescriptor copySimpleFeatureNode(
+            SimpleFeatureNode original, UnaryOperator<UniqueId> idTransform) {
+        if (SIMPLE_FEATURE_NODE_CONSTRUCTOR == null || ITERATION_NODE_CONSTRUCTOR == null) {
+            return null;
+        }
+        RunnerConfiguration configuration = original.getConfiguration();
+        FeatureInfo featureInfo = original.getNodeInfo();
+        IterationNode originalDelegate = METHOD_HANDLES.invoke(SIMPLE_FEATURE_NODE_DELEGATE, original);
+        if (originalDelegate == null) {
+            return null;
+        }
+        IterationInfo iterationInfo = METHOD_HANDLES.invoke(ITERATION_NODE_INFO, originalDelegate);
 
-    UniqueId newId = idTransform.apply(original.getUniqueId());
-    // keep the delegate a proper child of the copy and distinct across attempts
-    UniqueId.Segment delegateSegment = originalDelegate.getUniqueId().getLastSegment();
-    UniqueId newDelegateId = newId.append(delegateSegment.getType(), delegateSegment.getValue());
+        UniqueId newId = idTransform.apply(original.getUniqueId());
+        // keep the delegate a proper child of the copy and distinct across attempts
+        UniqueId.Segment delegateSegment = originalDelegate.getUniqueId().getLastSegment();
+        UniqueId newDelegateId = newId.append(delegateSegment.getType(), delegateSegment.getValue());
 
-    IterationNode delegate =
-        METHOD_HANDLES.invoke(
-            ITERATION_NODE_CONSTRUCTOR, newDelegateId, configuration, iterationInfo);
-    if (delegate == null) {
-      return null;
+        IterationNode delegate =
+                METHOD_HANDLES.invoke(ITERATION_NODE_CONSTRUCTOR, newDelegateId, configuration, iterationInfo);
+        if (delegate == null) {
+            return null;
+        }
+        return METHOD_HANDLES.invoke(SIMPLE_FEATURE_NODE_CONSTRUCTOR, newId, configuration, featureInfo, delegate);
     }
-    return METHOD_HANDLES.invoke(
-        SIMPLE_FEATURE_NODE_CONSTRUCTOR, newId, configuration, featureInfo, delegate);
-  }
 
-  private static TestDescriptor copyIterationNode(
-      IterationNode original, UnaryOperator<UniqueId> idTransform) {
-    if (ITERATION_NODE_CONSTRUCTOR == null) {
-      return null;
+    private static TestDescriptor copyIterationNode(IterationNode original, UnaryOperator<UniqueId> idTransform) {
+        if (ITERATION_NODE_CONSTRUCTOR == null) {
+            return null;
+        }
+        RunnerConfiguration configuration = original.getConfiguration();
+        IterationInfo iterationInfo = METHOD_HANDLES.invoke(ITERATION_NODE_INFO, original);
+        if (iterationInfo == null) {
+            return null;
+        }
+        UniqueId newId = idTransform.apply(original.getUniqueId());
+        return METHOD_HANDLES.invoke(ITERATION_NODE_CONSTRUCTOR, newId, configuration, iterationInfo);
     }
-    RunnerConfiguration configuration = original.getConfiguration();
-    IterationInfo iterationInfo = METHOD_HANDLES.invoke(ITERATION_NODE_INFO, original);
-    if (iterationInfo == null) {
-      return null;
-    }
-    UniqueId newId = idTransform.apply(original.getUniqueId());
-    return METHOD_HANDLES.invoke(ITERATION_NODE_CONSTRUCTOR, newId, configuration, iterationInfo);
-  }
 }

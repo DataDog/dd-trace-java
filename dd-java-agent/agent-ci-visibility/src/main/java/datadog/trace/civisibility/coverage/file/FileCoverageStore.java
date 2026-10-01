@@ -29,99 +29,97 @@ import org.slf4j.LoggerFactory;
  */
 public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
 
-  private static final Logger log = LoggerFactory.getLogger(FileCoverageStore.class);
-
-  private final CiVisibilityMetricCollector metrics;
-  private final SourcePathResolver sourcePathResolver;
-
-  private FileCoverageStore(
-      Function<Boolean, FileProbes> probesFactory,
-      CiVisibilityMetricCollector metrics,
-      SourcePathResolver sourcePathResolver) {
-    super(probesFactory);
-    this.metrics = metrics;
-    this.sourcePathResolver = sourcePathResolver;
-  }
-
-  @Nullable
-  @Override
-  protected TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes) {
-    Set<Class<?>> combinedClasses = Collections.newSetFromMap(new IdentityHashMap<>());
-    Collection<String> combinedNonCodeResources = new HashSet<>();
-
-    for (FileProbes probe : probes) {
-      combinedClasses.addAll(probe.getCoveredClasses());
-      combinedNonCodeResources.addAll(probe.getNonCodeResources());
-    }
-
-    if (combinedClasses.isEmpty() && combinedNonCodeResources.isEmpty()) {
-      return null;
-    }
-
-    Set<String> coveredPaths = set(combinedClasses.size() + combinedNonCodeResources.size());
-    for (Class<?> clazz : combinedClasses) {
-      Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(clazz);
-      if (sourcePaths.isEmpty()) {
-        log.debug(
-            "Skipping coverage reporting for {} because source path could not be determined",
-            clazz);
-        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-        continue;
-      }
-      coveredPaths.addAll(sourcePaths);
-    }
-
-    for (String nonCodeResource : combinedNonCodeResources) {
-      Collection<String> resourcePaths = sourcePathResolver.getResourcePaths(nonCodeResource);
-      if (resourcePaths.isEmpty()) {
-        log.debug(
-            "Skipping coverage reporting for {} because resource path could not be determined",
-            nonCodeResource);
-        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-        continue;
-      }
-      coveredPaths.addAll(resourcePaths);
-    }
-
-    List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredPaths.size());
-    for (String path : coveredPaths) {
-      fileEntries.add(new TestReportFileEntry(path, null));
-    }
-
-    TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
-    metrics.add(
-        CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
-        report.getTestReportFileEntries().size());
-    return report;
-  }
-
-  private static <T> Set<T> set(int size) {
-    return new HashSet<>(Math.max((int) (size / .75f) + 1, 16));
-  }
-
-  public static final class Factory implements CoverageStore.Factory {
+    private static final Logger log = LoggerFactory.getLogger(FileCoverageStore.class);
 
     private final CiVisibilityMetricCollector metrics;
     private final SourcePathResolver sourcePathResolver;
 
-    public Factory(CiVisibilityMetricCollector metrics, SourcePathResolver sourcePathResolver) {
-      this.metrics = metrics;
-      this.sourcePathResolver = sourcePathResolver;
+    private FileCoverageStore(
+            Function<Boolean, FileProbes> probesFactory,
+            CiVisibilityMetricCollector metrics,
+            SourcePathResolver sourcePathResolver) {
+        super(probesFactory);
+        this.metrics = metrics;
+        this.sourcePathResolver = sourcePathResolver;
     }
 
+    @Nullable
     @Override
-    public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
-      return new FileCoverageStore(this::createProbes, metrics, sourcePathResolver);
+    protected TestReport report(
+            DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes) {
+        Set<Class<?>> combinedClasses = Collections.newSetFromMap(new IdentityHashMap<>());
+        Collection<String> combinedNonCodeResources = new HashSet<>();
+
+        for (FileProbes probe : probes) {
+            combinedClasses.addAll(probe.getCoveredClasses());
+            combinedNonCodeResources.addAll(probe.getNonCodeResources());
+        }
+
+        if (combinedClasses.isEmpty() && combinedNonCodeResources.isEmpty()) {
+            return null;
+        }
+
+        Set<String> coveredPaths = set(combinedClasses.size() + combinedNonCodeResources.size());
+        for (Class<?> clazz : combinedClasses) {
+            Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(clazz);
+            if (sourcePaths.isEmpty()) {
+                log.debug("Skipping coverage reporting for {} because source path could not be determined", clazz);
+                metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
+                continue;
+            }
+            coveredPaths.addAll(sourcePaths);
+        }
+
+        for (String nonCodeResource : combinedNonCodeResources) {
+            Collection<String> resourcePaths = sourcePathResolver.getResourcePaths(nonCodeResource);
+            if (resourcePaths.isEmpty()) {
+                log.debug(
+                        "Skipping coverage reporting for {} because resource path could not be determined",
+                        nonCodeResource);
+                metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
+                continue;
+            }
+            coveredPaths.addAll(resourcePaths);
+        }
+
+        List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredPaths.size());
+        for (String path : coveredPaths) {
+            fileEntries.add(new TestReportFileEntry(path, null));
+        }
+
+        TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
+        metrics.add(
+                CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
+                report.getTestReportFileEntries().size());
+        return report;
     }
 
-    private FileProbes createProbes(boolean isTestThread) {
-      return new FileProbes(metrics, isTestThread);
+    private static <T> Set<T> set(int size) {
+        return new HashSet<>(Math.max((int) (size / .75f) + 1, 16));
     }
 
-    @Override
-    public void setTotalProbeCount(String className, int totalProbeCount) {
-      // no op
+    public static final class Factory implements CoverageStore.Factory {
+
+        private final CiVisibilityMetricCollector metrics;
+        private final SourcePathResolver sourcePathResolver;
+
+        public Factory(CiVisibilityMetricCollector metrics, SourcePathResolver sourcePathResolver) {
+            this.metrics = metrics;
+            this.sourcePathResolver = sourcePathResolver;
+        }
+
+        @Override
+        public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
+            return new FileCoverageStore(this::createProbes, metrics, sourcePathResolver);
+        }
+
+        private FileProbes createProbes(boolean isTestThread) {
+            return new FileProbes(metrics, isTestThread);
+        }
+
+        @Override
+        public void setTotalProbeCount(String className, int totalProbeCount) {
+            // no op
+        }
     }
-  }
 }

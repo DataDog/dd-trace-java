@@ -25,110 +25,107 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JUnit5CucumberSkipInstrumentation() {
-    super("ci-visibility", "junit-5", "junit-5-cucumber");
-  }
+    public JUnit5CucumberSkipInstrumentation() {
+        super("ci-visibility", "junit-5", "junit-5-cucumber");
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("io.cucumber.junit.platform.engine.CucumberTestEngine");
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return hasClassNamed("io.cucumber.junit.platform.engine.CucumberTestEngine");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
-        && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
-  }
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled()
+                && (Config.get().isCiVisibilityTestSkippingEnabled()
+                        || Config.get().isCiVisibilityTestManagementEnabled());
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.cucumber.junit.platform.engine.CucumberTestEngine";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.cucumber.junit.platform.engine.CucumberTestEngine";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("io.cucumber.junit.platform.engine.NodeDescriptor"))
-        // legacy Cucumber versions
-        .or(extendsClass(named("io.cucumber.junit.platform.engine.PickleDescriptor")))
-        // Cucumber 7.24+
-        .or(
-            extendsClass(
-                named(
-                    "io.cucumber.junit.platform.engine.CucumberTestDescriptor$PickleDescriptor")));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("io.cucumber.junit.platform.engine.NodeDescriptor"))
+                // legacy Cucumber versions
+                .or(extendsClass(named("io.cucumber.junit.platform.engine.PickleDescriptor")))
+                // Cucumber 7.24+
+                .or(extendsClass(named("io.cucumber.junit.platform.engine.CucumberTestDescriptor$PickleDescriptor")));
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestDataFactory",
-      packageName + ".JUnitPlatformUtils",
-      packageName + ".execution.RetryDescriptorFactory",
-      packageName + ".execution.RetryDescriptorFactories",
-      packageName + ".EmptyConfigurationParameters",
-      packageName + ".CucumberRetryDescriptorFactory",
-      packageName + ".CucumberUtils",
-      packageName + ".TestEventsHandlerHolder",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".TestDataFactory",
+            packageName + ".JUnitPlatformUtils",
+            packageName + ".execution.RetryDescriptorFactory",
+            packageName + ".execution.RetryDescriptorFactories",
+            packageName + ".EmptyConfigurationParameters",
+            packageName + ".CucumberRetryDescriptorFactory",
+            packageName + ".CucumberUtils",
+            packageName + ".TestEventsHandlerHolder",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("shouldBeSkipped").and(takesArguments(1)),
-        JUnit5CucumberSkipInstrumentation.class.getName() + "$JUnit5SkipAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("shouldBeSkipped").and(takesArguments(1)),
+                JUnit5CucumberSkipInstrumentation.class.getName() + "$JUnit5SkipAdvice");
+    }
 
-  /**
-   * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to any classes from {@code
-   * org.junit.platform.launcher} package in here: in some Gradle projects this package is not
-   * available in CL where this instrumentation is injected
-   */
-  public static class JUnit5SkipAdvice {
-    @Advice.OnMethodExit
-    public static void shouldBeSkipped(
-        @Advice.This TestDescriptor testDescriptor,
-        @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
-      if (skipResult.isSkipped()) {
-        return;
-      }
+    /**
+     * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to any classes from {@code
+     * org.junit.platform.launcher} package in here: in some Gradle projects this package is not
+     * available in CL where this instrumentation is injected
+     */
+    public static class JUnit5SkipAdvice {
+        @Advice.OnMethodExit
+        public static void shouldBeSkipped(
+                @Advice.This TestDescriptor testDescriptor,
+                @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
+            if (skipResult.isSkipped()) {
+                return;
+            }
 
-      TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler =
-          TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.CUCUMBER);
+            TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler =
+                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.CUCUMBER);
 
-      if (testEventsHandler == null) {
-        // should only happen in integration tests
-        // because we cannot avoid instrumenting ourselves
-        return;
-      }
+            if (testEventsHandler == null) {
+                // should only happen in integration tests
+                // because we cannot avoid instrumenting ourselves
+                return;
+            }
 
-      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor);
-      if (test == null) {
-        return;
-      }
+            TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor);
+            if (test == null) {
+                return;
+            }
 
-      SkipReason skipReason = testEventsHandler.skipReason(test);
-      if (skipReason == null) {
-        return;
-      }
+            SkipReason skipReason = testEventsHandler.skipReason(test);
+            if (skipReason == null) {
+                return;
+            }
 
-      if (skipReason == SkipReason.ITR) {
-        Collection<TestTag> tags = testDescriptor.getTags();
-        for (TestTag tag : tags) {
-          if (CIConstants.Tags.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
-            return;
-          }
+            if (skipReason == SkipReason.ITR) {
+                Collection<TestTag> tags = testDescriptor.getTags();
+                for (TestTag tag : tags) {
+                    if (CIConstants.Tags.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+                        return;
+                    }
+                }
+            }
+
+            skipResult = Node.SkipResult.skip(skipReason.getDescription());
         }
-      }
 
-      skipResult = Node.SkipResult.skip(skipReason.getDescription());
+        // JUnit 5.3.0 and above
+        public static void muzzleCheck(final SameThreadHierarchicalTestExecutorService service) {
+            service.invokeAll(null);
+        }
     }
-
-    // JUnit 5.3.0 and above
-    public static void muzzleCheck(final SameThreadHierarchicalTestExecutorService service) {
-      service.invokeAll(null);
-    }
-  }
 }

@@ -9,33 +9,33 @@ import org.slf4j.LoggerFactory;
 // within a time window. If the number of trips exceeds the limit, the circuit breaker will trip and
 // return false until the time window has passed.
 public class CircuitBreaker {
-  private static final Logger LOGGER = LoggerFactory.getLogger(CircuitBreaker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CircuitBreaker.class);
 
-  private final int maxTrips;
-  private final Duration timeWindow;
-  private AtomicInteger count = new AtomicInteger(0);
-  private volatile long lastResetTime = System.currentTimeMillis();
-  private volatile long lastLoggingTime = System.currentTimeMillis();
+    private final int maxTrips;
+    private final Duration timeWindow;
+    private AtomicInteger count = new AtomicInteger(0);
+    private volatile long lastResetTime = System.currentTimeMillis();
+    private volatile long lastLoggingTime = System.currentTimeMillis();
 
-  public CircuitBreaker(int maxTrips, Duration timeWindow) {
-    this.maxTrips = maxTrips;
-    this.timeWindow = timeWindow;
-  }
-
-  public boolean trip() {
-    int localCount = count.incrementAndGet();
-    if (localCount > maxTrips) {
-      long currentTime = System.currentTimeMillis();
-      if (currentTime - lastLoggingTime > Duration.ofMinutes(1).toMillis()) {
-        lastLoggingTime = currentTime;
-        LOGGER.debug("Circuit breaker opened");
-      }
-      if (currentTime - lastResetTime > timeWindow.toMillis()) {
-        lastResetTime = currentTime;
-        localCount = 1;
-        count.set(localCount);
-      }
+    public CircuitBreaker(int maxTrips, Duration timeWindow) {
+        this.maxTrips = maxTrips;
+        this.timeWindow = timeWindow;
     }
-    return localCount <= maxTrips;
-  }
+
+    public boolean trip() {
+        int localCount = count.incrementAndGet();
+        if (localCount > maxTrips) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastLoggingTime > Duration.ofMinutes(1).toMillis()) {
+                lastLoggingTime = currentTime;
+                LOGGER.debug("Circuit breaker opened");
+            }
+            if (currentTime - lastResetTime > timeWindow.toMillis()) {
+                lastResetTime = currentTime;
+                localCount = 1;
+                count.set(localCount);
+            }
+        }
+        return localCount <= maxTrips;
+    }
 }

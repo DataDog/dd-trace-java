@@ -14,49 +14,48 @@ import org.junit.runners.model.FrameworkMethod;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public JUnit4BeforeAfterInstrumentation() {
-    super("ci-visibility", "junit-4", "setup-teardown");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.junit.internal.runners.statements.RunBefores",
-      "org.junit.internal.runners.statements.RunAfters",
-      "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunBeforeParams",
-      "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunAfterParams",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("invokeMethod")
-            .and(takesArgument(0, named("org.junit.runners.model.FrameworkMethod"))),
-        JUnit4BeforeAfterInstrumentation.class.getName() + "$RunBeforesAftersAdvice");
-  }
-
-  public static class RunBeforesAftersAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope startCallSpan(@Advice.Argument(0) final FrameworkMethod method) {
-      return JUnit4BeforeAfterOperationsTracer.startTrace(method.getMethod());
+    public JUnit4BeforeAfterInstrumentation() {
+        super("ci-visibility", "junit-4", "setup-teardown");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishCallSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      JUnit4BeforeAfterOperationsTracer.endTrace(scope, throwable);
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.junit.internal.runners.statements.RunBefores",
+            "org.junit.internal.runners.statements.RunAfters",
+            "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunBeforeParams",
+            "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunAfterParams",
+        };
     }
 
-    // JUnit 4.13 and above
-    public static void muzzleCheck(final Ordering ord) {
-      try {
-        ord.apply(null);
-      } catch (InvalidOrderingException e) {
-        throw new RuntimeException(e);
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("invokeMethod").and(takesArgument(0, named("org.junit.runners.model.FrameworkMethod"))),
+                JUnit4BeforeAfterInstrumentation.class.getName() + "$RunBeforesAftersAdvice");
     }
-  }
+
+    public static class RunBeforesAftersAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope startCallSpan(@Advice.Argument(0) final FrameworkMethod method) {
+            return JUnit4BeforeAfterOperationsTracer.startTrace(method.getMethod());
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void finishCallSpan(
+                @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            JUnit4BeforeAfterOperationsTracer.endTrace(scope, throwable);
+        }
+
+        // JUnit 4.13 and above
+        public static void muzzleCheck(final Ordering ord) {
+            try {
+                ord.apply(null);
+            } catch (InvalidOrderingException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 }

@@ -46,40 +46,35 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class SpanCreationVirtualThreadBenchmark {
-  private static final String INSTRUMENTATION_NAME = "bench";
-  private static final String OPERATION_NAME = "servlet.request";
+    private static final String INSTRUMENTATION_NAME = "bench";
+    private static final String OPERATION_NAME = "servlet.request";
 
-  CoreTracer tracer;
-  // Thread.startVirtualThread(Runnable) -> Thread, resolved reflectively (JDK 21+).
-  private MethodHandle startVirtualThread;
-  // Reused so no per-op capturing-lambda allocation muddies the measurement.
-  private Runnable spanTask;
+    CoreTracer tracer;
+    // Thread.startVirtualThread(Runnable) -> Thread, resolved reflectively (JDK 21+).
+    private MethodHandle startVirtualThread;
+    // Reused so no per-op capturing-lambda allocation muddies the measurement.
+    private Runnable spanTask;
 
-  @Setup
-  public void setup(Blackhole blackhole) throws Throwable {
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
-    this.startVirtualThread =
-        MethodHandles.publicLookup()
-            .findStatic(
-                Thread.class,
-                "startVirtualThread",
-                MethodType.methodType(Thread.class, Runnable.class));
-    this.spanTask =
-        () -> {
-          AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-          span.finish();
+    @Setup
+    public void setup(Blackhole blackhole) throws Throwable {
+        this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+        this.startVirtualThread = MethodHandles.publicLookup()
+                .findStatic(Thread.class, "startVirtualThread", MethodType.methodType(Thread.class, Runnable.class));
+        this.spanTask = () -> {
+            AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
+            span.finish();
         };
-  }
+    }
 
-  @TearDown
-  public void tearDown() {
-    this.tracer.close();
-  }
+    @TearDown
+    public void tearDown() {
+        this.tracer.close();
+    }
 
-  /** create + finish a bare span on a fresh virtual thread; join. */
-  @Benchmark
-  public void bareStartSpanOnVirtualThread() throws Throwable {
-    Thread vthread = (Thread) startVirtualThread.invokeExact(spanTask);
-    vthread.join();
-  }
+    /** create + finish a bare span on a fresh virtual thread; join. */
+    @Benchmark
+    public void bareStartSpanOnVirtualThread() throws Throwable {
+        Thread vthread = (Thread) startVirtualThread.invokeExact(spanTask);
+        vthread.join();
+    }
 }

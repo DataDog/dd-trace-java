@@ -13,43 +13,43 @@ import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.jupiter.api.AfterEach;
 
 public class ProbeInstrumentationTest {
-  protected static final String SERVICE_NAME = "service-name";
+    protected static final String SERVICE_NAME = "service-name";
 
-  protected Instrumentation instr = ByteBuddyAgent.install();
-  protected ClassFileTransformer currentTransformer;
-  protected MockSink mockSink;
-  protected ProbeStatusSink probeStatusSink;
+    protected Instrumentation instr = ByteBuddyAgent.install();
+    protected ClassFileTransformer currentTransformer;
+    protected MockSink mockSink;
+    protected ProbeStatusSink probeStatusSink;
 
-  @AfterEach
-  public void after() {
-    if (currentTransformer != null) {
-      instr.removeTransformer(currentTransformer);
-    }
-  }
-
-  protected static class MockSink extends DebuggerSink {
-
-    private final List<Snapshot> snapshots = new ArrayList<>();
-
-    public MockSink(Config config, ProbeStatusSink probeStatusSink) {
-      super(config, probeStatusSink);
+    @AfterEach
+    public void after() {
+        if (currentTransformer != null) {
+            instr.removeTransformer(currentTransformer);
+        }
     }
 
-    @Override
-    public void addSnapshot(Snapshot snapshot) {
-      snapshots.add(snapshot);
-    }
+    protected static class MockSink extends DebuggerSink {
 
-    @Override
-    public void addHighRateSnapshot(Snapshot snapshot) {
-      snapshots.add(snapshot);
-    }
+        private final List<Snapshot> snapshots = new ArrayList<>();
 
-    @Override
-    public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {}
+        public MockSink(Config config, ProbeStatusSink probeStatusSink) {
+            super(config, probeStatusSink);
+        }
 
-    public List<Snapshot> getSnapshots() {
-      return snapshots;
+        @Override
+        public void addSnapshot(Snapshot snapshot) {
+            snapshots.add(snapshot);
+        }
+
+        @Override
+        public void addHighRateSnapshot(Snapshot snapshot) {
+            snapshots.add(snapshot);
+        }
+
+        @Override
+        public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {}
+
+        public List<Snapshot> getSnapshots() {
+            return snapshots;
+        }
     }
-  }
 }

@@ -7,46 +7,46 @@ import com.datadog.ddwaf.WafBuilder;
 import java.util.Collection;
 
 public interface AppSecModule {
-  void config(AppSecModuleConfigurer appSecConfigService) throws AppSecModuleActivationException;
+    void config(AppSecModuleConfigurer appSecConfigService) throws AppSecModuleActivationException;
 
-  void setWafBuilder(WafBuilder wafBuilder);
+    void setWafBuilder(WafBuilder wafBuilder);
 
-  void setRuleVersion(String rulesetVersion);
+    void setRuleVersion(String rulesetVersion);
 
-  String getName();
+    String getName();
 
-  String getInfo();
+    String getInfo();
 
-  Collection<DataSubscription> getDataSubscriptions();
+    Collection<DataSubscription> getDataSubscriptions();
 
-  boolean isWafBuilderSet();
+    boolean isWafBuilderSet();
 
-  abstract class DataSubscription implements DataListener {
-    private final Collection<Address<?>> subscribedAddresses;
-    private final Priority priority;
+    abstract class DataSubscription implements DataListener {
+        private final Collection<Address<?>> subscribedAddresses;
+        private final Priority priority;
 
-    protected DataSubscription(Collection<Address<?>> subscribedAddresses, Priority priority) {
-      this.subscribedAddresses = subscribedAddresses;
-      this.priority = priority;
+        protected DataSubscription(Collection<Address<?>> subscribedAddresses, Priority priority) {
+            this.subscribedAddresses = subscribedAddresses;
+            this.priority = priority;
+        }
+
+        @Override
+        public Priority getPriority() {
+            return priority;
+        }
+
+        public Collection<Address<?>> getSubscribedAddresses() {
+            return subscribedAddresses;
+        }
     }
 
-    @Override
-    public Priority getPriority() {
-      return priority;
-    }
+    class AppSecModuleActivationException extends Exception {
+        public AppSecModuleActivationException(String message) {
+            super(message);
+        }
 
-    public Collection<Address<?>> getSubscribedAddresses() {
-      return subscribedAddresses;
+        public AppSecModuleActivationException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
-  }
-
-  class AppSecModuleActivationException extends Exception {
-    public AppSecModuleActivationException(String message) {
-      super(message);
-    }
-
-    public AppSecModuleActivationException(String message, Throwable cause) {
-      super(message, cause);
-    }
-  }
 }

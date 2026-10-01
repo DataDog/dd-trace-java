@@ -5,8 +5,8 @@ import java.util.stream.Stream;
 
 public interface StackWalker {
 
-  boolean isEnabled();
+    boolean isEnabled();
 
-  /** StackTrace should be returned without any element from the dd-trace-java-agent itself. */
-  <T> T walk(Function<Stream<StackTraceElement>, T> consumer);
+    /** StackTrace should be returned without any element from the dd-trace-java-agent itself. */
+    <T> T walk(Function<Stream<StackTraceElement>, T> consumer);
 }

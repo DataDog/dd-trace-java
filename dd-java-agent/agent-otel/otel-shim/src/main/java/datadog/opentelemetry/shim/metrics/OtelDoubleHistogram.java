@@ -26,112 +26,105 @@ import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
 final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogram {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtelDoubleHistogram.class);
-  private static final RatelimitedLogger RATELIMITED_LOGGER =
-      new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OtelDoubleHistogram.class);
+    private static final RatelimitedLogger RATELIMITED_LOGGER = new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  OtelDoubleHistogram(OtelMetricStorage storage) {
-    super(storage);
-  }
-
-  @Override
-  public void record(double value) {
-    record(value, Attributes.empty());
-  }
-
-  @Override
-  public void record(double value, Attributes attributes) {
-    if (value < 0) {
-      RATELIMITED_LOGGER.warn(
-          "Histograms can only record non-negative values. Instrument {} has recorded a negative value.",
-          storage.getInstrumentName());
-    } else {
-      storage.recordDouble(value, attributes);
-    }
-  }
-
-  @Override
-  public void record(double value, Attributes attributes, Context unused) {
-    record(value, attributes);
-  }
-
-  static final class Builder implements DoubleHistogramBuilder {
-    private static final List<Double> DEFAULT_BOUNDARIES =
-        asList(
-            0d, 5d, 10d, 25d, 50d, 75d, 100d, 250d, 500d, 750d, 1_000d, 2_500d, 5_000d, 7_500d,
-            10_000d);
-
-    private final OtelMeter meter;
-    private final OtelInstrumentBuilder builder;
-    private List<Double> bucketBoundaries;
-
-    Builder(OtelMeter meter, String instrumentName) {
-      this.meter = meter;
-      this.builder = ofDoubles(instrumentName, HISTOGRAM);
-      this.bucketBoundaries = DEFAULT_BOUNDARIES;
+    OtelDoubleHistogram(OtelMetricStorage storage) {
+        super(storage);
     }
 
     @Override
-    public DoubleHistogramBuilder setDescription(String description) {
-      builder.setDescription(description);
-      return this;
+    public void record(double value) {
+        record(value, Attributes.empty());
     }
 
     @Override
-    public DoubleHistogramBuilder setUnit(String unit) {
-      builder.setUnit(unit);
-      return this;
-    }
-
-    @Override
-    @SuppressFBWarnings("DCN") // match OTel in catching and logging NPE
-    public DoubleHistogramBuilder setExplicitBucketBoundariesAdvice(List<Double> bucketBoundaries) {
-      try {
-        Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
-        this.bucketBoundaries = validateBoundaries(new ArrayList<>(bucketBoundaries));
-      } catch (IllegalArgumentException | NullPointerException e) {
-        LOGGER.warn("Error setting explicit bucket boundaries advice: {}", e.getMessage());
-      }
-      return this;
-    }
-
-    @Override
-    public LongHistogramBuilder ofLongs() {
-      return new OtelLongHistogram.Builder(meter, builder, bucketBoundaries);
-    }
-
-    @Override
-    public DoubleHistogram build() {
-      return new OtelDoubleHistogram(
-          meter.registerStorage(
-              builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
-    }
-
-    static List<Double> validateBoundaries(List<Double> boundaries) {
-      if (boundaries.isEmpty()) {
-        return emptyList();
-      }
-      if (boundaries.get(0) == Double.NEGATIVE_INFINITY) {
-        throw new IllegalArgumentException("invalid bucket boundary: -Inf");
-      }
-      if (boundaries.get(boundaries.size() - 1) == Double.POSITIVE_INFINITY) {
-        throw new IllegalArgumentException("invalid bucket boundary: +Inf");
-      }
-      Double previousBoundary = null;
-      for (Double boundary : boundaries) {
-        if (boundary.isNaN()) {
-          throw new IllegalArgumentException("invalid bucket boundary: NaN");
+    public void record(double value, Attributes attributes) {
+        if (value < 0) {
+            RATELIMITED_LOGGER.warn(
+                    "Histograms can only record non-negative values. Instrument {} has recorded a negative value.",
+                    storage.getInstrumentName());
+        } else {
+            storage.recordDouble(value, attributes);
         }
-        if (previousBoundary != null && previousBoundary >= boundary) {
-          throw new IllegalArgumentException(
-              "Bucket boundaries must be in increasing order: "
-                  + previousBoundary
-                  + " >= "
-                  + boundary);
-        }
-        previousBoundary = boundary;
-      }
-      return boundaries;
     }
-  }
+
+    @Override
+    public void record(double value, Attributes attributes, Context unused) {
+        record(value, attributes);
+    }
+
+    static final class Builder implements DoubleHistogramBuilder {
+        private static final List<Double> DEFAULT_BOUNDARIES =
+                asList(0d, 5d, 10d, 25d, 50d, 75d, 100d, 250d, 500d, 750d, 1_000d, 2_500d, 5_000d, 7_500d, 10_000d);
+
+        private final OtelMeter meter;
+        private final OtelInstrumentBuilder builder;
+        private List<Double> bucketBoundaries;
+
+        Builder(OtelMeter meter, String instrumentName) {
+            this.meter = meter;
+            this.builder = ofDoubles(instrumentName, HISTOGRAM);
+            this.bucketBoundaries = DEFAULT_BOUNDARIES;
+        }
+
+        @Override
+        public DoubleHistogramBuilder setDescription(String description) {
+            builder.setDescription(description);
+            return this;
+        }
+
+        @Override
+        public DoubleHistogramBuilder setUnit(String unit) {
+            builder.setUnit(unit);
+            return this;
+        }
+
+        @Override
+        @SuppressFBWarnings("DCN") // match OTel in catching and logging NPE
+        public DoubleHistogramBuilder setExplicitBucketBoundariesAdvice(List<Double> bucketBoundaries) {
+            try {
+                Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
+                this.bucketBoundaries = validateBoundaries(new ArrayList<>(bucketBoundaries));
+            } catch (IllegalArgumentException | NullPointerException e) {
+                LOGGER.warn("Error setting explicit bucket boundaries advice: {}", e.getMessage());
+            }
+            return this;
+        }
+
+        @Override
+        public LongHistogramBuilder ofLongs() {
+            return new OtelLongHistogram.Builder(meter, builder, bucketBoundaries);
+        }
+
+        @Override
+        public DoubleHistogram build() {
+            return new OtelDoubleHistogram(
+                    meter.registerStorage(builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
+        }
+
+        static List<Double> validateBoundaries(List<Double> boundaries) {
+            if (boundaries.isEmpty()) {
+                return emptyList();
+            }
+            if (boundaries.get(0) == Double.NEGATIVE_INFINITY) {
+                throw new IllegalArgumentException("invalid bucket boundary: -Inf");
+            }
+            if (boundaries.get(boundaries.size() - 1) == Double.POSITIVE_INFINITY) {
+                throw new IllegalArgumentException("invalid bucket boundary: +Inf");
+            }
+            Double previousBoundary = null;
+            for (Double boundary : boundaries) {
+                if (boundary.isNaN()) {
+                    throw new IllegalArgumentException("invalid bucket boundary: NaN");
+                }
+                if (previousBoundary != null && previousBoundary >= boundary) {
+                    throw new IllegalArgumentException(
+                            "Bucket boundaries must be in increasing order: " + previousBoundary + " >= " + boundary);
+                }
+                previousBoundary = boundary;
+            }
+            return boundaries;
+        }
+    }
 }

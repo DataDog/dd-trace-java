@@ -10,17 +10,16 @@ import play.mvc.Http;
  * @see play.mvc.BodyParser.FormUrlEncoded#parse(Http.RequestHeader, ByteString)
  */
 public class BodyParserFormUrlEncodedParseAdvice {
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  static void after(
-      @Advice.Return Map<String, String[]> ret, @Advice.Thrown(readOnly = false) Throwable t) {
-    if (t != null) {
-      return;
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    static void after(@Advice.Return Map<String, String[]> ret, @Advice.Thrown(readOnly = false) Throwable t) {
+        if (t != null) {
+            return;
+        }
+        try {
+            // error is reported as client error, which doesn't preserve the exception
+            BodyParserHelpers.handleArbitraryPostDataWithSpanError(ret, "FormUrlEncoded#parse");
+        } catch (BlockingException be) {
+            t = be;
+        }
     }
-    try {
-      // error is reported as client error, which doesn't preserve the exception
-      BodyParserHelpers.handleArbitraryPostDataWithSpanError(ret, "FormUrlEncoded#parse");
-    } catch (BlockingException be) {
-      t = be;
-    }
-  }
 }

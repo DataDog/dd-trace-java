@@ -5,8 +5,8 @@ package opentelemetry127.logs;
 // GlobalOpenTelemetry holds static state that must reset between variants.
 class OpenTelemetryLogsDisableByDefaultForkedTest extends OpenTelemetryLogsActivationTest {
 
-  @Override
-  boolean shouldBeInjected() {
-    return false;
-  }
+    @Override
+    boolean shouldBeInjected() {
+        return false;
+    }
 }

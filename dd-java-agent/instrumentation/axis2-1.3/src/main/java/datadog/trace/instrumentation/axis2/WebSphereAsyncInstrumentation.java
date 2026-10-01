@@ -12,47 +12,45 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
-public final class WebSphereAsyncInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class WebSphereAsyncInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.ibm.ws.websvcs.transport.http.SOAPOverHTTPSender";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("sendSOAPRequestAsync")),
-        getClass().getName() + "$CaptureAsyncAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("releaseBuffer")), getClass().getName() + "$ReleaseAsyncAdvice");
-  }
-
-  public static final class CaptureAsyncAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beginAsync(@Advice.Argument(0) final MessageContext message) {
-      AgentSpan span = activeSpan();
-      if (null != span && AXIS2_TRANSPORT.equals(span.getSpanName())) {
-        message.setNonReplicableProperty(AXIS2_ASYNC_SPAN_KEY, span);
-      }
+    @Override
+    public String instrumentedType() {
+        return "com.ibm.ws.websvcs.transport.http.SOAPOverHTTPSender";
     }
-  }
 
-  public static final class ReleaseAsyncAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void finishAsync(@Advice.FieldValue("msgContext") final MessageContext message) {
-      AgentSpan span = (AgentSpan) message.getPropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY);
-      if (null != span) {
-        message.removePropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY);
-        // same as AxisTransportInstrumentation.TransportAdvice.finishTransport
-        Object statusCode = message.getProperty("transport.http.statusCode");
-        if (statusCode instanceof Integer) {
-          span.setHttpStatusCode((Integer) statusCode);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("sendSOAPRequestAsync")), getClass().getName() + "$CaptureAsyncAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("releaseBuffer")), getClass().getName() + "$ReleaseAsyncAdvice");
+    }
+
+    public static final class CaptureAsyncAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void beginAsync(@Advice.Argument(0) final MessageContext message) {
+            AgentSpan span = activeSpan();
+            if (null != span && AXIS2_TRANSPORT.equals(span.getSpanName())) {
+                message.setNonReplicableProperty(AXIS2_ASYNC_SPAN_KEY, span);
+            }
         }
-        DECORATE.beforeFinish(span, message);
-        span.finish();
-      }
     }
-  }
+
+    public static final class ReleaseAsyncAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void finishAsync(@Advice.FieldValue("msgContext") final MessageContext message) {
+            AgentSpan span = (AgentSpan) message.getPropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY);
+            if (null != span) {
+                message.removePropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY);
+                // same as AxisTransportInstrumentation.TransportAdvice.finishTransport
+                Object statusCode = message.getProperty("transport.http.statusCode");
+                if (statusCode instanceof Integer) {
+                    span.setHttpStatusCode((Integer) statusCode);
+                }
+                DECORATE.beforeFinish(span, message);
+                span.finish();
+            }
+        }
+    }
 }

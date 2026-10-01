@@ -22,56 +22,56 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JSONObjectInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public JSONObjectInstrumentation() {
-    super("org-json");
-  }
-
-  static final ElementMatcher.Junction<ClassLoader> BEFORE_20241224 =
-      not(hasClassNamed("org.json.StringBuilderWriter"));
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return BEFORE_20241224;
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "before_20241224";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.json.JSONObject";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // public JSONObject(JSONTokener x)
-    transformer.applyAdvice(
-        isConstructor().and(takesArguments(1)).and(takesArgument(0, named("org.json.JSONTokener"))),
-        getClass().getName() + "$ConstructorAdvice");
-    // private JSONObject(Map<?, ?> m)
-    transformer.applyAdvice(
-        isConstructor().and(takesArguments(1)).and(takesArgument(0, Map.class)),
-        getClass().getName() + "$ConstructorAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(returns(Object.class))
-            .and(named("opt"))
-            .and(takesArguments(String.class)),
-        packageName + ".OptAdvice");
-  }
-
-  public static class ConstructorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
-      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null && input != null) {
-        iastModule.taintObjectIfTainted(self, input);
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public JSONObjectInstrumentation() {
+        super("org-json");
     }
-  }
+
+    static final ElementMatcher.Junction<ClassLoader> BEFORE_20241224 =
+            not(hasClassNamed("org.json.StringBuilderWriter"));
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return BEFORE_20241224;
+    }
+
+    @Override
+    public String muzzleDirective() {
+        return "before_20241224";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.json.JSONObject";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // public JSONObject(JSONTokener x)
+        transformer.applyAdvice(
+                isConstructor().and(takesArguments(1)).and(takesArgument(0, named("org.json.JSONTokener"))),
+                getClass().getName() + "$ConstructorAdvice");
+        // private JSONObject(Map<?, ?> m)
+        transformer.applyAdvice(
+                isConstructor().and(takesArguments(1)).and(takesArgument(0, Map.class)),
+                getClass().getName() + "$ConstructorAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(returns(Object.class))
+                        .and(named("opt"))
+                        .and(takesArguments(String.class)),
+                packageName + ".OptAdvice");
+    }
+
+    public static class ConstructorAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
+            final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
+            if (iastModule != null && input != null) {
+                iastModule.taintObjectIfTainted(self, input);
+            }
+        }
+    }
 }

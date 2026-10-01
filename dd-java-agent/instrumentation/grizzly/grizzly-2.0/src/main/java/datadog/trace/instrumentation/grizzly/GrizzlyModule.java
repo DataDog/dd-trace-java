@@ -9,17 +9,17 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class GrizzlyModule extends InstrumenterModule.Tracing {
-  public GrizzlyModule() {
-    super("grizzly");
-  }
+    public GrizzlyModule() {
+        super("grizzly");
+    }
 
-  @Override
-  public boolean defaultEnabled() {
-    return false;
-  }
+    @Override
+    public boolean defaultEnabled() {
+        return false;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return singletonList(new GrizzlyHttpHandlerInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return singletonList(new GrizzlyHttpHandlerInstrumentation());
+    }
 }

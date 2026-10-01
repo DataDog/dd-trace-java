@@ -28,80 +28,78 @@ import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
 
 @AutoService(InstrumenterModule.class)
 public final class SpringMessageHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SpringMessageHandlerInstrumentation() {
-    super("spring-messaging", "spring-messaging-4");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.messaging.handler.invocation.InvocableHandlerMethod";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(
-                named("invoke")
-                    .and(takesArgument(0, named("org.springframework.messaging.Message")))),
-        SpringMessageHandlerInstrumentation.class.getName() + "$ContextPropagationAdvice",
-        SpringMessageHandlerInstrumentation.class.getName() + "$HandleMessageAdvice");
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextPropagationAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
-      if (activeSpan() == null) {
-        // no local active span, so extract from message to avoid disconnected trace
-        scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
-      }
+    public SpringMessageHandlerInstrumentation() {
+        super("spring-messaging", "spring-messaging-4");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
-      if (scope != null) scope.close();
-    }
-  }
-
-  public static class HandleMessageAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
-      AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPRING_INBOUND);
-      DECORATE.afterStart(span);
-      span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
-      return activateSpan(span);
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.messaging.handler.invocation.InvocableHandlerMethod";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter ContextScope scope,
-        @Advice.Return(readOnly = false) Object result,
-        @Advice.Thrown Throwable error) {
-      if (null == scope) {
-        return;
-      }
-      AgentSpan span = spanFromScope(scope);
-      scope.close();
-      if (null != error) {
-        DECORATE.onError(span, error);
-      }
-      if (result != null) {
-        Object wrappedResult =
-            AsyncResultExtensions.wrapAsyncResult(result, result.getClass(), span);
-        if (wrappedResult != null) {
-          result = wrappedResult;
-          // span will be finished by the wrapper
-          return;
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod().and(named("invoke").and(takesArgument(0, named("org.springframework.messaging.Message")))),
+                SpringMessageHandlerInstrumentation.class.getName() + "$ContextPropagationAdvice",
+                SpringMessageHandlerInstrumentation.class.getName() + "$HandleMessageAdvice");
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextPropagationAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
+            if (activeSpan() == null) {
+                // no local active span, so extract from message to avoid disconnected trace
+                scope = defaultPropagator()
+                        .extract(rootContext(), message, GETTER)
+                        .attach();
+            }
         }
-      }
-      DECORATE.beforeFinish(span);
-      span.finish();
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
+            if (scope != null) scope.close();
+        }
     }
-  }
+
+    public static class HandleMessageAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
+            AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPRING_INBOUND);
+            DECORATE.afterStart(span);
+            span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Enter ContextScope scope,
+                @Advice.Return(readOnly = false) Object result,
+                @Advice.Thrown Throwable error) {
+            if (null == scope) {
+                return;
+            }
+            AgentSpan span = spanFromScope(scope);
+            scope.close();
+            if (null != error) {
+                DECORATE.onError(span, error);
+            }
+            if (result != null) {
+                Object wrappedResult = AsyncResultExtensions.wrapAsyncResult(result, result.getClass(), span);
+                if (wrappedResult != null) {
+                    result = wrappedResult;
+                    // span will be finished by the wrapper
+                    return;
+                }
+            }
+            DECORATE.beforeFinish(span);
+            span.finish();
+        }
+    }
 }

@@ -23,141 +23,138 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 public class TaintableVisitor implements AsmVisitorWrapper {
 
-  public static volatile boolean DEBUG = false;
+    public static volatile boolean DEBUG = false;
 
-  private static final String TAINTABLE = "datadog/trace/api/iast/Taintable";
-  private static final String SOURCE_CLASS_NAME = "L" + TAINTABLE + "$Source;";
-  private static final String FIELD_NAME = "$$DD$source";
-  private static final String GETTER_NAME = "$$DD$getSource";
-  private static final String SETTER_NAME = "$$DD$setSource";
+    private static final String TAINTABLE = "datadog/trace/api/iast/Taintable";
+    private static final String SOURCE_CLASS_NAME = "L" + TAINTABLE + "$Source;";
+    private static final String FIELD_NAME = "$$DD$source";
+    private static final String GETTER_NAME = "$$DD$getSource";
+    private static final String SETTER_NAME = "$$DD$setSource";
 
-  private final Set<String> types;
+    private final Set<String> types;
 
-  public TaintableVisitor(final String... classNames) {
-    types = new HashSet<>(Arrays.asList(classNames));
-  }
-
-  @Override
-  public int mergeWriter(final int flags) {
-    return flags;
-  }
-
-  @Override
-  public int mergeReader(int flags) {
-    return flags;
-  }
-
-  @Override
-  public ClassVisitor wrap(
-      final TypeDescription instrumentedType,
-      final ClassVisitor classVisitor,
-      final Implementation.Context implementationContext,
-      final TypePool typePool,
-      final FieldList<FieldDescription.InDefinedShape> fields,
-      final MethodList<?> methods,
-      final int writerFlags,
-      final int readerFlags) {
-    return types.contains(instrumentedType.getName())
-        ? new AddTaintableInterfaceVisitor(classVisitor)
-        : classVisitor;
-  }
-
-  private static class AddTaintableInterfaceVisitor extends ClassVisitor {
-
-    private String owner;
-
-    private boolean addTaintable = false;
-
-    protected AddTaintableInterfaceVisitor(final ClassVisitor classVisitor) {
-      super(OpenedClassReader.ASM_API, classVisitor);
+    public TaintableVisitor(final String... classNames) {
+        types = new HashSet<>(Arrays.asList(classNames));
     }
 
     @Override
-    public void visit(
-        final int version,
-        final int access,
-        final String name,
-        String signature,
-        final String superName,
-        String[] interfaces) {
-      owner = name;
-      if (!arrayContains(interfaces, TAINTABLE)) {
-        interfaces = appendToArray(interfaces, TAINTABLE);
-        if (signature != null) {
-          signature += 'L' + TAINTABLE + ';';
-        }
-        addTaintable = true;
-      }
-      super.visit(version, access, name, signature, superName, interfaces);
+    public int mergeWriter(final int flags) {
+        return flags;
     }
 
     @Override
-    public void visitEnd() {
-      if (addTaintable) {
-        addField();
-        addGetter();
-        if (!DEBUG) {
-          addSetter();
-        } else {
-          addSetterDebug();
+    public int mergeReader(int flags) {
+        return flags;
+    }
+
+    @Override
+    public ClassVisitor wrap(
+            final TypeDescription instrumentedType,
+            final ClassVisitor classVisitor,
+            final Implementation.Context implementationContext,
+            final TypePool typePool,
+            final FieldList<FieldDescription.InDefinedShape> fields,
+            final MethodList<?> methods,
+            final int writerFlags,
+            final int readerFlags) {
+        return types.contains(instrumentedType.getName())
+                ? new AddTaintableInterfaceVisitor(classVisitor)
+                : classVisitor;
+    }
+
+    private static class AddTaintableInterfaceVisitor extends ClassVisitor {
+
+        private String owner;
+
+        private boolean addTaintable = false;
+
+        protected AddTaintableInterfaceVisitor(final ClassVisitor classVisitor) {
+            super(OpenedClassReader.ASM_API, classVisitor);
         }
-      }
-    }
 
-    private void addField() {
-      final FieldVisitor fv =
-          cv.visitField(
-              Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
-              FIELD_NAME,
-              SOURCE_CLASS_NAME,
-              null,
-              null);
-      fv.visitEnd();
-    }
+        @Override
+        public void visit(
+                final int version,
+                final int access,
+                final String name,
+                String signature,
+                final String superName,
+                String[] interfaces) {
+            owner = name;
+            if (!arrayContains(interfaces, TAINTABLE)) {
+                interfaces = appendToArray(interfaces, TAINTABLE);
+                if (signature != null) {
+                    signature += 'L' + TAINTABLE + ';';
+                }
+                addTaintable = true;
+            }
+            super.visit(version, access, name, signature, superName, interfaces);
+        }
 
-    private void addGetter() {
-      final MethodVisitor mv =
-          cv.visitMethod(Opcodes.ACC_PUBLIC, GETTER_NAME, "()" + SOURCE_CLASS_NAME, null, null);
-      mv.visitCode();
-      mv.visitVarInsn(Opcodes.ALOAD, 0);
-      mv.visitFieldInsn(Opcodes.GETFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
-      mv.visitInsn(Opcodes.ARETURN);
-      mv.visitMaxs(1, 1);
-      mv.visitEnd();
-    }
+        @Override
+        public void visitEnd() {
+            if (addTaintable) {
+                addField();
+                addGetter();
+                if (!DEBUG) {
+                    addSetter();
+                } else {
+                    addSetterDebug();
+                }
+            }
+        }
 
-    private void addSetter() {
-      final MethodVisitor mv =
-          cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
-      mv.visitCode();
-      mv.visitVarInsn(Opcodes.ALOAD, 0);
-      mv.visitVarInsn(Opcodes.ALOAD, 1);
-      mv.visitFieldInsn(Opcodes.PUTFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
-      mv.visitInsn(Opcodes.RETURN);
-      mv.visitMaxs(2, 2);
-      mv.visitEnd();
-    }
+        private void addField() {
+            final FieldVisitor fv = cv.visitField(
+                    Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
+                    FIELD_NAME,
+                    SOURCE_CLASS_NAME,
+                    null,
+                    null);
+            fv.visitEnd();
+        }
 
-    private void addSetterDebug() {
-      final MethodVisitor mv =
-          cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
-      mv.visitCode();
-      mv.visitVarInsn(Opcodes.ALOAD, 0);
-      mv.visitVarInsn(Opcodes.ALOAD, 1);
-      mv.visitFieldInsn(Opcodes.PUTFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
+        private void addGetter() {
+            final MethodVisitor mv =
+                    cv.visitMethod(Opcodes.ACC_PUBLIC, GETTER_NAME, "()" + SOURCE_CLASS_NAME, null, null);
+            mv.visitCode();
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitFieldInsn(Opcodes.GETFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
+            mv.visitInsn(Opcodes.ARETURN);
+            mv.visitMaxs(1, 1);
+            mv.visitEnd();
+        }
 
-      mv.visitVarInsn(Opcodes.ALOAD, 0);
-      mv.visitMethodInsn(
-          Opcodes.INVOKESTATIC,
-          Type.getInternalName(Taintable.DebugLogger.class),
-          "logTaint",
-          "(Ldatadog/trace/api/iast/Taintable;)V",
-          false);
-      mv.visitInsn(Opcodes.RETURN);
-      mv.visitMaxs(2, 2);
-      mv.visitEnd();
+        private void addSetter() {
+            final MethodVisitor mv =
+                    cv.visitMethod(Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+            mv.visitCode();
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitFieldInsn(Opcodes.PUTFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
+            mv.visitInsn(Opcodes.RETURN);
+            mv.visitMaxs(2, 2);
+            mv.visitEnd();
+        }
+
+        private void addSetterDebug() {
+            final MethodVisitor mv =
+                    cv.visitMethod(Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+            mv.visitCode();
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitFieldInsn(Opcodes.PUTFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
+
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    Type.getInternalName(Taintable.DebugLogger.class),
+                    "logTaint",
+                    "(Ldatadog/trace/api/iast/Taintable;)V",
+                    false);
+            mv.visitInsn(Opcodes.RETURN);
+            mv.visitMaxs(2, 2);
+            mv.visitEnd();
+        }
     }
-  }
 }

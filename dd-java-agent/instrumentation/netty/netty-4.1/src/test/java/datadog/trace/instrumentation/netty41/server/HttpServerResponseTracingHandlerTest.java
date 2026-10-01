@@ -39,176 +39,172 @@ import org.junit.jupiter.api.Test;
 
 class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
 
-  @Test
-  void finishesMirroredContextOnLastContentWhenRequestQueueIsAbsent() {
-    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span = startSpan("netty", "mirrored-http2-server");
-    channel.attr(CONTEXT_ATTRIBUTE_KEY).set(span);
+    @Test
+    void finishesMirroredContextOnLastContentWhenRequestQueueIsAbsent() {
+        EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+        AgentSpan span = startSpan("netty", "mirrored-http2-server");
+        channel.attr(CONTEXT_ATTRIBUTE_KEY).set(span);
 
-    HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-    assertTrue(channel.writeOutbound(response));
+        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        assertTrue(channel.writeOutbound(response));
 
-    assertSame(span, channel.attr(CONTEXT_ATTRIBUTE_KEY).get());
-    HttpResponse forwarded = channel.readOutbound();
-    assertSame(response, forwarded);
-    ReferenceCountUtil.release(forwarded);
+        assertSame(span, channel.attr(CONTEXT_ATTRIBUTE_KEY).get());
+        HttpResponse forwarded = channel.readOutbound();
+        assertSame(response, forwarded);
+        ReferenceCountUtil.release(forwarded);
 
-    assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
+        assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
 
-    ReferenceCountUtil.release(channel.readOutbound());
-    assertNull(channel.attr(CONTEXT_ATTRIBUTE_KEY).get());
-    channel.finishAndReleaseAll();
-    assertTraces(trace(span().root().operationName("mirrored-http2-server")));
-  }
+        ReferenceCountUtil.release(channel.readOutbound());
+        assertNull(channel.attr(CONTEXT_ATTRIBUTE_KEY).get());
+        channel.finishAndReleaseAll();
+        assertTraces(trace(span().root().operationName("mirrored-http2-server")));
+    }
 
-  @Test
-  void forwardsLastContentBeforeFinalResponseWithoutCompletingContext() {
-    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
-    ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
-    LastHttpContent lastContent = new DefaultLastHttpContent();
+    @Test
+    void forwardsLastContentBeforeFinalResponseWithoutCompletingContext() {
+        EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+        ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
+        LastHttpContent lastContent = new DefaultLastHttpContent();
 
-    assertTrue(channel.writeOutbound(lastContent));
+        assertTrue(channel.writeOutbound(lastContent));
 
-    assertSame(serverContext, ServerRequestContext.nextResponse(channel));
-    LastHttpContent forwarded = channel.readOutbound();
-    assertSame(lastContent, forwarded);
-    forwarded.release();
-    channel.finishAndReleaseAll();
-  }
+        assertSame(serverContext, ServerRequestContext.nextResponse(channel));
+        LastHttpContent forwarded = channel.readOutbound();
+        assertSame(lastContent, forwarded);
+        forwarded.release();
+        channel.finishAndReleaseAll();
+    }
 
-  @Test
-  void headerOnlyResponseWaitsForLastContent() {
-    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span = startSpan("netty", "header-only-server");
-    ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
-    ServerRequestContext nextServerContext =
-        ServerRequestContext.add(channel, Context.root(), null);
-    HttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
+    @Test
+    void headerOnlyResponseWaitsForLastContent() {
+        EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+        AgentSpan span = startSpan("netty", "header-only-server");
+        ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
+        ServerRequestContext nextServerContext = ServerRequestContext.add(channel, Context.root(), null);
+        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
 
-    assertTrue(channel.writeOutbound(response));
+        assertTrue(channel.writeOutbound(response));
 
-    assertSame(serverContext, ServerRequestContext.nextResponse(channel));
-    HttpResponse forwarded = channel.readOutbound();
-    assertSame(response, forwarded);
-    ReferenceCountUtil.release(forwarded);
-    assertNull(channel.readOutbound());
+        assertSame(serverContext, ServerRequestContext.nextResponse(channel));
+        HttpResponse forwarded = channel.readOutbound();
+        assertSame(response, forwarded);
+        ReferenceCountUtil.release(forwarded);
+        assertNull(channel.readOutbound());
 
-    assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
+        assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
 
-    assertSame(nextServerContext, ServerRequestContext.nextResponse(channel));
-    ReferenceCountUtil.release(channel.readOutbound());
-    ServerRequestContext.remove(channel, nextServerContext);
-    channel.finishAndReleaseAll();
-    assertTraces(trace(span().root().operationName("header-only-server")));
-  }
+        assertSame(nextServerContext, ServerRequestContext.nextResponse(channel));
+        ReferenceCountUtil.release(channel.readOutbound());
+        ServerRequestContext.remove(channel, nextServerContext);
+        channel.finishAndReleaseAll();
+        assertTraces(trace(span().root().operationName("header-only-server")));
+    }
 
-  @Test
-  void rawFixedLengthBodyWaitsForLastContent() {
-    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span = startSpan("netty", "raw-body-server");
-    ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
-    ServerRequestContext nextServerContext =
-        ServerRequestContext.add(channel, Context.root(), null);
-    HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-    response.headers().set(CONTENT_LENGTH, 4);
+    @Test
+    void rawFixedLengthBodyWaitsForLastContent() {
+        EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+        AgentSpan span = startSpan("netty", "raw-body-server");
+        ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
+        ServerRequestContext nextServerContext = ServerRequestContext.add(channel, Context.root(), null);
+        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        response.headers().set(CONTENT_LENGTH, 4);
 
-    assertTrue(channel.writeOutbound(response));
-    ReferenceCountUtil.release(channel.readOutbound());
-    assertTrue(channel.writeOutbound(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
+        assertTrue(channel.writeOutbound(response));
+        ReferenceCountUtil.release(channel.readOutbound());
+        assertTrue(channel.writeOutbound(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
 
-    assertSame(serverContext, ServerRequestContext.nextResponse(channel));
-    ReferenceCountUtil.release(channel.readOutbound());
-    assertNull(channel.readOutbound());
+        assertSame(serverContext, ServerRequestContext.nextResponse(channel));
+        ReferenceCountUtil.release(channel.readOutbound());
+        assertNull(channel.readOutbound());
 
-    assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
+        assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
 
-    assertSame(nextServerContext, ServerRequestContext.nextResponse(channel));
-    ReferenceCountUtil.release(channel.readOutbound());
-    ServerRequestContext.remove(channel, nextServerContext);
-    channel.finishAndReleaseAll();
-    assertTraces(trace(span().root().operationName("raw-body-server")));
-  }
+        assertSame(nextServerContext, ServerRequestContext.nextResponse(channel));
+        ReferenceCountUtil.release(channel.readOutbound());
+        ServerRequestContext.remove(channel, nextServerContext);
+        channel.finishAndReleaseAll();
+        assertTraces(trace(span().root().operationName("raw-body-server")));
+    }
 
-  @Test
-  void doesNotThrowOnMalformedContentLength() {
-    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span = startSpan("netty", "malformed-content-length-server");
-    ServerRequestContext.add(channel, span, null);
-    FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK);
-    response.headers().set(CONTENT_LENGTH, "malformed");
+    @Test
+    void doesNotThrowOnMalformedContentLength() {
+        EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+        AgentSpan span = startSpan("netty", "malformed-content-length-server");
+        ServerRequestContext.add(channel, span, null);
+        FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK);
+        response.headers().set(CONTENT_LENGTH, "malformed");
 
-    assertDoesNotThrow(() -> assertTrue(channel.writeOutbound(response)));
+        assertDoesNotThrow(() -> assertTrue(channel.writeOutbound(response)));
 
-    FullHttpResponse forwarded = channel.readOutbound();
-    assertSame(response, forwarded);
-    forwarded.release();
-    channel.finishAndReleaseAll();
-    assertTraces(trace(span().root().operationName("malformed-content-length-server")));
-  }
+        FullHttpResponse forwarded = channel.readOutbound();
+        assertSame(response, forwarded);
+        forwarded.release();
+        channel.finishAndReleaseAll();
+        assertTraces(trace(span().root().operationName("malformed-content-length-server")));
+    }
 
-  @Test
-  void nettyEncoderRequiresLastContentBeforeNextKeepAliveResponse() {
-    EmbeddedChannel channel = new EmbeddedChannel(new HttpResponseEncoder());
-    HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-    response.headers().set(CONNECTION, KEEP_ALIVE);
-    response.headers().set(CONTENT_LENGTH, 4);
+    @Test
+    void nettyEncoderRequiresLastContentBeforeNextKeepAliveResponse() {
+        EmbeddedChannel channel = new EmbeddedChannel(new HttpResponseEncoder());
+        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        response.headers().set(CONNECTION, KEEP_ALIVE);
+        response.headers().set(CONTENT_LENGTH, 4);
 
-    assertTrue(channel.writeOutbound(response));
-    ReferenceCountUtil.release(channel.readOutbound());
-    assertTrue(channel.writeOutbound(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
-    ReferenceCountUtil.release(channel.readOutbound());
+        assertTrue(channel.writeOutbound(response));
+        ReferenceCountUtil.release(channel.readOutbound());
+        assertTrue(channel.writeOutbound(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
+        ReferenceCountUtil.release(channel.readOutbound());
 
-    EncoderException exception =
-        assertThrows(
-            EncoderException.class,
-            () -> channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
+        EncoderException exception = assertThrows(
+                EncoderException.class, () -> channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
 
-    assertTrue(exception.getCause() instanceof IllegalStateException);
+        assertTrue(exception.getCause() instanceof IllegalStateException);
 
-    assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
-    ReferenceCountUtil.release(channel.readOutbound());
-    assertTrue(channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
-    ReferenceCountUtil.release(channel.readOutbound());
-    channel.finishAndReleaseAll();
-  }
+        assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
+        ReferenceCountUtil.release(channel.readOutbound());
+        assertTrue(channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
+        ReferenceCountUtil.release(channel.readOutbound());
+        channel.finishAndReleaseAll();
+    }
 
-  @Test
-  void fullWebsocketUpgradeCompletesContextAndPreservesHandshakeSpan() {
-    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span = startSpan("netty", "websocket-handshake-server");
-    ServerRequestContext.add(channel, span, null);
-    FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
-    response.headers().set(UPGRADE, "websocket");
+    @Test
+    void fullWebsocketUpgradeCompletesContextAndPreservesHandshakeSpan() {
+        EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+        AgentSpan span = startSpan("netty", "websocket-handshake-server");
+        ServerRequestContext.add(channel, span, null);
+        FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
+        response.headers().set(UPGRADE, "websocket");
 
-    assertTrue(channel.writeOutbound(response));
+        assertTrue(channel.writeOutbound(response));
 
-    assertNull(ServerRequestContext.nextResponse(channel));
-    assertNotNull(channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get());
-    ReferenceCountUtil.release(channel.readOutbound());
-    channel.finishAndReleaseAll();
-    assertTraces(trace(span().root().operationName("websocket-handshake-server")));
-  }
+        assertNull(ServerRequestContext.nextResponse(channel));
+        assertNotNull(channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get());
+        ReferenceCountUtil.release(channel.readOutbound());
+        channel.finishAndReleaseAll();
+        assertTraces(trace(span().root().operationName("websocket-handshake-server")));
+    }
 
-  @Test
-  void fullNonWebsocketUpgradeWaitsForFinalResponse() {
-    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span = startSpan("netty", "h2c-upgrade-server");
-    ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
-    FullHttpResponse upgradeResponse = new DefaultFullHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
-    upgradeResponse.headers().set(UPGRADE, "h2c");
+    @Test
+    void fullNonWebsocketUpgradeWaitsForFinalResponse() {
+        EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+        AgentSpan span = startSpan("netty", "h2c-upgrade-server");
+        ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
+        FullHttpResponse upgradeResponse = new DefaultFullHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
+        upgradeResponse.headers().set(UPGRADE, "h2c");
 
-    assertTrue(channel.writeOutbound(upgradeResponse));
+        assertTrue(channel.writeOutbound(upgradeResponse));
 
-    assertSame(serverContext, ServerRequestContext.nextResponse(channel));
-    assertNull(channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get());
-    ReferenceCountUtil.release(channel.readOutbound());
+        assertSame(serverContext, ServerRequestContext.nextResponse(channel));
+        assertNull(channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get());
+        ReferenceCountUtil.release(channel.readOutbound());
 
-    assertTrue(channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
+        assertTrue(channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
 
-    assertNull(ServerRequestContext.nextResponse(channel));
-    ReferenceCountUtil.release(channel.readOutbound());
-    channel.finishAndReleaseAll();
+        assertNull(ServerRequestContext.nextResponse(channel));
+        ReferenceCountUtil.release(channel.readOutbound());
+        channel.finishAndReleaseAll();
 
-    assertTraces(trace(span().root().operationName("h2c-upgrade-server")));
-  }
+        assertTraces(trace(span().root().operationName("h2c-upgrade-server")));
+    }
 }

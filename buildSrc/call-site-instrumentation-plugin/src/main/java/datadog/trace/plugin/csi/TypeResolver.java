@@ -10,24 +10,24 @@ import org.objectweb.asm.Type;
 
 public interface TypeResolver extends TypeSolver {
 
-  @Nonnull
-  Class<?> resolveType(@Nonnull Type type) throws ResolutionException;
+    @Nonnull
+    Class<?> resolveType(@Nonnull Type type) throws ResolutionException;
 
-  @Nonnull
-  Executable resolveMethod(@Nonnull MethodType method) throws ResolutionException;
+    @Nonnull
+    Executable resolveMethod(@Nonnull MethodType method) throws ResolutionException;
 
-  class ResolutionException extends HasErrorsException {
+    class ResolutionException extends HasErrorsException {
 
-    public ResolutionException(@Nonnull final HasErrors errors) {
-      super(errors);
+        public ResolutionException(@Nonnull final HasErrors errors) {
+            super(errors);
+        }
+
+        public ResolutionException(@Nonnull final Collection<Failure> errors) {
+            super(errors);
+        }
+
+        public ResolutionException(@Nonnull final Failure... errors) {
+            super(errors);
+        }
     }
-
-    public ResolutionException(@Nonnull final Collection<Failure> errors) {
-      super(errors);
-    }
-
-    public ResolutionException(@Nonnull final Failure... errors) {
-      super(errors);
-    }
-  }
 }

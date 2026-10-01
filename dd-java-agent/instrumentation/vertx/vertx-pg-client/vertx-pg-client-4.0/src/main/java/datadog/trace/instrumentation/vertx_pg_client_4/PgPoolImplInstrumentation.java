@@ -16,30 +16,30 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class PgPoolImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public PgPoolImplInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public PgPoolImplInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.pgclient.impl.PgPoolImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.pgclient.impl.PgPoolImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isStatic()
-            .and(isPublic())
-            .and(isMethod())
-            .and(named("create"))
-            .and(takesArguments(4))
-            .and(takesArgument(2, named("io.vertx.pgclient.PgConnectOptions"))),
-        packageName + ".PgPoolImplAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isStatic()
+                        .and(isPublic())
+                        .and(isMethod())
+                        .and(named("create"))
+                        .and(takesArguments(4))
+                        .and(takesArgument(2, named("io.vertx.pgclient.PgConnectOptions"))),
+                packageName + ".PgPoolImplAdvice");
+    }
 }

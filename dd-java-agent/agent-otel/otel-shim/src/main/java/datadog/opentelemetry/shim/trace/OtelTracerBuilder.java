@@ -7,32 +7,35 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelTracerBuilder implements TracerBuilder {
-  private final OtelTracerProvider tracerProvider;
+    private final OtelTracerProvider tracerProvider;
 
-  private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+    private final String instrumentationScopeName;
 
-  OtelTracerBuilder(OtelTracerProvider tracerProvider, String instrumentationScopeName) {
-    this.tracerProvider = tracerProvider;
-    this.instrumentationScopeName = instrumentationScopeName;
-  }
+    @Nullable
+    private String instrumentationScopeVersion;
 
-  @Override
-  public TracerBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
-    this.instrumentationScopeVersion = instrumentationScopeVersion;
-    return this;
-  }
+    @Nullable
+    private String schemaUrl;
 
-  @Override
-  public TracerBuilder setSchemaUrl(String schemaUrl) {
-    this.schemaUrl = schemaUrl;
-    return this;
-  }
+    OtelTracerBuilder(OtelTracerProvider tracerProvider, String instrumentationScopeName) {
+        this.tracerProvider = tracerProvider;
+        this.instrumentationScopeName = instrumentationScopeName;
+    }
 
-  @Override
-  public Tracer build() {
-    return tracerProvider.getTracerShim(
-        instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
-  }
+    @Override
+    public TracerBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
+        this.instrumentationScopeVersion = instrumentationScopeVersion;
+        return this;
+    }
+
+    @Override
+    public TracerBuilder setSchemaUrl(String schemaUrl) {
+        this.schemaUrl = schemaUrl;
+        return this;
+    }
+
+    @Override
+    public Tracer build() {
+        return tracerProvider.getTracerShim(instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
+    }
 }

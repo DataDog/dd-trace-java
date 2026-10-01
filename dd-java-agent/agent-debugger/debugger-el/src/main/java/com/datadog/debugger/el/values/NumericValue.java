@@ -6,31 +6,31 @@ import com.datadog.debugger.el.Visitor;
 
 /** A numeric {@linkplain com.datadog.debugger.el.Value} */
 public final class NumericValue extends Literal<Number> {
-  public NumericValue(Number value, ValueType type) {
-    super(value, type);
-  }
-
-  private static Number widen(Number value) {
-    if (value instanceof Integer || value instanceof Byte || value instanceof Short) {
-      return value.longValue();
+    public NumericValue(Number value, ValueType type) {
+        super(value, type);
     }
-    if (value instanceof Float) {
-      return value.doubleValue();
+
+    private static Number widen(Number value) {
+        if (value instanceof Integer || value instanceof Byte || value instanceof Short) {
+            return value.longValue();
+        }
+        if (value instanceof Float) {
+            return value.doubleValue();
+        }
+        return value;
     }
-    return value;
-  }
 
-  public Number getWidenValue() {
-    return widen(getValue());
-  }
+    public Number getWidenValue() {
+        return widen(getValue());
+    }
 
-  @Override
-  public String toString() {
-    return "NumericLiteral{" + "value=" + value + '}';
-  }
+    @Override
+    public String toString() {
+        return "NumericLiteral{" + "value=" + value + '}';
+    }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

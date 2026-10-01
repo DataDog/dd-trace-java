@@ -14,36 +14,37 @@ import javax.annotation.Nullable;
 
 public class JUnit4FailFastClassOrderer implements Comparator<Class<?>> {
 
-  @Nullable private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler;
+    @Nullable
+    private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler;
 
-  public JUnit4FailFastClassOrderer(
-      @Nullable TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler) {
-    this.testEventsHandler = testEventsHandler;
-  }
-
-  public int classExecutionPriority(Class<?> clazz) {
-    TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
-    if (testEventsHandler == null || framework != TestFrameworkInstrumentation.JUNIT4) {
-      return 0;
+    public JUnit4FailFastClassOrderer(
+            @Nullable TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler) {
+        this.testEventsHandler = testEventsHandler;
     }
 
-    List<Method> children = JUnit4Utils.getTestMethods(clazz);
-    if (children.isEmpty()) {
-      return 0;
+    public int classExecutionPriority(Class<?> clazz) {
+        TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
+        if (testEventsHandler == null || framework != TestFrameworkInstrumentation.JUNIT4) {
+            return 0;
+        }
+
+        List<Method> children = JUnit4Utils.getTestMethods(clazz);
+        if (children.isEmpty()) {
+            return 0;
+        }
+
+        int childrenPrioritySum = 0;
+        for (Method child : children) {
+            TestIdentifier testIdentifier = new TestIdentifier(clazz.getName(), child.getName(), null);
+            TestSourceData testSourceData = new TestSourceData(clazz, child);
+            childrenPrioritySum += testEventsHandler.executionPriority(testIdentifier, testSourceData);
+        }
+
+        return childrenPrioritySum / children.size();
     }
 
-    int childrenPrioritySum = 0;
-    for (Method child : children) {
-      TestIdentifier testIdentifier = new TestIdentifier(clazz.getName(), child.getName(), null);
-      TestSourceData testSourceData = new TestSourceData(clazz, child);
-      childrenPrioritySum += testEventsHandler.executionPriority(testIdentifier, testSourceData);
+    @Override
+    public int compare(Class<?> o1, Class<?> o2) {
+        return classExecutionPriority(o2) - classExecutionPriority(o1);
     }
-
-    return childrenPrioritySum / children.size();
-  }
-
-  @Override
-  public int compare(Class<?> o1, Class<?> o2) {
-    return classExecutionPriority(o2) - classExecutionPriority(o1);
-  }
 }

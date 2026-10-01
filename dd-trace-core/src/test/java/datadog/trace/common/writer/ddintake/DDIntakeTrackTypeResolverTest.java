@@ -11,20 +11,18 @@ import org.tabletest.junit.TableTest;
 
 class DDIntakeTrackTypeResolverTest extends DDJavaSpecification {
 
-  @TableTest({
-    "scenario                           | ciVisibilityEnabled | ciVisibilityAgentlessEnabled | expectedTrackType",
-    "ci-vis disabled agentless disabled | false               | false                        | NOOP             ",
-    "ci-vis enabled agentless disabled  | true                | false                        | CITESTCYCLE      ",
-    "ci-vis enabled agentless enabled   | true                | true                         | CITESTCYCLE      "
-  })
-  void shouldReturnTheCorrectTrackType(
-      boolean ciVisibilityEnabled,
-      boolean ciVisibilityAgentlessEnabled,
-      TrackType expectedTrackType) {
-    Config config = mock(Config.class);
-    when(config.isCiVisibilityEnabled()).thenReturn(ciVisibilityEnabled);
-    when(config.isCiVisibilityAgentlessEnabled()).thenReturn(ciVisibilityAgentlessEnabled);
+    @TableTest({
+      "scenario                           | ciVisibilityEnabled | ciVisibilityAgentlessEnabled | expectedTrackType",
+      "ci-vis disabled agentless disabled | false               | false                        | NOOP             ",
+      "ci-vis enabled agentless disabled  | true                | false                        | CITESTCYCLE      ",
+      "ci-vis enabled agentless enabled   | true                | true                         | CITESTCYCLE      "
+    })
+    void shouldReturnTheCorrectTrackType(
+            boolean ciVisibilityEnabled, boolean ciVisibilityAgentlessEnabled, TrackType expectedTrackType) {
+        Config config = mock(Config.class);
+        when(config.isCiVisibilityEnabled()).thenReturn(ciVisibilityEnabled);
+        when(config.isCiVisibilityAgentlessEnabled()).thenReturn(ciVisibilityAgentlessEnabled);
 
-    assertEquals(expectedTrackType, DDIntakeTrackTypeResolver.resolve(config));
-  }
+        assertEquals(expectedTrackType, DDIntakeTrackTypeResolver.resolve(config));
+    }
 }

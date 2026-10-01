@@ -13,18 +13,19 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 public class MultipartGetItemIteratorServlet extends HttpServlet {
 
-  @Override
-  public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    final FileItemFactory fileItemFactory = new DiskFileItemFactory();
-    final ServletFileUpload servletFileUpload = new ServletFileUpload(fileItemFactory);
-    try {
-      final FileItemIterator fileItemIterator = servletFileUpload.getItemIterator(request);
-      final ObjectInputStream ois = new ObjectInputStream(fileItemIterator.next().openStream());
-      ois.close();
-      response.setHeader("Content-Type", "text/plain");
-      response.getWriter().write("OK");
-    } catch (FileUploadException e) {
-      throw new IOException(e);
+    @Override
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        final FileItemFactory fileItemFactory = new DiskFileItemFactory();
+        final ServletFileUpload servletFileUpload = new ServletFileUpload(fileItemFactory);
+        try {
+            final FileItemIterator fileItemIterator = servletFileUpload.getItemIterator(request);
+            final ObjectInputStream ois =
+                    new ObjectInputStream(fileItemIterator.next().openStream());
+            ois.close();
+            response.setHeader("Content-Type", "text/plain");
+            response.getWriter().write("OK");
+        } catch (FileUploadException e) {
+            throw new IOException(e);
+        }
     }
-  }
 }

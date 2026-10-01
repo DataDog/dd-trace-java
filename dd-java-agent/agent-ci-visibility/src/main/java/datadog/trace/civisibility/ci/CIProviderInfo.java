@@ -6,12 +6,12 @@ import javax.annotation.Nonnull;
 
 public interface CIProviderInfo {
 
-  GitInfo buildCIGitInfo();
+    GitInfo buildCIGitInfo();
 
-  CIInfo buildCIInfo();
+    CIInfo buildCIInfo();
 
-  @Nonnull
-  PullRequestInfo buildPullRequestInfo();
+    @Nonnull
+    PullRequestInfo buildPullRequestInfo();
 
-  Provider getProvider();
+    Provider getProvider();
 }

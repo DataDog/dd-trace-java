@@ -10,15 +10,15 @@ import org.thymeleaf.processor.element.IElementTagStructureHandler;
 
 public class ProcessAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  @Propagation
-  public static void doProcess(
-      @Advice.Argument(1) final IProcessableElementTag tag,
-      @Advice.Argument(4) final IElementTagStructureHandler handler) {
-    if (InstrumentationBridge.XSS != null) {
-      ContextStore<IElementTagStructureHandler, ThymeleafContext> contextStore =
-          InstrumentationContext.get(IElementTagStructureHandler.class, ThymeleafContext.class);
-      contextStore.put(handler, new ThymeleafContext(tag.getTemplateName(), tag.getLine()));
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Propagation
+    public static void doProcess(
+            @Advice.Argument(1) final IProcessableElementTag tag,
+            @Advice.Argument(4) final IElementTagStructureHandler handler) {
+        if (InstrumentationBridge.XSS != null) {
+            ContextStore<IElementTagStructureHandler, ThymeleafContext> contextStore =
+                    InstrumentationContext.get(IElementTagStructureHandler.class, ThymeleafContext.class);
+            contextStore.put(handler, new ThymeleafContext(tag.getTemplateName(), tag.getLine()));
+        }
     }
-  }
 }

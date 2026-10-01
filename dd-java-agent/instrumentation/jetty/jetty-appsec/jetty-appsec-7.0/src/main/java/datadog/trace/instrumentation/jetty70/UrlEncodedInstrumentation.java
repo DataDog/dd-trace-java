@@ -28,88 +28,88 @@ import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
 public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public UrlEncodedInstrumentation() {
-    super("jetty");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.util.UrlEncoded";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {REQUEST_REFERENCE};
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("decodeTo")
-            .and(takesArgument(0, InputStream.class))
-            .and(takesArgument(1, named("org.eclipse.jetty.util.MultiMap")))
-            .and(takesArgument(2, String.class))
-            // there may be a 4th argument with the limit
-            .and(isPublic()),
-        getClass().getName() + "$UrlEncodedDecodeToAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class UrlEncodedDecodeToAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before(
-        @Advice.Argument(value = 1, readOnly = false) MultiMap<String> map,
-        @Advice.Local("origMap") MultiMap<String> origMap) {
-      // check we're inside extractParameters in Request
-      if (CallDepthThreadLocalMap.getCallDepth(Request.class) == 0) {
-        return false;
-      }
-      if (!map.isEmpty()) {
-        origMap = map;
-        map = new MultiMap<>();
-      }
-      return true;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public UrlEncodedInstrumentation() {
+        super("jetty");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Enter boolean relevantCall,
-        @Advice.Argument(1) MultiMap<String> map, // this is our map, not the orig arg
-        @Advice.Local("origMap") MultiMap<String> origMap,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (!relevantCall) {
-        return;
-      }
+    @Override
+    public String instrumentedType() {
+        return "org.eclipse.jetty.util.UrlEncoded";
+    }
 
-      if (map.isEmpty()) { // nothing was written
-        return;
-      }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {REQUEST_REFERENCE};
+    }
 
-      try {
-        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-        BiFunction<RequestContext, Object, Flow<Void>> callback =
-            cbp.getCallback(EVENTS.requestBodyProcessed());
-        if (callback == null) {
-          return;
-        }
-        Flow<Void> flow = callback.apply(reqCtx, map);
-        Flow.Action action = flow.getAction();
-        if (action instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-          if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            if (t == null) {
-              t = new BlockingException("Blocked request (for UrlEncoded/decodeTo)");
-              reqCtx.getTraceSegment().effectivelyBlocked();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("decodeTo")
+                        .and(takesArgument(0, InputStream.class))
+                        .and(takesArgument(1, named("org.eclipse.jetty.util.MultiMap")))
+                        .and(takesArgument(2, String.class))
+                        // there may be a 4th argument with the limit
+                        .and(isPublic()),
+                getClass().getName() + "$UrlEncodedDecodeToAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class UrlEncodedDecodeToAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static boolean before(
+                @Advice.Argument(value = 1, readOnly = false) MultiMap<String> map,
+                @Advice.Local("origMap") MultiMap<String> origMap) {
+            // check we're inside extractParameters in Request
+            if (CallDepthThreadLocalMap.getCallDepth(Request.class) == 0) {
+                return false;
             }
-          }
+            if (!map.isEmpty()) {
+                origMap = map;
+                map = new MultiMap<>();
+            }
+            return true;
         }
-      } finally {
-        origMap.putAll(map);
-      }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Enter boolean relevantCall,
+                @Advice.Argument(1) MultiMap<String> map, // this is our map, not the orig arg
+                @Advice.Local("origMap") MultiMap<String> origMap,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (!relevantCall) {
+                return;
+            }
+
+            if (map.isEmpty()) { // nothing was written
+                return;
+            }
+
+            try {
+                CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+                BiFunction<RequestContext, Object, Flow<Void>> callback =
+                        cbp.getCallback(EVENTS.requestBodyProcessed());
+                if (callback == null) {
+                    return;
+                }
+                Flow<Void> flow = callback.apply(reqCtx, map);
+                Flow.Action action = flow.getAction();
+                if (action instanceof Flow.Action.RequestBlockingAction) {
+                    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                    BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                    if (blockResponseFunction != null) {
+                        blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                        if (t == null) {
+                            t = new BlockingException("Blocked request (for UrlEncoded/decodeTo)");
+                            reqCtx.getTraceSegment().effectivelyBlocked();
+                        }
+                    }
+                }
+            } finally {
+                origMap.putAll(map);
+            }
+        }
     }
-  }
 }

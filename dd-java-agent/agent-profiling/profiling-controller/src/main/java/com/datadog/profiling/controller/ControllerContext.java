@@ -12,66 +12,65 @@ import java.util.Set;
  */
 public class ControllerContext {
 
-  private boolean isDatadogProfilerEnabled;
-  private String datadogProfilerUnavailableReason;
-  private Set<ProfilingMode> datadogProfilingModes = EnumSet.noneOf(ProfilingMode.class);
+    private boolean isDatadogProfilerEnabled;
+    private String datadogProfilerUnavailableReason;
+    private Set<ProfilingMode> datadogProfilingModes = EnumSet.noneOf(ProfilingMode.class);
 
-  public ControllerContext setDatadogProfilerEnabled(boolean datadogProfilerActive) {
-    isDatadogProfilerEnabled = datadogProfilerActive;
-    return this;
-  }
-
-  public ControllerContext setDatadogProfilingModes(Set<ProfilingMode> datadogProfilingModes) {
-    this.datadogProfilingModes = datadogProfilingModes;
-    return this;
-  }
-
-  public ControllerContext setDatadogProfilerUnavailableReason(
-      String datadogProfilerUnavailableReason) {
-    this.datadogProfilerUnavailableReason = datadogProfilerUnavailableReason;
-    return this;
-  }
-
-  /**
-   * A snapshot is an immutable copy of the context (state shared between controllers)
-   *
-   * @return an immutable snapshot of the context
-   */
-  public Snapshot snapshot() {
-    return new Snapshot(this);
-  }
-
-  public static final class Snapshot {
-    private final boolean isDatadogProfilerEnabled;
-    private final String datadogProfilerUnavailableReason;
-    private final Set<ProfilingMode> datadogProfilingModes;
-
-    public Snapshot(ControllerContext context) {
-      this(
-          context.isDatadogProfilerEnabled,
-          EnumSet.copyOf(context.datadogProfilingModes),
-          context.datadogProfilerUnavailableReason);
+    public ControllerContext setDatadogProfilerEnabled(boolean datadogProfilerActive) {
+        isDatadogProfilerEnabled = datadogProfilerActive;
+        return this;
     }
 
-    private Snapshot(
-        boolean isDatadogProfilerEnabled,
-        Set<ProfilingMode> datadogProfilingModes,
-        String datadogProfilerFailureReason) {
-      this.isDatadogProfilerEnabled = isDatadogProfilerEnabled;
-      this.datadogProfilingModes = datadogProfilingModes;
-      this.datadogProfilerUnavailableReason = datadogProfilerFailureReason;
+    public ControllerContext setDatadogProfilingModes(Set<ProfilingMode> datadogProfilingModes) {
+        this.datadogProfilingModes = datadogProfilingModes;
+        return this;
     }
 
-    public boolean isDatadogProfilerEnabled() {
-      return isDatadogProfilerEnabled;
+    public ControllerContext setDatadogProfilerUnavailableReason(String datadogProfilerUnavailableReason) {
+        this.datadogProfilerUnavailableReason = datadogProfilerUnavailableReason;
+        return this;
     }
 
-    public Set<ProfilingMode> getDatadogProfilingModes() {
-      return datadogProfilingModes;
+    /**
+     * A snapshot is an immutable copy of the context (state shared between controllers)
+     *
+     * @return an immutable snapshot of the context
+     */
+    public Snapshot snapshot() {
+        return new Snapshot(this);
     }
 
-    public String getDatadogProfilerUnavailableReason() {
-      return datadogProfilerUnavailableReason;
+    public static final class Snapshot {
+        private final boolean isDatadogProfilerEnabled;
+        private final String datadogProfilerUnavailableReason;
+        private final Set<ProfilingMode> datadogProfilingModes;
+
+        public Snapshot(ControllerContext context) {
+            this(
+                    context.isDatadogProfilerEnabled,
+                    EnumSet.copyOf(context.datadogProfilingModes),
+                    context.datadogProfilerUnavailableReason);
+        }
+
+        private Snapshot(
+                boolean isDatadogProfilerEnabled,
+                Set<ProfilingMode> datadogProfilingModes,
+                String datadogProfilerFailureReason) {
+            this.isDatadogProfilerEnabled = isDatadogProfilerEnabled;
+            this.datadogProfilingModes = datadogProfilingModes;
+            this.datadogProfilerUnavailableReason = datadogProfilerFailureReason;
+        }
+
+        public boolean isDatadogProfilerEnabled() {
+            return isDatadogProfilerEnabled;
+        }
+
+        public Set<ProfilingMode> getDatadogProfilingModes() {
+            return datadogProfilingModes;
+        }
+
+        public String getDatadogProfilerUnavailableReason() {
+            return datadogProfilerUnavailableReason;
+        }
     }
-  }
 }

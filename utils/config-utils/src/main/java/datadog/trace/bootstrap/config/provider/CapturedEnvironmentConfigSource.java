@@ -4,23 +4,23 @@ import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.env.CapturedEnvironment;
 
 public final class CapturedEnvironmentConfigSource extends ConfigProvider.Source {
-  private final CapturedEnvironment env;
+    private final CapturedEnvironment env;
 
-  public CapturedEnvironmentConfigSource() {
-    this(CapturedEnvironment.get());
-  }
+    public CapturedEnvironmentConfigSource() {
+        this(CapturedEnvironment.get());
+    }
 
-  public CapturedEnvironmentConfigSource(CapturedEnvironment env) {
-    this.env = env;
-  }
+    public CapturedEnvironmentConfigSource(CapturedEnvironment env) {
+        this.env = env;
+    }
 
-  @Override
-  protected String get(String key) {
-    return env.getProperties().get(key);
-  }
+    @Override
+    protected String get(String key) {
+        return env.getProperties().get(key);
+    }
 
-  @Override
-  public ConfigOrigin origin() {
-    return ConfigOrigin.ENV;
-  }
+    @Override
+    public ConfigOrigin origin() {
+        return ConfigOrigin.ENV;
+    }
 }

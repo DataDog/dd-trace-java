@@ -17,46 +17,46 @@ import org.apache.kafka.connect.util.ConnectorTaskId;
 
 @AutoService(InstrumenterModule.class)
 public final class ConnectWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  static final String TARGET_TYPE = "org.apache.kafka.connect.runtime.WorkerTask";
+    static final String TARGET_TYPE = "org.apache.kafka.connect.runtime.WorkerTask";
 
-  public ConnectWorkerInstrumentation() {
-    super("kafka", "kafka-connect");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return TARGET_TYPE;
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.connect.util.ConnectorTaskId")))
-            .and(takesArgument(1, named("org.apache.kafka.connect.runtime.TaskStatus$Listener"))),
-        ConnectWorkerInstrumentation.class.getName() + "$ConstructorAdvice");
-  }
-
-  public static class ConstructorAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void wrap(
-        @Advice.Argument(value = 0, readOnly = true) ConnectorTaskId id,
-        @Advice.Argument(value = 1, readOnly = false) Listener statusListener) {
-      statusListener = new TaskListener(statusListener);
+    public ConnectWorkerInstrumentation() {
+        super("kafka", "kafka-connect");
     }
 
-    public static void muzzleCheck(ConsumerRecord record) {
-      // KafkaConsumerInstrumentation only applies for kafka versions with headers
-      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
-      record.headers();
+    @Override
+    public String hierarchyMarkerType() {
+        return TARGET_TYPE;
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(0, named("org.apache.kafka.connect.util.ConnectorTaskId")))
+                        .and(takesArgument(1, named("org.apache.kafka.connect.runtime.TaskStatus$Listener"))),
+                ConnectWorkerInstrumentation.class.getName() + "$ConstructorAdvice");
+    }
+
+    public static class ConstructorAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void wrap(
+                @Advice.Argument(value = 0, readOnly = true) ConnectorTaskId id,
+                @Advice.Argument(value = 1, readOnly = false) Listener statusListener) {
+            statusListener = new TaskListener(statusListener);
+        }
+
+        public static void muzzleCheck(ConsumerRecord record) {
+            // KafkaConsumerInstrumentation only applies for kafka versions with headers
+            // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+            record.headers();
+        }
+    }
 }

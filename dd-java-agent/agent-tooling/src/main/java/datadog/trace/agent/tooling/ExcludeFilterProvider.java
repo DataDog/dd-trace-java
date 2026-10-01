@@ -14,9 +14,9 @@ import java.util.Set;
  */
 public interface ExcludeFilterProvider {
 
-  /**
-   * @return A mapping from {@link ExcludeType} -> {@link Set<String>} for the class names that
-   *     should be excluded from broad instrumentations like {@link Runnable}
-   */
-  Map<ExcludeType, ? extends Collection<String>> excludedClasses();
+    /**
+     * @return A mapping from {@link ExcludeType} -> {@link Set<String>} for the class names that
+     *     should be excluded from broad instrumentations like {@link Runnable}
+     */
+    Map<ExcludeType, ? extends Collection<String>> excludedClasses();
 }

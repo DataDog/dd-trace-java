@@ -30,106 +30,106 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TracingIterator<L extends Iterator<Message>> implements Iterator<Message> {
-  private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
+    private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
 
-  protected final L delegate;
-  private final String queueUrl;
-  private AgentSpanContext batchContext;
+    protected final L delegate;
+    private final String queueUrl;
+    private AgentSpanContext batchContext;
 
-  public TracingIterator(L delegate, String queueUrl) {
-    this.delegate = delegate;
-    this.queueUrl = queueUrl;
-  }
-
-  @Override
-  public boolean hasNext() {
-    boolean moreMessages = delegate.hasNext();
-    if (!moreMessages) {
-      // no more messages, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else {
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
-        }
-      }
+    public TracingIterator(L delegate, String queueUrl) {
+        this.delegate = delegate;
+        this.queueUrl = queueUrl;
     }
-    return moreMessages;
-  }
 
-  @Override
-  public Message next() {
-    Message next = delegate.next();
-    startNewMessageSpan(next);
-    return next;
-  }
-
-  protected void startNewMessageSpan(Message message) {
-    try {
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else if (message == null) { // previous message span was the last
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
-        }
-      }
-      if (message != null) {
-        AgentSpan queueSpan = null;
-        if (batchContext == null) {
-          // first grab any incoming distributed context
-          AgentSpanContext spanContext =
-              Config.get().isSqsPropagationEnabled()
-                  ? extractContextAndGetSpanContext(message, GETTER)
-                  : null;
-          // next add a time-in-queue span for non-legacy SQS traces
-          if (TIME_IN_QUEUE_ENABLED) {
-            long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
-            if (timeInQueueStart > 0) {
-              queueSpan =
-                  startSpan(
-                      COMPONENT_NAME.toString(),
-                      SQS_TIME_IN_QUEUE_OPERATION,
-                      spanContext,
-                      MILLISECONDS.toMicros(timeInQueueStart));
-              BROKER_DECORATE.afterStart(queueSpan);
-              BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl);
-              spanContext = queueSpan.spanContext();
-              // The queueSpan will be finished after inner span has been activated to ensure that
-              // spans are written out together by TraceStructureWriter when running in strict mode
+    @Override
+    public boolean hasNext() {
+        boolean moreMessages = delegate.hasNext();
+        if (!moreMessages) {
+            // no more messages, use this as a signal to close the last iteration scope
+            if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                closePrevious(true);
+            } else {
+                final AgentSpan previousSpan =
+                        AgentSpan.fromContext(Context.root().swap());
+                if (previousSpan != null) {
+                    previousSpan.finishWithEndToEnd();
+                }
             }
-          }
-          // re-use this context for any other messages received in this batch
-          batchContext = spanContext;
         }
-        AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
-
-        DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
-        AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
-
-        CONSUMER_DECORATE.afterStart(span);
-        CONSUMER_DECORATE.onConsume(span, queueUrl);
-        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-          activateNext(span);
-        } else {
-          final AgentSpan previousSpan = AgentSpan.fromContext(span.swap());
-          if (previousSpan != null) {
-            previousSpan.finishWithEndToEnd();
-          }
-        }
-        if (queueSpan != null) {
-          BROKER_DECORATE.beforeFinish(queueSpan);
-          queueSpan.finish();
-        }
-      }
-    } catch (Exception e) {
-      log.debug("Problem tracing new SQS message span", e);
+        return moreMessages;
     }
-  }
 
-  @Override
-  public void remove() {
-    delegate.remove();
-  }
+    @Override
+    public Message next() {
+        Message next = delegate.next();
+        startNewMessageSpan(next);
+        return next;
+    }
+
+    protected void startNewMessageSpan(Message message) {
+        try {
+            if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                closePrevious(true);
+            } else if (message == null) { // previous message span was the last
+                final AgentSpan previousSpan =
+                        AgentSpan.fromContext(Context.root().swap());
+                if (previousSpan != null) {
+                    previousSpan.finishWithEndToEnd();
+                }
+            }
+            if (message != null) {
+                AgentSpan queueSpan = null;
+                if (batchContext == null) {
+                    // first grab any incoming distributed context
+                    AgentSpanContext spanContext = Config.get().isSqsPropagationEnabled()
+                            ? extractContextAndGetSpanContext(message, GETTER)
+                            : null;
+                    // next add a time-in-queue span for non-legacy SQS traces
+                    if (TIME_IN_QUEUE_ENABLED) {
+                        long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
+                        if (timeInQueueStart > 0) {
+                            queueSpan = startSpan(
+                                    COMPONENT_NAME.toString(),
+                                    SQS_TIME_IN_QUEUE_OPERATION,
+                                    spanContext,
+                                    MILLISECONDS.toMicros(timeInQueueStart));
+                            BROKER_DECORATE.afterStart(queueSpan);
+                            BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl);
+                            spanContext = queueSpan.spanContext();
+                            // The queueSpan will be finished after inner span has been activated to ensure that
+                            // spans are written out together by TraceStructureWriter when running in strict mode
+                        }
+                    }
+                    // re-use this context for any other messages received in this batch
+                    batchContext = spanContext;
+                }
+                AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
+
+                DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
+                AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
+
+                CONSUMER_DECORATE.afterStart(span);
+                CONSUMER_DECORATE.onConsume(span, queueUrl);
+                if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                    activateNext(span);
+                } else {
+                    final AgentSpan previousSpan = AgentSpan.fromContext(span.swap());
+                    if (previousSpan != null) {
+                        previousSpan.finishWithEndToEnd();
+                    }
+                }
+                if (queueSpan != null) {
+                    BROKER_DECORATE.beforeFinish(queueSpan);
+                    queueSpan.finish();
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Problem tracing new SQS message span", e);
+        }
+    }
+
+    @Override
+    public void remove() {
+        delegate.remove();
+    }
 }

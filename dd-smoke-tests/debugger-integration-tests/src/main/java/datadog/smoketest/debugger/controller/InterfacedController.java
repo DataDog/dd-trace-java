@@ -6,13 +6,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class InterfacedController implements InterfaceApi {
 
-  @Override
-  public String process() {
-    return "OK";
-  }
+    @Override
+    public String process() {
+        return "OK";
+    }
 }
 
 interface InterfaceApi {
-  @RequestMapping("/process")
-  String process();
+    @RequestMapping("/process")
+    String process();
 }

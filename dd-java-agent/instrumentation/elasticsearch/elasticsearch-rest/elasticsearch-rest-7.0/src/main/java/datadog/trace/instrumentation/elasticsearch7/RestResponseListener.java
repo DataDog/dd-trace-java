@@ -8,37 +8,37 @@ import org.elasticsearch.client.ResponseListener;
 /** This class is identical to version 6's instrumentation. */
 public class RestResponseListener implements ResponseListener {
 
-  private final ResponseListener listener;
-  private final AgentSpan span;
+    private final ResponseListener listener;
+    private final AgentSpan span;
 
-  public RestResponseListener(final ResponseListener listener, final AgentSpan span) {
-    this.listener = listener;
-    this.span = span;
-  }
-
-  @Override
-  public void onSuccess(final Response response) {
-    if (response.getHost() != null) {
-      ElasticsearchRestClientDecorator.DECORATE.onResponse(span, response);
+    public RestResponseListener(final ResponseListener listener, final AgentSpan span) {
+        this.listener = listener;
+        this.span = span;
     }
 
-    try {
-      listener.onSuccess(response);
-    } finally {
-      ElasticsearchRestClientDecorator.DECORATE.beforeFinish(span);
-      span.finish();
-    }
-  }
+    @Override
+    public void onSuccess(final Response response) {
+        if (response.getHost() != null) {
+            ElasticsearchRestClientDecorator.DECORATE.onResponse(span, response);
+        }
 
-  @Override
-  public void onFailure(final Exception e) {
-    ElasticsearchRestClientDecorator.DECORATE.onError(span, e);
-
-    try {
-      listener.onFailure(e);
-    } finally {
-      ElasticsearchRestClientDecorator.DECORATE.beforeFinish(span);
-      span.finish();
+        try {
+            listener.onSuccess(response);
+        } finally {
+            ElasticsearchRestClientDecorator.DECORATE.beforeFinish(span);
+            span.finish();
+        }
     }
-  }
+
+    @Override
+    public void onFailure(final Exception e) {
+        ElasticsearchRestClientDecorator.DECORATE.onError(span, e);
+
+        try {
+            listener.onFailure(e);
+        } finally {
+            ElasticsearchRestClientDecorator.DECORATE.beforeFinish(span);
+            span.finish();
+        }
+    }
 }

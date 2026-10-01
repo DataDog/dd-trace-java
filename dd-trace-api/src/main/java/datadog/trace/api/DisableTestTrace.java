@@ -16,6 +16,6 @@ import java.lang.annotation.Target;
 @Target({TYPE, METHOD})
 public @interface DisableTestTrace {
 
-  /** The reason of why test trace has been disable for that test. */
-  String reason() default "";
+    /** The reason of why test trace has been disable for that test. */
+    String reason() default "";
 }

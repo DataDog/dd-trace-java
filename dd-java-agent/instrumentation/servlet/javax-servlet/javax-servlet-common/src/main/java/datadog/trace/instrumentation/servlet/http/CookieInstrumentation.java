@@ -21,73 +21,71 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CookieInstrumentation extends InstrumenterModule.TaintableIast
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
 
-  public CookieInstrumentation() {
-    super("servlet", "servlet-cookie");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "javax.servlet.http.Cookie";
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
-  }
-
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("getName")).and(takesArguments(0)),
-        getClass().getName() + "$GetNameAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("getValue")).and(takesArguments(0)),
-        getClass().getName() + "$GetValueAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class GetNameAdvice {
-    @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_COOKIE_NAME)
-    public static void afterGetName(
-        @Advice.This final Object self,
-        @Advice.Return final String result,
-        @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        try {
-          IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taintStringIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetName threw", e);
-        }
-      }
+    public CookieInstrumentation() {
+        super("servlet", "servlet-cookie");
     }
-  }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class GetValueAdvice {
-
-    @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void afterGetValue(
-        @Advice.This final Object self,
-        @Advice.FieldValue("name") final String name,
-        @Advice.Return final String result,
-        @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        try {
-          IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taintStringIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("getValue threw", e);
-        }
-      }
+    @Override
+    public String instrumentedType() {
+        return "javax.servlet.http.Cookie";
     }
-  }
+
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+    }
+
+    @Override
+    public void methodAdvice(final MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("getName")).and(takesArguments(0)),
+                getClass().getName() + "$GetNameAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("getValue")).and(takesArguments(0)),
+                getClass().getName() + "$GetValueAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class GetNameAdvice {
+        @Advice.OnMethodExit
+        @Source(SourceTypes.REQUEST_COOKIE_NAME)
+        public static void afterGetName(
+                @Advice.This final Object self,
+                @Advice.Return final String result,
+                @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                try {
+                    IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                    module.taintStringIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
+                } catch (final Throwable e) {
+                    module.onUnexpectedException("afterGetName threw", e);
+                }
+            }
+        }
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class GetValueAdvice {
+
+        @Advice.OnMethodExit
+        @Source(SourceTypes.REQUEST_COOKIE_VALUE)
+        public static void afterGetValue(
+                @Advice.This final Object self,
+                @Advice.FieldValue("name") final String name,
+                @Advice.Return final String result,
+                @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                try {
+                    IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                    module.taintStringIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
+                } catch (final Throwable e) {
+                    module.onUnexpectedException("getValue threw", e);
+                }
+            }
+        }
+    }
 }

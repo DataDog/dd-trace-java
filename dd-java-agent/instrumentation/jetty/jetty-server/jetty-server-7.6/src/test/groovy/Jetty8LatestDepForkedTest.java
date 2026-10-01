@@ -23,116 +23,110 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  */
 abstract class Jetty8LatestDepForkedTest extends Jetty76Test {
 
-  @Override
-  public AbstractHandler handler() {
-    return new Jetty8TestHandler();
-  }
-
-  @Override
-  public boolean testBodyMultipart() {
-    return true;
-  }
-
-  @Override
-  public boolean testBodyFilenames() {
-    return true;
-  }
-
-  @Override
-  public boolean testBodyFilenamesCalledOnce() {
-    // Jetty 8.x has no _multiParts field guard; getParts() called multiple times
-    // (BODY_MULTIPART_REPEATED) fires the event more than once.
-    return false;
-  }
-
-  @Override
-  public boolean testBodyFilenamesCalledOnceCombined() {
-    // Jetty 8.x has no _contentParameters field guard; BODY_MULTIPART_COMBINED
-    // fires the event on the getParts() call regardless of prior parameterMap access.
-    return false;
-  }
-
-  @Override
-  public boolean testBodyFilesContent() {
-    return true;
-  }
-
-  static class Jetty8TestHandler extends AbstractHandler {
-    private static final MultipartConfigElement MULTIPART_CONFIG =
-        new MultipartConfigElement(System.getProperty("java.io.tmpdir"));
+    @Override
+    public AbstractHandler handler() {
+        return new Jetty8TestHandler();
+    }
 
     @Override
-    public void handle(
-        String target,
-        Request baseRequest,
-        HttpServletRequest request,
-        HttpServletResponse response)
-        throws IOException, ServletException {
-      if (!baseRequest.getDispatcherType().name().equals("ERROR")) {
-        // Enable Servlet 3.0 multipart processing for all requests.
-        request.setAttribute("org.eclipse.jetty.multipartConfig", MULTIPART_CONFIG);
-        request.setAttribute("org.eclipse.multipartConfig", MULTIPART_CONFIG);
-
-        // Jetty 8.x does not populate getParameterMap() from multipart form fields without a
-        // prior getParts() call (unlike 9.3+ where extractContentParameters() does this).
-        // Pre-call getParts() for BODY_MULTIPART so the servlet can read form fields via
-        // getParameterMap(). Skip for BODY_MULTIPART_REPEATED and BODY_MULTIPART_COMBINED,
-        // which call getParts() themselves and rely on the first call triggering filenames.
-        HttpServerTest.ServerEndpoint endpoint =
-            HttpServerTest.ServerEndpoint.forPath(request.getRequestURI());
-        if (endpoint == HttpServerTest.ServerEndpoint.BODY_MULTIPART) {
-          try {
-            request.getParts();
-          } catch (IOException | ServletException ignored) {
-          }
-        }
-
-        Jetty76Test.TestHandler.handleRequest(baseRequest, response);
-        baseRequest.setHandled(true);
-      } else {
-        ((AbstractHandler) Jetty76Test.getErrorHandler())
-            .handle(target, baseRequest, request, response);
-      }
+    public boolean testBodyMultipart() {
+        return true;
     }
-  }
+
+    @Override
+    public boolean testBodyFilenames() {
+        return true;
+    }
+
+    @Override
+    public boolean testBodyFilenamesCalledOnce() {
+        // Jetty 8.x has no _multiParts field guard; getParts() called multiple times
+        // (BODY_MULTIPART_REPEATED) fires the event more than once.
+        return false;
+    }
+
+    @Override
+    public boolean testBodyFilenamesCalledOnceCombined() {
+        // Jetty 8.x has no _contentParameters field guard; BODY_MULTIPART_COMBINED
+        // fires the event on the getParts() call regardless of prior parameterMap access.
+        return false;
+    }
+
+    @Override
+    public boolean testBodyFilesContent() {
+        return true;
+    }
+
+    static class Jetty8TestHandler extends AbstractHandler {
+        private static final MultipartConfigElement MULTIPART_CONFIG =
+                new MultipartConfigElement(System.getProperty("java.io.tmpdir"));
+
+        @Override
+        public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
+                throws IOException, ServletException {
+            if (!baseRequest.getDispatcherType().name().equals("ERROR")) {
+                // Enable Servlet 3.0 multipart processing for all requests.
+                request.setAttribute("org.eclipse.jetty.multipartConfig", MULTIPART_CONFIG);
+                request.setAttribute("org.eclipse.multipartConfig", MULTIPART_CONFIG);
+
+                // Jetty 8.x does not populate getParameterMap() from multipart form fields without a
+                // prior getParts() call (unlike 9.3+ where extractContentParameters() does this).
+                // Pre-call getParts() for BODY_MULTIPART so the servlet can read form fields via
+                // getParameterMap(). Skip for BODY_MULTIPART_REPEATED and BODY_MULTIPART_COMBINED,
+                // which call getParts() themselves and rely on the first call triggering filenames.
+                HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(request.getRequestURI());
+                if (endpoint == HttpServerTest.ServerEndpoint.BODY_MULTIPART) {
+                    try {
+                        request.getParts();
+                    } catch (IOException | ServletException ignored) {
+                    }
+                }
+
+                Jetty76Test.TestHandler.handleRequest(baseRequest, response);
+                baseRequest.setHandled(true);
+            } else {
+                ((AbstractHandler) Jetty76Test.getErrorHandler()).handle(target, baseRequest, request, response);
+            }
+        }
+    }
 }
 
 @EnabledIfSystemProperty(named = "test.dd.filenames", matches = ".+")
 class Jetty8V0LatestDepForkedTest extends Jetty8LatestDepForkedTest
-    implements TestingGenericHttpNamingConventions.ServerV0 {
+        implements TestingGenericHttpNamingConventions.ServerV0 {
 
-  @Override
-  public int version() {
-    return 0;
-  }
+    @Override
+    public int version() {
+        return 0;
+    }
 
-  @Override
-  public String service() {
-    return null;
-  }
+    @Override
+    public String service() {
+        return null;
+    }
 
-  @Override
-  public String operation() {
-    return "servlet.request";
-  }
+    @Override
+    public String operation() {
+        return "servlet.request";
+    }
 }
 
 @EnabledIfSystemProperty(named = "test.dd.filenames", matches = ".+")
 class Jetty8V1LatestDepForkedTest extends Jetty8LatestDepForkedTest
-    implements TestingGenericHttpNamingConventions.ServerV1 {
+        implements TestingGenericHttpNamingConventions.ServerV1 {
 
-  @Override
-  public int version() {
-    return 1;
-  }
+    @Override
+    public int version() {
+        return 1;
+    }
 
-  @Override
-  public String service() {
-    return null;
-  }
+    @Override
+    public String service() {
+        return null;
+    }
 
-  @Override
-  public String operation() {
-    return "http.server.request";
-  }
+    @Override
+    public String operation() {
+        return "http.server.request";
+    }
 }

@@ -18,34 +18,31 @@ import ratpack.jackson.JsonRender;
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class JsonRendererAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  static void enter(
-      @Advice.Argument(1) final JsonRender render,
-      @ActiveRequestContext final RequestContext reqCtx) {
-    Object obj = render == null ? null : render.getObject();
-    if (obj == null) {
-      return;
-    }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void enter(@Advice.Argument(1) final JsonRender render, @ActiveRequestContext final RequestContext reqCtx) {
+        Object obj = render == null ? null : render.getObject();
+        if (obj == null) {
+            return;
+        }
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    if (cbp == null) {
-      return;
-    }
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.responseBody());
-    if (callback == null) {
-      return;
-    }
-    Flow<Void> flow = callback.apply(reqCtx, obj);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-      if (brf != null) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        if (cbp == null) {
+            return;
+        }
+        BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
+        if (callback == null) {
+            return;
+        }
+        Flow<Void> flow = callback.apply(reqCtx, obj);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null) {
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
 
-        throw new BlockingException("Blocked request (for JsonRenderer/render)");
-      }
+                throw new BlockingException("Blocked request (for JsonRenderer/render)");
+            }
+        }
     }
-  }
 }

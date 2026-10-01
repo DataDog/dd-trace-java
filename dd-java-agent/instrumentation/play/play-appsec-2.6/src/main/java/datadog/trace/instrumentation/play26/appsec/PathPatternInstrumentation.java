@@ -28,77 +28,76 @@ import scala.util.Either;
  */
 @AutoService(InstrumenterModule.class)
 public class PathPatternInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public PathPatternInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "play.core.routing.PathPattern";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("apply")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(named("scala.Option"))),
-        PathPatternInstrumentation.class.getName() + "$ApplyAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  static class ApplyAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return(readOnly = false)
-            scala.Option<
-                    scala.collection.immutable.Map<String, scala.util.Either<Throwable, String>>>
-                ret,
-        @Advice.Thrown(readOnly = false) Throwable t,
-        @ActiveRequestContext RequestContext reqCtx) {
-      if (t != null) {
-        return;
-      }
-      if (ret.isEmpty()) {
-        return;
-      }
-
-      java.util.Map<String, Object> conv = new java.util.HashMap<>();
-
-      Iterator<Tuple2<String, Either<Throwable, String>>> iterator = ret.get().iterator();
-      while (iterator.hasNext()) {
-        Tuple2<String, Either<Throwable, String>> next = iterator.next();
-        Either<Throwable, String> value = next._2();
-        if (value.isLeft()) {
-          continue;
-        }
-
-        conv.put(next._1(), value.right().get());
-      }
-
-      BlockingException blockingException =
-          PathExtractionHelpers.callRequestPathParamsCallback(reqCtx, conv, "PathPattern#apply");
-      t = blockingException;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public PathPatternInstrumentation() {
+        super("play");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
+        };
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_26_PLUS;
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "play.core.routing.PathPattern";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("apply")
+                        .and(not(isStatic()))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, String.class))
+                        .and(returns(named("scala.Option"))),
+                PathPatternInstrumentation.class.getName() + "$ApplyAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    static class ApplyAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return(readOnly = false)
+                        scala.Option<scala.collection.immutable.Map<String, scala.util.Either<Throwable, String>>> ret,
+                @Advice.Thrown(readOnly = false) Throwable t,
+                @ActiveRequestContext RequestContext reqCtx) {
+            if (t != null) {
+                return;
+            }
+            if (ret.isEmpty()) {
+                return;
+            }
+
+            java.util.Map<String, Object> conv = new java.util.HashMap<>();
+
+            Iterator<Tuple2<String, Either<Throwable, String>>> iterator =
+                    ret.get().iterator();
+            while (iterator.hasNext()) {
+                Tuple2<String, Either<Throwable, String>> next = iterator.next();
+                Either<Throwable, String> value = next._2();
+                if (value.isLeft()) {
+                    continue;
+                }
+
+                conv.put(next._1(), value.right().get());
+            }
+
+            BlockingException blockingException =
+                    PathExtractionHelpers.callRequestPathParamsCallback(reqCtx, conv, "PathPattern#apply");
+            t = blockingException;
+        }
+    }
 }

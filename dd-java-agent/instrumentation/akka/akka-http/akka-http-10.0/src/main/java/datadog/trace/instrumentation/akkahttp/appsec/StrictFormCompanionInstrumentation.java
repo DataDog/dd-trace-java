@@ -22,38 +22,38 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class StrictFormCompanionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public StrictFormCompanionInstrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.http.scaladsl.common.StrictForm$";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("unmarshaller"))
-            .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        StrictFormCompanionInstrumentation.class.getName() + "$UnmarshallerAdvice");
-  }
-
-  static class UnmarshallerAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return(readOnly = false) Unmarshaller<HttpEntity, StrictForm> ret) {
-      ret = UnmarshallerHelpers.transformStrictFormUnmarshaller(ret);
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public StrictFormCompanionInstrumentation() {
+        super("akka-http");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "akka.http.scaladsl.common.StrictForm$";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("unmarshaller"))
+                        .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+                        .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+                StrictFormCompanionInstrumentation.class.getName() + "$UnmarshallerAdvice");
+    }
+
+    static class UnmarshallerAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) Unmarshaller<HttpEntity, StrictForm> ret) {
+            ret = UnmarshallerHelpers.transformStrictFormUnmarshaller(ret);
+        }
+    }
 }

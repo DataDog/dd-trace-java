@@ -10,27 +10,27 @@ import java.util.Map;
  */
 public class LRUExposureCache implements ExposureCache {
 
-  private final Map<Key, Value> cache;
+    private final Map<Key, Value> cache;
 
-  public LRUExposureCache(final int capacity) {
-    cache = new LRUCache<>(capacity);
-  }
+    public LRUExposureCache(final int capacity) {
+        cache = new LRUCache<>(capacity);
+    }
 
-  @Override
-  public boolean add(final ExposureEvent event) {
-    final Key key = new Key(event);
-    final Value value = new Value(event);
-    final Value oldValue = cache.put(key, value);
-    return oldValue == null || !oldValue.equals(value);
-  }
+    @Override
+    public boolean add(final ExposureEvent event) {
+        final Key key = new Key(event);
+        final Value value = new Value(event);
+        final Value oldValue = cache.put(key, value);
+        return oldValue == null || !oldValue.equals(value);
+    }
 
-  @Override
-  public Value get(final Key key) {
-    return cache.get(key);
-  }
+    @Override
+    public Value get(final Key key) {
+        return cache.get(key);
+    }
 
-  @Override
-  public int size() {
-    return cache.size();
-  }
+    @Override
+    public int size() {
+        return cache.size();
+    }
 }

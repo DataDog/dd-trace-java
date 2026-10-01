@@ -4,10 +4,10 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** Whether the definition of a test was modified. */
 public enum IsModified implements TagValue {
-  TRUE;
+    TRUE;
 
-  @Override
-  public String asString() {
-    return "is_modified:true";
-  }
+    @Override
+    public String asString() {
+        return "is_modified:true";
+    }
 }

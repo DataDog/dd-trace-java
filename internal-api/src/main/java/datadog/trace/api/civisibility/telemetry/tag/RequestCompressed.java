@@ -4,10 +4,10 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** Whether request body is compressed. */
 public enum RequestCompressed implements TagValue {
-  TRUE;
+    TRUE;
 
-  @Override
-  public String asString() {
-    return "rq_compressed:true";
-  }
+    @Override
+    public String asString() {
+        return "rq_compressed:true";
+    }
 }

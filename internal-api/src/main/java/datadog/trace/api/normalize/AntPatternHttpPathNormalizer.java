@@ -11,52 +11,52 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class AntPatternHttpPathNormalizer extends HttpPathNormalizer {
-  private static final Logger log = LoggerFactory.getLogger(AntPatternHttpPathNormalizer.class);
+    private static final Logger log = LoggerFactory.getLogger(AntPatternHttpPathNormalizer.class);
 
-  /** Used to preserve original value as is when it's mapped to this value. */
-  private static final String KEEP_AS_IS = "*";
+    /** Used to preserve original value as is when it's mapped to this value. */
+    private static final String KEEP_AS_IS = "*";
 
-  private final Map<String, String> resourceNameMatchers;
-  private final AntPathMatcher matcher = new AntPathMatcher();
+    private final Map<String, String> resourceNameMatchers;
+    private final AntPathMatcher matcher = new AntPathMatcher();
 
-  private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(512);
-  private final Function<String, String> cacheLoader =
-      new Function<String, String>() {
+    private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(512);
+    private final Function<String, String> cacheLoader = new Function<String, String>() {
         @Override
         public String apply(String path) {
-          for (Map.Entry<String, String> resourceNameMatcher : resourceNameMatchers.entrySet()) {
-            if (matcher.match(resourceNameMatcher.getKey(), path)) {
-              if (KEEP_AS_IS.equals(resourceNameMatcher.getValue())) {
-                return path;
-              }
-              return resourceNameMatcher.getValue();
+            for (Map.Entry<String, String> resourceNameMatcher : resourceNameMatchers.entrySet()) {
+                if (matcher.match(resourceNameMatcher.getKey(), path)) {
+                    if (KEEP_AS_IS.equals(resourceNameMatcher.getValue())) {
+                        return path;
+                    }
+                    return resourceNameMatcher.getValue();
+                }
             }
-          }
-          return null;
+            return null;
         }
-      };
+    };
 
-  AntPatternHttpPathNormalizer(Map<String, String> httpResourceNameMatchers) {
-    resourceNameMatchers = httpResourceNameMatchers;
+    AntPatternHttpPathNormalizer(Map<String, String> httpResourceNameMatchers) {
+        resourceNameMatchers = httpResourceNameMatchers;
 
-    // Clean up invalid patterns
-    List<String> invalidPatterns = new ArrayList<>(httpResourceNameMatchers.keySet().size());
-    for (String pattern : resourceNameMatchers.keySet()) {
-      if (!matcher.isPattern(pattern)) {
-        invalidPatterns.add(pattern);
-      }
+        // Clean up invalid patterns
+        List<String> invalidPatterns =
+                new ArrayList<>(httpResourceNameMatchers.keySet().size());
+        for (String pattern : resourceNameMatchers.keySet()) {
+            if (!matcher.isPattern(pattern)) {
+                invalidPatterns.add(pattern);
+            }
+        }
+        for (String invalid : invalidPatterns) {
+            log.warn("Invalid pattern {} removed from matchers", invalid);
+            resourceNameMatchers.remove(invalid);
+        }
     }
-    for (String invalid : invalidPatterns) {
-      log.warn("Invalid pattern {} removed from matchers", invalid);
-      resourceNameMatchers.remove(invalid);
-    }
-  }
 
-  @Override
-  public String normalize(String path, boolean encoded) {
-    if (encoded) {
-      path = URIUtils.decode(path);
+    @Override
+    public String normalize(String path, boolean encoded) {
+        if (encoded) {
+            path = URIUtils.decode(path);
+        }
+        return cache.computeIfAbsent(path, cacheLoader);
     }
-    return cache.computeIfAbsent(path, cacheLoader);
-  }
 }

@@ -48,70 +48,69 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 public class KnuthSamplingRateFormatBenchmark {
 
-  /**
-   * Representative sampling rates. Most real-world rates are in [0.001, 1.0]. The 0.0001 value
-   * exercises the edge of the fixed-notation range.
-   */
-  @Param({"0.5", "0.1", "0.01", "0.001", "0.0001", "0.123456789", "0.999999"})
-  double rate;
+    /**
+     * Representative sampling rates. Most real-world rates are in [0.001, 1.0]. The 0.0001 value
+     * exercises the edge of the fixed-notation range.
+     */
+    @Param({"0.5", "0.1", "0.01", "0.001", "0.0001", "0.123456789", "0.999999"})
+    double rate;
 
-  PropagationTags.Factory factory;
-  PTagsFactory.PTags ptags;
+    PropagationTags.Factory factory;
+    PTagsFactory.PTags ptags;
 
-  @Setup(Level.Trial)
-  public void setUp() {
-    factory = PropagationTags.factory();
-    ptags = (PTagsFactory.PTags) factory.empty();
-    ptags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
-  }
-
-  /** Baseline: old implementation using String.format + substring trimming. */
-  @Benchmark
-  public void stringFormat(Blackhole bh) {
-    bh.consume(stringFormatImpl(rate));
-  }
-
-  /** Custom formatter: char-array arithmetic, no Formatter allocation. */
-  @Benchmark
-  public void customFormat(Blackhole bh) {
-    bh.consume(PTagsFactory.PTags.formatKnuthSamplingRate(rate));
-  }
-
-  /**
-   * Cached TagValue: the full getKnuthSamplingRateTagValue() hot-path after caching. Should be
-   * near-zero allocation (volatile read only).
-   */
-  @Benchmark
-  public void cachedTagValue(Blackhole bh) {
-    bh.consume(ptags.getKnuthSamplingRateTagValue());
-  }
-
-  /** Models a fresh trace's probability decision, including its propagation tags allocation. */
-  @Benchmark
-  public void probabilityDecisionFreshTrace(Blackhole bh) {
-    PTagsFactory.PTags freshTags = (PTagsFactory.PTags) factory.empty();
-    freshTags.tryUpdateProbabilitySamplingDecision(
-        SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
-    bh.consume(freshTags.getKnuthSamplingRateTagValue());
-  }
-
-  // ---- old implementation for comparison (%.6f with trailing zero removal) ----
-
-  static String stringFormatImpl(double rate) {
-    if (rate <= 0.0) return "0";
-    if (rate >= 1.0) return "1";
-    String formatted = String.format(Locale.ROOT, "%.6f", rate);
-    int dotIndex = formatted.indexOf('.');
-    if (dotIndex >= 0) {
-      int end = formatted.length();
-      while (end > dotIndex + 1 && formatted.charAt(end - 1) == '0') {
-        end--;
-      }
-      if (formatted.charAt(end - 1) == '.') {
-        end--;
-      }
-      formatted = formatted.substring(0, end);
+    @Setup(Level.Trial)
+    public void setUp() {
+        factory = PropagationTags.factory();
+        ptags = (PTagsFactory.PTags) factory.empty();
+        ptags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
     }
-    return "0".equals(formatted) ? "0" : formatted;
-  }
+
+    /** Baseline: old implementation using String.format + substring trimming. */
+    @Benchmark
+    public void stringFormat(Blackhole bh) {
+        bh.consume(stringFormatImpl(rate));
+    }
+
+    /** Custom formatter: char-array arithmetic, no Formatter allocation. */
+    @Benchmark
+    public void customFormat(Blackhole bh) {
+        bh.consume(PTagsFactory.PTags.formatKnuthSamplingRate(rate));
+    }
+
+    /**
+     * Cached TagValue: the full getKnuthSamplingRateTagValue() hot-path after caching. Should be
+     * near-zero allocation (volatile read only).
+     */
+    @Benchmark
+    public void cachedTagValue(Blackhole bh) {
+        bh.consume(ptags.getKnuthSamplingRateTagValue());
+    }
+
+    /** Models a fresh trace's probability decision, including its propagation tags allocation. */
+    @Benchmark
+    public void probabilityDecisionFreshTrace(Blackhole bh) {
+        PTagsFactory.PTags freshTags = (PTagsFactory.PTags) factory.empty();
+        freshTags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
+        bh.consume(freshTags.getKnuthSamplingRateTagValue());
+    }
+
+    // ---- old implementation for comparison (%.6f with trailing zero removal) ----
+
+    static String stringFormatImpl(double rate) {
+        if (rate <= 0.0) return "0";
+        if (rate >= 1.0) return "1";
+        String formatted = String.format(Locale.ROOT, "%.6f", rate);
+        int dotIndex = formatted.indexOf('.');
+        if (dotIndex >= 0) {
+            int end = formatted.length();
+            while (end > dotIndex + 1 && formatted.charAt(end - 1) == '0') {
+                end--;
+            }
+            if (formatted.charAt(end - 1) == '.') {
+                end--;
+            }
+            formatted = formatted.substring(0, end);
+        }
+        return "0".equals(formatted) ? "0" : formatted;
+    }
 }

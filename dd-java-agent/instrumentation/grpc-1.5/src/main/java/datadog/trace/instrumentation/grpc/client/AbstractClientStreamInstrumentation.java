@@ -14,41 +14,39 @@ import io.grpc.internal.ClientStreamListener;
 import net.bytebuddy.asm.Advice;
 
 public final class AbstractClientStreamInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "io.grpc.internal.AbstractClientStream";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("start")
-            .and(
-                isMethod()
-                    .and(
-                        takesArgument(0, named("io.grpc.internal.ClientStreamListener"))
-                            .and(takesArguments(1)))),
-        getClass().getName() + "$ActivateSpan");
-  }
-
-  public static final class ActivateSpan {
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.Argument(0) ClientStreamListener listener) {
-      AgentSpan span =
-          InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
-      if (null != span) {
-        return activateSpan(span);
-      }
-      return null;
+    @Override
+    public String instrumentedType() {
+        return "io.grpc.internal.AbstractClientStream";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      if (null != scope) {
-        scope.close();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("start")
+                        .and(isMethod()
+                                .and(takesArgument(0, named("io.grpc.internal.ClientStreamListener"))
+                                        .and(takesArguments(1)))),
+                getClass().getName() + "$ActivateSpan");
     }
-  }
+
+    public static final class ActivateSpan {
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.Argument(0) ClientStreamListener listener) {
+            AgentSpan span = InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class)
+                    .get(listener);
+            if (null != span) {
+                return activateSpan(span);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            if (null != scope) {
+                scope.close();
+            }
+        }
+    }
 }

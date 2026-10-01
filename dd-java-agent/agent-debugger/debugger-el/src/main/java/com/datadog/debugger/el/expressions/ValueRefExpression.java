@@ -17,58 +17,58 @@ import java.util.Objects;
 
 /** An expression taking a reference path and resolving to {@linkplain Value} */
 public final class ValueRefExpression implements ValueExpression<Value<?>> {
-  private final String symbolName;
+    private final String symbolName;
 
-  public ValueRefExpression(String symbolName) {
-    this.symbolName = symbolName;
-  }
-
-  @Override
-  public Value<?> evaluate(EvalContext evalContext) {
-    CapturedContext.CapturedValue symbol;
-    try {
-      symbol = evalContext.getValueRefResolver().lookup(symbolName);
-    } catch (RuntimeException ex) {
-      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
+    public ValueRefExpression(String symbolName) {
+        this.symbolName = symbolName;
     }
-    if (symbol != null) {
-      String typeName = symbol.getType();
-      if (symbol.getValue() == REDACTED_VALUE || (Redaction.isRedactedType(typeName))) {
-        throwRedactedException(this);
-      }
-      checkTimeout(evalContext.getTimeoutChecker(), this);
-      return Value.of(symbol.getValue(), ValueType.of(symbol.getType()));
+
+    @Override
+    public Value<?> evaluate(EvalContext evalContext) {
+        CapturedContext.CapturedValue symbol;
+        try {
+            symbol = evalContext.getValueRefResolver().lookup(symbolName);
+        } catch (RuntimeException ex) {
+            throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
+        }
+        if (symbol != null) {
+            String typeName = symbol.getType();
+            if (symbol.getValue() == REDACTED_VALUE || (Redaction.isRedactedType(typeName))) {
+                throwRedactedException(this);
+            }
+            checkTimeout(evalContext.getTimeoutChecker(), this);
+            return Value.of(symbol.getValue(), ValueType.of(symbol.getType()));
+        }
+        return Value.nullValue();
     }
-    return Value.nullValue();
-  }
 
-  @Generated
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    ValueRefExpression that = (ValueRefExpression) o;
-    return Objects.equals(symbolName, that.symbolName);
-  }
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ValueRefExpression that = (ValueRefExpression) o;
+        return Objects.equals(symbolName, that.symbolName);
+    }
 
-  @Generated
-  @Override
-  public int hashCode() {
-    return Objects.hash(symbolName);
-  }
+    @Generated
+    @Override
+    public int hashCode() {
+        return Objects.hash(symbolName);
+    }
 
-  @Generated
-  @Override
-  public String toString() {
-    return "ValueRefExpression{" + "symbolName='" + symbolName + '\'' + '}';
-  }
+    @Generated
+    @Override
+    public String toString() {
+        return "ValueRefExpression{" + "symbolName='" + symbolName + '\'' + '}';
+    }
 
-  public String getSymbolName() {
-    return symbolName;
-  }
+    public String getSymbolName() {
+        return symbolName;
+    }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

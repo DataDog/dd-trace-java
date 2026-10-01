@@ -24,124 +24,116 @@ import org.junit.jupiter.api.BeforeAll;
 
 public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
 
-  protected static List<CoreTracer> unclosedTracers = new ArrayList<>();
+    protected static List<CoreTracer> unclosedTracers = new ArrayList<>();
 
-  protected static class AutoCloseableCoreTracerBuilder extends CoreTracerBuilder {
-    @Override
-    public CoreTracer build() {
-      CoreTracer tracer = super.build();
-      unclosedTracers.add(tracer);
-      return tracer;
+    protected static class AutoCloseableCoreTracerBuilder extends CoreTracerBuilder {
+        @Override
+        public CoreTracer build() {
+            CoreTracer tracer = super.build();
+            unclosedTracers.add(tracer);
+            return tracer;
+        }
     }
-  }
 
-  protected boolean useNoopStatsDClient() {
-    return true;
-  }
+    protected boolean useNoopStatsDClient() {
+        return true;
+    }
 
-  protected boolean useStrictTraceWrites() {
-    return true;
-  }
+    protected boolean useStrictTraceWrites() {
+        return true;
+    }
 
-  @BeforeAll
-  static void beforeAll() {
-    TagsPostProcessorFactory.withAddInternalTags(false);
-    TagsPostProcessorFactory.withAddRemoteHostname(false);
-  }
+    @BeforeAll
+    static void beforeAll() {
+        TagsPostProcessorFactory.withAddInternalTags(false);
+        TagsPostProcessorFactory.withAddRemoteHostname(false);
+    }
 
-  @AfterAll
-  static void afterAll() {
-    TagsPostProcessorFactory.reset();
-  }
+    @AfterAll
+    static void afterAll() {
+        TagsPostProcessorFactory.reset();
+    }
 
-  @AfterEach
-  void cleanupCore() {
-    for (CoreTracer tracer : unclosedTracers) {
-      try {
+    @AfterEach
+    void cleanupCore() {
+        for (CoreTracer tracer : unclosedTracers) {
+            try {
+                tracer.close();
+            } catch (Throwable ignored) {
+            }
+        }
+        unclosedTracers.clear();
+        AgentTaskScheduler.shutdownAndReset(10, TimeUnit.SECONDS);
+    }
+
+    protected CoreTracerBuilder tracerBuilder() {
+        CoreTracerBuilder builder = new AutoCloseableCoreTracerBuilder();
+        if (useNoopStatsDClient()) {
+            builder = builder.statsDClient(StatsDClient.NO_OP);
+        }
+        return builder.strictTraceWrites(useStrictTraceWrites());
+    }
+
+    protected DDSpan buildSpan(long timestamp, CharSequence spanType, Map<String, Object> tags) {
+        return buildSpan(
+                timestamp, spanType, PropagationTags.factory().empty(), tags, PrioritySampling.SAMPLER_KEEP, null);
+    }
+
+    protected DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags propagationTags) {
+        Map<String, Object> tags = new HashMap<>();
+        tags.put(tag, value);
+        return buildSpan(timestamp, "fakeType", propagationTags, tags, PrioritySampling.UNSET, null);
+    }
+
+    protected DDSpan buildSpan(
+            long timestamp,
+            CharSequence spanType,
+            PropagationTags propagationTags,
+            Map<String, Object> tags,
+            byte prioritySampling,
+            Object ciVisibilityContextData) {
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        DDSpanContext context = new DDSpanContext(
+                DDTraceId.ONE,
+                1L,
+                DDSpanId.ZERO,
+                null,
+                null,
+                "fakeService",
+                "fakeOperation",
+                "fakeResource",
+                prioritySampling,
+                null,
+                Collections.emptyMap(),
+                null,
+                false,
+                spanType,
+                0,
+                tracer.createTraceCollector(DDTraceId.ONE),
+                null,
+                null,
+                ciVisibilityContextData,
+                NoopPathwayContext.INSTANCE,
+                false,
+                propagationTags,
+                ProfilingContextIntegration.NoOp.INSTANCE,
+                true,
+                true);
+
+        DDSpan span = DDSpan.create("test", timestamp, context, null);
+        for (Map.Entry<String, Object> entry : tags.entrySet()) {
+            span.setTag(entry.getKey(), entry.getValue());
+        }
+
         tracer.close();
-      } catch (Throwable ignored) {
-      }
-    }
-    unclosedTracers.clear();
-    AgentTaskScheduler.shutdownAndReset(10, TimeUnit.SECONDS);
-  }
-
-  protected CoreTracerBuilder tracerBuilder() {
-    CoreTracerBuilder builder = new AutoCloseableCoreTracerBuilder();
-    if (useNoopStatsDClient()) {
-      builder = builder.statsDClient(StatsDClient.NO_OP);
-    }
-    return builder.strictTraceWrites(useStrictTraceWrites());
-  }
-
-  protected DDSpan buildSpan(long timestamp, CharSequence spanType, Map<String, Object> tags) {
-    return buildSpan(
-        timestamp,
-        spanType,
-        PropagationTags.factory().empty(),
-        tags,
-        PrioritySampling.SAMPLER_KEEP,
-        null);
-  }
-
-  protected DDSpan buildSpan(
-      long timestamp, String tag, String value, PropagationTags propagationTags) {
-    Map<String, Object> tags = new HashMap<>();
-    tags.put(tag, value);
-    return buildSpan(timestamp, "fakeType", propagationTags, tags, PrioritySampling.UNSET, null);
-  }
-
-  protected DDSpan buildSpan(
-      long timestamp,
-      CharSequence spanType,
-      PropagationTags propagationTags,
-      Map<String, Object> tags,
-      byte prioritySampling,
-      Object ciVisibilityContextData) {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1L,
-            DDSpanId.ZERO,
-            null,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            prioritySampling,
-            null,
-            Collections.emptyMap(),
-            null,
-            false,
-            spanType,
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            ciVisibilityContextData,
-            NoopPathwayContext.INSTANCE,
-            false,
-            propagationTags,
-            ProfilingContextIntegration.NoOp.INSTANCE,
-            true,
-            true);
-
-    DDSpan span = DDSpan.create("test", timestamp, context, null);
-    for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      span.setTag(entry.getKey(), entry.getValue());
+        return span;
     }
 
-    tracer.close();
-    return span;
-  }
-
-  protected static Map<String, Map<String, Number>> rateByService(
-      String service, String env, double rate) {
-    Map<String, Number> byService = new HashMap<>();
-    byService.put("service:" + service + ",env:" + env, rate);
-    Map<String, Map<String, Number>> response = new HashMap<>();
-    response.put("rate_by_service", byService);
-    return response;
-  }
+    protected static Map<String, Map<String, Number>> rateByService(String service, String env, double rate) {
+        Map<String, Number> byService = new HashMap<>();
+        byService.put("service:" + service + ",env:" + env, rate);
+        Map<String, Map<String, Number>> response = new HashMap<>();
+        response.put("rate_by_service", byService);
+        return response;
+    }
 }

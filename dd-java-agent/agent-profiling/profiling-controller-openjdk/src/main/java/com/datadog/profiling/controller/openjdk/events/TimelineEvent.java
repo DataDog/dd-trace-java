@@ -15,33 +15,33 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public class TimelineEvent extends Event implements Stateful {
 
-  @Label("Local Root Span Id")
-  private final long localRootSpanId;
+    @Label("Local Root Span Id")
+    private final long localRootSpanId;
 
-  @Label("Span Id")
-  private final long spanId;
+    @Label("Span Id")
+    private final long spanId;
 
-  @Label("Span Name")
-  @Name("_dd.trace.operation")
-  private final String operation;
+    @Label("Span Name")
+    @Name("_dd.trace.operation")
+    private final String operation;
 
-  public TimelineEvent(long localRootSpanId, long spanId, String operation) {
-    this.localRootSpanId = localRootSpanId;
-    this.spanId = spanId;
-    this.operation = operation;
-    begin();
-  }
-
-  @Override
-  public void close() {
-    end();
-    if (shouldCommit()) {
-      commit();
+    public TimelineEvent(long localRootSpanId, long spanId, String operation) {
+        this.localRootSpanId = localRootSpanId;
+        this.spanId = spanId;
+        this.operation = operation;
+        begin();
     }
-  }
 
-  @Override
-  public void activate(Object context) {
-    // nothing to do, either we get an event or we don't
-  }
+    @Override
+    public void close() {
+        end();
+        if (shouldCommit()) {
+            commit();
+        }
+    }
+
+    @Override
+    public void activate(Object context) {
+        // nothing to do, either we get an event or we don't
+    }
 }

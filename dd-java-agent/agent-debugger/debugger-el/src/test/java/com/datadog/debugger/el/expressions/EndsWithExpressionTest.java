@@ -16,44 +16,42 @@ import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 class EndsWithExpressionTest {
-  private final EvalContext evalContext = createEvalContext(this);
-  // used to ref lookup
-  URI uri = URI.create("https://www.datadoghq.com");
+    private final EvalContext evalContext = createEvalContext(this);
+    // used to ref lookup
+    URI uri = URI.create("https://www.datadoghq.com");
 
-  @Test
-  void nullExpression() {
-    EndsWithExpression expression = new EndsWithExpression(null, null);
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
-    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("endsWith(null, null)", print(expression));
-  }
+    @Test
+    void nullExpression() {
+        EndsWithExpression expression = new EndsWithExpression(null, null);
+        EvaluationException exception = assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
+        assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+        assertEquals("endsWith(null, null)", print(expression));
+    }
 
-  @Test
-  void undefinedExpression() {
-    EndsWithExpression expression =
-        new EndsWithExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
-    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
-    assertEquals("endsWith(UNDEFINED, \"null\")", print(expression));
-  }
+    @Test
+    void undefinedExpression() {
+        EndsWithExpression expression =
+                new EndsWithExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
+        EvaluationException exception = assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
+        assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+        assertEquals("endsWith(UNDEFINED, \"null\")", print(expression));
+    }
 
-  @Test
-  void stringExpression() {
-    EndsWithExpression expression = new EndsWithExpression(DSL.value("abc"), new StringValue("bc"));
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("endsWith(\"abc\", \"bc\")", print(expression));
+    @Test
+    void stringExpression() {
+        EndsWithExpression expression = new EndsWithExpression(DSL.value("abc"), new StringValue("bc"));
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("endsWith(\"abc\", \"bc\")", print(expression));
 
-    expression = new EndsWithExpression(DSL.value("abc"), new StringValue("ab"));
-    assertFalse(expression.evaluate(evalContext));
-    assertEquals("endsWith(\"abc\", \"ab\")", print(expression));
-  }
+        expression = new EndsWithExpression(DSL.value("abc"), new StringValue("ab"));
+        assertFalse(expression.evaluate(evalContext));
+        assertEquals("endsWith(\"abc\", \"ab\")", print(expression));
+    }
 
-  @Test
-  void stringPrimitives() {
-    EndsWithExpression expression = new EndsWithExpression(DSL.ref("uri"), new StringValue(".com"));
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("endsWith(uri, \".com\")", print(expression));
-  }
+    @Test
+    void stringPrimitives() {
+        EndsWithExpression expression = new EndsWithExpression(DSL.ref("uri"), new StringValue(".com"));
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("endsWith(uri, \".com\")", print(expression));
+    }
 }

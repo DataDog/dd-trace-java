@@ -25,111 +25,110 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class StatusLoggerTest extends DDJavaSpecification {
 
-  @Test
-  void otlpExportDisabledByDefault() throws IOException {
-    Map<String, Object> startupLog = startupLog();
+    @Test
+    void otlpExportDisabledByDefault() throws IOException {
+        Map<String, Object> startupLog = startupLog();
 
-    assertFalse(flag(startupLog, "otlp_traces_export_enabled"));
-    assertFalse(flag(startupLog, "otlp_metrics_export_enabled"));
-    assertFalse(flag(startupLog, "otlp_logs_export_enabled"));
-  }
+        assertFalse(flag(startupLog, "otlp_traces_export_enabled"));
+        assertFalse(flag(startupLog, "otlp_metrics_export_enabled"));
+        assertFalse(flag(startupLog, "otlp_logs_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
-  @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
-  @WithConfig(key = METRICS_OTEL_EXPORTER, value = "otlp")
-  @WithConfig(key = LOGS_OTEL_ENABLED, value = "true")
-  @WithConfig(key = LOGS_OTEL_EXPORTER, value = "otlp")
-  void otlpExportEnabledWhenConfigured() throws IOException {
-    Map<String, Object> startupLog = startupLog();
+    @Test
+    @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
+    @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
+    @WithConfig(key = METRICS_OTEL_EXPORTER, value = "otlp")
+    @WithConfig(key = LOGS_OTEL_ENABLED, value = "true")
+    @WithConfig(key = LOGS_OTEL_EXPORTER, value = "otlp")
+    void otlpExportEnabledWhenConfigured() throws IOException {
+        Map<String, Object> startupLog = startupLog();
 
-    assertTrue(flag(startupLog, "otlp_traces_export_enabled"));
-    assertTrue(flag(startupLog, "otlp_metrics_export_enabled"));
-    assertTrue(flag(startupLog, "otlp_logs_export_enabled"));
-  }
+        assertTrue(flag(startupLog, "otlp_traces_export_enabled"));
+        assertTrue(flag(startupLog, "otlp_metrics_export_enabled"));
+        assertTrue(flag(startupLog, "otlp_logs_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
-  @WithConfig(key = METRICS_OTEL_EXPORTER, value = "otlp")
-  @WithConfig(key = LOGS_OTEL_EXPORTER, value = "otlp")
-  void metricsAndLogsRequireOtelSignalEnabled() throws IOException {
-    Map<String, Object> startupLog = startupLog();
+    @Test
+    @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
+    @WithConfig(key = METRICS_OTEL_EXPORTER, value = "otlp")
+    @WithConfig(key = LOGS_OTEL_EXPORTER, value = "otlp")
+    void metricsAndLogsRequireOtelSignalEnabled() throws IOException {
+        Map<String, Object> startupLog = startupLog();
 
-    assertTrue(flag(startupLog, "otlp_traces_export_enabled"));
-    assertFalse(flag(startupLog, "otlp_metrics_export_enabled"));
-    assertFalse(flag(startupLog, "otlp_logs_export_enabled"));
-  }
+        assertTrue(flag(startupLog, "otlp_traces_export_enabled"));
+        assertFalse(flag(startupLog, "otlp_metrics_export_enabled"));
+        assertFalse(flag(startupLog, "otlp_logs_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
-  @WithConfig(key = WRITER_TYPE, value = DD_AGENT_WRITER_TYPE)
-  void tracesNotExportedWhenWriterTypeOverridesOtlpExporter() throws IOException {
-    assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
+    @WithConfig(key = WRITER_TYPE, value = DD_AGENT_WRITER_TYPE)
+    void tracesNotExportedWhenWriterTypeOverridesOtlpExporter() throws IOException {
+        assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = WRITER_TYPE, value = "MultiWriter:OtlpWriter,DDAgentWriter")
-  void tracesExportedWhenMultiWriterIncludesOtlpWriter() throws IOException {
-    assertTrue(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = WRITER_TYPE, value = "MultiWriter:OtlpWriter,DDAgentWriter")
+    void tracesExportedWhenMultiWriterIncludesOtlpWriter() throws IOException {
+        assertTrue(flag(startupLog(), "otlp_traces_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = WRITER_TYPE, value = "MultiWriter:LoggingWriter,DDAgentWriter")
-  void tracesNotExportedWhenMultiWriterExcludesOtlpWriter() throws IOException {
-    assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = WRITER_TYPE, value = "MultiWriter:LoggingWriter,DDAgentWriter")
+    void tracesNotExportedWhenMultiWriterExcludesOtlpWriter() throws IOException {
+        assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = WRITER_TYPE, value = "MultiWriter: OtlpWriter")
-  void tracesNotExportedWhenMultiWriterSubTypeIsPadded() throws IOException {
-    assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = WRITER_TYPE, value = "MultiWriter: OtlpWriter")
+    void tracesNotExportedWhenMultiWriterSubTypeIsPadded() throws IOException {
+        assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = WRITER_TYPE, value = "MultiWriter:OtlpWriterExtra")
-  void tracesNotExportedWhenMultiWriterSubTypeOnlyPrefixesOtlpWriter() throws IOException {
-    assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = WRITER_TYPE, value = "MultiWriter:OtlpWriterExtra")
+    void tracesNotExportedWhenMultiWriterSubTypeOnlyPrefixesOtlpWriter() throws IOException {
+        assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = WRITER_TYPE, value = "DDAgentWriter,OtlpWriter")
-  void tracesNotExportedWhenCommaSeparatedWithoutMultiWriterPrefix() throws IOException {
-    assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = WRITER_TYPE, value = "DDAgentWriter,OtlpWriter")
+    void tracesNotExportedWhenCommaSeparatedWithoutMultiWriterPrefix() throws IOException {
+        assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = WRITER_TYPE, value = "TraceStructureWriter:/tmp/out,OtlpWriter")
-  void tracesNotExportedWhenTraceStructureWriterTakesPrecedence() throws IOException {
-    assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = WRITER_TYPE, value = "TraceStructureWriter:/tmp/out,OtlpWriter")
+    void tracesNotExportedWhenTraceStructureWriterTakesPrecedence() throws IOException {
+        assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = OTEL_TRACES_SPAN_METRICS_ENABLED, value = "true")
-  void metricsExportedWhenSpanMetricsEnabled() throws IOException {
-    assertTrue(flag(startupLog(), "otlp_metrics_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = OTEL_TRACES_SPAN_METRICS_ENABLED, value = "true")
+    void metricsExportedWhenSpanMetricsEnabled() throws IOException {
+        assertTrue(flag(startupLog(), "otlp_metrics_export_enabled"));
+    }
 
-  @Test
-  @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
-  @WithConfig(key = METRICS_OTEL_EXPORTER, value = "otlp")
-  @WithConfig(key = OTEL_TRACES_SPAN_METRICS_ENABLED, value = "false")
-  void metricsExportedWhenOtelMetricsSignalEnabledWithoutSpanMetrics() throws IOException {
-    assertTrue(flag(startupLog(), "otlp_metrics_export_enabled"));
-  }
+    @Test
+    @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
+    @WithConfig(key = METRICS_OTEL_EXPORTER, value = "otlp")
+    @WithConfig(key = OTEL_TRACES_SPAN_METRICS_ENABLED, value = "false")
+    void metricsExportedWhenOtelMetricsSignalEnabledWithoutSpanMetrics() throws IOException {
+        assertTrue(flag(startupLog(), "otlp_metrics_export_enabled"));
+    }
 
-  private static Map<String, Object> startupLog() throws IOException {
-    String json =
-        new Moshi.Builder()
-            .add(new StatusLogger())
-            .build()
-            .adapter(Config.class)
-            .toJson(Config.get());
-    return JsonMapper.fromJsonToMap(json);
-  }
+    private static Map<String, Object> startupLog() throws IOException {
+        String json = new Moshi.Builder()
+                .add(new StatusLogger())
+                .build()
+                .adapter(Config.class)
+                .toJson(Config.get());
+        return JsonMapper.fromJsonToMap(json);
+    }
 
-  private static boolean flag(Map<String, Object> startupLog, String name) {
-    Object value = startupLog.get(name);
-    assertTrue(value instanceof Boolean, name + " should be a boolean, was " + value);
-    return (Boolean) value;
-  }
+    private static boolean flag(Map<String, Object> startupLog, String name) {
+        Object value = startupLog.get(name);
+        assertTrue(value instanceof Boolean, name + " should be a boolean, was " + value);
+        return (Boolean) value;
+    }
 }

@@ -5,5 +5,5 @@ import javax.annotation.Nonnull;
 
 public interface WeakHashModule extends IastModule {
 
-  void onHashingAlgorithm(@Nonnull String algorithm);
+    void onHashingAlgorithm(@Nonnull String algorithm);
 }

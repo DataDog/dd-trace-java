@@ -16,99 +16,94 @@ import org.junit.jupiter.api.Test;
 
 class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
 
-  @FunctionalInterface
-  interface Body {
-    void run() throws Exception;
-  }
-
-  private static void runUnderTrace(String operationName, Body body) throws Exception {
-    AgentSpan span = startSpan("guidewire-test", operationName);
-    try (ContextScope scope = activateSpan(span)) {
-      body.run();
-    } finally {
-      span.finish();
+    @FunctionalInterface
+    interface Body {
+        void run() throws Exception;
     }
-  }
 
-  @Test
-  void namedWorkerPropagatesContext() throws Exception {
-    // Constructed and run while the caller's span is active; invoke() blocks until the worker ends.
-    runUnderTrace("parent", () -> new AsyncResponseImpl().invoke());
+    private static void runUnderTrace(String operationName, Body body) throws Exception {
+        AgentSpan span = startSpan("guidewire-test", operationName);
+        try (ContextScope scope = activateSpan(span)) {
+            body.run();
+        } finally {
+            span.finish();
+        }
+    }
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
-  }
+    @Test
+    void namedWorkerPropagatesContext() throws Exception {
+        // Constructed and run while the caller's span is active; invoke() blocks until the worker ends.
+        runUnderTrace("parent", () -> new AsyncResponseImpl().invoke());
 
-  @Test
-  void anonymousWorkerPropagatesContext() throws Exception {
-    runUnderTrace("parent", () -> AsyncResponseImpl.anonymous().invoke());
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("soap.call")));
+    }
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
-  }
+    @Test
+    void anonymousWorkerPropagatesContext() throws Exception {
+        runUnderTrace("parent", () -> AsyncResponseImpl.anonymous().invoke());
 
-  @Test
-  void synchronousRunPropagatesContext() throws Exception {
-    // callTimeout <= 0 path: AsyncResponseImpl.run() calls _thread.run() on the caller thread.
-    runUnderTrace("parent", () -> new AsyncResponseImpl().invokeSync());
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("soap.call")));
+    }
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
-  }
+    @Test
+    void synchronousRunPropagatesContext() throws Exception {
+        // callTimeout <= 0 path: AsyncResponseImpl.run() calls _thread.run() on the caller thread.
+        runUnderTrace("parent", () -> new AsyncResponseImpl().invokeSync());
 
-  @Test
-  void unrelatedThreadIsNotInstrumented() throws Exception {
-    // Same construction pattern, but a class the narrow matcher must ignore.
-    runUnderTrace(
-        "parent",
-        () -> {
-          UnrelatedWorker worker = new UnrelatedWorker();
-          worker.start();
-          worker.join();
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("soap.call")));
+    }
+
+    @Test
+    void unrelatedThreadIsNotInstrumented() throws Exception {
+        // Same construction pattern, but a class the narrow matcher must ignore.
+        runUnderTrace("parent", () -> {
+            UnrelatedWorker worker = new UnrelatedWorker();
+            worker.start();
+            worker.join();
         });
 
-    // No propagation: the worker's span starts its own trace instead of joining "parent".
-    assertTraces(
-        trace(span().root().operationName("parent")),
-        trace(span().root().operationName("unrelated.work")));
-  }
+        // No propagation: the worker's span starts its own trace instead of joining "parent".
+        assertTraces(
+                trace(span().root().operationName("parent")),
+                trace(span().root().operationName("unrelated.work")));
+    }
 
-  @Test
-  void noContextLeakToSubsequentInvocation() throws Exception {
-    runUnderTrace("parent", () -> new AsyncResponseImpl().invoke());
-    // Second invocation runs with no active span: capture is a no-op, so soap.call is its own root.
-    new AsyncResponseImpl().invoke();
+    @Test
+    void noContextLeakToSubsequentInvocation() throws Exception {
+        runUnderTrace("parent", () -> new AsyncResponseImpl().invoke());
+        // Second invocation runs with no active span: capture is a no-op, so soap.call is its own root.
+        new AsyncResponseImpl().invoke();
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")),
-        trace(span().root().operationName("soap.call")));
-  }
+        assertTraces(
+                trace(
+                        SORT_BY_START_TIME,
+                        span().root().operationName("parent"),
+                        span().childOfPrevious().operationName("soap.call")),
+                trace(span().root().operationName("soap.call")));
+    }
 
-  @Test
-  void delayedWorkerDoesNotCorruptInterveningTrace() throws Exception {
-    AtomicReference<AsyncResponseImpl> response = new AtomicReference<>();
+    @Test
+    void delayedWorkerDoesNotCorruptInterveningTrace() throws Exception {
+        AtomicReference<AsyncResponseImpl> response = new AtomicReference<>();
 
-    runUnderTrace("outer", () -> response.set(new AsyncResponseImpl()));
-    runUnderTrace("independent", () -> {});
-    response.get().invokeSync();
+        runUnderTrace("outer", () -> response.set(new AsyncResponseImpl()));
+        runUnderTrace("independent", () -> {});
+        response.get().invokeSync();
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("outer"),
-            span().childOfPrevious().operationName("soap.call")),
-        trace(span().root().operationName("independent")));
-  }
+        assertTraces(
+                trace(
+                        SORT_BY_START_TIME,
+                        span().root().operationName("outer"),
+                        span().childOfPrevious().operationName("soap.call")),
+                trace(span().root().operationName("independent")));
+    }
 }

@@ -5,21 +5,22 @@ import javax.annotation.Nullable;
 
 public class JavaAgent implements Serializable {
 
-  private final String path;
+    private final String path;
 
-  @Nullable private final String arguments;
+    @Nullable
+    private final String arguments;
 
-  public JavaAgent(String path, @Nullable String arguments) {
-    this.path = path;
-    this.arguments = arguments;
-  }
+    public JavaAgent(String path, @Nullable String arguments) {
+        this.path = path;
+        this.arguments = arguments;
+    }
 
-  public String getPath() {
-    return path;
-  }
+    public String getPath() {
+        return path;
+    }
 
-  @Nullable
-  public String getArguments() {
-    return arguments;
-  }
+    @Nullable
+    public String getArguments() {
+        return arguments;
+    }
 }

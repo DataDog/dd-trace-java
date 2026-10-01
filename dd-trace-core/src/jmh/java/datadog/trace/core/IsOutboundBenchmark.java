@@ -25,45 +25,45 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(value = 1)
 public class IsOutboundBenchmark {
 
-  static final CoreTracer TRACER = CoreTracer.builder().build();
+    static final CoreTracer TRACER = CoreTracer.builder().build();
 
-  private DDSpan clientSpan;
-  private DDSpan serverSpan;
-  private DDSpan unsetSpan;
+    private DDSpan clientSpan;
+    private DDSpan serverSpan;
+    private DDSpan unsetSpan;
 
-  @Setup
-  public void setup() {
-    clientSpan = (DDSpan) TRACER.startSpan("benchmark", "client.op");
-    clientSpan.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    @Setup
+    public void setup() {
+        clientSpan = (DDSpan) TRACER.startSpan("benchmark", "client.op");
+        clientSpan.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
 
-    serverSpan = (DDSpan) TRACER.startSpan("benchmark", "server.op");
-    serverSpan.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+        serverSpan = (DDSpan) TRACER.startSpan("benchmark", "server.op");
+        serverSpan.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
 
-    unsetSpan = (DDSpan) TRACER.startSpan("benchmark", "unset.op");
-  }
+        unsetSpan = (DDSpan) TRACER.startSpan("benchmark", "unset.op");
+    }
 
-  @Benchmark
-  public boolean isOutbound_client() {
-    return clientSpan.isOutbound();
-  }
+    @Benchmark
+    public boolean isOutbound_client() {
+        return clientSpan.isOutbound();
+    }
 
-  @Benchmark
-  public boolean isOutbound_server() {
-    return serverSpan.isOutbound();
-  }
+    @Benchmark
+    public boolean isOutbound_server() {
+        return serverSpan.isOutbound();
+    }
 
-  @Benchmark
-  public boolean isOutbound_unset() {
-    return unsetSpan.isOutbound();
-  }
+    @Benchmark
+    public boolean isOutbound_unset() {
+        return unsetSpan.isOutbound();
+    }
 
-  @Benchmark
-  public Object getTag_spanKind_client() {
-    return clientSpan.getTag(Tags.SPAN_KIND);
-  }
+    @Benchmark
+    public Object getTag_spanKind_client() {
+        return clientSpan.getTag(Tags.SPAN_KIND);
+    }
 
-  @Benchmark
-  public Object getTag_spanKind_unset() {
-    return unsetSpan.getTag(Tags.SPAN_KIND);
-  }
+    @Benchmark
+    public Object getTag_spanKind_unset() {
+        return unsetSpan.getTag(Tags.SPAN_KIND);
+    }
 }

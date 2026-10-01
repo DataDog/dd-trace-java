@@ -5,5 +5,5 @@ import javax.annotation.Nonnull;
 
 public interface HeaderInjectionModule extends IastModule {
 
-  void onHeader(@Nonnull String name, String value);
+    void onHeader(@Nonnull String name, String value);
 }

@@ -10,34 +10,34 @@ import org.eclipse.jetty.util.thread.Invocable;
 
 public class JettyRunnableWrapper implements Runnable, Invocable {
 
-  private Runnable runnable;
-  private ContextContinuation continuation;
+    private Runnable runnable;
+    private ContextContinuation continuation;
 
-  public JettyRunnableWrapper(Runnable runnable, ContextContinuation continuation) {
-    this.runnable = runnable;
-    this.continuation = continuation;
-  }
-
-  @Override
-  public InvocationType getInvocationType() {
-    return Invocable.getInvocationType(runnable);
-  }
-
-  @Override
-  public void run() {
-    try (ContextScope scope = continuation.resume()) {
-      runnable.run();
+    public JettyRunnableWrapper(Runnable runnable, ContextContinuation continuation) {
+        this.runnable = runnable;
+        this.continuation = continuation;
     }
-  }
 
-  public static Runnable wrapIfNeeded(final Runnable task) {
-    if (task instanceof JettyRunnableWrapper || exclude(RUNNABLE, task)) {
-      return task;
+    @Override
+    public InvocationType getInvocationType() {
+        return Invocable.getInvocationType(runnable);
     }
-    ContextContinuation continuation = Context.current().capture();
-    if (continuation.context() != Context.root()) {
-      return new JettyRunnableWrapper(task, continuation);
+
+    @Override
+    public void run() {
+        try (ContextScope scope = continuation.resume()) {
+            runnable.run();
+        }
     }
-    return task; // don't wrap unless there is a scope to propagate
-  }
+
+    public static Runnable wrapIfNeeded(final Runnable task) {
+        if (task instanceof JettyRunnableWrapper || exclude(RUNNABLE, task)) {
+            return task;
+        }
+        ContextContinuation continuation = Context.current().capture();
+        if (continuation.context() != Context.root()) {
+            return new JettyRunnableWrapper(task, continuation);
+        }
+        return task; // don't wrap unless there is a scope to propagate
+    }
 }

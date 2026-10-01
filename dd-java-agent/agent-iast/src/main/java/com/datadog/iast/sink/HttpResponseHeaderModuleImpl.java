@@ -27,88 +27,87 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
-public class HttpResponseHeaderModuleImpl extends SinkModuleBase
-    implements HttpResponseHeaderModule {
+public class HttpResponseHeaderModuleImpl extends SinkModuleBase implements HttpResponseHeaderModule {
 
-  public HttpResponseHeaderModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-  }
+    public HttpResponseHeaderModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
+    }
 
-  @Override
-  public void onHeader(@Nonnull final String name, final String value) {
-    final HttpHeader header = HttpHeader.from(name);
-    if (header != null) {
-      final AgentSpan span = AgentTracer.activeSpan();
-      final IastContext ctx = IastContext.Provider.get(span);
-      if (ctx instanceof IastRequestContext) {
-        header.addToContext((IastRequestContext) ctx, value);
-      }
-      if (header == SET_COOKIE || header == SET_COOKIE2) {
-        onCookies(CookieSecurityParser.parse(header, value));
-      }
-      if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
-        InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
-      }
-    }
-    if (null != InstrumentationBridge.HEADER_INJECTION) {
-      InstrumentationBridge.HEADER_INJECTION.onHeader(name, value);
-    }
-  }
-
-  @Override
-  public void onCookie(@Nonnull final Cookie cookie) {
-    onCookies(singletonList(cookie));
-  }
-
-  private void onCookies(final List<Cookie> cookies) {
-    final Map<VulnerabilityType, Cookie> vulnerable = findVulnerableCookies(cookies);
-    if (vulnerable.isEmpty()) {
-      return;
-    }
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(
-        Operations.REPORT_VULNERABILITY, span, INSECURE_COOKIE // we need a type to check quota
-        )) {
-      return;
-    }
-    final Location location = Location.forSpanAndStack(span, getCurrentStackTrace());
-    for (final Map.Entry<VulnerabilityType, Cookie> entry : vulnerable.entrySet()) {
-      final Cookie cookie = entry.getValue();
-      final Evidence evidence = new Evidence(cookie.getCookieName());
-      reporter.report(span, new Vulnerability(entry.getKey(), location, evidence));
-    }
-  }
-
-  private static Map<VulnerabilityType, Cookie> findVulnerableCookies(final List<Cookie> cookies) {
-    final List<HttpCookieModule<VulnerabilityType>> modules = httpCookieModules();
-    final Map<VulnerabilityType, Cookie> found = new HashMap<>(modules.size());
-    for (final Cookie cookie : cookies) {
-      for (int i = modules.size() - 1; i >= 0; i--) {
-        final HttpCookieModule<VulnerabilityType> module = modules.get(i);
-        if (module.isVulnerable(cookie)) {
-          found.put(module.getType(), cookie);
-          modules.remove(i); // remove module as we already found a vulnerability
+    @Override
+    public void onHeader(@Nonnull final String name, final String value) {
+        final HttpHeader header = HttpHeader.from(name);
+        if (header != null) {
+            final AgentSpan span = AgentTracer.activeSpan();
+            final IastContext ctx = IastContext.Provider.get(span);
+            if (ctx instanceof IastRequestContext) {
+                header.addToContext((IastRequestContext) ctx, value);
+            }
+            if (header == SET_COOKIE || header == SET_COOKIE2) {
+                onCookies(CookieSecurityParser.parse(header, value));
+            }
+            if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
+                InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
+            }
         }
-      }
-      if (modules.isEmpty()) {
-        break;
-      }
+        if (null != InstrumentationBridge.HEADER_INJECTION) {
+            InstrumentationBridge.HEADER_INJECTION.onHeader(name, value);
+        }
     }
-    return found;
-  }
 
-  @SuppressWarnings("unchecked")
-  private static List<HttpCookieModule<VulnerabilityType>> httpCookieModules() {
-    final List<HttpCookieModule<VulnerabilityType>> modules = new ArrayList<>();
-    if (InstrumentationBridge.NO_HTTPONLY_COOKIE != null) {
-      modules.add((HttpCookieModule<VulnerabilityType>) InstrumentationBridge.NO_HTTPONLY_COOKIE);
+    @Override
+    public void onCookie(@Nonnull final Cookie cookie) {
+        onCookies(singletonList(cookie));
     }
-    if (InstrumentationBridge.INSECURE_COOKIE != null) {
-      modules.add((HttpCookieModule<VulnerabilityType>) InstrumentationBridge.INSECURE_COOKIE);
+
+    private void onCookies(final List<Cookie> cookies) {
+        final Map<VulnerabilityType, Cookie> vulnerable = findVulnerableCookies(cookies);
+        if (vulnerable.isEmpty()) {
+            return;
+        }
+        final AgentSpan span = AgentTracer.activeSpan();
+        if (!overheadController.consumeQuota(
+                Operations.REPORT_VULNERABILITY, span, INSECURE_COOKIE // we need a type to check quota
+                )) {
+            return;
+        }
+        final Location location = Location.forSpanAndStack(span, getCurrentStackTrace());
+        for (final Map.Entry<VulnerabilityType, Cookie> entry : vulnerable.entrySet()) {
+            final Cookie cookie = entry.getValue();
+            final Evidence evidence = new Evidence(cookie.getCookieName());
+            reporter.report(span, new Vulnerability(entry.getKey(), location, evidence));
+        }
     }
-    if (InstrumentationBridge.NO_SAMESITE_COOKIE != null) {
-      modules.add((HttpCookieModule<VulnerabilityType>) InstrumentationBridge.NO_SAMESITE_COOKIE);
+
+    private static Map<VulnerabilityType, Cookie> findVulnerableCookies(final List<Cookie> cookies) {
+        final List<HttpCookieModule<VulnerabilityType>> modules = httpCookieModules();
+        final Map<VulnerabilityType, Cookie> found = new HashMap<>(modules.size());
+        for (final Cookie cookie : cookies) {
+            for (int i = modules.size() - 1; i >= 0; i--) {
+                final HttpCookieModule<VulnerabilityType> module = modules.get(i);
+                if (module.isVulnerable(cookie)) {
+                    found.put(module.getType(), cookie);
+                    modules.remove(i); // remove module as we already found a vulnerability
+                }
+            }
+            if (modules.isEmpty()) {
+                break;
+            }
+        }
+        return found;
     }
-    return modules;
-  }
+
+    @SuppressWarnings("unchecked")
+    private static List<HttpCookieModule<VulnerabilityType>> httpCookieModules() {
+        final List<HttpCookieModule<VulnerabilityType>> modules = new ArrayList<>();
+        if (InstrumentationBridge.NO_HTTPONLY_COOKIE != null) {
+            modules.add((HttpCookieModule<VulnerabilityType>) InstrumentationBridge.NO_HTTPONLY_COOKIE);
+        }
+        if (InstrumentationBridge.INSECURE_COOKIE != null) {
+            modules.add((HttpCookieModule<VulnerabilityType>) InstrumentationBridge.INSECURE_COOKIE);
+        }
+        if (InstrumentationBridge.NO_SAMESITE_COOKIE != null) {
+            modules.add((HttpCookieModule<VulnerabilityType>) InstrumentationBridge.NO_SAMESITE_COOKIE);
+        }
+        return modules;
+    }
 }

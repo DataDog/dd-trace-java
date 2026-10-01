@@ -9,12 +9,9 @@ import scala.Function1;
  * @see play.api.mvc.BodyParsers.parse$#multipartFormData(Function1, long)
  */
 public class PlayBodyParsersMultipartFormDataAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  static void after(
-      @Advice.Return(readOnly = false) BodyParser<play.api.mvc.MultipartFormData<?>> parser) {
-    parser =
-        parser.map(
-            BodyParserHelpers.getHandleMultipartFormDataF(),
-            Execution.Implicits$.MODULE$.internalContext());
-  }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.Return(readOnly = false) BodyParser<play.api.mvc.MultipartFormData<?>> parser) {
+        parser = parser.map(
+                BodyParserHelpers.getHandleMultipartFormDataF(), Execution.Implicits$.MODULE$.internalContext());
+    }
 }

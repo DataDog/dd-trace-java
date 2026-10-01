@@ -27,91 +27,88 @@ import java.util.Set;
  * using the filter.
  */
 public final class HasAllExpression extends MatchingExpression {
-  public HasAllExpression(ValueExpression<?> valueExpression, BooleanExpression filterExpression) {
-    super(valueExpression, filterExpression);
-  }
+    public HasAllExpression(ValueExpression<?> valueExpression, BooleanExpression filterExpression) {
+        super(valueExpression, filterExpression);
+    }
 
-  @Override
-  public Boolean evaluate(EvalContext evalContext) {
-    Value<?> value = evaluateTargetCollection(valueExpression, this, evalContext);
-    ValueReferenceResolver valueRefResolver = evalContext.getValueRefResolver();
-    if (value instanceof ListValue) {
-      ListValue collection = (ListValue) value;
-      checkSupportedList(collection, this);
-      if (collection.isEmpty()) {
-        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
-        return Boolean.TRUE;
-      }
-      int len = collection.count();
-      try {
-        for (int i = 0; i < len; i++) {
-          valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(collection.get(i)));
-          if (!filterPredicateExpression.evaluate(evalContext)) {
-            return Boolean.FALSE;
-          }
-          checkTimeout(evalContext.getTimeoutChecker(), this);
+    @Override
+    public Boolean evaluate(EvalContext evalContext) {
+        Value<?> value = evaluateTargetCollection(valueExpression, this, evalContext);
+        ValueReferenceResolver valueRefResolver = evalContext.getValueRefResolver();
+        if (value instanceof ListValue) {
+            ListValue collection = (ListValue) value;
+            checkSupportedList(collection, this);
+            if (collection.isEmpty()) {
+                // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+                return Boolean.TRUE;
+            }
+            int len = collection.count();
+            try {
+                for (int i = 0; i < len; i++) {
+                    valueRefResolver.addExtension(
+                            ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(collection.get(i)));
+                    if (!filterPredicateExpression.evaluate(evalContext)) {
+                        return Boolean.FALSE;
+                    }
+                    checkTimeout(evalContext.getTimeoutChecker(), this);
+                }
+                return Boolean.TRUE;
+            } finally {
+                valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
+            }
         }
-        return Boolean.TRUE;
-      } finally {
-        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
-      }
-    }
-    if (value instanceof MapValue) {
-      MapValue map = (MapValue) value;
-      checkSupportedMap(map, this);
-      if (map.isEmpty()) {
-        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
-        return Boolean.TRUE;
-      }
-      try {
-        for (Value<?> key : map.getKeys()) {
-          Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
-          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
-          valueRefResolver.addExtension(
-              ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(val));
-          valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME,
-              CapturedValue.of(new MapValue.Entry(key, val)));
-          if (!filterPredicateExpression.evaluate(evalContext)) {
-            return Boolean.FALSE;
-          }
-          checkTimeout(evalContext.getTimeoutChecker(), this);
+        if (value instanceof MapValue) {
+            MapValue map = (MapValue) value;
+            checkSupportedMap(map, this);
+            if (map.isEmpty()) {
+                // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+                return Boolean.TRUE;
+            }
+            try {
+                for (Value<?> key : map.getKeys()) {
+                    Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
+                    valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
+                    valueRefResolver.addExtension(ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(val));
+                    valueRefResolver.addExtension(
+                            ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(new MapValue.Entry(key, val)));
+                    if (!filterPredicateExpression.evaluate(evalContext)) {
+                        return Boolean.FALSE;
+                    }
+                    checkTimeout(evalContext.getTimeoutChecker(), this);
+                }
+                return Boolean.TRUE;
+            } finally {
+                valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
+                valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
+                valueRefResolver.removeExtension(ValueReferences.VALUE_EXTENSION_NAME);
+            }
         }
-        return Boolean.TRUE;
-      } finally {
-        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
-        valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
-        valueRefResolver.removeExtension(ValueReferences.VALUE_EXTENSION_NAME);
-      }
-    }
-    if (value instanceof SetValue) {
-      SetValue set = (SetValue) value;
-      Set<?> setHolder = checkSupportedSet(set, this);
-      if (set.isEmpty()) {
-        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
-        return Boolean.TRUE;
-      }
-      try {
-        for (Object val : setHolder) {
-          valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(val));
-          if (!filterPredicateExpression.evaluate(evalContext)) {
-            return Boolean.FALSE;
-          }
-          checkTimeout(evalContext.getTimeoutChecker(), this);
+        if (value instanceof SetValue) {
+            SetValue set = (SetValue) value;
+            Set<?> setHolder = checkSupportedSet(set, this);
+            if (set.isEmpty()) {
+                // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+                return Boolean.TRUE;
+            }
+            try {
+                for (Object val : setHolder) {
+                    valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(val));
+                    if (!filterPredicateExpression.evaluate(evalContext)) {
+                        return Boolean.FALSE;
+                    }
+                    checkTimeout(evalContext.getTimeoutChecker(), this);
+                }
+                return Boolean.TRUE;
+            } finally {
+                valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
+            }
         }
-        return Boolean.TRUE;
-      } finally {
-        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
-      }
+        throw new EvaluationException(
+                "Unsupported collection class: " + value.getValue().getClass().getTypeName(), print(this));
     }
-    throw new EvaluationException(
-        "Unsupported collection class: " + value.getValue().getClass().getTypeName(), print(this));
-  }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

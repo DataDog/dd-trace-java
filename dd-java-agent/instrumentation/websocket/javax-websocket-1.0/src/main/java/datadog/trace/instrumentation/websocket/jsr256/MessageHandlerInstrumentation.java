@@ -20,73 +20,69 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class MessageHandlerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  private final String namespace;
+public class MessageHandlerInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    private final String namespace;
 
-  public MessageHandlerInstrumentation(String namespace) {
-    this.namespace = namespace;
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return namespace + ".websocket.MessageHandler";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isPublic()
-            .and(named("onMessage"))
-            .and(
-                takesArguments(1) // whole
-                    .or(takesArguments(2).and(takesArgument(1, boolean.class)))), // partial
-        getClass().getName() + "$OnMessageAdvice");
-  }
-
-  public static class OnMessageAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final MessageHandler handler,
-        @Advice.Argument(value = 0, typing = Assigner.Typing.DYNAMIC) final Object data,
-        @Advice.Argument(value = 1, optional = true) final Boolean last,
-        @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(MessageHandler.class, HandlerContext.Receiver.class)
-              .get(handler);
-      if (handlerContext == null) {
-        return null;
-      }
-      if (CallDepthThreadLocalMap.incrementCallDepth(MessageHandler.class) > 0) {
-        return null;
-      }
-
-      final AgentSpan wsSpan =
-          DECORATE.startInboundFrameSpan(handlerContext, data, last != null && last);
-      return activateSpan(wsSpan);
+    public MessageHandlerInstrumentation(String namespace) {
+        this.namespace = namespace;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Argument(value = 1, optional = true) final Boolean last) {
-      if (scope == null) {
-        return;
-      }
-      CallDepthThreadLocalMap.reset(MessageHandler.class);
-      DECORATE.onError(scope, throwable);
-      boolean finishSpan = last == null || last || throwable != null;
-      if (finishSpan) {
-        DECORATE.onFrameEnd(handlerContext);
-      }
-      scope.close();
+    @Override
+    public String hierarchyMarkerType() {
+        return namespace + ".websocket.MessageHandler";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isPublic()
+                        .and(named("onMessage"))
+                        .and(takesArguments(1) // whole
+                                .or(takesArguments(2).and(takesArgument(1, boolean.class)))), // partial
+                getClass().getName() + "$OnMessageAdvice");
+    }
+
+    public static class OnMessageAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final MessageHandler handler,
+                @Advice.Argument(value = 0, typing = Assigner.Typing.DYNAMIC) final Object data,
+                @Advice.Argument(value = 1, optional = true) final Boolean last,
+                @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext) {
+            handlerContext = InstrumentationContext.get(MessageHandler.class, HandlerContext.Receiver.class)
+                    .get(handler);
+            if (handlerContext == null) {
+                return null;
+            }
+            if (CallDepthThreadLocalMap.incrementCallDepth(MessageHandler.class) > 0) {
+                return null;
+            }
+
+            final AgentSpan wsSpan = DECORATE.startInboundFrameSpan(handlerContext, data, last != null && last);
+            return activateSpan(wsSpan);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Argument(value = 1, optional = true) final Boolean last) {
+            if (scope == null) {
+                return;
+            }
+            CallDepthThreadLocalMap.reset(MessageHandler.class);
+            DECORATE.onError(scope, throwable);
+            boolean finishSpan = last == null || last || throwable != null;
+            if (finishSpan) {
+                DECORATE.onFrameEnd(handlerContext);
+            }
+            scope.close();
+        }
+    }
 }

@@ -16,113 +16,112 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
 public class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
-  public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
-  public static final JettyDecorator DECORATE = new JettyDecorator();
-  public static final CharSequence SERVLET_REQUEST =
-      UTF8BytesString.create(DECORATE.operationName());
-  public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
-  public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
-  public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
+    public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
+    public static final JettyDecorator DECORATE = new JettyDecorator();
+    public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create(DECORATE.operationName());
+    public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
+    public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
+    public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"jetty"};
-  }
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"jetty"};
+    }
 
-  @Override
-  protected CharSequence component() {
-    return JETTY_SERVER;
-  }
+    @Override
+    protected CharSequence component() {
+        return JETTY_SERVER;
+    }
 
-  @Override
-  protected AgentPropagation.ContextVisitor<Request> getter() {
-    return ExtractAdapter.Request.GETTER;
-  }
+    @Override
+    protected AgentPropagation.ContextVisitor<Request> getter() {
+        return ExtractAdapter.Request.GETTER;
+    }
 
-  @Override
-  protected AgentPropagation.ContextVisitor<Response> responseGetter() {
-    return ExtractAdapter.Response.GETTER;
-  }
+    @Override
+    protected AgentPropagation.ContextVisitor<Response> responseGetter() {
+        return ExtractAdapter.Response.GETTER;
+    }
 
-  @Override
-  public CharSequence spanName() {
-    return SERVLET_REQUEST;
-  }
+    @Override
+    public CharSequence spanName() {
+        return SERVLET_REQUEST;
+    }
 
-  @Override
-  protected String method(final Request request) {
-    return request.getMethod();
-  }
+    @Override
+    protected String method(final Request request) {
+        return request.getMethod();
+    }
 
-  @Override
-  protected URIDataAdapter url(final Request request) {
-    return new RequestURIDataAdapter(request);
-  }
+    @Override
+    protected URIDataAdapter url(final Request request) {
+        return new RequestURIDataAdapter(request);
+    }
 
-  @Override
-  protected String peerHostIP(final Request request) {
-    // Avoid Request.getRemoteAddr() since ForwardedRequestCustomizer overrides it with
-    // the value resolved from x-forwarded-for and similar proxy headers. Peer information
-    // must be the actual socket peer.
-    final AbstractHttpConnection connection = request.getConnection();
-    if (connection != null) {
-      final EndPoint endPoint = connection.getEndPoint();
-      if (endPoint != null) {
-        final String remoteAddr = endPoint.getRemoteAddr();
-        if (remoteAddr != null) {
-          return remoteAddr;
+    @Override
+    protected String peerHostIP(final Request request) {
+        // Avoid Request.getRemoteAddr() since ForwardedRequestCustomizer overrides it with
+        // the value resolved from x-forwarded-for and similar proxy headers. Peer information
+        // must be the actual socket peer.
+        final AbstractHttpConnection connection = request.getConnection();
+        if (connection != null) {
+            final EndPoint endPoint = connection.getEndPoint();
+            if (endPoint != null) {
+                final String remoteAddr = endPoint.getRemoteAddr();
+                if (remoteAddr != null) {
+                    return remoteAddr;
+                }
+            }
         }
-      }
+        return request.getRemoteAddr();
     }
-    return request.getRemoteAddr();
-  }
 
-  @Override
-  protected int peerPort(final Request request) {
-    final AbstractHttpConnection connection = request.getConnection();
-    if (connection != null) {
-      final EndPoint endPoint = connection.getEndPoint();
-      if (endPoint != null) {
-        return endPoint.getRemotePort();
-      }
+    @Override
+    protected int peerPort(final Request request) {
+        final AbstractHttpConnection connection = request.getConnection();
+        if (connection != null) {
+            final EndPoint endPoint = connection.getEndPoint();
+            if (endPoint != null) {
+                return endPoint.getRemotePort();
+            }
+        }
+        return request.getRemotePort();
     }
-    return request.getRemotePort();
-  }
 
-  @Override
-  protected int status(final Response response) {
-    return response.getStatus();
-  }
-
-  @Override
-  protected boolean isAppSecOnResponseSeparate() {
-    return true;
-  }
-
-  @Override
-  protected String getRequestHeader(final Request request, String key) {
-    return request.getHeader(key);
-  }
-
-  public void onResponse(AgentSpan span, AbstractHttpConnection connection) {
-    Request request = connection.getRequest();
-    Response response = connection.getResponse();
-    if (Config.get().isServletPrincipalEnabled() && request.getUserPrincipal() != null) {
-      span.setTag(DDTags.USER_NAME, request.getUserPrincipal().getName());
+    @Override
+    protected int status(final Response response) {
+        return response.getStatus();
     }
-    Object ex = request.getAttribute("javax.servlet.error.exception");
-    if (ex instanceof Throwable) {
-      Throwable throwable = (Throwable) ex;
-      if (throwable instanceof ServletException) {
-        throwable = ((ServletException) throwable).getRootCause();
-      }
-      onError(span, throwable);
-    }
-    super.onResponse(span, response);
-  }
 
-  @Override
-  protected BlockResponseFunction createBlockResponseFunction(Request request, Request connection) {
-    return new JettyBlockResponseFunction(request);
-  }
+    @Override
+    protected boolean isAppSecOnResponseSeparate() {
+        return true;
+    }
+
+    @Override
+    protected String getRequestHeader(final Request request, String key) {
+        return request.getHeader(key);
+    }
+
+    public void onResponse(AgentSpan span, AbstractHttpConnection connection) {
+        Request request = connection.getRequest();
+        Response response = connection.getResponse();
+        if (Config.get().isServletPrincipalEnabled() && request.getUserPrincipal() != null) {
+            span.setTag(DDTags.USER_NAME, request.getUserPrincipal().getName());
+        }
+        Object ex = request.getAttribute("javax.servlet.error.exception");
+        if (ex instanceof Throwable) {
+            Throwable throwable = (Throwable) ex;
+            if (throwable instanceof ServletException) {
+                throwable = ((ServletException) throwable).getRootCause();
+            }
+            onError(span, throwable);
+        }
+        super.onResponse(span, response);
+    }
+
+    @Override
+    protected BlockResponseFunction createBlockResponseFunction(Request request, Request connection) {
+        return new JettyBlockResponseFunction(request);
+    }
 }

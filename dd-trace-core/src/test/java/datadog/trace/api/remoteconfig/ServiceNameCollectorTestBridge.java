@@ -5,7 +5,7 @@ package datadog.trace.api.remoteconfig;
  * ServiceNameCollector}
  */
 public class ServiceNameCollectorTestBridge {
-  public static void setInstance(ServiceNameCollector instance) {
-    ServiceNameCollector.setInstance(instance);
-  }
+    public static void setInstance(ServiceNameCollector instance) {
+        ServiceNameCollector.setInstance(instance);
+    }
 }

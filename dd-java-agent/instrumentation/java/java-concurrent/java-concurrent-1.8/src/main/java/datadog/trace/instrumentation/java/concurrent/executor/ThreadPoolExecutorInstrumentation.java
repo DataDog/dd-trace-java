@@ -52,156 +52,145 @@ import net.bytebuddy.matcher.ElementMatcher;
  * }</pre>
  */
 public final class ThreadPoolExecutorInstrumentation
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  // executors which do their own wrapping before calling super,
-  // leading to double wrapping, once at the child level and once
-  // in ThreadPoolExecutor
-  private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION =
-      not(
-          isDeclaredBy(
-              namedOneOf(
-                  "org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor",
-                  "org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor")));
+    // executors which do their own wrapping before calling super,
+    // leading to double wrapping, once at the child level and once
+    // in ThreadPoolExecutor
+    private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION = not(isDeclaredBy(namedOneOf(
+            "org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor",
+            "org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor")));
 
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return not(named("java.util.concurrent.ScheduledThreadPoolExecutor"))
-        .and(extendsClass(named("java.util.concurrent.ThreadPoolExecutor")));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return not(named("java.util.concurrent.ScheduledThreadPoolExecutor"))
+                .and(extendsClass(named("java.util.concurrent.ThreadPoolExecutor")));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("execute")
-            .and(isMethod())
-            .and(NO_WRAPPING_BEFORE_DELEGATION)
-            .and(takesArgument(0, named(Runnable.class.getName()))),
-        getClass().getName() + "$Execute");
-    transformer.applyAdvice(
-        named("beforeExecute")
-            .and(isMethod())
-            .and(takesArgument(1, named(Runnable.class.getName()))),
-        getClass().getName() + "$BeforeExecute");
-    transformer.applyAdvice(
-        named("afterExecute")
-            .and(isMethod())
-            .and(takesArgument(0, named(Runnable.class.getName()))),
-        getClass().getName() + "$AfterExecute");
-    transformer.applyAdvice(
-        named("remove").and(isMethod()).and(returns(Runnable.class)),
-        getClass().getName() + "$Remove");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("execute")
+                        .and(isMethod())
+                        .and(NO_WRAPPING_BEFORE_DELEGATION)
+                        .and(takesArgument(0, named(Runnable.class.getName()))),
+                getClass().getName() + "$Execute");
+        transformer.applyAdvice(
+                named("beforeExecute").and(isMethod()).and(takesArgument(1, named(Runnable.class.getName()))),
+                getClass().getName() + "$BeforeExecute");
+        transformer.applyAdvice(
+                named("afterExecute").and(isMethod()).and(takesArgument(0, named(Runnable.class.getName()))),
+                getClass().getName() + "$AfterExecute");
+        transformer.applyAdvice(
+                named("remove").and(isMethod()).and(returns(Runnable.class)),
+                getClass().getName() + "$Remove");
+    }
 
-  public static final class Execute {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void capture(
-        @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Argument(readOnly = false, value = 0) Runnable task) {
-      if (TPEHelper.shouldPropagate(tpe)) {
-        if (TPEHelper.useWrapping(task)) {
-          task = Wrapper.wrap(task);
-        } else {
-          TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), task);
-          // queue time needs to be handled separately because there are RunnableFutures which are
-          // excluded as
-          // Runnables but it is not until now that they will be put on the executor's queue
-          if (QueueTimerHelper.isReady() && !exclude(EXECUTOR, tpe)) {
-            if (!exclude(RUNNABLE, task)) {
-              Queue<?> queue = tpe.getQueue();
-              QueueTimerHelper.startQueuingTimer(
-                  InstrumentationContext.get(Runnable.class, State.class),
-                  tpe.getClass(),
-                  queue.getClass(),
-                  queue.size(),
-                  task);
-            } else if (!exclude(RUNNABLE_FUTURE, task) && task instanceof RunnableFuture) {
-              Queue<?> queue = tpe.getQueue();
-              QueueTimerHelper.startQueuingTimer(
-                  InstrumentationContext.get(RunnableFuture.class, State.class),
-                  tpe.getClass(),
-                  queue.getClass(),
-                  queue.size(),
-                  (RunnableFuture<?>) task);
+    public static final class Execute {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void capture(
+                @Advice.This final ThreadPoolExecutor tpe,
+                @Advice.Argument(readOnly = false, value = 0) Runnable task) {
+            if (TPEHelper.shouldPropagate(tpe)) {
+                if (TPEHelper.useWrapping(task)) {
+                    task = Wrapper.wrap(task);
+                } else {
+                    TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), task);
+                    // queue time needs to be handled separately because there are RunnableFutures which are
+                    // excluded as
+                    // Runnables but it is not until now that they will be put on the executor's queue
+                    if (QueueTimerHelper.isReady() && !exclude(EXECUTOR, tpe)) {
+                        if (!exclude(RUNNABLE, task)) {
+                            Queue<?> queue = tpe.getQueue();
+                            QueueTimerHelper.startQueuingTimer(
+                                    InstrumentationContext.get(Runnable.class, State.class),
+                                    tpe.getClass(),
+                                    queue.getClass(),
+                                    queue.size(),
+                                    task);
+                        } else if (!exclude(RUNNABLE_FUTURE, task) && task instanceof RunnableFuture) {
+                            Queue<?> queue = tpe.getQueue();
+                            QueueTimerHelper.startQueuingTimer(
+                                    InstrumentationContext.get(RunnableFuture.class, State.class),
+                                    tpe.getClass(),
+                                    queue.getClass(),
+                                    queue.size(),
+                                    (RunnableFuture<?>) task);
+                        }
+                    }
+                }
             }
-          }
         }
-      }
     }
-  }
 
-  public static final class BeforeExecute {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beforeExecuteEnter(
-        @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Argument(readOnly = false, value = 1) Runnable task) {
-      if (TPEHelper.shouldPropagate(tpe)) {
-        if (TPEHelper.useWrapping(task)) {
-          task = Wrapper.unwrap(task);
-        } else {
-          return TPEHelper.startScope(
-              InstrumentationContext.get(Runnable.class, State.class), task);
+    public static final class BeforeExecute {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beforeExecuteEnter(
+                @Advice.This final ThreadPoolExecutor tpe,
+                @Advice.Argument(readOnly = false, value = 1) Runnable task) {
+            if (TPEHelper.shouldPropagate(tpe)) {
+                if (TPEHelper.useWrapping(task)) {
+                    task = Wrapper.unwrap(task);
+                } else {
+                    return TPEHelper.startScope(InstrumentationContext.get(Runnable.class, State.class), task);
+                }
+            }
+            return null;
         }
-      }
-      return null;
-    }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void beforeExecuteExit(
-        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 1) Runnable task) {
-      if (scope != null) {
-        TPEHelper.setThreadLocalScope(scope, task);
-      }
-    }
-  }
-
-  public static final class AfterExecute {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope afterExecuteEnter(
-        @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Argument(readOnly = false, value = 0) Runnable task) {
-      if (TPEHelper.shouldPropagate(tpe)) {
-        if (TPEHelper.useWrapping(task)) {
-          task = Wrapper.unwrap(task);
-        } else {
-          return TPEHelper.getAndClearThreadLocalScope(task);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void beforeExecuteExit(
+                @Advice.Enter final ContextScope scope, @Advice.Argument(value = 1) Runnable task) {
+            if (scope != null) {
+                TPEHelper.setThreadLocalScope(scope, task);
+            }
         }
-      }
-      return null;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterExecuteExit(
-        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 0) Runnable task) {
-      if (scope != null) {
-        TPEHelper.endScope(scope, task);
-      }
-    }
-  }
-
-  public static final class Remove {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void remove(
-        @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Return(readOnly = false) Runnable removed) {
-      if (TPEHelper.shouldPropagate(tpe)) {
-        if (TPEHelper.useWrapping(removed)) {
-          if (removed instanceof Wrapper) {
-            Wrapper<?> wrapper = ((Wrapper<?>) removed);
-            wrapper.cancel();
-            removed = wrapper.unwrap();
-          }
-        } else {
-          TPEHelper.cancelTask(InstrumentationContext.get(Runnable.class, State.class), removed);
+    public static final class AfterExecute {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope afterExecuteEnter(
+                @Advice.This final ThreadPoolExecutor tpe,
+                @Advice.Argument(readOnly = false, value = 0) Runnable task) {
+            if (TPEHelper.shouldPropagate(tpe)) {
+                if (TPEHelper.useWrapping(task)) {
+                    task = Wrapper.unwrap(task);
+                } else {
+                    return TPEHelper.getAndClearThreadLocalScope(task);
+                }
+            }
+            return null;
         }
-      }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void afterExecuteExit(
+                @Advice.Enter final ContextScope scope, @Advice.Argument(value = 0) Runnable task) {
+            if (scope != null) {
+                TPEHelper.endScope(scope, task);
+            }
+        }
     }
-  }
+
+    public static final class Remove {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void remove(
+                @Advice.This final ThreadPoolExecutor tpe, @Advice.Return(readOnly = false) Runnable removed) {
+            if (TPEHelper.shouldPropagate(tpe)) {
+                if (TPEHelper.useWrapping(removed)) {
+                    if (removed instanceof Wrapper) {
+                        Wrapper<?> wrapper = ((Wrapper<?>) removed);
+                        wrapper.cancel();
+                        removed = wrapper.unwrap();
+                    }
+                } else {
+                    TPEHelper.cancelTask(InstrumentationContext.get(Runnable.class, State.class), removed);
+                }
+            }
+        }
+    }
 }

@@ -20,99 +20,98 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 
 public class RequestMappingInfoWithPathPatternsIterator implements Iterator<Endpoint> {
 
-  private final Map<RequestMappingInfo, HandlerMethod> mappings;
-  private final Queue<Endpoint> queue = new LinkedList<>();
-  private Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> iterator;
-  private boolean first = true;
+    private final Map<RequestMappingInfo, HandlerMethod> mappings;
+    private final Queue<Endpoint> queue = new LinkedList<>();
+    private Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> iterator;
+    private boolean first = true;
 
-  public RequestMappingInfoWithPathPatternsIterator(
-      final Map<RequestMappingInfo, HandlerMethod> mappings) {
-    this.mappings = mappings;
-  }
-
-  private Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> iterator() {
-    if (iterator == null) {
-      iterator = mappings.entrySet().iterator();
+    public RequestMappingInfoWithPathPatternsIterator(final Map<RequestMappingInfo, HandlerMethod> mappings) {
+        this.mappings = mappings;
     }
-    return iterator;
-  }
 
-  @Override
-  public boolean hasNext() {
-    return !queue.isEmpty() || iterator().hasNext();
-  }
-
-  @Override
-  public Endpoint next() {
-    if (queue.isEmpty()) {
-      fetchNext();
-    }
-    final Endpoint endpoint = queue.poll();
-    if (endpoint == null) {
-      throw new NoSuchElementException();
-    }
-    return endpoint;
-  }
-
-  private void fetchNext() {
-    final Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> delegate = iterator();
-    if (!delegate.hasNext()) {
-      return;
-    }
-    final Map.Entry<RequestMappingInfo, HandlerMethod> nextEntry = delegate.next();
-    final RequestMappingInfo nextInfo = nextEntry.getKey();
-    final HandlerMethod nextHandler = nextEntry.getValue();
-    final List<String> requestBody =
-        parseMediaTypes(nextInfo.getConsumesCondition().getExpressions());
-    final List<String> responseBody =
-        parseMediaTypes(nextInfo.getProducesCondition().getExpressions());
-    for (final String path : getPatterns(nextInfo)) {
-      final List<String> methods = Method.parseMethods(nextInfo.getMethodsCondition().getMethods());
-      for (final String method : methods) {
-        final Endpoint endpoint =
-            new Endpoint()
-                .type(Endpoint.Type.REST)
-                .operation(Endpoint.Operation.HTTP_REQUEST)
-                .resource(method + " " + path)
-                .path(path)
-                .method(method)
-                .requestBodyType(requestBody)
-                .responseBodyType(responseBody);
-        if (nextHandler != null) {
-          final Map<String, String> metadata = new HashMap<>();
-          metadata.put("handler", nextHandler.toString());
-          endpoint.metadata(metadata);
+    private Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> iterator() {
+        if (iterator == null) {
+            iterator = mappings.entrySet().iterator();
         }
-        if (first) {
-          endpoint.first(true);
-          first = false;
+        return iterator;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return !queue.isEmpty() || iterator().hasNext();
+    }
+
+    @Override
+    public Endpoint next() {
+        if (queue.isEmpty()) {
+            fetchNext();
         }
-        queue.add(endpoint);
-      }
+        final Endpoint endpoint = queue.poll();
+        if (endpoint == null) {
+            throw new NoSuchElementException();
+        }
+        return endpoint;
     }
-  }
 
-  private Set<String> getPatterns(final RequestMappingInfo info) {
-    final Set<String> result = new HashSet<>();
-    final PatternsRequestCondition patternsCondition = info.getPatternsCondition();
-    if (patternsCondition != null) {
-      result.addAll(patternsCondition.getPatterns());
+    private void fetchNext() {
+        final Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> delegate = iterator();
+        if (!delegate.hasNext()) {
+            return;
+        }
+        final Map.Entry<RequestMappingInfo, HandlerMethod> nextEntry = delegate.next();
+        final RequestMappingInfo nextInfo = nextEntry.getKey();
+        final HandlerMethod nextHandler = nextEntry.getValue();
+        final List<String> requestBody =
+                parseMediaTypes(nextInfo.getConsumesCondition().getExpressions());
+        final List<String> responseBody =
+                parseMediaTypes(nextInfo.getProducesCondition().getExpressions());
+        for (final String path : getPatterns(nextInfo)) {
+            final List<String> methods =
+                    Method.parseMethods(nextInfo.getMethodsCondition().getMethods());
+            for (final String method : methods) {
+                final Endpoint endpoint = new Endpoint()
+                        .type(Endpoint.Type.REST)
+                        .operation(Endpoint.Operation.HTTP_REQUEST)
+                        .resource(method + " " + path)
+                        .path(path)
+                        .method(method)
+                        .requestBodyType(requestBody)
+                        .responseBodyType(responseBody);
+                if (nextHandler != null) {
+                    final Map<String, String> metadata = new HashMap<>();
+                    metadata.put("handler", nextHandler.toString());
+                    endpoint.metadata(metadata);
+                }
+                if (first) {
+                    endpoint.first(true);
+                    first = false;
+                }
+                queue.add(endpoint);
+            }
+        }
     }
-    final PathPatternsRequestCondition pathPatternsCondition = info.getPathPatternsCondition();
-    if (pathPatternsCondition != null) {
-      result.addAll(pathPatternsCondition.getPatternValues());
-    }
-    return result;
-  }
 
-  private List<String> parseMediaTypes(final Set<MediaTypeExpression> expressions) {
-    if (expressions == null || expressions.isEmpty()) {
-      return null;
+    private Set<String> getPatterns(final RequestMappingInfo info) {
+        final Set<String> result = new HashSet<>();
+        final PatternsRequestCondition patternsCondition = info.getPatternsCondition();
+        if (patternsCondition != null) {
+            result.addAll(patternsCondition.getPatterns());
+        }
+        final PathPatternsRequestCondition pathPatternsCondition = info.getPathPatternsCondition();
+        if (pathPatternsCondition != null) {
+            result.addAll(pathPatternsCondition.getPatternValues());
+        }
+        return result;
     }
-    final List<String> result = new ArrayList<>(expressions.size());
-    for (final MediaTypeExpression expression : expressions) {
-      result.add(expression.toString());
+
+    private List<String> parseMediaTypes(final Set<MediaTypeExpression> expressions) {
+        if (expressions == null || expressions.isEmpty()) {
+            return null;
+        }
+        final List<String> result = new ArrayList<>(expressions.size());
+        for (final MediaTypeExpression expression : expressions) {
+            result.add(expression.toString());
+        }
+        return result;
     }
-    return result;
-  }
 }

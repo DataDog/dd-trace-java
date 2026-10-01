@@ -22,138 +22,132 @@ import java.util.concurrent.TimeUnit;
 
 public class OtlpWriter extends RemoteWriter {
 
-  private static final int BUFFER_SIZE = 1024;
-  private static final String HTTP_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
-  private static final String GRPC_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_GRPC_TRACES_ENDPOINT;
-  private static final String DEFAULT_OTLP_HTTP_ENDPOINT =
-      "http://localhost:" + DEFAULT_OTLP_HTTP_PORT + HTTP_TRACES_SIGNAL_PATH;
+    private static final int BUFFER_SIZE = 1024;
+    private static final String HTTP_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+    private static final String GRPC_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_GRPC_TRACES_ENDPOINT;
+    private static final String DEFAULT_OTLP_HTTP_ENDPOINT =
+            "http://localhost:" + DEFAULT_OTLP_HTTP_PORT + HTTP_TRACES_SIGNAL_PATH;
 
-  public static OtlpWriterBuilder builder() {
-    return new OtlpWriterBuilder();
-  }
-
-  private final OtlpSender sender;
-
-  OtlpWriter(
-      TraceProcessingWorker worker,
-      PayloadDispatcher dispatcher,
-      OtlpSender sender,
-      int flushTimeout,
-      TimeUnit flushTimeoutUnit,
-      boolean alwaysFlush) {
-    super(worker, dispatcher, HealthMetrics.NO_OP, flushTimeout, flushTimeoutUnit, alwaysFlush);
-    this.sender = sender;
-  }
-
-  @Override
-  public void close() {
-    super.close();
-    sender.shutdown();
-  }
-
-  // only used by tests
-  OtlpSender getSender() {
-    return sender;
-  }
-
-  public static class OtlpWriterBuilder {
-    private String endpoint = DEFAULT_OTLP_HTTP_ENDPOINT;
-    private Map<String, String> headers = Collections.emptyMap();
-    private int timeoutMillis = DEFAULT_OTLP_TRACES_TIMEOUT;
-    private OtlpConfig.Protocol protocol = OtlpConfig.Protocol.HTTP_PROTOBUF;
-    private OtlpConfig.Compression compression = OtlpConfig.Compression.NONE;
-    private int traceBufferSize = BUFFER_SIZE;
-    private int flushIntervalMilliseconds = 1000;
-    private int flushTimeout = 1;
-    private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
-    private boolean alwaysFlush = false;
-    private SingleSpanSampler singleSpanSampler;
-    private OtlpSender sender;
-
-    public OtlpWriterBuilder endpoint(String endpoint) {
-      this.endpoint = endpoint;
-      return this;
+    public static OtlpWriterBuilder builder() {
+        return new OtlpWriterBuilder();
     }
 
-    public OtlpWriterBuilder headers(Map<String, String> headers) {
-      this.headers = headers;
-      return this;
+    private final OtlpSender sender;
+
+    OtlpWriter(
+            TraceProcessingWorker worker,
+            PayloadDispatcher dispatcher,
+            OtlpSender sender,
+            int flushTimeout,
+            TimeUnit flushTimeoutUnit,
+            boolean alwaysFlush) {
+        super(worker, dispatcher, HealthMetrics.NO_OP, flushTimeout, flushTimeoutUnit, alwaysFlush);
+        this.sender = sender;
     }
 
-    public OtlpWriterBuilder timeoutMillis(int timeoutMillis) {
-      this.timeoutMillis = timeoutMillis;
-      return this;
+    @Override
+    public void close() {
+        super.close();
+        sender.shutdown();
     }
 
-    public OtlpWriterBuilder protocol(OtlpConfig.Protocol protocol) {
-      this.protocol = protocol;
-      return this;
+    // only used by tests
+    OtlpSender getSender() {
+        return sender;
     }
 
-    public OtlpWriterBuilder compression(OtlpConfig.Compression compression) {
-      this.compression = compression;
-      return this;
+    public static class OtlpWriterBuilder {
+        private String endpoint = DEFAULT_OTLP_HTTP_ENDPOINT;
+        private Map<String, String> headers = Collections.emptyMap();
+        private int timeoutMillis = DEFAULT_OTLP_TRACES_TIMEOUT;
+        private OtlpConfig.Protocol protocol = OtlpConfig.Protocol.HTTP_PROTOBUF;
+        private OtlpConfig.Compression compression = OtlpConfig.Compression.NONE;
+        private int traceBufferSize = BUFFER_SIZE;
+        private int flushIntervalMilliseconds = 1000;
+        private int flushTimeout = 1;
+        private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
+        private boolean alwaysFlush = false;
+        private SingleSpanSampler singleSpanSampler;
+        private OtlpSender sender;
+
+        public OtlpWriterBuilder endpoint(String endpoint) {
+            this.endpoint = endpoint;
+            return this;
+        }
+
+        public OtlpWriterBuilder headers(Map<String, String> headers) {
+            this.headers = headers;
+            return this;
+        }
+
+        public OtlpWriterBuilder timeoutMillis(int timeoutMillis) {
+            this.timeoutMillis = timeoutMillis;
+            return this;
+        }
+
+        public OtlpWriterBuilder protocol(OtlpConfig.Protocol protocol) {
+            this.protocol = protocol;
+            return this;
+        }
+
+        public OtlpWriterBuilder compression(OtlpConfig.Compression compression) {
+            this.compression = compression;
+            return this;
+        }
+
+        public OtlpWriterBuilder traceBufferSize(int traceBufferSize) {
+            this.traceBufferSize = traceBufferSize;
+            return this;
+        }
+
+        public OtlpWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
+            this.flushIntervalMilliseconds = flushIntervalMilliseconds;
+            return this;
+        }
+
+        public OtlpWriterBuilder flushTimeout(int flushTimeout, TimeUnit flushTimeoutUnit) {
+            this.flushTimeout = flushTimeout;
+            this.flushTimeoutUnit = flushTimeoutUnit;
+            return this;
+        }
+
+        public OtlpWriterBuilder alwaysFlush(boolean alwaysFlush) {
+            this.alwaysFlush = alwaysFlush;
+            return this;
+        }
+
+        public OtlpWriterBuilder spanSamplingRules(SingleSpanSampler singleSpanSampler) {
+            this.singleSpanSampler = singleSpanSampler;
+            return this;
+        }
+
+        OtlpWriterBuilder sender(OtlpSender sender) {
+            this.sender = sender;
+            return this;
+        }
+
+        public OtlpWriter build() {
+            if (sender == null) {
+                sender = protocol == OtlpConfig.Protocol.GRPC
+                        ? new OtlpGrpcSender(endpoint, GRPC_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression)
+                        : new OtlpHttpSender(endpoint, HTTP_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
+            }
+
+            final OtlpTraceCollector collector = protocol == OtlpConfig.Protocol.HTTP_JSON
+                    ? new OtlpTraceJsonCollector()
+                    : new OtlpTraceProtoCollector();
+            final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+            final TraceProcessingWorker worker = new TraceProcessingWorker(
+                    traceBufferSize,
+                    HealthMetrics.NO_OP,
+                    dispatcher,
+                    DroppingPolicy.DISABLED,
+                    Prioritization.FAST_LANE,
+                    flushIntervalMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                    singleSpanSampler);
+
+            return new OtlpWriter(worker, dispatcher, sender, flushTimeout, flushTimeoutUnit, alwaysFlush);
+        }
     }
-
-    public OtlpWriterBuilder traceBufferSize(int traceBufferSize) {
-      this.traceBufferSize = traceBufferSize;
-      return this;
-    }
-
-    public OtlpWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
-      this.flushIntervalMilliseconds = flushIntervalMilliseconds;
-      return this;
-    }
-
-    public OtlpWriterBuilder flushTimeout(int flushTimeout, TimeUnit flushTimeoutUnit) {
-      this.flushTimeout = flushTimeout;
-      this.flushTimeoutUnit = flushTimeoutUnit;
-      return this;
-    }
-
-    public OtlpWriterBuilder alwaysFlush(boolean alwaysFlush) {
-      this.alwaysFlush = alwaysFlush;
-      return this;
-    }
-
-    public OtlpWriterBuilder spanSamplingRules(SingleSpanSampler singleSpanSampler) {
-      this.singleSpanSampler = singleSpanSampler;
-      return this;
-    }
-
-    OtlpWriterBuilder sender(OtlpSender sender) {
-      this.sender = sender;
-      return this;
-    }
-
-    public OtlpWriter build() {
-      if (sender == null) {
-        sender =
-            protocol == OtlpConfig.Protocol.GRPC
-                ? new OtlpGrpcSender(
-                    endpoint, GRPC_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression)
-                : new OtlpHttpSender(
-                    endpoint, HTTP_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
-      }
-
-      final OtlpTraceCollector collector =
-          protocol == OtlpConfig.Protocol.HTTP_JSON
-              ? new OtlpTraceJsonCollector()
-              : new OtlpTraceProtoCollector();
-      final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-      final TraceProcessingWorker worker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              HealthMetrics.NO_OP,
-              dispatcher,
-              DroppingPolicy.DISABLED,
-              Prioritization.FAST_LANE,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
-
-      return new OtlpWriter(
-          worker, dispatcher, sender, flushTimeout, flushTimeoutUnit, alwaysFlush);
-    }
-  }
 }

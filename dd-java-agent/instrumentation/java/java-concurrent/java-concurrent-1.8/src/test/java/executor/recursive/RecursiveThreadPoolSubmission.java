@@ -9,27 +9,27 @@ import java.util.concurrent.ExecutorService;
 
 public class RecursiveThreadPoolSubmission implements Runnable {
 
-  private final ExecutorService executor;
+    private final ExecutorService executor;
 
-  private final int maxDepth;
-  private final int depth;
+    private final int maxDepth;
+    private final int depth;
 
-  public RecursiveThreadPoolSubmission(ExecutorService executor, int maxDepth, int depth) {
-    this.executor = executor;
-    this.maxDepth = maxDepth;
-    this.depth = depth;
-  }
-
-  @Override
-  public void run() {
-    if (depth == maxDepth) {
-      return;
+    public RecursiveThreadPoolSubmission(ExecutorService executor, int maxDepth, int depth) {
+        this.executor = executor;
+        this.maxDepth = maxDepth;
+        this.depth = depth;
     }
-    AgentSpan span = startSpan("test", String.valueOf(depth));
-    try (ContextScope scope = activateSpan(span)) {
-      executor.submit(new RecursiveThreadPoolSubmission(executor, maxDepth, depth + 1));
-    } finally {
-      span.finish();
+
+    @Override
+    public void run() {
+        if (depth == maxDepth) {
+            return;
+        }
+        AgentSpan span = startSpan("test", String.valueOf(depth));
+        try (ContextScope scope = activateSpan(span)) {
+            executor.submit(new RecursiveThreadPoolSubmission(executor, maxDepth, depth + 1));
+        } finally {
+            span.finish();
+        }
     }
-  }
 }

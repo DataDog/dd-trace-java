@@ -30,69 +30,66 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JsonParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
-  static final ElementMatcher.Junction<ClassLoader> VERSION_POST_2_6_0_AND_PRE_2_8_0 =
-      hasClassNamed("com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer")
-          .and(not(hasClassNamed("com.fasterxml.jackson.core.JsonpCharacterEscapes")));
+    static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
+    static final ElementMatcher.Junction<ClassLoader> VERSION_POST_2_6_0_AND_PRE_2_8_0 = hasClassNamed(
+                    "com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer")
+            .and(not(hasClassNamed("com.fasterxml.jackson.core.JsonpCharacterEscapes")));
 
-  public JsonParserInstrumentation() {
-    super("jackson", "jackson-2_6");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    final String className = JsonParserInstrumentation.class.getName();
-    transformer.applyAdvice(
-        namedOneOf("getCurrentName", "nextFieldName")
-            .and(isPublic())
-            .and(takesNoArguments())
-            .and(returns(String.class)),
-        className + "$NameAdvice");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return TARGET_TYPE;
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(namedOneOf("getCurrentName", "nextFieldName"))
-        .and(
-            extendsClass(named(hierarchyMarkerType()))
-                .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return VERSION_POST_2_6_0_AND_PRE_2_8_0;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(TARGET_TYPE, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
-  }
-
-  public static class NameAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      if (jsonParser != null
-          && result != null
-          && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
-        final ContextStore<JsonParser, NamedContext> store =
-            InstrumentationContext.get(JsonParser.class, NamedContext.class);
-        final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
-        if (jsonParser instanceof UTF8StreamJsonParser
-            && JsonParser26Helper.fetchIntern((UTF8StreamJsonParser) jsonParser)) {
-          context.setCurrentName(result);
-          return;
-        }
-        context.taintName(result);
-      }
+    public JsonParserInstrumentation() {
+        super("jackson", "jackson-2_6");
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        final String className = JsonParserInstrumentation.class.getName();
+        transformer.applyAdvice(
+                namedOneOf("getCurrentName", "nextFieldName")
+                        .and(isPublic())
+                        .and(takesNoArguments())
+                        .and(returns(String.class)),
+                className + "$NameAdvice");
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return TARGET_TYPE;
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return declaresMethod(namedOneOf("getCurrentName", "nextFieldName"))
+                .and(extendsClass(named(hierarchyMarkerType()))
+                        .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
+    }
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return VERSION_POST_2_6_0_AND_PRE_2_8_0;
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(TARGET_TYPE, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
+    }
+
+    public static class NameAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
+            if (jsonParser != null && result != null && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
+                final ContextStore<JsonParser, NamedContext> store =
+                        InstrumentationContext.get(JsonParser.class, NamedContext.class);
+                final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
+                if (jsonParser instanceof UTF8StreamJsonParser
+                        && JsonParser26Helper.fetchIntern((UTF8StreamJsonParser) jsonParser)) {
+                    context.setCurrentName(result);
+                    return;
+                }
+                context.taintName(result);
+            }
+        }
+    }
 }

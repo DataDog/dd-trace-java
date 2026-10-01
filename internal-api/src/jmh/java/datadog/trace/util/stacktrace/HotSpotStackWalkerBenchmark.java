@@ -30,47 +30,46 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class HotSpotStackWalkerBenchmark {
 
-  private HotSpotStackWalker hotSpotStackWalker;
+    private HotSpotStackWalker hotSpotStackWalker;
 
-  private DefaultStackWalker defaultStackWalker;
+    private DefaultStackWalker defaultStackWalker;
 
-  @Param({"1", "3", "10"})
-  int limit;
+    @Param({"1", "3", "10"})
+    int limit;
 
-  @Param({"10", "50", "100"})
-  int deep;
+    @Param({"10", "50", "100"})
+    int deep;
 
-  @Setup(Level.Trial)
-  public void setup() {
-    hotSpotStackWalker = new HotSpotStackWalker();
-    defaultStackWalker = new DefaultStackWalker();
-  }
+    @Setup(Level.Trial)
+    public void setup() {
+        hotSpotStackWalker = new HotSpotStackWalker();
+        defaultStackWalker = new DefaultStackWalker();
+    }
 
-  @Benchmark
-  public void hotSpotStackWalkerWalk() {
-    generateStack(hotSpotStackWalker);
-  }
+    @Benchmark
+    public void hotSpotStackWalkerWalk() {
+        generateStack(hotSpotStackWalker);
+    }
 
-  @Benchmark
-  public void defaultStackWalkerWalk() {
-    generateStack(defaultStackWalker);
-  }
+    @Benchmark
+    public void defaultStackWalkerWalk() {
+        generateStack(defaultStackWalker);
+    }
 
-  private void generateStack(final StackWalker stackWalker) {
+    private void generateStack(final StackWalker stackWalker) {
 
-    Runnable runnable =
-        new Runnable() {
-          @SuppressForbidden
-          @Override
-          public void run() {
-            stackWalker.walk(this::toLimitedList).forEach(System.out::println);
-          }
+        Runnable runnable = new Runnable() {
+            @SuppressForbidden
+            @Override
+            public void run() {
+                stackWalker.walk(this::toLimitedList).forEach(System.out::println);
+            }
 
-          private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
-            return stack.limit(limit).collect(Collectors.toList());
-          }
+            private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
+                return stack.limit(limit).collect(Collectors.toList());
+            }
         };
 
-    RecursiveRunner runner = new RecursiveRunner(deep, runnable);
-  }
+        RecursiveRunner runner = new RecursiveRunner(deep, runnable);
+    }
 }

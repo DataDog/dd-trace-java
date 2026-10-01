@@ -20,39 +20,38 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
  */
 public class ConfigValueConverter implements ArgumentConverter {
 
-  private static final String BITSET_PREFIX = "bits(";
-  private static final Pattern COMMA = Pattern.compile(",");
+    private static final String BITSET_PREFIX = "bits(";
+    private static final Pattern COMMA = Pattern.compile(",");
 
-  @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
-    if (source == null) return null;
-    if (source instanceof String) {
-      String s = ((String) source).trim();
-      if (s.startsWith(BITSET_PREFIX) && s.endsWith(")")) {
-        return parseBitSet(s.substring(BITSET_PREFIX.length(), s.length() - 1));
-      }
+    @Override
+    public Object convert(Object source, ParameterContext context) throws ArgumentConversionException {
+        if (source == null) return null;
+        if (source instanceof String) {
+            String s = ((String) source).trim();
+            if (s.startsWith(BITSET_PREFIX) && s.endsWith(")")) {
+                return parseBitSet(s.substring(BITSET_PREFIX.length(), s.length() - 1));
+            }
+        }
+        // Lists and maps are already parsed by TableTest
+        return source;
     }
-    // Lists and maps are already parsed by TableTest
-    return source;
-  }
 
-  private static BitSet parseBitSet(String intervals) {
-    BitSet bitSet = new BitSet();
-    for (String token : COMMA.split(intervals)) {
-      String trimmed = token.trim();
-      if (trimmed.isEmpty()) {
-        continue;
-      }
-      int dash = trimmed.indexOf('-');
-      if (dash > 0) {
-        int start = Integer.parseInt(trimmed.substring(0, dash).trim());
-        int end = Integer.parseInt(trimmed.substring(dash + 1).trim());
-        bitSet.set(start, end);
-      } else {
-        bitSet.set(Integer.parseInt(trimmed));
-      }
+    private static BitSet parseBitSet(String intervals) {
+        BitSet bitSet = new BitSet();
+        for (String token : COMMA.split(intervals)) {
+            String trimmed = token.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            int dash = trimmed.indexOf('-');
+            if (dash > 0) {
+                int start = Integer.parseInt(trimmed.substring(0, dash).trim());
+                int end = Integer.parseInt(trimmed.substring(dash + 1).trim());
+                bitSet.set(start, end);
+            } else {
+                bitSet.set(Integer.parseInt(trimmed));
+            }
+        }
+        return bitSet;
     }
-    return bitSet;
-  }
 }

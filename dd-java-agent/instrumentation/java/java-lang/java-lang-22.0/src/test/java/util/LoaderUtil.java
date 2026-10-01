@@ -8,13 +8,13 @@ import java.nio.file.Path;
  * classloader
  */
 public final class LoaderUtil {
-  private LoaderUtil() {}
+    private LoaderUtil() {}
 
-  public static void loadLibrary(Path path) {
-    System.load(path.toString());
-  }
+    public static void loadLibrary(Path path) {
+        System.load(path.toString());
+    }
 
-  public static SymbolLookup loaderLookup() {
-    return SymbolLookup.loaderLookup();
-  }
+    public static SymbolLookup loaderLookup() {
+        return SymbolLookup.loaderLookup();
+    }
 }

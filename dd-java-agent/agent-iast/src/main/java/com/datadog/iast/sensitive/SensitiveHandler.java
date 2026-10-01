@@ -10,43 +10,41 @@ import javax.annotation.Nullable;
 
 public interface SensitiveHandler {
 
-  static SensitiveHandler get() {
-    return SensitiveHandlerImpl.INSTANCE;
-  }
+    static SensitiveHandler get() {
+        return SensitiveHandlerImpl.INSTANCE;
+    }
 
-  boolean isSensitiveName(@Nullable String name);
+    boolean isSensitiveName(@Nullable String name);
 
-  boolean isSensitiveValue(@Nullable String value);
+    boolean isSensitiveValue(@Nullable String value);
 
-  String redactSource(@Nonnull Source source);
+    String redactSource(@Nonnull Source source);
 
-  String redactString(String value);
+    String redactString(String value);
 
-  Tokenizer tokenizeEvidence(@Nonnull VulnerabilityType type, @Nonnull final Evidence evidence);
+    Tokenizer tokenizeEvidence(@Nonnull VulnerabilityType type, @Nonnull final Evidence evidence);
 
-  default boolean isSensitive(@Nullable final Source source) {
-    return source != null
-        && (isSensitiveName(source.getName()) || isSensitiveValue(source.getValue()));
-  }
+    default boolean isSensitive(@Nullable final Source source) {
+        return source != null && (isSensitiveName(source.getName()) || isSensitiveValue(source.getValue()));
+    }
 
-  interface Tokenizer {
+    interface Tokenizer {
 
-    boolean next();
+        boolean next();
 
-    Ranged current();
+        Ranged current();
 
-    Tokenizer EMPTY =
-        new Tokenizer() {
+        Tokenizer EMPTY = new Tokenizer() {
 
-          @Override
-          public boolean next() {
-            return false;
-          }
+            @Override
+            public boolean next() {
+                return false;
+            }
 
-          @Override
-          public Ranged current() {
-            throw new NoSuchElementException("Tokenizer is empty");
-          }
+            @Override
+            public Ranged current() {
+                throw new NoSuchElementException("Tokenizer is empty");
+            }
         };
-  }
+    }
 }

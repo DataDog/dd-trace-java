@@ -8,68 +8,68 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-public class TracingListIterator extends TracingIterator
-    implements ListIterator<ConsumerRecord<?, ?>> {
+public class TracingListIterator extends TracingIterator implements ListIterator<ConsumerRecord<?, ?>> {
 
-  private final ListIterator<ConsumerRecord<?, ?>> delegateIterator;
+    private final ListIterator<ConsumerRecord<?, ?>> delegateIterator;
 
-  public TracingListIterator(
-      ListIterator<ConsumerRecord<?, ?>> delegateIterator,
-      CharSequence operationName,
-      KafkaDecorator decorator,
-      String group,
-      String clusterId,
-      String bootstrapServers) {
-    super(delegateIterator, operationName, decorator, group, clusterId, bootstrapServers);
-    this.delegateIterator = delegateIterator;
-  }
-
-  @Override
-  public boolean hasPrevious() {
-    boolean moreRecords = delegateIterator.hasPrevious();
-    if (!moreRecords) {
-      // no more records, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else {
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
-        }
-      }
+    public TracingListIterator(
+            ListIterator<ConsumerRecord<?, ?>> delegateIterator,
+            CharSequence operationName,
+            KafkaDecorator decorator,
+            String group,
+            String clusterId,
+            String bootstrapServers) {
+        super(delegateIterator, operationName, decorator, group, clusterId, bootstrapServers);
+        this.delegateIterator = delegateIterator;
     }
-    return moreRecords;
-  }
 
-  @Override
-  public ConsumerRecord<?, ?> previous() {
-    final ConsumerRecord<?, ?> prev = delegateIterator.previous();
-    startNewRecordSpan(prev);
-    return prev;
-  }
+    @Override
+    public boolean hasPrevious() {
+        boolean moreRecords = delegateIterator.hasPrevious();
+        if (!moreRecords) {
+            // no more records, use this as a signal to close the last iteration scope
+            if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                closePrevious(true);
+            } else {
+                final AgentSpan previousSpan =
+                        AgentSpan.fromContext(Context.root().swap());
+                if (previousSpan != null) {
+                    previousSpan.finishWithEndToEnd();
+                }
+            }
+        }
+        return moreRecords;
+    }
 
-  @Override
-  public int nextIndex() {
-    return delegateIterator.nextIndex();
-  }
+    @Override
+    public ConsumerRecord<?, ?> previous() {
+        final ConsumerRecord<?, ?> prev = delegateIterator.previous();
+        startNewRecordSpan(prev);
+        return prev;
+    }
 
-  @Override
-  public int previousIndex() {
-    return delegateIterator.previousIndex();
-  }
+    @Override
+    public int nextIndex() {
+        return delegateIterator.nextIndex();
+    }
 
-  /*
-   * org.apache.kafka.clients.consumer.ConsumerRecords::records(TopicPartition) always returns
-   * UnmodifiableList. Modifiable operations will lead to exception
-   */
+    @Override
+    public int previousIndex() {
+        return delegateIterator.previousIndex();
+    }
 
-  @Override
-  public void set(ConsumerRecord<?, ?> consumerRecord) {
-    delegateIterator.set(consumerRecord);
-  }
+    /*
+     * org.apache.kafka.clients.consumer.ConsumerRecords::records(TopicPartition) always returns
+     * UnmodifiableList. Modifiable operations will lead to exception
+     */
 
-  @Override
-  public void add(ConsumerRecord<?, ?> consumerRecord) {
-    delegateIterator.add(consumerRecord);
-  }
+    @Override
+    public void set(ConsumerRecord<?, ?> consumerRecord) {
+        delegateIterator.set(consumerRecord);
+    }
+
+    @Override
+    public void add(ConsumerRecord<?, ?> consumerRecord) {
+        delegateIterator.add(consumerRecord);
+    }
 }

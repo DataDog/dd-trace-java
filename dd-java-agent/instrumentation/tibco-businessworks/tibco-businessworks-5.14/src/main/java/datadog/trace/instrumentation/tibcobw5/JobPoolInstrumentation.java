@@ -24,67 +24,67 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  @Override
-  public String instrumentedType() {
-    return "com.tibco.pe.core.JobPool";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("addJob")
-            .and(isPublic())
-            .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
-        getClass().getName() + "$JobStartAdvice");
-    transformer.applyAdvice(
-        named("removeJob") // note: removeJob is a protected method (not public)
-            .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
-        getClass().getName() + "$JobEndAdvice");
-  }
-
-  public static class JobStartAdvice {
-    @SuppressWarnings("UC_USELESS_OBJECT")
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void after(@Advice.Argument(value = 0) ProcessContext processContext) {
-      final Workflow workflow = DDJobMate.getJobWorkflow(processContext);
-      if (workflow == null) {
-        return;
-      }
-      final String wId = workflow.getName();
-      String workflowName = wId;
-      int suffixIdx = workflowName.indexOf(".process");
-      if (suffixIdx > 0) {
-        workflowName = workflowName.substring(0, suffixIdx);
-      }
-      AgentSpan span = startSpan("tibco_bw", TIBCO_PROCESS_OPERATION);
-      DECORATE.afterStart(span);
-      DECORATE.onProcessStart(span, workflowName);
-      Map<String, AgentSpan> map = new HashMap<>();
-      map.put(wId, span);
-      InstrumentationContext.get(ProcessContext.class, Map.class).put(processContext, map);
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    @Override
+    public String instrumentedType() {
+        return "com.tibco.pe.core.JobPool";
     }
-  }
 
-  public static class JobEndAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.This final JobPool self,
-        @Advice.Argument(value = 0) ProcessContext processContext,
-        @Advice.Thrown final Throwable thrown) {
-      Map<String, AgentSpan> map =
-          InstrumentationContext.get(ProcessContext.class, Map.class).remove(processContext);
-      final String workflowName = DDJobMate.getJobWorkflow(processContext).getName();
-      if (map == null || !map.containsKey(workflowName)) {
-        return;
-      }
-      AgentSpan span = map.get(workflowName);
-      if (thrown != null) {
-        DECORATE.onError(span, thrown);
-      }
-      DECORATE.beforeFinish(span);
-      span.finish();
-      map.clear();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("addJob")
+                        .and(isPublic())
+                        .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
+                getClass().getName() + "$JobStartAdvice");
+        transformer.applyAdvice(
+                named("removeJob") // note: removeJob is a protected method (not public)
+                        .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
+                getClass().getName() + "$JobEndAdvice");
     }
-  }
+
+    public static class JobStartAdvice {
+        @SuppressWarnings("UC_USELESS_OBJECT")
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void after(@Advice.Argument(value = 0) ProcessContext processContext) {
+            final Workflow workflow = DDJobMate.getJobWorkflow(processContext);
+            if (workflow == null) {
+                return;
+            }
+            final String wId = workflow.getName();
+            String workflowName = wId;
+            int suffixIdx = workflowName.indexOf(".process");
+            if (suffixIdx > 0) {
+                workflowName = workflowName.substring(0, suffixIdx);
+            }
+            AgentSpan span = startSpan("tibco_bw", TIBCO_PROCESS_OPERATION);
+            DECORATE.afterStart(span);
+            DECORATE.onProcessStart(span, workflowName);
+            Map<String, AgentSpan> map = new HashMap<>();
+            map.put(wId, span);
+            InstrumentationContext.get(ProcessContext.class, Map.class).put(processContext, map);
+        }
+    }
+
+    public static class JobEndAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(
+                @Advice.This final JobPool self,
+                @Advice.Argument(value = 0) ProcessContext processContext,
+                @Advice.Thrown final Throwable thrown) {
+            Map<String, AgentSpan> map =
+                    InstrumentationContext.get(ProcessContext.class, Map.class).remove(processContext);
+            final String workflowName = DDJobMate.getJobWorkflow(processContext).getName();
+            if (map == null || !map.containsKey(workflowName)) {
+                return;
+            }
+            AgentSpan span = map.get(workflowName);
+            if (thrown != null) {
+                DECORATE.onError(span, thrown);
+            }
+            DECORATE.beforeFinish(span);
+            span.finish();
+            map.clear();
+        }
+    }
 }

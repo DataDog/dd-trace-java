@@ -11,43 +11,42 @@ import java.util.HashSet;
 /** Helper class for handling denied classes and packages for instrumentation */
 public class DenyListHelper implements DebuggerContext.ClassFilter {
 
-  private static final Collection<String> DENIED_PACKAGES =
-      Arrays.asList("java.security", "javax.security", "sun.security");
-  private static final Collection<String> DENIED_CLASSES =
-      Arrays.asList("java.lang.Object", "java.lang.String");
+    private static final Collection<String> DENIED_PACKAGES =
+            Arrays.asList("java.security", "javax.security", "sun.security");
+    private static final Collection<String> DENIED_CLASSES = Arrays.asList("java.lang.Object", "java.lang.String");
 
-  private ClassNameTrie packagePrefixTrie;
-  private HashSet<String> classes;
+    private ClassNameTrie packagePrefixTrie;
+    private HashSet<String> classes;
 
-  public DenyListHelper(Configuration.FilterList denyList) {
-    Collection<String> packages = new ArrayList<>(DENIED_PACKAGES);
-    Collection<String> classes = new ArrayList<>(DENIED_CLASSES);
-    packages.addAll(Redaction.getRedactedPackages());
-    classes.addAll(Redaction.getRedactedClasses());
-    if (denyList != null) {
-      packages.addAll(denyList.getPackagePrefixes());
-      classes.addAll(denyList.getClasses());
+    public DenyListHelper(Configuration.FilterList denyList) {
+        Collection<String> packages = new ArrayList<>(DENIED_PACKAGES);
+        Collection<String> classes = new ArrayList<>(DENIED_CLASSES);
+        packages.addAll(Redaction.getRedactedPackages());
+        classes.addAll(Redaction.getRedactedClasses());
+        if (denyList != null) {
+            packages.addAll(denyList.getPackagePrefixes());
+            classes.addAll(denyList.getClasses());
+        }
+        ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+        packages.stream().forEach(s -> builder.put(s + "*", 1));
+        this.packagePrefixTrie = builder.buildTrie();
+        this.classes = new HashSet<>(classes);
     }
-    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
-    packages.stream().forEach(s -> builder.put(s + "*", 1));
-    this.packagePrefixTrie = builder.buildTrie();
-    this.classes = new HashSet<>(classes);
-  }
 
-  @Override
-  public boolean isDenied(String fullyQualifiedClassName) {
-    if (fullyQualifiedClassName == null) {
-      return false;
+    @Override
+    public boolean isDenied(String fullyQualifiedClassName) {
+        if (fullyQualifiedClassName == null) {
+            return false;
+        }
+        int idx = fullyQualifiedClassName.lastIndexOf('.');
+        if (idx == -1) {
+            // not a fully qualified name or no package
+            return false;
+        }
+        String packageName = fullyQualifiedClassName.substring(0, idx);
+        if (packagePrefixTrie.apply(packageName) > 0) {
+            return true;
+        }
+        return classes.contains(fullyQualifiedClassName);
     }
-    int idx = fullyQualifiedClassName.lastIndexOf('.');
-    if (idx == -1) {
-      // not a fully qualified name or no package
-      return false;
-    }
-    String packageName = fullyQualifiedClassName.substring(0, idx);
-    if (packagePrefixTrie.apply(packageName) > 0) {
-      return true;
-    }
-    return classes.contains(fullyQualifiedClassName);
-  }
 }

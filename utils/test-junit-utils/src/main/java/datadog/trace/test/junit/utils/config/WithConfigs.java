@@ -13,5 +13,5 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Target({TYPE, METHOD})
 @ExtendWith(WithConfigExtension.class)
 public @interface WithConfigs {
-  WithConfig[] value();
+    WithConfig[] value();
 }

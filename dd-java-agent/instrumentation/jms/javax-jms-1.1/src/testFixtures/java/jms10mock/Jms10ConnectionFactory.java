@@ -16,46 +16,44 @@ import javax.jms.TopicConnectionFactory;
  * {@code createConnection()} methods are JMS 1.1 additions that this wrapper does not support.
  */
 public class Jms10ConnectionFactory implements QueueConnectionFactory, TopicConnectionFactory {
-  private final ConnectionFactory delegate;
+    private final ConnectionFactory delegate;
 
-  public Jms10ConnectionFactory(ConnectionFactory delegate) {
-    this.delegate = delegate;
-  }
+    public Jms10ConnectionFactory(ConnectionFactory delegate) {
+        this.delegate = delegate;
+    }
 
-  // --- JMS 1.1-only unified ConnectionFactory methods ---
+    // --- JMS 1.1-only unified ConnectionFactory methods ---
 
-  @Override
-  public Connection createConnection() throws JMSException {
-    return delegate.createConnection();
-  }
+    @Override
+    public Connection createConnection() throws JMSException {
+        return delegate.createConnection();
+    }
 
-  @Override
-  public Connection createConnection(String userName, String password) throws JMSException {
-    return delegate.createConnection(userName, password);
-  }
+    @Override
+    public Connection createConnection(String userName, String password) throws JMSException {
+        return delegate.createConnection(userName, password);
+    }
 
-  // --- JMS 1.0 QueueConnectionFactory methods ---
-  @Override
-  public QueueConnection createQueueConnection() throws JMSException {
-    return new Jms10Connection(delegate.createConnection());
-  }
+    // --- JMS 1.0 QueueConnectionFactory methods ---
+    @Override
+    public QueueConnection createQueueConnection() throws JMSException {
+        return new Jms10Connection(delegate.createConnection());
+    }
 
-  @Override
-  public QueueConnection createQueueConnection(String userName, String password)
-      throws JMSException {
-    return new Jms10Connection(delegate.createConnection(userName, password));
-  }
+    @Override
+    public QueueConnection createQueueConnection(String userName, String password) throws JMSException {
+        return new Jms10Connection(delegate.createConnection(userName, password));
+    }
 
-  // --- JMS 1.0 TopicConnectionFactory methods ---
+    // --- JMS 1.0 TopicConnectionFactory methods ---
 
-  @Override
-  public TopicConnection createTopicConnection() throws JMSException {
-    return new Jms10Connection(delegate.createConnection());
-  }
+    @Override
+    public TopicConnection createTopicConnection() throws JMSException {
+        return new Jms10Connection(delegate.createConnection());
+    }
 
-  @Override
-  public TopicConnection createTopicConnection(String userName, String password)
-      throws JMSException {
-    return new Jms10Connection(delegate.createConnection(userName, password));
-  }
+    @Override
+    public TopicConnection createTopicConnection(String userName, String password) throws JMSException {
+        return new Jms10Connection(delegate.createConnection(userName, password));
+    }
 }

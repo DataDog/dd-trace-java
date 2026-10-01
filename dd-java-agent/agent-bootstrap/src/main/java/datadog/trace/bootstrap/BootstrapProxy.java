@@ -9,22 +9,22 @@ import java.net.URLClassLoader;
  * so we can check them for resources before delegating to the real boostrap loader.
  */
 public final class BootstrapProxy extends URLClassLoader {
-  static {
-    ClassLoader.registerAsParallelCapable();
-  }
+    static {
+        ClassLoader.registerAsParallelCapable();
+    }
 
-  public static final BootstrapProxy INSTANCE = new BootstrapProxy();
+    public static final BootstrapProxy INSTANCE = new BootstrapProxy();
 
-  private BootstrapProxy() {
-    super(new URL[0], null);
-  }
+    private BootstrapProxy() {
+        super(new URL[0], null);
+    }
 
-  public static void addBootstrapResource(final URL url) {
-    INSTANCE.addURL(url);
-  }
+    public static void addBootstrapResource(final URL url) {
+        INSTANCE.addURL(url);
+    }
 
-  @Override
-  protected Class<?> findClass(final String name) throws ClassNotFoundException {
-    throw new ClassNotFoundException(name);
-  }
+    @Override
+    protected Class<?> findClass(final String name) throws ClassNotFoundException {
+        throw new ClassNotFoundException(name);
+    }
 }

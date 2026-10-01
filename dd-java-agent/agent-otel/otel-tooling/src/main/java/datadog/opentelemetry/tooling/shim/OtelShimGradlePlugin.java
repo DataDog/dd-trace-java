@@ -16,30 +16,30 @@ import net.bytebuddy.dynamic.DynamicType;
  * @see datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin
  */
 public class OtelShimGradlePlugin extends Plugin.ForElementMatcher {
-  private final File targetDir;
+    private final File targetDir;
 
-  static final String[] OTEL_SHIM_INJECTED_CLASSES = {
-    "io.opentelemetry.api.DefaultOpenTelemetry",
-    "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry",
-    "io.opentelemetry.context.ThreadLocalContextStorage",
-    "io.opentelemetry.context.StrictContextStorage",
-    "io.opentelemetry.context.ArrayBasedContext",
-  };
+    static final String[] OTEL_SHIM_INJECTED_CLASSES = {
+        "io.opentelemetry.api.DefaultOpenTelemetry",
+        "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry",
+        "io.opentelemetry.context.ThreadLocalContextStorage",
+        "io.opentelemetry.context.StrictContextStorage",
+        "io.opentelemetry.context.ArrayBasedContext",
+    };
 
-  @SuppressForbidden
-  public OtelShimGradlePlugin(File targetDir) {
-    super(namedOneOf(OTEL_SHIM_INJECTED_CLASSES));
-    this.targetDir = targetDir;
-  }
+    @SuppressForbidden
+    public OtelShimGradlePlugin(File targetDir) {
+        super(namedOneOf(OTEL_SHIM_INJECTED_CLASSES));
+        this.targetDir = targetDir;
+    }
 
-  @Override
-  public DynamicType.Builder<?> apply(
-      final DynamicType.Builder<?> builder,
-      final TypeDescription typeDescription,
-      final ClassFileLocator classFileLocator) {
-    return builder.visit(OtelShimInjector.INSTANCE);
-  }
+    @Override
+    public DynamicType.Builder<?> apply(
+            final DynamicType.Builder<?> builder,
+            final TypeDescription typeDescription,
+            final ClassFileLocator classFileLocator) {
+        return builder.visit(OtelShimInjector.INSTANCE);
+    }
 
-  @Override
-  public void close() throws IOException {}
+    @Override
+    public void close() throws IOException {}
 }

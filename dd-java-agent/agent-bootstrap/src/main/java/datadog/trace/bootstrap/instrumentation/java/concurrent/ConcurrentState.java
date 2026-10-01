@@ -19,105 +19,96 @@ import org.slf4j.LoggerFactory;
  */
 public final class ConcurrentState {
 
-  private static final Logger log = LoggerFactory.getLogger(ConcurrentState.class);
+    private static final Logger log = LoggerFactory.getLogger(ConcurrentState.class);
 
-  public static ContextStore.Factory<ConcurrentState> FACTORY = ConcurrentState::new;
+    public static ContextStore.Factory<ConcurrentState> FACTORY = ConcurrentState::new;
 
-  private volatile ContextContinuation continuation = null;
+    private volatile ContextContinuation continuation = null;
 
-  private static final AtomicReferenceFieldUpdater<ConcurrentState, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              ConcurrentState.class, ContextContinuation.class, "continuation");
+    private static final AtomicReferenceFieldUpdater<ConcurrentState, ContextContinuation> CONTINUATION =
+            AtomicReferenceFieldUpdater.newUpdater(ConcurrentState.class, ContextContinuation.class, "continuation");
 
-  private ConcurrentState() {}
+    private ConcurrentState() {}
 
-  @Nullable
-  public static <K> ConcurrentState captureContinuation(
-      ContextStore<K, ConcurrentState> contextStore, K key, Context context) {
-    if (shouldCapture(context)) {
-      final ConcurrentState state = contextStore.getOrCreate(key, FACTORY);
-      if (!state.captureAndSetContinuation(context) && log.isDebugEnabled()) {
-        log.debug(
-            "continuation was already set for {} in context {}, no continuation captured.",
-            key,
-            context);
-      }
-      return state;
-    } else {
-      return null;
+    @Nullable
+    public static <K> ConcurrentState captureContinuation(
+            ContextStore<K, ConcurrentState> contextStore, K key, Context context) {
+        if (shouldCapture(context)) {
+            final ConcurrentState state = contextStore.getOrCreate(key, FACTORY);
+            if (!state.captureAndSetContinuation(context) && log.isDebugEnabled()) {
+                log.debug("continuation was already set for {} in context {}, no continuation captured.", key, context);
+            }
+            return state;
+        } else {
+            return null;
+        }
     }
-  }
 
-  @Nullable
-  public static <K> ContextScope activateAndContinueContinuation(
-      ContextStore<K, ConcurrentState> contextStore, K key) {
-    final ConcurrentState state = contextStore.get(key);
-    if (state == null) {
-      return null;
+    @Nullable
+    public static <K> ContextScope activateAndContinueContinuation(
+            ContextStore<K, ConcurrentState> contextStore, K key) {
+        final ConcurrentState state = contextStore.get(key);
+        if (state == null) {
+            return null;
+        }
+        return state.activateAndContinueContinuation();
     }
-    return state.activateAndContinueContinuation();
-  }
 
-  public static <K> void closeScope(
-      ContextStore<K, ConcurrentState> contextStore,
-      K key,
-      ContextScope scope,
-      Throwable throwable) {
-    final ConcurrentState state = contextStore.get(key);
-    if (scope != null) {
-      scope.close();
-      return;
+    public static <K> void closeScope(
+            ContextStore<K, ConcurrentState> contextStore, K key, ContextScope scope, Throwable throwable) {
+        final ConcurrentState state = contextStore.get(key);
+        if (scope != null) {
+            scope.close();
+            return;
+        }
+        if (state == null) {
+            return;
+        }
+        if (throwable != null) {
+            // This might lead to the continuation being consumed early, but it's better to be safe if we
+            // threw an Exception on entry
+            state.cancelContinuation();
+        }
     }
-    if (state == null) {
-      return;
-    }
-    if (throwable != null) {
-      // This might lead to the continuation being consumed early, but it's better to be safe if we
-      // threw an Exception on entry
-      state.cancelContinuation();
-    }
-  }
 
-  public static <K> void cancelAndClearContinuation(
-      ContextStore<K, ConcurrentState> contextStore, K key) {
-    final ConcurrentState state = contextStore.get(key);
-    if (state == null) {
-      return;
+    public static <K> void cancelAndClearContinuation(ContextStore<K, ConcurrentState> contextStore, K key) {
+        final ConcurrentState state = contextStore.get(key);
+        if (state == null) {
+            return;
+        }
+        state.cancelAndClearContinuation();
     }
-    state.cancelAndClearContinuation();
-  }
 
-  private boolean captureAndSetContinuation(final Context context) {
-    if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
-      // lazy write is guaranteed to be seen by getAndSet
-      CONTINUATION.lazySet(this, context.capture().hold());
-      return true;
+    private boolean captureAndSetContinuation(final Context context) {
+        if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
+            // lazy write is guaranteed to be seen by getAndSet
+            CONTINUATION.lazySet(this, context.capture().hold());
+            return true;
+        }
+        return false;
     }
-    return false;
-  }
 
-  private ContextScope activateAndContinueContinuation() {
-    final ContextContinuation continuation = CONTINUATION.get(this);
-    if (continuation != null && continuation != CLAIMED) {
-      return continuation.resume();
+    private ContextScope activateAndContinueContinuation() {
+        final ContextContinuation continuation = CONTINUATION.get(this);
+        if (continuation != null && continuation != CLAIMED) {
+            return continuation.resume();
+        }
+        return null;
     }
-    return null;
-  }
 
-  private void cancelContinuation() {
-    final ContextContinuation continuation = CONTINUATION.get(this);
-    if (continuation != null && continuation != CLAIMED) {
-      continuation.release();
+    private void cancelContinuation() {
+        final ContextContinuation continuation = CONTINUATION.get(this);
+        if (continuation != null && continuation != CLAIMED) {
+            continuation.release();
+        }
     }
-  }
 
-  private void cancelAndClearContinuation() {
-    final ContextContinuation continuation = CONTINUATION.get(this);
-    if (continuation != null && continuation != CLAIMED) {
-      // We should never be able to reuse this state
-      CONTINUATION.compareAndSet(this, continuation, CLAIMED);
-      continuation.release();
+    private void cancelAndClearContinuation() {
+        final ContextContinuation continuation = CONTINUATION.get(this);
+        if (continuation != null && continuation != CLAIMED) {
+            // We should never be able to reuse this state
+            CONTINUATION.compareAndSet(this, continuation, CLAIMED);
+            continuation.release();
+        }
     }
-  }
 }

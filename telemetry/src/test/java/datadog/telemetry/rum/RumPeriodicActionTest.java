@@ -19,48 +19,48 @@ import org.mockito.ArgumentCaptor;
 
 class RumPeriodicActionTest {
 
-  private final TelemetryService telemetryService = mock(TelemetryService.class);
+    private final TelemetryService telemetryService = mock(TelemetryService.class);
 
-  @Test
-  void pushRumMetricsIntoTheTelemetryService() {
-    RumInjectorMetrics metricsCollector = new RumInjectorMetrics();
-    metricsCollector.onInjectionSucceed("3");
-    metricsCollector.onInjectionFailed("5", "gzip");
-    metricsCollector.onInjectionResponseSize("3", 1024);
+    @Test
+    void pushRumMetricsIntoTheTelemetryService() {
+        RumInjectorMetrics metricsCollector = new RumInjectorMetrics();
+        metricsCollector.onInjectionSucceed("3");
+        metricsCollector.onInjectionFailed("5", "gzip");
+        metricsCollector.onInjectionResponseSize("3", 1024);
 
-    RumPeriodicAction periodicAction = new RumPeriodicAction(metricsCollector);
+        RumPeriodicAction periodicAction = new RumPeriodicAction(metricsCollector);
 
-    periodicAction.doIteration(telemetryService);
+        periodicAction.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> metricCaptor = forClass(Metric.class);
-    verify(telemetryService, times(2)).addMetric(metricCaptor.capture());
-    Metric succeedMetric = metricCaptor.getAllValues().get(0);
-    assertEquals("rum", succeedMetric.getNamespace());
-    assertEquals("injection.succeed", succeedMetric.getMetric());
-    assertEquals(Metric.TypeEnum.COUNT, succeedMetric.getType());
+        ArgumentCaptor<Metric> metricCaptor = forClass(Metric.class);
+        verify(telemetryService, times(2)).addMetric(metricCaptor.capture());
+        Metric succeedMetric = metricCaptor.getAllValues().get(0);
+        assertEquals("rum", succeedMetric.getNamespace());
+        assertEquals("injection.succeed", succeedMetric.getMetric());
+        assertEquals(Metric.TypeEnum.COUNT, succeedMetric.getType());
 
-    Metric failedMetric = metricCaptor.getAllValues().get(1);
-    assertEquals("rum", failedMetric.getNamespace());
-    assertEquals("injection.failed", failedMetric.getMetric());
-    assertEquals(Metric.TypeEnum.COUNT, failedMetric.getType());
+        Metric failedMetric = metricCaptor.getAllValues().get(1);
+        assertEquals("rum", failedMetric.getNamespace());
+        assertEquals("injection.failed", failedMetric.getMetric());
+        assertEquals(Metric.TypeEnum.COUNT, failedMetric.getType());
 
-    ArgumentCaptor<DistributionSeries> distributionCaptor = forClass(DistributionSeries.class);
-    verify(telemetryService, times(1)).addDistributionSeries(distributionCaptor.capture());
-    DistributionSeries distribution = distributionCaptor.getValue();
-    assertEquals("rum", distribution.getNamespace());
-    assertEquals("injection.response.bytes", distribution.getMetric());
+        ArgumentCaptor<DistributionSeries> distributionCaptor = forClass(DistributionSeries.class);
+        verify(telemetryService, times(1)).addDistributionSeries(distributionCaptor.capture());
+        DistributionSeries distribution = distributionCaptor.getValue();
+        assertEquals("rum", distribution.getNamespace());
+        assertEquals("injection.response.bytes", distribution.getMetric());
 
-    verifyNoMoreInteractions(telemetryService);
-  }
+        verifyNoMoreInteractions(telemetryService);
+    }
 
-  @Test
-  void pushNothingWhenNoMetricsCollectorIsSet() {
-    RumPeriodicAction periodicAction = new RumPeriodicAction(RumTelemetryCollector.NO_OP);
+    @Test
+    void pushNothingWhenNoMetricsCollectorIsSet() {
+        RumPeriodicAction periodicAction = new RumPeriodicAction(RumTelemetryCollector.NO_OP);
 
-    periodicAction.doIteration(telemetryService);
+        periodicAction.doIteration(telemetryService);
 
-    verify(telemetryService, never()).addMetric(any());
-    verify(telemetryService, never()).addDistributionSeries(any());
-    verifyNoMoreInteractions(telemetryService);
-  }
+        verify(telemetryService, never()).addMetric(any());
+        verify(telemetryService, never()).addDistributionSeries(any());
+        verifyNoMoreInteractions(telemetryService);
+    }
 }

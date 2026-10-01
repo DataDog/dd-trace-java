@@ -39,91 +39,85 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * app's short lifetime) and additionally asserts telemetry is flowing.
  */
 class AppSecActivationSmokeTest {
-  private static final String APPLICATION_JAR =
-      System.getProperty("datadog.smoketest.shadowJar.path");
-  private static final EnumSet<Product> ASM_RULE_PRODUCTS = of(ASM, ASM_DD, ASM_DATA);
+    private static final String APPLICATION_JAR = System.getProperty("datadog.smoketest.shadowJar.path");
+    private static final EnumSet<Product> ASM_RULE_PRODUCTS = of(ASM, ASM_DD, ASM_DATA);
 
-  // Inline backend owned by the app; held as a field so the test can push and read remote-config.
-  static final AgentBackend agent = AgentBackend.testAgent();
+    // Inline backend owned by the app; held as a field so the test can push and read remote-config.
+    static final AgentBackend agent = AgentBackend.testAgent();
 
-  @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("appsec-activation")
-          .mainClass(AppSecApplication.class, APPLICATION_JAR)
-          .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
-          .backend(agent)
-          .build();
+    @RegisterExtension
+    static final SmokeCliApp app = SmokeCliApp.named("appsec-activation")
+            .mainClass(AppSecApplication.class, APPLICATION_JAR)
+            .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
+            .backend(agent)
+            .build();
 
-  @Test
-  void activatesAppSecViaRemoteConfig() {
-    assumeFalse(isOracleJDK8(), "Telemetry product-change event flakes on Oracle JDK 8");
+    @Test
+    void activatesAppSecViaRemoteConfig() {
+        assumeFalse(isOracleJDK8(), "Telemetry product-change event flakes on Oracle JDK 8");
 
-    RemoteConfig remoteConfig = agent.remoteConfig();
-    Telemetry telemetry = agent.telemetry();
+        RemoteConfig remoteConfig = agent.remoteConfig();
+        Telemetry telemetry = agent.telemetry();
 
-    // AppSec is enabled but inactive: a poll that has not subscribed to any ASM rule product yet
-    // advertises the ASM_ACTIVATION capability, but not ASM_CUSTOM_RULES.
-    Map<String, Object> beforeActivation =
-        remoteConfig.waitForRequest(
-            request -> disjoint(decodeProducts(request), ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
-    long capabilities = RemoteConfig.capabilities(beforeActivation);
-    assertTrue(hasCapability(capabilities, CAPABILITY_ASM_ACTIVATION), "ASM_ACTIVATION advertised");
-    assertFalse(
-        hasCapability(capabilities, CAPABILITY_ASM_CUSTOM_RULES),
-        "ASM_CUSTOM_RULES not advertised while inactive");
+        // AppSec is enabled but inactive: a poll that has not subscribed to any ASM rule product yet
+        // advertises the ASM_ACTIVATION capability, but not ASM_CUSTOM_RULES.
+        Map<String, Object> beforeActivation = remoteConfig.waitForRequest(
+                request -> disjoint(decodeProducts(request), ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
+        long capabilities = RemoteConfig.capabilities(beforeActivation);
+        assertTrue(hasCapability(capabilities, CAPABILITY_ASM_ACTIVATION), "ASM_ACTIVATION advertised");
+        assertFalse(
+                hasCapability(capabilities, CAPABILITY_ASM_CUSTOM_RULES),
+                "ASM_CUSTOM_RULES not advertised while inactive");
 
-    // Activate AppSec via Remote Config.
-    remoteConfig.setConfig(
-        "datadog/2/ASM_FEATURES/asm_features_activation/config", "{\"asm\":{\"enabled\":true}}");
+        // Activate AppSec via Remote Config.
+        remoteConfig.setConfig("datadog/2/ASM_FEATURES/asm_features_activation/config", "{\"asm\":{\"enabled\":true}}");
 
-    // The tracer reports the applied change via a telemetry configuration event.
-    telemetry.waitForFlat(
-        AppSecActivationSmokeTest::appsecEnabledFromRemoteConfig, TIMEOUT_IN_SECONDS);
+        // The tracer reports the applied change via a telemetry configuration event.
+        telemetry.waitForFlat(AppSecActivationSmokeTest::appsecEnabledFromRemoteConfig, TIMEOUT_IN_SECONDS);
 
-    // Now active: the tracer subscribes to the ASM rule products and advertises ASM_CUSTOM_RULES.
-    Map<String, Object> afterActivation =
-        remoteConfig.waitForRequest(
-            request -> decodeProducts(request).containsAll(ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
-    assertTrue(
-        hasCapability(RemoteConfig.capabilities(afterActivation), CAPABILITY_ASM_CUSTOM_RULES),
-        "ASM_CUSTOM_RULES advertised after activation");
-  }
-
-  // A flattened telemetry event whose payload records DD_APPSEC_ENABLED=true from remote config.
-  @SuppressWarnings("unchecked")
-  private static boolean appsecEnabledFromRemoteConfig(Map<String, Object> event) {
-    Object payload = event.get("payload");
-    if (!(payload instanceof Map)) {
-      return false;
+        // Now active: the tracer subscribes to the ASM rule products and advertises ASM_CUSTOM_RULES.
+        Map<String, Object> afterActivation = remoteConfig.waitForRequest(
+                request -> decodeProducts(request).containsAll(ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
+        assertTrue(
+                hasCapability(RemoteConfig.capabilities(afterActivation), CAPABILITY_ASM_CUSTOM_RULES),
+                "ASM_CUSTOM_RULES advertised after activation");
     }
-    Object configuration = ((Map<String, Object>) payload).get("configuration");
-    if (!(configuration instanceof List)) {
-      return false;
-    }
-    for (Object entry : (List<?>) configuration) {
-      if (entry instanceof Map) {
-        Map<String, Object> config = (Map<String, Object>) entry;
-        if ("DD_APPSEC_ENABLED".equals(config.get("name"))
-            && "true".equals(config.get("value"))
-            && "remote_config".equals(config.get("origin"))) {
-          return true;
+
+    // A flattened telemetry event whose payload records DD_APPSEC_ENABLED=true from remote config.
+    @SuppressWarnings("unchecked")
+    private static boolean appsecEnabledFromRemoteConfig(Map<String, Object> event) {
+        Object payload = event.get("payload");
+        if (!(payload instanceof Map)) {
+            return false;
         }
-      }
+        Object configuration = ((Map<String, Object>) payload).get("configuration");
+        if (!(configuration instanceof List)) {
+            return false;
+        }
+        for (Object entry : (List<?>) configuration) {
+            if (entry instanceof Map) {
+                Map<String, Object> config = (Map<String, Object>) entry;
+                if ("DD_APPSEC_ENABLED".equals(config.get("name"))
+                        && "true".equals(config.get("value"))
+                        && "remote_config".equals(config.get("origin"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
-    return false;
-  }
 
-  // The products a Remote Config poll subscribes to, decoded from the wire strings into typed
-  // Product values (the tracer serializes them from this same enum).
-  private static Set<Product> decodeProducts(Map<String, Object> request) {
-    Set<Product> products = EnumSet.noneOf(Product.class);
-    for (String name : RemoteConfig.products(request)) {
-      products.add(Product.valueOf(name));
+    // The products a Remote Config poll subscribes to, decoded from the wire strings into typed
+    // Product values (the tracer serializes them from this same enum).
+    private static Set<Product> decodeProducts(Map<String, Object> request) {
+        Set<Product> products = EnumSet.noneOf(Product.class);
+        for (String name : RemoteConfig.products(request)) {
+            products.add(Product.valueOf(name));
+        }
+        return products;
     }
-    return products;
-  }
 
-  private static boolean hasCapability(long capabilities, long capability) {
-    return (capabilities & capability) != 0;
-  }
+    private static boolean hasCapability(long capabilities, long capability) {
+        return (capabilities & capability) != 0;
+    }
 }

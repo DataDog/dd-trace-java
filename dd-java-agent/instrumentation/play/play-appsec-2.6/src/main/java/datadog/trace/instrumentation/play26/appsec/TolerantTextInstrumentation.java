@@ -20,49 +20,49 @@ import play.mvc.Http;
  */
 @AutoService(InstrumenterModule.class)
 public class TolerantTextInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TolerantTextInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "play.mvc.BodyParser$TolerantText";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(String.class)),
-        TolerantTextInstrumentation.class.getName() + "$ParseAdvice");
-  }
-
-  static class ParseAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(@Advice.Return String ret, @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null) {
-        return;
-      }
-      try {
-        // error is reported as client error, which doesn't preserve the exception
-        BodyParserHelpers.handleArbitraryPostDataWithSpanError(ret, "TolerantText#parse");
-      } catch (BlockingException be) {
-        t = be;
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public TolerantTextInstrumentation() {
+        super("play");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_26_PLUS;
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "play.mvc.BodyParser$TolerantText";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parse")
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+                        .and(takesArgument(1, named("akka.util.ByteString")))
+                        .and(returns(String.class)),
+                TolerantTextInstrumentation.class.getName() + "$ParseAdvice");
+    }
+
+    static class ParseAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(@Advice.Return String ret, @Advice.Thrown(readOnly = false) Throwable t) {
+            if (t != null) {
+                return;
+            }
+            try {
+                // error is reported as client error, which doesn't preserve the exception
+                BodyParserHelpers.handleArbitraryPostDataWithSpanError(ret, "TolerantText#parse");
+            } catch (BlockingException be) {
+                t = be;
+            }
+        }
+    }
 }

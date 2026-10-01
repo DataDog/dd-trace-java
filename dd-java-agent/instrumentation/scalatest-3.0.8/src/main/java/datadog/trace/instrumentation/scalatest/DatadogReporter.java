@@ -29,279 +29,279 @@ import org.scalatest.events.TestSucceeded;
 
 public class DatadogReporter {
 
-  private static final String TEST_FRAMEWORK = "scalatest";
-  private static final String TEST_FRAMEWORK_VERSION = ScalatestUtils.getScalatestVersion();
+    private static final String TEST_FRAMEWORK = "scalatest";
+    private static final String TEST_FRAMEWORK_VERSION = ScalatestUtils.getScalatestVersion();
 
-  public static void handle(Event event) {
-    if (event instanceof RunStarting) {
-      start(event);
+    public static void handle(Event event) {
+        if (event instanceof RunStarting) {
+            start(event);
 
-    } else if (event instanceof RunCompleted) {
-      stop(event);
+        } else if (event instanceof RunCompleted) {
+            stop(event);
 
-    } else if (event instanceof RunAborted) {
-      stop(event);
+        } else if (event instanceof RunAborted) {
+            stop(event);
 
-    } else if (event instanceof RunStopped) {
-      stop(event);
+        } else if (event instanceof RunStopped) {
+            stop(event);
 
-    } else if (event instanceof SuiteStarting) {
-      onSuiteStart((SuiteStarting) event);
+        } else if (event instanceof SuiteStarting) {
+            onSuiteStart((SuiteStarting) event);
 
-    } else if (event instanceof SuiteCompleted) {
-      onSuiteFinish((SuiteCompleted) event);
+        } else if (event instanceof SuiteCompleted) {
+            onSuiteFinish((SuiteCompleted) event);
 
-    } else if (event instanceof SuiteAborted) {
-      onSuiteAbort((SuiteAborted) event);
+        } else if (event instanceof SuiteAborted) {
+            onSuiteAbort((SuiteAborted) event);
 
-    } else if (event instanceof TestStarting) {
-      onTestStart((TestStarting) event);
+        } else if (event instanceof TestStarting) {
+            onTestStart((TestStarting) event);
 
-    } else if (event instanceof TestSucceeded) {
-      onTestSuccess((TestSucceeded) event);
+        } else if (event instanceof TestSucceeded) {
+            onTestSuccess((TestSucceeded) event);
 
-    } else if (event instanceof TestFailed) {
-      onTestFailure((TestFailed) event);
+        } else if (event instanceof TestFailed) {
+            onTestFailure((TestFailed) event);
 
-    } else if (event instanceof TestIgnored) {
-      onTestIgnore((TestIgnored) event);
+        } else if (event instanceof TestIgnored) {
+            onTestIgnore((TestIgnored) event);
 
-    } else if (event instanceof TestCanceled) {
-      onTestCancel((TestCanceled) event);
+        } else if (event instanceof TestCanceled) {
+            onTestCancel((TestCanceled) event);
 
-    } else if (event instanceof TestPending) {
-      onTestPending((TestPending) event);
-    }
-  }
-
-  private static void start(Event event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext.getOrCreate(runStamp);
-  }
-
-  private static void stop(Event event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext.destroy(runStamp);
-  }
-
-  private static void onSuiteStart(SuiteStarting event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+        } else if (event instanceof TestPending) {
+            onTestPending((TestPending) event);
+        }
     }
 
-    String testSuiteName = event.suiteId();
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    Collection<String> categories = Collections.emptyList();
-    boolean parallelized = true;
-
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestSuiteStart(
-        new TestSuiteDescriptor(testSuiteName, testClass),
-        testSuiteName,
-        TEST_FRAMEWORK,
-        TEST_FRAMEWORK_VERSION,
-        testClass,
-        categories,
-        parallelized,
-        TestFrameworkInstrumentation.SCALATEST,
-        null);
-  }
-
-  private static void onSuiteFinish(SuiteCompleted event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+    private static void start(Event event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext.getOrCreate(runStamp);
     }
 
-    String testSuiteName = event.suiteId();
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
-  }
-
-  private static void onSuiteAbort(SuiteAborted event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+    private static void stop(Event event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext.destroy(runStamp);
     }
 
-    String testSuiteName = event.suiteId();
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    Throwable throwable = event.throwable().getOrElse(null);
+    private static void onSuiteStart(SuiteStarting event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestSuiteFailure(new TestSuiteDescriptor(testSuiteName, testClass), throwable);
-    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
-  }
+        String testSuiteName = event.suiteId();
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+        Collection<String> categories = Collections.emptyList();
+        boolean parallelized = true;
 
-  private static void onTestStart(TestStarting event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestSuiteStart(
+                new TestSuiteDescriptor(testSuiteName, testClass),
+                testSuiteName,
+                TEST_FRAMEWORK,
+                TEST_FRAMEWORK_VERSION,
+                testClass,
+                categories,
+                parallelized,
+                TestFrameworkInstrumentation.SCALATEST,
+                null);
     }
 
-    String testSuiteName = event.suiteId();
-    String testName = event.testName();
-    Object testQualifier = null;
-    String testParameters = null;
-    Collection<String> categories;
-    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    if (context.itrUnskippable(testIdentifier)) {
-      categories = Collections.singletonList(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
-    } else {
-      categories = Collections.emptyList();
-    }
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+    private static void onSuiteFinish(SuiteCompleted event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestStart(
-        new TestSuiteDescriptor(testSuiteName, testClass),
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
-        testName,
-        TEST_FRAMEWORK,
-        TEST_FRAMEWORK_VERSION,
-        testParameters,
-        categories,
-        new TestSourceData(testClass, null, null),
-        null,
-        context.getExecutionTracker(testIdentifier));
-  }
+        String testSuiteName = event.suiteId();
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
-  private static void onTestSuccess(TestSucceeded event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
     }
 
-    String testSuiteName = event.suiteId();
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    String testName = event.testName();
-    Object testQualifier = null;
-    String testParameters = null;
-    TestDescriptor testDescriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    private static void onSuiteAbort(SuiteAborted event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
+        String testSuiteName = event.suiteId();
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+        Throwable throwable = event.throwable().getOrElse(null);
 
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
-  }
-
-  private static void onTestFailure(TestFailed event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestSuiteFailure(new TestSuiteDescriptor(testSuiteName, testClass), throwable);
+        eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
     }
 
-    String testSuiteName = event.suiteId();
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    String testName = event.testName();
-    Object testQualifier = null;
-    String testParameters = null;
-    Throwable throwable = event.throwable().getOrElse(null);
-    TestDescriptor testDescriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    private static void onTestStart(TestStarting event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
+        String testSuiteName = event.suiteId();
+        String testName = event.testName();
+        Object testQualifier = null;
+        String testParameters = null;
+        Collection<String> categories;
+        TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+        if (context.itrUnskippable(testIdentifier)) {
+            categories = Collections.singletonList(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
+        } else {
+            categories = Collections.emptyList();
+        }
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestFailure(testDescriptor, throwable);
-    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
-  }
-
-  private static void onTestIgnore(TestIgnored event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestStart(
+                new TestSuiteDescriptor(testSuiteName, testClass),
+                new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
+                testName,
+                TEST_FRAMEWORK,
+                TEST_FRAMEWORK_VERSION,
+                testParameters,
+                categories,
+                new TestSourceData(testClass, null, null),
+                null,
+                context.getExecutionTracker(testIdentifier));
     }
 
-    String testSuiteName = event.suiteId();
-    String testName = event.testName();
-    Object testQualifier = null;
-    String testParameters = null;
-    Collection<String> categories = Collections.emptyList();
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+    private static void onTestSuccess(TestSucceeded event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
-    SkipReason reason = context.getSkipReason(skippableTest);
+        String testSuiteName = event.suiteId();
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+        String testName = event.testName();
+        Object testQualifier = null;
+        String testParameters = null;
+        TestDescriptor testDescriptor =
+                new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
 
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestIgnore(
-        new TestSuiteDescriptor(testSuiteName, testClass),
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
-        testName,
-        TEST_FRAMEWORK,
-        TEST_FRAMEWORK_VERSION,
-        testParameters,
-        categories,
-        new TestSourceData(testClass, null, null),
-        reason != null ? reason.getDescription() : null,
-        context.popExecutionTracker(skippableTest));
-  }
+        TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+        TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
 
-  private static void onTestCancel(TestCanceled event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestFinish(testDescriptor, null, executionTracker);
     }
 
-    String testSuiteName = event.suiteId();
-    String testName = event.testName();
-    Object testQualifier = null;
-    String testParameters = null;
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    Throwable throwable = event.throwable().getOrElse(null);
-    String reason = throwable != null ? throwable.getMessage() : null;
+    private static void onTestFailure(TestFailed event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    TestDescriptor testDescriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    if (throwable instanceof SuppressedTestFailedException) {
-      eventHandler.onTestFailure(testDescriptor, throwable.getCause());
-    } else {
-      eventHandler.onTestSkip(testDescriptor, reason);
+        String testSuiteName = event.suiteId();
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+        String testName = event.testName();
+        Object testQualifier = null;
+        String testParameters = null;
+        Throwable throwable = event.throwable().getOrElse(null);
+        TestDescriptor testDescriptor =
+                new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+
+        TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+        TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
+
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestFailure(testDescriptor, throwable);
+        eventHandler.onTestFinish(testDescriptor, null, executionTracker);
     }
 
-    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
+    private static void onTestIgnore(TestIgnored event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
-  }
+        String testSuiteName = event.suiteId();
+        String testName = event.testName();
+        Object testQualifier = null;
+        String testParameters = null;
+        Collection<String> categories = Collections.emptyList();
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
-  private static void onTestPending(TestPending event) {
-    int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.get(runStamp);
-    if (context == null) {
-      return;
+        TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
+        SkipReason reason = context.getSkipReason(skippableTest);
+
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestIgnore(
+                new TestSuiteDescriptor(testSuiteName, testClass),
+                new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
+                testName,
+                TEST_FRAMEWORK,
+                TEST_FRAMEWORK_VERSION,
+                testParameters,
+                categories,
+                new TestSourceData(testClass, null, null),
+                reason != null ? reason.getDescription() : null,
+                context.popExecutionTracker(skippableTest));
     }
 
-    String testSuiteName = event.suiteId();
-    String testName = event.testName();
-    Object testQualifier = null;
-    String testParameters = null;
-    Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    String reason = "pending";
+    private static void onTestCancel(TestCanceled event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
 
-    TestDescriptor testDescriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestSkip(testDescriptor, reason);
+        String testSuiteName = event.suiteId();
+        String testName = event.testName();
+        Object testQualifier = null;
+        String testParameters = null;
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+        Throwable throwable = event.throwable().getOrElse(null);
+        String reason = throwable != null ? throwable.getMessage() : null;
 
-    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
+        TestDescriptor testDescriptor =
+                new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        if (throwable instanceof SuppressedTestFailedException) {
+            eventHandler.onTestFailure(testDescriptor, throwable.getCause());
+        } else {
+            eventHandler.onTestSkip(testDescriptor, reason);
+        }
 
-    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
-  }
+        TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+        TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
+
+        eventHandler.onTestFinish(testDescriptor, null, executionTracker);
+    }
+
+    private static void onTestPending(TestPending event) {
+        int runStamp = event.ordinal().runStamp();
+        RunContext context = RunContext.get(runStamp);
+        if (context == null) {
+            return;
+        }
+
+        String testSuiteName = event.suiteId();
+        String testName = event.testName();
+        Object testQualifier = null;
+        String testParameters = null;
+        Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+        String reason = "pending";
+
+        TestDescriptor testDescriptor =
+                new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+        TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+        eventHandler.onTestSkip(testDescriptor, reason);
+
+        TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+        TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
+
+        eventHandler.onTestFinish(testDescriptor, null, executionTracker);
+    }
 }

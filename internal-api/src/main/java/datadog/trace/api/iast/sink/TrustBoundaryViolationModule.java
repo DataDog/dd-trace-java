@@ -5,5 +5,5 @@ import javax.annotation.Nonnull;
 
 public interface TrustBoundaryViolationModule extends IastModule {
 
-  void onSessionValue(@Nonnull String name, Object value);
+    void onSessionValue(@Nonnull String name, Object value);
 }

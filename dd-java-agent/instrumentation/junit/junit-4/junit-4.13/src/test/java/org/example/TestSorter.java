@@ -8,18 +8,18 @@ import org.junit.runner.manipulation.Alphanumeric;
 
 @OrderWith(Alphanumeric.class)
 public class TestSorter {
-  @Test
-  public void test_succeed_1() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed_1() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void test_succeed_2() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed_2() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void test_succeed_3() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed_3() {
+        assertTrue(true);
+    }
 }

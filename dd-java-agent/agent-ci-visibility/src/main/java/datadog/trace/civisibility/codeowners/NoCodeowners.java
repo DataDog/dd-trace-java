@@ -6,18 +6,18 @@ import javax.annotation.Nullable;
 
 public class NoCodeowners implements Codeowners {
 
-  public static final Codeowners INSTANCE = new NoCodeowners();
+    public static final Codeowners INSTANCE = new NoCodeowners();
 
-  private NoCodeowners() {}
+    private NoCodeowners() {}
 
-  @Nullable
-  @Override
-  public Collection<String> getOwners(@Nonnull String path) {
-    return null;
-  }
+    @Nullable
+    @Override
+    public Collection<String> getOwners(@Nonnull String path) {
+        return null;
+    }
 
-  @Override
-  public boolean exist() {
-    return false;
-  }
+    @Override
+    public boolean exist() {
+        return false;
+    }
 }

@@ -21,142 +21,129 @@ import org.junit.jupiter.api.Test;
 
 class SubscriptionTest extends AbstractInstrumentationTest {
 
-  @Test
-  void maybeSubscriptionPropagatesParentSpan() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+    @Test
+    void maybeSubscriptionPropagatesParentSpan() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
 
-    AgentSpan parent = startSpan("test", "parent");
-    try (ContextScope scope = activateSpan(parent)) {
-      Maybe<Connection> connection = Maybe.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
-    } finally {
-      parent.finish();
+        AgentSpan parent = startSpan("test", "parent");
+        try (ContextScope scope = activateSpan(parent)) {
+            Maybe<Connection> connection = Maybe.create(emitter -> emitter.onSuccess(new Connection()));
+            connection.subscribe(c -> {
+                c.query();
+                latch.countDown();
+            });
+        } finally {
+            parent.finish();
+        }
+        latch.await();
+
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("Connection.query")));
     }
-    latch.await();
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
-  }
+    @Test
+    void singleSubscriptionPropagatesParentSpan() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
 
-  @Test
-  void singleSubscriptionPropagatesParentSpan() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+        AgentSpan parent = startSpan("test", "parent");
+        try (ContextScope scope = activateSpan(parent)) {
+            Single<Connection> connection = Single.create(emitter -> emitter.onSuccess(new Connection()));
+            connection.subscribe(c -> {
+                c.query();
+                latch.countDown();
+            });
+        } finally {
+            parent.finish();
+        }
+        latch.await();
 
-    AgentSpan parent = startSpan("test", "parent");
-    try (ContextScope scope = activateSpan(parent)) {
-      Single<Connection> connection = Single.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
-    } finally {
-      parent.finish();
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("Connection.query")));
     }
-    latch.await();
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
-  }
+    @Test
+    void completableSubscriptionPropagatesParentSpan() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
 
-  @Test
-  void completableSubscriptionPropagatesParentSpan() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+        AgentSpan parent = startSpan("test", "parent");
+        try (ContextScope scope = activateSpan(parent)) {
+            Completable action = Completable.create(emitter -> emitter.onComplete());
+            action.subscribe(() -> {
+                new Connection().query();
+                latch.countDown();
+            });
+        } finally {
+            parent.finish();
+        }
+        latch.await();
 
-    AgentSpan parent = startSpan("test", "parent");
-    try (ContextScope scope = activateSpan(parent)) {
-      Completable action = Completable.create(emitter -> emitter.onComplete());
-      action.subscribe(
-          () -> {
-            new Connection().query();
-            latch.countDown();
-          });
-    } finally {
-      parent.finish();
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("Connection.query")));
     }
-    latch.await();
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
-  }
+    @Test
+    void observableSubscriptionPropagatesParentSpan() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
 
-  @Test
-  void observableSubscriptionPropagatesParentSpan() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
-
-    AgentSpan parent = startSpan("test", "parent");
-    try (ContextScope scope = activateSpan(parent)) {
-      Observable<Connection> connection =
-          Observable.create(
-              emitter -> {
+        AgentSpan parent = startSpan("test", "parent");
+        try (ContextScope scope = activateSpan(parent)) {
+            Observable<Connection> connection = Observable.create(emitter -> {
                 emitter.onNext(new Connection());
                 emitter.onComplete();
-              });
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
-    } finally {
-      parent.finish();
+            });
+            connection.subscribe(c -> {
+                c.query();
+                latch.countDown();
+            });
+        } finally {
+            parent.finish();
+        }
+        latch.await();
+
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("Connection.query")));
     }
-    latch.await();
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
-  }
+    @Test
+    void flowableSubscriptionPropagatesParentSpan() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
 
-  @Test
-  void flowableSubscriptionPropagatesParentSpan() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+        AgentSpan parent = startSpan("test", "parent");
+        try (ContextScope scope = activateSpan(parent)) {
+            Flowable<Connection> connection = Flowable.create(
+                    emitter -> {
+                        emitter.onNext(new Connection());
+                        emitter.onComplete();
+                    },
+                    BackpressureStrategy.BUFFER);
+            connection.subscribe(c -> {
+                c.query();
+                latch.countDown();
+            });
+        } finally {
+            parent.finish();
+        }
+        latch.await();
 
-    AgentSpan parent = startSpan("test", "parent");
-    try (ContextScope scope = activateSpan(parent)) {
-      Flowable<Connection> connection =
-          Flowable.create(
-              emitter -> {
-                emitter.onNext(new Connection());
-                emitter.onComplete();
-              },
-              BackpressureStrategy.BUFFER);
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
-    } finally {
-      parent.finish();
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("Connection.query")));
     }
-    latch.await();
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
-  }
-
-  static class Connection {
-    int query() {
-      AgentSpan span = startSpan("test", "Connection.query");
-      span.finish();
-      return new Random().nextInt();
+    static class Connection {
+        int query() {
+            AgentSpan span = startSpan("test", "Connection.query");
+            span.finish();
+            return new Random().nextInt();
+        }
     }
-  }
 }

@@ -8,18 +8,18 @@ import org.slf4j.LoggerFactory;
 
 public class CoverageDataInjector {
 
-  private static final Logger log = LoggerFactory.getLogger(CoverageDataInjector.class);
+    private static final Logger log = LoggerFactory.getLogger(CoverageDataInjector.class);
 
-  static {
-    try {
-      IAgent agent = RT.getAgent();
-      CoveragePercentageBridge.registerCoverageDataSupplier(() -> agent.getExecutionData(false));
-    } catch (Exception e) {
-      log.info("Could not register coverage execution data factory", e);
+    static {
+        try {
+            IAgent agent = RT.getAgent();
+            CoveragePercentageBridge.registerCoverageDataSupplier(() -> agent.getExecutionData(false));
+        } catch (Exception e) {
+            log.info("Could not register coverage execution data factory", e);
+        }
     }
-  }
 
-  public static void init() {
-    // this is just to trigger evaluation of the static block above
-  }
+    public static void init() {
+        // this is just to trigger evaluation of the static block above
+    }
 }

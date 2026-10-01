@@ -7,13 +7,13 @@ import org.junit.Test;
 
 public class TestFailedSuiteSetup {
 
-  @BeforeClass
-  public static void suiteSetup() {
-    throw new RuntimeException("suite set up failed");
-  }
+    @BeforeClass
+    public static void suiteSetup() {
+        throw new RuntimeException("suite set up failed");
+    }
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

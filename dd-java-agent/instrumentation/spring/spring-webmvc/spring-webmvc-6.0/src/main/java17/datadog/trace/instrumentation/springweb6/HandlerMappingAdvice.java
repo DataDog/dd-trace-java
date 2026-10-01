@@ -21,20 +21,19 @@ import org.springframework.web.servlet.HandlerExecutionChain;
  */
 public class HandlerMappingAdvice {
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void onExit(
-      @Advice.Argument(0) final HttpServletRequest request,
-      @Advice.Return final HandlerExecutionChain chain) {
-    if (chain == null) {
-      // No handler matched (e.g. 404): leave the resource name untouched.
-      return;
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(
+            @Advice.Argument(0) final HttpServletRequest request, @Advice.Return final HandlerExecutionChain chain) {
+        if (chain == null) {
+            // No handler matched (e.g. 404): leave the resource name untouched.
+            return;
+        }
+        final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+        if (contextObj instanceof Context) {
+            final AgentSpan parentSpan = spanFromContext((Context) contextObj);
+            if (parentSpan != null) {
+                DECORATE.onRequest(parentSpan, request, request, root());
+            }
+        }
     }
-    final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (contextObj instanceof Context) {
-      final AgentSpan parentSpan = spanFromContext((Context) contextObj);
-      if (parentSpan != null) {
-        DECORATE.onRequest(parentSpan, request, request, root());
-      }
-    }
-  }
 }

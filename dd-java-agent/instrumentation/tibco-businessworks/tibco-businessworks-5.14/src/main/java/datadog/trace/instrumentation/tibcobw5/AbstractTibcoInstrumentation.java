@@ -5,12 +5,12 @@ import java.util.Collections;
 import java.util.Map;
 
 public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tracing {
-  public AbstractTibcoInstrumentation() {
-    super("tibco", "tibco_bw");
-  }
+    public AbstractTibcoInstrumentation() {
+        super("tibco", "tibco_bw");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.tibco.pe.plugin.ProcessContext", Map.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.tibco.pe.plugin.ProcessContext", Map.class.getName());
+    }
 }

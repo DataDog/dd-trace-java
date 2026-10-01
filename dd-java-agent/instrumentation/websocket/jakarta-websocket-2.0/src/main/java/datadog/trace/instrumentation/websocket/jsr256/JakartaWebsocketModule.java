@@ -9,17 +9,17 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public class JakartaWebsocketModule extends JavaxWebsocketModule {
 
-  public JakartaWebsocketModule() {
-    super("jakarta", "jakarta-websocket", "websocket");
-  }
+    public JakartaWebsocketModule() {
+        super("jakarta", "jakarta-websocket", "websocket");
+    }
 
-  @Override
-  public Map<String, String> adviceShading() {
-    return singletonMap("javax", "jakarta");
-  }
+    @Override
+    public Map<String, String> adviceShading() {
+        return singletonMap("javax", "jakarta");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "jakarta-websocket";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "jakarta-websocket";
+    }
 }

@@ -24,41 +24,40 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class HttpMessageInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public HttpMessageInstrumentation() {
-    super("spring-webflux");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.http.HttpMessage";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("getHeaders")).and(takesArguments(0)),
-        getClass().getName() + "$TaintHeadersAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class TaintHeadersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_HEADER_VALUE)
-    public static void after(
-        @Advice.Return Object object, @ActiveRequestContext RequestContext reqCtx) {
-      PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null) {
-        return;
-      }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      propagation.taintObject(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
+    public HttpMessageInstrumentation() {
+        super("spring-webflux");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.http.HttpMessage";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("getHeaders")).and(takesArguments(0)),
+                getClass().getName() + "$TaintHeadersAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class TaintHeadersAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_HEADER_VALUE)
+        public static void after(@Advice.Return Object object, @ActiveRequestContext RequestContext reqCtx) {
+            PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+            if (propagation == null) {
+                return;
+            }
+            IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+            propagation.taintObject(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
+        }
+    }
 }

@@ -46,76 +46,72 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public LettuceReactiveClientInstrumentation() {
-    super("lettuce", "lettuce-5", "lettuce-5-rx");
-  }
+    public LettuceReactiveClientInstrumentation() {
+        super("lettuce", "lettuce-5", "lettuce-5-rx");
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.lettuce.core.RedisPublisher$RedisSubscription",
-      "io.lettuce.core.RedisPublisher$SubscriptionCommand",
-      "io.lettuce.core.AbstractRedisReactiveCommands"
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.lettuce.core.RedisPublisher$RedisSubscription",
+            "io.lettuce.core.RedisPublisher$SubscriptionCommand",
+            "io.lettuce.core.AbstractRedisReactiveCommands"
+        };
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".rx.RedisSubscriptionSubscribeAdvice",
-      packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
-      packageName + ".rx.RedisSubscriptionState",
-      packageName + ".LettuceInstrumentationUtil",
-      packageName + ".LettuceClientDecorator"
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".rx.RedisSubscriptionSubscribeAdvice",
+            packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
+            packageName + ".rx.RedisSubscriptionState",
+            packageName + ".LettuceInstrumentationUtil",
+            packageName + ".LettuceClientDecorator"
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> store = new HashMap<>(3);
-    store.put(
-        "io.lettuce.core.RedisPublisher$RedisSubscription",
-        packageName + ".rx.RedisSubscriptionState");
-    store.put("io.lettuce.core.protocol.RedisCommand", AgentSpan.class.getName());
-    store.put("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
-    return store;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> store = new HashMap<>(3);
+        store.put("io.lettuce.core.RedisPublisher$RedisSubscription", packageName + ".rx.RedisSubscriptionState");
+        store.put("io.lettuce.core.protocol.RedisCommand", AgentSpan.class.getName());
+        store.put("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+        return store;
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("subscribe")), packageName + ".rx.RedisSubscriptionSubscribeAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription")))
-            .and(named("dispatchCommand")),
-        packageName + ".rx.RedisSubscriptionDispatchAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("onNext")), packageName + ".rx.RedisSubscriptionAdvanceAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
-            .and(namedOneOf("complete", "cancel")),
-        packageName + ".rx.RedisSubscriptionCommandCompleteAdvice");
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("subscribe")), packageName + ".rx.RedisSubscriptionSubscribeAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription")))
+                        .and(named("dispatchCommand")),
+                packageName + ".rx.RedisSubscriptionDispatchAdvice");
+        transformer.applyAdvice(isMethod().and(named("onNext")), packageName + ".rx.RedisSubscriptionAdvanceAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+                        .and(namedOneOf("complete", "cancel")),
+                packageName + ".rx.RedisSubscriptionCommandCompleteAdvice");
 
-    transformer.applyAdvice(
-        isConstructor()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription"))),
-        packageName + ".rx.RedisSubscriptionConnectionContextAdvice");
+        transformer.applyAdvice(
+                isConstructor().and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription"))),
+                packageName + ".rx.RedisSubscriptionConnectionContextAdvice");
 
-    // SubscriptionCommand structure has changed due to
-    // https://github.com/lettuce-io/lettuce-core/issues/1576 in 5.3.6
-    transformer.applyAdvice(
-        isMethod()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
-            .and(namedOneOf("doOnComplete")),
-        packageName + ".rx.RedisSubscriptionCommandOnCompleteAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
-            .and(named("onError")),
-        packageName + ".rx.RedisSubscriptionCommandErrorAdvice");
-  }
+        // SubscriptionCommand structure has changed due to
+        // https://github.com/lettuce-io/lettuce-core/issues/1576 in 5.3.6
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+                        .and(namedOneOf("doOnComplete")),
+                packageName + ".rx.RedisSubscriptionCommandOnCompleteAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+                        .and(named("onError")),
+                packageName + ".rx.RedisSubscriptionCommandErrorAdvice");
+    }
 }

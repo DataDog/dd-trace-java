@@ -24,109 +24,92 @@ import org.junit.jupiter.api.Test;
 
 class RxJava3InteropTest extends AbstractInstrumentationTest {
 
-  // The component tag is stored as a UTF8BytesString, so compare by string content.
-  static TagsMatcher componentTrace() {
-    return tag(Tags.COMPONENT, validates(o -> "trace".equals(String.valueOf(o))));
-  }
-
-  static class Worker {
-    static int child(int i) {
-      return childTraced(i);
+    // The component tag is stored as a UTF8BytesString, so compare by string content.
+    static TagsMatcher componentTrace() {
+        return tag(Tags.COMPONENT, validates(o -> "trace".equals(String.valueOf(o))));
     }
 
-    @Trace(operationName = "child", resourceName = "child")
-    static int childTraced(int i) {
-      return i + 1;
+    static class Worker {
+        static int child(int i) {
+            return childTraced(i);
+        }
+
+        @Trace(operationName = "child", resourceName = "child")
+        static int childTraced(int i) {
+            return i + 1;
+        }
+
+        @Trace(operationName = "interop-parent", resourceName = "interop-parent")
+        static <T> T runUnderParent(Supplier<T> work) {
+            return work.get();
+        }
     }
 
-    @Trace(operationName = "interop-parent", resourceName = "interop-parent")
-    static <T> T runUnderParent(Supplier<T> work) {
-      return work.get();
+    @Test
+    void fromCompletionStageSync() {
+        Integer result = Worker.runUnderParent(() -> Single.fromCompletionStage(CompletableFuture.completedFuture(1))
+                .map(Worker::child)
+                .blockingGet());
+        assertEquals(2, result);
+
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("interop-parent").resourceName("interop-parent"),
+                span().childOfIndex(0)
+                        .operationName("child")
+                        .resourceName("child")
+                        .tags(componentTrace(), defaultTags())));
     }
-  }
 
-  @Test
-  void fromCompletionStageSync() {
-    Integer result =
-        Worker.runUnderParent(
-            () ->
-                Single.fromCompletionStage(CompletableFuture.completedFuture(1))
-                    .map(Worker::child)
-                    .blockingGet());
-    assertEquals(2, result);
+    @Test
+    void fromCompletionStageAsync() {
+        Integer result = Worker.runUnderParent(() -> Single.fromCompletionStage(CompletableFuture.supplyAsync(() -> 1))
+                .map(Worker::child)
+                .blockingGet());
+        assertEquals(2, result);
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("interop-parent").resourceName("interop-parent"),
-            span()
-                .childOfIndex(0)
-                .operationName("child")
-                .resourceName("child")
-                .tags(componentTrace(), defaultTags())));
-  }
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("interop-parent").resourceName("interop-parent"),
+                span().childOfIndex(0)
+                        .operationName("child")
+                        .resourceName("child")
+                        .tags(componentTrace(), defaultTags())));
+    }
 
-  @Test
-  void fromCompletionStageAsync() {
-    Integer result =
-        Worker.runUnderParent(
-            () ->
-                Single.fromCompletionStage(CompletableFuture.supplyAsync(() -> 1))
-                    .map(Worker::child)
-                    .blockingGet());
-    assertEquals(2, result);
+    @Test
+    void fromOptional() {
+        Integer result = Worker.runUnderParent(
+                () -> Maybe.fromOptional(Optional.of(1)).map(Worker::child).blockingGet());
+        assertEquals(2, result);
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("interop-parent").resourceName("interop-parent"),
-            span()
-                .childOfIndex(0)
-                .operationName("child")
-                .resourceName("child")
-                .tags(componentTrace(), defaultTags())));
-  }
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("interop-parent").resourceName("interop-parent"),
+                span().childOfIndex(0)
+                        .operationName("child")
+                        .resourceName("child")
+                        .tags(componentTrace(), defaultTags())));
+    }
 
-  @Test
-  void fromOptional() {
-    Integer result =
-        Worker.runUnderParent(
-            () -> Maybe.fromOptional(Optional.of(1)).map(Worker::child).blockingGet());
-    assertEquals(2, result);
+    @Test
+    void fromStream() {
+        List<Integer> result = Worker.runUnderParent(() ->
+                Flowable.fromStream(Stream.of(1, 2)).map(Worker::child).toList().blockingGet());
+        assertEquals(2, result.size());
+        assertEquals(2, result.get(0));
+        assertEquals(3, result.get(1));
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("interop-parent").resourceName("interop-parent"),
-            span()
-                .childOfIndex(0)
-                .operationName("child")
-                .resourceName("child")
-                .tags(componentTrace(), defaultTags())));
-  }
-
-  @Test
-  void fromStream() {
-    List<Integer> result =
-        Worker.runUnderParent(
-            () -> Flowable.fromStream(Stream.of(1, 2)).map(Worker::child).toList().blockingGet());
-    assertEquals(2, result.size());
-    assertEquals(2, result.get(0));
-    assertEquals(3, result.get(1));
-
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("interop-parent").resourceName("interop-parent"),
-            span()
-                .childOfIndex(0)
-                .operationName("child")
-                .resourceName("child")
-                .tags(componentTrace(), defaultTags()),
-            span()
-                .childOfIndex(0)
-                .operationName("child")
-                .resourceName("child")
-                .tags(componentTrace(), defaultTags())));
-  }
+        assertTraces(trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("interop-parent").resourceName("interop-parent"),
+                span().childOfIndex(0)
+                        .operationName("child")
+                        .resourceName("child")
+                        .tags(componentTrace(), defaultTags()),
+                span().childOfIndex(0)
+                        .operationName("child")
+                        .resourceName("child")
+                        .tags(componentTrace(), defaultTags())));
+    }
 }

@@ -4,15 +4,15 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 
 public final class NoopScope implements ContextScope {
-  public static final NoopScope INSTANCE = new NoopScope();
+    public static final NoopScope INSTANCE = new NoopScope();
 
-  private NoopScope() {}
+    private NoopScope() {}
 
-  @Override
-  public Context context() {
-    return NoopSpan.INSTANCE;
-  }
+    @Override
+    public Context context() {
+        return NoopSpan.INSTANCE;
+    }
 
-  @Override
-  public void close() {}
+    @Override
+    public void close() {}
 }

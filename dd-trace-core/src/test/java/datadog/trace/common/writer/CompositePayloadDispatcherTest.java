@@ -19,59 +19,58 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class CompositePayloadDispatcherTest {
 
-  @Mock PayloadDispatcher dispatcherA;
-  @Mock PayloadDispatcher dispatcherB;
+    @Mock
+    PayloadDispatcher dispatcherA;
 
-  @Test
-  void testOnDroppedTrace() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
-    int droppedSpansCount = 1234;
+    @Mock
+    PayloadDispatcher dispatcherB;
 
-    dispatcher.onDroppedTrace(droppedSpansCount);
+    @Test
+    void testOnDroppedTrace() {
+        CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+        int droppedSpansCount = 1234;
 
-    verify(dispatcherA).onDroppedTrace(droppedSpansCount);
-    verify(dispatcherB).onDroppedTrace(droppedSpansCount);
-    verifyNoMoreInteractions(dispatcherA, dispatcherB);
-  }
+        dispatcher.onDroppedTrace(droppedSpansCount);
 
-  @Test
-  @SuppressWarnings("unchecked")
-  void testAddTrace() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
-    List<CoreSpan<?>> trace = Collections.singletonList(mock(CoreSpan.class));
+        verify(dispatcherA).onDroppedTrace(droppedSpansCount);
+        verify(dispatcherB).onDroppedTrace(droppedSpansCount);
+        verifyNoMoreInteractions(dispatcherA, dispatcherB);
+    }
 
-    dispatcher.addTrace(trace);
+    @Test
+    @SuppressWarnings("unchecked")
+    void testAddTrace() {
+        CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+        List<CoreSpan<?>> trace = Collections.singletonList(mock(CoreSpan.class));
 
-    verify(dispatcherA).addTrace(trace);
-    verify(dispatcherB).addTrace(trace);
-    verifyNoMoreInteractions(dispatcherA, dispatcherB);
-  }
+        dispatcher.addTrace(trace);
 
-  @Test
-  void testFlush() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+        verify(dispatcherA).addTrace(trace);
+        verify(dispatcherB).addTrace(trace);
+        verifyNoMoreInteractions(dispatcherA, dispatcherB);
+    }
 
-    dispatcher.flush();
+    @Test
+    void testFlush() {
+        CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
 
-    verify(dispatcherA).flush();
-    verify(dispatcherB).flush();
-    verifyNoMoreInteractions(dispatcherA, dispatcherB);
-  }
+        dispatcher.flush();
 
-  @Test
-  void testGetApis() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
-    RemoteApi apiA = mock(RemoteApi.class);
-    RemoteApi apiB = mock(RemoteApi.class);
-    when(dispatcherA.getApis()).thenReturn(Collections.singletonList(apiA));
-    when(dispatcherB.getApis()).thenReturn(Collections.singletonList(apiB));
+        verify(dispatcherA).flush();
+        verify(dispatcherB).flush();
+        verifyNoMoreInteractions(dispatcherA, dispatcherB);
+    }
 
-    Collection<RemoteApi> apis = dispatcher.getApis();
+    @Test
+    void testGetApis() {
+        CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+        RemoteApi apiA = mock(RemoteApi.class);
+        RemoteApi apiB = mock(RemoteApi.class);
+        when(dispatcherA.getApis()).thenReturn(Collections.singletonList(apiA));
+        when(dispatcherB.getApis()).thenReturn(Collections.singletonList(apiB));
 
-    assertEquals(Arrays.asList(apiA, apiB), apis);
-  }
+        Collection<RemoteApi> apis = dispatcher.getApis();
+
+        assertEquals(Arrays.asList(apiA, apiB), apis);
+    }
 }

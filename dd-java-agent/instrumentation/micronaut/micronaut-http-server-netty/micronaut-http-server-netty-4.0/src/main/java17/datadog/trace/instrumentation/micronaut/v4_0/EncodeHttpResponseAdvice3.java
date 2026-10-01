@@ -11,19 +11,19 @@ import io.micronaut.http.HttpResponse;
 import net.bytebuddy.asm.Advice;
 
 public class EncodeHttpResponseAdvice3 {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void finishHandlerSpan(
-      @Advice.Argument(0) final HttpRequest<?> request,
-      @Advice.Argument(1) final HttpResponse<?> message) {
-    AgentSpan span = request.removeAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
-    if (null == span) {
-      return;
-    }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void finishHandlerSpan(
+            @Advice.Argument(0) final HttpRequest<?> request, @Advice.Argument(1) final HttpResponse<?> message) {
+        AgentSpan span =
+                request.removeAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+        if (null == span) {
+            return;
+        }
 
-    try (final ContextScope scope = activateSpan(span)) {
-      DECORATE.onResponse(span, message);
-      DECORATE.beforeFinish(span);
-      span.finish();
+        try (final ContextScope scope = activateSpan(span)) {
+            DECORATE.onResponse(span, message);
+            DECORATE.beforeFinish(span);
+            span.finish();
+        }
     }
-  }
 }

@@ -27,48 +27,44 @@ import org.testng.internal.ConstructorOrMethod;
  */
 public abstract class TestNGClassListener {
 
-  private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> registeredMethods =
-      new ConcurrentHashMap<>();
-  private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> methodsAwaitingExecution =
-      new ConcurrentHashMap<>();
+    private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> registeredMethods =
+            new ConcurrentHashMap<>();
+    private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> methodsAwaitingExecution =
+            new ConcurrentHashMap<>();
 
-  public void registerTestMethods(Collection<ITestNGMethod> testMethods) {
-    for (ITestNGMethod testMethod : testMethods) {
-      ITestClass testClass = testMethod.getTestClass();
-      Class<?> realClass = testClass.getRealClass();
-      ConstructorOrMethod constructorOrMethod = testMethod.getConstructorOrMethod();
-      registeredMethods.computeIfAbsent(realClass, k -> new ArrayList<>()).add(constructorOrMethod);
+    public void registerTestMethods(Collection<ITestNGMethod> testMethods) {
+        for (ITestNGMethod testMethod : testMethods) {
+            ITestClass testClass = testMethod.getTestClass();
+            Class<?> realClass = testClass.getRealClass();
+            ConstructorOrMethod constructorOrMethod = testMethod.getConstructorOrMethod();
+            registeredMethods.computeIfAbsent(realClass, k -> new ArrayList<>()).add(constructorOrMethod);
+        }
     }
-  }
 
-  public void invokeBeforeClass(ITestClass testClass, boolean parallelized) {
-    methodsAwaitingExecution.computeIfAbsent(
-        testClass.getRealClass(),
-        k -> {
-          // firing event with the lock held to ensure that the other threads wait until test suite
-          // state is initialized
-          onBeforeClass(testClass, parallelized);
-          return registeredMethods.remove(k);
+    public void invokeBeforeClass(ITestClass testClass, boolean parallelized) {
+        methodsAwaitingExecution.computeIfAbsent(testClass.getRealClass(), k -> {
+            // firing event with the lock held to ensure that the other threads wait until test suite
+            // state is initialized
+            onBeforeClass(testClass, parallelized);
+            return registeredMethods.remove(k);
         });
-  }
-
-  public void invokeAfterClass(ITestClass testClass, IMethodInstance methodInstance) {
-    Collection<ConstructorOrMethod> remainingMethods =
-        methodsAwaitingExecution.computeIfPresent(
-            testClass.getRealClass(),
-            (k, v) -> {
-              ITestNGMethod method = methodInstance.getMethod();
-              ConstructorOrMethod constructorOrMethod = method.getConstructorOrMethod();
-              v.remove(constructorOrMethod);
-              return !v.isEmpty() ? v : null;
-            });
-
-    if (remainingMethods == null) {
-      onAfterClass(testClass);
     }
-  }
 
-  protected abstract void onBeforeClass(ITestClass testClass, boolean parallelized);
+    public void invokeAfterClass(ITestClass testClass, IMethodInstance methodInstance) {
+        Collection<ConstructorOrMethod> remainingMethods =
+                methodsAwaitingExecution.computeIfPresent(testClass.getRealClass(), (k, v) -> {
+                    ITestNGMethod method = methodInstance.getMethod();
+                    ConstructorOrMethod constructorOrMethod = method.getConstructorOrMethod();
+                    v.remove(constructorOrMethod);
+                    return !v.isEmpty() ? v : null;
+                });
 
-  protected abstract void onAfterClass(ITestClass testClass);
+        if (remainingMethods == null) {
+            onAfterClass(testClass);
+        }
+    }
+
+    protected abstract void onBeforeClass(ITestClass testClass, boolean parallelized);
+
+    protected abstract void onAfterClass(ITestClass testClass);
 }

@@ -22,21 +22,21 @@ import net.bytebuddy.dynamic.DynamicType;
  * @see datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin
  */
 public class NewTaskForGradlePlugin extends Plugin.ForElementMatcher {
-  private final File targetDir;
+    private final File targetDir;
 
-  public NewTaskForGradlePlugin(File targetDir) {
-    super(nameEndsWith("$NewTaskFor"));
-    this.targetDir = targetDir;
-  }
+    public NewTaskForGradlePlugin(File targetDir) {
+        super(nameEndsWith("$NewTaskFor"));
+        this.targetDir = targetDir;
+    }
 
-  @Override
-  public DynamicType.Builder<?> apply(
-      final DynamicType.Builder<?> builder,
-      final TypeDescription typeDescription,
-      final ClassFileLocator classFileLocator) {
-    return builder.visit(NewTaskForRewritingVisitor.INSTANCE);
-  }
+    @Override
+    public DynamicType.Builder<?> apply(
+            final DynamicType.Builder<?> builder,
+            final TypeDescription typeDescription,
+            final ClassFileLocator classFileLocator) {
+        return builder.visit(NewTaskForRewritingVisitor.INSTANCE);
+    }
 
-  @Override
-  public void close() throws IOException {}
+    @Override
+    public void close() throws IOException {}
 }

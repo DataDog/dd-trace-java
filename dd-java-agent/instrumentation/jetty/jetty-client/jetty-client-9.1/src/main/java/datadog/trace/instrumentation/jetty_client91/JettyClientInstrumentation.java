@@ -32,92 +32,90 @@ import org.eclipse.jetty.client.api.Response;
 
 @AutoService(InstrumenterModule.class)
 public class JettyClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-  public JettyClientInstrumentation() {
-    super("jetty-client");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.client.HttpClient";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JettyClientDecorator",
-      "datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter",
-      packageName + ".SpanFinishingCompleteListener"
-    };
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "client";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.eclipse.jetty.client.api.Request", AgentSpan.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("send"))
-            .and(
-                takesArgument(
-                    0,
-                    namedOneOf(
-                        "org.eclipse.jetty.client.api.Request",
-                        "org.eclipse.jetty.client.HttpRequest")))
-            .and(takesArgument(1, List.class)),
-        JettyClientInstrumentation.class.getName() + "$SendAdvice",
-        JettyClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(RUNNABLE, singletonList("org.eclipse.jetty.util.SocketAddressResolver$1"));
-  }
-
-  public static class SendAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentSpan methodEnter(
-        @Advice.Argument(0) Request request,
-        @Advice.Argument(1) List<Response.ResponseListener> responseListeners) {
-      AgentSpan span = startSpan("jetty-client", HTTP_REQUEST);
-      InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
-      // make sure the span is finished before onComplete callbacks execute
-      responseListeners.add(0, new SpanFinishingCompleteListener(span));
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      return span;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    public JettyClientInstrumentation() {
+        super("jetty-client");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
+    @Override
+    public String instrumentedType() {
+        return "org.eclipse.jetty.client.HttpClient";
     }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.Argument(0) final Request request) {
-      final AgentSpan span =
-          InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
-      Context destination = currentContext();
-      if (span != null) {
-        destination = destination.with(span);
-      }
-      DECORATE.injectContext(destination, request, SETTER);
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".JettyClientDecorator",
+            "datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter",
+            packageName + ".SpanFinishingCompleteListener"
+        };
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "client";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.eclipse.jetty.client.api.Request", AgentSpan.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("send"))
+                        .and(takesArgument(
+                                0,
+                                namedOneOf(
+                                        "org.eclipse.jetty.client.api.Request",
+                                        "org.eclipse.jetty.client.HttpRequest")))
+                        .and(takesArgument(1, List.class)),
+                JettyClientInstrumentation.class.getName() + "$SendAdvice",
+                JettyClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
+    }
+
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return singletonMap(RUNNABLE, singletonList("org.eclipse.jetty.util.SocketAddressResolver$1"));
+    }
+
+    public static class SendAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static AgentSpan methodEnter(
+                @Advice.Argument(0) Request request,
+                @Advice.Argument(1) List<Response.ResponseListener> responseListeners) {
+            AgentSpan span = startSpan("jetty-client", HTTP_REQUEST);
+            InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
+            // make sure the span is finished before onComplete callbacks execute
+            responseListeners.add(0, new SpanFinishingCompleteListener(span));
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, request);
+            return span;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(@Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
+            if (throwable != null) {
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter(@Advice.Argument(0) final Request request) {
+            final AgentSpan span =
+                    InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
+            Context destination = currentContext();
+            if (span != null) {
+                destination = destination.with(span);
+            }
+            DECORATE.injectContext(destination, request, SETTER);
+        }
+    }
 }

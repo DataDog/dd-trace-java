@@ -2,8 +2,8 @@ package datadog.trace.api.profiling;
 
 public interface ProfilingScope extends AutoCloseable, ProfilingContext {
 
-  ProfilingScope NO_OP = () -> {};
+    ProfilingScope NO_OP = () -> {};
 
-  @Override
-  void close();
+    @Override
+    void close();
 }

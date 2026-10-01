@@ -16,117 +16,114 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.impl.RouteImpl;
 
 public class RouteHandlerWrapper implements Handler<RoutingContext> {
-  static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
-  static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
-  static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
+    static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
+    static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
+    static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
 
-  private final Handler<RoutingContext> actual;
-  private final boolean spanStarter;
+    private final Handler<RoutingContext> actual;
+    private final boolean spanStarter;
 
-  public RouteHandlerWrapper(final Handler<RoutingContext> handler) {
-    actual = handler;
-    // When mounting a sub router, the handler is a method reference to the routers handleContext
-    // method this skips that. This prevents routers from creating a span during handling. In the
-    // event a route is not found, without this code, a span would be created for the router when
-    // it shouldn't
-    spanStarter = !handler.getClass().getName().startsWith(RouteImpl.class.getName());
-  }
-
-  @Override
-  public void handle(final RoutingContext routingContext) {
-    AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
-    if (spanStarter) {
-      if (span == null) {
-        AgentSpan parentSpan = activeSpan();
-        routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
-
-        span = startSpan("vertx", INSTRUMENTATION_NAME);
-        routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
-
-        routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
-        // Fallback finish path: HttpServerResponse.endHandler is silently skipped
-        // by Vert.x's Http1xServerResponse.end() when the underlying connection
-        // has already closed (Http1xServerResponse#end gates `endHandler.handle()`
-        // behind `!closed`). This happens in synthetic transports such as
-        // quarkus-amazon-lambda-rest's virtual Netty channel, where writes and
-        // close are synchronous in-memory, leaving the route-handler span unfinished
-        // and orphaning all jakarta-rs.request / aws.http child spans in the trace.
-        // RoutingContext#addEndHandler fires on routing-context completion regardless
-        // of underlying connection state and on both success and failure.
-        routingContext.addEndHandler(ar -> finishHandlerSpan(routingContext));
-        DECORATE.afterStart(span);
-        span.setResourceName(DECORATE.className(actual.getClass()));
-      }
-      setRoute(routingContext);
+    public RouteHandlerWrapper(final Handler<RoutingContext> handler) {
+        actual = handler;
+        // When mounting a sub router, the handler is a method reference to the routers handleContext
+        // method this skips that. This prevents routers from creating a span during handling. In the
+        // event a route is not found, without this code, a span would be created for the router when
+        // it shouldn't
+        spanStarter = !handler.getClass().getName().startsWith(RouteImpl.class.getName());
     }
 
-    try (final ContextScope scope = span != null ? activateSpan(span) : null) {
-      try {
-        actual.handle(routingContext);
-      } catch (final Throwable t) {
-        DECORATE.onError(span, t);
-        if (t instanceof BlockingException) {
-          // AppSec uses BlockingException as control flow after committing a blocking response
-          // from advice such as WafPublishingBodyHandler and RoutingContextJsonAdvice. Finish
-          // immediately because that abort path may bypass Vert.x response/routing end callbacks.
-          finishHandlerSpan(routingContext);
+    @Override
+    public void handle(final RoutingContext routingContext) {
+        AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+        if (spanStarter) {
+            if (span == null) {
+                AgentSpan parentSpan = activeSpan();
+                routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
+
+                span = startSpan("vertx", INSTRUMENTATION_NAME);
+                routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
+
+                routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
+                // Fallback finish path: HttpServerResponse.endHandler is silently skipped
+                // by Vert.x's Http1xServerResponse.end() when the underlying connection
+                // has already closed (Http1xServerResponse#end gates `endHandler.handle()`
+                // behind `!closed`). This happens in synthetic transports such as
+                // quarkus-amazon-lambda-rest's virtual Netty channel, where writes and
+                // close are synchronous in-memory, leaving the route-handler span unfinished
+                // and orphaning all jakarta-rs.request / aws.http child spans in the trace.
+                // RoutingContext#addEndHandler fires on routing-context completion regardless
+                // of underlying connection state and on both success and failure.
+                routingContext.addEndHandler(ar -> finishHandlerSpan(routingContext));
+                DECORATE.afterStart(span);
+                span.setResourceName(DECORATE.className(actual.getClass()));
+            }
+            setRoute(routingContext);
         }
-        throw t;
-      }
-    }
-  }
 
-  // Idempotently finish the route-handler span. Both EndHandlerWrapper (the
-  // response.endHandler path) and the routingContext.addEndHandler fallback may call
-  // this; the first one to win clears HANDLER_SPAN_CONTEXT_KEY so the second is a no-op.
-  static void finishHandlerSpan(final RoutingContext routingContext) {
-    final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
-    if (span == null) {
-      return;
-    }
-    routingContext.put(HANDLER_SPAN_CONTEXT_KEY, null);
-    DECORATE.onResponse(span, routingContext.response());
-    span.finish();
-  }
-
-  private void setRoute(RoutingContext routingContext) {
-    final AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
-    if (parentSpan == null) {
-      return;
+        try (final ContextScope scope = span != null ? activateSpan(span) : null) {
+            try {
+                actual.handle(routingContext);
+            } catch (final Throwable t) {
+                DECORATE.onError(span, t);
+                if (t instanceof BlockingException) {
+                    // AppSec uses BlockingException as control flow after committing a blocking response
+                    // from advice such as WafPublishingBodyHandler and RoutingContextJsonAdvice. Finish
+                    // immediately because that abort path may bypass Vert.x response/routing end callbacks.
+                    finishHandlerSpan(routingContext);
+                }
+                throw t;
+            }
+        }
     }
 
-    final String method = routingContext.request().method().name();
-    final String mountPoint = routingContext.mountPoint();
-
-    String path = routingContext.currentRoute().getPath();
-    if (path == null) {
-      // getName returns the name of the route, if not path or the pattern or null
-      path = routingContext.currentRoute().getName();
+    // Idempotently finish the route-handler span. Both EndHandlerWrapper (the
+    // response.endHandler path) and the routingContext.addEndHandler fallback may call
+    // this; the first one to win clears HANDLER_SPAN_CONTEXT_KEY so the second is a no-op.
+    static void finishHandlerSpan(final RoutingContext routingContext) {
+        final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+        if (span == null) {
+            return;
+        }
+        routingContext.put(HANDLER_SPAN_CONTEXT_KEY, null);
+        DECORATE.onResponse(span, routingContext.response());
+        span.finish();
     }
 
-    if (mountPoint != null && path != null) {
-      final String noBackslashhMountPoint =
-          mountPoint.endsWith("/")
-              ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
-              : mountPoint;
-      path = noBackslashhMountPoint + path;
-    }
-    if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
-      routingContext.put(ROUTE_CONTEXT_KEY, path);
-      HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
-    }
-  }
+    private void setRoute(RoutingContext routingContext) {
+        final AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
+        if (parentSpan == null) {
+            return;
+        }
 
-  static boolean shouldUpdateRoute(
-      final RoutingContext routingContext, final AgentSpan span, final String path) {
-    if (span == null) {
-      return false;
+        final String method = routingContext.request().method().name();
+        final String mountPoint = routingContext.mountPoint();
+
+        String path = routingContext.currentRoute().getPath();
+        if (path == null) {
+            // getName returns the name of the route, if not path or the pattern or null
+            path = routingContext.currentRoute().getName();
+        }
+
+        if (mountPoint != null && path != null) {
+            final String noBackslashhMountPoint =
+                    mountPoint.endsWith("/") ? mountPoint.substring(0, mountPoint.lastIndexOf("/")) : mountPoint;
+            path = noBackslashhMountPoint + path;
+        }
+        if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
+            routingContext.put(ROUTE_CONTEXT_KEY, path);
+            HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
+        }
     }
-    final String currentRoute = routingContext.get(ROUTE_CONTEXT_KEY);
-    if (currentRoute != null && currentRoute.equals(path)) {
-      return false;
+
+    static boolean shouldUpdateRoute(final RoutingContext routingContext, final AgentSpan span, final String path) {
+        if (span == null) {
+            return false;
+        }
+        final String currentRoute = routingContext.get(ROUTE_CONTEXT_KEY);
+        if (currentRoute != null && currentRoute.equals(path)) {
+            return false;
+        }
+        // do not override route with a "/" if it's already set (it's probably more meaningful)
+        return !path.equals("/") || span.getTag(Tags.HTTP_ROUTE) == null;
     }
-    // do not override route with a "/" if it's already set (it's probably more meaningful)
-    return !path.equals("/") || span.getTag(Tags.HTTP_ROUTE) == null;
-  }
 }

@@ -4,9 +4,9 @@ import datadog.trace.api.DDTraceId;
 
 public interface Tls {
 
-  public void registerSpan(DDTraceId traceId, long spanId);
+    public void registerSpan(DDTraceId traceId, long spanId);
 
-  public long getSpanId();
+    public long getSpanId();
 
-  public DDTraceId getTraceId();
+    public DDTraceId getTraceId();
 }

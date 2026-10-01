@@ -11,31 +11,31 @@ import scala.collection.Seq;
 
 @Propagation
 @CallSite(
-    spi = IastCallSites.class,
-    helpers = {
-      ScalaJavaConverters.class,
-      ScalaJavaConverters.JavaIterable.class,
-      ScalaJavaConverters.JavaIterator.class
-    })
+        spi = IastCallSites.class,
+        helpers = {
+            ScalaJavaConverters.class,
+            ScalaJavaConverters.JavaIterable.class,
+            ScalaJavaConverters.JavaIterator.class
+        })
 public class StringContextCallSite {
 
-  @CallSite.After("java.lang.String scala.StringContext.s(scala.collection.Seq)")
-  @CallSite.After("java.lang.String scala.StringContext.raw(scala.collection.Seq)")
-  @Nonnull
-  public static String afterInterpolation(
-      @CallSite.This @Nonnull final StringContext context,
-      @CallSite.Argument final Seq<?> params,
-      @CallSite.Return @Nonnull final String result) {
-    final StringModule module = InstrumentationBridge.STRING;
-    if (module != null) {
-      try {
-        final Iterable<String> literals = ScalaJavaConverters.toIterable(context.parts());
-        final Object[] args = ScalaJavaConverters.toArray(params);
-        module.onStringFormat(literals, args, result);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("afterInterpolation threw", e);
-      }
+    @CallSite.After("java.lang.String scala.StringContext.s(scala.collection.Seq)")
+    @CallSite.After("java.lang.String scala.StringContext.raw(scala.collection.Seq)")
+    @Nonnull
+    public static String afterInterpolation(
+            @CallSite.This @Nonnull final StringContext context,
+            @CallSite.Argument final Seq<?> params,
+            @CallSite.Return @Nonnull final String result) {
+        final StringModule module = InstrumentationBridge.STRING;
+        if (module != null) {
+            try {
+                final Iterable<String> literals = ScalaJavaConverters.toIterable(context.parts());
+                final Object[] args = ScalaJavaConverters.toArray(params);
+                module.onStringFormat(literals, args, result);
+            } catch (final Throwable e) {
+                module.onUnexpectedException("afterInterpolation threw", e);
+            }
+        }
+        return result;
     }
-    return result;
-  }
 }

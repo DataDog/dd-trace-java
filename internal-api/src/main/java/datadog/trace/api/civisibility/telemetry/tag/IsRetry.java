@@ -4,10 +4,10 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** Whether a test case is a retry or not. */
 public enum IsRetry implements TagValue {
-  TRUE;
+    TRUE;
 
-  @Override
-  public String asString() {
-    return "is_retry:true";
-  }
+    @Override
+    public String asString() {
+        return "is_retry:true";
+    }
 }

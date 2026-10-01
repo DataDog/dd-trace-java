@@ -51,40 +51,38 @@ import org.apache.pekko.stream.scaladsl.Flow;
  */
 @AutoService(InstrumenterModule.class)
 public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public PekkoHttpServerInstrumentation() {
-    super("pekko-http", "pekko-http-server");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.pekko.http.scaladsl.HttpExt";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("bindAndHandle")
-            .and(takesArgument(0, named("org.apache.pekko.stream.scaladsl.Flow"))),
-        getClass().getName() + "$PekkoHttpBindAndHandleAdvice");
-  }
-
-  public static class PekkoHttpBindAndHandleAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(
-        @Advice.Argument(value = 0, readOnly = false)
-            Flow<HttpRequest, HttpResponse, NotUsed> handler,
-        @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
-      if (CallDepthThreadLocalMap.incrementCallDepth(HttpExt.class) == 0) {
-        final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
-            BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
-        handler = wrapper.reversed().join(handler.asJava()).asScala();
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public PekkoHttpServerInstrumentation() {
+        super("pekko-http", "pekko-http-server");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit() {
-      CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
+    @Override
+    public String instrumentedType() {
+        return "org.apache.pekko.http.scaladsl.HttpExt";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("bindAndHandle").and(takesArgument(0, named("org.apache.pekko.stream.scaladsl.Flow"))),
+                getClass().getName() + "$PekkoHttpBindAndHandleAdvice");
+    }
+
+    public static class PekkoHttpBindAndHandleAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void enter(
+                @Advice.Argument(value = 0, readOnly = false) Flow<HttpRequest, HttpResponse, NotUsed> handler,
+                @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
+            if (CallDepthThreadLocalMap.incrementCallDepth(HttpExt.class) == 0) {
+                final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
+                        BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
+                handler = wrapper.reversed().join(handler.asJava()).asScala();
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit() {
+            CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
+        }
+    }
 }

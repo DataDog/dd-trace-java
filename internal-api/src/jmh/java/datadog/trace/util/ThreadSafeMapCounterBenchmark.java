@@ -62,79 +62,79 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class ThreadSafeMapCounterBenchmark {
 
-  static final int N_KEYS = 64;
-  static final int CAPACITY = 128;
+    static final int N_KEYS = 64;
+    static final int CAPACITY = 128;
 
-  static final String[] KEYS = new String[N_KEYS];
+    static final String[] KEYS = new String[N_KEYS];
 
-  static {
-    for (int i = 0; i < N_KEYS; ++i) {
-      KEYS[i] = "key-" + i;
-    }
-  }
-
-  static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String> {
-    private static final AtomicLongFieldUpdater<CounterEntry> COUNT =
-        AtomicLongFieldUpdater.newUpdater(CounterEntry.class, "count");
-
-    volatile long count;
-
-    CounterEntry(String key) {
-      super(key);
+    static {
+        for (int i = 0; i < N_KEYS; ++i) {
+            KEYS[i] = "key-" + i;
+        }
     }
 
-    long increment() {
-      return COUNT.incrementAndGet(this);
+    static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String> {
+        private static final AtomicLongFieldUpdater<CounterEntry> COUNT =
+                AtomicLongFieldUpdater.newUpdater(CounterEntry.class, "count");
+
+        volatile long count;
+
+        CounterEntry(String key) {
+            super(key);
+        }
+
+        long increment() {
+            return COUNT.incrementAndGet(this);
+        }
     }
-  }
 
-  /**
-   * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
-   * a shared instrumentation counter table.
-   */
-  @State(Scope.Benchmark)
-  public static class SharedState {
-    ConcurrentHashtable.D1<String, CounterEntry> table;
-    ConcurrentHashMap<String, AtomicLong> atomicLongMap;
-    ConcurrentHashMap<String, LongAdder> longAdderMap;
+    /**
+     * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
+     * a shared instrumentation counter table.
+     */
+    @State(Scope.Benchmark)
+    public static class SharedState {
+        ConcurrentHashtable.D1<String, CounterEntry> table;
+        ConcurrentHashMap<String, AtomicLong> atomicLongMap;
+        ConcurrentHashMap<String, LongAdder> longAdderMap;
 
-    @Setup(Level.Iteration)
-    public void setUp() {
-      table = ConcurrentHashtable.D1.createBounded(CounterEntry.class, CAPACITY);
-      atomicLongMap = new ConcurrentHashMap<>(CAPACITY);
-      longAdderMap = new ConcurrentHashMap<>(CAPACITY);
-      for (int i = 0; i < N_KEYS; ++i) {
-        table.tryGetOrCreateOrNull(KEYS[i], CounterEntry::new);
-        atomicLongMap.put(KEYS[i], new AtomicLong());
-        longAdderMap.put(KEYS[i], new LongAdder());
-      }
+        @Setup(Level.Iteration)
+        public void setUp() {
+            table = ConcurrentHashtable.D1.createBounded(CounterEntry.class, CAPACITY);
+            atomicLongMap = new ConcurrentHashMap<>(CAPACITY);
+            longAdderMap = new ConcurrentHashMap<>(CAPACITY);
+            for (int i = 0; i < N_KEYS; ++i) {
+                table.tryGetOrCreateOrNull(KEYS[i], CounterEntry::new);
+                atomicLongMap.put(KEYS[i], new AtomicLong());
+                longAdderMap.put(KEYS[i], new LongAdder());
+            }
+        }
     }
-  }
 
-  /** Per-thread cursor so each thread cycles through keys independently. */
-  @State(Scope.Thread)
-  public static class ThreadState {
-    int cursor;
+    /** Per-thread cursor so each thread cycles through keys independently. */
+    @State(Scope.Thread)
+    public static class ThreadState {
+        int cursor;
 
-    int next() {
-      int i = cursor;
-      cursor = (i + 1) & (N_KEYS - 1);
-      return i;
+        int next() {
+            int i = cursor;
+            cursor = (i + 1) & (N_KEYS - 1);
+            return i;
+        }
     }
-  }
 
-  @Benchmark
-  public long increment_concurrentHashtable(SharedState s, ThreadState t) {
-    return s.table.get(KEYS[t.next()]).increment();
-  }
+    @Benchmark
+    public long increment_concurrentHashtable(SharedState s, ThreadState t) {
+        return s.table.get(KEYS[t.next()]).increment();
+    }
 
-  @Benchmark
-  public long increment_atomicLong(SharedState s, ThreadState t) {
-    return s.atomicLongMap.get(KEYS[t.next()]).incrementAndGet();
-  }
+    @Benchmark
+    public long increment_atomicLong(SharedState s, ThreadState t) {
+        return s.atomicLongMap.get(KEYS[t.next()]).incrementAndGet();
+    }
 
-  @Benchmark
-  public void increment_longAdder(SharedState s, ThreadState t) {
-    s.longAdderMap.get(KEYS[t.next()]).increment();
-  }
+    @Benchmark
+    public void increment_longAdder(SharedState s, ThreadState t) {
+        s.longAdderMap.get(KEYS[t.next()]).increment();
+    }
 }

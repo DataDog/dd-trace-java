@@ -22,74 +22,75 @@ import org.junit.jupiter.api.Test;
  */
 class DDLLMObsSpanMetadataTest {
 
-  private static final String METADATA_TAG = "_ml_obs_tag.metadata";
-  private static final Field SPAN_FIELD;
+    private static final String METADATA_TAG = "_ml_obs_tag.metadata";
+    private static final Field SPAN_FIELD;
 
-  private static CoreTracer tracer;
+    private static CoreTracer tracer;
 
-  static {
-    try {
-      SPAN_FIELD = DDLLMObsSpan.class.getDeclaredField("span");
-      SPAN_FIELD.setAccessible(true);
-    } catch (ReflectiveOperationException e) {
-      throw new ExceptionInInitializerError(e);
+    static {
+        try {
+            SPAN_FIELD = DDLLMObsSpan.class.getDeclaredField("span");
+            SPAN_FIELD.setAccessible(true);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
     }
-  }
 
-  @BeforeAll
-  static void installTracer() {
-    tracer = CoreTracer.builder().build();
-    TracerInstaller.forceInstallGlobalTracer(tracer);
-  }
+    @BeforeAll
+    static void installTracer() {
+        tracer = CoreTracer.builder().build();
+        TracerInstaller.forceInstallGlobalTracer(tracer);
+    }
 
-  @AfterAll
-  static void closeTracer() {
-    TracerInstaller.forceInstallGlobalTracer(null);
-    tracer.close();
-  }
+    @AfterAll
+    static void closeTracer() {
+        TracerInstaller.forceInstallGlobalTracer(null);
+        tracer.close();
+    }
 
-  private static DDLLMObsSpan newAgentSpan(String name) {
-    WellKnownTags tags =
-        new WellKnownTags("runtime-id", "hostname", "test", "service", "version", "java");
-    return new DDLLMObsSpan(
-        Tags.LLMOBS_AGENT_SPAN_KIND, name, "test-ml-app", null, "service", tags);
-  }
+    private static DDLLMObsSpan newAgentSpan(String name) {
+        WellKnownTags tags = new WellKnownTags("runtime-id", "hostname", "test", "service", "version", "java");
+        return new DDLLMObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, name, "test-ml-app", null, "service", tags);
+    }
 
-  @SuppressWarnings("unchecked")
-  private static Map<String, Object> metadata(DDLLMObsSpan span) throws IllegalAccessException {
-    return (Map<String, Object>) ((AgentSpan) SPAN_FIELD.get(span)).getTag(METADATA_TAG);
-  }
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> metadata(DDLLMObsSpan span) throws IllegalAccessException {
+        return (Map<String, Object>) ((AgentSpan) SPAN_FIELD.get(span)).getTag(METADATA_TAG);
+    }
 
-  @SuppressWarnings("unchecked")
-  private static Map<String, Object> reservedDd(DDLLMObsSpan span) throws IllegalAccessException {
-    return (Map<String, Object>) metadata(span).get("_dd");
-  }
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> reservedDd(DDLLMObsSpan span) throws IllegalAccessException {
+        return (Map<String, Object>) metadata(span).get("_dd");
+    }
 
-  private static LLMObs.AgentManifest manifest(String name) {
-    return LLMObs.AgentManifest.builder().name(name).instructions("Do things.").build();
-  }
+    private static LLMObs.AgentManifest manifest(String name) {
+        return LLMObs.AgentManifest.builder()
+                .name(name)
+                .instructions("Do things.")
+                .build();
+    }
 
-  private static Map<String, Object> callerDd(String key, Object value) {
-    return Collections.singletonMap("_dd", Collections.singletonMap(key, value));
-  }
+    private static Map<String, Object> callerDd(String key, Object value) {
+        return Collections.singletonMap("_dd", Collections.singletonMap(key, value));
+    }
 
-  @Test
-  void manifestSurvivesMetadataAnnotationCarryingItsOwnReservedNamespace() throws Exception {
-    DDLLMObsSpan span = newAgentSpan("agent");
-    span.annotateAgentManifest(manifest("agent"));
-    span.setMetadata(callerDd("cost_tags", Collections.singletonList("model:gpt-4o")));
+    @Test
+    void manifestSurvivesMetadataAnnotationCarryingItsOwnReservedNamespace() throws Exception {
+        DDLLMObsSpan span = newAgentSpan("agent");
+        span.annotateAgentManifest(manifest("agent"));
+        span.setMetadata(callerDd("cost_tags", Collections.singletonList("model:gpt-4o")));
 
-    Map<String, Object> dd = reservedDd(span);
-    assertTrue(dd.containsKey("agent_manifest"));
-    assertEquals(Collections.singletonList("model:gpt-4o"), dd.get("cost_tags"));
-  }
+        Map<String, Object> dd = reservedDd(span);
+        assertTrue(dd.containsKey("agent_manifest"));
+        assertEquals(Collections.singletonList("model:gpt-4o"), dd.get("cost_tags"));
+    }
 
-  @Test
-  void callerSuppliedReservedNamespaceIsKeptWhenThereIsNoManifest() throws Exception {
-    DDLLMObsSpan span = newAgentSpan("agent");
-    span.setMetadata(Collections.singletonMap("tenant", "acme"));
-    span.setMetadata(callerDd("cost_tags", Collections.singletonList("a")));
+    @Test
+    void callerSuppliedReservedNamespaceIsKeptWhenThereIsNoManifest() throws Exception {
+        DDLLMObsSpan span = newAgentSpan("agent");
+        span.setMetadata(Collections.singletonMap("tenant", "acme"));
+        span.setMetadata(callerDd("cost_tags", Collections.singletonList("a")));
 
-    assertEquals(Collections.singletonList("a"), reservedDd(span).get("cost_tags"));
-  }
+        assertEquals(Collections.singletonList("a"), reservedDd(span).get("cost_tags"));
+    }
 }

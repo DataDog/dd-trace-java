@@ -20,47 +20,45 @@ import scala.util.Try;
  * only pick up the completing span if the resolved {@code Try} doesn't have a an existing span set
  * from the {@code resolve} method.
  */
-public final class DefaultPromiseInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class DefaultPromiseInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "scala.concurrent.impl.Promise$DefaultPromise";
-  }
+    @Override
+    public String instrumentedType() {
+        return "scala.concurrent.impl.Promise$DefaultPromise";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("tryComplete0")), getClass().getName() + "$TryComplete");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("tryComplete0")), getClass().getName() + "$TryComplete");
+    }
 
-  public static final class TryComplete {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static <T> void beforeTryComplete(
-        @Advice.Argument(value = 0) Object state,
-        @Advice.Argument(value = 1, readOnly = false) Try<T> resolved) {
-      // If the Promise is already completed, then we don't need to do anything
-      if (state instanceof Try) {
-        return;
-      }
-      Context context = currentContext();
-      if (shouldCapture(context)) {
-        ContextStore<Try, Context> contextStore =
-            InstrumentationContext.get(Try.class, Context.class);
-        Context existing = contextStore.get(resolved);
-        if (existing == null) {
-          Try<T> next = PromiseHelper.getTry(resolved, context, null);
-          if (next != resolved) {
-            contextStore.put(next, context);
-            resolved = next;
-          }
+    public static final class TryComplete {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static <T> void beforeTryComplete(
+                @Advice.Argument(value = 0) Object state,
+                @Advice.Argument(value = 1, readOnly = false) Try<T> resolved) {
+            // If the Promise is already completed, then we don't need to do anything
+            if (state instanceof Try) {
+                return;
+            }
+            Context context = currentContext();
+            if (shouldCapture(context)) {
+                ContextStore<Try, Context> contextStore = InstrumentationContext.get(Try.class, Context.class);
+                Context existing = contextStore.get(resolved);
+                if (existing == null) {
+                    Try<T> next = PromiseHelper.getTry(resolved, context, null);
+                    if (next != resolved) {
+                        contextStore.put(next, context);
+                        resolved = next;
+                    }
+                }
+            }
         }
-      }
-    }
 
-    /** Promise.Transformation was introduced in scala 2.13 */
-    private static void muzzleCheck(final Transformation callback) {
-      callback.submitWithValue(null);
+        /** Promise.Transformation was introduced in scala 2.13 */
+        private static void muzzleCheck(final Transformation callback) {
+            callback.submitWithValue(null);
+        }
     }
-  }
 }

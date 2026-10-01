@@ -7,28 +7,26 @@ import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 
 @AutoService(InstrumenterModule.class)
 public class ByteBufInstrumentation extends InstrumenterModule.TaintableIast
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
 
-  private final String className = ByteBufInstrumentation.class.getName();
+    private final String className = ByteBufInstrumentation.class.getName();
 
-  public ByteBufInstrumentation() {
-    super("netty", "netty-4.0");
-  }
+    public ByteBufInstrumentation() {
+        super("netty", "netty-4.0");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.netty.buffer.ByteBuf";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.netty.buffer.ByteBuf";
+    }
 
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
-  }
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+    }
 
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {
-    // TODO add propagation if needed
-  }
+    @Override
+    public void methodAdvice(final MethodTransformer transformer) {
+        // TODO add propagation if needed
+    }
 }

@@ -21,55 +21,53 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-public class AbstractClusterInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class AbstractClusterInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.alipay.sofa.rpc.client.AbstractCluster";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("invoke"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("com.alipay.sofa.rpc.core.request.SofaRequest"))),
-        getClass().getName() + "$InvokeAdvice");
-  }
-
-  public static class InvokeAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter(
-        @Advice.This AbstractCluster self, @Advice.Argument(0) SofaRequest request) {
-      ConsumerConfig config = self.getConsumerConfig();
-      String protocol = config != null ? config.getProtocol() : null;
-      AgentSpan span = startSpan("sofarpc-client", SOFA_RPC_CLIENT);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      if (protocol != null) {
-        span.setTag("sofarpc.protocol", protocol);
-      }
-      ContextScope scope = activateSpan(span);
-      defaultPropagator().inject(span, request, SETTER);
-      return scope;
+    @Override
+    public String instrumentedType() {
+        return "com.alipay.sofa.rpc.client.AbstractCluster";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(
-        @Advice.Enter ContextScope scope,
-        @Advice.Return SofaResponse response,
-        @Advice.Thrown Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onResponse(span, response);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("invoke"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("com.alipay.sofa.rpc.core.request.SofaRequest"))),
+                getClass().getName() + "$InvokeAdvice");
     }
-  }
+
+    public static class InvokeAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter(@Advice.This AbstractCluster self, @Advice.Argument(0) SofaRequest request) {
+            ConsumerConfig config = self.getConsumerConfig();
+            String protocol = config != null ? config.getProtocol() : null;
+            AgentSpan span = startSpan("sofarpc-client", SOFA_RPC_CLIENT);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, request);
+            if (protocol != null) {
+                span.setTag("sofarpc.protocol", protocol);
+            }
+            ContextScope scope = activateSpan(span);
+            defaultPropagator().inject(span, request, SETTER);
+            return scope;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit(
+                @Advice.Enter ContextScope scope,
+                @Advice.Return SofaResponse response,
+                @Advice.Thrown Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onResponse(span, response);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

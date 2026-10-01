@@ -13,39 +13,39 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
 
-  public ThreadContextInstrumentation() {
-    super("log4j", "log4j-2");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching log4j 2.7+ which has its own instrumentation.
-    return not(hasClassNamed("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory"));
-  }
-
-  @Override
-  public String instrumentedType() {
-    return TYPE_NAME;
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isTypeInitializer(), ThreadContextInstrumentation.class.getName() + "$ThreadContextAdvice");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "default";
-  }
-
-  public static class ThreadContextAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void mdcClassInitialized() {
-      WithGlobalTracer.registerOrExecute(new ThreadContextUpdater());
+    public ThreadContextInstrumentation() {
+        super("log4j", "log4j-2");
     }
-  }
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching log4j 2.7+ which has its own instrumentation.
+        return not(hasClassNamed("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory"));
+    }
+
+    @Override
+    public String instrumentedType() {
+        return TYPE_NAME;
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isTypeInitializer(), ThreadContextInstrumentation.class.getName() + "$ThreadContextAdvice");
+    }
+
+    @Override
+    public String muzzleDirective() {
+        return "default";
+    }
+
+    public static class ThreadContextAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void mdcClassInitialized() {
+            WithGlobalTracer.registerOrExecute(new ThreadContextUpdater());
+        }
+    }
 }

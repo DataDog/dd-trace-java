@@ -19,38 +19,37 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.fileupload.FileItemStream;
 
-public class FileItemStreamInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+public class FileItemStreamInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.apache.commons.fileupload.FileItemStream";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("openStream").and(isPublic()).and(takesArguments(0)),
-        getClass().getName() + "$OpenStreamAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class OpenStreamAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Return final InputStream inputStream,
-        @Advice.This final FileItemStream self,
-        @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObjectIfTainted(ctx, inputStream, self);
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.apache.commons.fileupload.FileItemStream";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("openStream").and(isPublic()).and(takesArguments(0)),
+                getClass().getName() + "$OpenStreamAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class OpenStreamAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Return final InputStream inputStream,
+                @Advice.This final FileItemStream self,
+                @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                module.taintObjectIfTainted(ctx, inputStream, self);
+            }
+        }
+    }
 }

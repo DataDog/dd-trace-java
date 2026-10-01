@@ -17,46 +17,45 @@ import java.util.List;
 import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
-public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
-    implements ExcludeFilterProvider {
-  public ReactorCoreModule() {
-    super("reactor-core");
-  }
+public final class ReactorCoreModule extends InstrumenterModule.ContextTracking implements ExcludeFilterProvider {
+    public ReactorCoreModule() {
+        super("reactor-core");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ReactorAsyncResultExtension", packageName + ".ReactorContextBridge",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ReactorAsyncResultExtension", packageName + ".ReactorContextBridge",
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> store = new HashMap<>();
-    store.put("org.reactivestreams.Subscriber", Context.class.getName());
-    store.put("org.reactivestreams.Publisher", HandoffContext.class.getName());
-    return store;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        final Map<String, String> store = new HashMap<>();
+        store.put("org.reactivestreams.Subscriber", Context.class.getName());
+        store.put("org.reactivestreams.Publisher", HandoffContext.class.getName());
+        return store;
+    }
 
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return Collections.singletonMap(
-        ExcludeFilter.ExcludeType.RUNNABLE,
-        Arrays.asList(
-            "reactor.core.publisher.EventLoopProcessor",
-            "reactor.core.publisher.EventLoopProcessor$RequestTask",
-            "reactor.core.publisher.TopicProcessor$TopicInner",
-            "reactor.core.publisher.TopicProcessor$TopicInner$1",
-            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner",
-            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1"));
-  }
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return Collections.singletonMap(
+                ExcludeFilter.ExcludeType.RUNNABLE,
+                Arrays.asList(
+                        "reactor.core.publisher.EventLoopProcessor",
+                        "reactor.core.publisher.EventLoopProcessor$RequestTask",
+                        "reactor.core.publisher.TopicProcessor$TopicInner",
+                        "reactor.core.publisher.TopicProcessor$TopicInner$1",
+                        "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner",
+                        "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1"));
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new BlockingPublisherInstrumentation(),
-        new CorePublisherInstrumentation(),
-        new ContextWritingSubscriberInstrumentation(),
-        new OptimizableOperatorInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new BlockingPublisherInstrumentation(),
+                new CorePublisherInstrumentation(),
+                new ContextWritingSubscriberInstrumentation(),
+                new OptimizableOperatorInstrumentation());
+    }
 }

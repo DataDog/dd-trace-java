@@ -21,60 +21,59 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class RabbitCommandInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public RabbitCommandInstrumentation() {
-    super("amqp", "rabbitmq");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.rabbitmq.client.Command";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(),
-        RabbitCommandInstrumentation.class.getName() + "$CommandConstructorAdvice");
-  }
-
-  public static class CommandConstructorAdvice {
-    @Advice.OnMethodEnter
-    public static int getCallDepth() {
-      return CallDepthThreadLocalMap.incrementCallDepth(Command.class);
+    public RabbitCommandInstrumentation() {
+        super("amqp", "rabbitmq");
     }
 
-    @Advice.OnMethodExit
-    public static void setResourceNameAddHeaders(
-        @Advice.This final Command command, @Advice.Enter final int callDepth) {
-      if (callDepth > 0) {
-        return;
-      }
-      final AgentSpan span = activeSpan();
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.rabbitmq.client.Command";
+    }
 
-      if (span != null && command.getMethod() != null) {
-        // now we have 3 different operations on schema v1
-        if (!span.getSpanName().equals(OPERATION_AMQP_DELIVER.toString())
-            && RABBITMQ_AMQP.equals(span.getTag(Tags.COMPONENT))) {
-          CLIENT_DECORATE.onCommand(span, command);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor(), RabbitCommandInstrumentation.class.getName() + "$CommandConstructorAdvice");
+    }
+
+    public static class CommandConstructorAdvice {
+        @Advice.OnMethodEnter
+        public static int getCallDepth() {
+            return CallDepthThreadLocalMap.incrementCallDepth(Command.class);
         }
-      }
-      CallDepthThreadLocalMap.reset(Command.class);
-    }
 
-    /**
-     * This instrumentation will match with 2.6, but the channel instrumentation only matches with
-     * 2.7 because of TracedDelegatingConsumer. This unused method is added to ensure consistent
-     * muzzle validation by preventing match with 2.6.
-     */
-    public static void muzzleCheck(final TracedDelegatingConsumer consumer) {
-      consumer.handleRecoverOk(null);
+        @Advice.OnMethodExit
+        public static void setResourceNameAddHeaders(
+                @Advice.This final Command command, @Advice.Enter final int callDepth) {
+            if (callDepth > 0) {
+                return;
+            }
+            final AgentSpan span = activeSpan();
+
+            if (span != null && command.getMethod() != null) {
+                // now we have 3 different operations on schema v1
+                if (!span.getSpanName().equals(OPERATION_AMQP_DELIVER.toString())
+                        && RABBITMQ_AMQP.equals(span.getTag(Tags.COMPONENT))) {
+                    CLIENT_DECORATE.onCommand(span, command);
+                }
+            }
+            CallDepthThreadLocalMap.reset(Command.class);
+        }
+
+        /**
+         * This instrumentation will match with 2.6, but the channel instrumentation only matches with
+         * 2.7 because of TracedDelegatingConsumer. This unused method is added to ensure consistent
+         * muzzle validation by preventing match with 2.6.
+         */
+        public static void muzzleCheck(final TracedDelegatingConsumer consumer) {
+            consumer.handleRecoverOk(null);
+        }
     }
-  }
 }

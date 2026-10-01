@@ -14,36 +14,36 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public MessageListenerInstrumentation() {
-    super("kafka", "kafka-3.8");
-  }
+    public MessageListenerInstrumentation() {
+        super("kafka", "kafka-3.8");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled();
-  }
+    @Override
+    public boolean isEnabled() {
+        return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled();
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.kafka.listener.MessageListener";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.kafka.listener.MessageListener";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("onMessage")),
-        datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice.class.getName());
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("onMessage")),
+                datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice.class.getName());
+    }
 }

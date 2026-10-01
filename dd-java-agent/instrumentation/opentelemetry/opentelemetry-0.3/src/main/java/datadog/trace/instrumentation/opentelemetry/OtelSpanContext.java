@@ -8,40 +8,41 @@ import io.opentelemetry.trace.TraceId;
 import io.opentelemetry.trace.TraceState;
 
 public class OtelSpanContext extends SpanContext {
-  private static final TraceFlags FLAGS = TraceFlags.builder().setIsSampled(true).build();
-  private final AgentSpanContext delegate;
+    private static final TraceFlags FLAGS =
+            TraceFlags.builder().setIsSampled(true).build();
+    private final AgentSpanContext delegate;
 
-  OtelSpanContext(final AgentSpanContext delegate) {
-    this.delegate = delegate;
-  }
+    OtelSpanContext(final AgentSpanContext delegate) {
+        this.delegate = delegate;
+    }
 
-  @Override
-  public TraceId getTraceId() {
-    return new TraceId(0, delegate.getTraceId().toLong());
-  }
+    @Override
+    public TraceId getTraceId() {
+        return new TraceId(0, delegate.getTraceId().toLong());
+    }
 
-  @Override
-  public SpanId getSpanId() {
-    return new SpanId(delegate.getSpanId());
-  }
+    @Override
+    public SpanId getSpanId() {
+        return new SpanId(delegate.getSpanId());
+    }
 
-  @Override
-  public TraceFlags getTraceFlags() {
-    return FLAGS;
-  }
+    @Override
+    public TraceFlags getTraceFlags() {
+        return FLAGS;
+    }
 
-  @Override
-  public TraceState getTraceState() {
-    return TraceState.getDefault();
-  }
+    @Override
+    public TraceState getTraceState() {
+        return TraceState.getDefault();
+    }
 
-  @Override
-  public boolean isRemote() {
-    // check if delegate is a ExtractedContext
-    return false;
-  }
+    @Override
+    public boolean isRemote() {
+        // check if delegate is a ExtractedContext
+        return false;
+    }
 
-  AgentSpanContext getDelegate() {
-    return delegate;
-  }
+    AgentSpanContext getDelegate() {
+        return delegate;
+    }
 }

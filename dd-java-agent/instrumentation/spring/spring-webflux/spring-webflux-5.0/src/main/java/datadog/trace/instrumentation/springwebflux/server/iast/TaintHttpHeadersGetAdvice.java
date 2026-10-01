@@ -18,25 +18,25 @@ import net.bytebuddy.asm.Advice;
  */
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintHttpHeadersGetAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  public static void after(
-      @Advice.This Object self,
-      @Advice.Argument(0) Object arg,
-      @Advice.Return List<String> values,
-      @ActiveRequestContext RequestContext reqCtx) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
+    public static void after(
+            @Advice.This Object self,
+            @Advice.Argument(0) Object arg,
+            @Advice.Return List<String> values,
+            @ActiveRequestContext RequestContext reqCtx) {
 
-    PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module == null || values == null || values.isEmpty()) {
-      return;
+        PropagationModule module = InstrumentationBridge.PROPAGATION;
+        if (module == null || values == null || values.isEmpty()) {
+            return;
+        }
+        if (!(arg instanceof String)) {
+            return;
+        }
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        String lc = ((String) arg).toLowerCase(Locale.ROOT);
+        for (String value : values) {
+            module.taintStringIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, lc);
+        }
     }
-    if (!(arg instanceof String)) {
-      return;
-    }
-    final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    String lc = ((String) arg).toLowerCase(Locale.ROOT);
-    for (String value : values) {
-      module.taintStringIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, lc);
-    }
-  }
 }

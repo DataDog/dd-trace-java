@@ -27,97 +27,93 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 public class MaybeBlockResponseHandler extends SimpleChannelDownstreamHandler {
-  private final ContextStore<Channel, ChannelTraceContext> contextStore;
+    private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
-  public MaybeBlockResponseHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
-    this.contextStore = contextStore;
-  }
-
-  @Override
-  public void writeRequested(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
-    final ChannelTraceContext channelTraceContext =
-        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
-
-    AgentSpan span = channelTraceContext.getServerSpan();
-    RequestContext requestContext;
-    if (span == null
-        || (requestContext = span.getRequestContext()) == null
-        || requestContext.getData(RequestContextSlot.APPSEC) == null) {
-      ctx.sendDownstream(msg);
-      return;
+    public MaybeBlockResponseHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
+        this.contextStore = contextStore;
     }
 
-    if (channelTraceContext.isAnalyzedResponse()) {
-      if (channelTraceContext.isBlockedResponse()) {
-        // block further writes
-      } else {
-        ctx.sendDownstream(msg);
-      }
-      return;
-    }
+    @Override
+    public void writeRequested(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
+        final ChannelTraceContext channelTraceContext =
+                contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
-    if (!(msg.getMessage() instanceof HttpResponse)) {
-      ctx.sendDownstream(msg);
-      return;
-    }
+        AgentSpan span = channelTraceContext.getServerSpan();
+        RequestContext requestContext;
+        if (span == null
+                || (requestContext = span.getRequestContext()) == null
+                || requestContext.getData(RequestContextSlot.APPSEC) == null) {
+            ctx.sendDownstream(msg);
+            return;
+        }
 
-    HttpResponse origResponse = (HttpResponse) msg.getMessage();
-    if (origResponse.getStatus() == HttpResponseStatus.CONTINUE) {
-      ctx.sendDownstream(msg);
-      return;
-    }
+        if (channelTraceContext.isAnalyzedResponse()) {
+            if (channelTraceContext.isBlockedResponse()) {
+                // block further writes
+            } else {
+                ctx.sendDownstream(msg);
+            }
+            return;
+        }
 
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().getCode(), ResponseExtractAdapter.GETTER);
-    channelTraceContext.setAnalyzedResponse(true);
-    Flow.Action action = flow.getAction();
-    if (!(action instanceof Flow.Action.RequestBlockingAction)) {
-      ctx.sendDownstream(msg);
-      return;
-    }
+        if (!(msg.getMessage() instanceof HttpResponse)) {
+            ctx.sendDownstream(msg);
+            return;
+        }
 
-    channelTraceContext.setBlockedResponse(true);
-    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
-    HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
-    DefaultHttpResponse response =
-        new DefaultHttpResponse(origResponse.getProtocolVersion(), httpResponseStatus);
+        HttpResponse origResponse = (HttpResponse) msg.getMessage();
+        if (origResponse.getStatus() == HttpResponseStatus.CONTINUE) {
+            ctx.sendDownstream(msg);
+            return;
+        }
 
-    HttpHeaders headers = response.headers();
-    headers.set("Connection", "close");
+        Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+                span, origResponse, origResponse.getStatus().getCode(), ResponseExtractAdapter.GETTER);
+        channelTraceContext.setAnalyzedResponse(true);
+        Flow.Action action = flow.getAction();
+        if (!(action instanceof Flow.Action.RequestBlockingAction)) {
+            ctx.sendDownstream(msg);
+            return;
+        }
 
-    for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
-      headers.set(h.getKey(), h.getValue());
-    }
+        channelTraceContext.setBlockedResponse(true);
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
+        HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
+        DefaultHttpResponse response = new DefaultHttpResponse(origResponse.getProtocolVersion(), httpResponseStatus);
 
-    response.setChunked(false);
-    BlockingContentType bct = rba.getBlockingContentType();
-    if (bct != BlockingContentType.NONE) {
-      String acceptHeader = channelTraceContext.getRequestHeaders().get("accept");
-      BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-      headers.set("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
-      setContentLength(response, template.length);
-      ChannelBuffer buf = ChannelBuffers.wrappedBuffer(template);
-      response.setContent(buf);
-    }
+        HttpHeaders headers = response.headers();
+        headers.set("Connection", "close");
 
-    ChannelFuture future = Channels.future(ctx.getChannel());
-    future.addListener(
-        fut -> {
-          if (!fut.isSuccess()) {
-            log.warn("Write of blocking response failed", fut.getCause());
-          }
-          // close the connection because it can be in an invalid state at this point
-          // For instance, in a POST request we will still be receiving data from the
-          // client
-          fut.getChannel().close();
+        for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
+            headers.set(h.getKey(), h.getValue());
+        }
+
+        response.setChunked(false);
+        BlockingContentType bct = rba.getBlockingContentType();
+        if (bct != BlockingContentType.NONE) {
+            String acceptHeader = channelTraceContext.getRequestHeaders().get("accept");
+            BlockingActionHelper.TemplateType type = BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+            headers.set("Content-type", BlockingActionHelper.getContentType(type));
+            byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
+            setContentLength(response, template.length);
+            ChannelBuffer buf = ChannelBuffers.wrappedBuffer(template);
+            response.setContent(buf);
+        }
+
+        ChannelFuture future = Channels.future(ctx.getChannel());
+        future.addListener(fut -> {
+            if (!fut.isSuccess()) {
+                log.warn("Write of blocking response failed", fut.getCause());
+            }
+            // close the connection because it can be in an invalid state at this point
+            // For instance, in a POST request we will still be receiving data from the
+            // client
+            fut.getChannel().close();
         });
 
-    requestContext.getTraceSegment().effectivelyBlocked();
+        requestContext.getTraceSegment().effectivelyBlocked();
 
-    Channels.write(ctx, future, response);
-  }
+        Channels.write(ctx, future, response);
+    }
 }

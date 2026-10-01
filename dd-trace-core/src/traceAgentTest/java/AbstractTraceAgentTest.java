@@ -16,62 +16,60 @@ import org.testcontainers.utility.DockerImageName;
 
 abstract class AbstractTraceAgentTest extends DDJavaSpecification {
 
-  private static GenericContainer<?> agentContainer;
+    private static GenericContainer<?> agentContainer;
 
-  @BeforeAll
-  static void setupSpec() {
-    // CI will provide us with agent container running along side our build.
-    // When building locally, however, we need to take matters into our own hands
-    // and we use 'testcontainers' for this.
-    if (!"true".equals(System.getenv("CI"))) {
-      Map<String, String> env = new HashMap<>();
-      env.put("DD_APM_ENABLED", "true");
-      env.put("DD_BIND_HOST", "0.0.0.0");
-      env.put("DD_API_KEY", "invalid_key_but_this_is_fine");
-      env.put("DD_HOSTNAME", "doesnotexist");
-      env.put("DD_LOGS_STDOUT", "yes");
-      agentContainer =
-          new GenericContainer<>(
-                  DockerImageName.parse(System.getProperty("test.datadog.agent.image")))
-              .withEnv(env)
-              .withExposedPorts(DEFAULT_TRACE_AGENT_PORT)
-              .withStartupTimeout(Duration.ofSeconds(120))
-              // Apparently we need to sleep for a bit so agent's response
-              // `{"service:,env:":1}` in rate_by_service.
-              // This is clearly a race-condition and maybe we should avoid verifying complete
-              // response
-              .withStartupCheckStrategy(
-                  new MinimumDurationRunningStartupCheckStrategy(Duration.ofSeconds(10)));
-      agentContainer.start();
-    }
-  }
-
-  @BeforeEach
-  void setup() {
-    injectSysConfig(AGENT_HOST, getAgentContainerHost());
-    injectSysConfig(TRACE_AGENT_PORT, getAgentContainerPort());
-  }
-
-  static String getAgentContainerHost() {
-    if (agentContainer != null) {
-      return agentContainer.getHost();
+    @BeforeAll
+    static void setupSpec() {
+        // CI will provide us with agent container running along side our build.
+        // When building locally, however, we need to take matters into our own hands
+        // and we use 'testcontainers' for this.
+        if (!"true".equals(System.getenv("CI"))) {
+            Map<String, String> env = new HashMap<>();
+            env.put("DD_APM_ENABLED", "true");
+            env.put("DD_BIND_HOST", "0.0.0.0");
+            env.put("DD_API_KEY", "invalid_key_but_this_is_fine");
+            env.put("DD_HOSTNAME", "doesnotexist");
+            env.put("DD_LOGS_STDOUT", "yes");
+            agentContainer = new GenericContainer<>(
+                            DockerImageName.parse(System.getProperty("test.datadog.agent.image")))
+                    .withEnv(env)
+                    .withExposedPorts(DEFAULT_TRACE_AGENT_PORT)
+                    .withStartupTimeout(Duration.ofSeconds(120))
+                    // Apparently we need to sleep for a bit so agent's response
+                    // `{"service:,env:":1}` in rate_by_service.
+                    // This is clearly a race-condition and maybe we should avoid verifying complete
+                    // response
+                    .withStartupCheckStrategy(new MinimumDurationRunningStartupCheckStrategy(Duration.ofSeconds(10)));
+            agentContainer.start();
+        }
     }
 
-    return System.getenv("CI_AGENT_HOST");
-  }
-
-  static String getAgentContainerPort() {
-    if (agentContainer != null) {
-      return String.valueOf(agentContainer.getMappedPort(DEFAULT_TRACE_AGENT_PORT));
+    @BeforeEach
+    void setup() {
+        injectSysConfig(AGENT_HOST, getAgentContainerHost());
+        injectSysConfig(TRACE_AGENT_PORT, getAgentContainerPort());
     }
 
-    return String.valueOf(DEFAULT_TRACE_AGENT_PORT);
-  }
+    static String getAgentContainerHost() {
+        if (agentContainer != null) {
+            return agentContainer.getHost();
+        }
 
-  @AfterAll
-  static void cleanupSpec() {
-    if (agentContainer != null) {
-      agentContainer.stop();
+        return System.getenv("CI_AGENT_HOST");
     }
-  }
+
+    static String getAgentContainerPort() {
+        if (agentContainer != null) {
+            return String.valueOf(agentContainer.getMappedPort(DEFAULT_TRACE_AGENT_PORT));
+        }
+
+        return String.valueOf(DEFAULT_TRACE_AGENT_PORT);
+    }
+
+    @AfterAll
+    static void cleanupSpec() {
+        if (agentContainer != null) {
+            agentContainer.stop();
+        }
+    }
 }

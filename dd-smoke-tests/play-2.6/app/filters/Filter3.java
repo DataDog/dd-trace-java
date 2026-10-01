@@ -7,8 +7,8 @@ import play.libs.concurrent.HttpExecutionContext;
 
 @Singleton
 public class Filter3 extends AbstractFilter {
-  @Inject
-  public Filter3(Materializer mat, HttpExecutionContext ec) {
-    super("filter3", mat, ec);
-  }
+    @Inject
+    public Filter3(Materializer mat, HttpExecutionContext ec) {
+        super("filter3", mat, ec);
+    }
 }

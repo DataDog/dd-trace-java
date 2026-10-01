@@ -9,29 +9,29 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public final class SprayHttpServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SprayHttpServerInstrumentation() {
-    super("spray-http", "spray-http-server");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public SprayHttpServerInstrumentation() {
+        super("spray-http", "spray-http-server");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "spray.routing.HttpServiceBase$class";
-  }
+    @Override
+    public String instrumentedType() {
+        return "spray.routing.HttpServiceBase$class";
+    }
 
-  /**
-   * Spray has 'nested' function called runSealedRoute that runs route with all handlers wrapped
-   * around it. This gives us access to a 'final' response that we can use to get all data for the
-   * span. Unfortunately this hides from us exception that might have been through by the route. In
-   * order to capture that exception we have to also wrap 'inner' route.
-   */
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("runSealedRoute$1").and(takesArgument(1, named("spray.routing.RequestContext"))),
-        packageName + ".SprayHttpServerRunSealedRouteAdvice");
-    transformer.applyAdvice(
-        named("runRoute").and(takesArgument(1, named("scala.Function1"))),
-        packageName + ".SprayHttpServerRunRouteAdvice");
-  }
+    /**
+     * Spray has 'nested' function called runSealedRoute that runs route with all handlers wrapped
+     * around it. This gives us access to a 'final' response that we can use to get all data for the
+     * span. Unfortunately this hides from us exception that might have been through by the route. In
+     * order to capture that exception we have to also wrap 'inner' route.
+     */
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("runSealedRoute$1").and(takesArgument(1, named("spray.routing.RequestContext"))),
+                packageName + ".SprayHttpServerRunSealedRouteAdvice");
+        transformer.applyAdvice(
+                named("runRoute").and(takesArgument(1, named("scala.Function1"))),
+                packageName + ".SprayHttpServerRunRouteAdvice");
+    }
 }

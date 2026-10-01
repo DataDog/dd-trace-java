@@ -12,30 +12,29 @@ import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 
 /** Maps instrument types to OTLP's {@code AggregationTemporality} enum values. */
 final class OtlpMetricsTemporality {
-  private OtlpMetricsTemporality() {}
+    private OtlpMetricsTemporality() {}
 
-  static final int TEMPORALITY_DELTA = 1;
-  static final int TEMPORALITY_CUMULATIVE = 2;
+    static final int TEMPORALITY_DELTA = 1;
+    static final int TEMPORALITY_CUMULATIVE = 2;
 
-  private static final OtlpConfig.Temporality PREFERENCE =
-      Config.get().getOtlpMetricsTemporalityPreference();
+    private static final OtlpConfig.Temporality PREFERENCE = Config.get().getOtlpMetricsTemporalityPreference();
 
-  static final int COUNTER_TEMPORALITY = temporality(PREFERENCE, COUNTER);
-  static final int OBSERVABLE_COUNTER_TEMPORALITY = temporality(PREFERENCE, OBSERVABLE_COUNTER);
-  static final int HISTOGRAM_TEMPORALITY = temporality(PREFERENCE, HISTOGRAM);
+    static final int COUNTER_TEMPORALITY = temporality(PREFERENCE, COUNTER);
+    static final int OBSERVABLE_COUNTER_TEMPORALITY = temporality(PREFERENCE, OBSERVABLE_COUNTER);
+    static final int HISTOGRAM_TEMPORALITY = temporality(PREFERENCE, HISTOGRAM);
 
-  static int temporality(OtlpConfig.Temporality preference, OtelInstrumentType type) {
-    if (preference == DELTA) {
-      // gauges and up/down counters stay as cumulative
-      if (type == HISTOGRAM || type == COUNTER || type == OBSERVABLE_COUNTER) {
-        return TEMPORALITY_DELTA;
-      }
-    } else if (preference == LOWMEMORY) {
-      // observable counters, gauges, and up/down counters stay as cumulative
-      if (type == HISTOGRAM || type == COUNTER) {
-        return TEMPORALITY_DELTA;
-      }
+    static int temporality(OtlpConfig.Temporality preference, OtelInstrumentType type) {
+        if (preference == DELTA) {
+            // gauges and up/down counters stay as cumulative
+            if (type == HISTOGRAM || type == COUNTER || type == OBSERVABLE_COUNTER) {
+                return TEMPORALITY_DELTA;
+            }
+        } else if (preference == LOWMEMORY) {
+            // observable counters, gauges, and up/down counters stay as cumulative
+            if (type == HISTOGRAM || type == COUNTER) {
+                return TEMPORALITY_DELTA;
+            }
+        }
+        return TEMPORALITY_CUMULATIVE;
     }
-    return TEMPORALITY_CUMULATIVE;
-  }
 }

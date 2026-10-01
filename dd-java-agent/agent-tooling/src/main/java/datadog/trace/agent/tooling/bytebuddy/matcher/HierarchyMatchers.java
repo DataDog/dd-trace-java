@@ -17,202 +17,193 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 /** Pluggable hierarchy matchers for use with instrumentation matching and muzzle checks. */
 public final class HierarchyMatchers {
-  private static volatile Supplier SUPPLIER;
+    private static volatile Supplier SUPPLIER;
 
-  public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-      NameMatchers.Named<? super NamedElement> matcher) {
-    SharedTypePools.annotationOfInterest(matcher.name);
-    return SUPPLIER.declaresAnnotation(matcher);
-  }
-
-  public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-      NameMatchers.OneOf<? super NamedElement> matcher) {
-    SharedTypePools.annotationsOfInterest(matcher.names);
-    return SUPPLIER.declaresAnnotation(matcher);
-  }
-
-  public static ElementMatcher.Junction<TypeDescription> declaresField(
-      ElementMatcher<? super FieldDescription> matcher) {
-    return SUPPLIER.declaresField(matcher);
-  }
-
-  public static ElementMatcher.Junction<TypeDescription> declaresMethod(
-      ElementMatcher<? super MethodDescription> matcher) {
-    return SUPPLIER.declaresMethod(matcher);
-  }
-
-  public static ElementMatcher.Junction<TypeDescription> concreteClass() {
-    return SUPPLIER.concreteClass();
-  }
-
-  public static ElementMatcher.Junction<TypeDescription> extendsClass(
-      ElementMatcher<? super TypeDescription> matcher) {
-    return SUPPLIER.extendsClass(matcher);
-  }
-
-  public static ElementMatcher.Junction<TypeDescription> implementsInterface(
-      ElementMatcher<? super TypeDescription> matcher) {
-    return SUPPLIER.implementsInterface(matcher);
-  }
-
-  /**
-   * Like {@link #implementsInterface} but also matches when the target type is an interface.
-   *
-   * <p>Use this when matching return or parameter types that could be classes or interfaces.
-   */
-  public static ElementMatcher.Junction<TypeDescription> hasInterface(
-      ElementMatcher<? super TypeDescription> matcher) {
-    return SUPPLIER.hasInterface(matcher);
-  }
-
-  /** Considers both interfaces and super-classes when matching the target type's hierarchy. */
-  public static ElementMatcher.Junction<TypeDescription> hasSuperType(
-      ElementMatcher<? super TypeDescription> matcher) {
-    return SUPPLIER.hasSuperType(matcher);
-  }
-
-  /** Targets methods whose declaring class has a super-type that declares a matching method. */
-  public static ElementMatcher.Junction<MethodDescription> hasSuperMethod(
-      ElementMatcher<? super MethodDescription> matcher) {
-    return SUPPLIER.hasSuperMethod(matcher);
-  }
-
-  /** Matches classes that should have a field injected for the specified context-store. */
-  public static ElementMatcher.Junction<TypeDescription> declaresContextField(
-      String keyClassName, String contextClassName) {
-    return SUPPLIER.declaresContextField(keyClassName, contextClassName);
-  }
-
-  /** Use this to match annotated fields, methods, or method parameters. */
-  @SuppressForbidden
-  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
-      ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
-    SharedTypePools.annotationOfInterest(matcher.name);
-    return ElementMatchers.isAnnotatedWith(matcher);
-  }
-
-  /** Use this to match annotated fields, methods, or method parameters. */
-  @SuppressForbidden
-  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
-      ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
-    SharedTypePools.annotationsOfInterest(matcher.names);
-    return ElementMatchers.isAnnotatedWith(matcher);
-  }
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal holder; Class object does not escape to app code and lock only guards one-time supplier registration.")
-  public static synchronized void registerIfAbsent(Supplier supplier) {
-    if (null == SUPPLIER) {
-      SUPPLIER = supplier;
+    public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
+            NameMatchers.Named<? super NamedElement> matcher) {
+        SharedTypePools.annotationOfInterest(matcher.name);
+        return SUPPLIER.declaresAnnotation(matcher);
     }
-  }
 
-  public interface Supplier {
-    ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-        ElementMatcher<? super NamedElement> matcher);
+    public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
+            NameMatchers.OneOf<? super NamedElement> matcher) {
+        SharedTypePools.annotationsOfInterest(matcher.names);
+        return SUPPLIER.declaresAnnotation(matcher);
+    }
 
-    ElementMatcher.Junction<TypeDescription> declaresField(
-        ElementMatcher<? super FieldDescription> matcher);
+    public static ElementMatcher.Junction<TypeDescription> declaresField(
+            ElementMatcher<? super FieldDescription> matcher) {
+        return SUPPLIER.declaresField(matcher);
+    }
 
-    ElementMatcher.Junction<TypeDescription> declaresMethod(
-        ElementMatcher<? super MethodDescription> matcher);
+    public static ElementMatcher.Junction<TypeDescription> declaresMethod(
+            ElementMatcher<? super MethodDescription> matcher) {
+        return SUPPLIER.declaresMethod(matcher);
+    }
 
-    ElementMatcher.Junction<TypeDescription> concreteClass();
+    public static ElementMatcher.Junction<TypeDescription> concreteClass() {
+        return SUPPLIER.concreteClass();
+    }
 
-    ElementMatcher.Junction<TypeDescription> extendsClass(
-        ElementMatcher<? super TypeDescription> matcher);
+    public static ElementMatcher.Junction<TypeDescription> extendsClass(
+            ElementMatcher<? super TypeDescription> matcher) {
+        return SUPPLIER.extendsClass(matcher);
+    }
 
-    ElementMatcher.Junction<TypeDescription> implementsInterface(
-        ElementMatcher<? super TypeDescription> matcher);
+    public static ElementMatcher.Junction<TypeDescription> implementsInterface(
+            ElementMatcher<? super TypeDescription> matcher) {
+        return SUPPLIER.implementsInterface(matcher);
+    }
 
-    ElementMatcher.Junction<TypeDescription> hasInterface(
-        ElementMatcher<? super TypeDescription> matcher);
+    /**
+     * Like {@link #implementsInterface} but also matches when the target type is an interface.
+     *
+     * <p>Use this when matching return or parameter types that could be classes or interfaces.
+     */
+    public static ElementMatcher.Junction<TypeDescription> hasInterface(
+            ElementMatcher<? super TypeDescription> matcher) {
+        return SUPPLIER.hasInterface(matcher);
+    }
 
-    ElementMatcher.Junction<TypeDescription> hasSuperType(
-        ElementMatcher<? super TypeDescription> matcher);
+    /** Considers both interfaces and super-classes when matching the target type's hierarchy. */
+    public static ElementMatcher.Junction<TypeDescription> hasSuperType(
+            ElementMatcher<? super TypeDescription> matcher) {
+        return SUPPLIER.hasSuperType(matcher);
+    }
 
-    ElementMatcher.Junction<MethodDescription> hasSuperMethod(
-        ElementMatcher<? super MethodDescription> matcher);
+    /** Targets methods whose declaring class has a super-type that declares a matching method. */
+    public static ElementMatcher.Junction<MethodDescription> hasSuperMethod(
+            ElementMatcher<? super MethodDescription> matcher) {
+        return SUPPLIER.hasSuperMethod(matcher);
+    }
 
-    ElementMatcher.Junction<TypeDescription> declaresContextField(
-        String keyClassName, String contextClassName);
-  }
+    /** Matches classes that should have a field injected for the specified context-store. */
+    public static ElementMatcher.Junction<TypeDescription> declaresContextField(
+            String keyClassName, String contextClassName) {
+        return SUPPLIER.declaresContextField(keyClassName, contextClassName);
+    }
 
-  /** Simple hierarchy checks for use during the build when testing or validating muzzle ranges. */
-  public static HierarchyMatchers.Supplier simpleChecks() {
-    return new HierarchyMatchers.Supplier() {
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-          ElementMatcher<? super NamedElement> matcher) {
+    /** Use this to match annotated fields, methods, or method parameters. */
+    @SuppressForbidden
+    public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
+            ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
+        SharedTypePools.annotationOfInterest(matcher.name);
         return ElementMatchers.isAnnotatedWith(matcher);
-      }
+    }
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> declaresField(
-          ElementMatcher<? super FieldDescription> matcher) {
-        return ElementMatchers.declaresField(matcher);
-      }
+    /** Use this to match annotated fields, methods, or method parameters. */
+    @SuppressForbidden
+    public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
+            ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
+        SharedTypePools.annotationsOfInterest(matcher.names);
+        return ElementMatchers.isAnnotatedWith(matcher);
+    }
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> declaresMethod(
-          ElementMatcher<? super MethodDescription> matcher) {
-        return ElementMatchers.declaresMethod(matcher);
-      }
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification =
+                    "Agent-internal holder; Class object does not escape to app code and lock only guards one-time supplier registration.")
+    public static synchronized void registerIfAbsent(Supplier supplier) {
+        if (null == SUPPLIER) {
+            SUPPLIER = supplier;
+        }
+    }
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> concreteClass() {
-        return not(ElementMatchers.isAbstract());
-      }
+    public interface Supplier {
+        ElementMatcher.Junction<TypeDescription> declaresAnnotation(ElementMatcher<? super NamedElement> matcher);
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> extendsClass(
-          ElementMatcher<? super TypeDescription> matcher) {
-        return ElementMatchers.hasSuperClass(matcher);
-      }
+        ElementMatcher.Junction<TypeDescription> declaresField(ElementMatcher<? super FieldDescription> matcher);
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> implementsInterface(
-          ElementMatcher<? super TypeDescription> matcher) {
-        return ElementMatchers.hasSuperType(matcher);
-      }
+        ElementMatcher.Junction<TypeDescription> declaresMethod(ElementMatcher<? super MethodDescription> matcher);
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> hasInterface(
-          ElementMatcher<? super TypeDescription> matcher) {
-        return ElementMatchers.hasSuperType(matcher);
-      }
+        ElementMatcher.Junction<TypeDescription> concreteClass();
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<TypeDescription> hasSuperType(
-          ElementMatcher<? super TypeDescription> matcher) {
-        return ElementMatchers.hasSuperType(matcher);
-      }
+        ElementMatcher.Junction<TypeDescription> extendsClass(ElementMatcher<? super TypeDescription> matcher);
 
-      @Override
-      @SuppressForbidden
-      public ElementMatcher.Junction<MethodDescription> hasSuperMethod(
-          ElementMatcher<? super MethodDescription> matcher) {
-        return ElementMatchers.isDeclaredBy(
-            ElementMatchers.hasSuperType(ElementMatchers.declaresMethod(matcher)));
-      }
+        ElementMatcher.Junction<TypeDescription> implementsInterface(ElementMatcher<? super TypeDescription> matcher);
 
-      @Override
-      public ElementMatcher.Junction<TypeDescription> declaresContextField(
-          String keyClassName, String contextClassName) {
-        return none(); // unused during build
-      }
-    };
-  }
+        ElementMatcher.Junction<TypeDescription> hasInterface(ElementMatcher<? super TypeDescription> matcher);
 
-  private HierarchyMatchers() {}
+        ElementMatcher.Junction<TypeDescription> hasSuperType(ElementMatcher<? super TypeDescription> matcher);
+
+        ElementMatcher.Junction<MethodDescription> hasSuperMethod(ElementMatcher<? super MethodDescription> matcher);
+
+        ElementMatcher.Junction<TypeDescription> declaresContextField(String keyClassName, String contextClassName);
+    }
+
+    /** Simple hierarchy checks for use during the build when testing or validating muzzle ranges. */
+    public static HierarchyMatchers.Supplier simpleChecks() {
+        return new HierarchyMatchers.Supplier() {
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> declaresAnnotation(
+                    ElementMatcher<? super NamedElement> matcher) {
+                return ElementMatchers.isAnnotatedWith(matcher);
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> declaresField(
+                    ElementMatcher<? super FieldDescription> matcher) {
+                return ElementMatchers.declaresField(matcher);
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> declaresMethod(
+                    ElementMatcher<? super MethodDescription> matcher) {
+                return ElementMatchers.declaresMethod(matcher);
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> concreteClass() {
+                return not(ElementMatchers.isAbstract());
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> extendsClass(
+                    ElementMatcher<? super TypeDescription> matcher) {
+                return ElementMatchers.hasSuperClass(matcher);
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> implementsInterface(
+                    ElementMatcher<? super TypeDescription> matcher) {
+                return ElementMatchers.hasSuperType(matcher);
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> hasInterface(
+                    ElementMatcher<? super TypeDescription> matcher) {
+                return ElementMatchers.hasSuperType(matcher);
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<TypeDescription> hasSuperType(
+                    ElementMatcher<? super TypeDescription> matcher) {
+                return ElementMatchers.hasSuperType(matcher);
+            }
+
+            @Override
+            @SuppressForbidden
+            public ElementMatcher.Junction<MethodDescription> hasSuperMethod(
+                    ElementMatcher<? super MethodDescription> matcher) {
+                return ElementMatchers.isDeclaredBy(
+                        ElementMatchers.hasSuperType(ElementMatchers.declaresMethod(matcher)));
+            }
+
+            @Override
+            public ElementMatcher.Junction<TypeDescription> declaresContextField(
+                    String keyClassName, String contextClassName) {
+                return none(); // unused during build
+            }
+        };
+    }
+
+    private HierarchyMatchers() {}
 }

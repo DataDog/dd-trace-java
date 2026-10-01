@@ -10,33 +10,32 @@ import org.testng.ITestResult;
 
 public abstract class TestEventsHandlerHolder {
 
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public static volatile TestEventsHandler<TestSuiteDescriptor, ITestResult> TEST_EVENTS_HANDLER;
+    @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+    public static volatile TestEventsHandler<TestSuiteDescriptor, ITestResult> TEST_EVENTS_HANDLER;
 
-  private static ContextStore<ITestResult, DDTest> TEST_STORE;
+    private static ContextStore<ITestResult, DDTest> TEST_STORE;
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Holder class not exposed to application code; locking on its Class is safe")
-  public static synchronized void setContextStore(ContextStore<ITestResult, DDTest> testStore) {
-    if (TEST_STORE == null) {
-      TEST_STORE = testStore;
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+            justification = "Holder class not exposed to application code; locking on its Class is safe")
+    public static synchronized void setContextStore(ContextStore<ITestResult, DDTest> testStore) {
+        if (TEST_STORE == null) {
+            TEST_STORE = testStore;
+        }
     }
-  }
 
-  public static void start() {
-    TEST_EVENTS_HANDLER =
-        InstrumentationBridge.createTestEventsHandler(
-            "testng", null, TEST_STORE, TestNGUtils.capabilities(TestNGUtils.getTestNGVersion()));
-  }
-
-  /** Used by instrumentation tests */
-  public static void stop() {
-    if (TEST_EVENTS_HANDLER != null) {
-      TEST_EVENTS_HANDLER.close();
-      TEST_EVENTS_HANDLER = null;
+    public static void start() {
+        TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler(
+                "testng", null, TEST_STORE, TestNGUtils.capabilities(TestNGUtils.getTestNGVersion()));
     }
-  }
 
-  private TestEventsHandlerHolder() {}
+    /** Used by instrumentation tests */
+    public static void stop() {
+        if (TEST_EVENTS_HANDLER != null) {
+            TEST_EVENTS_HANDLER.close();
+            TEST_EVENTS_HANDLER = null;
+        }
+    }
+
+    private TestEventsHandlerHolder() {}
 }

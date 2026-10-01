@@ -26,271 +26,261 @@ import org.slf4j.LoggerFactory;
  */
 class HaystackHttpCodec {
 
-  private static final Logger log = LoggerFactory.getLogger(HaystackHttpCodec.class);
+    private static final Logger log = LoggerFactory.getLogger(HaystackHttpCodec.class);
 
-  // https://github.com/ExpediaDotCom/haystack-client-java/blob/master/core/src/main/java/com/expedia/www/haystack/client/propagation/DefaultKeyConvention.java
-  static final String OT_BAGGAGE_PREFIX = "Baggage-";
-  static final String TRACE_ID_KEY = "Trace-ID";
-  static final String SPAN_ID_KEY = "Span-ID";
-  static final String PARENT_ID_KEY = "Parent-ID";
+    // https://github.com/ExpediaDotCom/haystack-client-java/blob/master/core/src/main/java/com/expedia/www/haystack/client/propagation/DefaultKeyConvention.java
+    static final String OT_BAGGAGE_PREFIX = "Baggage-";
+    static final String TRACE_ID_KEY = "Trace-ID";
+    static final String SPAN_ID_KEY = "Span-ID";
+    static final String PARENT_ID_KEY = "Parent-ID";
 
-  static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Trace-Id";
-  static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Span-Id";
-  static final String DD_PARENT_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Parent-Id";
+    static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Trace-Id";
+    static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Span-Id";
+    static final String DD_PARENT_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Parent-Id";
 
-  static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
-  static final String HAYSTACK_SPAN_ID_BAGGAGE_KEY = "Haystack-Span-ID";
-  static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
+    static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
+    static final String HAYSTACK_SPAN_ID_BAGGAGE_KEY = "Haystack-Span-ID";
+    static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
 
-  // public static final long DATADOG = new BigInteger("Datadog!".getBytes()).longValue();
-  public static final String DATADOG = "44617461-646f-6721";
+    // public static final long DATADOG = new BigInteger("Datadog!".getBytes()).longValue();
+    public static final String DATADOG = "44617461-646f-6721";
 
-  private HaystackHttpCodec() {
-    // This class should not be created. This also makes code coverage checks happy.
-  }
-
-  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
-    return new Injector(invertedBaggageMapping);
-  }
-
-  private static class Injector implements HttpCodec.Injector {
-
-    private final Map<String, String> invertedBaggageMapping;
-
-    public Injector(Map<String, String> invertedBaggageMapping) {
-      this.invertedBaggageMapping = invertedBaggageMapping;
+    private HaystackHttpCodec() {
+        // This class should not be created. This also makes code coverage checks happy.
     }
 
-    @Override
-    public <C> void inject(
-        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
-      try {
-        // Given that Haystack uses a 128-bit UUID/GUID for all ID representations, need to convert
-        // from 64-bit BigInteger
-        //  also record the original DataDog IDs into Baggage payload
-        //
-        // If the original trace has originated within Haystack system and we have it saved in
-        // Baggage, and it is equal
-        //  to the converted value in BigInteger, use that instead.
-        //  this will preserve the complete UUID/GUID without losing the most significant bit part
-        String originalHaystackTraceId =
-            getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
-        String injectedTraceId;
-        if (originalHaystackTraceId != null
-            && DDTraceId.fromHex(convertUUIDToHexString(originalHaystackTraceId))
-                .equals(context.getTraceId())) {
-          injectedTraceId = originalHaystackTraceId;
-        } else {
-          injectedTraceId = convertLongToUUID(context.getTraceId().toLong());
+    public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
+        return new Injector(invertedBaggageMapping);
+    }
+
+    private static class Injector implements HttpCodec.Injector {
+
+        private final Map<String, String> invertedBaggageMapping;
+
+        public Injector(Map<String, String> invertedBaggageMapping) {
+            this.invertedBaggageMapping = invertedBaggageMapping;
         }
-        setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
-        context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
-        setter.set(
-            carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
-        setter.set(carrier, SPAN_ID_KEY, convertLongToUUID(context.getSpanId()));
-        setter.set(
-            carrier,
-            DD_SPAN_ID_BAGGAGE_KEY,
-            HttpCodec.encode(DDSpanId.toString(context.getSpanId())));
-        setter.set(carrier, PARENT_ID_KEY, convertLongToUUID(context.getParentId()));
-        setter.set(
-            carrier,
-            DD_PARENT_ID_BAGGAGE_KEY,
-            HttpCodec.encode(DDSpanId.toString(context.getParentId())));
 
-        for (final Map.Entry<String, String> entry : context.baggageItems()) {
-          String header = invertedBaggageMapping.get(entry.getKey());
-          header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-          setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
-        }
-        log.debug(
-            "{} - Haystack parent context injected - {}", context.getTraceId(), injectedTraceId);
-      } catch (final NumberFormatException e) {
-        log.debug(
-            "Cannot parse context id(s): {} {}", context.getTraceId(), context.getSpanId(), e);
-      }
-    }
-
-    private String getBaggageItemIgnoreCase(Map<String, String> baggage, String key) {
-      for (final Map.Entry<String, String> mapping : baggage.entrySet()) {
-        if (key.equalsIgnoreCase(mapping.getKey())) {
-          return mapping.getValue();
-        }
-      }
-      return null;
-    }
-  }
-
-  public static HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(
-        traceConfigSupplier, () -> new HaystackContextInterpreter(config));
-  }
-
-  private static class HaystackContextInterpreter extends ContextInterpreter {
-
-    private static final String BAGGAGE_PREFIX_LC = "baggage-";
-
-    // Largest reserved value we accept. Only relevant for traceID/spanID
-    private static final int MAX_RESERVED_ID_LENGTH = 64;
-
-    private static final int TRACE_ID = 0;
-    private static final int SPAN_ID = 1;
-    private static final int PARENT_ID = 2;
-    private static final int BAGGAGE = 3;
-    private static final int IGNORE = -1;
-
-    private HaystackContextInterpreter(Config config) {
-      super(config);
-    }
-
-    @Override
-    public TracePropagationStyle style() {
-      return HAYSTACK;
-    }
-
-    @Override
-    public boolean accept(String key, String value) {
-      if (null == key || key.isEmpty()) {
-        return true;
-      }
-      if (LOG_EXTRACT_HEADER_NAMES) {
-        log.debug("Header: {}", key);
-      }
-      char first = Character.toLowerCase(key.charAt(0));
-      String lowerCaseKey = null;
-      int classification = IGNORE;
-      switch (first) {
-        case 't':
-          if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
-            classification = TRACE_ID;
-          }
-          break;
-        case 's':
-          if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-            classification = SPAN_ID;
-          }
-          break;
-        case 'p':
-          if (PARENT_ID_KEY.equalsIgnoreCase(key)) {
-            classification = PARENT_ID;
-          }
-          break;
-        case 'x':
-          handledXForwarding(key, value);
-          break;
-        case 'f':
-          handledForwarding(key, value);
-          break;
-        case 'b':
-          lowerCaseKey = toLowerCase(key);
-          if (lowerCaseKey.startsWith(BAGGAGE_PREFIX_LC)) {
-            classification = BAGGAGE;
-          }
-          break;
-        case 'u':
-          handledUserAgent(key, value);
-          break;
-        default:
-      }
-
-      if (IGNORE != classification) {
-        try {
-          String firstValue = firstHeaderValue(value);
-          if (null != firstValue) {
-            switch (classification) {
-              case TRACE_ID:
-                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(firstValue));
-                addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, firstValue);
-                break;
-              case SPAN_ID:
-                spanId = DDSpanId.fromHex(convertUUIDToHexString(firstValue));
-                addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, firstValue);
-                break;
-              case PARENT_ID:
-                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
-                break;
-              case BAGGAGE:
-                {
-                  addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
-                  break;
+        @Override
+        public <C> void inject(final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
+            try {
+                // Given that Haystack uses a 128-bit UUID/GUID for all ID representations, need to convert
+                // from 64-bit BigInteger
+                //  also record the original DataDog IDs into Baggage payload
+                //
+                // If the original trace has originated within Haystack system and we have it saved in
+                // Baggage, and it is equal
+                //  to the converted value in BigInteger, use that instead.
+                //  this will preserve the complete UUID/GUID without losing the most significant bit part
+                String originalHaystackTraceId =
+                        getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
+                String injectedTraceId;
+                if (originalHaystackTraceId != null
+                        && DDTraceId.fromHex(convertUUIDToHexString(originalHaystackTraceId))
+                                .equals(context.getTraceId())) {
+                    injectedTraceId = originalHaystackTraceId;
+                } else {
+                    injectedTraceId = convertLongToUUID(context.getTraceId().toLong());
                 }
-              default:
+                setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
+                context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
+                setter.set(
+                        carrier,
+                        DD_TRACE_ID_BAGGAGE_KEY,
+                        HttpCodec.encode(context.getTraceId().toString()));
+                setter.set(carrier, SPAN_ID_KEY, convertLongToUUID(context.getSpanId()));
+                setter.set(carrier, DD_SPAN_ID_BAGGAGE_KEY, HttpCodec.encode(DDSpanId.toString(context.getSpanId())));
+                setter.set(carrier, PARENT_ID_KEY, convertLongToUUID(context.getParentId()));
+                setter.set(
+                        carrier, DD_PARENT_ID_BAGGAGE_KEY, HttpCodec.encode(DDSpanId.toString(context.getParentId())));
+
+                for (final Map.Entry<String, String> entry : context.baggageItems()) {
+                    String header = invertedBaggageMapping.get(entry.getKey());
+                    header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
+                    setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
+                }
+                log.debug("{} - Haystack parent context injected - {}", context.getTraceId(), injectedTraceId);
+            } catch (final NumberFormatException e) {
+                log.debug("Cannot parse context id(s): {} {}", context.getTraceId(), context.getSpanId(), e);
             }
-          }
-        } catch (RuntimeException e) {
-          invalidateContext();
-          log.debug("Exception when extracting context", e);
-          return false;
         }
-      } else {
-        handledIpHeaders(key, value);
-        if (handleTags(key, value)) {
-          return true;
+
+        private String getBaggageItemIgnoreCase(Map<String, String> baggage, String key) {
+            for (final Map.Entry<String, String> mapping : baggage.entrySet()) {
+                if (key.equalsIgnoreCase(mapping.getKey())) {
+                    return mapping.getValue();
+                }
+            }
+            return null;
         }
-        handleMappedBaggage(key, value);
-      }
-      return true;
     }
 
-    /**
-     * Records the value of a reserved key, e.g. traceID/spanID. Ignores baggage item and byte
-     * limits to ensure propagation of key headers. However, if the header exceeds
-     * MAX_RESERVED_ID_LENGTH, value is rejected.
-     *
-     * @param key the reserved baggage key.
-     * @param value the id as it arrived, ignored when longer than {@link #MAX_RESERVED_ID_LENGTH}.
-     */
-    private void addReservedBaggageItem(String key, String value) {
-      if (value == null || value.length() > MAX_RESERVED_ID_LENGTH) {
-        return;
-      }
-      if (baggage.isEmpty()) {
-        baggage = new TreeMap<>();
-      }
-      baggage.put(key, HttpCodec.decode(value));
+    public static HttpCodec.Extractor newExtractor(Config config, Supplier<TraceConfig> traceConfigSupplier) {
+        return new TagContextExtractor(traceConfigSupplier, () -> new HaystackContextInterpreter(config));
     }
 
-    @Override
-    protected int defaultSamplingPriority() {
-      return PrioritySampling.SAMPLER_KEEP;
-    }
-  }
+    private static class HaystackContextInterpreter extends ContextInterpreter {
 
-  private static String convertLongToUUID(long id) {
-    // This is not a true/real UUID, as we don't care about the version and variant markers
-    //  the creation is just taking the least significant bits and doing static most significant
-    // ones.
-    //  this is done for the purpose of being able to maintain cardinality and idempotence of the
-    // conversion
-    String idHex = String.format("%016x", id);
-    return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
-  }
+        private static final String BAGGAGE_PREFIX_LC = "baggage-";
 
-  @SuppressForbidden
-  private static String convertUUIDToHexString(String value) {
-    try {
-      if (value.contains("-")) {
-        String[] strings = value.split("-");
-        // We are only interested in the least significant bit component, dropping the most
-        // significant one.
-        if (strings.length == 5) {
-          String idHex = strings[3] + strings[4];
-          return idHex;
+        // Largest reserved value we accept. Only relevant for traceID/spanID
+        private static final int MAX_RESERVED_ID_LENGTH = 64;
+
+        private static final int TRACE_ID = 0;
+        private static final int SPAN_ID = 1;
+        private static final int PARENT_ID = 2;
+        private static final int BAGGAGE = 3;
+        private static final int IGNORE = -1;
+
+        private HaystackContextInterpreter(Config config) {
+            super(config);
         }
-        throw new NumberFormatException("Invalid UUID format: " + value);
-      } else {
-        // This could be a regular hex id without separators
-        int length = value.length();
-        if (length == 32) {
-          return value.substring(16);
-        } else {
-          return value;
+
+        @Override
+        public TracePropagationStyle style() {
+            return HAYSTACK;
         }
-      }
-    } catch (final Exception e) {
-      throw new IllegalArgumentException(
-          "Exception when converting UUID to BigInteger: " + value, e);
+
+        @Override
+        public boolean accept(String key, String value) {
+            if (null == key || key.isEmpty()) {
+                return true;
+            }
+            if (LOG_EXTRACT_HEADER_NAMES) {
+                log.debug("Header: {}", key);
+            }
+            char first = Character.toLowerCase(key.charAt(0));
+            String lowerCaseKey = null;
+            int classification = IGNORE;
+            switch (first) {
+                case 't':
+                    if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
+                        classification = TRACE_ID;
+                    }
+                    break;
+                case 's':
+                    if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
+                        classification = SPAN_ID;
+                    }
+                    break;
+                case 'p':
+                    if (PARENT_ID_KEY.equalsIgnoreCase(key)) {
+                        classification = PARENT_ID;
+                    }
+                    break;
+                case 'x':
+                    handledXForwarding(key, value);
+                    break;
+                case 'f':
+                    handledForwarding(key, value);
+                    break;
+                case 'b':
+                    lowerCaseKey = toLowerCase(key);
+                    if (lowerCaseKey.startsWith(BAGGAGE_PREFIX_LC)) {
+                        classification = BAGGAGE;
+                    }
+                    break;
+                case 'u':
+                    handledUserAgent(key, value);
+                    break;
+                default:
+            }
+
+            if (IGNORE != classification) {
+                try {
+                    String firstValue = firstHeaderValue(value);
+                    if (null != firstValue) {
+                        switch (classification) {
+                            case TRACE_ID:
+                                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(firstValue));
+                                addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, firstValue);
+                                break;
+                            case SPAN_ID:
+                                spanId = DDSpanId.fromHex(convertUUIDToHexString(firstValue));
+                                addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, firstValue);
+                                break;
+                            case PARENT_ID:
+                                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
+                                break;
+                            case BAGGAGE: {
+                                addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
+                                break;
+                            }
+                            default:
+                        }
+                    }
+                } catch (RuntimeException e) {
+                    invalidateContext();
+                    log.debug("Exception when extracting context", e);
+                    return false;
+                }
+            } else {
+                handledIpHeaders(key, value);
+                if (handleTags(key, value)) {
+                    return true;
+                }
+                handleMappedBaggage(key, value);
+            }
+            return true;
+        }
+
+        /**
+         * Records the value of a reserved key, e.g. traceID/spanID. Ignores baggage item and byte
+         * limits to ensure propagation of key headers. However, if the header exceeds
+         * MAX_RESERVED_ID_LENGTH, value is rejected.
+         *
+         * @param key the reserved baggage key.
+         * @param value the id as it arrived, ignored when longer than {@link #MAX_RESERVED_ID_LENGTH}.
+         */
+        private void addReservedBaggageItem(String key, String value) {
+            if (value == null || value.length() > MAX_RESERVED_ID_LENGTH) {
+                return;
+            }
+            if (baggage.isEmpty()) {
+                baggage = new TreeMap<>();
+            }
+            baggage.put(key, HttpCodec.decode(value));
+        }
+
+        @Override
+        protected int defaultSamplingPriority() {
+            return PrioritySampling.SAMPLER_KEEP;
+        }
     }
-  }
+
+    private static String convertLongToUUID(long id) {
+        // This is not a true/real UUID, as we don't care about the version and variant markers
+        //  the creation is just taking the least significant bits and doing static most significant
+        // ones.
+        //  this is done for the purpose of being able to maintain cardinality and idempotence of the
+        // conversion
+        String idHex = String.format("%016x", id);
+        return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
+    }
+
+    @SuppressForbidden
+    private static String convertUUIDToHexString(String value) {
+        try {
+            if (value.contains("-")) {
+                String[] strings = value.split("-");
+                // We are only interested in the least significant bit component, dropping the most
+                // significant one.
+                if (strings.length == 5) {
+                    String idHex = strings[3] + strings[4];
+                    return idHex;
+                }
+                throw new NumberFormatException("Invalid UUID format: " + value);
+            } else {
+                // This could be a regular hex id without separators
+                int length = value.length();
+                if (length == 32) {
+                    return value.substring(16);
+                } else {
+                    return value;
+                }
+            }
+        } catch (final Exception e) {
+            throw new IllegalArgumentException("Exception when converting UUID to BigInteger: " + value, e);
+        }
+    }
 }

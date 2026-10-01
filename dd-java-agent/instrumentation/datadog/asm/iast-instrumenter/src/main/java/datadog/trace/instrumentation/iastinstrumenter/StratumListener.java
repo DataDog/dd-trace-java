@@ -8,24 +8,23 @@ import net.bytebuddy.description.type.TypeDescription;
 
 public class StratumListener implements Advices.Listener {
 
-  private final StratumManager stratumManager;
+    private final StratumManager stratumManager;
 
-  public StratumListener(StratumManager stratumManager) {
-    this.stratumManager = stratumManager;
-  }
-
-  @Override
-  public void onConstantPool(
-      @Nonnull TypeDescription type, @Nonnull ConstantPool pool, byte[] classFile) {
-    if (shouldBeAnalyzed(type.getInternalName())) {
-      stratumManager.analyzeClass(classFile);
+    public StratumListener(StratumManager stratumManager) {
+        this.stratumManager = stratumManager;
     }
-  }
 
-  private static boolean shouldBeAnalyzed(final String internalClassName) {
-    return internalClassName.contains("jsp")
-        && (internalClassName.contains("_jsp")
-            || internalClassName.contains("jsp_")
-            || internalClassName.contains("_tag"));
-  }
+    @Override
+    public void onConstantPool(@Nonnull TypeDescription type, @Nonnull ConstantPool pool, byte[] classFile) {
+        if (shouldBeAnalyzed(type.getInternalName())) {
+            stratumManager.analyzeClass(classFile);
+        }
+    }
+
+    private static boolean shouldBeAnalyzed(final String internalClassName) {
+        return internalClassName.contains("jsp")
+                && (internalClassName.contains("_jsp")
+                        || internalClassName.contains("jsp_")
+                        || internalClassName.contains("_tag"));
+    }
 }

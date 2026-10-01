@@ -15,98 +15,98 @@ import java.util.Map;
  */
 public interface AgentSpanContext {
 
-  /**
-   * Gets the TraceId of the span's trace.
-   *
-   * @return The TraceId of the span's trace, or {@link DDTraceId#ZERO} if not set.
-   */
-  DDTraceId getTraceId();
-
-  /**
-   * Gets the SpanId.
-   *
-   * @return The span identifier, or {@link datadog.trace.api.DDSpanId#ZERO} if not set.
-   */
-  long getSpanId();
-
-  /**
-   * Get the span's trace collector.
-   *
-   * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTraceCollector#INSTANCE} if the
-   *     trace is not valid.
-   */
-  AgentTraceCollector getTraceCollector();
-
-  /**
-   * Gets the trace sampling priority of the span's trace.
-   *
-   * <p>Check {@link PrioritySampling} for possible values.
-   *
-   * @return The trace sampling priority of the span's trace, or {@link PrioritySampling#UNSET} if
-   *     no priority has been set.
-   */
-  int getSamplingPriority();
-
-  Iterable<Map.Entry<String, String>> baggageItems();
-
-  PathwayContext getPathwayContext();
-
-  default void mergePathwayContext(PathwayContext pathwayContext) {}
-
-  default void setIntegrationName(CharSequence componentName) {}
-
-  /**
-   * The integration name recorded on this context, or {@code null} if none. Default {@code null}
-   * mirrors {@link #setIntegrationName}'s no-op default: contexts that do not track an integration
-   * name report absence, which lets never-clobber callers guard before setting.
-   */
-  default CharSequence getIntegrationName() {
-    return null;
-  }
-
-  /**
-   * Gets whether the span context used is part of the local trace or from another service
-   *
-   * @return boolean representing if the span context is part of the local trace
-   */
-  boolean isRemote();
-
-  interface Extracted extends AgentSpanContext {
     /**
-     * Gets the span links related to the other terminated context.
+     * Gets the TraceId of the span's trace.
      *
-     * @return The span links to other extracted contexts found but terminated.
+     * @return The TraceId of the span's trace, or {@link DDTraceId#ZERO} if not set.
      */
-    List<AgentSpanLink> getTerminatedSpanLinks();
+    DDTraceId getTraceId();
 
-    String getForwarded();
+    /**
+     * Gets the SpanId.
+     *
+     * @return The span identifier, or {@link datadog.trace.api.DDSpanId#ZERO} if not set.
+     */
+    long getSpanId();
 
-    String getFastlyClientIp();
+    /**
+     * Get the span's trace collector.
+     *
+     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTraceCollector#INSTANCE} if the
+     *     trace is not valid.
+     */
+    AgentTraceCollector getTraceCollector();
 
-    String getCfConnectingIp();
+    /**
+     * Gets the trace sampling priority of the span's trace.
+     *
+     * <p>Check {@link PrioritySampling} for possible values.
+     *
+     * @return The trace sampling priority of the span's trace, or {@link PrioritySampling#UNSET} if
+     *     no priority has been set.
+     */
+    int getSamplingPriority();
 
-    String getCfConnectingIpv6();
+    Iterable<Map.Entry<String, String>> baggageItems();
 
-    String getXForwardedProto();
+    PathwayContext getPathwayContext();
 
-    String getXForwardedHost();
+    default void mergePathwayContext(PathwayContext pathwayContext) {}
 
-    String getXForwardedPort();
+    default void setIntegrationName(CharSequence componentName) {}
 
-    String getForwardedFor();
+    /**
+     * The integration name recorded on this context, or {@code null} if none. Default {@code null}
+     * mirrors {@link #setIntegrationName}'s no-op default: contexts that do not track an integration
+     * name report absence, which lets never-clobber callers guard before setting.
+     */
+    default CharSequence getIntegrationName() {
+        return null;
+    }
 
-    String getXForwardedFor();
+    /**
+     * Gets whether the span context used is part of the local trace or from another service
+     *
+     * @return boolean representing if the span context is part of the local trace
+     */
+    boolean isRemote();
 
-    String getXClusterClientIp();
+    interface Extracted extends AgentSpanContext {
+        /**
+         * Gets the span links related to the other terminated context.
+         *
+         * @return The span links to other extracted contexts found but terminated.
+         */
+        List<AgentSpanLink> getTerminatedSpanLinks();
 
-    String getXRealIp();
+        String getForwarded();
 
-    String getXClientIp();
+        String getFastlyClientIp();
 
-    String getUserAgent();
+        String getCfConnectingIp();
 
-    String getTrueClientIp();
+        String getCfConnectingIpv6();
 
-    String getCustomIpHeader();
-  }
+        String getXForwardedProto();
+
+        String getXForwardedHost();
+
+        String getXForwardedPort();
+
+        String getForwardedFor();
+
+        String getXForwardedFor();
+
+        String getXClusterClientIp();
+
+        String getXRealIp();
+
+        String getXClientIp();
+
+        String getUserAgent();
+
+        String getTrueClientIp();
+
+        String getCustomIpHeader();
+    }
 }

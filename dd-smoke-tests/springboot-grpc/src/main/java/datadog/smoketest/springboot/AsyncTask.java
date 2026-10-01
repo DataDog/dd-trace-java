@@ -6,14 +6,14 @@ import org.springframework.scheduling.annotation.Async;
 
 public class AsyncTask {
 
-  private final AsynchronousGreeter greeter;
+    private final AsynchronousGreeter greeter;
 
-  public AsyncTask(AsynchronousGreeter greeter) {
-    this.greeter = greeter;
-  }
+    public AsyncTask(AsynchronousGreeter greeter) {
+        this.greeter = greeter;
+    }
 
-  @Async
-  public CompletableFuture<String> greet(String message) {
-    return CompletableFuture.completedFuture(greeter.greet(message));
-  }
+    @Async
+    public CompletableFuture<String> greet(String message) {
+        return CompletableFuture.completedFuture(greeter.greet(message));
+    }
 }

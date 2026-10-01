@@ -15,25 +15,25 @@ import org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo;
 
 @AutoService(InstrumenterModule.class)
 public class ExecutionInitialSpanInfoInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(0, named("org.mule.runtime.api.component.Component"))),
-        getClass().getName() + "$StoreComponentAdvice");
-  }
-
-  public static class StoreComponentAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterConstruct(
-        @Advice.This ExecutionInitialSpanInfo self, @Advice.Argument(0) final Component component) {
-      InstrumentationContext.get(InitialSpanInfo.class, Component.class).put(self, component);
+    @Override
+    public String instrumentedType() {
+        return "org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(0, named("org.mule.runtime.api.component.Component"))),
+                getClass().getName() + "$StoreComponentAdvice");
+    }
+
+    public static class StoreComponentAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterConstruct(
+                @Advice.This ExecutionInitialSpanInfo self, @Advice.Argument(0) final Component component) {
+            InstrumentationContext.get(InitialSpanInfo.class, Component.class).put(self, component);
+        }
+    }
 }

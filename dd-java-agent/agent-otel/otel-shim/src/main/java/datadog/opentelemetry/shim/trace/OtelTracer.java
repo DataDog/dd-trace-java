@@ -10,34 +10,32 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelTracer implements Tracer {
-  private static final String INSTRUMENTATION_NAME = otelInstrumentationName();
+    private static final String INSTRUMENTATION_NAME = otelInstrumentationName();
 
-  private final OtelInstrumentationScope instrumentationScope;
+    private final OtelInstrumentationScope instrumentationScope;
 
-  private final AgentTracer.TracerAPI tracer;
+    private final AgentTracer.TracerAPI tracer;
 
-  OtelTracer(OtelInstrumentationScope instrumentationScope) {
-    this.instrumentationScope = instrumentationScope;
-    this.tracer = AgentTracer.get();
-  }
+    OtelTracer(OtelInstrumentationScope instrumentationScope) {
+        this.instrumentationScope = instrumentationScope;
+        this.tracer = AgentTracer.get();
+    }
 
-  @Override
-  public SpanBuilder spanBuilder(String spanName) {
-    AgentTracer.SpanBuilder delegate =
-        this.tracer.buildSpan(INSTRUMENTATION_NAME, SPAN_KIND_INTERNAL).withResourceName(spanName);
-    return new OtelSpanBuilder(delegate);
-  }
+    @Override
+    public SpanBuilder spanBuilder(String spanName) {
+        AgentTracer.SpanBuilder delegate =
+                this.tracer.buildSpan(INSTRUMENTATION_NAME, SPAN_KIND_INTERNAL).withResourceName(spanName);
+        return new OtelSpanBuilder(delegate);
+    }
 
-  @Override
-  public String toString() {
-    return "OtelTracer{instrumentationScope=" + instrumentationScope + "}";
-  }
+    @Override
+    public String toString() {
+        return "OtelTracer{instrumentationScope=" + instrumentationScope + "}";
+    }
 
-  @SuppressWarnings("ConstantConditions")
-  private static String otelInstrumentationName() {
-    // is this the bootstrap shim for drop-in support, or the shim for manual instrumentation?
-    return OtelTracer.class.getName().startsWith("datadog.trace.bootstrap")
-        ? "otel.library"
-        : "otel";
-  }
+    @SuppressWarnings("ConstantConditions")
+    private static String otelInstrumentationName() {
+        // is this the bootstrap shim for drop-in support, or the shim for manual instrumentation?
+        return OtelTracer.class.getName().startsWith("datadog.trace.bootstrap") ? "otel.library" : "otel";
+    }
 }

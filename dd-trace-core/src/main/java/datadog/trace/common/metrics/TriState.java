@@ -5,12 +5,12 @@ package datadog.trace.common.metrics;
  * values are used for metrics serialization.
  */
 public enum TriState {
-  UNKNOWN(0),
-  TRUE(1),
-  FALSE(2);
-  public final int serialValue;
+    UNKNOWN(0),
+    TRUE(1),
+    FALSE(2);
+    public final int serialValue;
 
-  TriState(int serialValue) {
-    this.serialValue = serialValue;
-  }
+    TriState(int serialValue) {
+        this.serialValue = serialValue;
+    }
 }

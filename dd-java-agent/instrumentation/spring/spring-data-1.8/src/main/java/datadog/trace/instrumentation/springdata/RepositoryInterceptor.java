@@ -13,41 +13,41 @@ import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.data.repository.Repository;
 
 final class RepositoryInterceptor implements MethodInterceptor {
-  private final Class<?> repositoryInterface;
+    private final Class<?> repositoryInterface;
 
-  RepositoryInterceptor(Class<?> repositoryInterface) {
-    this.repositoryInterface = repositoryInterface;
-  }
-
-  @Override
-  public Object invoke(final MethodInvocation methodInvocation) throws Throwable {
-    final Method invokedMethod = methodInvocation.getMethod();
-    final Class<?> clazz = invokedMethod.getDeclaringClass();
-
-    final boolean isRepositoryOp = Repository.class.isAssignableFrom(clazz);
-    // Since this interceptor is the outer most interceptor, non-Repository methods
-    // including Object methods will also flow through here.  Don't create spans for those.
-    if (!isRepositoryOp) {
-      return methodInvocation.proceed();
+    RepositoryInterceptor(Class<?> repositoryInterface) {
+        this.repositoryInterface = repositoryInterface;
     }
 
-    final AgentSpan span = startSpan("spring-data", REPOSITORY_OPERATION);
-    DECORATOR.afterStart(span);
-    DECORATOR.onOperation(span, invokedMethod, repositoryInterface);
+    @Override
+    public Object invoke(final MethodInvocation methodInvocation) throws Throwable {
+        final Method invokedMethod = methodInvocation.getMethod();
+        final Class<?> clazz = invokedMethod.getDeclaringClass();
 
-    final ContextScope scope = activateSpan(span);
+        final boolean isRepositoryOp = Repository.class.isAssignableFrom(clazz);
+        // Since this interceptor is the outer most interceptor, non-Repository methods
+        // including Object methods will also flow through here.  Don't create spans for those.
+        if (!isRepositoryOp) {
+            return methodInvocation.proceed();
+        }
 
-    Object result = null;
-    try {
-      result = methodInvocation.proceed();
-    } catch (final Throwable t) {
-      DECORATOR.onError(scope, t);
-      throw t;
-    } finally {
-      DECORATOR.beforeFinish(scope);
-      scope.close();
-      span.finish();
+        final AgentSpan span = startSpan("spring-data", REPOSITORY_OPERATION);
+        DECORATOR.afterStart(span);
+        DECORATOR.onOperation(span, invokedMethod, repositoryInterface);
+
+        final ContextScope scope = activateSpan(span);
+
+        Object result = null;
+        try {
+            result = methodInvocation.proceed();
+        } catch (final Throwable t) {
+            DECORATOR.onError(scope, t);
+            throw t;
+        } finally {
+            DECORATOR.beforeFinish(scope);
+            scope.close();
+            span.finish();
+        }
+        return result;
     }
-    return result;
-  }
 }

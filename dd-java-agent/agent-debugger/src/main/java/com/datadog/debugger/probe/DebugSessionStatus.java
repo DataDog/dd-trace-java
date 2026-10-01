@@ -1,24 +1,24 @@
 package com.datadog.debugger.probe;
 
 public enum DebugSessionStatus {
-  NONE {
-    @Override
+    NONE {
+        @Override
+        public boolean isDefined() {
+            return false;
+        }
+    },
+    ACTIVE,
+    DISABLED;
+
     public boolean isDefined() {
-      return false;
+        return true;
     }
-  },
-  ACTIVE,
-  DISABLED;
 
-  public boolean isDefined() {
-    return true;
-  }
+    public boolean isDisabled() {
+        return this == DISABLED;
+    }
 
-  public boolean isDisabled() {
-    return this == DISABLED;
-  }
-
-  public boolean isActive() {
-    return this == ACTIVE;
-  }
+    public boolean isActive() {
+        return this == ACTIVE;
+    }
 }

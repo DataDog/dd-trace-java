@@ -13,43 +13,43 @@ import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingConfigTest {
 
-  @Test
-  void appliesConfigurationPrecedence() {
-    assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, null, null);
-    assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, " ", null);
-    assertResolution(true, CONFIGURATION_SOURCE_REMOTE_CONFIG, null, null, true);
-    assertResolution(false, null, null, null, false);
-    assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, "agentless", true);
-    assertResolution(true, CONFIGURATION_SOURCE_REMOTE_CONFIG, null, " remote_CONFIG ", false);
-    assertResolution(false, CONFIGURATION_SOURCE_AGENTLESS, false, "agentless", true);
-    assertResolution(false, "invalid", null, "invalid", null);
-    assertResolution(false, "offline", null, " OFFLINE ", true);
-  }
-
-  @Test
-  void recognizesSupportedExplicitSources() {
-    assertTrue(isSupportedConfigurationSource(null));
-    assertTrue(isSupportedConfigurationSource(" "));
-    assertTrue(isSupportedConfigurationSource("agentless"));
-    assertTrue(isSupportedConfigurationSource(" REMOTE_CONFIG "));
-    assertFalse(isSupportedConfigurationSource("invalid"));
-    assertFalse(isSupportedConfigurationSource("offline"));
-  }
-
-  private static void assertResolution(
-      final boolean enabled,
-      final String source,
-      final Boolean providerEnabled,
-      final String explicitSource,
-      final Boolean legacyProviderEnabled) {
-    final FeatureFlaggingConfig.Resolution resolution =
-        resolveConfiguration(providerEnabled, explicitSource, legacyProviderEnabled);
-
-    assertEquals(enabled, resolution.isEnabled());
-    if (source == null) {
-      assertNull(resolution.getSource());
-    } else {
-      assertEquals(source, resolution.getSource());
+    @Test
+    void appliesConfigurationPrecedence() {
+        assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, null, null);
+        assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, " ", null);
+        assertResolution(true, CONFIGURATION_SOURCE_REMOTE_CONFIG, null, null, true);
+        assertResolution(false, null, null, null, false);
+        assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, "agentless", true);
+        assertResolution(true, CONFIGURATION_SOURCE_REMOTE_CONFIG, null, " remote_CONFIG ", false);
+        assertResolution(false, CONFIGURATION_SOURCE_AGENTLESS, false, "agentless", true);
+        assertResolution(false, "invalid", null, "invalid", null);
+        assertResolution(false, "offline", null, " OFFLINE ", true);
     }
-  }
+
+    @Test
+    void recognizesSupportedExplicitSources() {
+        assertTrue(isSupportedConfigurationSource(null));
+        assertTrue(isSupportedConfigurationSource(" "));
+        assertTrue(isSupportedConfigurationSource("agentless"));
+        assertTrue(isSupportedConfigurationSource(" REMOTE_CONFIG "));
+        assertFalse(isSupportedConfigurationSource("invalid"));
+        assertFalse(isSupportedConfigurationSource("offline"));
+    }
+
+    private static void assertResolution(
+            final boolean enabled,
+            final String source,
+            final Boolean providerEnabled,
+            final String explicitSource,
+            final Boolean legacyProviderEnabled) {
+        final FeatureFlaggingConfig.Resolution resolution =
+                resolveConfiguration(providerEnabled, explicitSource, legacyProviderEnabled);
+
+        assertEquals(enabled, resolution.isEnabled());
+        if (source == null) {
+            assertNull(resolution.getSource());
+        } else {
+            assertEquals(source, resolution.getSource());
+        }
+    }
 }

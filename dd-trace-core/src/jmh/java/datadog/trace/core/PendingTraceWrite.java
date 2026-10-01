@@ -17,89 +17,86 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Benchmark)
 public class PendingTraceWrite {
 
-  CoreTracer tracer;
-  TraceCollector traceCollector;
+    CoreTracer tracer;
+    TraceCollector traceCollector;
 
-  @Param({"10", "100"})
-  int depthPerThread;
+    @Param({"10", "100"})
+    int depthPerThread;
 
-  @Param({"0", "5", "10"})
-  int tokens;
+    @Param({"0", "5", "10"})
+    int tokens;
 
-  private DDSpan root;
-  private DDSpan span;
+    private DDSpan root;
+    private DDSpan span;
 
-  @Setup(Level.Trial)
-  public void init(TraceCounters counters, Blackhole blackhole) {
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, counters, tokens))
-            .strictTraceWrites(false)
-            .build();
-    DDTraceId traceId = DDTraceId.ONE;
-    traceCollector = tracer.createTraceCollector(traceId);
-    root =
-        DDSpan.create(
-            "benchmark",
-            System.currentTimeMillis() * 1000,
-            new DDSpanContext(
-                traceId,
-                2,
-                DDSpanId.ZERO,
-                null,
-                "service",
-                "operation",
-                "resource",
-                PrioritySampling.SAMPLER_KEEP,
-                null,
-                Collections.<String, String>emptyMap(),
-                false,
-                "type",
-                0,
-                traceCollector,
-                null,
-                null,
-                NoopPathwayContext.INSTANCE,
-                false,
-                null),
-            null);
-    span =
-        DDSpan.create(
-            "benchmark",
-            System.currentTimeMillis() * 1000,
-            new DDSpanContext(
-                traceId,
-                3,
-                2,
-                null,
-                "service",
-                "operation",
-                "resource",
-                PrioritySampling.SAMPLER_KEEP,
-                null,
-                Collections.<String, String>emptyMap(),
-                false,
-                "type",
-                0,
-                traceCollector,
-                null,
-                null,
-                NoopPathwayContext.INSTANCE,
-                false,
-                null),
-            null);
-  }
-
-  @Threads(4)
-  @Benchmark
-  public void writeTraces() {
-    traceCollector.registerSpan(root);
-    for (int i = 0; i < depthPerThread; ++i) {
-      traceCollector.registerSpan(span);
+    @Setup(Level.Trial)
+    public void init(TraceCounters counters, Blackhole blackhole) {
+        tracer = CoreTracer.builder()
+                .writer(new BlackholeWriter(blackhole, counters, tokens))
+                .strictTraceWrites(false)
+                .build();
+        DDTraceId traceId = DDTraceId.ONE;
+        traceCollector = tracer.createTraceCollector(traceId);
+        root = DDSpan.create(
+                "benchmark",
+                System.currentTimeMillis() * 1000,
+                new DDSpanContext(
+                        traceId,
+                        2,
+                        DDSpanId.ZERO,
+                        null,
+                        "service",
+                        "operation",
+                        "resource",
+                        PrioritySampling.SAMPLER_KEEP,
+                        null,
+                        Collections.<String, String>emptyMap(),
+                        false,
+                        "type",
+                        0,
+                        traceCollector,
+                        null,
+                        null,
+                        NoopPathwayContext.INSTANCE,
+                        false,
+                        null),
+                null);
+        span = DDSpan.create(
+                "benchmark",
+                System.currentTimeMillis() * 1000,
+                new DDSpanContext(
+                        traceId,
+                        3,
+                        2,
+                        null,
+                        "service",
+                        "operation",
+                        "resource",
+                        PrioritySampling.SAMPLER_KEEP,
+                        null,
+                        Collections.<String, String>emptyMap(),
+                        false,
+                        "type",
+                        0,
+                        traceCollector,
+                        null,
+                        null,
+                        NoopPathwayContext.INSTANCE,
+                        false,
+                        null),
+                null);
     }
-    for (int i = 0; i < depthPerThread; ++i) {
-      traceCollector.onPublish(span);
+
+    @Threads(4)
+    @Benchmark
+    public void writeTraces() {
+        traceCollector.registerSpan(root);
+        for (int i = 0; i < depthPerThread; ++i) {
+            traceCollector.registerSpan(span);
+        }
+        for (int i = 0; i < depthPerThread; ++i) {
+            traceCollector.onPublish(span);
+        }
+        traceCollector.onPublish(root);
     }
-    traceCollector.onPublish(root);
-  }
 }

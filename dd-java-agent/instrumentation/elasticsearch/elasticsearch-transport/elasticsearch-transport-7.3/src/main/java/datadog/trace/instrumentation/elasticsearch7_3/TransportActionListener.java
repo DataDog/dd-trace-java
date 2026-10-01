@@ -19,98 +19,104 @@ import org.elasticsearch.action.support.replication.ReplicationResponse;
 /** This class is identical to version 6's instrumentation. */
 public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
 
-  private final ActionListener<T> listener;
-  private final AgentSpan span;
+    private final ActionListener<T> listener;
+    private final AgentSpan span;
 
-  public TransportActionListener(
-      final ActionRequest actionRequest, final ActionListener<T> listener, final AgentSpan span) {
-    this.listener = listener;
-    this.span = span;
-    onRequest(actionRequest);
-  }
-
-  private void onRequest(final ActionRequest request) {
-    if (request instanceof IndicesRequest) {
-      final IndicesRequest req = (IndicesRequest) request;
-      if (req.indices() != null) {
-        span.setTag("elasticsearch.request.indices", String.join(",", req.indices()));
-      }
-    }
-    if (request instanceof SearchRequest) {
-      final SearchRequest req = (SearchRequest) request;
-      span.setTag("elasticsearch.request.search.types", String.join(",", req.types()));
-    }
-    if (request instanceof DocWriteRequest) {
-      final DocWriteRequest req = (DocWriteRequest) request;
-      span.setTag("elasticsearch.request.write.type", req.type());
-      span.setTag("elasticsearch.request.write.routing", req.routing());
-      span.setTag("elasticsearch.request.write.version", req.version());
-    }
-  }
-
-  @Override
-  public void onResponse(final T response) {
-    if (response.remoteAddress() != null) {
-      DECORATE.onPeerConnection(span, response.remoteAddress().address());
+    public TransportActionListener(
+            final ActionRequest actionRequest, final ActionListener<T> listener, final AgentSpan span) {
+        this.listener = listener;
+        this.span = span;
+        onRequest(actionRequest);
     }
 
-    if (response instanceof GetResponse) {
-      final GetResponse resp = (GetResponse) response;
-      span.setTag("elasticsearch.type", resp.getType());
-      span.setTag("elasticsearch.id", resp.getId());
-      span.setTag("elasticsearch.version", resp.getVersion());
+    private void onRequest(final ActionRequest request) {
+        if (request instanceof IndicesRequest) {
+            final IndicesRequest req = (IndicesRequest) request;
+            if (req.indices() != null) {
+                span.setTag("elasticsearch.request.indices", String.join(",", req.indices()));
+            }
+        }
+        if (request instanceof SearchRequest) {
+            final SearchRequest req = (SearchRequest) request;
+            span.setTag("elasticsearch.request.search.types", String.join(",", req.types()));
+        }
+        if (request instanceof DocWriteRequest) {
+            final DocWriteRequest req = (DocWriteRequest) request;
+            span.setTag("elasticsearch.request.write.type", req.type());
+            span.setTag("elasticsearch.request.write.routing", req.routing());
+            span.setTag("elasticsearch.request.write.version", req.version());
+        }
     }
 
-    if (response instanceof BroadcastResponse) {
-      final BroadcastResponse resp = (BroadcastResponse) response;
-      span.setTag("elasticsearch.shard.broadcast.total", resp.getTotalShards());
-      span.setTag("elasticsearch.shard.broadcast.successful", resp.getSuccessfulShards());
-      span.setTag("elasticsearch.shard.broadcast.failed", resp.getFailedShards());
+    @Override
+    public void onResponse(final T response) {
+        if (response.remoteAddress() != null) {
+            DECORATE.onPeerConnection(span, response.remoteAddress().address());
+        }
+
+        if (response instanceof GetResponse) {
+            final GetResponse resp = (GetResponse) response;
+            span.setTag("elasticsearch.type", resp.getType());
+            span.setTag("elasticsearch.id", resp.getId());
+            span.setTag("elasticsearch.version", resp.getVersion());
+        }
+
+        if (response instanceof BroadcastResponse) {
+            final BroadcastResponse resp = (BroadcastResponse) response;
+            span.setTag("elasticsearch.shard.broadcast.total", resp.getTotalShards());
+            span.setTag("elasticsearch.shard.broadcast.successful", resp.getSuccessfulShards());
+            span.setTag("elasticsearch.shard.broadcast.failed", resp.getFailedShards());
+        }
+
+        if (response instanceof ReplicationResponse) {
+            final ReplicationResponse resp = (ReplicationResponse) response;
+            span.setTag(
+                    "elasticsearch.shard.replication.total", resp.getShardInfo().getTotal());
+            span.setTag(
+                    "elasticsearch.shard.replication.successful",
+                    resp.getShardInfo().getSuccessful());
+            span.setTag(
+                    "elasticsearch.shard.replication.failed",
+                    resp.getShardInfo().getFailed());
+        }
+
+        if (response instanceof IndexResponse) {
+            span.setTag(
+                    "elasticsearch.response.status",
+                    ((IndexResponse) response).status().getStatus());
+        }
+
+        if (response instanceof BulkShardResponse) {
+            final BulkShardResponse resp = (BulkShardResponse) response;
+            span.setTag("elasticsearch.shard.bulk.id", resp.getShardId().getId());
+            span.setTag("elasticsearch.shard.bulk.index", resp.getShardId().getIndexName());
+        }
+
+        if (response instanceof BaseNodesResponse) {
+            final BaseNodesResponse resp = (BaseNodesResponse) response;
+            if (resp.hasFailures()) {
+                span.setTag("elasticsearch.node.failures", resp.failures().size());
+            }
+            span.setTag("elasticsearch.node.cluster.name", resp.getClusterName().value());
+        }
+
+        try {
+            listener.onResponse(response);
+        } finally {
+            DECORATE.beforeFinish(span);
+            span.finish();
+        }
     }
 
-    if (response instanceof ReplicationResponse) {
-      final ReplicationResponse resp = (ReplicationResponse) response;
-      span.setTag("elasticsearch.shard.replication.total", resp.getShardInfo().getTotal());
-      span.setTag(
-          "elasticsearch.shard.replication.successful", resp.getShardInfo().getSuccessful());
-      span.setTag("elasticsearch.shard.replication.failed", resp.getShardInfo().getFailed());
-    }
+    @Override
+    public void onFailure(final Exception e) {
+        DECORATE.onError(span, e);
 
-    if (response instanceof IndexResponse) {
-      span.setTag("elasticsearch.response.status", ((IndexResponse) response).status().getStatus());
+        try {
+            listener.onFailure(e);
+        } finally {
+            DECORATE.beforeFinish(span);
+            span.finish();
+        }
     }
-
-    if (response instanceof BulkShardResponse) {
-      final BulkShardResponse resp = (BulkShardResponse) response;
-      span.setTag("elasticsearch.shard.bulk.id", resp.getShardId().getId());
-      span.setTag("elasticsearch.shard.bulk.index", resp.getShardId().getIndexName());
-    }
-
-    if (response instanceof BaseNodesResponse) {
-      final BaseNodesResponse resp = (BaseNodesResponse) response;
-      if (resp.hasFailures()) {
-        span.setTag("elasticsearch.node.failures", resp.failures().size());
-      }
-      span.setTag("elasticsearch.node.cluster.name", resp.getClusterName().value());
-    }
-
-    try {
-      listener.onResponse(response);
-    } finally {
-      DECORATE.beforeFinish(span);
-      span.finish();
-    }
-  }
-
-  @Override
-  public void onFailure(final Exception e) {
-    DECORATE.onError(span, e);
-
-    try {
-      listener.onFailure(e);
-    } finally {
-      DECORATE.beforeFinish(span);
-      span.finish();
-    }
-  }
 }

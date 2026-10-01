@@ -7,13 +7,13 @@ import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigOrigin;
 
 public final class SystemPropertiesConfigSource extends ConfigProvider.Source {
-  @Override
-  protected String get(String key) {
-    return SystemProperties.get(propertyNameToSystemPropertyName(key));
-  }
+    @Override
+    protected String get(String key) {
+        return SystemProperties.get(propertyNameToSystemPropertyName(key));
+    }
 
-  @Override
-  public ConfigOrigin origin() {
-    return JVM_PROP;
-  }
+    @Override
+    public ConfigOrigin origin() {
+        return JVM_PROP;
+    }
 }

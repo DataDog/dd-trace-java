@@ -69,136 +69,137 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 @State(Scope.Thread)
 public class ListIterationBenchmark {
-  public static final class Element {
-    int num = 0;
+    public static final class Element {
+        int num = 0;
 
-    @CompilerControl(Mode.INLINE)
-    void manipulate_inline() {
-      this.num += 1;
+        @CompilerControl(Mode.INLINE)
+        void manipulate_inline() {
+            this.num += 1;
+        }
+
+        @CompilerControl(Mode.DONT_INLINE)
+        void manipulate_dont_inline() {
+            this.num += 1;
+        }
     }
 
-    @CompilerControl(Mode.DONT_INLINE)
-    void manipulate_dont_inline() {
-      this.num += 1;
-    }
-  }
-
-  static ArrayList<Element> newArrayList(int size) {
-    ArrayList<Element> newList = new ArrayList<>(size);
-    for (int i = 0; i < size; ++i) {
-      newList.add(new Element());
-    }
-    return newList;
-  }
-
-  /**
-   * Describes the list under test as a factory rather than a prebuilt instance. Each benchmark
-   * thread builds its own list (with its own {@link Element}s) in {@link #setUp()}, so the {@code
-   * manipulate_*} mutations stay thread-local — otherwise, with {@code @Threads(8)} sharing one
-   * list held in an enum constant, the benchmark would measure cross-thread contention on {@code
-   * Element.num} rather than iteration cost.
-   */
-  public enum ListSpec {
-    COLLECTIONS_EMPTY_LIST(Collections::emptyList),
-    EMPTY_ARRAY_LIST(ArrayList::new),
-    SINGLETON_LIST(() -> Collections.singletonList(new Element())),
-    ARRAY_LIST_1(() -> newArrayList(1)),
-    ARRAY_LIST_5(() -> newArrayList(5)),
-    ARRAY_LIST_10(() -> newArrayList(10)),
-    ARRAY_LIST_100(() -> newArrayList(100));
-
-    private final Supplier<List<Element>> factory;
-
-    ListSpec(Supplier<List<Element>> factory) {
-      this.factory = factory;
+    static ArrayList<Element> newArrayList(int size) {
+        ArrayList<Element> newList = new ArrayList<>(size);
+        for (int i = 0; i < size; ++i) {
+            newList.add(new Element());
+        }
+        return newList;
     }
 
-    List<Element> build() {
-      return factory.get();
+    /**
+     * Describes the list under test as a factory rather than a prebuilt instance. Each benchmark
+     * thread builds its own list (with its own {@link Element}s) in {@link #setUp()}, so the {@code
+     * manipulate_*} mutations stay thread-local — otherwise, with {@code @Threads(8)} sharing one
+     * list held in an enum constant, the benchmark would measure cross-thread contention on {@code
+     * Element.num} rather than iteration cost.
+     */
+    public enum ListSpec {
+        COLLECTIONS_EMPTY_LIST(Collections::emptyList),
+        EMPTY_ARRAY_LIST(ArrayList::new),
+        SINGLETON_LIST(() -> Collections.singletonList(new Element())),
+        ARRAY_LIST_1(() -> newArrayList(1)),
+        ARRAY_LIST_5(() -> newArrayList(5)),
+        ARRAY_LIST_10(() -> newArrayList(10)),
+        ARRAY_LIST_100(() -> newArrayList(100));
+
+        private final Supplier<List<Element>> factory;
+
+        ListSpec(Supplier<List<Element>> factory) {
+            this.factory = factory;
+        }
+
+        List<Element> build() {
+            return factory.get();
+        }
     }
-  }
 
-  @Param ListSpec listSpec;
+    @Param
+    ListSpec listSpec;
 
-  List<Element> list;
+    List<Element> list;
 
-  @Setup(Level.Trial)
-  public void setUp() {
-    // Built per thread (the class is @State(Scope.Thread)) so each thread owns its own Elements.
-    this.list = this.listSpec.build();
-  }
-
-  @Benchmark
-  public void forEach_inline() {
-    this.list.forEach(Element::manipulate_inline);
-  }
-
-  @Benchmark
-  public void forEach_dont_inline() {
-    this.list.forEach(Element::manipulate_dont_inline);
-  }
-
-  @Benchmark
-  public void enhancedFor_inline() {
-    // Enhanced for-loop is just syntax sugar for an Iterator
-    for (Element e : this.list) {
-      e.manipulate_inline();
+    @Setup(Level.Trial)
+    public void setUp() {
+        // Built per thread (the class is @State(Scope.Thread)) so each thread owns its own Elements.
+        this.list = this.listSpec.build();
     }
-  }
 
-  @Benchmark
-  public void enhancedFor_dont_inline() {
-    // Enhanced for-loop is just syntax sugar for an Iterator
-    for (Element e : this.list) {
-      e.manipulate_dont_inline();
+    @Benchmark
+    public void forEach_inline() {
+        this.list.forEach(Element::manipulate_inline);
     }
-  }
 
-  @Benchmark
-  public void iterator_inline() {
-    for (Iterator<Element> iter = this.list.iterator(); iter.hasNext(); ) {
-      iter.next().manipulate_inline();
+    @Benchmark
+    public void forEach_dont_inline() {
+        this.list.forEach(Element::manipulate_dont_inline);
     }
-  }
 
-  @Benchmark
-  public void iterator_dont_inline() {
-    for (Iterator<Element> iter = this.list.iterator(); iter.hasNext(); ) {
-      iter.next().manipulate_dont_inline();
+    @Benchmark
+    public void enhancedFor_inline() {
+        // Enhanced for-loop is just syntax sugar for an Iterator
+        for (Element e : this.list) {
+            e.manipulate_inline();
+        }
     }
-  }
 
-  @Benchmark
-  public void cstyleFor_inline() {
-    for (int i = 0; i < this.list.size(); ++i) {
-      this.list.get(i).manipulate_inline();
+    @Benchmark
+    public void enhancedFor_dont_inline() {
+        // Enhanced for-loop is just syntax sugar for an Iterator
+        for (Element e : this.list) {
+            e.manipulate_dont_inline();
+        }
     }
-  }
 
-  @Benchmark
-  public void cstyleFor_dont_inline() {
-    for (int i = 0; i < this.list.size(); ++i) {
-      this.list.get(i).manipulate_dont_inline();
+    @Benchmark
+    public void iterator_inline() {
+        for (Iterator<Element> iter = this.list.iterator(); iter.hasNext(); ) {
+            iter.next().manipulate_inline();
+        }
     }
-  }
 
-  @Benchmark
-  public void streams_inline() {
-    this.list.stream().forEach(Element::manipulate_inline);
-  }
+    @Benchmark
+    public void iterator_dont_inline() {
+        for (Iterator<Element> iter = this.list.iterator(); iter.hasNext(); ) {
+            iter.next().manipulate_dont_inline();
+        }
+    }
 
-  @Benchmark
-  public void streams_dont_inline() {
-    this.list.stream().forEach(Element::manipulate_dont_inline);
-  }
+    @Benchmark
+    public void cstyleFor_inline() {
+        for (int i = 0; i < this.list.size(); ++i) {
+            this.list.get(i).manipulate_inline();
+        }
+    }
 
-  @Benchmark
-  public void parallelStreams_inline() {
-    this.list.parallelStream().forEach(Element::manipulate_inline);
-  }
+    @Benchmark
+    public void cstyleFor_dont_inline() {
+        for (int i = 0; i < this.list.size(); ++i) {
+            this.list.get(i).manipulate_dont_inline();
+        }
+    }
 
-  @Benchmark
-  public void parallelStreams_dont_inline() {
-    this.list.parallelStream().forEach(Element::manipulate_dont_inline);
-  }
+    @Benchmark
+    public void streams_inline() {
+        this.list.stream().forEach(Element::manipulate_inline);
+    }
+
+    @Benchmark
+    public void streams_dont_inline() {
+        this.list.stream().forEach(Element::manipulate_dont_inline);
+    }
+
+    @Benchmark
+    public void parallelStreams_inline() {
+        this.list.parallelStream().forEach(Element::manipulate_inline);
+    }
+
+    @Benchmark
+    public void parallelStreams_dont_inline() {
+        this.list.parallelStream().forEach(Element::manipulate_dont_inline);
+    }
 }

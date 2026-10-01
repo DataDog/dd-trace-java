@@ -4,14 +4,14 @@ import datadog.remoteconfig.Product;
 import javax.annotation.Nullable;
 
 public interface ConfigKey {
-  Product getProduct();
+    Product getProduct();
 
-  String getProductName();
+    String getProductName();
 
-  String getOrg();
+    String getOrg();
 
-  @Nullable
-  Integer getVersion();
+    @Nullable
+    Integer getVersion();
 
-  String getConfigId();
+    String getConfigId();
 }

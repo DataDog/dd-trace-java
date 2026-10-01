@@ -23,26 +23,27 @@ import java.util.List;
  * become available.
  */
 class CommandLine {
-  private static final String SUN_JAVA_COMMAND_PROPERTY = "sun.java.command";
-  private final List<String> fullCommand = findFullCommand();
-  final String name = getCommandName();
-  final List<String> arguments = getCommandArguments();
+    private static final String SUN_JAVA_COMMAND_PROPERTY = "sun.java.command";
+    private final List<String> fullCommand = findFullCommand();
+    final String name = getCommandName();
+    final List<String> arguments = getCommandArguments();
 
-  @SuppressForbidden // split on single-character uses a fast path
-  private List<String> findFullCommand() {
-    String command = SystemProperties.getOrDefault(SUN_JAVA_COMMAND_PROPERTY, "").trim();
-    return command.isEmpty() ? emptyList() : Arrays.asList(command.split(" "));
-  }
-
-  private String getCommandName() {
-    return this.fullCommand.isEmpty() ? null : this.fullCommand.get(0);
-  }
-
-  private List<String> getCommandArguments() {
-    if (this.fullCommand.isEmpty()) {
-      return this.fullCommand;
-    } else {
-      return this.fullCommand.subList(1, this.fullCommand.size());
+    @SuppressForbidden // split on single-character uses a fast path
+    private List<String> findFullCommand() {
+        String command =
+                SystemProperties.getOrDefault(SUN_JAVA_COMMAND_PROPERTY, "").trim();
+        return command.isEmpty() ? emptyList() : Arrays.asList(command.split(" "));
     }
-  }
+
+    private String getCommandName() {
+        return this.fullCommand.isEmpty() ? null : this.fullCommand.get(0);
+    }
+
+    private List<String> getCommandArguments() {
+        if (this.fullCommand.isEmpty()) {
+            return this.fullCommand;
+        } else {
+            return this.fullCommand.subList(1, this.fullCommand.size());
+        }
+    }
 }

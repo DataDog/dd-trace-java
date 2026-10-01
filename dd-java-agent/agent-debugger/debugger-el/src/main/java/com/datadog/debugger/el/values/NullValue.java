@@ -8,34 +8,34 @@ import datadog.trace.bootstrap.debugger.el.Values;
 
 /** A value represention {@literal null} */
 public final class NullValue extends Literal<Object> {
-  public static final NullValue INSTANCE = new NullValue();
+    public static final NullValue INSTANCE = new NullValue();
 
-  private NullValue() {
-    super(Values.NULL_OBJECT, ValueType.OBJECT);
-  }
+    private NullValue() {
+        super(Values.NULL_OBJECT, ValueType.OBJECT);
+    }
 
-  @SuppressWarnings("unchecked")
-  public static <T> Value<T> instance() {
-    return (Value<T>) INSTANCE;
-  }
+    @SuppressWarnings("unchecked")
+    public static <T> Value<T> instance() {
+        return (Value<T>) INSTANCE;
+    }
 
-  @Override
-  public boolean isUndefined() {
-    return false;
-  }
+    @Override
+    public boolean isUndefined() {
+        return false;
+    }
 
-  @Override
-  public boolean isNull() {
-    return true;
-  }
+    @Override
+    public boolean isNull() {
+        return true;
+    }
 
-  @Override
-  public String toString() {
-    return "null";
-  }
+    @Override
+    public String toString() {
+        return "null";
+    }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

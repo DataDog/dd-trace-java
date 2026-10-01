@@ -19,27 +19,25 @@ import org.slf4j.LoggerFactory;
  * the original sampling priority for this trace may have already been propagated.
  */
 public class LatencyTraceInterceptor extends AbstractTraceInterceptor {
-  private static final Logger log = LoggerFactory.getLogger(LatencyTraceInterceptor.class);
-  // duration configured in ms, need to be converted in nano seconds
-  private static final long LATENCY = Config.get().getTraceKeepLatencyThreshold() * 1000000L;
+    private static final Logger log = LoggerFactory.getLogger(LatencyTraceInterceptor.class);
+    // duration configured in ms, need to be converted in nano seconds
+    private static final long LATENCY = Config.get().getTraceKeepLatencyThreshold() * 1000000L;
 
-  public static final TraceInterceptor INSTANCE =
-      new LatencyTraceInterceptor(Priority.ROOT_SPAN_LATENCY);
+    public static final TraceInterceptor INSTANCE = new LatencyTraceInterceptor(Priority.ROOT_SPAN_LATENCY);
 
-  protected LatencyTraceInterceptor(Priority priority) {
-    super(priority);
-  }
-
-  @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> latencyTrace) {
-    if (latencyTrace.isEmpty()) {
-      return latencyTrace;
+    protected LatencyTraceInterceptor(Priority priority) {
+        super(priority);
     }
-    MutableSpan rootSpan = latencyTrace.iterator().next().getLocalRootSpan();
-    if (rootSpan != null && rootSpan.getDurationNano() > LATENCY) {
-      rootSpan.setTag(DDTags.MANUAL_KEEP, true);
+
+    @Override
+    public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> latencyTrace) {
+        if (latencyTrace.isEmpty()) {
+            return latencyTrace;
+        }
+        MutableSpan rootSpan = latencyTrace.iterator().next().getLocalRootSpan();
+        if (rootSpan != null && rootSpan.getDurationNano() > LATENCY) {
+            rootSpan.setTag(DDTags.MANUAL_KEEP, true);
+        }
+        return latencyTrace;
     }
-    return latencyTrace;
-  }
 }

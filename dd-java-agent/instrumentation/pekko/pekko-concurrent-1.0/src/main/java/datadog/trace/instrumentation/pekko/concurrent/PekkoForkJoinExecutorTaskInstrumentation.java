@@ -24,47 +24,46 @@ import net.bytebuddy.asm.Advice;
  * org.apache.pekko.dispatch.ForkJoinTask, because of its error handling.
  */
 @AutoService(InstrumenterModule.class)
-public final class PekkoForkJoinExecutorTaskInstrumentation
-    extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public PekkoForkJoinExecutorTaskInstrumentation() {
-    super("java_concurrent", "pekko_concurrent");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.pekko.dispatch.ForkJoinExecutorConfigurator$PekkoForkJoinTask";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(0, named(Runnable.class.getName()))),
-        getClass().getName() + "$Construct");
-    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
-  }
-
-  public static final class Construct {
-    @Advice.OnMethodExit
-    public static void construct(@Advice.Argument(0) Runnable wrapped) {
-      capture(InstrumentationContext.get(Runnable.class, State.class), wrapped);
-    }
-  }
-
-  public static final class Run {
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.Argument(0) Runnable wrapped) {
-      return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), wrapped);
+public final class PekkoForkJoinExecutorTaskInstrumentation extends InstrumenterModule.ContextTracking
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public PekkoForkJoinExecutorTaskInstrumentation() {
+        super("java_concurrent", "pekko_concurrent");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.apache.pekko.dispatch.ForkJoinExecutorConfigurator$PekkoForkJoinTask";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(0, named(Runnable.class.getName()))),
+                getClass().getName() + "$Construct");
+        transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    }
+
+    public static final class Construct {
+        @Advice.OnMethodExit
+        public static void construct(@Advice.Argument(0) Runnable wrapped) {
+            capture(InstrumentationContext.get(Runnable.class, State.class), wrapped);
+        }
+    }
+
+    public static final class Run {
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.Argument(0) Runnable wrapped) {
+            return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), wrapped);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
 }

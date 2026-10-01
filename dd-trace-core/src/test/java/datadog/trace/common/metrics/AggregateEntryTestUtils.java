@@ -24,169 +24,167 @@ import javax.annotation.Nullable;
  * folds in the encoded list, so the contract stays consistent.
  */
 public final class AggregateEntryTestUtils {
-  private AggregateEntryTestUtils() {}
+    private AggregateEntryTestUtils() {}
 
-  /**
-   * Builds an {@link AggregateEntry} from positional args. Bypasses the cardinality handlers so
-   * tests can create expected values without mutating shared handler state. Content-equal entries
-   * from {@link AggregateEntry.Canonical#createEntry} still compare equal via {@link
-   * #equals(AggregateEntry, AggregateEntry)}.
-   */
-  public static AggregateEntry of(
-      CharSequence resource,
-      CharSequence service,
-      CharSequence operationName,
-      @Nullable CharSequence serviceSource,
-      CharSequence type,
-      int httpStatusCode,
-      boolean synthetic,
-      boolean traceRoot,
-      CharSequence spanKind,
-      @Nullable List<UTF8BytesString> peerTags,
-      @Nullable CharSequence httpMethod,
-      @Nullable CharSequence httpEndpoint,
-      @Nullable CharSequence grpcStatusCode) {
-    return of(
-        resource,
-        service,
-        operationName,
-        serviceSource,
-        type,
-        httpStatusCode,
-        synthetic,
-        traceRoot,
-        spanKind,
-        peerTags,
-        httpMethod,
-        httpEndpoint,
-        grpcStatusCode,
-        null);
-  }
+    /**
+     * Builds an {@link AggregateEntry} from positional args. Bypasses the cardinality handlers so
+     * tests can create expected values without mutating shared handler state. Content-equal entries
+     * from {@link AggregateEntry.Canonical#createEntry} still compare equal via {@link
+     * #equals(AggregateEntry, AggregateEntry)}.
+     */
+    public static AggregateEntry of(
+            CharSequence resource,
+            CharSequence service,
+            CharSequence operationName,
+            @Nullable CharSequence serviceSource,
+            CharSequence type,
+            int httpStatusCode,
+            boolean synthetic,
+            boolean traceRoot,
+            CharSequence spanKind,
+            @Nullable List<UTF8BytesString> peerTags,
+            @Nullable CharSequence httpMethod,
+            @Nullable CharSequence httpEndpoint,
+            @Nullable CharSequence grpcStatusCode) {
+        return of(
+                resource,
+                service,
+                operationName,
+                serviceSource,
+                type,
+                httpStatusCode,
+                synthetic,
+                traceRoot,
+                spanKind,
+                peerTags,
+                httpMethod,
+                httpEndpoint,
+                grpcStatusCode,
+                null);
+    }
 
-  /**
-   * Same as {@link #of} but also carries pre-packed {@code "key:value"} additional metric tags (in
-   * schema order), letting the OTLP/serializing writer tests exercise the additional-tags path
-   * without driving a full {@code AggregateTable}/{@code AdditionalTagsSchema} canonicalization.
-   */
-  public static AggregateEntry of(
-      CharSequence resource,
-      CharSequence service,
-      CharSequence operationName,
-      @Nullable CharSequence serviceSource,
-      CharSequence type,
-      int httpStatusCode,
-      boolean synthetic,
-      boolean traceRoot,
-      CharSequence spanKind,
-      @Nullable List<UTF8BytesString> peerTags,
-      @Nullable CharSequence httpMethod,
-      @Nullable CharSequence httpEndpoint,
-      @Nullable CharSequence grpcStatusCode,
-      @Nullable UTF8BytesString[] additionalTags) {
-    UTF8BytesString resourceUtf = AggregateEntry.createUtf8(resource);
-    UTF8BytesString serviceUtf = AggregateEntry.createUtf8(service);
-    UTF8BytesString operationNameUtf = AggregateEntry.createUtf8(operationName);
-    UTF8BytesString serviceSourceUtf = AggregateEntry.createUtf8(serviceSource);
-    UTF8BytesString typeUtf = AggregateEntry.createUtf8(type);
-    UTF8BytesString spanKindUtf = AggregateEntry.createUtf8(spanKind);
-    UTF8BytesString httpMethodUtf = AggregateEntry.createUtf8(httpMethod);
-    UTF8BytesString httpEndpointUtf = AggregateEntry.createUtf8(httpEndpoint);
-    UTF8BytesString grpcUtf = AggregateEntry.createUtf8(grpcStatusCode);
-    List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
-    UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
-    UTF8BytesString[] additionalTagsArr =
-        additionalTags == null ? new UTF8BytesString[0] : additionalTags;
-    long keyHash =
-        AggregateEntry.hashOf(
-            resourceUtf,
-            serviceUtf,
-            operationNameUtf,
-            serviceSourceUtf,
-            typeUtf,
-            spanKindUtf,
-            httpMethodUtf,
-            httpEndpointUtf,
-            grpcUtf,
-            (short) httpStatusCode,
-            synthetic,
-            traceRoot,
-            peerTagsArr,
-            peerTagsArr.length,
-            additionalTagsArr,
-            additionalTagsArr.length);
-    return new AggregateEntry(
-        keyHash,
-        resourceUtf,
-        serviceUtf,
-        operationNameUtf,
-        serviceSourceUtf,
-        typeUtf,
-        spanKindUtf,
-        httpMethodUtf,
-        httpEndpointUtf,
-        grpcUtf,
-        (short) httpStatusCode,
-        synthetic,
-        traceRoot,
-        peerTagsList,
-        additionalTagsArr);
-  }
+    /**
+     * Same as {@link #of} but also carries pre-packed {@code "key:value"} additional metric tags (in
+     * schema order), letting the OTLP/serializing writer tests exercise the additional-tags path
+     * without driving a full {@code AggregateTable}/{@code AdditionalTagsSchema} canonicalization.
+     */
+    public static AggregateEntry of(
+            CharSequence resource,
+            CharSequence service,
+            CharSequence operationName,
+            @Nullable CharSequence serviceSource,
+            CharSequence type,
+            int httpStatusCode,
+            boolean synthetic,
+            boolean traceRoot,
+            CharSequence spanKind,
+            @Nullable List<UTF8BytesString> peerTags,
+            @Nullable CharSequence httpMethod,
+            @Nullable CharSequence httpEndpoint,
+            @Nullable CharSequence grpcStatusCode,
+            @Nullable UTF8BytesString[] additionalTags) {
+        UTF8BytesString resourceUtf = AggregateEntry.createUtf8(resource);
+        UTF8BytesString serviceUtf = AggregateEntry.createUtf8(service);
+        UTF8BytesString operationNameUtf = AggregateEntry.createUtf8(operationName);
+        UTF8BytesString serviceSourceUtf = AggregateEntry.createUtf8(serviceSource);
+        UTF8BytesString typeUtf = AggregateEntry.createUtf8(type);
+        UTF8BytesString spanKindUtf = AggregateEntry.createUtf8(spanKind);
+        UTF8BytesString httpMethodUtf = AggregateEntry.createUtf8(httpMethod);
+        UTF8BytesString httpEndpointUtf = AggregateEntry.createUtf8(httpEndpoint);
+        UTF8BytesString grpcUtf = AggregateEntry.createUtf8(grpcStatusCode);
+        List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
+        UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
+        UTF8BytesString[] additionalTagsArr = additionalTags == null ? new UTF8BytesString[0] : additionalTags;
+        long keyHash = AggregateEntry.hashOf(
+                resourceUtf,
+                serviceUtf,
+                operationNameUtf,
+                serviceSourceUtf,
+                typeUtf,
+                spanKindUtf,
+                httpMethodUtf,
+                httpEndpointUtf,
+                grpcUtf,
+                (short) httpStatusCode,
+                synthetic,
+                traceRoot,
+                peerTagsArr,
+                peerTagsArr.length,
+                additionalTagsArr,
+                additionalTagsArr.length);
+        return new AggregateEntry(
+                keyHash,
+                resourceUtf,
+                serviceUtf,
+                operationNameUtf,
+                serviceSourceUtf,
+                typeUtf,
+                spanKindUtf,
+                httpMethodUtf,
+                httpEndpointUtf,
+                grpcUtf,
+                (short) httpStatusCode,
+                synthetic,
+                traceRoot,
+                peerTagsList,
+                additionalTagsArr);
+    }
 
-  /**
-   * Records one OK hit of {@code durationNanos} on {@code e}. Exposes the package-private {@link
-   * AggregateEntry#recordOneDuration} to tests in other packages (e.g. the OTLP metrics writer
-   * tests) without widening the production mutation API.
-   */
-  public static AggregateEntry recordOk(AggregateEntry e, long durationNanos) {
-    return e.recordOneDuration(durationNanos);
-  }
+    /**
+     * Records one OK hit of {@code durationNanos} on {@code e}. Exposes the package-private {@link
+     * AggregateEntry#recordOneDuration} to tests in other packages (e.g. the OTLP metrics writer
+     * tests) without widening the production mutation API.
+     */
+    public static AggregateEntry recordOk(AggregateEntry e, long durationNanos) {
+        return e.recordOneDuration(durationNanos);
+    }
 
-  /** Records one error hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
-  public static AggregateEntry recordError(AggregateEntry e, long durationNanos) {
-    return e.recordOneDuration(durationNanos | AggregateEntry.ERROR_TAG);
-  }
+    /** Records one error hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+    public static AggregateEntry recordError(AggregateEntry e, long durationNanos) {
+        return e.recordOneDuration(durationNanos | AggregateEntry.ERROR_TAG);
+    }
 
-  /** Records one top-level OK hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
-  public static AggregateEntry recordTopLevel(AggregateEntry e, long durationNanos) {
-    return e.recordOneDuration(durationNanos | AggregateEntry.TOP_LEVEL_TAG);
-  }
+    /** Records one top-level OK hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+    public static AggregateEntry recordTopLevel(AggregateEntry e, long durationNanos) {
+        return e.recordOneDuration(durationNanos | AggregateEntry.TOP_LEVEL_TAG);
+    }
 
-  /** Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}. */
-  public static void clear(AggregateEntry e) {
-    e.clearAggregate();
-  }
+    /** Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}. */
+    public static void clear(AggregateEntry e) {
+        e.clearAggregate();
+    }
 
-  /**
-   * Whether {@code a} and {@code b} carry identical label fields. Counter and histogram state is
-   * intentionally excluded -- this compares the key identity, not the aggregate.
-   */
-  public static boolean equals(AggregateEntry a, AggregateEntry b) {
-    if (a == b) return true;
-    if (a == null || b == null) return false;
-    return a.getHttpStatusCode() == b.getHttpStatusCode()
-        && a.isSynthetics() == b.isSynthetics()
-        && a.isTraceRoot() == b.isTraceRoot()
-        && Objects.equals(a.getResource(), b.getResource())
-        && Objects.equals(a.getService(), b.getService())
-        && Objects.equals(a.getOperationName(), b.getOperationName())
-        && Objects.equals(a.getServiceSource(), b.getServiceSource())
-        && Objects.equals(a.getType(), b.getType())
-        && Objects.equals(a.getSpanKind(), b.getSpanKind())
-        && a.getPeerTags().equals(b.getPeerTags())
-        && Objects.equals(a.getHttpMethod(), b.getHttpMethod())
-        && Objects.equals(a.getHttpEndpoint(), b.getHttpEndpoint())
-        && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode())
-        // Additional tags are part of the key (folded into keyHash in schema order), so entries
-        // that differ only in additional tags must not compare equal.
-        && Arrays.equals(a.getAdditionalTags(), b.getAdditionalTags());
-  }
+    /**
+     * Whether {@code a} and {@code b} carry identical label fields. Counter and histogram state is
+     * intentionally excluded -- this compares the key identity, not the aggregate.
+     */
+    public static boolean equals(AggregateEntry a, AggregateEntry b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        return a.getHttpStatusCode() == b.getHttpStatusCode()
+                && a.isSynthetics() == b.isSynthetics()
+                && a.isTraceRoot() == b.isTraceRoot()
+                && Objects.equals(a.getResource(), b.getResource())
+                && Objects.equals(a.getService(), b.getService())
+                && Objects.equals(a.getOperationName(), b.getOperationName())
+                && Objects.equals(a.getServiceSource(), b.getServiceSource())
+                && Objects.equals(a.getType(), b.getType())
+                && Objects.equals(a.getSpanKind(), b.getSpanKind())
+                && a.getPeerTags().equals(b.getPeerTags())
+                && Objects.equals(a.getHttpMethod(), b.getHttpMethod())
+                && Objects.equals(a.getHttpEndpoint(), b.getHttpEndpoint())
+                && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode())
+                // Additional tags are part of the key (folded into keyHash in schema order), so entries
+                // that differ only in additional tags must not compare equal.
+                && Arrays.equals(a.getAdditionalTags(), b.getAdditionalTags());
+    }
 
-  /**
-   * Stable hash matching {@link #equals(AggregateEntry, AggregateEntry)} -- derived from {@link
-   * AggregateEntry#keyHash}, which {@link AggregateEntry#hashOf} computes from the same fields the
-   * helper's {@code equals} compares.
-   */
-  public static int hashCode(AggregateEntry e) {
-    return e == null ? 0 : (int) e.keyHash;
-  }
+    /**
+     * Stable hash matching {@link #equals(AggregateEntry, AggregateEntry)} -- derived from {@link
+     * AggregateEntry#keyHash}, which {@link AggregateEntry#hashOf} computes from the same fields the
+     * helper's {@code equals} compares.
+     */
+    public static int hashCode(AggregateEntry e) {
+        return e == null ? 0 : (int) e.keyHash;
+    }
 }

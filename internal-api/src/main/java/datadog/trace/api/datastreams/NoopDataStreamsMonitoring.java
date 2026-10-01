@@ -5,65 +5,56 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 
 public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
-  public static final NoopDataStreamsMonitoring INSTANCE = new NoopDataStreamsMonitoring();
+    public static final NoopDataStreamsMonitoring INSTANCE = new NoopDataStreamsMonitoring();
 
-  @Override
-  public void trackBacklog(DataStreamsTags tags, long value) {}
+    @Override
+    public void trackBacklog(DataStreamsTags tags, long value) {}
 
-  @Override
-  public void reportSchemaRegistryUsage(
-      String topic,
-      String clusterId,
-      int schemaId,
-      boolean isSuccess,
-      boolean isKey,
-      String operation) {}
+    @Override
+    public void reportSchemaRegistryUsage(
+            String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey, String operation) {}
 
-  @Override
-  public void setCheckpoint(AgentSpan span, DataStreamsContext context) {}
+    @Override
+    public void setCheckpoint(AgentSpan span, DataStreamsContext context) {}
 
-  @Override
-  public PathwayContext newPathwayContext() {
-    return NoopPathwayContext.INSTANCE;
-  }
+    @Override
+    public PathwayContext newPathwayContext() {
+        return NoopPathwayContext.INSTANCE;
+    }
 
-  @Override
-  public void add(StatsPoint statsPoint) {}
+    @Override
+    public void add(StatsPoint statsPoint) {}
 
-  @Override
-  public void setProduceCheckpoint(String type, String target) {}
+    @Override
+    public void setProduceCheckpoint(String type, String target) {}
 
-  @Override
-  public void setThreadServiceName(String serviceName) {}
+    @Override
+    public void setThreadServiceName(String serviceName) {}
 
-  @Override
-  public void clearThreadServiceName() {}
+    @Override
+    public void clearThreadServiceName() {}
 
-  @Override
-  public void trackTransaction(String transactionId, String checkpointName) {}
+    @Override
+    public void trackTransaction(String transactionId, String checkpointName) {}
 
-  @Override
-  public void trackTransaction(
-      AgentSpan span,
-      DataStreamsTransactionExtractor.Type extractorType,
-      Object source,
-      TransactionSourceReader sourceReader) {}
+    @Override
+    public void trackTransaction(
+            AgentSpan span,
+            DataStreamsTransactionExtractor.Type extractorType,
+            Object source,
+            TransactionSourceReader sourceReader) {}
 
-  @Override
-  public void reportKafkaConfig(
-      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {}
+    @Override
+    public void reportKafkaConfig(
+            String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {}
 
-  @Override
-  public void reportKafkaConsumerGroupMember(
-      String kafkaClusterId,
-      String consumerGroup,
-      String memberId,
-      int generationId,
-      String memberProtocol) {}
+    @Override
+    public void reportKafkaConsumerGroupMember(
+            String kafkaClusterId, String consumerGroup, String memberId, int generationId, String memberProtocol) {}
 
-  @Override
-  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}
+    @Override
+    public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}
 
-  @Override
-  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {}
+    @Override
+    public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {}
 }

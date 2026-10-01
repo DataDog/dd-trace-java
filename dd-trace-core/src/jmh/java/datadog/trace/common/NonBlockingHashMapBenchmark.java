@@ -39,30 +39,30 @@ NonBlockingHashMapBenchmark.benchNonBlockingHashMap  avgt       1.278          u
 @Fork(value = 1)
 @SuppressForbidden
 public class NonBlockingHashMapBenchmark {
-  private NonBlockingHashMap nonBlockingHashMap;
-  private ConcurrentHashMap concurrentHashMap;
+    private NonBlockingHashMap nonBlockingHashMap;
+    private ConcurrentHashMap concurrentHashMap;
 
-  @Setup(Level.Iteration)
-  public void setup() {
-    nonBlockingHashMap = new NonBlockingHashMap(512);
-    concurrentHashMap = new ConcurrentHashMap(512);
-    for (int i = 0; i < 256; i++) {
-      nonBlockingHashMap.put("test" + i, "test");
-      concurrentHashMap.put("test" + i, "test");
+    @Setup(Level.Iteration)
+    public void setup() {
+        nonBlockingHashMap = new NonBlockingHashMap(512);
+        concurrentHashMap = new ConcurrentHashMap(512);
+        for (int i = 0; i < 256; i++) {
+            nonBlockingHashMap.put("test" + i, "test");
+            concurrentHashMap.put("test" + i, "test");
+        }
     }
-  }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void benchNonBlockingHashMap(Blackhole blackhole) {
-    nonBlockingHashMap.put("test", "test");
-    blackhole.consume(nonBlockingHashMap.remove("test"));
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void benchNonBlockingHashMap(Blackhole blackhole) {
+        nonBlockingHashMap.put("test", "test");
+        blackhole.consume(nonBlockingHashMap.remove("test"));
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void benchConcurrentHashMap(Blackhole blackhole) {
-    concurrentHashMap.put("test", "test");
-    blackhole.consume(concurrentHashMap.remove("test"));
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void benchConcurrentHashMap(Blackhole blackhole) {
+        concurrentHashMap.put("test", "test");
+        blackhole.consume(concurrentHashMap.remove("test"));
+    }
 }

@@ -8,28 +8,28 @@ import datadog.trace.api.profiling.Profiling;
  * at any time.
  */
 public interface InternalTracer {
-  /**
-   * Attach callbacks to the global scope manager.
-   *
-   * @param afterScopeActivatedCallback Callback on scope activation.
-   * @param afterScopeClosedCallback Callback on scope close.
-   */
-  void addScopeListener(Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback);
+    /**
+     * Attach callbacks to the global scope manager.
+     *
+     * @param afterScopeActivatedCallback Callback on scope activation.
+     * @param afterScopeClosedCallback Callback on scope close.
+     */
+    void addScopeListener(Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback);
 
-  void flush();
+    void flush();
 
-  void flushMetrics();
+    void flushMetrics();
 
-  void flushLogs();
+    void flushLogs();
 
-  Profiling getProfilingContext();
+    Profiling getProfilingContext();
 
-  TraceSegment getTraceSegment();
+    TraceSegment getTraceSegment();
 
-  /**
-   * Return the global instance of the DataStreams checkpointer.
-   *
-   * @return DataStreamsCheckpointer instance.
-   */
-  DataStreamsCheckpointer getDataStreamsCheckpointer();
+    /**
+     * Return the global instance of the DataStreams checkpointer.
+     *
+     * @return DataStreamsCheckpointer instance.
+     */
+    DataStreamsCheckpointer getDataStreamsCheckpointer();
 }

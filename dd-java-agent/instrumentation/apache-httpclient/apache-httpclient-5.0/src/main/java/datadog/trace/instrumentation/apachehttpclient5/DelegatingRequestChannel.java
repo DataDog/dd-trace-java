@@ -13,24 +13,23 @@ import org.apache.hc.core5.http.nio.RequestChannel;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
 public class DelegatingRequestChannel implements RequestChannel {
-  private final RequestChannel delegate;
-  private final AgentSpan span;
-  private final boolean injectContext;
+    private final RequestChannel delegate;
+    private final AgentSpan span;
+    private final boolean injectContext;
 
-  public DelegatingRequestChannel(
-      RequestChannel requestChannel, AgentSpan span, boolean injectContext) {
-    this.delegate = requestChannel;
-    this.span = span;
-    this.injectContext = injectContext;
-  }
-
-  @Override
-  public void sendRequest(HttpRequest request, EntityDetails entityDetails, HttpContext context)
-      throws HttpException, IOException {
-    DECORATE.onRequest(span, request);
-    if (injectContext) {
-      DECORATE.injectContext(current().with(span), request, SETTER);
+    public DelegatingRequestChannel(RequestChannel requestChannel, AgentSpan span, boolean injectContext) {
+        this.delegate = requestChannel;
+        this.span = span;
+        this.injectContext = injectContext;
     }
-    delegate.sendRequest(request, entityDetails, context);
-  }
+
+    @Override
+    public void sendRequest(HttpRequest request, EntityDetails entityDetails, HttpContext context)
+            throws HttpException, IOException {
+        DECORATE.onRequest(span, request);
+        if (injectContext) {
+            DECORATE.injectContext(current().with(span), request, SETTER);
+        }
+        delegate.sendRequest(request, entityDetails, context);
+    }
 }

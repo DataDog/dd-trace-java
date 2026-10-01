@@ -27,31 +27,30 @@ import javax.annotation.Nonnull;
 /** This is the implementation of the controller for DD profiler. */
 public final class DatadogProfilerController implements Controller {
 
-  private final DatadogProfiler datadogProfiler;
+    private final DatadogProfiler datadogProfiler;
 
-  public static Controller instance(ConfigProvider configProvider) throws Throwable {
-    return new DatadogProfilerController(configProvider);
-  }
+    public static Controller instance(ConfigProvider configProvider) throws Throwable {
+        return new DatadogProfilerController(configProvider);
+    }
 
-  public DatadogProfilerController(ConfigProvider configProvider) {
-    this(DatadogProfiler.newInstance(configProvider));
-  }
+    public DatadogProfilerController(ConfigProvider configProvider) {
+        this(DatadogProfiler.newInstance(configProvider));
+    }
 
-  DatadogProfilerController(DatadogProfiler datadogProfiler) {
-    this.datadogProfiler = datadogProfiler;
-  }
+    DatadogProfilerController(DatadogProfiler datadogProfiler) {
+        this.datadogProfiler = datadogProfiler;
+    }
 
-  @Nonnull
-  @Override
-  public OngoingRecording createRecording(
-      @Nonnull String recordingName, ControllerContext.Snapshot context)
-      throws UnsupportedEnvironmentException {
-    return new DatadogProfilerOngoingRecording(datadogProfiler, recordingName);
-  }
+    @Nonnull
+    @Override
+    public OngoingRecording createRecording(@Nonnull String recordingName, ControllerContext.Snapshot context)
+            throws UnsupportedEnvironmentException {
+        return new DatadogProfilerOngoingRecording(datadogProfiler, recordingName);
+    }
 
-  @Override
-  public void configure(ControllerContext context) {
-    context.setDatadogProfilerEnabled(true);
-    context.setDatadogProfilingModes(EnumSet.copyOf(datadogProfiler.enabledModes()));
-  }
+    @Override
+    public void configure(ControllerContext context) {
+        context.setDatadogProfilerEnabled(true);
+        context.setDatadogProfilingModes(EnumSet.copyOf(datadogProfiler.enabledModes()));
+    }
 }

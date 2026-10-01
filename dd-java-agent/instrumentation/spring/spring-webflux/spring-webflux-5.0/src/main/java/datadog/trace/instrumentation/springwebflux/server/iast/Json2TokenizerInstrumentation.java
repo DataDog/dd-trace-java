@@ -15,29 +15,29 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public class Json2TokenizerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public Json2TokenizerInstrumentation() {
-    super("spring-webflux");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public Json2TokenizerInstrumentation() {
+        super("spring-webflux");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "webflux_with_jackson";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "webflux_with_jackson";
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.http.codec.json.Jackson2Tokenizer";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.http.codec.json.Jackson2Tokenizer";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("apply").or(named("tokenize")))
-            .and(takesArgument(0, named("org.springframework.core.io.buffer.DataBuffer")))
-            .and(takesArguments(1))
-            .and(returns(named("reactor.core.publisher.Flux"))),
-        packageName + ".Jackson2TokenizerApplyAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("apply").or(named("tokenize")))
+                        .and(takesArgument(0, named("org.springframework.core.io.buffer.DataBuffer")))
+                        .and(takesArguments(1))
+                        .and(returns(named("reactor.core.publisher.Flux"))),
+                packageName + ".Jackson2TokenizerApplyAdvice");
+    }
 }

@@ -15,44 +15,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PathExtractionHelpers {
-  private static final Logger log = LoggerFactory.getLogger(PathExtractionHelpers.class);
+    private static final Logger log = LoggerFactory.getLogger(PathExtractionHelpers.class);
 
-  private PathExtractionHelpers() {}
+    private PathExtractionHelpers() {}
 
-  public static BlockingException callRequestPathParamsCallback(
-      RequestContext reqCtx, Map<String, Object> params, String origin) {
-    try {
-      return doCallRequestPathParamsCallback(reqCtx, params, origin);
-    } catch (Exception e) {
-      log.warn("Error calling {}", origin, e);
-      return null;
-    }
-  }
-
-  private static BlockingException doCallRequestPathParamsCallback(
-      RequestContext reqCtx, Map<String, Object> params, String origin) {
-    if (params == null || params.isEmpty()) {
-      return null;
+    public static BlockingException callRequestPathParamsCallback(
+            RequestContext reqCtx, Map<String, Object> params, String origin) {
+        try {
+            return doCallRequestPathParamsCallback(reqCtx, params, origin);
+        } catch (Exception e) {
+            log.warn("Error calling {}", origin, e);
+            return null;
+        }
     }
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestPathParams());
-    if (callback == null) {
-      return null;
-    }
+    private static BlockingException doCallRequestPathParamsCallback(
+            RequestContext reqCtx, Map<String, Object> params, String origin) {
+        if (params == null || params.isEmpty()) {
+            return null;
+        }
 
-    Flow<Void> flow = callback.apply(reqCtx, params);
-    Flow.Action action = flow.getAction();
-    if (!(action instanceof Flow.Action.RequestBlockingAction)) {
-      return null;
-    }
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback = cbp.getCallback(EVENTS.requestPathParams());
+        if (callback == null) {
+            return null;
+        }
 
-    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-    if (brf != null) {
-      brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        Flow<Void> flow = callback.apply(reqCtx, params);
+        Flow.Action action = flow.getAction();
+        if (!(action instanceof Flow.Action.RequestBlockingAction)) {
+            return null;
+        }
+
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+        if (brf != null) {
+            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        }
+        return new BlockingException("Blocked request (for " + origin + ")");
     }
-    return new BlockingException("Blocked request (for " + origin + ")");
-  }
 }

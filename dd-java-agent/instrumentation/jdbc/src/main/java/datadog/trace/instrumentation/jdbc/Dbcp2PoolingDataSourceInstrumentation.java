@@ -11,41 +11,40 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class Dbcp2PoolingDataSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public Dbcp2PoolingDataSourceInstrumentation() {
-    super("jdbc", "dbcp2");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.commons.dbcp2.PoolingDataSource", // standalone
-      "org.apache.tomcat.dbcp.dbcp2.PoolingDataSource" // bundled with Tomcat
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getConnection"),
-        Dbcp2PoolingDataSourceInstrumentation.class.getName() + "$GetConnectionAdvice");
-  }
-
-  public static class GetConnectionAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
-      CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
+    public Dbcp2PoolingDataSourceInstrumentation() {
+        super("jdbc", "dbcp2");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit() {
-      CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.apache.commons.dbcp2.PoolingDataSource", // standalone
+            "org.apache.tomcat.dbcp.dbcp2.PoolingDataSource" // bundled with Tomcat
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getConnection"), Dbcp2PoolingDataSourceInstrumentation.class.getName() + "$GetConnectionAdvice");
+    }
+
+    public static class GetConnectionAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter() {
+            CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit() {
+            CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
+        }
+    }
 }

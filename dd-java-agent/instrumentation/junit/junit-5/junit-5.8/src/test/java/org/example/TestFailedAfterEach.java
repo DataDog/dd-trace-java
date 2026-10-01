@@ -7,18 +7,18 @@ import org.junit.jupiter.api.Test;
 
 public class TestFailedAfterEach {
 
-  @AfterEach
-  public void tearDown() {
-    throw new RuntimeException("testcase teardown failed");
-  }
+    @AfterEach
+    public void tearDown() {
+        throw new RuntimeException("testcase teardown failed");
+    }
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void another_test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void another_test_succeed() {
+        assertTrue(true);
+    }
 }

@@ -15,39 +15,39 @@ import com.datadog.debugger.el.values.StringValue;
  * The result will be {@literal true} for empty string or collection, {@literal false} otherwise.
  */
 public final class IsEmptyExpression implements BooleanExpression {
-  private final ValueExpression<?> valueExpression;
+    private final ValueExpression<?> valueExpression;
 
-  public IsEmptyExpression(ValueExpression<?> valueExpression) {
-    this.valueExpression = valueExpression == null ? ValueExpression.NULL : valueExpression;
-  }
-
-  @Override
-  public Boolean evaluate(EvalContext evalContext) {
-    Value<?> value = valueExpression.evaluate(evalContext);
-    if (value.isUndefined()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+    public IsEmptyExpression(ValueExpression<?> valueExpression) {
+        this.valueExpression = valueExpression == null ? ValueExpression.NULL : valueExpression;
     }
-    if (value.isNull()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
-    }
-    boolean result = false;
-    if (value instanceof CollectionValue) {
-      result = ((CollectionValue<?>) value).isEmpty();
-    } else if (value instanceof StringValue) {
-      result = ((StringValue) value).isEmpty();
-    }
-    checkTimeout(evalContext.getTimeoutChecker(), this);
-    return result;
-  }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public Boolean evaluate(EvalContext evalContext) {
+        Value<?> value = valueExpression.evaluate(evalContext);
+        if (value.isUndefined()) {
+            throw new EvaluationException(
+                    "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+        }
+        if (value.isNull()) {
+            throw new EvaluationException(
+                    "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+        }
+        boolean result = false;
+        if (value instanceof CollectionValue) {
+            result = ((CollectionValue<?>) value).isEmpty();
+        } else if (value instanceof StringValue) {
+            result = ((StringValue) value).isEmpty();
+        }
+        checkTimeout(evalContext.getTimeoutChecker(), this);
+        return result;
+    }
 
-  public ValueExpression<?> getValueExpression() {
-    return valueExpression;
-  }
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
+
+    public ValueExpression<?> getValueExpression() {
+        return valueExpression;
+    }
 }

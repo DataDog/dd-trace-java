@@ -52,59 +52,60 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(1)
 public class ClientStatsAggregatorDDSpanBenchmark {
 
-  private static final CoreTracer TRACER =
-      CoreTracer.builder().writer(new NoopWriter()).strictTraceWrites(false).build();
+    private static final CoreTracer TRACER = CoreTracer.builder()
+            .writer(new NoopWriter())
+            .strictTraceWrites(false)
+            .build();
 
-  private final DDAgentFeaturesDiscovery featuresDiscovery =
-      new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-          Collections.singleton("peer.hostname"), Collections.emptySet());
-  private final ClientStatsAggregator aggregator =
-      new ClientStatsAggregator(
-          new WellKnownTags("", "", "", "", "", ""),
-          Collections.emptySet(),
-          AdditionalTagsSchema.EMPTY,
-          featuresDiscovery,
-          HealthMetrics.NO_OP,
-          new ClientStatsAggregatorBenchmark.NullSink(),
-          2048,
-          2048,
-          false);
-  private final List<CoreSpan<?>> spans = generateTrace(64);
+    private final DDAgentFeaturesDiscovery featuresDiscovery =
+            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+                    Collections.singleton("peer.hostname"), Collections.emptySet());
+    private final ClientStatsAggregator aggregator = new ClientStatsAggregator(
+            new WellKnownTags("", "", "", "", "", ""),
+            Collections.emptySet(),
+            AdditionalTagsSchema.EMPTY,
+            featuresDiscovery,
+            HealthMetrics.NO_OP,
+            new ClientStatsAggregatorBenchmark.NullSink(),
+            2048,
+            2048,
+            false);
+    private final List<CoreSpan<?>> spans = generateTrace(64);
 
-  static List<CoreSpan<?>> generateTrace(int len) {
-    final List<CoreSpan<?>> trace = new ArrayList<>();
-    for (int i = 0; i < len; i++) {
-      DDSpan span = (DDSpan) TRACER.startSpan("benchmark", "op");
-      span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
-      span.setTag("peer.hostname", Strings.random(10));
-      // Fix duration; bypasses the wall clock and avoids per-fork drift.
-      span.finishWithDuration(10);
-      trace.add(span);
-    }
-    return trace;
-  }
-
-  static class NoopWriter implements Writer {
-    @Override
-    public void write(List<DDSpan> trace) {}
-
-    @Override
-    public void start() {}
-
-    @Override
-    public boolean flush() {
-      return true;
+    static List<CoreSpan<?>> generateTrace(int len) {
+        final List<CoreSpan<?>> trace = new ArrayList<>();
+        for (int i = 0; i < len; i++) {
+            DDSpan span = (DDSpan) TRACER.startSpan("benchmark", "op");
+            span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
+            span.setTag("peer.hostname", Strings.random(10));
+            // Fix duration; bypasses the wall clock and avoids per-fork drift.
+            span.finishWithDuration(10);
+            trace.add(span);
+        }
+        return trace;
     }
 
-    @Override
-    public void close() {}
+    static class NoopWriter implements Writer {
+        @Override
+        public void write(List<DDSpan> trace) {}
 
-    @Override
-    public void incrementDropCounts(int spanCount) {}
-  }
+        @Override
+        public void start() {}
 
-  @Benchmark
-  public void benchmark(Blackhole blackhole) {
-    blackhole.consume(aggregator.publish(spans));
-  }
+        @Override
+        public boolean flush() {
+            return true;
+        }
+
+        @Override
+        public void close() {}
+
+        @Override
+        public void incrementDropCounts(int spanCount) {}
+    }
+
+    @Benchmark
+    public void benchmark(Blackhole blackhole) {
+        blackhole.consume(aggregator.publish(spans));
+    }
 }

@@ -13,21 +13,16 @@ import reactor.core.publisher.Mono;
 
 @Configuration
 public class FruitRouter {
-  @Bean
-  RouterFunction<ServerResponse> routes(final FruitRepository repository) {
-    return route(
-            RequestPredicates.GET("/fruits"),
-            request ->
-                ServerResponse.ok()
-                    .body(Mono.fromSupplier(() -> repository.findAll()), Fruit.class))
-        .and(
-            route(
-                RequestPredicates.GET("/fruits/{name}"),
-                request ->
-                    ServerResponse.ok()
-                        .body(
-                            Mono.fromSupplier(
-                                () -> repository.findByName(request.pathVariable("name"))),
-                            Fruit.class)));
-  }
+    @Bean
+    RouterFunction<ServerResponse> routes(final FruitRepository repository) {
+        return route(
+                        RequestPredicates.GET("/fruits"),
+                        request -> ServerResponse.ok().body(Mono.fromSupplier(() -> repository.findAll()), Fruit.class))
+                .and(route(
+                        RequestPredicates.GET("/fruits/{name}"),
+                        request -> ServerResponse.ok()
+                                .body(
+                                        Mono.fromSupplier(() -> repository.findByName(request.pathVariable("name"))),
+                                        Fruit.class)));
+    }
 }

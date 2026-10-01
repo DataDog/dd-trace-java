@@ -4,5 +4,5 @@ import datadog.trace.api.git.GitInfo;
 
 public interface GitInfoExtractor {
 
-  GitInfo headCommit(final String gitFolder);
+    GitInfo headCommit(final String gitFolder);
 }

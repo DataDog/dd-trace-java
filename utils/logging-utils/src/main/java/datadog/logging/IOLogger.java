@@ -8,131 +8,125 @@ import org.slf4j.Logger;
 
 /** Logger specialized on logging IO-related activity */
 public class IOLogger {
-  private boolean logNextSuccess = false;
-  private final Logger log;
-  private final RatelimitedLogger ratelimitedLogger;
+    private boolean logNextSuccess = false;
+    private final Logger log;
+    private final RatelimitedLogger ratelimitedLogger;
 
-  public IOLogger(final Logger log) {
-    this(log, new RatelimitedLogger(log, 5, TimeUnit.MINUTES));
-  }
-
-  @VisibleForTesting
-  IOLogger(final Logger log, final RatelimitedLogger ratelimitedLogger) {
-    this.log = log;
-    this.ratelimitedLogger = ratelimitedLogger;
-  }
-
-  /**
-   * @return true if actually logged the message, false otherwise
-   */
-  public boolean success(final String format, final Object... arguments) {
-    if (log.isDebugEnabled()) {
-      log.debug(EXCLUDE_TELEMETRY, format, arguments);
-      return true;
+    public IOLogger(final Logger log) {
+        this(log, new RatelimitedLogger(log, 5, TimeUnit.MINUTES));
     }
 
-    if (this.logNextSuccess) {
-      this.logNextSuccess = false;
-      if (log.isInfoEnabled()) {
-        log.info(EXCLUDE_TELEMETRY, format, arguments);
-        return true;
-      }
+    @VisibleForTesting
+    IOLogger(final Logger log, final RatelimitedLogger ratelimitedLogger) {
+        this.log = log;
+        this.ratelimitedLogger = ratelimitedLogger;
     }
 
-    return false;
-  }
+    /**
+     * @return true if actually logged the message, false otherwise
+     */
+    public boolean success(final String format, final Object... arguments) {
+        if (log.isDebugEnabled()) {
+            log.debug(EXCLUDE_TELEMETRY, format, arguments);
+            return true;
+        }
 
-  /**
-   * @return true if actually logged the message, false otherwise
-   */
-  public boolean error(final String message) {
-    return error(message, null, null);
-  }
+        if (this.logNextSuccess) {
+            this.logNextSuccess = false;
+            if (log.isInfoEnabled()) {
+                log.info(EXCLUDE_TELEMETRY, format, arguments);
+                return true;
+            }
+        }
 
-  /**
-   * @return true if actually logged the message, false otherwise
-   */
-  public boolean error(final String message, Exception exception) {
-    return error(message, null, exception);
-  }
-
-  /**
-   * @return true if actually logged the message, false otherwise
-   */
-  public boolean error(final String message, Response response) {
-    return error(message, response, null);
-  }
-
-  /**
-   * @return true if actually logged the message, false otherwise
-   */
-  public boolean error(final String message, Response response, Exception exception) {
-    if (log.isDebugEnabled()) {
-      if (response != null) {
-        log.debug(
-            EXCLUDE_TELEMETRY,
-            "{} Status: {}, Response: {}, Body: {}",
-            message,
-            response.getStatusCode(),
-            response.getMessage(),
-            response.getBody());
-      } else if (exception != null) {
-        log.debug(EXCLUDE_TELEMETRY, message, exception);
-      } else {
-        log.debug(EXCLUDE_TELEMETRY, message);
-      }
-      return true;
-    }
-    boolean hasLogged;
-    if (response != null) {
-      hasLogged =
-          ratelimitedLogger.warn(
-              EXCLUDE_TELEMETRY,
-              "{} Status: {} {}",
-              message,
-              response.getStatusCode(),
-              response.getMessage());
-    } else if (exception != null) {
-      // NOTE: We do not pass the full exception to warn on purpose. We don't want to
-      //       print a full stacktrace unless we're in debug mode
-      hasLogged =
-          ratelimitedLogger.warn(
-              EXCLUDE_TELEMETRY,
-              "{} {}: {}",
-              message,
-              exception.getClass().getName(),
-              exception.getMessage());
-    } else {
-      hasLogged = ratelimitedLogger.warn(message);
-    }
-    if (hasLogged) {
-      this.logNextSuccess = true;
+        return false;
     }
 
-    return hasLogged;
-  }
-
-  public static final class Response {
-    private final int statusCode;
-    private final String message;
-    private final String body;
-
-    public Response(int statusCode, String message, String body) {
-      this.statusCode = statusCode;
-      this.message = message;
-      this.body = body;
+    /**
+     * @return true if actually logged the message, false otherwise
+     */
+    public boolean error(final String message) {
+        return error(message, null, null);
     }
 
-    public int getStatusCode() {
-      return statusCode;
+    /**
+     * @return true if actually logged the message, false otherwise
+     */
+    public boolean error(final String message, Exception exception) {
+        return error(message, null, exception);
     }
 
-    public String getMessage() {
-      return message;
+    /**
+     * @return true if actually logged the message, false otherwise
+     */
+    public boolean error(final String message, Response response) {
+        return error(message, response, null);
     }
 
-    public String getBody() {
-      return body;
+    /**
+     * @return true if actually logged the message, false otherwise
+     */
+    public boolean error(final String message, Response response, Exception exception) {
+        if (log.isDebugEnabled()) {
+            if (response != null) {
+                log.debug(
+                        EXCLUDE_TELEMETRY,
+                        "{} Status: {}, Response: {}, Body: {}",
+                        message,
+                        response.getStatusCode(),
+                        response.getMessage(),
+                        response.getBody());
+            } else if (exception != null) {
+                log.debug(EXCLUDE_TELEMETRY, message, exception);
+            } else {
+                log.debug(EXCLUDE_TELEMETRY, message);
+            }
+            return true;
+        }
+        boolean hasLogged;
+        if (response != null) {
+            hasLogged = ratelimitedLogger.warn(
+                    EXCLUDE_TELEMETRY, "{} Status: {} {}", message, response.getStatusCode(), response.getMessage());
+        } else if (exception != null) {
+            // NOTE: We do not pass the full exception to warn on purpose. We don't want to
+            //       print a full stacktrace unless we're in debug mode
+            hasLogged = ratelimitedLogger.warn(
+                    EXCLUDE_TELEMETRY,
+                    "{} {}: {}",
+                    message,
+                    exception.getClass().getName(),
+                    exception.getMessage());
+        } else {
+            hasLogged = ratelimitedLogger.warn(message);
+        }
+        if (hasLogged) {
+            this.logNextSuccess = true;
+        }
+
+        return hasLogged;
     }
-  }
+
+    public static final class Response {
+        private final int statusCode;
+        private final String message;
+        private final String body;
+
+        public Response(int statusCode, String message, String body) {
+            this.statusCode = statusCode;
+            this.message = message;
+            this.body = body;
+        }
+
+        public int getStatusCode() {
+            return statusCode;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public String getBody() {
+            return body;
+        }
+    }
 }

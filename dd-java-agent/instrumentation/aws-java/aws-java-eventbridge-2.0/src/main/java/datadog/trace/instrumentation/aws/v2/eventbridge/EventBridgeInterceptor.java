@@ -24,135 +24,130 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 
 public class EventBridgeInterceptor implements ExecutionInterceptor {
-  private static final Logger log = LoggerFactory.getLogger(EventBridgeInterceptor.class);
-  private static final String DEFAULT_EVENT_BUS_NAME = "default";
-  private static final String EVENT_BUS_ARN_PREFIX = "event-bus/";
+    private static final Logger log = LoggerFactory.getLogger(EventBridgeInterceptor.class);
+    private static final String DEFAULT_EVENT_BUS_NAME = "default";
+    private static final String EVENT_BUS_ARN_PREFIX = "event-bus/";
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+    public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(ExecutionAttribute.class)
+            .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
-  private static final String START_TIME_KEY = "x-datadog-start-time";
-  private static final String RESOURCE_NAME_KEY = "x-datadog-resource-name";
+    private static final String START_TIME_KEY = "x-datadog-start-time";
+    private static final String RESOURCE_NAME_KEY = "x-datadog-resource-name";
 
-  @Override
-  public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
-    if (!(context.request() instanceof PutEventsRequest)
-        || !Config.get().isEventbridgeInjectDatadogAttributeEnabled()) {
-      return context.request();
+    @Override
+    public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
+        if (!(context.request() instanceof PutEventsRequest)
+                || !Config.get().isEventbridgeInjectDatadogAttributeEnabled()) {
+            return context.request();
+        }
+
+        PutEventsRequest request = (PutEventsRequest) context.request();
+        List<PutEventsRequestEntry> modifiedEntries =
+                new ArrayList<>(request.entries().size());
+        long startTime = System.currentTimeMillis();
+
+        for (PutEventsRequestEntry entry : request.entries()) {
+            StringBuilder detailBuilder = new StringBuilder(entry.detail().trim());
+            if (detailBuilder.length() == 0) {
+                detailBuilder.append("{}");
+            }
+            if (detailBuilder.charAt(detailBuilder.length() - 1) != '}') {
+                log.debug("Unable to parse detail JSON. Not injecting trace context into EventBridge payload.");
+                modifiedEntries.add(entry); // Add the original entry without modification
+                continue;
+            }
+
+            String traceContext =
+                    getTraceContextToInject(executionAttributes, entry.eventBusName(), entry.detailType(), startTime);
+            detailBuilder.setLength(detailBuilder.length() - 1); // Remove the last bracket
+            if (detailBuilder.length() > 1) {
+                detailBuilder.append(", "); // Only add a comma if detail is not empty.
+            }
+
+            detailBuilder
+                    .append('\"')
+                    .append(PathwayContext.DATADOG_KEY)
+                    .append("\": ")
+                    .append(traceContext)
+                    .append('}');
+
+            String modifiedDetail = detailBuilder.toString();
+            PutEventsRequestEntry modifiedEntry =
+                    entry.toBuilder().detail(modifiedDetail).build();
+            modifiedEntries.add(modifiedEntry);
+        }
+
+        return request.toBuilder().entries(modifiedEntries).build();
     }
 
-    PutEventsRequest request = (PutEventsRequest) context.request();
-    List<PutEventsRequestEntry> modifiedEntries = new ArrayList<>(request.entries().size());
-    long startTime = System.currentTimeMillis();
+    private String getTraceContextToInject(
+            ExecutionAttributes executionAttributes, String eventBusName, String detailType, long startTime) {
+        Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+        String resourceName = eventBusName == null || eventBusName.isEmpty() ? DEFAULT_EVENT_BUS_NAME : eventBusName;
+        StringBuilder jsonBuilder = new StringBuilder();
+        jsonBuilder.append('{');
 
-    for (PutEventsRequestEntry entry : request.entries()) {
-      StringBuilder detailBuilder = new StringBuilder(entry.detail().trim());
-      if (detailBuilder.length() == 0) {
-        detailBuilder.append("{}");
-      }
-      if (detailBuilder.charAt(detailBuilder.length() - 1) != '}') {
-        log.debug(
-            "Unable to parse detail JSON. Not injecting trace context into EventBridge payload.");
-        modifiedEntries.add(entry); // Add the original entry without modification
-        continue;
-      }
+        // Inject context
+        if (traceConfig().isDataStreamsEnabled()) {
+            DataStreamsTags tags = buildDataStreamsTags(eventBusName, detailType);
+            DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+            context = context.with(dsmContext);
+        }
+        defaultPropagator().inject(context, jsonBuilder, SETTER);
 
-      String traceContext =
-          getTraceContextToInject(
-              executionAttributes, entry.eventBusName(), entry.detailType(), startTime);
-      detailBuilder.setLength(detailBuilder.length() - 1); // Remove the last bracket
-      if (detailBuilder.length() > 1) {
-        detailBuilder.append(", "); // Only add a comma if detail is not empty.
-      }
+        // Add bus name and start time
+        jsonBuilder
+                .append(" \"")
+                .append(START_TIME_KEY)
+                .append("\": \"")
+                .append(startTime)
+                .append("\", ");
+        jsonBuilder
+                .append(" \"")
+                .append(RESOURCE_NAME_KEY)
+                .append("\": \"")
+                .append(resourceName)
+                .append('\"');
 
-      detailBuilder
-          .append('\"')
-          .append(PathwayContext.DATADOG_KEY)
-          .append("\": ")
-          .append(traceContext)
-          .append('}');
-
-      String modifiedDetail = detailBuilder.toString();
-      PutEventsRequestEntry modifiedEntry = entry.toBuilder().detail(modifiedDetail).build();
-      modifiedEntries.add(modifiedEntry);
+        jsonBuilder.append('}');
+        return jsonBuilder.toString();
     }
 
-    return request.toBuilder().entries(modifiedEntries).build();
-  }
-
-  private String getTraceContextToInject(
-      ExecutionAttributes executionAttributes,
-      String eventBusName,
-      String detailType,
-      long startTime) {
-    Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
-    String resourceName =
-        eventBusName == null || eventBusName.isEmpty() ? DEFAULT_EVENT_BUS_NAME : eventBusName;
-    StringBuilder jsonBuilder = new StringBuilder();
-    jsonBuilder.append('{');
-
-    // Inject context
-    if (traceConfig().isDataStreamsEnabled()) {
-      DataStreamsTags tags = buildDataStreamsTags(eventBusName, detailType);
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-      context = context.with(dsmContext);
-    }
-    defaultPropagator().inject(context, jsonBuilder, SETTER);
-
-    // Add bus name and start time
-    jsonBuilder
-        .append(" \"")
-        .append(START_TIME_KEY)
-        .append("\": \"")
-        .append(startTime)
-        .append("\", ");
-    jsonBuilder
-        .append(" \"")
-        .append(RESOURCE_NAME_KEY)
-        .append("\": \"")
-        .append(resourceName)
-        .append('\"');
-
-    jsonBuilder.append('}');
-    return jsonBuilder.toString();
-  }
-
-  static DataStreamsTags buildDataStreamsTags(String eventBusName, String detailType) {
-    return new DataStreamsTags(
-        null,
-        OUTBOUND,
-        normalizeEventBusName(eventBusName),
-        normalizeDetailType(detailType),
-        "eventbridge",
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
-  }
-
-  static String normalizeEventBusName(String eventBusName) {
-    if (eventBusName == null || eventBusName.isEmpty()) {
-      return DEFAULT_EVENT_BUS_NAME;
+    static DataStreamsTags buildDataStreamsTags(String eventBusName, String detailType) {
+        return new DataStreamsTags(
+                null,
+                OUTBOUND,
+                normalizeEventBusName(eventBusName),
+                normalizeDetailType(detailType),
+                "eventbridge",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
-    // EventBridge ARNs embed the full bus name after "event-bus/", including partner bus paths.
-    int arnBusNameStart = eventBusName.indexOf(EVENT_BUS_ARN_PREFIX);
-    if (arnBusNameStart >= 0) {
-      return eventBusName.substring(arnBusNameStart + EVENT_BUS_ARN_PREFIX.length());
-    }
-    return eventBusName;
-  }
+    static String normalizeEventBusName(String eventBusName) {
+        if (eventBusName == null || eventBusName.isEmpty()) {
+            return DEFAULT_EVENT_BUS_NAME;
+        }
 
-  static String normalizeDetailType(String detailType) {
-    if (detailType == null || detailType.isEmpty()) {
-      return null;
+        // EventBridge ARNs embed the full bus name after "event-bus/", including partner bus paths.
+        int arnBusNameStart = eventBusName.indexOf(EVENT_BUS_ARN_PREFIX);
+        if (arnBusNameStart >= 0) {
+            return eventBusName.substring(arnBusNameStart + EVENT_BUS_ARN_PREFIX.length());
+        }
+        return eventBusName;
     }
-    return detailType;
-  }
+
+    static String normalizeDetailType(String detailType) {
+        if (detailType == null || detailType.isEmpty()) {
+            return null;
+        }
+        return detailType;
+    }
 }

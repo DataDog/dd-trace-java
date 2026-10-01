@@ -1,37 +1,37 @@
 package datadog.trace.civisibility.coverage.line;
 
 public class ExecutionDataAdapter {
-  private final long classId;
-  private final String className;
-  // Unbounded data structure that only exists within a single test span
-  private final boolean[] probeActivations;
+    private final long classId;
+    private final String className;
+    // Unbounded data structure that only exists within a single test span
+    private final boolean[] probeActivations;
 
-  public ExecutionDataAdapter(long classId, String className, int totalProbeCount) {
-    this.classId = classId;
-    this.className = className;
-    this.probeActivations = new boolean[totalProbeCount];
-  }
-
-  public String getClassName() {
-    return className;
-  }
-
-  long getClassId() {
-    return classId;
-  }
-
-  boolean[] getProbeActivations() {
-    return probeActivations;
-  }
-
-  void record(int probeId) {
-    probeActivations[probeId] = true;
-  }
-
-  ExecutionDataAdapter merge(ExecutionDataAdapter other) {
-    for (int i = 0; i < other.probeActivations.length; i++) {
-      probeActivations[i] |= other.probeActivations[i];
+    public ExecutionDataAdapter(long classId, String className, int totalProbeCount) {
+        this.classId = classId;
+        this.className = className;
+        this.probeActivations = new boolean[totalProbeCount];
     }
-    return this;
-  }
+
+    public String getClassName() {
+        return className;
+    }
+
+    long getClassId() {
+        return classId;
+    }
+
+    boolean[] getProbeActivations() {
+        return probeActivations;
+    }
+
+    void record(int probeId) {
+        probeActivations[probeId] = true;
+    }
+
+    ExecutionDataAdapter merge(ExecutionDataAdapter other) {
+        for (int i = 0; i < other.probeActivations.length; i++) {
+            probeActivations[i] |= other.probeActivations[i];
+        }
+        return this;
+    }
 }

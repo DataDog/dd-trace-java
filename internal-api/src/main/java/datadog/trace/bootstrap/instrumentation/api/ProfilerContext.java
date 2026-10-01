@@ -2,32 +2,32 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 public interface ProfilerContext {
 
-  long getSpanId();
+    long getSpanId();
 
-  /**
-   * @return the span id of the local root span, or the span itself
-   */
-  long getRootSpanId();
+    /**
+     * @return the span id of the local root span, or the span itself
+     */
+    long getRootSpanId();
 
-  /**
-   * @return upper 64 bits of the 128-bit trace id, or 0 if not available
-   */
-  default long getTraceIdHigh() {
-    return 0L;
-  }
+    /**
+     * @return upper 64 bits of the 128-bit trace id, or 0 if not available
+     */
+    default long getTraceIdHigh() {
+        return 0L;
+    }
 
-  /**
-   * @return lower 64 bits of the 128-bit trace id, or 0 if not available
-   */
-  default long getTraceIdLow() {
-    return 0L;
-  }
+    /**
+     * @return lower 64 bits of the 128-bit trace id, or 0 if not available
+     */
+    default long getTraceIdLow() {
+        return 0L;
+    }
 
-  int getEncodedOperationName();
+    int getEncodedOperationName();
 
-  CharSequence getOperationName();
+    CharSequence getOperationName();
 
-  int getEncodedResourceName();
+    int getEncodedResourceName();
 
-  CharSequence getResourceName();
+    CharSequence getResourceName();
 }

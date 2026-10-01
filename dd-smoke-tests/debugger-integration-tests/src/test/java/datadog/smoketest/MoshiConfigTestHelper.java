@@ -46,312 +46,311 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MoshiConfigTestHelper {
-  public static Moshi createMoshiConfig() {
-    ProbeCondition.ProbeConditionJsonAdapter probeConditionJsonAdapter =
-        new ProbeConditionJsonAdapter();
-    return new Moshi.Builder()
-        .add(ProbeCondition.class, probeConditionJsonAdapter)
-        .add(DebuggerScript.class, probeConditionJsonAdapter)
-        .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
-        .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
-        .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
-        .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter())
-        .build();
-  }
-
-  private static class ProbeConditionJsonAdapter extends ProbeCondition.ProbeConditionJsonAdapter {
-    @Override
-    public void toJson(@Nonnull JsonWriter jsonWriter, ProbeCondition value) throws IOException {
-      if (value == null) {
-        jsonWriter.nullValue();
-        return;
-      }
-      jsonWriter.beginObject();
-      jsonWriter.name("dsl");
-      jsonWriter.value(value.getDslExpression());
-      jsonWriter.name("json");
-      (new JsonConditionVisitor(jsonWriter)).visit(value.getWhen());
-      jsonWriter.endObject();
-    }
-  }
-
-  private static class JsonConditionVisitor implements Visitor<Void> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JsonConditionVisitor.class);
-
-    private final JsonWriter jsonWriter;
-
-    public JsonConditionVisitor(JsonWriter jsonWriter) {
-      this.jsonWriter = jsonWriter;
+    public static Moshi createMoshiConfig() {
+        ProbeCondition.ProbeConditionJsonAdapter probeConditionJsonAdapter = new ProbeConditionJsonAdapter();
+        return new Moshi.Builder()
+                .add(ProbeCondition.class, probeConditionJsonAdapter)
+                .add(DebuggerScript.class, probeConditionJsonAdapter)
+                .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+                .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
+                .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
+                .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter())
+                .build();
     }
 
-    @Override
-    public Void visit(BinaryExpression binaryExpression) {
-      try {
-        jsonWriter.beginObject();
-        binaryExpression.getOperator().accept(this);
-        jsonWriter.beginArray();
-        binaryExpression.getLeft().accept(this);
-        binaryExpression.getRight().accept(this);
-        jsonWriter.endArray();
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(BinaryOperator operator) {
-      try {
-        jsonWriter.name(operator.name().toLowerCase());
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(ComparisonExpression comparisonExpression) {
-      try {
-        jsonWriter.beginObject();
-        comparisonExpression.getOperator().accept(this);
-        jsonWriter.beginArray();
-        comparisonExpression.getLeft().accept(this);
-        comparisonExpression.getRight().accept(this);
-        jsonWriter.endArray();
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(ComparisonOperator operator) {
-      try {
-        jsonWriter.name(operator.name().toLowerCase());
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(ContainsExpression containsExpression) {
-      throw new UnsupportedOperationException("contains expression");
-    }
-
-    @Override
-    public Void visit(EndsWithExpression endsWithExpression) {
-      throw new UnsupportedOperationException("endsWith expression");
-    }
-
-    @Override
-    public Void visit(FilterCollectionExpression filterCollectionExpression) {
-      throw new UnsupportedOperationException("filter expression");
-    }
-
-    @Override
-    public Void visit(HasAllExpression hasAllExpression) {
-      try {
-        jsonWriter.beginObject();
-        jsonWriter.name("all");
-        jsonWriter.beginArray();
-        hasAllExpression.getValueExpression().accept(this);
-        // jsonWriter.beginObject();
-        hasAllExpression.getFilterPredicateExpression().accept(this);
-        // jsonWriter.endObject();
-        jsonWriter.endArray();
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(HasAnyExpression hasAnyExpression) {
-      throw new UnsupportedOperationException("hasAny expression");
-    }
-
-    @Override
-    public Void visit(IfElseExpression ifElseExpression) {
-      throw new UnsupportedOperationException("ifElse expression");
-    }
-
-    @Override
-    public Void visit(IfExpression ifExpression) {
-      throw new UnsupportedOperationException("if expression");
-    }
-
-    @Override
-    public Void visit(IsEmptyExpression isEmptyExpression) {
-      throw new UnsupportedOperationException("isEmpty expression");
-    }
-
-    @Override
-    public Void visit(IsDefinedExpression isDefinedExpression) {
-      throw new UnsupportedOperationException("isDefined expression");
-    }
-
-    @Override
-    public Void visit(LenExpression lenExpression) {
-      try {
-        jsonWriter.beginObject();
-        jsonWriter.name("len");
-        lenExpression.getSource().accept(this);
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(MatchesExpression matchesExpression) {
-      throw new UnsupportedOperationException("matches expression");
-    }
-
-    @Override
-    public Void visit(NotExpression notExpression) {
-      try {
-        jsonWriter.beginObject();
-        jsonWriter.name("not");
-        notExpression.getPredicate().accept(this);
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(StartsWithExpression startsWithExpression) {
-      throw new UnsupportedOperationException("startsWith expression");
-    }
-
-    @Override
-    public Void visit(SubStringExpression subStringExpression) {
-      throw new UnsupportedOperationException("subString expression");
-    }
-
-    @Override
-    public Void visit(ValueRefExpression valueRefExpression) {
-      try {
-        jsonWriter.beginObject();
-        jsonWriter.name("ref");
-        jsonWriter.value(valueRefExpression.getSymbolName());
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(GetMemberExpression getMemberExpression) {
-      try {
-        jsonWriter.beginObject();
-        jsonWriter.name("getmember");
-        jsonWriter.beginArray();
-        getMemberExpression.getTarget().accept(this);
-        jsonWriter.value(getMemberExpression.getMemberName());
-        jsonWriter.endArray();
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(IndexExpression indexExpression) {
-      try {
-        jsonWriter.beginObject();
-        jsonWriter.name("index");
-        jsonWriter.beginArray();
-        indexExpression.getTarget().accept(this);
-        indexExpression.getKey().accept(this);
-        jsonWriter.endArray();
-        jsonWriter.endObject();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(WhenExpression whenExpression) {
-      whenExpression.getExpression().accept(this);
-      return null;
-    }
-
-    @Override
-    public Void visit(BooleanExpression booleanExpression) {
-      throw new UnsupportedOperationException("boolean expression");
-    }
-
-    @Override
-    public Void visit(ObjectValue objectValue) {
-      throw new UnsupportedOperationException("objectValue");
-    }
-
-    @Override
-    public Void visit(StringValue stringValue) {
-      try {
-        jsonWriter.jsonValue(stringValue.getValue());
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
-
-    @Override
-    public Void visit(NumericValue numericValue) {
-      try {
-        Number widenValue = numericValue.getWidenValue();
-        if (widenValue instanceof Long) {
-          jsonWriter.value(widenValue.longValue());
-        } else if (widenValue instanceof Double) {
-          jsonWriter.value(widenValue.doubleValue());
-        } else {
-          throw new UnsupportedOperationException(
-              "numeric value unsupported:" + numericValue.getValue().getClass());
+    private static class ProbeConditionJsonAdapter extends ProbeCondition.ProbeConditionJsonAdapter {
+        @Override
+        public void toJson(@Nonnull JsonWriter jsonWriter, ProbeCondition value) throws IOException {
+            if (value == null) {
+                jsonWriter.nullValue();
+                return;
+            }
+            jsonWriter.beginObject();
+            jsonWriter.name("dsl");
+            jsonWriter.value(value.getDslExpression());
+            jsonWriter.name("json");
+            (new JsonConditionVisitor(jsonWriter)).visit(value.getWhen());
+            jsonWriter.endObject();
         }
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
     }
 
-    @Override
-    public Void visit(BooleanValue booleanValue) {
-      throw new UnsupportedOperationException("booleanValue");
-    }
+    private static class JsonConditionVisitor implements Visitor<Void> {
+        private static final Logger LOGGER = LoggerFactory.getLogger(JsonConditionVisitor.class);
 
-    @Override
-    public Void visit(NullValue nullValue) {
-      try {
-        jsonWriter.nullValue();
-      } catch (IOException ex) {
-        LOGGER.debug("Cannot serialize: ", ex);
-      }
-      return null;
-    }
+        private final JsonWriter jsonWriter;
 
-    @Override
-    public Void visit(ListValue listValue) {
-      throw new UnsupportedOperationException("listValue");
-    }
+        public JsonConditionVisitor(JsonWriter jsonWriter) {
+            this.jsonWriter = jsonWriter;
+        }
 
-    @Override
-    public Void visit(MapValue mapValue) {
-      throw new UnsupportedOperationException("mapValue");
-    }
+        @Override
+        public Void visit(BinaryExpression binaryExpression) {
+            try {
+                jsonWriter.beginObject();
+                binaryExpression.getOperator().accept(this);
+                jsonWriter.beginArray();
+                binaryExpression.getLeft().accept(this);
+                binaryExpression.getRight().accept(this);
+                jsonWriter.endArray();
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
 
-    @Override
-    public Void visit(SetValue setValue) {
-      throw new UnsupportedOperationException("setValue");
+        @Override
+        public Void visit(BinaryOperator operator) {
+            try {
+                jsonWriter.name(operator.name().toLowerCase());
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(ComparisonExpression comparisonExpression) {
+            try {
+                jsonWriter.beginObject();
+                comparisonExpression.getOperator().accept(this);
+                jsonWriter.beginArray();
+                comparisonExpression.getLeft().accept(this);
+                comparisonExpression.getRight().accept(this);
+                jsonWriter.endArray();
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(ComparisonOperator operator) {
+            try {
+                jsonWriter.name(operator.name().toLowerCase());
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(ContainsExpression containsExpression) {
+            throw new UnsupportedOperationException("contains expression");
+        }
+
+        @Override
+        public Void visit(EndsWithExpression endsWithExpression) {
+            throw new UnsupportedOperationException("endsWith expression");
+        }
+
+        @Override
+        public Void visit(FilterCollectionExpression filterCollectionExpression) {
+            throw new UnsupportedOperationException("filter expression");
+        }
+
+        @Override
+        public Void visit(HasAllExpression hasAllExpression) {
+            try {
+                jsonWriter.beginObject();
+                jsonWriter.name("all");
+                jsonWriter.beginArray();
+                hasAllExpression.getValueExpression().accept(this);
+                // jsonWriter.beginObject();
+                hasAllExpression.getFilterPredicateExpression().accept(this);
+                // jsonWriter.endObject();
+                jsonWriter.endArray();
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(HasAnyExpression hasAnyExpression) {
+            throw new UnsupportedOperationException("hasAny expression");
+        }
+
+        @Override
+        public Void visit(IfElseExpression ifElseExpression) {
+            throw new UnsupportedOperationException("ifElse expression");
+        }
+
+        @Override
+        public Void visit(IfExpression ifExpression) {
+            throw new UnsupportedOperationException("if expression");
+        }
+
+        @Override
+        public Void visit(IsEmptyExpression isEmptyExpression) {
+            throw new UnsupportedOperationException("isEmpty expression");
+        }
+
+        @Override
+        public Void visit(IsDefinedExpression isDefinedExpression) {
+            throw new UnsupportedOperationException("isDefined expression");
+        }
+
+        @Override
+        public Void visit(LenExpression lenExpression) {
+            try {
+                jsonWriter.beginObject();
+                jsonWriter.name("len");
+                lenExpression.getSource().accept(this);
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(MatchesExpression matchesExpression) {
+            throw new UnsupportedOperationException("matches expression");
+        }
+
+        @Override
+        public Void visit(NotExpression notExpression) {
+            try {
+                jsonWriter.beginObject();
+                jsonWriter.name("not");
+                notExpression.getPredicate().accept(this);
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(StartsWithExpression startsWithExpression) {
+            throw new UnsupportedOperationException("startsWith expression");
+        }
+
+        @Override
+        public Void visit(SubStringExpression subStringExpression) {
+            throw new UnsupportedOperationException("subString expression");
+        }
+
+        @Override
+        public Void visit(ValueRefExpression valueRefExpression) {
+            try {
+                jsonWriter.beginObject();
+                jsonWriter.name("ref");
+                jsonWriter.value(valueRefExpression.getSymbolName());
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(GetMemberExpression getMemberExpression) {
+            try {
+                jsonWriter.beginObject();
+                jsonWriter.name("getmember");
+                jsonWriter.beginArray();
+                getMemberExpression.getTarget().accept(this);
+                jsonWriter.value(getMemberExpression.getMemberName());
+                jsonWriter.endArray();
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(IndexExpression indexExpression) {
+            try {
+                jsonWriter.beginObject();
+                jsonWriter.name("index");
+                jsonWriter.beginArray();
+                indexExpression.getTarget().accept(this);
+                indexExpression.getKey().accept(this);
+                jsonWriter.endArray();
+                jsonWriter.endObject();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(WhenExpression whenExpression) {
+            whenExpression.getExpression().accept(this);
+            return null;
+        }
+
+        @Override
+        public Void visit(BooleanExpression booleanExpression) {
+            throw new UnsupportedOperationException("boolean expression");
+        }
+
+        @Override
+        public Void visit(ObjectValue objectValue) {
+            throw new UnsupportedOperationException("objectValue");
+        }
+
+        @Override
+        public Void visit(StringValue stringValue) {
+            try {
+                jsonWriter.jsonValue(stringValue.getValue());
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(NumericValue numericValue) {
+            try {
+                Number widenValue = numericValue.getWidenValue();
+                if (widenValue instanceof Long) {
+                    jsonWriter.value(widenValue.longValue());
+                } else if (widenValue instanceof Double) {
+                    jsonWriter.value(widenValue.doubleValue());
+                } else {
+                    throw new UnsupportedOperationException("numeric value unsupported:"
+                            + numericValue.getValue().getClass());
+                }
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(BooleanValue booleanValue) {
+            throw new UnsupportedOperationException("booleanValue");
+        }
+
+        @Override
+        public Void visit(NullValue nullValue) {
+            try {
+                jsonWriter.nullValue();
+            } catch (IOException ex) {
+                LOGGER.debug("Cannot serialize: ", ex);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(ListValue listValue) {
+            throw new UnsupportedOperationException("listValue");
+        }
+
+        @Override
+        public Void visit(MapValue mapValue) {
+            throw new UnsupportedOperationException("mapValue");
+        }
+
+        @Override
+        public Void visit(SetValue setValue) {
+            throw new UnsupportedOperationException("setValue");
+        }
     }
-  }
 }

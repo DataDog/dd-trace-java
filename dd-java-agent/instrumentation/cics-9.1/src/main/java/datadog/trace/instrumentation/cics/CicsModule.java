@@ -9,12 +9,12 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class CicsModule extends InstrumenterModule.Tracing {
-  public CicsModule() {
-    super("cics");
-  }
+    public CicsModule() {
+        super("cics");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(new ECIInteractionInstrumentation(), new JavaGatewayInterfaceInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(new ECIInteractionInstrumentation(), new JavaGatewayInterfaceInstrumentation());
+    }
 }

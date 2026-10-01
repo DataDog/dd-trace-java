@@ -17,46 +17,46 @@ import okhttp3.Response;
 
 @AutoService(InstrumenterModule.class)
 public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public AppSecHttpEngineInstrumentation() {
-    super("okhttp", "okhttp-3");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "okhttp3.internal.http.HttpEngine";
-  }
-
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("sendRequest")).and(takesArguments(0)),
-        AppSecHttpEngineInstrumentation.class.getName() + "$SendRequestAdvice");
-  }
-
-  public static class SendRequestAdvice {
-    @Advice.OnMethodEnter
-    public static void onSendRequest(
-        @Advice.FieldValue("priorResponse") final Response priorResponse,
-        @Advice.FieldValue("userRequest") final Request userRequest) {
-      // only redirects
-      if (priorResponse == null || priorResponse.code() < 300 || priorResponse.code() >= 400) {
-        return;
-      }
-      final AgentSpan span = AgentTracer.activeSpan();
-      final RequestContext ctx = span.getRequestContext();
-      if (ctx == null) {
-        return;
-      }
-      if (ctx.getData(RequestContextSlot.APPSEC) == null) {
-        return;
-      }
-
-      // increment the number of downstream requests but do not include request/response body
-      AppSecInterceptor.sampleRequest(ctx, span.getSpanId());
-      AppSecInterceptor.onResponse(span, false, priorResponse);
-      AppSecInterceptor.onRequest(span, false, userRequest.url().toString(), userRequest);
+    public AppSecHttpEngineInstrumentation() {
+        super("okhttp", "okhttp-3");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "okhttp3.internal.http.HttpEngine";
+    }
+
+    @Override
+    public void methodAdvice(final MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("sendRequest")).and(takesArguments(0)),
+                AppSecHttpEngineInstrumentation.class.getName() + "$SendRequestAdvice");
+    }
+
+    public static class SendRequestAdvice {
+        @Advice.OnMethodEnter
+        public static void onSendRequest(
+                @Advice.FieldValue("priorResponse") final Response priorResponse,
+                @Advice.FieldValue("userRequest") final Request userRequest) {
+            // only redirects
+            if (priorResponse == null || priorResponse.code() < 300 || priorResponse.code() >= 400) {
+                return;
+            }
+            final AgentSpan span = AgentTracer.activeSpan();
+            final RequestContext ctx = span.getRequestContext();
+            if (ctx == null) {
+                return;
+            }
+            if (ctx.getData(RequestContextSlot.APPSEC) == null) {
+                return;
+            }
+
+            // increment the number of downstream requests but do not include request/response body
+            AppSecInterceptor.sampleRequest(ctx, span.getSpanId());
+            AppSecInterceptor.onResponse(span, false, priorResponse);
+            AppSecInterceptor.onRequest(span, false, userRequest.url().toString(), userRequest);
+        }
+    }
 }

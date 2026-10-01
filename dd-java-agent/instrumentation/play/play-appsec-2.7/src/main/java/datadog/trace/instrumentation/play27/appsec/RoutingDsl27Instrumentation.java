@@ -15,53 +15,53 @@ import play.routing.RoutingDsl;
  */
 @AutoService(InstrumenterModule.class)
 public class RoutingDsl27Instrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RoutingDsl27Instrumentation() {
-    super("play");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RoutingDsl27Instrumentation() {
+        super("play");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "play27";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "play27";
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "play.routing.RoutingDsl$Route";
-  }
+    @Override
+    public String instrumentedType() {
+        return "play.routing.RoutingDsl$Route";
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference.Builder("play.routing.RoutingDsl$PathPatternMatcher")
-          .withMethod(
-              new String[0],
-              Reference.EXPECTS_NON_STATIC | Reference.EXPECTS_PUBLIC,
-              "routingTo",
-              "Lplay/routing/RoutingDsl;",
-              "Lplay/routing/RequestFunctions$Params1;")
-          .build()
-    };
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {
+            new Reference.Builder("play.routing.RoutingDsl$PathPatternMatcher")
+                    .withMethod(
+                            new String[0],
+                            Reference.EXPECTS_NON_STATIC | Reference.EXPECTS_PUBLIC,
+                            "routingTo",
+                            "Lplay/routing/RoutingDsl;",
+                            "Lplay/routing/RequestFunctions$Params1;")
+                    .build()
+        };
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ArgumentCaptureAdvice",
-      packageName + ".ArgumentCaptureAdvice$ArgumentCaptureFunctionParam1",
-      packageName + ".ArgumentCaptureAdvice$ArgumentCaptureFunctionParam2",
-      packageName + ".ArgumentCaptureAdvice$ArgumentCaptureFunctionParam3",
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ArgumentCaptureAdvice",
+            packageName + ".ArgumentCaptureAdvice$ArgumentCaptureFunctionParam1",
+            packageName + ".ArgumentCaptureAdvice$ArgumentCaptureFunctionParam2",
+            packageName + ".ArgumentCaptureAdvice$ArgumentCaptureFunctionParam3",
+            "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArguments(5))
-            .and(takesArgument(3, Object.class))
-            .and(takesArgument(4, java.lang.reflect.Method.class)),
-        packageName + ".ArgumentCaptureAdvice$RouteConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArguments(5))
+                        .and(takesArgument(3, Object.class))
+                        .and(takesArgument(4, java.lang.reflect.Method.class)),
+                packageName + ".ArgumentCaptureAdvice$RouteConstructorAdvice");
+    }
 }

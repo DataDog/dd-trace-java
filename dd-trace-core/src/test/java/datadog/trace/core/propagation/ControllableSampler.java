@@ -8,15 +8,15 @@ import datadog.trace.common.sampling.Sampler;
 import datadog.trace.core.CoreSpan;
 
 public class ControllableSampler implements Sampler, PrioritySampler {
-  protected int nextSamplingPriority = SAMPLER_KEEP;
+    protected int nextSamplingPriority = SAMPLER_KEEP;
 
-  @Override
-  public <T extends CoreSpan<T>> void setSamplingPriority(T span) {
-    span.setSamplingPriority(nextSamplingPriority, DEFAULT);
-  }
+    @Override
+    public <T extends CoreSpan<T>> void setSamplingPriority(T span) {
+        span.setSamplingPriority(nextSamplingPriority, DEFAULT);
+    }
 
-  @Override
-  public <T extends CoreSpan<T>> boolean sample(T span) {
-    return true;
-  }
+    @Override
+    public <T extends CoreSpan<T>> boolean sample(T span) {
+        return true;
+    }
 }

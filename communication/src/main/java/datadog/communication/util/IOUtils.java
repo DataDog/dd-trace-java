@@ -19,66 +19,61 @@ import javax.annotation.Nonnull;
 
 public abstract class IOUtils {
 
-  private static final int DEFAULT_BUFFER_SIZE = 4096;
+    private static final int DEFAULT_BUFFER_SIZE = 4096;
 
-  private IOUtils() {}
+    private IOUtils() {}
 
-  public static @Nonnull String readFully(InputStream input) throws IOException {
-    return readFully(input, Charset.defaultCharset());
-  }
-
-  public static @Nonnull String readFully(InputStream input, Charset charset) throws IOException {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    readFully(input, output);
-    return new String(output.toByteArray(), charset);
-  }
-
-  public static void readFully(InputStream input, OutputStream output) throws IOException {
-    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-    int count;
-    while ((count = input.read(buffer)) != -1) {
-      output.write(buffer, 0, count);
+    public static @Nonnull String readFully(InputStream input) throws IOException {
+        return readFully(input, Charset.defaultCharset());
     }
-  }
 
-  public static @Nonnull List<String> readLines(final InputStream input) throws IOException {
-    return readLines(input, Charset.defaultCharset());
-  }
-
-  public static @Nonnull List<String> readLines(final InputStream input, final Charset charset)
-      throws IOException {
-    final InputStreamReader reader = new InputStreamReader(input, charset);
-    return readLines(reader);
-  }
-
-  public static @Nonnull List<String> readLines(final Reader input) throws IOException {
-    final BufferedReader reader = new BufferedReader(input, DEFAULT_BUFFER_SIZE);
-    final List<String> list = new ArrayList<>();
-    String line = reader.readLine();
-    while (line != null) {
-      list.add(line);
-      line = reader.readLine();
+    public static @Nonnull String readFully(InputStream input, Charset charset) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        readFully(input, output);
+        return new String(output.toByteArray(), charset);
     }
-    return list;
-  }
 
-  public static void copyFolder(Path src, Path dest) throws IOException {
-    Files.walkFileTree(
-        src,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-              throws IOException {
-            Files.createDirectories(dest.resolve(src.relativize(dir)));
-            return FileVisitResult.CONTINUE;
-          }
+    public static void readFully(InputStream input, OutputStream output) throws IOException {
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        int count;
+        while ((count = input.read(buffer)) != -1) {
+            output.write(buffer, 0, count);
+        }
+    }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.copy(file, dest.resolve(src.relativize(file)));
-            return FileVisitResult.CONTINUE;
-          }
+    public static @Nonnull List<String> readLines(final InputStream input) throws IOException {
+        return readLines(input, Charset.defaultCharset());
+    }
+
+    public static @Nonnull List<String> readLines(final InputStream input, final Charset charset) throws IOException {
+        final InputStreamReader reader = new InputStreamReader(input, charset);
+        return readLines(reader);
+    }
+
+    public static @Nonnull List<String> readLines(final Reader input) throws IOException {
+        final BufferedReader reader = new BufferedReader(input, DEFAULT_BUFFER_SIZE);
+        final List<String> list = new ArrayList<>();
+        String line = reader.readLine();
+        while (line != null) {
+            list.add(line);
+            line = reader.readLine();
+        }
+        return list;
+    }
+
+    public static void copyFolder(Path src, Path dest) throws IOException {
+        Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                Files.createDirectories(dest.resolve(src.relativize(dir)));
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.copy(file, dest.resolve(src.relativize(file)));
+                return FileVisitResult.CONTINUE;
+            }
         });
-  }
+    }
 }

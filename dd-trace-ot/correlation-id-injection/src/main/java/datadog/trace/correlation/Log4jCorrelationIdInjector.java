@@ -11,19 +11,19 @@ import org.apache.log4j.MDC;
  */
 @SuppressWarnings("unused")
 class Log4jCorrelationIdInjector extends AbstractCorrelationIdInjector {
-  public Log4jCorrelationIdInjector(InternalTracer tracer) {
-    super(tracer);
-  }
+    public Log4jCorrelationIdInjector(InternalTracer tracer) {
+        super(tracer);
+    }
 
-  @Override
-  protected void afterScopeActivatedCallback() {
-    MDC.put(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-    MDC.put(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-  }
+    @Override
+    protected void afterScopeActivatedCallback() {
+        MDC.put(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+        MDC.put(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+    }
 
-  @Override
-  protected void afterScopeClosedCallback() {
-    MDC.remove(CorrelationIdentifier.getTraceIdKey());
-    MDC.remove(CorrelationIdentifier.getSpanIdKey());
-  }
+    @Override
+    protected void afterScopeClosedCallback() {
+        MDC.remove(CorrelationIdentifier.getTraceIdKey());
+        MDC.remove(CorrelationIdentifier.getSpanIdKey());
+    }
 }

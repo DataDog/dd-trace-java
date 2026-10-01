@@ -24,33 +24,33 @@ import lombok.Setter;
 @EqualsAndHashCode(of = "id")
 public class Library {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.SEQUENCE)
-  private int id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private int id;
 
-  private String name;
+    private String name;
 
-  @OneToMany(cascade = CascadeType.ALL)
-  @JoinColumn(name = "library_id")
-  private List<Book> books;
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "library_id")
+    private List<Book> books;
 
-  private int updateCount;
+    private int updateCount;
 
-  public void increaseUpdateCount() {
-    this.updateCount++;
-  }
-
-  public boolean isIssueExists() {
-    for (Book book : this.getBooks()) {
-      if (book.getUpdateCount() != book.getOwner().getUpdateCount()) {
-        return true;
-      }
-      for (Author author : book.getAuthors()) {
-        if (book.getUpdateCount() != author.getUpdateCount()) {
-          return true;
-        }
-      }
+    public void increaseUpdateCount() {
+        this.updateCount++;
     }
-    return false;
-  }
+
+    public boolean isIssueExists() {
+        for (Book book : this.getBooks()) {
+            if (book.getUpdateCount() != book.getOwner().getUpdateCount()) {
+                return true;
+            }
+            for (Author author : book.getAuthors()) {
+                if (book.getUpdateCount() != author.getUpdateCount()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

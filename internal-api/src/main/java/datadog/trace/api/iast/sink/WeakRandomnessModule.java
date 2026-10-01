@@ -5,5 +5,5 @@ import javax.annotation.Nonnull;
 
 public interface WeakRandomnessModule extends IastModule {
 
-  void onWeakRandom(@Nonnull final Class<?> instance);
+    void onWeakRandom(@Nonnull final Class<?> instance);
 }

@@ -27,501 +27,480 @@ import org.junit.jupiter.api.Test;
 
 class LLMObsTest {
 
-  private static Object originalSpanFactory;
-  private static Object originalEvalProcessor;
-  private static Object originalSpanProcessor;
+    private static Object originalSpanFactory;
+    private static Object originalEvalProcessor;
+    private static Object originalSpanProcessor;
 
-  @BeforeAll
-  static void setupSpec() throws Exception {
-    originalSpanFactory = getStaticField("SPAN_FACTORY");
-    originalEvalProcessor = getStaticField("EVAL_PROCESSOR");
-    originalSpanProcessor = getStaticField("SPAN_PROCESSOR");
-  }
+    @BeforeAll
+    static void setupSpec() throws Exception {
+        originalSpanFactory = getStaticField("SPAN_FACTORY");
+        originalEvalProcessor = getStaticField("EVAL_PROCESSOR");
+        originalSpanProcessor = getStaticField("SPAN_PROCESSOR");
+    }
 
-  @AfterAll
-  static void cleanupSpec() throws Exception {
-    setStaticField("SPAN_FACTORY", originalSpanFactory);
-    setStaticField("EVAL_PROCESSOR", originalEvalProcessor);
-    setStaticField("SPAN_PROCESSOR", originalSpanProcessor);
-  }
+    @AfterAll
+    static void cleanupSpec() throws Exception {
+        setStaticField("SPAN_FACTORY", originalSpanFactory);
+        setStaticField("EVAL_PROCESSOR", originalEvalProcessor);
+        setStaticField("SPAN_PROCESSOR", originalSpanProcessor);
+    }
 
-  @AfterEach
-  void cleanup() throws Exception {
-    setStaticField("SPAN_FACTORY", NoOpLLMObsSpanFactory.INSTANCE);
-    setStaticField("EVAL_PROCESSOR", NoOpLLMObsEvalProcessor.INSTANCE);
-    LLMObs.deregisterProcessor();
-  }
+    @AfterEach
+    void cleanup() throws Exception {
+        setStaticField("SPAN_FACTORY", NoOpLLMObsSpanFactory.INSTANCE);
+        setStaticField("EVAL_PROCESSOR", NoOpLLMObsEvalProcessor.INSTANCE);
+        LLMObs.deregisterProcessor();
+    }
 
-  @Test
-  void testRegisterAndDeregisterProcessor() throws Exception {
-    LLMObsSpanData span = mock(LLMObsSpanData.class);
-    LLMObsSpanProcessor processor = registeredSpan -> registeredSpan;
+    @Test
+    void testRegisterAndDeregisterProcessor() throws Exception {
+        LLMObsSpanData span = mock(LLMObsSpanData.class);
+        LLMObsSpanProcessor processor = registeredSpan -> registeredSpan;
 
-    LLMObs.registerProcessor(processor);
+        LLMObs.registerProcessor(processor);
 
-    assertSame(processor, getStaticField("SPAN_PROCESSOR"));
-    assertSame(span, processor.process(span));
-    assertThrows(IllegalStateException.class, () -> LLMObs.registerProcessor(processor));
+        assertSame(processor, getStaticField("SPAN_PROCESSOR"));
+        assertSame(span, processor.process(span));
+        assertThrows(IllegalStateException.class, () -> LLMObs.registerProcessor(processor));
 
-    LLMObs.deregisterProcessor();
+        LLMObs.deregisterProcessor();
 
-    assertNull(getStaticField("SPAN_PROCESSOR"));
-  }
+        assertNull(getStaticField("SPAN_PROCESSOR"));
+    }
 
-  @Test
-  void testRegisterNullProcessor() {
-    assertThrows(NullPointerException.class, () -> LLMObs.registerProcessor(null));
-  }
+    @Test
+    void testRegisterNullProcessor() {
+        assertThrows(NullPointerException.class, () -> LLMObs.registerProcessor(null));
+    }
 
-  @Test
-  void testToolCallCreationAndGetters() {
-    Map<String, Object> arguments = new HashMap<>();
-    arguments.put("location", "New York");
-    arguments.put("unit", "celsius");
+    @Test
+    void testToolCallCreationAndGetters() {
+        Map<String, Object> arguments = new HashMap<>();
+        arguments.put("location", "New York");
+        arguments.put("unit", "celsius");
 
-    LLMObs.ToolCall toolCall =
-        LLMObs.ToolCall.from("get_weather", "function", "tool-123", arguments);
+        LLMObs.ToolCall toolCall = LLMObs.ToolCall.from("get_weather", "function", "tool-123", arguments);
 
-    assertEquals("get_weather", toolCall.getName());
-    assertEquals("function", toolCall.getType());
-    assertEquals("tool-123", toolCall.getToolId());
-    assertEquals(arguments, toolCall.getArguments());
-  }
+        assertEquals("get_weather", toolCall.getName());
+        assertEquals("function", toolCall.getType());
+        assertEquals("tool-123", toolCall.getToolId());
+        assertEquals(arguments, toolCall.getArguments());
+    }
 
-  @Test
-  void testToolCallWithNullArguments() {
-    LLMObs.ToolCall toolCall = LLMObs.ToolCall.from("get_weather", "function", "tool-123", null);
+    @Test
+    void testToolCallWithNullArguments() {
+        LLMObs.ToolCall toolCall = LLMObs.ToolCall.from("get_weather", "function", "tool-123", null);
 
-    assertEquals("get_weather", toolCall.getName());
-    assertEquals("function", toolCall.getType());
-    assertEquals("tool-123", toolCall.getToolId());
-    assertNull(toolCall.getArguments());
-  }
+        assertEquals("get_weather", toolCall.getName());
+        assertEquals("function", toolCall.getType());
+        assertEquals("tool-123", toolCall.getToolId());
+        assertNull(toolCall.getArguments());
+    }
 
-  @Test
-  void testToolDefinitionFromName() {
-    LLMObs.ToolDefinition toolDefinition = LLMObs.ToolDefinition.from("get_weather");
+    @Test
+    void testToolDefinitionFromName() {
+        LLMObs.ToolDefinition toolDefinition = LLMObs.ToolDefinition.from("get_weather");
 
-    assertEquals("get_weather", toolDefinition.getName());
-    assertNull(toolDefinition.getDescription());
-    assertNull(toolDefinition.getSchema());
-    assertNull(toolDefinition.getVersion());
-  }
+        assertEquals("get_weather", toolDefinition.getName());
+        assertNull(toolDefinition.getDescription());
+        assertNull(toolDefinition.getSchema());
+        assertNull(toolDefinition.getVersion());
+    }
 
-  @Test
-  void testToolDefinitionFromNameAndDescription() {
-    LLMObs.ToolDefinition toolDefinition =
-        LLMObs.ToolDefinition.from("get_weather", "Get the weather by location");
+    @Test
+    void testToolDefinitionFromNameAndDescription() {
+        LLMObs.ToolDefinition toolDefinition = LLMObs.ToolDefinition.from("get_weather", "Get the weather by location");
 
-    assertEquals("get_weather", toolDefinition.getName());
-    assertEquals("Get the weather by location", toolDefinition.getDescription());
-    assertNull(toolDefinition.getSchema());
-    assertNull(toolDefinition.getVersion());
-  }
+        assertEquals("get_weather", toolDefinition.getName());
+        assertEquals("Get the weather by location", toolDefinition.getDescription());
+        assertNull(toolDefinition.getSchema());
+        assertNull(toolDefinition.getVersion());
+    }
 
-  @Test
-  void testToolDefinitionFromNameDescriptionAndSchema() {
-    Map<String, Object> schema = new HashMap<>();
-    schema.put("type", "object");
-    schema.put(
-        "properties",
-        Collections.singletonMap("location", Collections.singletonMap("type", "string")));
+    @Test
+    void testToolDefinitionFromNameDescriptionAndSchema() {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", Collections.singletonMap("location", Collections.singletonMap("type", "string")));
 
-    LLMObs.ToolDefinition toolDefinition =
-        LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema);
+        LLMObs.ToolDefinition toolDefinition =
+                LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema);
 
-    assertEquals("get_weather", toolDefinition.getName());
-    assertEquals("Get the weather by location", toolDefinition.getDescription());
-    assertEquals(schema, toolDefinition.getSchema());
-    assertNull(toolDefinition.getVersion());
-  }
+        assertEquals("get_weather", toolDefinition.getName());
+        assertEquals("Get the weather by location", toolDefinition.getDescription());
+        assertEquals(schema, toolDefinition.getSchema());
+        assertNull(toolDefinition.getVersion());
+    }
 
-  @Test
-  void testToolDefinitionFromAllFields() {
-    Map<String, Object> schema = new HashMap<>();
-    schema.put("type", "object");
+    @Test
+    void testToolDefinitionFromAllFields() {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
 
-    LLMObs.ToolDefinition toolDefinition =
-        LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema, "1.2.3");
+        LLMObs.ToolDefinition toolDefinition =
+                LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema, "1.2.3");
 
-    assertEquals("get_weather", toolDefinition.getName());
-    assertEquals("Get the weather by location", toolDefinition.getDescription());
-    assertEquals(schema, toolDefinition.getSchema());
-    assertEquals("1.2.3", toolDefinition.getVersion());
-  }
+        assertEquals("get_weather", toolDefinition.getName());
+        assertEquals("Get the weather by location", toolDefinition.getDescription());
+        assertEquals(schema, toolDefinition.getSchema());
+        assertEquals("1.2.3", toolDefinition.getVersion());
+    }
 
-  @Test
-  void testSetToolDefinitionsIsCompatibilityPreservingDefaultMethod() throws Exception {
-    assertTrue(LLMObsSpan.class.getMethod("setToolDefinitions", List.class).isDefault());
-  }
+    @Test
+    void testSetToolDefinitionsIsCompatibilityPreservingDefaultMethod() throws Exception {
+        assertTrue(LLMObsSpan.class.getMethod("setToolDefinitions", List.class).isDefault());
+    }
 
-  @Test
-  void testAnnotatePromptIsCompatibilityPreservingDefaultMethod() throws Exception {
-    assertTrue(LLMObsSpan.class.getMethod("annotatePrompt", LLMObs.Prompt.class).isDefault());
-  }
+    @Test
+    void testAnnotatePromptIsCompatibilityPreservingDefaultMethod() throws Exception {
+        assertTrue(LLMObsSpan.class
+                .getMethod("annotatePrompt", LLMObs.Prompt.class)
+                .isDefault());
+    }
 
-  @Test
-  void testPromptBuilderWithTextTemplate() {
-    Map<String, String> variables = new HashMap<>();
-    variables.put("city", "Paris");
-    Map<String, String> tags = new HashMap<>();
-    tags.put("team", "weather");
-    List<String> contextVariables = Arrays.asList("forecast", "history");
-    List<String> queryVariables = Collections.singletonList("city");
+    @Test
+    void testPromptBuilderWithTextTemplate() {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("city", "Paris");
+        Map<String, String> tags = new HashMap<>();
+        tags.put("team", "weather");
+        List<String> contextVariables = Arrays.asList("forecast", "history");
+        List<String> queryVariables = Collections.singletonList("city");
 
-    LLMObs.Prompt prompt =
-        LLMObs.Prompt.builder()
-            .id("weather-prompt")
-            .version("1.0.0")
-            .template("What is the weather in {{city}}?")
-            .variables(variables)
-            .tags(tags)
-            .contextVariables(contextVariables)
-            .queryVariables(queryVariables)
-            .build();
+        LLMObs.Prompt prompt = LLMObs.Prompt.builder()
+                .id("weather-prompt")
+                .version("1.0.0")
+                .template("What is the weather in {{city}}?")
+                .variables(variables)
+                .tags(tags)
+                .contextVariables(contextVariables)
+                .queryVariables(queryVariables)
+                .build();
 
-    assertEquals("weather-prompt", prompt.getId());
-    assertEquals("1.0.0", prompt.getVersion());
-    assertEquals("What is the weather in {{city}}?", prompt.getTemplate());
-    assertNull(prompt.getChatTemplate());
-    assertEquals(variables, prompt.getVariables());
-    assertEquals(tags, prompt.getTags());
-    assertEquals(contextVariables, prompt.getContextVariables());
-    assertEquals(queryVariables, prompt.getQueryVariables());
-    assertNotSame(variables, prompt.getVariables());
-    assertNotSame(tags, prompt.getTags());
-    assertNotSame(contextVariables, prompt.getContextVariables());
-    assertNotSame(queryVariables, prompt.getQueryVariables());
-  }
+        assertEquals("weather-prompt", prompt.getId());
+        assertEquals("1.0.0", prompt.getVersion());
+        assertEquals("What is the weather in {{city}}?", prompt.getTemplate());
+        assertNull(prompt.getChatTemplate());
+        assertEquals(variables, prompt.getVariables());
+        assertEquals(tags, prompt.getTags());
+        assertEquals(contextVariables, prompt.getContextVariables());
+        assertEquals(queryVariables, prompt.getQueryVariables());
+        assertNotSame(variables, prompt.getVariables());
+        assertNotSame(tags, prompt.getTags());
+        assertNotSame(contextVariables, prompt.getContextVariables());
+        assertNotSame(queryVariables, prompt.getQueryVariables());
+    }
 
-  @Test
-  void testPromptBuilderWithChatTemplate() {
-    List<LLMObs.LLMMessage> chatTemplate =
-        Arrays.asList(
-            LLMObs.LLMMessage.from("system", "You are a weather assistant."),
-            LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?"));
+    @Test
+    void testPromptBuilderWithChatTemplate() {
+        List<LLMObs.LLMMessage> chatTemplate = Arrays.asList(
+                LLMObs.LLMMessage.from("system", "You are a weather assistant."),
+                LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?"));
 
-    LLMObs.Prompt prompt = LLMObs.Prompt.builder().template(chatTemplate).build();
+        LLMObs.Prompt prompt = LLMObs.Prompt.builder().template(chatTemplate).build();
 
-    assertNull(prompt.getTemplate());
-    assertEquals(chatTemplate, prompt.getChatTemplate());
-    assertNotSame(chatTemplate, prompt.getChatTemplate());
-  }
+        assertNull(prompt.getTemplate());
+        assertEquals(chatTemplate, prompt.getChatTemplate());
+        assertNotSame(chatTemplate, prompt.getChatTemplate());
+    }
 
-  @Test
-  void testAnnotateAgentManifestIsCompatibilityPreservingDefaultMethod() throws Exception {
-    assertTrue(
-        LLMObsSpan.class
-            .getMethod("annotateAgentManifest", LLMObs.AgentManifest.class)
-            .isDefault());
-  }
+    @Test
+    void testAnnotateAgentManifestIsCompatibilityPreservingDefaultMethod() throws Exception {
+        assertTrue(LLMObsSpan.class
+                .getMethod("annotateAgentManifest", LLMObs.AgentManifest.class)
+                .isDefault());
+    }
 
-  @Test
-  void testAgentManifestBuilderWithAllFields() {
-    Map<String, Object> modelSettings = new HashMap<>();
-    modelSettings.put("temperature", 0.7);
-    modelSettings.put("max_tokens", 1024);
+    @Test
+    void testAgentManifestBuilderWithAllFields() {
+        Map<String, Object> modelSettings = new HashMap<>();
+        modelSettings.put("temperature", 0.7);
+        modelSettings.put("max_tokens", 1024);
 
-    List<LLMObs.AgentTool> tools =
-        Arrays.asList(
-            LLMObs.AgentTool.from(
+        List<LLMObs.AgentTool> tools = Arrays.asList(LLMObs.AgentTool.from(
                 "get_weather",
                 "Look up the weather",
                 Collections.singletonMap("city", Collections.singletonMap("type", "string"))));
 
-    LLMObs.AgentManifest manifest =
-        LLMObs.AgentManifest.builder()
-            .name("travel_desk")
-            .instructions("Book travel for the user.")
-            .model("gpt-4o")
-            .modelSettings(modelSettings)
-            .tools(tools)
-            .build();
+        LLMObs.AgentManifest manifest = LLMObs.AgentManifest.builder()
+                .name("travel_desk")
+                .instructions("Book travel for the user.")
+                .model("gpt-4o")
+                .modelSettings(modelSettings)
+                .tools(tools)
+                .build();
 
-    assertEquals("travel_desk", manifest.getName());
-    assertEquals("Book travel for the user.", manifest.getInstructions());
-    assertEquals("gpt-4o", manifest.getModel());
-    assertEquals(modelSettings, manifest.getModelSettings());
-    assertNotSame(modelSettings, manifest.getModelSettings());
-    assertEquals(1, manifest.getTools().size());
-    assertNotSame(tools, manifest.getTools());
-    assertEquals("get_weather", manifest.getTools().get(0).getName());
-    assertEquals("Look up the weather", manifest.getTools().get(0).getDescription());
-  }
+        assertEquals("travel_desk", manifest.getName());
+        assertEquals("Book travel for the user.", manifest.getInstructions());
+        assertEquals("gpt-4o", manifest.getModel());
+        assertEquals(modelSettings, manifest.getModelSettings());
+        assertNotSame(modelSettings, manifest.getModelSettings());
+        assertEquals(1, manifest.getTools().size());
+        assertNotSame(tools, manifest.getTools());
+        assertEquals("get_weather", manifest.getTools().get(0).getName());
+        assertEquals("Look up the weather", manifest.getTools().get(0).getDescription());
+    }
 
-  @Test
-  void testAgentManifestBuilderMinimal() {
-    LLMObs.AgentManifest manifest = LLMObs.AgentManifest.builder().build();
-    assertNull(manifest.getName());
-    assertNull(manifest.getInstructions());
-    assertNull(manifest.getModel());
-    assertNull(manifest.getModelSettings());
-    assertNull(manifest.getTools());
-  }
+    @Test
+    void testAgentManifestBuilderMinimal() {
+        LLMObs.AgentManifest manifest = LLMObs.AgentManifest.builder().build();
+        assertNull(manifest.getName());
+        assertNull(manifest.getInstructions());
+        assertNull(manifest.getModel());
+        assertNull(manifest.getModelSettings());
+        assertNull(manifest.getTools());
+    }
 
-  @Test
-  void testAgentToolCreation() {
-    LLMObs.AgentTool tool = LLMObs.AgentTool.from("search");
-    assertEquals("search", tool.getName());
-    assertNull(tool.getDescription());
-    assertNull(tool.getParameters());
+    @Test
+    void testAgentToolCreation() {
+        LLMObs.AgentTool tool = LLMObs.AgentTool.from("search");
+        assertEquals("search", tool.getName());
+        assertNull(tool.getDescription());
+        assertNull(tool.getParameters());
 
-    Map<String, Object> params = new HashMap<>();
-    params.put("query", Collections.singletonMap("type", "string"));
-    LLMObs.AgentTool fullTool = LLMObs.AgentTool.from("search", "Web search", params);
-    assertEquals("search", fullTool.getName());
-    assertEquals("Web search", fullTool.getDescription());
-    assertEquals(params, fullTool.getParameters());
-    assertNotSame(params, fullTool.getParameters());
-  }
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", Collections.singletonMap("type", "string"));
+        LLMObs.AgentTool fullTool = LLMObs.AgentTool.from("search", "Web search", params);
+        assertEquals("search", fullTool.getName());
+        assertEquals("Web search", fullTool.getDescription());
+        assertEquals(params, fullTool.getParameters());
+        assertNotSame(params, fullTool.getParameters());
+    }
 
-  @Test
-  void testLLMMessageCreationWithToolCalls() {
-    Map<String, Object> args = new HashMap<>();
-    args.put("location", "Paris");
-    LLMObs.ToolCall toolCall = LLMObs.ToolCall.from("get_weather", "function", "tool-123", args);
-    List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
+    @Test
+    void testLLMMessageCreationWithToolCalls() {
+        Map<String, Object> args = new HashMap<>();
+        args.put("location", "Paris");
+        LLMObs.ToolCall toolCall = LLMObs.ToolCall.from("get_weather", "function", "tool-123", args);
+        List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
 
-    LLMObs.LLMMessage message =
-        LLMObs.LLMMessage.from("assistant", "Let me check the weather", toolCalls);
+        LLMObs.LLMMessage message = LLMObs.LLMMessage.from("assistant", "Let me check the weather", toolCalls);
 
-    assertEquals("assistant", message.getRole());
-    assertEquals("Let me check the weather", message.getContent());
-    assertEquals(toolCalls, message.getToolCalls());
-    assertEquals(1, message.getToolCalls().size());
-    assertEquals("get_weather", message.getToolCalls().get(0).getName());
-    assertEquals("function", message.getToolCalls().get(0).getType());
-    assertEquals("tool-123", message.getToolCalls().get(0).getToolId());
-    assertEquals(args, message.getToolCalls().get(0).getArguments());
-  }
+        assertEquals("assistant", message.getRole());
+        assertEquals("Let me check the weather", message.getContent());
+        assertEquals(toolCalls, message.getToolCalls());
+        assertEquals(1, message.getToolCalls().size());
+        assertEquals("get_weather", message.getToolCalls().get(0).getName());
+        assertEquals("function", message.getToolCalls().get(0).getType());
+        assertEquals("tool-123", message.getToolCalls().get(0).getToolId());
+        assertEquals(args, message.getToolCalls().get(0).getArguments());
+    }
 
-  @Test
-  void testLLMMessageCreationWithoutToolCalls() {
-    LLMObs.LLMMessage message = LLMObs.LLMMessage.from("user", "What's the weather like?");
+    @Test
+    void testLLMMessageCreationWithoutToolCalls() {
+        LLMObs.LLMMessage message = LLMObs.LLMMessage.from("user", "What's the weather like?");
 
-    assertEquals("user", message.getRole());
-    assertEquals("What's the weather like?", message.getContent());
-    assertNull(message.getToolCalls());
-  }
+        assertEquals("user", message.getRole());
+        assertEquals("What's the weather like?", message.getContent());
+        assertNull(message.getToolCalls());
+    }
 
-  @Test
-  void testLLMMessageWithMultipleToolCalls() {
-    Map<String, Object> weatherArgs = new HashMap<>();
-    weatherArgs.put("location", "New York");
-    LLMObs.ToolCall toolCall1 =
-        LLMObs.ToolCall.from("get_weather", "function", "tool-1", weatherArgs);
+    @Test
+    void testLLMMessageWithMultipleToolCalls() {
+        Map<String, Object> weatherArgs = new HashMap<>();
+        weatherArgs.put("location", "New York");
+        LLMObs.ToolCall toolCall1 = LLMObs.ToolCall.from("get_weather", "function", "tool-1", weatherArgs);
 
-    Map<String, Object> stockArgs = new HashMap<>();
-    stockArgs.put("symbol", "AAPL");
-    LLMObs.ToolCall toolCall2 =
-        LLMObs.ToolCall.from("get_stock_price", "function", "tool-2", stockArgs);
+        Map<String, Object> stockArgs = new HashMap<>();
+        stockArgs.put("symbol", "AAPL");
+        LLMObs.ToolCall toolCall2 = LLMObs.ToolCall.from("get_stock_price", "function", "tool-2", stockArgs);
 
-    List<LLMObs.ToolCall> toolCalls = Arrays.asList(toolCall1, toolCall2);
+        List<LLMObs.ToolCall> toolCalls = Arrays.asList(toolCall1, toolCall2);
 
-    LLMObs.LLMMessage message =
-        LLMObs.LLMMessage.from("assistant", "I'll help you with both requests", toolCalls);
+        LLMObs.LLMMessage message = LLMObs.LLMMessage.from("assistant", "I'll help you with both requests", toolCalls);
 
-    assertEquals("assistant", message.getRole());
-    assertEquals("I'll help you with both requests", message.getContent());
-    assertEquals(toolCalls, message.getToolCalls());
-    assertEquals(2, message.getToolCalls().size());
-    assertEquals("get_weather", message.getToolCalls().get(0).getName());
-    assertEquals("get_stock_price", message.getToolCalls().get(1).getName());
-  }
+        assertEquals("assistant", message.getRole());
+        assertEquals("I'll help you with both requests", message.getContent());
+        assertEquals(toolCalls, message.getToolCalls());
+        assertEquals(2, message.getToolCalls().size());
+        assertEquals("get_weather", message.getToolCalls().get(0).getName());
+        assertEquals("get_stock_price", message.getToolCalls().get(1).getName());
+    }
 
-  @Test
-  void testDefaultNoOpSpanFactoryBehavior() {
-    LLMObsSpan llmSpan = LLMObs.startLLMSpan("test", "gpt-4", "openai", "app", "session");
-    LLMObsSpan agentSpan = LLMObs.startAgentSpan("test", "app", "session");
-    LLMObsSpan toolSpan = LLMObs.startToolSpan("test", "app", "session");
-    LLMObsSpan taskSpan = LLMObs.startTaskSpan("test", "app", "session");
-    LLMObsSpan workflowSpan = LLMObs.startWorkflowSpan("test", "app", "session");
-    LLMObsSpan embeddingSpan =
-        LLMObs.startEmbeddingSpan("test", "app", "openai", "model", "session");
-    LLMObsSpan retrievalSpan = LLMObs.startRetrievalSpan("test", "app", "session");
+    @Test
+    void testDefaultNoOpSpanFactoryBehavior() {
+        LLMObsSpan llmSpan = LLMObs.startLLMSpan("test", "gpt-4", "openai", "app", "session");
+        LLMObsSpan agentSpan = LLMObs.startAgentSpan("test", "app", "session");
+        LLMObsSpan toolSpan = LLMObs.startToolSpan("test", "app", "session");
+        LLMObsSpan taskSpan = LLMObs.startTaskSpan("test", "app", "session");
+        LLMObsSpan workflowSpan = LLMObs.startWorkflowSpan("test", "app", "session");
+        LLMObsSpan embeddingSpan = LLMObs.startEmbeddingSpan("test", "app", "openai", "model", "session");
+        LLMObsSpan retrievalSpan = LLMObs.startRetrievalSpan("test", "app", "session");
 
-    assertSame(NoOpLLMObsSpan.INSTANCE, llmSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, agentSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, toolSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, taskSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, workflowSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, embeddingSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, retrievalSpan);
-  }
+        assertSame(NoOpLLMObsSpan.INSTANCE, llmSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, agentSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, toolSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, taskSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, workflowSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, embeddingSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, retrievalSpan);
+    }
 
-  @Test
-  void testSpanCreationWithNullOptionalParameters() {
-    LLMObsSpan llmSpan = LLMObs.startLLMSpan("test", "gpt-4", "openai", null, null);
-    LLMObsSpan agentSpan = LLMObs.startAgentSpan("test", null, null);
-    LLMObsSpan toolSpan = LLMObs.startToolSpan("test", null, null);
-    LLMObsSpan taskSpan = LLMObs.startTaskSpan("test", null, null);
-    LLMObsSpan workflowSpan = LLMObs.startWorkflowSpan("test", null, null);
-    LLMObsSpan embeddingSpan = LLMObs.startEmbeddingSpan("test", null, null, null, null);
-    LLMObsSpan retrievalSpan = LLMObs.startRetrievalSpan("test", null, null);
+    @Test
+    void testSpanCreationWithNullOptionalParameters() {
+        LLMObsSpan llmSpan = LLMObs.startLLMSpan("test", "gpt-4", "openai", null, null);
+        LLMObsSpan agentSpan = LLMObs.startAgentSpan("test", null, null);
+        LLMObsSpan toolSpan = LLMObs.startToolSpan("test", null, null);
+        LLMObsSpan taskSpan = LLMObs.startTaskSpan("test", null, null);
+        LLMObsSpan workflowSpan = LLMObs.startWorkflowSpan("test", null, null);
+        LLMObsSpan embeddingSpan = LLMObs.startEmbeddingSpan("test", null, null, null, null);
+        LLMObsSpan retrievalSpan = LLMObs.startRetrievalSpan("test", null, null);
 
-    assertSame(NoOpLLMObsSpan.INSTANCE, llmSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, agentSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, toolSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, taskSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, workflowSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, embeddingSpan);
-    assertSame(NoOpLLMObsSpan.INSTANCE, retrievalSpan);
-  }
+        assertSame(NoOpLLMObsSpan.INSTANCE, llmSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, agentSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, toolSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, taskSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, workflowSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, embeddingSpan);
+        assertSame(NoOpLLMObsSpan.INSTANCE, retrievalSpan);
+    }
 
-  @Test
-  void testDefaultNoOpEvaluationProcessorBehavior() {
-    assertDoesNotThrow(
-        () -> {
-          Map<String, Object> emptyTags = new HashMap<>();
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
+    @Test
+    void testDefaultNoOpEvaluationProcessorBehavior() {
+        assertDoesNotThrow(() -> {
+            Map<String, Object> emptyTags = new HashMap<>();
+            LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
+            LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
+            LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
+            LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
         });
-  }
+    }
 
-  @Test
-  void testEvaluationSubmissionWithVariousScoreValues() {
-    LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
-    Map<String, Object> tags = new HashMap<>();
-    tags.put("category", "test");
-    tags.put("version", "1.0");
+    @Test
+    void testEvaluationSubmissionWithVariousScoreValues() {
+        LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
+        Map<String, Object> tags = new HashMap<>();
+        tags.put("category", "test");
+        tags.put("version", "1.0");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
-          LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
-          LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
-          LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
+        assertDoesNotThrow(() -> {
+            LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
+            LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
+            LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
+            LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
         });
-  }
+    }
 
-  @Test
-  void testEvaluationSubmissionWithCategoricalValues() {
-    LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
-    Map<String, Object> tags = new HashMap<>();
-    tags.put("evaluator", "human");
-    tags.put("context", "production");
+    @Test
+    void testEvaluationSubmissionWithCategoricalValues() {
+        LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
+        Map<String, Object> tags = new HashMap<>();
+        tags.put("evaluator", "human");
+        tags.put("context", "production");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
-          LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
-          LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
+        assertDoesNotThrow(() -> {
+            LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
+            LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
+            LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
         });
-  }
+    }
 
-  @Test
-  void testEvaluationSubmissionWithEmptyTags() {
-    LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
-    Map<String, Object> emptyTags = new HashMap<>();
+    @Test
+    void testEvaluationSubmissionWithEmptyTags() {
+        LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
+        Map<String, Object> emptyTags = new HashMap<>();
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
-          LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
+        assertDoesNotThrow(() -> {
+            LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
+            LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
         });
-  }
+    }
 
-  @Test
-  void testSpanCreationWithCustomFactoryReturnsActualSpans() throws Exception {
-    LLMObs.LLMObsSpanFactory mockFactory = mock(LLMObs.LLMObsSpanFactory.class);
-    LLMObs.LLMObsEvalProcessor mockEvalProcessor = mock(LLMObs.LLMObsEvalProcessor.class);
-    LLMObsSpan mockLLMSpan = mock(LLMObsSpan.class);
-    LLMObsSpan mockAgentSpan = mock(LLMObsSpan.class);
-    LLMObsSpan mockToolSpan = mock(LLMObsSpan.class);
-    LLMObsSpan mockTaskSpan = mock(LLMObsSpan.class);
-    LLMObsSpan mockWorkflowSpan = mock(LLMObsSpan.class);
-    LLMObsSpan mockEmbeddingSpan = mock(LLMObsSpan.class);
-    LLMObsSpan mockRetrievalSpan = mock(LLMObsSpan.class);
+    @Test
+    void testSpanCreationWithCustomFactoryReturnsActualSpans() throws Exception {
+        LLMObs.LLMObsSpanFactory mockFactory = mock(LLMObs.LLMObsSpanFactory.class);
+        LLMObs.LLMObsEvalProcessor mockEvalProcessor = mock(LLMObs.LLMObsEvalProcessor.class);
+        LLMObsSpan mockLLMSpan = mock(LLMObsSpan.class);
+        LLMObsSpan mockAgentSpan = mock(LLMObsSpan.class);
+        LLMObsSpan mockToolSpan = mock(LLMObsSpan.class);
+        LLMObsSpan mockTaskSpan = mock(LLMObsSpan.class);
+        LLMObsSpan mockWorkflowSpan = mock(LLMObsSpan.class);
+        LLMObsSpan mockEmbeddingSpan = mock(LLMObsSpan.class);
+        LLMObsSpan mockRetrievalSpan = mock(LLMObsSpan.class);
 
-    when(mockFactory.startLLMSpan("chat-completion", "gpt-4", "openai", "my-app", "session-1"))
-        .thenReturn(mockLLMSpan);
-    when(mockFactory.startAgentSpan("agent-task", "my-app", "session-1")).thenReturn(mockAgentSpan);
-    when(mockFactory.startToolSpan("weather-tool", "my-app", "session-1")).thenReturn(mockToolSpan);
-    when(mockFactory.startTaskSpan("summarize-task", "my-app", "session-1"))
-        .thenReturn(mockTaskSpan);
-    when(mockFactory.startWorkflowSpan("data-workflow", "my-app", "session-1"))
-        .thenReturn(mockWorkflowSpan);
-    when(mockFactory.startEmbeddingSpan(
-            "text-embed", "my-app", "openai", "text-embedding-ada-002", "session-1"))
-        .thenReturn(mockEmbeddingSpan);
-    when(mockFactory.startRetrievalSpan("document-retrieval", "my-app", "session-1"))
-        .thenReturn(mockRetrievalSpan);
+        when(mockFactory.startLLMSpan("chat-completion", "gpt-4", "openai", "my-app", "session-1"))
+                .thenReturn(mockLLMSpan);
+        when(mockFactory.startAgentSpan("agent-task", "my-app", "session-1")).thenReturn(mockAgentSpan);
+        when(mockFactory.startToolSpan("weather-tool", "my-app", "session-1")).thenReturn(mockToolSpan);
+        when(mockFactory.startTaskSpan("summarize-task", "my-app", "session-1")).thenReturn(mockTaskSpan);
+        when(mockFactory.startWorkflowSpan("data-workflow", "my-app", "session-1"))
+                .thenReturn(mockWorkflowSpan);
+        when(mockFactory.startEmbeddingSpan("text-embed", "my-app", "openai", "text-embedding-ada-002", "session-1"))
+                .thenReturn(mockEmbeddingSpan);
+        when(mockFactory.startRetrievalSpan("document-retrieval", "my-app", "session-1"))
+                .thenReturn(mockRetrievalSpan);
 
-    setStaticField("SPAN_FACTORY", mockFactory);
-    setStaticField("EVAL_PROCESSOR", mockEvalProcessor);
+        setStaticField("SPAN_FACTORY", mockFactory);
+        setStaticField("EVAL_PROCESSOR", mockEvalProcessor);
 
-    LLMObsSpan llmSpan =
-        LLMObs.startLLMSpan("chat-completion", "gpt-4", "openai", "my-app", "session-1");
-    LLMObsSpan agentSpan = LLMObs.startAgentSpan("agent-task", "my-app", "session-1");
-    LLMObsSpan toolSpan = LLMObs.startToolSpan("weather-tool", "my-app", "session-1");
-    LLMObsSpan taskSpan = LLMObs.startTaskSpan("summarize-task", "my-app", "session-1");
-    LLMObsSpan workflowSpan = LLMObs.startWorkflowSpan("data-workflow", "my-app", "session-1");
-    LLMObsSpan embeddingSpan =
-        LLMObs.startEmbeddingSpan(
-            "text-embed", "my-app", "openai", "text-embedding-ada-002", "session-1");
-    LLMObsSpan retrievalSpan =
-        LLMObs.startRetrievalSpan("document-retrieval", "my-app", "session-1");
+        LLMObsSpan llmSpan = LLMObs.startLLMSpan("chat-completion", "gpt-4", "openai", "my-app", "session-1");
+        LLMObsSpan agentSpan = LLMObs.startAgentSpan("agent-task", "my-app", "session-1");
+        LLMObsSpan toolSpan = LLMObs.startToolSpan("weather-tool", "my-app", "session-1");
+        LLMObsSpan taskSpan = LLMObs.startTaskSpan("summarize-task", "my-app", "session-1");
+        LLMObsSpan workflowSpan = LLMObs.startWorkflowSpan("data-workflow", "my-app", "session-1");
+        LLMObsSpan embeddingSpan =
+                LLMObs.startEmbeddingSpan("text-embed", "my-app", "openai", "text-embedding-ada-002", "session-1");
+        LLMObsSpan retrievalSpan = LLMObs.startRetrievalSpan("document-retrieval", "my-app", "session-1");
 
-    Map<String, Object> scoreTags = new HashMap<>();
-    scoreTags.put("test", "value");
-    LLMObs.SubmitEvaluation(llmSpan, "accuracy", 0.95, scoreTags);
+        Map<String, Object> scoreTags = new HashMap<>();
+        scoreTags.put("test", "value");
+        LLMObs.SubmitEvaluation(llmSpan, "accuracy", 0.95, scoreTags);
 
-    Map<String, Object> categoricalTags = new HashMap<>();
-    categoricalTags.put("reviewer", "human");
-    LLMObs.SubmitEvaluation(agentSpan, "quality", "excellent", "eval-app", categoricalTags);
+        Map<String, Object> categoricalTags = new HashMap<>();
+        categoricalTags.put("reviewer", "human");
+        LLMObs.SubmitEvaluation(agentSpan, "quality", "excellent", "eval-app", categoricalTags);
 
-    assertSame(mockLLMSpan, llmSpan);
-    assertSame(mockAgentSpan, agentSpan);
-    assertSame(mockToolSpan, toolSpan);
-    assertSame(mockTaskSpan, taskSpan);
-    assertSame(mockWorkflowSpan, workflowSpan);
-    assertSame(mockEmbeddingSpan, embeddingSpan);
-    assertSame(mockRetrievalSpan, retrievalSpan);
+        assertSame(mockLLMSpan, llmSpan);
+        assertSame(mockAgentSpan, agentSpan);
+        assertSame(mockToolSpan, toolSpan);
+        assertSame(mockTaskSpan, taskSpan);
+        assertSame(mockWorkflowSpan, workflowSpan);
+        assertSame(mockEmbeddingSpan, embeddingSpan);
+        assertSame(mockRetrievalSpan, retrievalSpan);
 
-    assertNotSame(NoOpLLMObsSpan.INSTANCE, llmSpan);
-    assertNotSame(NoOpLLMObsSpan.INSTANCE, agentSpan);
-    assertNotSame(NoOpLLMObsSpan.INSTANCE, toolSpan);
-    assertNotSame(NoOpLLMObsSpan.INSTANCE, taskSpan);
-    assertNotSame(NoOpLLMObsSpan.INSTANCE, workflowSpan);
-    assertNotSame(NoOpLLMObsSpan.INSTANCE, embeddingSpan);
-    assertNotSame(NoOpLLMObsSpan.INSTANCE, retrievalSpan);
+        assertNotSame(NoOpLLMObsSpan.INSTANCE, llmSpan);
+        assertNotSame(NoOpLLMObsSpan.INSTANCE, agentSpan);
+        assertNotSame(NoOpLLMObsSpan.INSTANCE, toolSpan);
+        assertNotSame(NoOpLLMObsSpan.INSTANCE, taskSpan);
+        assertNotSame(NoOpLLMObsSpan.INSTANCE, workflowSpan);
+        assertNotSame(NoOpLLMObsSpan.INSTANCE, embeddingSpan);
+        assertNotSame(NoOpLLMObsSpan.INSTANCE, retrievalSpan);
 
-    verify(mockEvalProcessor).SubmitEvaluation(mockLLMSpan, "accuracy", 0.95, scoreTags);
-    verify(mockEvalProcessor)
-        .SubmitEvaluation(mockAgentSpan, "quality", "excellent", "eval-app", categoricalTags);
-  }
+        verify(mockEvalProcessor).SubmitEvaluation(mockLLMSpan, "accuracy", 0.95, scoreTags);
+        verify(mockEvalProcessor).SubmitEvaluation(mockAgentSpan, "quality", "excellent", "eval-app", categoricalTags);
+    }
 
-  @Test
-  void testSpanCreationWithNullParametersUsingCustomFactory() throws Exception {
-    LLMObs.LLMObsSpanFactory mockFactory = mock(LLMObs.LLMObsSpanFactory.class);
-    LLMObsSpan mockSpan = mock(LLMObsSpan.class);
+    @Test
+    void testSpanCreationWithNullParametersUsingCustomFactory() throws Exception {
+        LLMObs.LLMObsSpanFactory mockFactory = mock(LLMObs.LLMObsSpanFactory.class);
+        LLMObsSpan mockSpan = mock(LLMObsSpan.class);
 
-    when(mockFactory.startLLMSpan("test-span", "gpt-4", "openai", null, null)).thenReturn(mockSpan);
-    when(mockFactory.startEmbeddingSpan("embed-span", null, null, null, null)).thenReturn(mockSpan);
+        when(mockFactory.startLLMSpan("test-span", "gpt-4", "openai", null, null))
+                .thenReturn(mockSpan);
+        when(mockFactory.startEmbeddingSpan("embed-span", null, null, null, null))
+                .thenReturn(mockSpan);
 
-    setStaticField("SPAN_FACTORY", mockFactory);
+        setStaticField("SPAN_FACTORY", mockFactory);
 
-    LLMObsSpan llmSpan = LLMObs.startLLMSpan("test-span", "gpt-4", "openai", null, null);
-    LLMObsSpan embeddingSpan = LLMObs.startEmbeddingSpan("embed-span", null, null, null, null);
+        LLMObsSpan llmSpan = LLMObs.startLLMSpan("test-span", "gpt-4", "openai", null, null);
+        LLMObsSpan embeddingSpan = LLMObs.startEmbeddingSpan("embed-span", null, null, null, null);
 
-    assertSame(mockSpan, llmSpan);
-    assertSame(mockSpan, embeddingSpan);
+        assertSame(mockSpan, llmSpan);
+        assertSame(mockSpan, embeddingSpan);
 
-    verify(mockFactory).startLLMSpan("test-span", "gpt-4", "openai", null, null);
-    verify(mockFactory).startEmbeddingSpan("embed-span", null, null, null, null);
-  }
+        verify(mockFactory).startLLMSpan("test-span", "gpt-4", "openai", null, null);
+        verify(mockFactory).startEmbeddingSpan("embed-span", null, null, null, null);
+    }
 
-  private static void setStaticField(String fieldName, Object value) throws Exception {
-    Field field = LLMObs.class.getDeclaredField(fieldName);
-    field.setAccessible(true);
-    field.set(null, value);
-  }
+    private static void setStaticField(String fieldName, Object value) throws Exception {
+        Field field = LLMObs.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(null, value);
+    }
 
-  private static Object getStaticField(String fieldName) throws Exception {
-    Field field = LLMObs.class.getDeclaredField(fieldName);
-    field.setAccessible(true);
-    return field.get(null);
-  }
+    private static Object getStaticField(String fieldName) throws Exception {
+        Field field = LLMObs.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(null);
+    }
 }

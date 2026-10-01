@@ -15,39 +15,38 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS SDK v2 SNS instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SnsClientInstrumentation() {
-    super("sns", "aws-sdk");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("resolveExecutionInterceptors")),
-        SnsClientInstrumentation.class.getName() + "$AwsSnsBuilderAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.amazonaws.AmazonWebServiceRequest",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
-  }
-
-  public static class AwsSnsBuilderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      for (ExecutionInterceptor interceptor : interceptors) {
-        if (interceptor instanceof SnsInterceptor) {
-          return; // list already has our interceptor, return to builder
-        }
-      }
-      interceptors.add(new SnsInterceptor());
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public SnsClientInstrumentation() {
+        super("sns", "aws-sdk");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("resolveExecutionInterceptors")),
+                SnsClientInstrumentation.class.getName() + "$AwsSnsBuilderAdvice");
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap(
+                "com.amazonaws.AmazonWebServiceRequest", "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+    }
+
+    public static class AwsSnsBuilderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
+            for (ExecutionInterceptor interceptor : interceptors) {
+                if (interceptor instanceof SnsInterceptor) {
+                    return; // list already has our interceptor, return to builder
+                }
+            }
+            interceptors.add(new SnsInterceptor());
+        }
+    }
 }

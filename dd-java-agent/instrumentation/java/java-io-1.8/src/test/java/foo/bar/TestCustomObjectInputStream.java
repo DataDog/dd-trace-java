@@ -6,7 +6,7 @@ import java.io.ObjectInputStream;
 
 public class TestCustomObjectInputStream extends ObjectInputStream {
 
-  public TestCustomObjectInputStream(final InputStream in) throws IOException {
-    super(in);
-  }
+    public TestCustomObjectInputStream(final InputStream in) throws IOException {
+        super(in);
+    }
 }

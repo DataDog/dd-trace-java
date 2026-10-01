@@ -15,22 +15,19 @@ import java.util.List;
 import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
-public class GooglePubSubModule extends InstrumenterModule.Tracing
-    implements ExcludeFilterProvider {
-  public GooglePubSubModule() {
-    super("google-pubsub");
-  }
+public class GooglePubSubModule extends InstrumenterModule.Tracing implements ExcludeFilterProvider {
+    public GooglePubSubModule() {
+        super("google-pubsub");
+    }
 
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(RUNNABLE, singletonList("com.google.api.gax.rpc.Watchdog"));
-  }
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return singletonMap(RUNNABLE, singletonList("com.google.api.gax.rpc.Watchdog"));
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new PublisherInstrumentation(),
-        new ReceiverInstrumentation(),
-        new ReceiverWithAckInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new PublisherInstrumentation(), new ReceiverInstrumentation(), new ReceiverWithAckInstrumentation());
+    }
 }

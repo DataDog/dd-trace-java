@@ -16,41 +16,41 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.Future;
 
 public class SingleRequestAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
-    final AkkaHttpClientHelpers.AkkaHttpHeaders headers =
-        new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
-    if (headers.hadSpan()) {
-      return null;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
+        final AkkaHttpClientHelpers.AkkaHttpHeaders headers = new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
+        if (headers.hadSpan()) {
+            return null;
+        }
+
+        final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
+        DECORATE.afterStart(span);
+        DECORATE.onRequest(span, request);
+        return activateSpan(span);
     }
 
-    final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
-    return activateSpan(span);
-  }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(
+            @Advice.This final HttpExt thiz,
+            @Advice.Return final Future<HttpResponse> responseFuture,
+            @Advice.Enter final ContextScope scope,
+            @Advice.Thrown final Throwable throwable) {
+        if (scope == null) {
+            return;
+        }
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void methodExit(
-      @Advice.This final HttpExt thiz,
-      @Advice.Return final Future<HttpResponse> responseFuture,
-      @Advice.Enter final ContextScope scope,
-      @Advice.Thrown final Throwable throwable) {
-    if (scope == null) {
-      return;
+        final AgentSpan span = spanFromScope(scope);
+
+        if (throwable == null) {
+            responseFuture.onComplete(
+                    new AkkaHttpClientHelpers.OnCompleteHandler(span),
+                    thiz.system().dispatcher());
+            scope.close();
+        } else {
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
     }
-
-    final AgentSpan span = spanFromScope(scope);
-
-    if (throwable == null) {
-      responseFuture.onComplete(
-          new AkkaHttpClientHelpers.OnCompleteHandler(span), thiz.system().dispatcher());
-      scope.close();
-    } else {
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-    }
-  }
 }

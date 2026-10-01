@@ -8,12 +8,11 @@ import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 
 public class AddingSpanAttributesAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void onEnter(
-      @Advice.Origin final Method method, @Advice.AllArguments final Object[] args) {
-    AgentSpan activeSpan = AgentTracer.get().activeSpan();
-    if (activeSpan != null) {
-      DECORATE.addTagsFromMethodArgs(activeSpan, method, args);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Origin final Method method, @Advice.AllArguments final Object[] args) {
+        AgentSpan activeSpan = AgentTracer.get().activeSpan();
+        if (activeSpan != null) {
+            DECORATE.addTagsFromMethodArgs(activeSpan, method, args);
+        }
     }
-  }
 }

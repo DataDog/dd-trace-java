@@ -9,18 +9,18 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 public class IgnoreHelper {
-  private static final Set<Class<?>> IGNORED_TRACE_CLASSES = init();
+    private static final Set<Class<?>> IGNORED_TRACE_CLASSES = init();
 
-  private static Set<Class<?>> init() {
-    HashSet<Class<?>> ret = new HashSet<>();
-    ret.add(BxFlowBehavior.class);
-    ret.add(BxScopeBehavior.class);
-    ret.add(BxEmptyBehavior.class);
-    ret.add(BxPickBehavior.class);
-    return ret;
-  }
+    private static Set<Class<?>> init() {
+        HashSet<Class<?>> ret = new HashSet<>();
+        ret.add(BxFlowBehavior.class);
+        ret.add(BxScopeBehavior.class);
+        ret.add(BxEmptyBehavior.class);
+        ret.add(BxPickBehavior.class);
+        return ret;
+    }
 
-  public static boolean notTracing(@Nonnull final Object o) {
-    return IGNORED_TRACE_CLASSES.contains(o.getClass());
-  }
+    public static boolean notTracing(@Nonnull final Object o) {
+        return IGNORED_TRACE_CLASSES.contains(o.getClass());
+    }
 }

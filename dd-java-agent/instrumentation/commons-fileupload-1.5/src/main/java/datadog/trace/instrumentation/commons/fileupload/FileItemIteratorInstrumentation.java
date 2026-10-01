@@ -19,37 +19,36 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.fileupload.FileItemIterator;
 import org.apache.commons.fileupload.FileItemStream;
 
-public class FileItemIteratorInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+public class FileItemIteratorInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.apache.commons.fileupload.FileItemIterator";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("next").and(isPublic()).and(takesArguments(0)), getClass().getName() + "$NextAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class NextAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Return final FileItemStream fileItemStream,
-        @Advice.This final FileItemIterator self,
-        @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObjectIfTainted(ctx, fileItemStream, self);
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.apache.commons.fileupload.FileItemIterator";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("next").and(isPublic()).and(takesArguments(0)), getClass().getName() + "$NextAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class NextAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Return final FileItemStream fileItemStream,
+                @Advice.This final FileItemIterator self,
+                @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                module.taintObjectIfTainted(ctx, fileItemStream, self);
+            }
+        }
+    }
 }

@@ -50,119 +50,117 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 public class FlagEvaluationHotPathBenchmark {
 
-  @Param({
-    "typical/100flags_50users_10fields",
-    "stress/10flags_1000users_250fields",
-    "scale/2500flags_500users_20fields"
-  })
-  public String profile;
+    @Param({
+        "typical/100flags_50users_10fields",
+        "stress/10flags_1000users_250fields",
+        "scale/2500flags_500users_20fields"
+    })
+    public String profile;
 
-  private Map<String, Object> attrs;
-  private String[] flagKeys;
-  private String[] targetingKeys;
-  private int cursor;
-  private FlagEvaluationWriterImpl writer;
-  private FlagEvaluationWriterImpl.SerializingHandlerForTest handler;
+    private Map<String, Object> attrs;
+    private String[] flagKeys;
+    private String[] targetingKeys;
+    private int cursor;
+    private FlagEvaluationWriterImpl writer;
+    private FlagEvaluationWriterImpl.SerializingHandlerForTest handler;
 
-  @Setup(Level.Iteration)
-  public void setUp() {
-    final Profile p = Profile.fromName(profile);
+    @Setup(Level.Iteration)
+    public void setUp() {
+        final Profile p = Profile.fromName(profile);
 
-    attrs = new HashMap<>();
-    for (int i = 0; i < p.numFields; i++) {
-      attrs.put("field" + i, "value");
-    }
-    flagKeys = keys("bench-flag-", p.numFlags);
-    targetingKeys = keys("bench-user-", p.numUsers);
-    cursor = 0;
+        attrs = new HashMap<>();
+        for (int i = 0; i < p.numFields; i++) {
+            attrs.put("field" + i, "value");
+        }
+        flagKeys = keys("bench-flag-", p.numFlags);
+        targetingKeys = keys("bench-user-", p.numUsers);
+        cursor = 0;
 
-    final Config config = Config.get();
-    final BackendApiFactory factory = new BackendApiFactory(config, null);
-    final Map<String, String> ddContext = new HashMap<>();
-    ddContext.put("service", "bench-service");
-    handler =
-        FlagEvaluationWriterImpl.createHandlerForTest(
-            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false), ddContext);
+        final Config config = Config.get();
+        final BackendApiFactory factory = new BackendApiFactory(config, null);
+        final Map<String, String> ddContext = new HashMap<>();
+        ddContext.put("service", "bench-service");
+        handler = FlagEvaluationWriterImpl.createHandlerForTest(
+                () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false), ddContext);
 
-    // Capacity large enough that the benchmark never overflows within a measurement window.
-    writer =
-        new FlagEvaluationWriterImpl(
-            1 << 20,
-            Long.MAX_VALUE,
-            NANOSECONDS,
-            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
-            config);
-  }
-
-  /**
-   * Queue-mechanics cost only: event allocation plus the non-blocking bounded-queue offer. Excludes
-   * the hook's inline context snapshot - see the class javadoc.
-   */
-  @Benchmark
-  public void writerEnqueue(final Blackhole blackhole) {
-    final FlagEvalEvent event = nextEvent();
-    writer.enqueue(event);
-    blackhole.consume(writer.pollQueuedEventForTest());
-    blackhole.consume(event);
-  }
-
-  /** Worker-thread cost: materialize context, prune, canonicalize, and aggregate. */
-  @Benchmark
-  public void workerAggregate(final Blackhole blackhole) {
-    final FlagEvalEvent event = nextEvent();
-    handler.aggregateEvent(event);
-    if ((cursor % 10_000) == 0) {
-      handler.clearAggregationForTest();
-    }
-    blackhole.consume(handler.fullTierSizeForTest());
-  }
-
-  private FlagEvalEvent nextEvent() {
-    final int i = cursor++;
-    // observeFullEvaluationData=true is required for this benchmark to mean anything: under the
-    // consent-off default the aggregator drops attrs and skips canonicalContextKey entirely, so
-    // every field-count profile would collapse to the same scalar-only cost.
-    return new FlagEvalEvent(
-        flagKeys[Math.floorMod(i, flagKeys.length)],
-        "variant-" + Math.floorMod(i, 4),
-        "alloc-" + Math.floorMod(i, flagKeys.length),
-        targetingKeys[Math.floorMod(i, targetingKeys.length)],
-        null,
-        1_700_000_000_000L + i,
-        true,
-        attrs);
-  }
-
-  private static String[] keys(final String prefix, final int count) {
-    final String[] out = new String[count];
-    for (int i = 0; i < count; i++) {
-      out[i] = prefix + i;
-    }
-    return out;
-  }
-
-  private static final class Profile {
-    private final int numFlags;
-    private final int numUsers;
-    private final int numFields;
-
-    private Profile(final int numFlags, final int numUsers, final int numFields) {
-      this.numFlags = numFlags;
-      this.numUsers = numUsers;
-      this.numFields = numFields;
+        // Capacity large enough that the benchmark never overflows within a measurement window.
+        writer = new FlagEvaluationWriterImpl(
+                1 << 20,
+                Long.MAX_VALUE,
+                NANOSECONDS,
+                () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
+                config);
     }
 
-    private static Profile fromName(final String name) {
-      if ("typical/100flags_50users_10fields".equals(name)) {
-        return new Profile(100, 50, 10);
-      }
-      if ("stress/10flags_1000users_250fields".equals(name)) {
-        return new Profile(10, 1_000, 250);
-      }
-      if ("scale/2500flags_500users_20fields".equals(name)) {
-        return new Profile(2_500, 500, 20);
-      }
-      throw new IllegalArgumentException("unknown benchmark profile: " + name);
+    /**
+     * Queue-mechanics cost only: event allocation plus the non-blocking bounded-queue offer. Excludes
+     * the hook's inline context snapshot - see the class javadoc.
+     */
+    @Benchmark
+    public void writerEnqueue(final Blackhole blackhole) {
+        final FlagEvalEvent event = nextEvent();
+        writer.enqueue(event);
+        blackhole.consume(writer.pollQueuedEventForTest());
+        blackhole.consume(event);
     }
-  }
+
+    /** Worker-thread cost: materialize context, prune, canonicalize, and aggregate. */
+    @Benchmark
+    public void workerAggregate(final Blackhole blackhole) {
+        final FlagEvalEvent event = nextEvent();
+        handler.aggregateEvent(event);
+        if ((cursor % 10_000) == 0) {
+            handler.clearAggregationForTest();
+        }
+        blackhole.consume(handler.fullTierSizeForTest());
+    }
+
+    private FlagEvalEvent nextEvent() {
+        final int i = cursor++;
+        // observeFullEvaluationData=true is required for this benchmark to mean anything: under the
+        // consent-off default the aggregator drops attrs and skips canonicalContextKey entirely, so
+        // every field-count profile would collapse to the same scalar-only cost.
+        return new FlagEvalEvent(
+                flagKeys[Math.floorMod(i, flagKeys.length)],
+                "variant-" + Math.floorMod(i, 4),
+                "alloc-" + Math.floorMod(i, flagKeys.length),
+                targetingKeys[Math.floorMod(i, targetingKeys.length)],
+                null,
+                1_700_000_000_000L + i,
+                true,
+                attrs);
+    }
+
+    private static String[] keys(final String prefix, final int count) {
+        final String[] out = new String[count];
+        for (int i = 0; i < count; i++) {
+            out[i] = prefix + i;
+        }
+        return out;
+    }
+
+    private static final class Profile {
+        private final int numFlags;
+        private final int numUsers;
+        private final int numFields;
+
+        private Profile(final int numFlags, final int numUsers, final int numFields) {
+            this.numFlags = numFlags;
+            this.numUsers = numUsers;
+            this.numFields = numFields;
+        }
+
+        private static Profile fromName(final String name) {
+            if ("typical/100flags_50users_10fields".equals(name)) {
+                return new Profile(100, 50, 10);
+            }
+            if ("stress/10flags_1000users_250fields".equals(name)) {
+                return new Profile(10, 1_000, 250);
+            }
+            if ("scale/2500flags_500users_20fields".equals(name)) {
+                return new Profile(2_500, 500, 20);
+            }
+            throw new IllegalArgumentException("unknown benchmark profile: " + name);
+        }
+    }
 }

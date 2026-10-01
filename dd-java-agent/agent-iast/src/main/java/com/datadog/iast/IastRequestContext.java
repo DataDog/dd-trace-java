@@ -24,200 +24,211 @@ import javax.annotation.Nullable;
 
 public class IastRequestContext implements IastContext, HasMetricCollector {
 
-  static final int MAP_SIZE = TaintedMap.DEFAULT_CAPACITY;
-
-  private final VulnerabilityBatch vulnerabilityBatch;
-  private final OverheadContext overheadContext;
-  private TaintedObjects taintedObjects;
-  @Nullable private Consumer<IastContext> release;
-  @Nullable private IastMetricCollector collector;
-  @Nullable private volatile String strictTransportSecurity;
-  @Nullable private volatile String xContentTypeOptions;
-  @Nullable private volatile String xForwardedProto;
-  @Nullable private volatile String contentType;
-  @Nullable private volatile String authorization;
-  @Nullable private volatile String route;
-
-  /**
-   * Use {@link IastRequestContext#IastRequestContext(TaintedObjects)} instead as we require more
-   * control over the tainted objects dictionaries
-   */
-  @Deprecated
-  public IastRequestContext() {
-    // map without purge (it will be cleared on request end)
-    this(TaintedObjects.build(TaintedMap.build(MAP_SIZE)));
-  }
-
-  public IastRequestContext(final TaintedObjects taintedObjects) {
-    this(taintedObjects, false);
-  }
-
-  public IastRequestContext(final TaintedObjects taintedObjects, boolean isGlobal) {
-    this.vulnerabilityBatch = new VulnerabilityBatch();
-    this.overheadContext =
-        new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest(), isGlobal);
-    this.taintedObjects = taintedObjects;
-  }
-
-  /**
-   * Use this constructor only when you want to create a new context with a fresh overhead context
-   * (e.g. for testing purposes).
-   *
-   * @param taintedObjects the tainted objects to use
-   * @param overheadContext the overhead context to use
-   */
-  public IastRequestContext(
-      final TaintedObjects taintedObjects, final OverheadContext overheadContext) {
-    this.vulnerabilityBatch = new VulnerabilityBatch();
-    this.overheadContext = overheadContext;
-    this.taintedObjects = taintedObjects;
-  }
-
-  public VulnerabilityBatch getVulnerabilityBatch() {
-    return vulnerabilityBatch;
-  }
-
-  @Nullable
-  public String getStrictTransportSecurity() {
-    return strictTransportSecurity;
-  }
-
-  public void setStrictTransportSecurity(final String strictTransportSecurity) {
-    this.strictTransportSecurity = strictTransportSecurity;
-  }
-
-  @Nullable
-  public String getxContentTypeOptions() {
-    return xContentTypeOptions;
-  }
-
-  public void setxContentTypeOptions(final String xContentTypeOptions) {
-    this.xContentTypeOptions = xContentTypeOptions;
-  }
-
-  @Nullable
-  public String getxForwardedProto() {
-    return xForwardedProto;
-  }
-
-  public void setxForwardedProto(final String xForwardedProto) {
-    this.xForwardedProto = xForwardedProto;
-  }
-
-  @Nullable
-  public String getContentType() {
-    return contentType;
-  }
-
-  public void setContentType(final String contentType) {
-    this.contentType = contentType;
-  }
-
-  @Nullable
-  public String getAuthorization() {
-    return authorization;
-  }
-
-  public void setAuthorization(final String authorization) {
-    this.authorization = authorization;
-  }
-
-  @Nullable
-  public String getRoute() {
-    return route;
-  }
-
-  public void setRoute(final String route) {
-    this.route = route;
-  }
-
-  public OverheadContext getOverheadContext() {
-    return overheadContext;
-  }
-
-  @SuppressWarnings("unchecked")
-  @Nonnull
-  @Override
-  public TaintedObjects getTaintedObjects() {
-    return taintedObjects;
-  }
-
-  @Override
-  @Nullable
-  public IastMetricCollector getMetricCollector() {
-    return collector;
-  }
-
-  public void setCollector(@Nonnull final IastMetricCollector collector) {
-    this.collector = collector;
-  }
-
-  public void setTaintedObjects(@Nonnull final TaintedObjects taintedObjects) {
-    this.taintedObjects = taintedObjects;
-  }
-
-  @Override
-  public void close() throws IOException {
-    if (release != null) {
-      release.accept(this);
-      release = null;
-    }
-  }
-
-  public static class Provider extends IastContext.Provider {
-
-    // 16384 buckets: approx 64K
     static final int MAP_SIZE = TaintedMap.DEFAULT_CAPACITY;
 
-    private final Queue<TaintedObjects> pool =
-        new ArrayBlockingQueue<>(
-            Math.max(
-                Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
+    private final VulnerabilityBatch vulnerabilityBatch;
+    private final OverheadContext overheadContext;
+    private TaintedObjects taintedObjects;
 
     @Nullable
-    @Override
-    public IastContext resolve() {
-      final AgentSpan span = AgentTracer.activeSpan();
-      if (span == null) {
-        return null;
-      }
-      final RequestContext ctx = span.getRequestContext();
-      if (ctx == null) {
-        return null;
-      }
-      return ctx.getData(RequestContextSlot.IAST);
+    private Consumer<IastContext> release;
+
+    @Nullable
+    private IastMetricCollector collector;
+
+    @Nullable
+    private volatile String strictTransportSecurity;
+
+    @Nullable
+    private volatile String xContentTypeOptions;
+
+    @Nullable
+    private volatile String xForwardedProto;
+
+    @Nullable
+    private volatile String contentType;
+
+    @Nullable
+    private volatile String authorization;
+
+    @Nullable
+    private volatile String route;
+
+    /**
+     * Use {@link IastRequestContext#IastRequestContext(TaintedObjects)} instead as we require more
+     * control over the tainted objects dictionaries
+     */
+    @Deprecated
+    public IastRequestContext() {
+        // map without purge (it will be cleared on request end)
+        this(TaintedObjects.build(TaintedMap.build(MAP_SIZE)));
     }
 
-    @Override
-    public IastContext buildRequestContext() {
-      TaintedObjects taintedObjects = pool.poll();
-      if (taintedObjects == null) {
-        taintedObjects = TaintedObjects.build(TaintedMap.build(MAP_SIZE));
-      }
-      final IastRequestContext ctx = new IastRequestContext(taintedObjects);
-      ctx.release = this::releaseRequestContext;
-      return ctx;
+    public IastRequestContext(final TaintedObjects taintedObjects) {
+        this(taintedObjects, false);
+    }
+
+    public IastRequestContext(final TaintedObjects taintedObjects, boolean isGlobal) {
+        this.vulnerabilityBatch = new VulnerabilityBatch();
+        this.overheadContext = new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest(), isGlobal);
+        this.taintedObjects = taintedObjects;
+    }
+
+    /**
+     * Use this constructor only when you want to create a new context with a fresh overhead context
+     * (e.g. for testing purposes).
+     *
+     * @param taintedObjects the tainted objects to use
+     * @param overheadContext the overhead context to use
+     */
+    public IastRequestContext(final TaintedObjects taintedObjects, final OverheadContext overheadContext) {
+        this.vulnerabilityBatch = new VulnerabilityBatch();
+        this.overheadContext = overheadContext;
+        this.taintedObjects = taintedObjects;
+    }
+
+    public VulnerabilityBatch getVulnerabilityBatch() {
+        return vulnerabilityBatch;
+    }
+
+    @Nullable
+    public String getStrictTransportSecurity() {
+        return strictTransportSecurity;
+    }
+
+    public void setStrictTransportSecurity(final String strictTransportSecurity) {
+        this.strictTransportSecurity = strictTransportSecurity;
+    }
+
+    @Nullable
+    public String getxContentTypeOptions() {
+        return xContentTypeOptions;
+    }
+
+    public void setxContentTypeOptions(final String xContentTypeOptions) {
+        this.xContentTypeOptions = xContentTypeOptions;
+    }
+
+    @Nullable
+    public String getxForwardedProto() {
+        return xForwardedProto;
+    }
+
+    public void setxForwardedProto(final String xForwardedProto) {
+        this.xForwardedProto = xForwardedProto;
+    }
+
+    @Nullable
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(final String contentType) {
+        this.contentType = contentType;
+    }
+
+    @Nullable
+    public String getAuthorization() {
+        return authorization;
+    }
+
+    public void setAuthorization(final String authorization) {
+        this.authorization = authorization;
+    }
+
+    @Nullable
+    public String getRoute() {
+        return route;
+    }
+
+    public void setRoute(final String route) {
+        this.route = route;
+    }
+
+    public OverheadContext getOverheadContext() {
+        return overheadContext;
     }
 
     @SuppressWarnings("unchecked")
+    @Nonnull
     @Override
-    public void releaseRequestContext(@Nonnull final IastContext context) {
-      final IastRequestContext iastCtx = (IastRequestContext) context;
-
-      // reset tainted objects map
-      final TaintedObjects taintedObjects = iastCtx.getTaintedObjects();
-      taintedObjects.clear();
-
-      // return to pool and update internal ref
-      final TaintedObjects unwrapped =
-          taintedObjects instanceof Wrapper
-              ? ((Wrapper<TaintedObjects>) taintedObjects).unwrap()
-              : taintedObjects;
-      if (unwrapped != TaintedObjects.NoOp.INSTANCE) {
-        pool.offer(unwrapped);
-        iastCtx.setTaintedObjects(TaintedObjects.NoOp.INSTANCE);
-      }
-      iastCtx.overheadContext.resetMaps();
+    public TaintedObjects getTaintedObjects() {
+        return taintedObjects;
     }
-  }
+
+    @Override
+    @Nullable
+    public IastMetricCollector getMetricCollector() {
+        return collector;
+    }
+
+    public void setCollector(@Nonnull final IastMetricCollector collector) {
+        this.collector = collector;
+    }
+
+    public void setTaintedObjects(@Nonnull final TaintedObjects taintedObjects) {
+        this.taintedObjects = taintedObjects;
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (release != null) {
+            release.accept(this);
+            release = null;
+        }
+    }
+
+    public static class Provider extends IastContext.Provider {
+
+        // 16384 buckets: approx 64K
+        static final int MAP_SIZE = TaintedMap.DEFAULT_CAPACITY;
+
+        private final Queue<TaintedObjects> pool = new ArrayBlockingQueue<>(
+                Math.max(Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
+
+        @Nullable
+        @Override
+        public IastContext resolve() {
+            final AgentSpan span = AgentTracer.activeSpan();
+            if (span == null) {
+                return null;
+            }
+            final RequestContext ctx = span.getRequestContext();
+            if (ctx == null) {
+                return null;
+            }
+            return ctx.getData(RequestContextSlot.IAST);
+        }
+
+        @Override
+        public IastContext buildRequestContext() {
+            TaintedObjects taintedObjects = pool.poll();
+            if (taintedObjects == null) {
+                taintedObjects = TaintedObjects.build(TaintedMap.build(MAP_SIZE));
+            }
+            final IastRequestContext ctx = new IastRequestContext(taintedObjects);
+            ctx.release = this::releaseRequestContext;
+            return ctx;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public void releaseRequestContext(@Nonnull final IastContext context) {
+            final IastRequestContext iastCtx = (IastRequestContext) context;
+
+            // reset tainted objects map
+            final TaintedObjects taintedObjects = iastCtx.getTaintedObjects();
+            taintedObjects.clear();
+
+            // return to pool and update internal ref
+            final TaintedObjects unwrapped = taintedObjects instanceof Wrapper
+                    ? ((Wrapper<TaintedObjects>) taintedObjects).unwrap()
+                    : taintedObjects;
+            if (unwrapped != TaintedObjects.NoOp.INSTANCE) {
+                pool.offer(unwrapped);
+                iastCtx.setTaintedObjects(TaintedObjects.NoOp.INSTANCE);
+            }
+            iastCtx.overheadContext.resetMaps();
+        }
+    }
 }

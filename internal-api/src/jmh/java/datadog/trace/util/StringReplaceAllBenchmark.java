@@ -46,64 +46,56 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 @SuppressForbidden
 public class StringReplaceAllBenchmark {
-  static final String[] INPUTS = {
-    "foo",
-    "baz",
-    "foobar",
-    "foobaz",
-    "foo=baz",
-    "bar=foo",
-    "foo=foo&bar=foo",
-    "lorem ipsum",
-    "datadog"
-  };
+    static final String[] INPUTS = {
+        "foo", "baz", "foobar", "foobaz", "foo=baz", "bar=foo", "foo=foo&bar=foo", "lorem ipsum", "datadog"
+    };
 
-  static int sharedInputIndex = 0;
+    static int sharedInputIndex = 0;
 
-  static String nextInput() {
-    int localIndex = ++sharedInputIndex;
-    if (localIndex >= INPUTS.length) {
-      sharedInputIndex = localIndex = 0;
+    static String nextInput() {
+        int localIndex = ++sharedInputIndex;
+        if (localIndex >= INPUTS.length) {
+            sharedInputIndex = localIndex = 0;
+        }
+        return INPUTS[localIndex];
     }
-    return INPUTS[localIndex];
-  }
 
-  @Benchmark
-  public String string_replaceAll() {
-    return _string_replaceAll(nextInput());
-  }
+    @Benchmark
+    public String string_replaceAll() {
+        return _string_replaceAll(nextInput());
+    }
 
-  static String _string_replaceAll(String input) {
-    // Underneath, this does Pattern.compile("foo").matcher(str).replaceAll()
-    return input.replaceAll("foo", "*redacted*");
-  }
+    static String _string_replaceAll(String input) {
+        // Underneath, this does Pattern.compile("foo").matcher(str).replaceAll()
+        return input.replaceAll("foo", "*redacted*");
+    }
 
-  @Benchmark
-  public String string_replace() {
-    return _string_replace(nextInput());
-  }
+    @Benchmark
+    public String string_replace() {
+        return _string_replace(nextInput());
+    }
 
-  static String _string_replace(String input) {
-    return input.replace("foo", "*redacted*");
-  }
+    static String _string_replace(String input) {
+        return input.replace("foo", "*redacted*");
+    }
 
-  static final Pattern REGEX_COMPILED = Pattern.compile("foo");
+    static final Pattern REGEX_COMPILED = Pattern.compile("foo");
 
-  @Benchmark
-  public String regex_replaceAll() {
-    return _regex_replaceAll(nextInput());
-  }
+    @Benchmark
+    public String regex_replaceAll() {
+        return _regex_replaceAll(nextInput());
+    }
 
-  static String _regex_replaceAll(String input) {
-    return REGEX_COMPILED.matcher(input).replaceAll("*redcated*");
-  }
+    static String _regex_replaceAll(String input) {
+        return REGEX_COMPILED.matcher(input).replaceAll("*redcated*");
+    }
 
-  @Benchmark
-  public String strings_replaceAll() {
-    return _strings_replaceAll(nextInput());
-  }
+    @Benchmark
+    public String strings_replaceAll() {
+        return _strings_replaceAll(nextInput());
+    }
 
-  static String _strings_replaceAll(String input) {
-    return Strings.replaceAll(input, "foo", "*redacted*");
-  }
+    static String _strings_replaceAll(String input) {
+        return Strings.replaceAll(input, "foo", "*redacted*");
+    }
 }

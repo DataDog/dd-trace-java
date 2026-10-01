@@ -21,60 +21,59 @@ import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
  */
 @AutoService(InstrumenterModule.class)
 public final class ResteasyClientConnectionErrorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ResteasyClientConnectionErrorInstrumentation() {
-    super("jax-rs", "jaxrs", "jax-rs-client");
-  }
+    public ResteasyClientConnectionErrorInstrumentation() {
+        super("jax-rs", "jaxrs", "jax-rs-client");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.jboss.resteasy.client.jaxrs.internal.ClientInvocation";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.jboss.resteasy.client.jaxrs.internal.ClientInvocation";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("invoke")),
-        ResteasyClientConnectionErrorInstrumentation.class.getName() + "$InvokeAdvice");
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("invoke")),
+                ResteasyClientConnectionErrorInstrumentation.class.getName() + "$InvokeAdvice");
 
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("submit")).and(returns(Future.class)),
-        ResteasyClientConnectionErrorInstrumentation.class.getName() + "$SubmitAdvice");
-  }
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("submit")).and(returns(Future.class)),
+                ResteasyClientConnectionErrorInstrumentation.class.getName() + "$SubmitAdvice");
+    }
 
-  public static class InvokeAdvice {
+    public static class InvokeAdvice {
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void handleError(
-        @Advice.FieldValue("configuration") final ClientConfiguration context,
-        @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        final Object prop = context.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
-        if (prop instanceof AgentSpan) {
-          final AgentSpan span = (AgentSpan) prop;
-          span.addThrowable(throwable);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void handleError(
+                @Advice.FieldValue("configuration") final ClientConfiguration context,
+                @Advice.Thrown final Throwable throwable) {
+            if (throwable != null) {
+                final Object prop = context.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
+                if (prop instanceof AgentSpan) {
+                    final AgentSpan span = (AgentSpan) prop;
+                    span.addThrowable(throwable);
 
-          @SuppressWarnings("deprecation")
-          final boolean isJaxRsExceptionAsErrorEnabled =
-              Config.get().isJaxRsExceptionAsErrorEnabled();
-          span.setError(isJaxRsExceptionAsErrorEnabled);
+                    @SuppressWarnings("deprecation")
+                    final boolean isJaxRsExceptionAsErrorEnabled = Config.get().isJaxRsExceptionAsErrorEnabled();
+                    span.setError(isJaxRsExceptionAsErrorEnabled);
 
-          span.finish();
+                    span.finish();
+                }
+            }
         }
-      }
     }
-  }
 
-  public static class SubmitAdvice {
+    public static class SubmitAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void handleError(
-        @Advice.FieldValue("configuration") final ClientConfiguration context,
-        @Advice.Return(readOnly = false) Future<?> future) {
-      if (!(future instanceof WrappedFuture)) {
-        future = new WrappedFuture<>(future, context);
-      }
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void handleError(
+                @Advice.FieldValue("configuration") final ClientConfiguration context,
+                @Advice.Return(readOnly = false) Future<?> future) {
+            if (!(future instanceof WrappedFuture)) {
+                future = new WrappedFuture<>(future, context);
+            }
+        }
     }
-  }
 }

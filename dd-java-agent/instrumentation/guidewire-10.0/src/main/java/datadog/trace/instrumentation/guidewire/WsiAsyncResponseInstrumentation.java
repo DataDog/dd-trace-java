@@ -43,53 +43,53 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class WsiAsyncResponseInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  private static final String ASYNC_RESPONSE = "gw.internal.xml.ws.AsyncResponseImpl";
+    private static final String ASYNC_RESPONSE = "gw.internal.xml.ws.AsyncResponseImpl";
 
-  public WsiAsyncResponseInstrumentation() {
-    super("guidewire");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return ASYNC_RESPONSE;
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    // '$' matches only nested classes of AsyncResponseImpl, not top-level siblings.
-    return nameStartsWith(ASYNC_RESPONSE + "$").and(extendsClass(named("java.lang.Thread")));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformer.applyAdvice(
-        named("run").and(takesArguments(0)).and(isPublic()), getClass().getName() + "$Activate");
-  }
-
-  public static final class Capture {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstruct(@Advice.This final Runnable thiz) {
-      capture(InstrumentationContext.get(Runnable.class, State.class), thiz);
-    }
-  }
-
-  public static final class Activate {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter(@Advice.This final Runnable thiz) {
-      return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), thiz);
+    public WsiAsyncResponseInstrumentation() {
+        super("guidewire");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public String hierarchyMarkerType() {
+        return ASYNC_RESPONSE;
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        // '$' matches only nested classes of AsyncResponseImpl, not top-level siblings.
+        return nameStartsWith(ASYNC_RESPONSE + "$").and(extendsClass(named("java.lang.Thread")));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(Runnable.class.getName(), State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
+        transformer.applyAdvice(
+                named("run").and(takesArguments(0)).and(isPublic()), getClass().getName() + "$Activate");
+    }
+
+    public static final class Capture {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onConstruct(@Advice.This final Runnable thiz) {
+            capture(InstrumentationContext.get(Runnable.class, State.class), thiz);
+        }
+    }
+
+    public static final class Activate {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter(@Advice.This final Runnable thiz) {
+            return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), thiz);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit(@Advice.Enter final ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
 }

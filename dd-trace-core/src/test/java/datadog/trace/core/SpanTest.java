@@ -9,97 +9,97 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class SpanTest {
-  static final CoreTracer TRACER = CoreTracer.builder().build();
+    static final CoreTracer TRACER = CoreTracer.builder().build();
 
-  @Test
-  @DisplayName("setMetric: int")
-  public void setMetricInt() {
-    int expected = 2;
+    @Test
+    @DisplayName("setMetric: int")
+    public void setMetricInt() {
+        int expected = 2;
 
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    span.setMetric("int", expected);
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        span.setMetric("int", expected);
 
-    Object value = span.getTag("int");
-    assertInstanceOf(Integer.class, value);
-    assertEquals(Integer.valueOf(expected), value);
-  }
+        Object value = span.getTag("int");
+        assertInstanceOf(Integer.class, value);
+        assertEquals(Integer.valueOf(expected), value);
+    }
 
-  @Test
-  @DisplayName("setMetric: long")
-  public void setMetricLong() {
-    long expected = 20L;
+    @Test
+    @DisplayName("setMetric: long")
+    public void setMetricLong() {
+        long expected = 20L;
 
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    span.setMetric("long", expected);
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        span.setMetric("long", expected);
 
-    Object value = span.getTag("long");
-    assertInstanceOf(Long.class, value);
-    assertEquals(Long.valueOf(expected), value);
-  }
+        Object value = span.getTag("long");
+        assertInstanceOf(Long.class, value);
+        assertEquals(Long.valueOf(expected), value);
+    }
 
-  @Test
-  @DisplayName("setMetric: float")
-  public void setMetricFloat() {
-    float expected = 2.718F;
+    @Test
+    @DisplayName("setMetric: float")
+    public void setMetricFloat() {
+        float expected = 2.718F;
 
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    span.setMetric("float", expected);
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        span.setMetric("float", expected);
 
-    Object value = span.getTag("float");
-    assertInstanceOf(Float.class, value);
-    assertEquals(Float.valueOf(expected), value);
-  }
+        Object value = span.getTag("float");
+        assertInstanceOf(Float.class, value);
+        assertEquals(Float.valueOf(expected), value);
+    }
 
-  @Test
-  @DisplayName("setMetric: double")
-  public void setMetricDouble() {
-    double expected = 3.1415D;
+    @Test
+    @DisplayName("setMetric: double")
+    public void setMetricDouble() {
+        double expected = 3.1415D;
 
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    span.setMetric("double", expected);
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        span.setMetric("double", expected);
 
-    Object value = span.getTag("double");
-    assertInstanceOf(Double.class, value);
-    assertEquals(Double.valueOf(expected), value);
-  }
+        Object value = span.getTag("double");
+        assertInstanceOf(Double.class, value);
+        assertEquals(Double.valueOf(expected), value);
+    }
 
-  @Test
-  @DisplayName("setTag: TagMap.Entry")
-  public void setTagEntry() {
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    span.setTag(TagMap.Entry.create("message", "hello"));
+    @Test
+    @DisplayName("setTag: TagMap.Entry")
+    public void setTagEntry() {
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        span.setTag(TagMap.Entry.create("message", "hello"));
 
-    assertEquals("hello", span.getTag("message"));
-  }
+        assertEquals("hello", span.getTag("message"));
+    }
 
-  @Test
-  @DisplayName("setTag: null")
-  public void setTagEntryNull() {
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    int initialSize = span.getTags().size();
+    @Test
+    @DisplayName("setTag: null")
+    public void setTagEntryNull() {
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        int initialSize = span.getTags().size();
 
-    span.setTag(null);
+        span.setTag(null);
 
-    assertEquals(initialSize, span.getTags().size());
-  }
+        assertEquals(initialSize, span.getTags().size());
+    }
 
-  @Test
-  @DisplayName("setMetric: TagMap.Entry")
-  public void setMetricEntry() {
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    span.setMetric(TagMap.Entry.create("metric", 20L));
+    @Test
+    @DisplayName("setMetric: TagMap.Entry")
+    public void setMetricEntry() {
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        span.setMetric(TagMap.Entry.create("metric", 20L));
 
-    assertEquals(Long.valueOf(20L), span.getTag("metric"));
-  }
+        assertEquals(Long.valueOf(20L), span.getTag("metric"));
+    }
 
-  @Test
-  @DisplayName("setMetric: null")
-  public void setMetricEntryNull() {
-    AgentSpan span = TRACER.startSpan("foo", "foo");
-    int initialSize = span.getTags().size();
+    @Test
+    @DisplayName("setMetric: null")
+    public void setMetricEntryNull() {
+        AgentSpan span = TRACER.startSpan("foo", "foo");
+        int initialSize = span.getTags().size();
 
-    span.setMetric(null);
+        span.setMetric(null);
 
-    assertEquals(initialSize, span.getTags().size());
-  }
+        assertEquals(initialSize, span.getTags().size());
+    }
 }

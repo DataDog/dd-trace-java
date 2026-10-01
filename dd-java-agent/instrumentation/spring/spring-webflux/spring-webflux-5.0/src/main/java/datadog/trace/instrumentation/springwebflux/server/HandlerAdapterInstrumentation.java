@@ -19,34 +19,33 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.web.reactive.HandlerAdapter";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.web.reactive.HandlerAdapter";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return concreteClass().and(implementsInterface(named(hierarchyMarkerType())));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return concreteClass().and(implementsInterface(named(hierarchyMarkerType())));
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.reactivestreams.Publisher", HandoffContext.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.reactivestreams.Publisher", HandoffContext.class.getName());
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("handle"))
-            .and(takesArgument(0, named("org.springframework.web.server.ServerWebExchange")))
-            .and(takesArgument(1, named("java.lang.Object")))
-            .and(takesArguments(2)),
-        // Cannot reference class directly here because it would lead to class load failure on Java7
-        packageName + ".HandlerAdapterAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("handle"))
+                        .and(takesArgument(0, named("org.springframework.web.server.ServerWebExchange")))
+                        .and(takesArgument(1, named("java.lang.Object")))
+                        .and(takesArguments(2)),
+                // Cannot reference class directly here because it would lead to class load failure on Java7
+                packageName + ".HandlerAdapterAdvice");
+    }
 }

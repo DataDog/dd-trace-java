@@ -31,32 +31,31 @@ import org.openjdk.jmh.infra.Blackhole;
  * CoreTracerClassloaderNamingBenchmark.benchSpanCreation true avgt 3 0.695 ± 0.106 us/op
  */
 public class CoreTracerClassloaderNamingBenchmark {
-  CoreTracer tracer;
+    CoreTracer tracer;
 
-  WeakHashMap<ClassLoader, String> weakCache;
+    WeakHashMap<ClassLoader, String> weakCache;
 
-  @Param({"false", "true"})
-  boolean simulateOverhead;
+    @Param({"false", "true"})
+    boolean simulateOverhead;
 
-  @Setup(Level.Iteration)
-  public void init(Blackhole blackhole) {
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
-            .strictTraceWrites(false)
-            .build();
-    weakCache = new WeakHashMap<>();
-    weakCache.put(Thread.currentThread().getContextClassLoader(), "test");
-  }
-
-  @Benchmark
-  public void benchSpanCreation(Blackhole blackhole) {
-    final AgentSpan span = tracer.startSpan("", "");
-    if (simulateOverhead) {
-      // simulates an extra getContextClassLoader + a WeakHashMap.get
-      weakCache.get(Thread.currentThread().getContextClassLoader());
+    @Setup(Level.Iteration)
+    public void init(Blackhole blackhole) {
+        tracer = CoreTracer.builder()
+                .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
+                .strictTraceWrites(false)
+                .build();
+        weakCache = new WeakHashMap<>();
+        weakCache.put(Thread.currentThread().getContextClassLoader(), "test");
     }
-    span.finish();
-    blackhole.consume(span);
-  }
+
+    @Benchmark
+    public void benchSpanCreation(Blackhole blackhole) {
+        final AgentSpan span = tracer.startSpan("", "");
+        if (simulateOverhead) {
+            // simulates an extra getContextClassLoader + a WeakHashMap.get
+            weakCache.get(Thread.currentThread().getContextClassLoader());
+        }
+        span.finish();
+        blackhole.consume(span);
+    }
 }

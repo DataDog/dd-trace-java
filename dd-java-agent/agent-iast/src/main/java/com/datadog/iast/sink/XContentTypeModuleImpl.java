@@ -16,42 +16,39 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class XContentTypeModuleImpl extends SinkModuleBase implements XContentTypeModule {
-  private static final Logger LOGGER = LoggerFactory.getLogger(XContentTypeModuleImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(XContentTypeModuleImpl.class);
 
-  public XContentTypeModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-  }
-
-  @Override
-  public void onRequestEnd(final IastContext ctx, final IGSpanInfo igSpanInfo) {
-    if (!(ctx instanceof IastRequestContext)) {
-      return;
+    public XContentTypeModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
     }
-    try {
-      final IastRequestContext iastRequestContext = (IastRequestContext) ctx;
-      if (!isNoSniffContentOptions(iastRequestContext.getxContentTypeOptions())) {
-        if (!isHtmlResponse(iastRequestContext.getContentType())) {
-          return;
+
+    @Override
+    public void onRequestEnd(final IastContext ctx, final IGSpanInfo igSpanInfo) {
+        if (!(ctx instanceof IastRequestContext)) {
+            return;
         }
-        Map<String, Object> tags = igSpanInfo.getTags();
-        if (isIgnorableResponseCode((Integer) tags.get("http.status_code"))) {
-          return;
+        try {
+            final IastRequestContext iastRequestContext = (IastRequestContext) ctx;
+            if (!isNoSniffContentOptions(iastRequestContext.getxContentTypeOptions())) {
+                if (!isHtmlResponse(iastRequestContext.getContentType())) {
+                    return;
+                }
+                Map<String, Object> tags = igSpanInfo.getTags();
+                if (isIgnorableResponseCode((Integer) tags.get("http.status_code"))) {
+                    return;
+                }
+                final AgentSpan span = (AgentSpan) igSpanInfo;
+                report(span, new Vulnerability(VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(span)));
+            }
+        } catch (Throwable e) {
+            LOGGER.debug("Exception while checking for missing X Content type options header", e);
         }
-        final AgentSpan span = (AgentSpan) igSpanInfo;
-        report(
-            span,
-            new Vulnerability(
-                VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(span)));
-      }
-    } catch (Throwable e) {
-      LOGGER.debug("Exception while checking for missing X Content type options header", e);
     }
-  }
 
-  static boolean isNoSniffContentOptions(@Nullable final String value) {
-    if (value == null) {
-      return false;
+    static boolean isNoSniffContentOptions(@Nullable final String value) {
+        if (value == null) {
+            return false;
+        }
+        return value.toLowerCase(Locale.ROOT).contains("nosniff");
     }
-    return value.toLowerCase(Locale.ROOT).contains("nosniff");
-  }
 }

@@ -6,15 +6,15 @@ import org.testng.annotations.Test;
 
 public class TestFailedWithSuccessPercentage {
 
-  private int i = 0;
+    private int i = 0;
 
-  @Test(successPercentage = 60, invocationCount = 5)
-  public void test_failed_with_success_percentage() {
-    i++;
-    if (i == 1 || i == 2) {
-      assertTrue(false);
-    } else {
-      assertTrue(true);
+    @Test(successPercentage = 60, invocationCount = 5)
+    public void test_failed_with_success_percentage() {
+        i++;
+        if (i == 1 || i == 2) {
+            assertTrue(false);
+        } else {
+            assertTrue(true);
+        }
     }
-  }
 }

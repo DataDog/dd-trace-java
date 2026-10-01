@@ -10,17 +10,16 @@ import io.micronaut.web.router.RouteMatch;
 import net.bytebuddy.asm.Advice;
 
 public class HandleRouteMatchAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void beginRequest(
-      @Advice.Argument(0) final RouteMatch<?> route,
-      @Advice.Argument(1) final NettyHttpRequest<?> request) {
-    AgentSpan span = request.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
-    if (null == span) {
-      return;
-    }
-    final AgentSpan nettySpan =
-        request.getAttribute(PARENT_SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void beginRequest(
+            @Advice.Argument(0) final RouteMatch<?> route, @Advice.Argument(1) final NettyHttpRequest<?> request) {
+        AgentSpan span = request.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+        if (null == span) {
+            return;
+        }
+        final AgentSpan nettySpan =
+                request.getAttribute(PARENT_SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
 
-    DECORATE.onMicronautSpan(span, nettySpan, request, route);
-  }
+        DECORATE.onMicronautSpan(span, nettySpan, request, route);
+    }
 }

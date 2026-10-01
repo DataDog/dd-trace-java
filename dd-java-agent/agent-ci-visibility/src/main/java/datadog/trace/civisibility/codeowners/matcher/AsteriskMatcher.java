@@ -2,17 +2,17 @@ package datadog.trace.civisibility.codeowners.matcher;
 
 public class AsteriskMatcher implements Matcher {
 
-  public static final Matcher INSTANCE = new AsteriskMatcher();
+    public static final Matcher INSTANCE = new AsteriskMatcher();
 
-  private AsteriskMatcher() {}
+    private AsteriskMatcher() {}
 
-  @Override
-  public int consume(String line, int offset) {
-    return offset < line.length() && line.charAt(offset) != '/' ? 1 : -1;
-  }
+    @Override
+    public int consume(String line, int offset) {
+        return offset < line.length() && line.charAt(offset) != '/' ? 1 : -1;
+    }
 
-  @Override
-  public boolean multi() {
-    return true;
-  }
+    @Override
+    public boolean multi() {
+        return true;
+    }
 }

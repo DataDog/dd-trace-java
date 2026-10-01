@@ -7,29 +7,29 @@ import org.jacoco.core.analysis.ICoverageVisitor;
 
 public class SourceAnalyzer implements ICoverageVisitor {
 
-  private final BitSet coveredLines;
+    private final BitSet coveredLines;
 
-  public SourceAnalyzer(BitSet coveredLines) {
-    this.coveredLines = coveredLines;
-  }
-
-  @Override
-  public void visitCoverage(IClassCoverage coverage) {
-    if (coverage.isNoMatch()) {
-      return;
+    public SourceAnalyzer(BitSet coveredLines) {
+        this.coveredLines = coveredLines;
     }
 
-    int firstLine = coverage.getFirstLine();
-    if (firstLine == -1) {
-      return;
-    }
+    @Override
+    public void visitCoverage(IClassCoverage coverage) {
+        if (coverage.isNoMatch()) {
+            return;
+        }
 
-    int lastLine = coverage.getLastLine();
+        int firstLine = coverage.getFirstLine();
+        if (firstLine == -1) {
+            return;
+        }
 
-    for (int line = firstLine; line <= lastLine; line++) {
-      if (coverage.getLine(line).getStatus() >= ICounter.FULLY_COVERED) {
-        coveredLines.set(line);
-      }
+        int lastLine = coverage.getLastLine();
+
+        for (int line = firstLine; line <= lastLine; line++) {
+            if (coverage.getLine(line).getStatus() >= ICounter.FULLY_COVERED) {
+                coveredLines.set(line);
+            }
+        }
     }
-  }
 }

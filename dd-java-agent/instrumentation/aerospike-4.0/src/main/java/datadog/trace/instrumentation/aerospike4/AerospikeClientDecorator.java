@@ -16,93 +16,92 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
-  private static final String DB_TYPE = "aerospike";
-  private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
-  public static final UTF8BytesString JAVA_AEROSPIKE = UTF8BytesString.create("java-aerospike");
-  public static final UTF8BytesString OPERATION_NAME =
-      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
+    private static final String DB_TYPE = "aerospike";
+    private static final String SERVICE_NAME =
+            SpanNaming.instance().namingSchema().database().service(DB_TYPE);
+    public static final UTF8BytesString JAVA_AEROSPIKE = UTF8BytesString.create("java-aerospike");
+    public static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create(
+            SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
 
-  public static final AerospikeClientDecorator DECORATE = new AerospikeClientDecorator();
+    public static final AerospikeClientDecorator DECORATE = new AerospikeClientDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"aerospike"};
-  }
-
-  @Override
-  protected String service() {
-    return SERVICE_NAME;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return JAVA_AEROSPIKE;
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.AEROSPIKE;
-  }
-
-  @Override
-  protected String dbType() {
-    return DB_TYPE;
-  }
-
-  @Override
-  protected String dbUser(final Node node) {
-    return null;
-  }
-
-  @Override
-  protected String dbInstance(final Node node) {
-    return null;
-  }
-
-  @Override
-  protected String dbHostname(final Node node) {
-    return null;
-  }
-
-  public void onConnection(
-      final AgentSpan span, final Node node, final Cluster cluster, final Partition partition) {
-
-    onPeerConnection(span, node.getAddress());
-
-    if (cluster != null && cluster.getUser() != null) {
-      span.setTag(Tags.DB_USER, UTF8BytesString.create(cluster.getUser()));
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"aerospike"};
     }
 
-    if (partition != null) {
-      String instanceName = partition.toString();
-      final int namespaceEnd = instanceName.indexOf(':');
-      if (namespaceEnd > 0) {
-        instanceName = instanceName.substring(0, namespaceEnd);
-      }
-      span.setTag(Tags.DB_INSTANCE, instanceName);
-      if (Config.get().isDbClientSplitByInstance()) {
-        span.setServiceName(instanceName, DB_CLIENT_SPLIT_BY_INSTANCE);
-      }
+    @Override
+    protected String service() {
+        return SERVICE_NAME;
     }
-  }
 
-  public void withMethod(final AgentSpan span, final String methodName) {
-    span.setResourceName(spanNameForMethod(AerospikeClient.class, methodName));
-  }
-
-  public AgentSpan startAerospikeSpan(final String methodName) {
-    final AgentSpan span = startSpan(JAVA_AEROSPIKE.toString(), OPERATION_NAME);
-    afterStart(span);
-    withMethod(span, methodName);
-    return span;
-  }
-
-  public void finishAerospikeSpan(final AgentSpan span, final Throwable error) {
-    if (error != null) {
-      onError(span, error);
+    @Override
+    protected CharSequence component() {
+        return JAVA_AEROSPIKE;
     }
-    beforeFinish(span);
-    span.finish();
-  }
+
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.AEROSPIKE;
+    }
+
+    @Override
+    protected String dbType() {
+        return DB_TYPE;
+    }
+
+    @Override
+    protected String dbUser(final Node node) {
+        return null;
+    }
+
+    @Override
+    protected String dbInstance(final Node node) {
+        return null;
+    }
+
+    @Override
+    protected String dbHostname(final Node node) {
+        return null;
+    }
+
+    public void onConnection(final AgentSpan span, final Node node, final Cluster cluster, final Partition partition) {
+
+        onPeerConnection(span, node.getAddress());
+
+        if (cluster != null && cluster.getUser() != null) {
+            span.setTag(Tags.DB_USER, UTF8BytesString.create(cluster.getUser()));
+        }
+
+        if (partition != null) {
+            String instanceName = partition.toString();
+            final int namespaceEnd = instanceName.indexOf(':');
+            if (namespaceEnd > 0) {
+                instanceName = instanceName.substring(0, namespaceEnd);
+            }
+            span.setTag(Tags.DB_INSTANCE, instanceName);
+            if (Config.get().isDbClientSplitByInstance()) {
+                span.setServiceName(instanceName, DB_CLIENT_SPLIT_BY_INSTANCE);
+            }
+        }
+    }
+
+    public void withMethod(final AgentSpan span, final String methodName) {
+        span.setResourceName(spanNameForMethod(AerospikeClient.class, methodName));
+    }
+
+    public AgentSpan startAerospikeSpan(final String methodName) {
+        final AgentSpan span = startSpan(JAVA_AEROSPIKE.toString(), OPERATION_NAME);
+        afterStart(span);
+        withMethod(span, methodName);
+        return span;
+    }
+
+    public void finishAerospikeSpan(final AgentSpan span, final Throwable error) {
+        if (error != null) {
+            onError(span, error);
+        }
+        beforeFinish(span);
+        span.finish();
+    }
 }

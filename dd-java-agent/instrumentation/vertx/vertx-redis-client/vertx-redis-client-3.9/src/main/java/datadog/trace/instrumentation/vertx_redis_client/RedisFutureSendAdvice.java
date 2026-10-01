@@ -26,74 +26,70 @@ import io.vertx.redis.client.impl.RequestImpl;
 import net.bytebuddy.asm.Advice;
 
 public class RedisFutureSendAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope beforeSend(
-      @Advice.Argument(value = 0, readOnly = false) Request request,
-      @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation)
-      throws Throwable {
-    // If we had already wrapped the innermost handler in the RedisAPI call, then we should
-    // not wrap it again here. See comment in RedisAPICallAdvice
-    boolean nested = CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope beforeSend(
+            @Advice.Argument(value = 0, readOnly = false) Request request,
+            @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation)
+            throws Throwable {
+        // If we had already wrapped the innermost handler in the RedisAPI call, then we should
+        // not wrap it again here. See comment in RedisAPICallAdvice
+        boolean nested = CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0;
 
-    ContextStore<Request, Boolean> ctxt = InstrumentationContext.get(Request.class, Boolean.class);
-    Boolean handled = ctxt.get(request);
-    if (null != handled && handled) {
-      return null;
+        ContextStore<Request, Boolean> ctxt = InstrumentationContext.get(Request.class, Boolean.class);
+        Boolean handled = ctxt.get(request);
+        if (null != handled && handled) {
+            return null;
+        }
+        // Create a shallow copy of the Request here to make sure that reused Requests get spans
+        if (request instanceof Cloneable) {
+            // Other library code do this downcast, so we can do it as well
+            request = (Request) ((RequestImpl) request).clone();
+        }
+        ctxt.put(request, Boolean.TRUE);
+
+        // Mark the request handled even when nested, so a later async re-send of the same
+        // Request (e.g. via a pooled connection) isn't mistaken for a brand-new command.
+        if (nested) {
+            return null;
+        }
+
+        AgentSpan parentSpan = activeSpan();
+
+        if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
+            // FIXME: this is not the best way to do it but in 4.5.0 there can be race conditions
+            return null;
+        }
+
+        parentContinuation = null == parentSpan ? noopSpan().captureWithContext() : parentSpan.captureWithContext();
+
+        final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(
+                request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
+
+        return activateSpan(clientSpan);
     }
-    // Create a shallow copy of the Request here to make sure that reused Requests get spans
-    if (request instanceof Cloneable) {
-      // Other library code do this downcast, so we can do it as well
-      request = (Request) ((RequestImpl) request).clone();
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterSend(
+            @Advice.Return(readOnly = false) Future<Response> responseFuture,
+            @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation,
+            @Advice.Enter final ContextScope clientScope,
+            @Advice.This final Object thiz) {
+        CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+        if (thiz instanceof RedisConnection) {
+            final SocketAddress socketAddress = InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
+                    .get((RedisConnection) thiz);
+            final AgentSpan span = clientScope != null ? spanFromScope(clientScope) : activeSpan();
+            // Verify the activeSpan() fallback is actually a REDIS_COMMAND span
+            if (socketAddress != null && span != null && REDIS_COMMAND.equals(span.getOperationName())) {
+                DECORATE.onConnection(span, socketAddress);
+                DECORATE.setPeerPort(span, socketAddress.port());
+            }
+        }
+        if (clientScope != null) {
+            Promise<Response> promise = Promise.promise();
+            responseFuture.onComplete(new ResponseHandler(promise, spanFromScope(clientScope), parentContinuation));
+            responseFuture = promise.future();
+            clientScope.close();
+        }
     }
-    ctxt.put(request, Boolean.TRUE);
-
-    // Mark the request handled even when nested, so a later async re-send of the same
-    // Request (e.g. via a pooled connection) isn't mistaken for a brand-new command.
-    if (nested) {
-      return null;
-    }
-
-    AgentSpan parentSpan = activeSpan();
-
-    if (parentSpan != null && REDIS_COMMAND.equals(parentSpan.getOperationName())) {
-      // FIXME: this is not the best way to do it but in 4.5.0 there can be race conditions
-      return null;
-    }
-
-    parentContinuation =
-        null == parentSpan ? noopSpan().captureWithContext() : parentSpan.captureWithContext();
-
-    final AgentSpan clientSpan =
-        DECORATE.startAndDecorateSpan(
-            request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
-
-    return activateSpan(clientSpan);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterSend(
-      @Advice.Return(readOnly = false) Future<Response> responseFuture,
-      @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation,
-      @Advice.Enter final ContextScope clientScope,
-      @Advice.This final Object thiz) {
-    CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
-    if (thiz instanceof RedisConnection) {
-      final SocketAddress socketAddress =
-          InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
-              .get((RedisConnection) thiz);
-      final AgentSpan span = clientScope != null ? spanFromScope(clientScope) : activeSpan();
-      // Verify the activeSpan() fallback is actually a REDIS_COMMAND span
-      if (socketAddress != null && span != null && REDIS_COMMAND.equals(span.getOperationName())) {
-        DECORATE.onConnection(span, socketAddress);
-        DECORATE.setPeerPort(span, socketAddress.port());
-      }
-    }
-    if (clientScope != null) {
-      Promise<Response> promise = Promise.promise();
-      responseFuture.onComplete(
-          new ResponseHandler(promise, spanFromScope(clientScope), parentContinuation));
-      responseFuture = promise.future();
-      clientScope.close();
-    }
-  }
 }

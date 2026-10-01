@@ -16,35 +16,35 @@ import datadog.trace.agent.tooling.muzzle.Reference;
  */
 @AutoService(InstrumenterModule.class)
 public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SirdPathExtractorInstrumentation() {
-    super("play");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public SirdPathExtractorInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_25_ONLY;
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_25_ONLY;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "play.api.routing.sird.PathExtractor";
-  }
+    @Override
+    public String instrumentedType() {
+        return "play.api.routing.sird.PathExtractor";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        namedOneOf("extract", "play$api$routing$sird$PathExtractor$$extract")
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(named("scala.Option"))),
-        packageName + ".SirdPathExtractorExtractAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                namedOneOf("extract", "play$api$routing$sird$PathExtractor$$extract")
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, String.class))
+                        .and(returns(named("scala.Option"))),
+                packageName + ".SirdPathExtractorExtractAdvice");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
+        };
+    }
 }

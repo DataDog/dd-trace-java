@@ -30,88 +30,86 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastResultSetInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public IastResultSetInstrumentation() {
-    super("jdbc", "jdbc-resultset", "iast-resultset");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "java.sql.ResultSet";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("java.sql.ResultSet"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("next").and(takesArguments(0))),
-        IastResultSetInstrumentation.class.getName() + "$NextAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getString").or(named("getNString")))
-            .and(takesArguments(int.class).or(takesArguments(String.class))),
-        IastResultSetInstrumentation.class.getName() + "$GetParameterAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.sql.ResultSet", Integer.class.getName());
-  }
-
-  public static class NextAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.This final ResultSet resultSet) {
-      ContextStore<ResultSet, Integer> contextStore =
-          InstrumentationContext.get(ResultSet.class, Integer.class);
-      if (contextStore.get(resultSet) != null) {
-        contextStore.put(resultSet, contextStore.get(resultSet) + 1);
-      } else {
-        // first time
-        contextStore.put(resultSet, 1);
-      }
-    }
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class GetParameterAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
-      CallDepthThreadLocalMap.incrementCallDepth(ResultSet.class);
+    public IastResultSetInstrumentation() {
+        super("jdbc", "jdbc-resultset", "iast-resultset");
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.SQL_TABLE)
-    public static void onExit(
-        @Advice.Argument(0) Object argument,
-        @Advice.Return final String value,
-        @Advice.This final ResultSet resultSet,
-        @ActiveRequestContext RequestContext reqCtx) {
-      if (CallDepthThreadLocalMap.decrementCallDepth(ResultSet.class) > 0) {
-        return;
-      }
-      ContextStore<ResultSet, Integer> contextStore =
-          InstrumentationContext.get(ResultSet.class, Integer.class);
-      if (contextStore.get(resultSet) > Config.get().getIastDbRowsToTaint()) {
-        return;
-      }
-      if (value == null) {
-        return;
-      }
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module == null) {
-        return;
-      }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (argument instanceof String) {
-        module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
-      } else {
-        module.taintString(ctx, value, SourceTypes.SQL_TABLE);
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "java.sql.ResultSet";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named("java.sql.ResultSet"));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("next").and(takesArguments(0))),
+                IastResultSetInstrumentation.class.getName() + "$NextAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("getString").or(named("getNString")))
+                        .and(takesArguments(int.class).or(takesArguments(String.class))),
+                IastResultSetInstrumentation.class.getName() + "$GetParameterAdvice");
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.sql.ResultSet", Integer.class.getName());
+    }
+
+    public static class NextAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(@Advice.This final ResultSet resultSet) {
+            ContextStore<ResultSet, Integer> contextStore = InstrumentationContext.get(ResultSet.class, Integer.class);
+            if (contextStore.get(resultSet) != null) {
+                contextStore.put(resultSet, contextStore.get(resultSet) + 1);
+            } else {
+                // first time
+                contextStore.put(resultSet, 1);
+            }
+        }
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class GetParameterAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter() {
+            CallDepthThreadLocalMap.incrementCallDepth(ResultSet.class);
+        }
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.SQL_TABLE)
+        public static void onExit(
+                @Advice.Argument(0) Object argument,
+                @Advice.Return final String value,
+                @Advice.This final ResultSet resultSet,
+                @ActiveRequestContext RequestContext reqCtx) {
+            if (CallDepthThreadLocalMap.decrementCallDepth(ResultSet.class) > 0) {
+                return;
+            }
+            ContextStore<ResultSet, Integer> contextStore = InstrumentationContext.get(ResultSet.class, Integer.class);
+            if (contextStore.get(resultSet) > Config.get().getIastDbRowsToTaint()) {
+                return;
+            }
+            if (value == null) {
+                return;
+            }
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module == null) {
+                return;
+            }
+            IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+            if (argument instanceof String) {
+                module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
+            } else {
+                module.taintString(ctx, value, SourceTypes.SQL_TABLE);
+            }
+        }
+    }
 }

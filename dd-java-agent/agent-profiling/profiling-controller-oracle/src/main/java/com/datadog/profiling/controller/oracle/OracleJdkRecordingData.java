@@ -26,118 +26,116 @@ import javax.management.ObjectName;
 
 /** Implementation for profiling recordings. */
 public class OracleJdkRecordingData extends RecordingData {
-  private final ObjectName recordingId;
-  private final String name;
+    private final ObjectName recordingId;
+    private final String name;
 
-  private final JfrMBeanHelper helper;
+    private final JfrMBeanHelper helper;
 
-  OracleJdkRecordingData(
-      @Nonnull String name,
-      @Nonnull ObjectName recordingId,
-      @Nonnull Instant start,
-      @Nonnull Instant end,
-      @Nonnull Kind kind,
-      @Nonnull JfrMBeanHelper helper) {
-    super(start, end, kind);
-    this.name = name;
-    this.recordingId = recordingId;
-    this.helper = helper;
-  }
-
-  @Override
-  @Nonnull
-  public RecordingInputStream getStream() throws IOException {
-    return new RecordingInputStream(new JfrRecordingStream());
-  }
-
-  @Override
-  public void release() {
-    // noop
-  }
-
-  @Override
-  @Nonnull
-  public String getName() {
-    return name;
-  }
-
-  private class JfrRecordingStream extends InputStream {
-    private byte[] buf = new byte[0];
-    private int count = 0;
-    private int pos = 0;
-    private boolean closed = false;
-    private boolean endOfStream = false;
-
-    private long streamId = -1L;
-
-    @Override
-    public synchronized int read() throws IOException {
-      ensureOpen();
-      if (pos >= buf.length) {
-        if (closed || endOfStream) {
-          return -1;
-        }
-        fill();
-        if (endOfStream) {
-          return -1;
-        }
-      }
-      return buf[pos++] & 0xff;
-    }
-
-    private void ensureOpen() throws IOException {
-      if (closed) {
-        throw new IOException("Stream closed"); // $NON-NLS-1$
-      }
+    OracleJdkRecordingData(
+            @Nonnull String name,
+            @Nonnull ObjectName recordingId,
+            @Nonnull Instant start,
+            @Nonnull Instant end,
+            @Nonnull Kind kind,
+            @Nonnull JfrMBeanHelper helper) {
+        super(start, end, kind);
+        this.name = name;
+        this.recordingId = recordingId;
+        this.helper = helper;
     }
 
     @Override
-    public synchronized int available() throws IOException {
-      ensureOpen();
-      if (pos >= buf.length) {
-        if (closed || endOfStream) {
-          return -1;
-        }
-        fill();
-        if (endOfStream) {
-          return -1;
-        }
-      }
-      return count - pos;
+    @Nonnull
+    public RecordingInputStream getStream() throws IOException {
+        return new RecordingInputStream(new JfrRecordingStream());
     }
 
     @Override
-    public void close() throws IOException {
-      if (closed) {
-        return;
-      }
-      closed = true;
-      try {
-        if (streamId != -1) {
-          helper.closeStream(streamId);
-        }
-        helper.closeRecording(recordingId);
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
+    public void release() {
+        // noop
     }
 
-    private void fill() throws IOException {
-      if (streamId == -1L) {
-        streamId =
-            helper.openStream(
-                recordingId, new Date(start.toEpochMilli()), new Date(end.toEpochMilli()));
-      }
-      buf = helper.readStream(streamId);
-      if (buf != null) {
-        count += buf.length;
-        pos = 0;
-      } else {
-        pos = 0;
-        count = 0;
-        buf = new byte[0];
-        endOfStream = true;
-      }
+    @Override
+    @Nonnull
+    public String getName() {
+        return name;
     }
-  }
+
+    private class JfrRecordingStream extends InputStream {
+        private byte[] buf = new byte[0];
+        private int count = 0;
+        private int pos = 0;
+        private boolean closed = false;
+        private boolean endOfStream = false;
+
+        private long streamId = -1L;
+
+        @Override
+        public synchronized int read() throws IOException {
+            ensureOpen();
+            if (pos >= buf.length) {
+                if (closed || endOfStream) {
+                    return -1;
+                }
+                fill();
+                if (endOfStream) {
+                    return -1;
+                }
+            }
+            return buf[pos++] & 0xff;
+        }
+
+        private void ensureOpen() throws IOException {
+            if (closed) {
+                throw new IOException("Stream closed"); // $NON-NLS-1$
+            }
+        }
+
+        @Override
+        public synchronized int available() throws IOException {
+            ensureOpen();
+            if (pos >= buf.length) {
+                if (closed || endOfStream) {
+                    return -1;
+                }
+                fill();
+                if (endOfStream) {
+                    return -1;
+                }
+            }
+            return count - pos;
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            try {
+                if (streamId != -1) {
+                    helper.closeStream(streamId);
+                }
+                helper.closeRecording(recordingId);
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
+
+        private void fill() throws IOException {
+            if (streamId == -1L) {
+                streamId = helper.openStream(recordingId, new Date(start.toEpochMilli()), new Date(end.toEpochMilli()));
+            }
+            buf = helper.readStream(streamId);
+            if (buf != null) {
+                count += buf.length;
+                pos = 0;
+            } else {
+                pos = 0;
+                count = 0;
+                buf = new byte[0];
+                endOfStream = true;
+            }
+        }
+    }
 }

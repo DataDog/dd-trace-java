@@ -7,18 +7,18 @@ import org.junit.jupiter.api.Test;
 
 public class TestFailedBeforeEach {
 
-  @BeforeEach
-  public void setUp() {
-    throw new RuntimeException("testcase setup failed");
-  }
+    @BeforeEach
+    public void setUp() {
+        throw new RuntimeException("testcase setup failed");
+    }
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void another_test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void another_test_succeed() {
+        assertTrue(true);
+    }
 }

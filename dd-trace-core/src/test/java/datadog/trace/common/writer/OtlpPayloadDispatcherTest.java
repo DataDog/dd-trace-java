@@ -33,267 +33,268 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OtlpPayloadDispatcherTest {
-  @Mock OtlpSender sender;
+    @Mock
+    OtlpSender sender;
 
-  TestCollector collector = new TestCollector();
+    TestCollector collector = new TestCollector();
 
-  @BeforeEach
-  void stubSuccessfulSend() {
-    lenient().when(sender.send(any())).thenReturn(RemoteApi.Response.success(200));
-    OtlpTelemetry.getInstance().prepareMetrics();
-    OtlpTelemetry.getInstance().drain();
-  }
-
-  @Test
-  void sampledTraceForwardsAllSpans() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    List<CoreSpan<?>> trace = Arrays.asList(sampledSpan(), sampledSpan());
-
-    dispatcher.addTrace(trace);
-    assertEquals(collector.spansToExport, trace);
-    dispatcher.flush();
-
-    // expect two spans to be exported
-    ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
-    verify(sender).send(captor.capture());
-    assertEquals(2 /*spans*/, captor.getValue().getContentLength());
-  }
-
-  @Test
-  void droppedTraceWithoutSingleSpanSamplingForwardsNothing() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-
-    dispatcher.addTrace(Arrays.asList(droppedSpan(), droppedSpan()));
-    assertEquals(collector.spansToExport, emptyList());
-    dispatcher.flush();
-
-    verifyNoInteractions(sender);
-  }
-
-  @Test
-  void unsetPriorityTraceWithoutSingleSpanSamplingForwardsNothing() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-
-    dispatcher.addTrace(Arrays.asList(unsetSpan(), unsetSpan()));
-    assertEquals(collector.spansToExport, emptyList());
-    dispatcher.flush();
-
-    verifyNoInteractions(sender);
-  }
-
-  @Test
-  void droppedTraceWithSingleSpanSampledForwardsOnlyThoseSpans() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    CoreSpan<?> keep = singleSpanSampledSpan();
-    CoreSpan<?> drop1 = droppedSpan();
-    CoreSpan<?> drop2 = droppedSpan();
-
-    dispatcher.addTrace(Arrays.asList(drop1, keep, drop2));
-    assertEquals(collector.spansToExport, singletonList(keep));
-    dispatcher.flush();
-
-    // expect only one span to be exported
-    ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
-    verify(sender).send(captor.capture());
-    assertEquals(1 /*spans*/, captor.getValue().getContentLength());
-  }
-
-  @Test
-  void emptyTraceForwardsNothing() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-
-    dispatcher.addTrace(emptyList());
-    dispatcher.flush();
-
-    verifyNoInteractions(sender);
-  }
-
-  @Test
-  void largeTraceTriggersProactiveFlushWithoutExplicitFlush() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    collector.fakeSizeInBytes = Integer.MAX_VALUE;
-
-    dispatcher.addTrace(singletonList(sampledSpan()));
-
-    // no explicit dispatcher.flush() call
-    ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
-    verify(sender).send(captor.capture());
-    assertEquals(1 /*spans*/, captor.getValue().getContentLength());
-  }
-
-  @Test
-  void belowFlushThresholdDoesNotTriggerProactiveFlush() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    collector.fakeSizeInBytes = (5 << 20) - 1; // one byte under FLUSH_THRESHOLD_BYTES
-
-    dispatcher.addTrace(singletonList(sampledSpan()));
-
-    verifyNoInteractions(sender);
-  }
-
-  @Test
-  void atFlushThresholdTriggersProactiveFlush() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    collector.fakeSizeInBytes = 5 << 20; // exactly FLUSH_THRESHOLD_BYTES
-
-    dispatcher.addTrace(singletonList(sampledSpan()));
-
-    verify(sender).send(any(OtlpPayload.class));
-  }
-
-  @Test
-  void flushSwallowsCollectorFailureInsteadOfPropagating() {
-    // e.g. a held-back span pushes the payload over the buffer's hard cap only once
-    // collectTraces() finalizes it during a scheduled flush, not during addTrace()
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    dispatcher.addTrace(singletonList(sampledSpan()));
-    collector.throwOnCollect = true;
-
-    dispatcher.flush();
-
-    verifyNoInteractions(sender);
-  }
-
-  @Test
-  void dispatcherRemainsUsableAfterCollectorFailure() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    dispatcher.addTrace(singletonList(sampledSpan()));
-    collector.throwOnCollect = true;
-    dispatcher.flush();
-
-    collector.throwOnCollect = false;
-    dispatcher.addTrace(singletonList(sampledSpan()));
-    dispatcher.flush();
-
-    ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
-    verify(sender).send(captor.capture());
-    assertEquals(1 /*spans*/, captor.getValue().getContentLength());
-  }
-
-  @Test
-  void flushRecordsSuccessfulExportTelemetry() {
-    RemoteApi.Response response = RemoteApi.Response.success(200);
-    when(sender.send(any())).thenReturn(response);
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-
-    dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
-    dispatcher.flush();
-
-    Map<String, OtlpTelemetry.OtlpMetric> metrics = drainTracesTelemetry();
-    assertEquals(2, metrics.size());
-    assertEquals(1L, metrics.get("otel.traces_export_attempts").value);
-    assertEquals(1L, metrics.get("otel.traces_export_successes").value);
-  }
-
-  @Test
-  void flushRecordsFailedExportTelemetry() {
-    RemoteApi.Response response = RemoteApi.Response.failed(500);
-    when(sender.send(any())).thenReturn(response);
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-
-    dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
-    dispatcher.flush();
-
-    Map<String, OtlpTelemetry.OtlpMetric> metrics = drainTracesTelemetry();
-    assertEquals(2, metrics.size());
-    assertEquals(1L, metrics.get("otel.traces_export_attempts").value);
-    assertEquals(1L, metrics.get("otel.traces_export_failures").value);
-  }
-
-  private static Map<String, OtlpTelemetry.OtlpMetric> drainTracesTelemetry() {
-    Map<String, OtlpTelemetry.OtlpMetric> byName = new HashMap<>();
-    OtlpTelemetry.getInstance().prepareMetrics();
-    for (OtlpTelemetry.OtlpMetric metric : OtlpTelemetry.getInstance().drain()) {
-      byName.put(metric.metricName, metric);
+    @BeforeEach
+    void stubSuccessfulSend() {
+        lenient().when(sender.send(any())).thenReturn(RemoteApi.Response.success(200));
+        OtlpTelemetry.getInstance().prepareMetrics();
+        OtlpTelemetry.getInstance().drain();
     }
-    return byName;
-  }
 
-  @Test
-  void getApisIsEmpty() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+    @Test
+    void sampledTraceForwardsAllSpans() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        List<CoreSpan<?>> trace = Arrays.asList(sampledSpan(), sampledSpan());
 
-    assertTrue(dispatcher.getApis().isEmpty());
-  }
+        dispatcher.addTrace(trace);
+        assertEquals(collector.spansToExport, trace);
+        dispatcher.flush();
 
-  @Test
-  void onDroppedTraceDoesNothing() {
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        // expect two spans to be exported
+        ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
+        verify(sender).send(captor.capture());
+        assertEquals(2 /*spans*/, captor.getValue().getContentLength());
+    }
 
-    dispatcher.onDroppedTrace(5);
-    dispatcher.flush();
+    @Test
+    void droppedTraceWithoutSingleSpanSamplingForwardsNothing() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
-    verifyNoInteractions(sender);
-  }
+        dispatcher.addTrace(Arrays.asList(droppedSpan(), droppedSpan()));
+        assertEquals(collector.spansToExport, emptyList());
+        dispatcher.flush();
 
-  private static CoreSpan<?> sampledSpan() {
-    CoreSpan<?> span = mock(CoreSpan.class);
-    when(span.samplingPriority()).thenReturn(1);
-    return span;
-  }
+        verifyNoInteractions(sender);
+    }
 
-  private static CoreSpan<?> droppedSpan() {
-    CoreSpan<?> span = mock(CoreSpan.class);
-    when(span.samplingPriority()).thenReturn(0);
-    when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(null);
-    return span;
-  }
+    @Test
+    void unsetPriorityTraceWithoutSingleSpanSamplingForwardsNothing() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
-  private static CoreSpan<?> singleSpanSampledSpan() {
-    CoreSpan<?> span = mock(CoreSpan.class);
-    when(span.samplingPriority()).thenReturn(0);
-    when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(8);
-    return span;
-  }
+        dispatcher.addTrace(Arrays.asList(unsetSpan(), unsetSpan()));
+        assertEquals(collector.spansToExport, emptyList());
+        dispatcher.flush();
 
-  private static CoreSpan<?> unsetSpan() {
-    CoreSpan<?> span = mock(CoreSpan.class);
-    when(span.samplingPriority()).thenReturn((int) PrioritySampling.UNSET);
-    when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(null);
-    return span;
-  }
+        verifyNoInteractions(sender);
+    }
 
-  /** Test collector that creates payloads whose size equals the number of exported spans. */
-  private static class TestCollector extends OtlpTraceCollector {
-    final List<CoreSpan<?>> spansToExport = new ArrayList<>();
+    @Test
+    void droppedTraceWithSingleSpanSampledForwardsOnlyThoseSpans() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        CoreSpan<?> keep = singleSpanSampledSpan();
+        CoreSpan<?> drop1 = droppedSpan();
+        CoreSpan<?> drop2 = droppedSpan();
 
-    // lets tests drive the proactive-flush threshold independently of spansToExport
-    int fakeSizeInBytes;
+        dispatcher.addTrace(Arrays.asList(drop1, keep, drop2));
+        assertEquals(collector.spansToExport, singletonList(keep));
+        dispatcher.flush();
 
-    // lets tests simulate a collectTraces() failure, e.g. a buffer overflow on the held-back span
-    boolean throwOnCollect;
+        // expect only one span to be exported
+        ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
+        verify(sender).send(captor.capture());
+        assertEquals(1 /*spans*/, captor.getValue().getContentLength());
+    }
 
-    @Override
-    public void addTrace(List<? extends CoreSpan<?>> spans) {
-      for (CoreSpan<?> span : spans) {
-        if (shouldExport(span)) {
-          spansToExport.add(span);
+    @Test
+    void emptyTraceForwardsNothing() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+        dispatcher.addTrace(emptyList());
+        dispatcher.flush();
+
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void largeTraceTriggersProactiveFlushWithoutExplicitFlush() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        collector.fakeSizeInBytes = Integer.MAX_VALUE;
+
+        dispatcher.addTrace(singletonList(sampledSpan()));
+
+        // no explicit dispatcher.flush() call
+        ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
+        verify(sender).send(captor.capture());
+        assertEquals(1 /*spans*/, captor.getValue().getContentLength());
+    }
+
+    @Test
+    void belowFlushThresholdDoesNotTriggerProactiveFlush() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        collector.fakeSizeInBytes = (5 << 20) - 1; // one byte under FLUSH_THRESHOLD_BYTES
+
+        dispatcher.addTrace(singletonList(sampledSpan()));
+
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void atFlushThresholdTriggersProactiveFlush() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        collector.fakeSizeInBytes = 5 << 20; // exactly FLUSH_THRESHOLD_BYTES
+
+        dispatcher.addTrace(singletonList(sampledSpan()));
+
+        verify(sender).send(any(OtlpPayload.class));
+    }
+
+    @Test
+    void flushSwallowsCollectorFailureInsteadOfPropagating() {
+        // e.g. a held-back span pushes the payload over the buffer's hard cap only once
+        // collectTraces() finalizes it during a scheduled flush, not during addTrace()
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        dispatcher.addTrace(singletonList(sampledSpan()));
+        collector.throwOnCollect = true;
+
+        dispatcher.flush();
+
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void dispatcherRemainsUsableAfterCollectorFailure() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+        dispatcher.addTrace(singletonList(sampledSpan()));
+        collector.throwOnCollect = true;
+        dispatcher.flush();
+
+        collector.throwOnCollect = false;
+        dispatcher.addTrace(singletonList(sampledSpan()));
+        dispatcher.flush();
+
+        ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
+        verify(sender).send(captor.capture());
+        assertEquals(1 /*spans*/, captor.getValue().getContentLength());
+    }
+
+    @Test
+    void flushRecordsSuccessfulExportTelemetry() {
+        RemoteApi.Response response = RemoteApi.Response.success(200);
+        when(sender.send(any())).thenReturn(response);
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+        dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
+        dispatcher.flush();
+
+        Map<String, OtlpTelemetry.OtlpMetric> metrics = drainTracesTelemetry();
+        assertEquals(2, metrics.size());
+        assertEquals(1L, metrics.get("otel.traces_export_attempts").value);
+        assertEquals(1L, metrics.get("otel.traces_export_successes").value);
+    }
+
+    @Test
+    void flushRecordsFailedExportTelemetry() {
+        RemoteApi.Response response = RemoteApi.Response.failed(500);
+        when(sender.send(any())).thenReturn(response);
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+        dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
+        dispatcher.flush();
+
+        Map<String, OtlpTelemetry.OtlpMetric> metrics = drainTracesTelemetry();
+        assertEquals(2, metrics.size());
+        assertEquals(1L, metrics.get("otel.traces_export_attempts").value);
+        assertEquals(1L, metrics.get("otel.traces_export_failures").value);
+    }
+
+    private static Map<String, OtlpTelemetry.OtlpMetric> drainTracesTelemetry() {
+        Map<String, OtlpTelemetry.OtlpMetric> byName = new HashMap<>();
+        OtlpTelemetry.getInstance().prepareMetrics();
+        for (OtlpTelemetry.OtlpMetric metric : OtlpTelemetry.getInstance().drain()) {
+            byName.put(metric.metricName, metric);
         }
-      }
+        return byName;
     }
 
-    @Override
-    public OtlpPayload collectTraces() {
-      if (throwOnCollect) {
-        // mirrors the real collectors, which always reset state via a finally block
-        spansToExport.clear();
-        throw new IllegalStateException("simulated buffer overflow");
-      }
-      if (spansToExport.isEmpty()) {
-        return OtlpPayload.EMPTY;
-      }
-      try {
-        // number of bytes returned represents the number of exported spans
-        int contentLength = spansToExport.size();
-        return new OtlpPayload(ByteBuffer.allocate(contentLength), "application/octet-stream");
-      } finally {
-        spansToExport.clear();
-      }
+    @Test
+    void getApisIsEmpty() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+        assertTrue(dispatcher.getApis().isEmpty());
     }
 
-    @Override
-    public int sizeInBytes() {
-      return fakeSizeInBytes;
+    @Test
+    void onDroppedTraceDoesNothing() {
+        OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+        dispatcher.onDroppedTrace(5);
+        dispatcher.flush();
+
+        verifyNoInteractions(sender);
     }
-  }
+
+    private static CoreSpan<?> sampledSpan() {
+        CoreSpan<?> span = mock(CoreSpan.class);
+        when(span.samplingPriority()).thenReturn(1);
+        return span;
+    }
+
+    private static CoreSpan<?> droppedSpan() {
+        CoreSpan<?> span = mock(CoreSpan.class);
+        when(span.samplingPriority()).thenReturn(0);
+        when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(null);
+        return span;
+    }
+
+    private static CoreSpan<?> singleSpanSampledSpan() {
+        CoreSpan<?> span = mock(CoreSpan.class);
+        when(span.samplingPriority()).thenReturn(0);
+        when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(8);
+        return span;
+    }
+
+    private static CoreSpan<?> unsetSpan() {
+        CoreSpan<?> span = mock(CoreSpan.class);
+        when(span.samplingPriority()).thenReturn((int) PrioritySampling.UNSET);
+        when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(null);
+        return span;
+    }
+
+    /** Test collector that creates payloads whose size equals the number of exported spans. */
+    private static class TestCollector extends OtlpTraceCollector {
+        final List<CoreSpan<?>> spansToExport = new ArrayList<>();
+
+        // lets tests drive the proactive-flush threshold independently of spansToExport
+        int fakeSizeInBytes;
+
+        // lets tests simulate a collectTraces() failure, e.g. a buffer overflow on the held-back span
+        boolean throwOnCollect;
+
+        @Override
+        public void addTrace(List<? extends CoreSpan<?>> spans) {
+            for (CoreSpan<?> span : spans) {
+                if (shouldExport(span)) {
+                    spansToExport.add(span);
+                }
+            }
+        }
+
+        @Override
+        public OtlpPayload collectTraces() {
+            if (throwOnCollect) {
+                // mirrors the real collectors, which always reset state via a finally block
+                spansToExport.clear();
+                throw new IllegalStateException("simulated buffer overflow");
+            }
+            if (spansToExport.isEmpty()) {
+                return OtlpPayload.EMPTY;
+            }
+            try {
+                // number of bytes returned represents the number of exported spans
+                int contentLength = spansToExport.size();
+                return new OtlpPayload(ByteBuffer.allocate(contentLength), "application/octet-stream");
+            } finally {
+                spansToExport.clear();
+            }
+        }
+
+        @Override
+        public int sizeInBytes() {
+            return fakeSizeInBytes;
+        }
+    }
 }

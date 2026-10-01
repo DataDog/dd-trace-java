@@ -9,11 +9,11 @@ import javax.annotation.Nullable;
 
 public abstract class FormattingAdapter<V> extends JsonAdapter<V> {
 
-  @FromJson
-  @Nullable
-  @Override
-  public final V fromJson(@Nonnull final JsonReader reader) throws IOException {
-    throw new UnsupportedOperationException(
-        "Deserialization is not supported at " + getClass().getName());
-  }
+    @FromJson
+    @Nullable
+    @Override
+    public final V fromJson(@Nonnull final JsonReader reader) throws IOException {
+        throw new UnsupportedOperationException(
+                "Deserialization is not supported at " + getClass().getName());
+    }
 }

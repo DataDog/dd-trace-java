@@ -13,43 +13,42 @@ import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
 public class RequestDispatcherDecorator extends BaseDecorator {
-  public static final RequestDispatcherDecorator DECORATE = new RequestDispatcherDecorator();
-  public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
-      UTF8BytesString.create("java-web-servlet-dispatcher");
-  public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
-  public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
+    public static final RequestDispatcherDecorator DECORATE = new RequestDispatcherDecorator();
+    public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
+            UTF8BytesString.create("java-web-servlet-dispatcher");
+    public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
+    public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"servlet", "servlet-dispatcher"};
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return null;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return JAVA_WEB_SERVLET_DISPATCHER;
-  }
-
-  @Override
-  protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
-    if (throwable instanceof ServletException && throwable.getCause() != null) {
-      super.doOnError(span, throwable.getCause(), errorPriority);
-    } else {
-      super.doOnError(span, throwable, errorPriority);
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"servlet", "servlet-dispatcher"};
     }
-  }
 
-  public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {
-    // Add additional default DSM context for HTTP clients if missing but DSM is enabled
-    if (traceConfig().isDataStreamsEnabled()) {
-      context = context.with(DataStreamsContext.forHttpClient());
+    @Override
+    protected CharSequence spanType() {
+        return null;
     }
-    // Inject context into carrier
-    defaultPropagator().inject(context, request, setter);
-  }
+
+    @Override
+    protected CharSequence component() {
+        return JAVA_WEB_SERVLET_DISPATCHER;
+    }
+
+    @Override
+    protected void doOnError(@Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+        if (throwable instanceof ServletException && throwable.getCause() != null) {
+            super.doOnError(span, throwable.getCause(), errorPriority);
+        } else {
+            super.doOnError(span, throwable, errorPriority);
+        }
+    }
+
+    public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {
+        // Add additional default DSM context for HTTP clients if missing but DSM is enabled
+        if (traceConfig().isDataStreamsEnabled()) {
+            context = context.with(DataStreamsContext.forHttpClient());
+        }
+        // Inject context into carrier
+        defaultPropagator().inject(context, request, setter);
+    }
 }

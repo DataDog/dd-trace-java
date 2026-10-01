@@ -21,123 +21,123 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 class IsDefinedExpressionTest {
-  private final EvalContext evalContext = createEvalContext(this);
+    private final EvalContext evalContext = createEvalContext(this);
 
-  @Test
-  void testNullValue() {
-    IsDefinedExpression expression = new IsDefinedExpression(null);
-    assertFalse(expression.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(expression));
-    expression = new IsDefinedExpression(DSL.value(Values.NULL_OBJECT));
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(expression));
-    expression = new IsDefinedExpression(DSL.value(Value.nullValue()));
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(com.datadog.debugger.el.values.NullValue)", print(expression));
-  }
+    @Test
+    void testNullValue() {
+        IsDefinedExpression expression = new IsDefinedExpression(null);
+        assertFalse(expression.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(expression));
+        expression = new IsDefinedExpression(DSL.value(Values.NULL_OBJECT));
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(expression));
+        expression = new IsDefinedExpression(DSL.value(Value.nullValue()));
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(com.datadog.debugger.el.values.NullValue)", print(expression));
+    }
 
-  @Test
-  void testUndefinedValue() {
-    IsDefinedExpression expression = new IsDefinedExpression(DSL.value(Values.UNDEFINED_OBJECT));
-    assertFalse(expression.evaluate(evalContext));
-    assertEquals("isDefined(UNDEFINED)", print(expression));
-    expression = new IsDefinedExpression(DSL.ref("undefinedvar"));
-    assertFalse(expression.evaluate(evalContext));
-  }
+    @Test
+    void testUndefinedValue() {
+        IsDefinedExpression expression = new IsDefinedExpression(DSL.value(Values.UNDEFINED_OBJECT));
+        assertFalse(expression.evaluate(evalContext));
+        assertEquals("isDefined(UNDEFINED)", print(expression));
+        expression = new IsDefinedExpression(DSL.ref("undefinedvar"));
+        assertFalse(expression.evaluate(evalContext));
+    }
 
-  @Test
-  void testNumericLiteral() {
-    NumericValue zero = new NumericValue(0, ValueType.INT);
-    NumericValue one = new NumericValue(1, ValueType.INT);
-    NumericValue none = new NumericValue(null, ValueType.OBJECT);
+    @Test
+    void testNumericLiteral() {
+        NumericValue zero = new NumericValue(0, ValueType.INT);
+        NumericValue one = new NumericValue(1, ValueType.INT);
+        NumericValue none = new NumericValue(null, ValueType.OBJECT);
 
-    IsDefinedExpression expression = new IsDefinedExpression(zero);
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(0)", print(expression));
-    expression = new IsDefinedExpression(one);
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(1)", print(expression));
-    expression = new IsDefinedExpression(none);
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(expression));
-  }
+        IsDefinedExpression expression = new IsDefinedExpression(zero);
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(0)", print(expression));
+        expression = new IsDefinedExpression(one);
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(1)", print(expression));
+        expression = new IsDefinedExpression(none);
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(expression));
+    }
 
-  @Test
-  void testBooleanLiteral() {
-    BooleanValue yes = BooleanValue.TRUE;
-    BooleanValue no = BooleanValue.FALSE;
-    BooleanValue none = new BooleanValue(null, ValueType.OBJECT);
+    @Test
+    void testBooleanLiteral() {
+        BooleanValue yes = BooleanValue.TRUE;
+        BooleanValue no = BooleanValue.FALSE;
+        BooleanValue none = new BooleanValue(null, ValueType.OBJECT);
 
-    IsDefinedExpression expression = new IsDefinedExpression(yes);
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(true)", print(expression));
-    expression = new IsDefinedExpression(no);
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(false)", print(expression));
-    expression = new IsDefinedExpression(none);
-    assertTrue(expression.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(expression));
-  }
+        IsDefinedExpression expression = new IsDefinedExpression(yes);
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(true)", print(expression));
+        expression = new IsDefinedExpression(no);
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(false)", print(expression));
+        expression = new IsDefinedExpression(none);
+        assertTrue(expression.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(expression));
+    }
 
-  @Test
-  void testStringLiteral() {
-    StringValue string = new StringValue("Hello World");
-    StringValue emptyString = new StringValue("");
-    StringValue nullString = new StringValue(null);
+    @Test
+    void testStringLiteral() {
+        StringValue string = new StringValue("Hello World");
+        StringValue emptyString = new StringValue("");
+        StringValue nullString = new StringValue(null);
 
-    IsDefinedExpression isDefined1 = new IsDefinedExpression(string);
-    IsDefinedExpression isDefined2 = new IsDefinedExpression(emptyString);
-    IsDefinedExpression isDefined3 = new IsDefinedExpression(nullString);
+        IsDefinedExpression isDefined1 = new IsDefinedExpression(string);
+        IsDefinedExpression isDefined2 = new IsDefinedExpression(emptyString);
+        IsDefinedExpression isDefined3 = new IsDefinedExpression(nullString);
 
-    assertTrue(isDefined1.evaluate(evalContext));
-    assertEquals("isDefined(\"Hello World\")", print(isDefined1));
-    assertTrue(isDefined2.evaluate(evalContext));
-    assertEquals("isDefined(\"\")", print(isDefined2));
-    assertTrue(isDefined3.evaluate(evalContext));
-    assertEquals("isDefined(\"null\")", print(isDefined3));
-  }
+        assertTrue(isDefined1.evaluate(evalContext));
+        assertEquals("isDefined(\"Hello World\")", print(isDefined1));
+        assertTrue(isDefined2.evaluate(evalContext));
+        assertEquals("isDefined(\"\")", print(isDefined2));
+        assertTrue(isDefined3.evaluate(evalContext));
+        assertEquals("isDefined(\"null\")", print(isDefined3));
+    }
 
-  @Test
-  void testListValue() {
-    ListValue list = new ListValue(Arrays.asList("a", "b"));
-    ListValue emptyList = new ListValue(Collections.emptyList());
-    ListValue nullList = new ListValue(null);
-    ListValue undefinedList = new ListValue(Values.UNDEFINED_OBJECT);
+    @Test
+    void testListValue() {
+        ListValue list = new ListValue(Arrays.asList("a", "b"));
+        ListValue emptyList = new ListValue(Collections.emptyList());
+        ListValue nullList = new ListValue(null);
+        ListValue undefinedList = new ListValue(Values.UNDEFINED_OBJECT);
 
-    IsDefinedExpression isDefined1 = new IsDefinedExpression(list);
-    IsDefinedExpression isDefined2 = new IsDefinedExpression(emptyList);
-    IsDefinedExpression isDefined3 = new IsDefinedExpression(nullList);
-    IsDefinedExpression isDefined4 = new IsDefinedExpression(undefinedList);
+        IsDefinedExpression isDefined1 = new IsDefinedExpression(list);
+        IsDefinedExpression isDefined2 = new IsDefinedExpression(emptyList);
+        IsDefinedExpression isDefined3 = new IsDefinedExpression(nullList);
+        IsDefinedExpression isDefined4 = new IsDefinedExpression(undefinedList);
 
-    assertTrue(isDefined1.evaluate(evalContext));
-    assertEquals("isDefined(List)", print(isDefined1));
-    assertTrue(isDefined2.evaluate(evalContext));
-    assertEquals("isDefined(List)", print(isDefined2));
-    assertTrue(isDefined3.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(isDefined3));
-    assertFalse(isDefined4.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(isDefined4));
-  }
+        assertTrue(isDefined1.evaluate(evalContext));
+        assertEquals("isDefined(List)", print(isDefined1));
+        assertTrue(isDefined2.evaluate(evalContext));
+        assertEquals("isDefined(List)", print(isDefined2));
+        assertTrue(isDefined3.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(isDefined3));
+        assertFalse(isDefined4.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(isDefined4));
+    }
 
-  @Test
-  void testMapValue() {
-    MapValue map = new MapValue(Collections.singletonMap("a", "b"));
-    MapValue emptyMap = new MapValue(Collections.emptyMap());
-    MapValue nullMao = new MapValue(null);
-    MapValue undefinedMap = new MapValue(Values.UNDEFINED_OBJECT);
+    @Test
+    void testMapValue() {
+        MapValue map = new MapValue(Collections.singletonMap("a", "b"));
+        MapValue emptyMap = new MapValue(Collections.emptyMap());
+        MapValue nullMao = new MapValue(null);
+        MapValue undefinedMap = new MapValue(Values.UNDEFINED_OBJECT);
 
-    IsDefinedExpression isDefined1 = new IsDefinedExpression(map);
-    IsDefinedExpression isDefined2 = new IsDefinedExpression(emptyMap);
-    IsDefinedExpression isDefined3 = new IsDefinedExpression(nullMao);
-    IsDefinedExpression isDefined4 = new IsDefinedExpression(undefinedMap);
+        IsDefinedExpression isDefined1 = new IsDefinedExpression(map);
+        IsDefinedExpression isDefined2 = new IsDefinedExpression(emptyMap);
+        IsDefinedExpression isDefined3 = new IsDefinedExpression(nullMao);
+        IsDefinedExpression isDefined4 = new IsDefinedExpression(undefinedMap);
 
-    assertTrue(isDefined1.evaluate(evalContext));
-    assertEquals("isDefined(Map)", print(isDefined1));
-    assertTrue(isDefined2.evaluate(evalContext));
-    assertEquals("isDefined(Map)", print(isDefined2));
-    assertTrue(isDefined3.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(isDefined3));
-    assertFalse(isDefined4.evaluate(evalContext));
-    assertEquals("isDefined(null)", print(isDefined4));
-  }
+        assertTrue(isDefined1.evaluate(evalContext));
+        assertEquals("isDefined(Map)", print(isDefined1));
+        assertTrue(isDefined2.evaluate(evalContext));
+        assertEquals("isDefined(Map)", print(isDefined2));
+        assertTrue(isDefined3.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(isDefined3));
+        assertFalse(isDefined4.evaluate(evalContext));
+        assertEquals("isDefined(null)", print(isDefined4));
+    }
 }

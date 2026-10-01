@@ -9,17 +9,15 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.eclipse.jetty.client.Request;
 
 public class WrapListenerAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void methodEnter(
-      @Advice.This Request request,
-      @Advice.Argument(value = 0, readOnly = false, typing = Assigner.Typing.DYNAMIC)
-          Object listener) {
-    if (!(listener instanceof CallbackWrapper)) {
-      listener =
-          new CallbackWrapper(
-              activeSpan(),
-              InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-              listener);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(
+            @Advice.This Request request,
+            @Advice.Argument(value = 0, readOnly = false, typing = Assigner.Typing.DYNAMIC) Object listener) {
+        if (!(listener instanceof CallbackWrapper)) {
+            listener = new CallbackWrapper(
+                    activeSpan(),
+                    InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+                    listener);
+        }
     }
-  }
 }

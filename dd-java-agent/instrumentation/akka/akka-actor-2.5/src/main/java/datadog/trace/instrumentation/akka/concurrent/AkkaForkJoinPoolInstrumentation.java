@@ -20,51 +20,48 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType,
-        Instrumenter.ForConfiguredType,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.ForConfiguredType, Instrumenter.HasMethodAdvice {
 
-  public AkkaForkJoinPoolInstrumentation() {
-    super("java_concurrent", "akka_concurrent");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.dispatch.forkjoin.ForkJoinPool";
-  }
-
-  @Override
-  public String configuredMatchingType() {
-    return InstrumenterConfig.get().getAkkaForkJoinPoolName();
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(namedOneOf("externalPush", "fullExternalPush")),
-        getClass().getName() + "$ExternalPush");
-  }
-
-  public static final class ExternalPush {
-
-    @Advice.OnMethodEnter
-    public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
-      if (!exclude(FORK_JOIN_TASK, task)) {
-        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-      }
+    public AkkaForkJoinPoolInstrumentation() {
+        super("java_concurrent", "akka_concurrent");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static <T> void cleanup(
-        @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
-      if (null != thrown) {
-        cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-      }
+    @Override
+    public String instrumentedType() {
+        return "akka.dispatch.forkjoin.ForkJoinPool";
     }
-  }
+
+    @Override
+    public String configuredMatchingType() {
+        return InstrumenterConfig.get().getAkkaForkJoinPoolName();
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(namedOneOf("externalPush", "fullExternalPush")),
+                getClass().getName() + "$ExternalPush");
+    }
+
+    public static final class ExternalPush {
+
+        @Advice.OnMethodEnter
+        public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
+            if (!exclude(FORK_JOIN_TASK, task)) {
+                capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static <T> void cleanup(@Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+            if (null != thrown) {
+                cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+            }
+        }
+    }
 }

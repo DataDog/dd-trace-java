@@ -15,245 +15,233 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
-public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
-    implements RumControllableResponse {
-  private final RumInjector rumInjector;
-  private final String servletVersion;
-  private WrappedServletOutputStream outputStream;
-  private PrintWriter printWriter;
-  private InjectingPipeWriter wrappedPipeWriter;
-  private boolean shouldInject = true;
-  private String contentEncoding = null;
+public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper implements RumControllableResponse {
+    private final RumInjector rumInjector;
+    private final String servletVersion;
+    private WrappedServletOutputStream outputStream;
+    private PrintWriter printWriter;
+    private InjectingPipeWriter wrappedPipeWriter;
+    private boolean shouldInject = true;
+    private String contentEncoding = null;
 
-  private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
+    private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
 
-  private static MethodHandle getMh(final String name) {
-    try {
-      return new MethodHandles(ServletResponse.class.getClassLoader())
-          .method(ServletResponse.class, name);
-    } catch (Throwable ignored) {
-      return null;
-    }
-  }
-
-  private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
-    throw (E) e;
-  }
-
-  public RumHttpServletResponseWrapper(HttpServletRequest request, HttpServletResponse response) {
-    super(response);
-    this.rumInjector = RumInjector.get();
-
-    String version = "3";
-    ServletContext servletContext = request.getServletContext();
-    if (servletContext != null) {
-      try {
-        version = String.valueOf(servletContext.getEffectiveMajorVersion());
-      } catch (Exception e) {
-      }
-    }
-    this.servletVersion = version;
-  }
-
-  @Override
-  public ServletOutputStream getOutputStream() throws IOException {
-    if (outputStream != null) {
-      return outputStream;
-    }
-    if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
-      return super.getOutputStream();
-    }
-    try {
-      String encoding = getCharacterEncoding();
-      if (encoding == null) {
-        encoding = Charset.defaultCharset().name();
-      }
-      outputStream =
-          new WrappedServletOutputStream(
-              super.getOutputStream(),
-              rumInjector.getMarkerBytes(encoding),
-              rumInjector.getSnippetBytes(encoding),
-              this::onInjected,
-              bytes ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes),
-              milliseconds ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionTime(servletVersion, milliseconds));
-    } catch (Exception e) {
-      RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
-      throw e;
+    private static MethodHandle getMh(final String name) {
+        try {
+            return new MethodHandles(ServletResponse.class.getClassLoader()).method(ServletResponse.class, name);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
-    return outputStream;
-  }
-
-  @Override
-  public PrintWriter getWriter() throws IOException {
-    if (printWriter != null) {
-      return printWriter;
-    }
-    if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
-      return super.getWriter();
-    }
-    try {
-      wrappedPipeWriter =
-          new InjectingPipeWriter(
-              super.getWriter(),
-              rumInjector.getMarkerChars(),
-              rumInjector.getSnippetChars(),
-              this::onInjected,
-              bytes ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes),
-              milliseconds ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionTime(servletVersion, milliseconds));
-      printWriter = new PrintWriter(wrappedPipeWriter);
-    } catch (Exception e) {
-      RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
-      throw e;
+    private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+        throw (E) e;
     }
 
-    return printWriter;
-  }
+    public RumHttpServletResponseWrapper(HttpServletRequest request, HttpServletResponse response) {
+        super(response);
+        this.rumInjector = RumInjector.get();
 
-  @Override
-  public void setHeader(String name, String value) {
-    if (shouldInject) {
-      if (isContentLengthHeader(name)) {
-        return;
-      }
-      checkForContentType(name, value);
-      checkForContentSecurityPolicy(name);
+        String version = "3";
+        ServletContext servletContext = request.getServletContext();
+        if (servletContext != null) {
+            try {
+                version = String.valueOf(servletContext.getEffectiveMajorVersion());
+            } catch (Exception e) {
+            }
+        }
+        this.servletVersion = version;
     }
-    super.setHeader(name, value);
-  }
 
-  @Override
-  public void addHeader(String name, String value) {
-    if (shouldInject) {
-      if (isContentLengthHeader(name)) {
-        return;
-      }
-      checkForContentType(name, value);
-      checkForContentSecurityPolicy(name);
+    @Override
+    public ServletOutputStream getOutputStream() throws IOException {
+        if (outputStream != null) {
+            return outputStream;
+        }
+        if (!shouldInject) {
+            RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
+            return super.getOutputStream();
+        }
+        try {
+            String encoding = getCharacterEncoding();
+            if (encoding == null) {
+                encoding = Charset.defaultCharset().name();
+            }
+            outputStream = new WrappedServletOutputStream(
+                    super.getOutputStream(),
+                    rumInjector.getMarkerBytes(encoding),
+                    rumInjector.getSnippetBytes(encoding),
+                    this::onInjected,
+                    bytes -> RumInjector.getTelemetryCollector().onInjectionResponseSize(servletVersion, bytes),
+                    milliseconds -> RumInjector.getTelemetryCollector().onInjectionTime(servletVersion, milliseconds));
+        } catch (Exception e) {
+            RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
+            throw e;
+        }
+
+        return outputStream;
     }
-    super.addHeader(name, value);
-  }
 
-  private boolean isContentLengthHeader(String name) {
-    return "content-length".equalsIgnoreCase(name);
-  }
+    @Override
+    public PrintWriter getWriter() throws IOException {
+        if (printWriter != null) {
+            return printWriter;
+        }
+        if (!shouldInject) {
+            RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
+            return super.getWriter();
+        }
+        try {
+            wrappedPipeWriter = new InjectingPipeWriter(
+                    super.getWriter(),
+                    rumInjector.getMarkerChars(),
+                    rumInjector.getSnippetChars(),
+                    this::onInjected,
+                    bytes -> RumInjector.getTelemetryCollector().onInjectionResponseSize(servletVersion, bytes),
+                    milliseconds -> RumInjector.getTelemetryCollector().onInjectionTime(servletVersion, milliseconds));
+            printWriter = new PrintWriter(wrappedPipeWriter);
+        } catch (Exception e) {
+            RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
+            throw e;
+        }
 
-  private void checkForContentSecurityPolicy(String name) {
-    if ("content-security-policy".equalsIgnoreCase(name)) {
-      RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
+        return printWriter;
     }
-  }
 
-  @Override
-  public void setContentLength(int len) {
-    // don't set it since we don't know if we will inject
-    if (!shouldInject) {
-      super.setContentLength(len);
+    @Override
+    public void setHeader(String name, String value) {
+        if (shouldInject) {
+            if (isContentLengthHeader(name)) {
+                return;
+            }
+            checkForContentType(name, value);
+            checkForContentSecurityPolicy(name);
+        }
+        super.setHeader(name, value);
     }
-  }
 
-  @Override
-  public void setContentLengthLong(long len) {
-    if (!shouldInject && SET_CONTENT_LENGTH_LONG != null) {
-      try {
-        SET_CONTENT_LENGTH_LONG.invoke(getResponse(), len);
-      } catch (Throwable t) {
-        sneakyThrow(t);
-      }
+    @Override
+    public void addHeader(String name, String value) {
+        if (shouldInject) {
+            if (isContentLengthHeader(name)) {
+                return;
+            }
+            checkForContentType(name, value);
+            checkForContentSecurityPolicy(name);
+        }
+        super.addHeader(name, value);
     }
-  }
 
-  @Override
-  public void setCharacterEncoding(String charset) {
-    if (charset != null) {
-      this.contentEncoding = charset;
+    private boolean isContentLengthHeader(String name) {
+        return "content-length".equalsIgnoreCase(name);
     }
-    super.setCharacterEncoding(charset);
-  }
 
-  @Override
-  public void reset() {
-    this.outputStream = null;
-    this.wrappedPipeWriter = null;
-    this.printWriter = null;
-    this.shouldInject = false;
-    super.reset();
-  }
+    private void checkForContentSecurityPolicy(String name) {
+        if ("content-security-policy".equalsIgnoreCase(name)) {
+            RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
+        }
+    }
 
-  @Override
-  public void resetBuffer() {
-    this.outputStream = null;
-    this.wrappedPipeWriter = null;
-    this.printWriter = null;
-    super.resetBuffer();
-  }
+    @Override
+    public void setContentLength(int len) {
+        // don't set it since we don't know if we will inject
+        if (!shouldInject) {
+            super.setContentLength(len);
+        }
+    }
 
-  public void onInjected() {
-    RumInjector.getTelemetryCollector().onInjectionSucceed(servletVersion);
-    try {
-      setHeader("x-datadog-rum-injected", "1");
-    } catch (Throwable ignored) {
-      // suppress exception if arisen setting this header by us.
+    @Override
+    public void setContentLengthLong(long len) {
+        if (!shouldInject && SET_CONTENT_LENGTH_LONG != null) {
+            try {
+                SET_CONTENT_LENGTH_LONG.invoke(getResponse(), len);
+            } catch (Throwable t) {
+                sneakyThrow(t);
+            }
+        }
     }
-  }
 
-  private void handleContentType(String type) {
-    final boolean wasInjecting = shouldInject;
-    if (shouldInject) {
-      shouldInject = type != null && type.contains("text/html");
+    @Override
+    public void setCharacterEncoding(String charset) {
+        if (charset != null) {
+            this.contentEncoding = charset;
+        }
+        super.setCharacterEncoding(charset);
     }
-    if (wasInjecting && !shouldInject) {
-      commit();
-      stopFiltering();
-    }
-  }
 
-  private void checkForContentType(String name, String value) {
-    if ("content-type".equalsIgnoreCase(name)) {
-      handleContentType(value);
+    @Override
+    public void reset() {
+        this.outputStream = null;
+        this.wrappedPipeWriter = null;
+        this.printWriter = null;
+        this.shouldInject = false;
+        super.reset();
     }
-  }
 
-  @Override
-  public void setContentType(String type) {
-    handleContentType(type);
-    super.setContentType(type);
-  }
+    @Override
+    public void resetBuffer() {
+        this.outputStream = null;
+        this.wrappedPipeWriter = null;
+        this.printWriter = null;
+        super.resetBuffer();
+    }
 
-  @Override
-  public void commit() {
-    if (wrappedPipeWriter != null) {
-      try {
-        wrappedPipeWriter.commit();
-      } catch (Throwable ignored) {
-      }
+    public void onInjected() {
+        RumInjector.getTelemetryCollector().onInjectionSucceed(servletVersion);
+        try {
+            setHeader("x-datadog-rum-injected", "1");
+        } catch (Throwable ignored) {
+            // suppress exception if arisen setting this header by us.
+        }
     }
-    if (outputStream != null) {
-      try {
-        outputStream.commit();
-      } catch (Throwable ignored) {
-      }
-    }
-  }
 
-  @Override
-  public void stopFiltering() {
-    shouldInject = false;
-    if (wrappedPipeWriter != null) {
-      wrappedPipeWriter.setFilter(false);
+    private void handleContentType(String type) {
+        final boolean wasInjecting = shouldInject;
+        if (shouldInject) {
+            shouldInject = type != null && type.contains("text/html");
+        }
+        if (wasInjecting && !shouldInject) {
+            commit();
+            stopFiltering();
+        }
     }
-    if (outputStream != null) {
-      outputStream.setFilter(false);
+
+    private void checkForContentType(String name, String value) {
+        if ("content-type".equalsIgnoreCase(name)) {
+            handleContentType(value);
+        }
     }
-  }
+
+    @Override
+    public void setContentType(String type) {
+        handleContentType(type);
+        super.setContentType(type);
+    }
+
+    @Override
+    public void commit() {
+        if (wrappedPipeWriter != null) {
+            try {
+                wrappedPipeWriter.commit();
+            } catch (Throwable ignored) {
+            }
+        }
+        if (outputStream != null) {
+            try {
+                outputStream.commit();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    @Override
+    public void stopFiltering() {
+        shouldInject = false;
+        if (wrappedPipeWriter != null) {
+            wrappedPipeWriter.setFilter(false);
+        }
+        if (outputStream != null) {
+            outputStream.setFilter(false);
+        }
+    }
 }

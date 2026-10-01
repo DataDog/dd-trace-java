@@ -12,64 +12,63 @@ import javax.annotation.Nonnull;
 
 public class SofaRpcServerDecorator extends ServerDecorator {
 
-  public static final CharSequence SOFA_RPC_SERVER =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForProtocol("sofarpc"));
+    public static final CharSequence SOFA_RPC_SERVER =
+            UTF8BytesString.create(SpanNaming.instance().namingSchema().server().operationForProtocol("sofarpc"));
 
-  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("sofarpc-server");
+    private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("sofarpc-server");
 
-  public static final SofaRpcServerDecorator DECORATE = new SofaRpcServerDecorator();
+    public static final SofaRpcServerDecorator DECORATE = new SofaRpcServerDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"sofarpc"};
-  }
-
-  @Override
-  protected CharSequence component() {
-    return COMPONENT_NAME;
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.RPC;
-  }
-
-  @Override
-  protected void doAfterStart(@Nonnull AgentSpan span) {
-    span.setMeasured(true);
-    super.doAfterStart(span);
-  }
-
-  public void onRequest(AgentSpan span, SofaRequest request) {
-    span.setTag("rpc.system", "sofarpc");
-    if (request == null) {
-      return;
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"sofarpc"};
     }
-    String serviceName = request.getTargetServiceUniqueName();
-    String methodName = request.getMethodName();
-    span.setTag(Tags.RPC_SERVICE, serviceName);
-    span.setTag("rpc.method", methodName);
-    if (serviceName != null && methodName != null) {
-      span.setResourceName(serviceName + "/" + methodName);
-    } else if (methodName != null) {
-      span.setResourceName(methodName);
-    }
-  }
 
-  public void onResponse(AgentSpan span, SofaResponse response) {
-    if (response == null) {
-      return;
+    @Override
+    protected CharSequence component() {
+        return COMPONENT_NAME;
     }
-    if (response.isError()) {
-      // RPC-layer error (timeout, serialization failure, etc.)
-      span.setError(true);
-      span.setTag("error.message", response.getErrorMsg());
-    } else if (response.getAppResponse() instanceof Throwable) {
-      // Application exception: ProviderProxyInvoker catches it and stores in appResponse
-      Throwable t = (Throwable) response.getAppResponse();
-      span.setError(true);
-      span.setTag("error.message", t.getMessage());
+
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.RPC;
     }
-  }
+
+    @Override
+    protected void doAfterStart(@Nonnull AgentSpan span) {
+        span.setMeasured(true);
+        super.doAfterStart(span);
+    }
+
+    public void onRequest(AgentSpan span, SofaRequest request) {
+        span.setTag("rpc.system", "sofarpc");
+        if (request == null) {
+            return;
+        }
+        String serviceName = request.getTargetServiceUniqueName();
+        String methodName = request.getMethodName();
+        span.setTag(Tags.RPC_SERVICE, serviceName);
+        span.setTag("rpc.method", methodName);
+        if (serviceName != null && methodName != null) {
+            span.setResourceName(serviceName + "/" + methodName);
+        } else if (methodName != null) {
+            span.setResourceName(methodName);
+        }
+    }
+
+    public void onResponse(AgentSpan span, SofaResponse response) {
+        if (response == null) {
+            return;
+        }
+        if (response.isError()) {
+            // RPC-layer error (timeout, serialization failure, etc.)
+            span.setError(true);
+            span.setTag("error.message", response.getErrorMsg());
+        } else if (response.getAppResponse() instanceof Throwable) {
+            // Application exception: ProviderProxyInvoker catches it and stores in appResponse
+            Throwable t = (Throwable) response.getAppResponse();
+            span.setError(true);
+            span.setTag("error.message", t.getMessage());
+        }
+    }
 }

@@ -15,31 +15,30 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class DefaultExceptionHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public DefaultExceptionHandlerInstrumentation() {
-    super("akka-http", "akka-http-server");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.http.scaladsl.server.ExceptionHandler$";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(returns(named("akka.http.scaladsl.server.ExceptionHandler")))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("akka.http.scaladsl.settings.RoutingSettings"))),
-        DefaultExceptionHandlerInstrumentation.class.getName() + "$DefaultHandlerAdvice");
-  }
-
-  static class DefaultHandlerAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.This ExceptionHandler$ eh, @Advice.Return(readOnly = false) ExceptionHandler ret) {
-      ret = eh.apply(MarkSpanAsErroredPF.INSTANCE).withFallback(ret);
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public DefaultExceptionHandlerInstrumentation() {
+        super("akka-http", "akka-http-server");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "akka.http.scaladsl.server.ExceptionHandler$";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(returns(named("akka.http.scaladsl.server.ExceptionHandler")))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("akka.http.scaladsl.settings.RoutingSettings"))),
+                DefaultExceptionHandlerInstrumentation.class.getName() + "$DefaultHandlerAdvice");
+    }
+
+    static class DefaultHandlerAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.This ExceptionHandler$ eh, @Advice.Return(readOnly = false) ExceptionHandler ret) {
+            ret = eh.apply(MarkSpanAsErroredPF.INSTANCE).withFallback(ret);
+        }
+    }
 }

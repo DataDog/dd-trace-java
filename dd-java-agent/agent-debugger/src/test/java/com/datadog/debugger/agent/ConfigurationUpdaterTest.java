@@ -76,822 +76,849 @@ import utils.SourceCompiler;
 
 @ExtendWith(MockitoExtension.class)
 public class ConfigurationUpdaterTest {
-  private static final String LANGUAGE = "java";
-  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 42);
-  private static final ProbeId PROBE_ID2 = new ProbeId("beae1808-f3b0-4ea8-a74f-826790c5e6f8", 12);
-  private static final ProbeId METRIC_ID = new ProbeId("cfbf2918-e4c1-5fb9-b85e-937881d6f7e9", 1);
-  private static final ProbeId METRIC_ID2 = new ProbeId("cfbf2919-e4c1-5fb9-b85e-937881d6f7e9", 5);
-  private static final ProbeId LOG_ID = new ProbeId("d0c03a2a-f5d2-60ca-c96f-a48992e708fa", 2);
-  private static final ProbeId LOG_ID2 = new ProbeId("d0c03a2b-f5d2-60ca-c96f-a48992e708fa", 6);
-  private static final ProbeId SPAN_ID = new ProbeId("cfbf2918-e4c1-5fb9-b85e-937881d6f7e9", 1);
-  private static final ProbeId SPAN_DECORATION_ID =
-      new ProbeId("cfbf2918-e4c1-5fb9-b85e-937881d6f7e9", 1);
+    private static final String LANGUAGE = "java";
+    private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 42);
+    private static final ProbeId PROBE_ID2 = new ProbeId("beae1808-f3b0-4ea8-a74f-826790c5e6f8", 12);
+    private static final ProbeId METRIC_ID = new ProbeId("cfbf2918-e4c1-5fb9-b85e-937881d6f7e9", 1);
+    private static final ProbeId METRIC_ID2 = new ProbeId("cfbf2919-e4c1-5fb9-b85e-937881d6f7e9", 5);
+    private static final ProbeId LOG_ID = new ProbeId("d0c03a2a-f5d2-60ca-c96f-a48992e708fa", 2);
+    private static final ProbeId LOG_ID2 = new ProbeId("d0c03a2b-f5d2-60ca-c96f-a48992e708fa", 6);
+    private static final ProbeId SPAN_ID = new ProbeId("cfbf2918-e4c1-5fb9-b85e-937881d6f7e9", 1);
+    private static final ProbeId SPAN_DECORATION_ID = new ProbeId("cfbf2918-e4c1-5fb9-b85e-937881d6f7e9", 1);
 
-  @Mock private Instrumentation inst;
-  @Mock private DebuggerTransformer transformer;
-  @Mock private Config tracerConfig;
-  @Mock private DebuggerSink debuggerSink;
-  @Mock private ProbeStatusSink probeStatusSink;
+    @Mock
+    private Instrumentation inst;
 
-  private DebuggerSink debuggerSinkWithMockStatusSink;
+    @Mock
+    private DebuggerTransformer transformer;
 
-  @BeforeEach
-  void setUp() {
-    lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
-    lenient().when(tracerConfig.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    lenient().when(tracerConfig.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost");
+    @Mock
+    private Config tracerConfig;
 
-    debuggerSinkWithMockStatusSink = new DebuggerSink(tracerConfig, probeStatusSink);
-  }
+    @Mock
+    private DebuggerSink debuggerSink;
 
-  @Test
-  public void acceptNoProbes() {
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    configurationUpdater.accept(REMOTE_CONFIG, null);
-    verify(inst, never()).addTransformer(any(), eq(true));
-    verifyNoInteractions(debuggerSink);
-  }
+    @Mock
+    private ProbeStatusSink probeStatusSink;
 
-  @Test
-  public void acceptNewProbe() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-  }
+    private DebuggerSink debuggerSinkWithMockStatusSink;
 
-  @Test
-  public void acceptNewMultiProbes() throws UnmodifiableClassException {
-    doTestAcceptMultiProbes(Class::getName, String.class, HashMap.class);
-  }
+    @BeforeEach
+    void setUp() {
+        lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
+        lenient().when(tracerConfig.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+        lenient().when(tracerConfig.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost");
 
-  @Test
-  public void acceptNewMultiProbesSimpleName() throws UnmodifiableClassException {
-    doTestAcceptMultiProbes(Class::getSimpleName, String.class, HashMap.class);
-  }
-
-  private void doTestAcceptMultiProbes(Function<Class<?>, String> getClassName, Class<?>... classes)
-      throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(classes);
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    List<LogProbe> logProbes =
-        Arrays.stream(classes)
-            .map(getClassName)
-            .map(className -> LogProbe.builder().probeId(PROBE_ID).where(className, "foo").build())
-            .collect(Collectors.toList());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    for (Class<?> expectedClass : classes) {
-      verify(inst).retransformClasses(eq(expectedClass));
+        debuggerSinkWithMockStatusSink = new DebuggerSink(tracerConfig, probeStatusSink);
     }
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID));
-  }
 
-  @Test
-  public void acceptDuplicatedProbes() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build(),
-            LogProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(2, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getEncodedId()));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
-  }
+    @Test
+    public void acceptNoProbes() {
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        configurationUpdater.accept(REMOTE_CONFIG, null);
+        verify(inst, never()).addTransformer(any(), eq(true));
+        verifyNoInteractions(debuggerSink);
+    }
 
-  @Test
-  public void accept2PhaseDuplicatedProbes() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    // phase 1: single probe definition
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-    // phase 2: add duplicated probe definitions
-    logProbes =
-        Arrays.asList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build(),
-            LogProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(2, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getEncodedId()));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
-  }
+    @Test
+    public void acceptNewProbe() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+    }
 
-  @Test
-  public void acceptRemoveDuplicatedProbes() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    // phase 1: duplicated probe definition
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build(),
-            LogProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(2, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getEncodedId()));
-    // phase 2: remove duplicated probe definitions
-    logProbes =
-        Arrays.asList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
-    verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
-  }
+    @Test
+    public void acceptNewMultiProbes() throws UnmodifiableClassException {
+        doTestAcceptMultiProbes(Class::getName, String.class, HashMap.class);
+    }
 
-  @Test
-  public void acceptDontDedupMetricProbes() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    List<MetricProbe> metricProbes =
-        Arrays.asList(
-            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
-    List<ProbeDefinition> definitions = new ArrayList<>(metricProbes);
-    definitions.addAll(logProbes);
-    configurationUpdater.accept(REMOTE_CONFIG, definitions);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(2, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-    assertTrue(appliedDefinitions.containsKey(METRIC_ID.getEncodedId()));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(METRIC_ID));
-  }
+    @Test
+    public void acceptNewMultiProbesSimpleName() throws UnmodifiableClassException {
+        doTestAcceptMultiProbes(Class::getSimpleName, String.class, HashMap.class);
+    }
 
-  @Test
-  public void acceptSourceFileLineNumber() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder()
+    private void doTestAcceptMultiProbes(Function<Class<?>, String> getClassName, Class<?>... classes)
+            throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(classes);
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        List<LogProbe> logProbes = Arrays.stream(classes)
+                .map(getClassName)
+                .map(className -> LogProbe.builder()
+                        .probeId(PROBE_ID)
+                        .where(className, "foo")
+                        .build())
+                .collect(Collectors.toList());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        for (Class<?> expectedClass : classes) {
+            verify(inst).retransformClasses(eq(expectedClass));
+        }
+        verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID));
+    }
+
+    @Test
+    public void acceptDuplicatedProbes() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        List<LogProbe> logProbes = Arrays.asList(
+                LogProbe.builder()
+                        .probeId(PROBE_ID)
+                        .where("java.lang.String", "concat")
+                        .build(),
+                LogProbe.builder()
+                        .probeId(PROBE_ID2)
+                        .where("java.lang.String", "concat")
+                        .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(2, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getEncodedId()));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    }
+
+    @Test
+    public void accept2PhaseDuplicatedProbes() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        // phase 1: single probe definition
+        List<LogProbe> logProbes = Arrays.asList(LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+        // phase 2: add duplicated probe definitions
+        logProbes = Arrays.asList(
+                LogProbe.builder()
+                        .probeId(PROBE_ID)
+                        .where("java.lang.String", "concat")
+                        .build(),
+                LogProbe.builder()
+                        .probeId(PROBE_ID2)
+                        .where("java.lang.String", "concat")
+                        .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(2, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getEncodedId()));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    }
+
+    @Test
+    public void acceptRemoveDuplicatedProbes() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        // phase 1: duplicated probe definition
+        List<LogProbe> logProbes = Arrays.asList(
+                LogProbe.builder()
+                        .probeId(PROBE_ID)
+                        .where("java.lang.String", "concat")
+                        .build(),
+                LogProbe.builder()
+                        .probeId(PROBE_ID2)
+                        .where("java.lang.String", "concat")
+                        .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(2, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getEncodedId()));
+        // phase 2: remove duplicated probe definitions
+        logProbes = Arrays.asList(LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+        verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
+    }
+
+    @Test
+    public void acceptDontDedupMetricProbes() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        List<LogProbe> logProbes = Arrays.asList(LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        List<MetricProbe> metricProbes = Arrays.asList(MetricProbe.builder()
+                .probeId(METRIC_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        List<ProbeDefinition> definitions = new ArrayList<>(metricProbes);
+        definitions.addAll(logProbes);
+        configurationUpdater.accept(REMOTE_CONFIG, definitions);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(2, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+        assertTrue(appliedDefinitions.containsKey(METRIC_ID.getEncodedId()));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+        verify(probeStatusSink).addReceived(eq(METRIC_ID));
+    }
+
+    @Test
+    public void acceptSourceFileLineNumber() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
                 .probeId(PROBE_ID)
                 .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
                 .build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    verify(inst).retransformClasses(eq(String.class));
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-  }
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        verify(inst).retransformClasses(eq(String.class));
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+    }
 
-  @Test
-  public void acceptSourceFileLineNumberEmptyTypeName() throws UnmodifiableClassException {
-    // create anonymous class for dealing with Class#getSimpleName returning empty string for it
-    Runnable runnable =
-        new Runnable() {
-          @Override
-          public void run() {}
+    @Test
+    public void acceptSourceFileLineNumberEmptyTypeName() throws UnmodifiableClassException {
+        // create anonymous class for dealing with Class#getSimpleName returning empty string for it
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {}
         };
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, runnable.getClass()});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder()
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, runnable.getClass()});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
                 .probeId(PROBE_ID)
                 .where("", "", "", 1966, "java/lang/String.java")
                 .build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    verify(inst).retransformClasses(eq(String.class));
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-  }
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        verify(inst).retransformClasses(eq(String.class));
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
+    }
 
-  @Test
-  public void acceptSourceFileLineNumberAnonymousClass() throws UnmodifiableClassException {
-    Runnable runnable =
-        new Runnable() {
-          @Override
-          public void run() {}
+    @Test
+    public void acceptSourceFileLineNumberAnonymousClass() throws UnmodifiableClassException {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {}
         };
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, runnable.getClass()});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder()
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, runnable.getClass()});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
                 .probeId(PROBE_ID)
                 .where("", "", "", 136, "ConfigurationUpdaterTest$2")
                 .build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    verify(inst).retransformClasses(eq(runnable.getClass()));
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
-  }
-
-  @Test
-  public void acceptDeleteProbe() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    LogProbe probe1 =
-        LogProbe.builder()
-            .language(LANGUAGE)
-            .probeId(PROBE_ID)
-            .where("java.lang.String", "concat")
-            .build();
-    LogProbe probe2 =
-        LogProbe.builder()
-            .language(LANGUAGE)
-            .probeId(PROBE_ID2)
-            .where("java.util.HashMap", "<init>", "void ()")
-            .build();
-    List<LogProbe> logProbes = Arrays.asList(probe1, probe2);
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
-    logProbes = singletonList(probe1);
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
-    verify(inst).removeTransformer(any());
-    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-    verify(inst, times(3)).retransformClasses(captor.capture());
-    List<Class<?>[]> allValues = captor.getAllValues();
-    assertEquals(String.class, allValues.get(0));
-    assertEquals(HashMap.class, allValues.get(1));
-    assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    Assertions.assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(probe1.getProbeId().getEncodedId()));
-  }
-
-  @Test
-  public void acceptDeleteProbeSameClass() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    AtomicInteger expectedDefinitions = new AtomicInteger(2);
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            inst,
-            (tracerConfig, configuration, listener, probeMetadata, debuggerSink) -> {
-              assertEquals(expectedDefinitions.get(), configuration.getDefinitions().size());
-              return transformer;
-            },
-            tracerConfig,
-            debuggerSinkWithMockStatusSink,
-            new ClassesToRetransformFinder());
-    LogProbe probe1 =
-        LogProbe.builder()
-            .language(LANGUAGE)
-            .probeId(PROBE_ID)
-            .where("java.lang.String", "concat")
-            .build();
-    LogProbe probe2 =
-        LogProbe.builder()
-            .language(LANGUAGE)
-            .probeId(PROBE_ID2)
-            .where("java.lang.String", "indexOf", "int (int)")
-            .build();
-    List<LogProbe> logProbes = Arrays.asList(probe1, probe2);
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
-    logProbes = singletonList(probe1);
-    expectedDefinitions.set(1);
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
-    verify(inst).removeTransformer(any());
-    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-    verify(inst, times(2)).retransformClasses(captor.capture());
-    List<Class<?>[]> allValues = captor.getAllValues();
-    assertEquals(String.class, allValues.get(0));
-    assertEquals(String.class, allValues.get(1));
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    Assertions.assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(probe1.getProbeId().getEncodedId()));
-  }
-
-  @Test
-  public void acceptClearProbes() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    configurationUpdater.accept(REMOTE_CONFIG, null);
-    verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID));
-    verify(inst).removeTransformer(any());
-    verify(inst, times(2)).retransformClasses(any());
-    Assertions.assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
-  }
-
-  @Test
-  public void acceptMustAppliedAtomically() throws Exception {
-    // Regression test: ConfigurationUpdater::accept must apply the whole read-modify-write
-    // sequence (definitionSources.put + createConfiguration + applyNewConfiguration) under a
-    // single lock, otherwise concurrent accept() calls from different sources can race on the
-    // shared EnumMap and cause one source's definitions to be lost when currentConfiguration is
-    // overwritten with a configuration snapshot that doesn't yet reflect the other source's put.
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    ConfigurationAcceptor.Source[] sources = ConfigurationAcceptor.Source.values();
-    ExecutorService executor = Executors.newFixedThreadPool(sources.length);
-    try {
-      int iterations = 100;
-      for (int i = 0; i < iterations; i++) {
-        CyclicBarrier barrier = new CyclicBarrier(sources.length);
-        List<ProbeId> expectedProbeIds = new ArrayList<>();
-        List<Future<?>> futures = new ArrayList<>();
-        for (ConfigurationAcceptor.Source source : sources) {
-          ProbeId probeId = new ProbeId("probe-" + source + "-" + i, i);
-          expectedProbeIds.add(probeId);
-          LogProbe probe =
-              LogProbe.builder().probeId(probeId).where("java.lang.String", "concat").build();
-          futures.add(
-              executor.submit(
-                  () -> {
-                    barrier.await();
-                    configurationUpdater.accept(source, singletonList(probe));
-                    return null;
-                  }));
-        }
-        for (Future<?> future : futures) {
-          future.get();
-        }
-        Map<String, ProbeDefinition> appliedDefinitions =
-            configurationUpdater.getAppliedDefinitions();
-        assertEquals(
-            sources.length,
-            appliedDefinitions.size(),
-            "Lost definition(s) from a concurrent source update at iteration " + i);
-        for (ProbeId expectedProbeId : expectedProbeIds) {
-          assertTrue(appliedDefinitions.containsKey(expectedProbeId.getEncodedId()));
-        }
-      }
-    } finally {
-      executor.shutdown();
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        verify(inst).retransformClasses(eq(runnable.getClass()));
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(PROBE_ID.getEncodedId()));
     }
-  }
 
-  @Test
-  public void resolve() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder()
-                .probeId(PROBE_ID)
-                .where("java.lang.String", "concat")
-                .when(
-                    new ProbeCondition(
-                        DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
-                .build());
-    logProbes.get(0).buildLocation(null);
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    configurationUpdater.getProbeMetadata().addProbe(logProbes.get(0));
-    ProbeImplementation probeImplementation = configurationUpdater.resolve(0);
-    Assertions.assertEquals(
-        PROBE_ID.getEncodedId(), probeImplementation.getProbeId().getEncodedId());
-    Assertions.assertEquals("java.lang.String", probeImplementation.getLocation().getType());
-    Assertions.assertEquals("concat", probeImplementation.getLocation().getMethod());
-    Assertions.assertNotNull(((LogProbe) probeImplementation).getProbeCondition());
-  }
-
-  @Test
-  public void resolveFails() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).retransformClasses(eq(String.class));
-    // simulate that there is a snapshot probe instrumentation left in HashMap class
-    ProbeImplementation probeImplementation = configurationUpdater.resolve(1);
-    Assertions.assertNull(probeImplementation);
-  }
-
-  @Test
-  public void acceptNewMetric() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<MetricProbe> metricProbes =
-        singletonList(
-            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(METRIC_ID.getEncodedId()));
-  }
-
-  @Test
-  public void acceptNewLog() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(LOG_ID.getEncodedId()));
-  }
-
-  @Test
-  public void acceptDeleteMetric() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    MetricProbe metricProbe1 =
-        MetricProbe.builder()
-            .language(LANGUAGE)
-            .probeId(METRIC_ID)
-            .where("java.lang.String", "concat")
-            .build();
-    MetricProbe metricProbe2 =
-        MetricProbe.builder()
-            .language(LANGUAGE)
-            .probeId(METRIC_ID2)
-            .where("java.util.HashMap", "<init>", "void ()")
-            .build();
-    List<MetricProbe> metricProbes = Arrays.asList(metricProbe1, metricProbe2);
-    configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
-    metricProbes = singletonList(metricProbe1);
-    configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
-    verify(inst).removeTransformer(any());
-    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-    verify(inst, times(3)).retransformClasses(captor.capture());
-    List<Class<?>[]> allValues = captor.getAllValues();
-    assertEquals(String.class, allValues.get(0));
-    assertEquals(HashMap.class, allValues.get(1));
-    assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(metricProbe1.getProbeId().getEncodedId()));
-  }
-
-  @Test
-  public void acceptDeleteLog() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    LogProbe logProbe1 =
-        LogProbe.builder()
-            .language(LANGUAGE)
-            .probeId(LOG_ID)
-            .where("java.lang.String", "concat")
-            .build();
-    LogProbe logProbe2 =
-        LogProbe.builder()
-            .language(LANGUAGE)
-            .probeId(LOG_ID2)
-            .where("java.util.HashMap", "<init>", "void ()")
-            .build();
-    List<LogProbe> logProbes = Arrays.asList(logProbe1, logProbe2);
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    logProbes = singletonList(logProbe1);
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    verify(inst).removeTransformer(any());
-    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-    verify(inst, times(3)).retransformClasses(captor.capture());
-    List<Class<?>[]> allValues = captor.getAllValues();
-    assertEquals(String.class, allValues.get(0));
-    assertEquals(HashMap.class, allValues.get(1));
-    assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(logProbe1.getProbeId().getEncodedId()));
-  }
-
-  @Test
-  public void acceptClearMetrics() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<MetricProbe> metricProbes =
-        singletonList(
-            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
-    configurationUpdater.accept(REMOTE_CONFIG, null);
-    verify(inst).removeTransformer(any());
-    verify(inst, times(2)).retransformClasses(any());
-    assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
-  }
-
-  @Test
-  public void acceptClearLogs() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        singletonList(
-            LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    configurationUpdater.accept(REMOTE_CONFIG, null);
-    verify(inst).removeTransformer(any());
-    verify(inst, times(2)).retransformClasses(any());
-    assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
-  }
-
-  @Test
-  public void acceptChangeProbeToMetric() throws UnmodifiableClassException {
-    when(inst.getAllLoadedClasses())
-        .thenReturn(new Class[] {String.class, HashMap.class, StringBuilder.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder()
+    @Test
+    public void acceptDeleteProbe() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        LogProbe probe1 = LogProbe.builder()
                 .language(LANGUAGE)
                 .probeId(PROBE_ID)
                 .where("java.lang.String", "concat")
-                .build(),
-            LogProbe.builder()
+                .build();
+        LogProbe probe2 = LogProbe.builder()
                 .language(LANGUAGE)
                 .probeId(PROBE_ID2)
                 .where("java.util.HashMap", "<init>", "void ()")
+                .build();
+        List<LogProbe> logProbes = Arrays.asList(probe1, probe2);
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+        logProbes = singletonList(probe1);
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
+        verify(inst).removeTransformer(any());
+        ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+        verify(inst, times(3)).retransformClasses(captor.capture());
+        List<Class<?>[]> allValues = captor.getAllValues();
+        assertEquals(String.class, allValues.get(0));
+        assertEquals(HashMap.class, allValues.get(1));
+        assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        Assertions.assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(probe1.getProbeId().getEncodedId()));
+    }
+
+    @Test
+    public void acceptDeleteProbeSameClass() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        AtomicInteger expectedDefinitions = new AtomicInteger(2);
+        ConfigurationUpdater configurationUpdater = new ConfigurationUpdater(
+                inst,
+                (tracerConfig, configuration, listener, probeMetadata, debuggerSink) -> {
+                    assertEquals(
+                            expectedDefinitions.get(),
+                            configuration.getDefinitions().size());
+                    return transformer;
+                },
+                tracerConfig,
+                debuggerSinkWithMockStatusSink,
+                new ClassesToRetransformFinder());
+        LogProbe probe1 = LogProbe.builder()
+                .language(LANGUAGE)
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build();
+        LogProbe probe2 = LogProbe.builder()
+                .language(LANGUAGE)
+                .probeId(PROBE_ID2)
+                .where("java.lang.String", "indexOf", "int (int)")
+                .build();
+        List<LogProbe> logProbes = Arrays.asList(probe1, probe2);
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+        verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+        logProbes = singletonList(probe1);
+        expectedDefinitions.set(1);
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
+        verify(inst).removeTransformer(any());
+        ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+        verify(inst, times(2)).retransformClasses(captor.capture());
+        List<Class<?>[]> allValues = captor.getAllValues();
+        assertEquals(String.class, allValues.get(0));
+        assertEquals(String.class, allValues.get(1));
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        Assertions.assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(probe1.getProbeId().getEncodedId()));
+    }
+
+    @Test
+    public void acceptClearProbes() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
                 .build());
-    configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    List<MetricProbe> metricProbes =
-        singletonList(
-            MetricProbe.builder()
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(probeStatusSink).addReceived(eq(PROBE_ID));
+        configurationUpdater.accept(REMOTE_CONFIG, null);
+        verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID));
+        verify(inst).removeTransformer(any());
+        verify(inst, times(2)).retransformClasses(any());
+        Assertions.assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
+    }
+
+    @Test
+    public void acceptMustAppliedAtomically() throws Exception {
+        // Regression test: ConfigurationUpdater::accept must apply the whole read-modify-write
+        // sequence (definitionSources.put + createConfiguration + applyNewConfiguration) under a
+        // single lock, otherwise concurrent accept() calls from different sources can race on the
+        // shared EnumMap and cause one source's definitions to be lost when currentConfiguration is
+        // overwritten with a configuration snapshot that doesn't yet reflect the other source's put.
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        ConfigurationAcceptor.Source[] sources = ConfigurationAcceptor.Source.values();
+        ExecutorService executor = Executors.newFixedThreadPool(sources.length);
+        try {
+            int iterations = 100;
+            for (int i = 0; i < iterations; i++) {
+                CyclicBarrier barrier = new CyclicBarrier(sources.length);
+                List<ProbeId> expectedProbeIds = new ArrayList<>();
+                List<Future<?>> futures = new ArrayList<>();
+                for (ConfigurationAcceptor.Source source : sources) {
+                    ProbeId probeId = new ProbeId("probe-" + source + "-" + i, i);
+                    expectedProbeIds.add(probeId);
+                    LogProbe probe = LogProbe.builder()
+                            .probeId(probeId)
+                            .where("java.lang.String", "concat")
+                            .build();
+                    futures.add(executor.submit(() -> {
+                        barrier.await();
+                        configurationUpdater.accept(source, singletonList(probe));
+                        return null;
+                    }));
+                }
+                for (Future<?> future : futures) {
+                    future.get();
+                }
+                Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+                assertEquals(
+                        sources.length,
+                        appliedDefinitions.size(),
+                        "Lost definition(s) from a concurrent source update at iteration " + i);
+                for (ProbeId expectedProbeId : expectedProbeIds) {
+                    assertTrue(appliedDefinitions.containsKey(expectedProbeId.getEncodedId()));
+                }
+            }
+        } finally {
+            executor.shutdown();
+        }
+    }
+
+    @Test
+    public void resolve() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .when(new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
+                .build());
+        logProbes.get(0).buildLocation(null);
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        configurationUpdater.getProbeMetadata().addProbe(logProbes.get(0));
+        ProbeImplementation probeImplementation = configurationUpdater.resolve(0);
+        Assertions.assertEquals(
+                PROBE_ID.getEncodedId(), probeImplementation.getProbeId().getEncodedId());
+        Assertions.assertEquals(
+                "java.lang.String", probeImplementation.getLocation().getType());
+        Assertions.assertEquals("concat", probeImplementation.getLocation().getMethod());
+        Assertions.assertNotNull(((LogProbe) probeImplementation).getProbeCondition());
+    }
+
+    @Test
+    public void resolveFails() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).retransformClasses(eq(String.class));
+        // simulate that there is a snapshot probe instrumentation left in HashMap class
+        ProbeImplementation probeImplementation = configurationUpdater.resolve(1);
+        Assertions.assertNull(probeImplementation);
+    }
+
+    @Test
+    public void acceptNewMetric() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<MetricProbe> metricProbes = singletonList(MetricProbe.builder()
+                .probeId(METRIC_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(METRIC_ID.getEncodedId()));
+    }
+
+    @Test
+    public void acceptNewLog() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
+                .probeId(LOG_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(LOG_ID.getEncodedId()));
+    }
+
+    @Test
+    public void acceptDeleteMetric() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        MetricProbe metricProbe1 = MetricProbe.builder()
+                .language(LANGUAGE)
+                .probeId(METRIC_ID)
+                .where("java.lang.String", "concat")
+                .build();
+        MetricProbe metricProbe2 = MetricProbe.builder()
+                .language(LANGUAGE)
+                .probeId(METRIC_ID2)
+                .where("java.util.HashMap", "<init>", "void ()")
+                .build();
+        List<MetricProbe> metricProbes = Arrays.asList(metricProbe1, metricProbe2);
+        configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
+        metricProbes = singletonList(metricProbe1);
+        configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
+        verify(inst).removeTransformer(any());
+        ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+        verify(inst, times(3)).retransformClasses(captor.capture());
+        List<Class<?>[]> allValues = captor.getAllValues();
+        assertEquals(String.class, allValues.get(0));
+        assertEquals(HashMap.class, allValues.get(1));
+        assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(metricProbe1.getProbeId().getEncodedId()));
+    }
+
+    @Test
+    public void acceptDeleteLog() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        LogProbe logProbe1 = LogProbe.builder()
+                .language(LANGUAGE)
+                .probeId(LOG_ID)
+                .where("java.lang.String", "concat")
+                .build();
+        LogProbe logProbe2 = LogProbe.builder()
+                .language(LANGUAGE)
+                .probeId(LOG_ID2)
+                .where("java.util.HashMap", "<init>", "void ()")
+                .build();
+        List<LogProbe> logProbes = Arrays.asList(logProbe1, logProbe2);
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        logProbes = singletonList(logProbe1);
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        verify(inst).removeTransformer(any());
+        ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+        verify(inst, times(3)).retransformClasses(captor.capture());
+        List<Class<?>[]> allValues = captor.getAllValues();
+        assertEquals(String.class, allValues.get(0));
+        assertEquals(HashMap.class, allValues.get(1));
+        assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(logProbe1.getProbeId().getEncodedId()));
+    }
+
+    @Test
+    public void acceptClearMetrics() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<MetricProbe> metricProbes = singletonList(MetricProbe.builder()
+                .probeId(METRIC_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
+        configurationUpdater.accept(REMOTE_CONFIG, null);
+        verify(inst).removeTransformer(any());
+        verify(inst, times(2)).retransformClasses(any());
+        assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
+    }
+
+    @Test
+    public void acceptClearLogs() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = singletonList(LogProbe.builder()
+                .probeId(LOG_ID)
+                .where("java.lang.String", "concat")
+                .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        configurationUpdater.accept(REMOTE_CONFIG, null);
+        verify(inst).removeTransformer(any());
+        verify(inst, times(2)).retransformClasses(any());
+        assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
+    }
+
+    @Test
+    public void acceptChangeProbeToMetric() throws UnmodifiableClassException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class, StringBuilder.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        List<LogProbe> logProbes = Arrays.asList(
+                LogProbe.builder()
+                        .language(LANGUAGE)
+                        .probeId(PROBE_ID)
+                        .where("java.lang.String", "concat")
+                        .build(),
+                LogProbe.builder()
+                        .language(LANGUAGE)
+                        .probeId(PROBE_ID2)
+                        .where("java.util.HashMap", "<init>", "void ()")
+                        .build());
+        configurationUpdater.accept(REMOTE_CONFIG, logProbes);
+        List<MetricProbe> metricProbes = singletonList(MetricProbe.builder()
                 .language(LANGUAGE)
                 .probeId(METRIC_ID)
                 .where("java.lang.StringBuilder", "append")
                 .build());
-    configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
-    verify(inst).removeTransformer(any());
-    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-    verify(inst, times(5)).retransformClasses(captor.capture());
-    List<Class<?>[]> allValues = captor.getAllValues();
-    assertEquals(String.class, allValues.get(0));
-    assertEquals(HashMap.class, allValues.get(1));
-    assertEquals(String.class, allValues.get(2));
-    assertEquals(HashMap.class, allValues.get(3));
-    assertEquals(StringBuilder.class, allValues.get(4));
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(METRIC_ID.getEncodedId()));
-  }
-
-  @Test
-  public void acceptNewSpan() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    SpanProbe spanProbe =
-        SpanProbe.builder().probeId(SPAN_ID).where("java.lang.String", "concat").build();
-    configurationUpdater.accept(REMOTE_CONFIG, singletonList(spanProbe));
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(SPAN_ID.getEncodedId()));
-  }
-
-  @Test
-  public void acceptNewDecorationSpan() {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
-    SpanDecorationProbe spanProbe =
-        SpanDecorationProbe.builder()
-            .probeId(SPAN_DECORATION_ID)
-            .where("java.lang.String", "concat")
-            .build();
-    configurationUpdater.accept(REMOTE_CONFIG, singletonList(spanProbe));
-    verify(inst).addTransformer(any(), eq(true));
-    verify(inst).getAllLoadedClasses();
-    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(SPAN_DECORATION_ID.getEncodedId()));
-  }
-
-  @Test
-  public void handleException() {
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    Exception ex = new Exception("oops");
-    configurationUpdater.handleException(LOG_PROBE_PREFIX + PROBE_ID.getId(), ex);
-    configurationUpdater.handleException(METRIC_PROBE_PREFIX + PROBE_ID.getId(), ex);
-    configurationUpdater.handleException(SPAN_PROBE_PREFIX + PROBE_ID.getId(), ex);
-    configurationUpdater.handleException(SPAN_DECORATION_PROBE_PREFIX + PROBE_ID.getId(), ex);
-    verify(probeStatusSink, times(4)).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
-  }
-
-  @Test
-  public void methodParametersAttribute() throws Exception {
-    final String CLASS_NAME = "CapturedSnapshot01";
-    Map<String, byte[]> buffers =
-        compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
-    Class<?> testClass = loadClass(CLASS_NAME, buffers);
-    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
-      // on JDK 17 introduced Spring6 class
-      Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
-      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
-    } else {
-      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+        configurationUpdater.accept(REMOTE_CONFIG, metricProbes);
+        verify(inst).removeTransformer(any());
+        ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+        verify(inst, times(5)).retransformClasses(captor.capture());
+        List<Class<?>[]> allValues = captor.getAllValues();
+        assertEquals(String.class, allValues.get(0));
+        assertEquals(HashMap.class, allValues.get(1));
+        assertEquals(String.class, allValues.get(2));
+        assertEquals(HashMap.class, allValues.get(3));
+        assertEquals(StringBuilder.class, allValues.get(4));
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(METRIC_ID.getEncodedId()));
     }
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    configurationUpdater.accept(
-        REMOTE_CONFIG,
-        singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "main").build()));
-    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
-      // on JDK 17 with Spring6 class, transformation cannot happen
-      verify(inst, times(2)).getAllLoadedClasses();
-      verify(inst, times(0)).retransformClasses(any());
-      ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
-      ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
-      verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
-      assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
-      assertEquals(
-          "Method Parameters detected, instrumentation not supported for CapturedSnapshot01",
-          strCaptor.getAllValues().get(0));
-    } else {
-      ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-      verify(inst, times(1)).retransformClasses(captor.capture());
-      List<Class<?>[]> allValues = captor.getAllValues();
-      assertEquals(testClass, allValues.get(0));
+
+    @Test
+    public void acceptNewSpan() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        SpanProbe spanProbe = SpanProbe.builder()
+                .probeId(SPAN_ID)
+                .where("java.lang.String", "concat")
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, singletonList(spanProbe));
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(SPAN_ID.getEncodedId()));
     }
-  }
 
-  @Test
-  @EnabledForJreRange(min = JRE.JAVA_17)
-  public void methodParametersAttributeRecord()
-      throws IOException, URISyntaxException, UnmodifiableClassException {
-    // make sure record method are not detected as having methodParameters attribute.
-    // /!\ record canonical constructor has the MethodParameters attribute,
-    // but not returned by Class::getDeclaredMethods()
-    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
-    final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
-    Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
-    Class<?> testClass = loadClass(RECORD_NAME, buffers);
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    configurationUpdater.accept(
-        REMOTE_CONFIG,
-        singletonList(LogProbe.builder().probeId(PROBE_ID).where(RECORD_NAME, "<init>").build()));
-    verify(inst).getAllLoadedClasses();
-    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-    verify(inst, times(1)).retransformClasses(captor.capture());
-    List<Class<?>[]> allValues = captor.getAllValues();
-    assertEquals(testClass, allValues.get(0));
-  }
-
-  @Test
-  @EnabledForJreRange(min = JRE.JAVA_17)
-  public void recordWithTypeAnnotation()
-      throws IOException, URISyntaxException, UnmodifiableClassException {
-    if (JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4)) {
-      // Fixed since JDK 25.0.4
-      return;
+    @Test
+    public void acceptNewDecorationSpan() {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
+        SpanDecorationProbe spanProbe = SpanDecorationProbe.builder()
+                .probeId(SPAN_DECORATION_ID)
+                .where("java.lang.String", "concat")
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, singletonList(spanProbe));
+        verify(inst).addTransformer(any(), eq(true));
+        verify(inst).getAllLoadedClasses();
+        Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+        assertEquals(1, appliedDefinitions.size());
+        assertTrue(appliedDefinitions.containsKey(SPAN_DECORATION_ID.getEncodedId()));
     }
-    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
-    Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
-    Class<?> testClass = loadClass(CLASS_NAME, buffers);
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    configurationUpdater.accept(
-        REMOTE_CONFIG,
-        singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "parse").build()));
-    verify(inst).getAllLoadedClasses();
-    verify(inst, times(0)).retransformClasses(any());
-  }
 
-  @Test
-  public void logProbeSamplers() throws IOException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    LogProbe probe1 =
-        LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build();
-    configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
-    assertTrue(probe1.isReadyToCapture());
+    @Test
+    public void handleException() {
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        Exception ex = new Exception("oops");
+        configurationUpdater.handleException(LOG_PROBE_PREFIX + PROBE_ID.getId(), ex);
+        configurationUpdater.handleException(METRIC_PROBE_PREFIX + PROBE_ID.getId(), ex);
+        configurationUpdater.handleException(SPAN_PROBE_PREFIX + PROBE_ID.getId(), ex);
+        configurationUpdater.handleException(SPAN_DECORATION_PROBE_PREFIX + PROBE_ID.getId(), ex);
+        verify(probeStatusSink, times(4)).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
+    }
 
-    // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
-    // LogProbe objects.
-    // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
-    LogProbe probe1Deserialized = deserializeLogProbe(serializeLogProbe(probe1).getBytes());
-    LogProbe probe2 =
-        LogProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build();
-    configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
-    assertTrue(probe1Deserialized.isReadyToCapture());
-    assertTrue(probe2.isReadyToCapture());
-  }
+    @Test
+    public void methodParametersAttribute() throws Exception {
+        final String CLASS_NAME = "CapturedSnapshot01";
+        Map<String, byte[]> buffers =
+                compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
+        Class<?> testClass = loadClass(CLASS_NAME, buffers);
+        if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
+            // on JDK 17 introduced Spring6 class
+            Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
+            when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
+        } else {
+            when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+        }
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        configurationUpdater.accept(
+                REMOTE_CONFIG,
+                singletonList(LogProbe.builder()
+                        .probeId(PROBE_ID)
+                        .where(CLASS_NAME, "main")
+                        .build()));
+        if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
+            // on JDK 17 with Spring6 class, transformation cannot happen
+            verify(inst, times(2)).getAllLoadedClasses();
+            verify(inst, times(0)).retransformClasses(any());
+            ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+            ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+            verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+            assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
+            assertEquals(
+                    "Method Parameters detected, instrumentation not supported for CapturedSnapshot01",
+                    strCaptor.getAllValues().get(0));
+        } else {
+            ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+            verify(inst, times(1)).retransformClasses(captor.capture());
+            List<Class<?>[]> allValues = captor.getAllValues();
+            assertEquals(testClass, allValues.get(0));
+        }
+    }
 
-  @Test
-  public void spanDecorationProbeSamplers() throws IOException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    SpanDecorationProbe probe1 =
-        SpanDecorationProbe.builder()
-            .probeId(PROBE_ID)
-            .where("java.lang.String", "concat")
-            .evaluateAt(MethodLocation.EXIT)
-            .build();
-    configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_17)
+    public void methodParametersAttributeRecord() throws IOException, URISyntaxException, UnmodifiableClassException {
+        // make sure record method are not detected as having methodParameters attribute.
+        // /!\ record canonical constructor has the MethodParameters attribute,
+        // but not returned by Class::getDeclaredMethods()
+        final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
+        final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+        Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
+        Class<?> testClass = loadClass(RECORD_NAME, buffers);
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        configurationUpdater.accept(
+                REMOTE_CONFIG,
+                singletonList(LogProbe.builder()
+                        .probeId(PROBE_ID)
+                        .where(RECORD_NAME, "<init>")
+                        .build()));
+        verify(inst).getAllLoadedClasses();
+        ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+        verify(inst, times(1)).retransformClasses(captor.capture());
+        List<Class<?>[]> allValues = captor.getAllValues();
+        assertEquals(testClass, allValues.get(0));
+    }
 
-    assertCommitSpanDecorationProbe(probe1);
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_17)
+    public void recordWithTypeAnnotation() throws IOException, URISyntaxException, UnmodifiableClassException {
+        if (JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4)) {
+            // Fixed since JDK 25.0.4
+            return;
+        }
+        final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
+        Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
+        Class<?> testClass = loadClass(CLASS_NAME, buffers);
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        configurationUpdater.accept(
+                REMOTE_CONFIG,
+                singletonList(LogProbe.builder()
+                        .probeId(PROBE_ID)
+                        .where(CLASS_NAME, "parse")
+                        .build()));
+        verify(inst).getAllLoadedClasses();
+        verify(inst, times(0)).retransformClasses(any());
+    }
 
-    // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
-    // SpanDecorationProbe objects.
-    // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
-    SpanDecorationProbe probe1Deserialized =
-        deserializeSpanDecorationProbe(serializeSpanDecorationProbe(probe1).getBytes());
-    SpanDecorationProbe probe2 =
-        SpanDecorationProbe.builder()
-            .probeId(PROBE_ID2)
-            .where("java.lang.String", "concat")
-            .evaluateAt(MethodLocation.EXIT)
-            .build();
-    configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
-    assertCommitSpanDecorationProbe(probe1Deserialized);
-    assertCommitSpanDecorationProbe(probe2);
-  }
+    @Test
+    public void logProbeSamplers() throws IOException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        LogProbe probe1 = LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
+        assertTrue(probe1.isReadyToCapture());
 
-  private static void assertCommitSpanDecorationProbe(SpanDecorationProbe spanDecorationProbe) {
-    DebuggerSink sinkMock = mock(DebuggerSink.class);
-    DebuggerAgent.initSink(sinkMock);
-    CapturedContext capturedContext = mock(CapturedContext.class);
-    CapturedContext.Status status = spanDecorationProbe.createStatus();
-    status.addError(new EvaluationError(null, null));
-    when(capturedContext.getStatus(anyString())).thenReturn(status);
-    spanDecorationProbe.commit(null, capturedContext, null);
-    verify(sinkMock).addSnapshot(any());
-  }
+        // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
+        // LogProbe objects.
+        // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
+        LogProbe probe1Deserialized =
+                deserializeLogProbe(serializeLogProbe(probe1).getBytes());
+        LogProbe probe2 = LogProbe.builder()
+                .probeId(PROBE_ID2)
+                .where("java.lang.String", "concat")
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
+        assertTrue(probe1Deserialized.isReadyToCapture());
+        assertTrue(probe2.isReadyToCapture());
+    }
 
-  @Test
-  public void triggerProbeSamplers() throws IOException {
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
-    TriggerProbe probe1 =
-        TriggerProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build();
-    configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
+    @Test
+    public void spanDecorationProbeSamplers() throws IOException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        SpanDecorationProbe probe1 = SpanDecorationProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .evaluateAt(MethodLocation.EXIT)
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
 
-    assertEvaluateTriggerProbe(probe1);
+        assertCommitSpanDecorationProbe(probe1);
 
-    // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
-    // LogProbe objects.
-    // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
-    TriggerProbe probe1Deserialized =
-        deserializeTriggerProbe(serializeTriggerProbe(probe1).getBytes());
-    TriggerProbe probe2 =
-        TriggerProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build();
-    configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
-    assertEvaluateTriggerProbe(probe1Deserialized);
-    assertEvaluateTriggerProbe(probe2);
-  }
+        // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
+        // SpanDecorationProbe objects.
+        // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
+        SpanDecorationProbe probe1Deserialized = deserializeSpanDecorationProbe(
+                serializeSpanDecorationProbe(probe1).getBytes());
+        SpanDecorationProbe probe2 = SpanDecorationProbe.builder()
+                .probeId(PROBE_ID2)
+                .where("java.lang.String", "concat")
+                .evaluateAt(MethodLocation.EXIT)
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
+        assertCommitSpanDecorationProbe(probe1Deserialized);
+        assertCommitSpanDecorationProbe(probe2);
+    }
 
-  private static void assertEvaluateTriggerProbe(TriggerProbe triggerProbe) {
-    AgentTracer.TracerAPI tracerAPIMock = mock(AgentTracer.TracerAPI.class);
-    AgentSpan spanMock = mock(AgentSpan.class);
-    when(tracerAPIMock.activeSpan()).thenReturn(spanMock);
-    when(spanMock.getLocalRootSpan()).thenReturn(spanMock);
-    AgentTracer.forceRegister(tracerAPIMock);
-    triggerProbe.evaluate(
-        new CapturedContext(), triggerProbe.createStatus(), MethodLocation.ENTRY, true);
-    verify(spanMock).setTag(eq(Tags.PROPAGATED_DEBUG), anyString());
-  }
+    private static void assertCommitSpanDecorationProbe(SpanDecorationProbe spanDecorationProbe) {
+        DebuggerSink sinkMock = mock(DebuggerSink.class);
+        DebuggerAgent.initSink(sinkMock);
+        CapturedContext capturedContext = mock(CapturedContext.class);
+        CapturedContext.Status status = spanDecorationProbe.createStatus();
+        status.addError(new EvaluationError(null, null));
+        when(capturedContext.getStatus(anyString())).thenReturn(status);
+        spanDecorationProbe.commit(null, capturedContext, null);
+        verify(sinkMock).addSnapshot(any());
+    }
 
-  private DebuggerTransformer createTransformer(
-      Config tracerConfig,
-      Configuration configuration,
-      DebuggerTransformer.InstrumentationListener listener,
-      ProbeMetadata probeMetadata,
-      DebuggerSink debuggerSink) {
-    return transformer;
-  }
+    @Test
+    public void triggerProbeSamplers() throws IOException {
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+        ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+        TriggerProbe probe1 = TriggerProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
 
-  private ConfigurationUpdater createConfigUpdater(DebuggerSink sink) {
-    return new ConfigurationUpdater(
-        inst, this::createTransformer, tracerConfig, sink, new ClassesToRetransformFinder());
-  }
+        assertEvaluateTriggerProbe(probe1);
+
+        // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
+        // LogProbe objects.
+        // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
+        TriggerProbe probe1Deserialized =
+                deserializeTriggerProbe(serializeTriggerProbe(probe1).getBytes());
+        TriggerProbe probe2 = TriggerProbe.builder()
+                .probeId(PROBE_ID2)
+                .where("java.lang.String", "concat")
+                .build();
+        configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
+        assertEvaluateTriggerProbe(probe1Deserialized);
+        assertEvaluateTriggerProbe(probe2);
+    }
+
+    private static void assertEvaluateTriggerProbe(TriggerProbe triggerProbe) {
+        AgentTracer.TracerAPI tracerAPIMock = mock(AgentTracer.TracerAPI.class);
+        AgentSpan spanMock = mock(AgentSpan.class);
+        when(tracerAPIMock.activeSpan()).thenReturn(spanMock);
+        when(spanMock.getLocalRootSpan()).thenReturn(spanMock);
+        AgentTracer.forceRegister(tracerAPIMock);
+        triggerProbe.evaluate(new CapturedContext(), triggerProbe.createStatus(), MethodLocation.ENTRY, true);
+        verify(spanMock).setTag(eq(Tags.PROPAGATED_DEBUG), anyString());
+    }
+
+    private DebuggerTransformer createTransformer(
+            Config tracerConfig,
+            Configuration configuration,
+            DebuggerTransformer.InstrumentationListener listener,
+            ProbeMetadata probeMetadata,
+            DebuggerSink debuggerSink) {
+        return transformer;
+    }
+
+    private ConfigurationUpdater createConfigUpdater(DebuggerSink sink) {
+        return new ConfigurationUpdater(
+                inst, this::createTransformer, tracerConfig, sink, new ClassesToRetransformFinder());
+    }
 }

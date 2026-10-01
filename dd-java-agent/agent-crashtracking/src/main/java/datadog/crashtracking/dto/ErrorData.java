@@ -4,50 +4,50 @@ import com.squareup.moshi.Json;
 import java.util.Objects;
 
 public final class ErrorData {
-  @Json(name = "is_crash")
-  public final boolean isCrash = true;
+    @Json(name = "is_crash")
+    public final boolean isCrash = true;
 
-  public final String kind;
-  public final String message;
+    public final String kind;
+    public final String message;
 
-  @Json(name = "thread_name")
-  public final String threadName;
+    @Json(name = "thread_name")
+    public final String threadName;
 
-  @Json(name = "source_type")
-  public final String sourceType = "Crashtracking";
+    @Json(name = "source_type")
+    public final String sourceType = "Crashtracking";
 
-  public final StackTrace stack;
+    public final StackTrace stack;
 
-  public ErrorData(String kind, String message, StackTrace stack) {
-    this(kind, message, null, stack);
-  }
-
-  public ErrorData(String kind, String message, String threadName, StackTrace stack) {
-    this.kind = kind;
-    this.message = message;
-    this.threadName = threadName;
-    this.stack = stack;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
+    public ErrorData(String kind, String message, StackTrace stack) {
+        this(kind, message, null, stack);
     }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    ErrorData errorData = (ErrorData) o;
-    return isCrash == errorData.isCrash
-        && Objects.equals(kind, errorData.kind)
-        && Objects.equals(message, errorData.message)
-        && Objects.equals(threadName, errorData.threadName)
-        && Objects.equals(sourceType, errorData.sourceType)
-        && Objects.equals(stack, errorData.stack);
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(isCrash, kind, message, threadName, sourceType, stack);
-  }
+    public ErrorData(String kind, String message, String threadName, StackTrace stack) {
+        this.kind = kind;
+        this.message = message;
+        this.threadName = threadName;
+        this.stack = stack;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ErrorData errorData = (ErrorData) o;
+        return isCrash == errorData.isCrash
+                && Objects.equals(kind, errorData.kind)
+                && Objects.equals(message, errorData.message)
+                && Objects.equals(threadName, errorData.threadName)
+                && Objects.equals(sourceType, errorData.sourceType)
+                && Objects.equals(stack, errorData.stack);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(isCrash, kind, message, threadName, sourceType, stack);
+    }
 }

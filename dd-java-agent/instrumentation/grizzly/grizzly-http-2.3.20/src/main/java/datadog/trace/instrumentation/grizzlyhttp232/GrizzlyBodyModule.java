@@ -10,22 +10,20 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class GrizzlyBodyModule extends InstrumenterModule.AppSec {
-  public GrizzlyBodyModule() {
-    super("grizzly");
-  }
+    public GrizzlyBodyModule() {
+        super("grizzly");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>();
-    ret.put(
-        "org.glassfish.grizzly.http.io.NIOInputStream", "datadog.trace.api.http.StoredByteBody");
-    ret.put("org.glassfish.grizzly.http.io.NIOReader", "datadog.trace.api.http.StoredCharBody");
-    return ret;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        final Map<String, String> ret = new HashMap<>();
+        ret.put("org.glassfish.grizzly.http.io.NIOInputStream", "datadog.trace.api.http.StoredByteBody");
+        ret.put("org.glassfish.grizzly.http.io.NIOReader", "datadog.trace.api.http.StoredCharBody");
+        return ret;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new GrizzlyByteBodyInstrumentation(), new GrizzlyCharBodyInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(new GrizzlyByteBodyInstrumentation(), new GrizzlyCharBodyInstrumentation());
+    }
 }

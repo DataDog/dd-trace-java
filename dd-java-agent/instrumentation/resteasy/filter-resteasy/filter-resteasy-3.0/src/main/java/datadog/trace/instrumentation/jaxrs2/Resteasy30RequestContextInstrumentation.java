@@ -21,29 +21,27 @@ import org.jboss.resteasy.core.interception.PostMatchContainerRequestContext;
  */
 @AutoService(InstrumenterModule.class)
 public class Resteasy30RequestContextInstrumentation extends AbstractRequestContextInstrumentation {
-  public static class ContainerRequestContextAdvice {
+    public static class ContainerRequestContextAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope decorateAbortSpan(
-        @Advice.This final ContainerRequestContext context) {
-      if (context.getProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED) == null
-          && context instanceof PostMatchContainerRequestContext) {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope decorateAbortSpan(@Advice.This final ContainerRequestContext context) {
+            if (context.getProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED) == null
+                    && context instanceof PostMatchContainerRequestContext) {
 
-        final ResourceMethodInvoker resourceMethodInvoker =
-            ((PostMatchContainerRequestContext) context).getResourceMethod();
-        final Method method = resourceMethodInvoker.getMethod();
-        final Class resourceClass = resourceMethodInvoker.getResourceClass();
+                final ResourceMethodInvoker resourceMethodInvoker =
+                        ((PostMatchContainerRequestContext) context).getResourceMethod();
+                final Method method = resourceMethodInvoker.getMethod();
+                final Class resourceClass = resourceMethodInvoker.getResourceClass();
 
-        return RequestFilterHelper.createOrUpdateAbortSpan(context, resourceClass, method);
-      }
+                return RequestFilterHelper.createOrUpdateAbortSpan(context, resourceClass, method);
+            }
 
-      return null;
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            RequestFilterHelper.closeSpanAndScope(scope, throwable);
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      RequestFilterHelper.closeSpanAndScope(scope, throwable);
-    }
-  }
 }

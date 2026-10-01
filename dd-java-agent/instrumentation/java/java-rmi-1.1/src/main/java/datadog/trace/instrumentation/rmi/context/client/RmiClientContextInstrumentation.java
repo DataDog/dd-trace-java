@@ -45,65 +45,61 @@ import sun.rmi.transport.Connection;
  */
 @AutoService(InstrumenterModule.class)
 public class RmiClientContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public RmiClientContextInstrumentation() {
-    super("rmi", "rmi-context-propagator", "rmi-client-context-propagator");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return super.defaultEnabled()
-        && !Platform.isNativeImageBuilder(); // not applicable in native-image
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("sun.rmi.transport.StreamRemoteCall"));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    // caching if a connection can support enhanced format
-    return singletonMap("sun.rmi.transport.Connection", "java.lang.Boolean");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, named("sun.rmi.transport.Connection")))
-            .and(takesArgument(1, named("java.rmi.server.ObjID"))),
-        getClass().getName() + "$StreamRemoteCallConstructorAdvice");
-  }
-
-  public static class StreamRemoteCallConstructorAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(value = 0) final Connection c,
-        @Advice.Argument(value = 1) final ObjID id) {
-      if (!c.isReusable()) {
-        return;
-      }
-      if (PROPAGATOR.isRMIInternalObject(id)) {
-        return;
-      }
-      final AgentSpan activeSpan = activeSpan();
-      if (activeSpan == null) {
-        return;
-      }
-
-      final ContextStore<Connection, Boolean> knownConnections =
-          InstrumentationContext.get(Connection.class, Boolean.class);
-
-      PROPAGATOR.attemptToPropagateContext(knownConnections, c, activeSpan);
+    public RmiClientContextInstrumentation() {
+        super("rmi", "rmi-context-propagator", "rmi-client-context-propagator");
     }
-  }
+
+    @Override
+    protected boolean defaultEnabled() {
+        return super.defaultEnabled() && !Platform.isNativeImageBuilder(); // not applicable in native-image
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("sun.rmi.transport.StreamRemoteCall"));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        // caching if a connection can support enhanced format
+        return singletonMap("sun.rmi.transport.Connection", "java.lang.Boolean");
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(0, named("sun.rmi.transport.Connection")))
+                        .and(takesArgument(1, named("java.rmi.server.ObjID"))),
+                getClass().getName() + "$StreamRemoteCallConstructorAdvice");
+    }
+
+    public static class StreamRemoteCallConstructorAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Argument(value = 0) final Connection c, @Advice.Argument(value = 1) final ObjID id) {
+            if (!c.isReusable()) {
+                return;
+            }
+            if (PROPAGATOR.isRMIInternalObject(id)) {
+                return;
+            }
+            final AgentSpan activeSpan = activeSpan();
+            if (activeSpan == null) {
+                return;
+            }
+
+            final ContextStore<Connection, Boolean> knownConnections =
+                    InstrumentationContext.get(Connection.class, Boolean.class);
+
+            PROPAGATOR.attemptToPropagateContext(knownConnections, c, activeSpan);
+        }
+    }
 }

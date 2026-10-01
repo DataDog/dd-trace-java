@@ -10,15 +10,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HelloServiceImpl extends HelloServiceGrpc.HelloServiceImplBase {
-  private static final Logger log = LoggerFactory.getLogger(HelloServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(HelloServiceImpl.class);
 
-  @Override
-  public void hello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-    Tracer tracer = GlobalTracer.get();
-    log.info("TT|" + tracer.getTraceId() + "|TS|" + tracer.getSpanId());
+    @Override
+    public void hello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        Tracer tracer = GlobalTracer.get();
+        log.info("TT|" + tracer.getTraceId() + "|TS|" + tracer.getSpanId());
 
-    String message = "Hello " + request.getName() + "!";
-    responseObserver.onNext(HelloReply.newBuilder().setMessage(message).build());
-    responseObserver.onCompleted();
-  }
+        String message = "Hello " + request.getName() + "!";
+        responseObserver.onNext(HelloReply.newBuilder().setMessage(message).build());
+        responseObserver.onCompleted();
+    }
 }

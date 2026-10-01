@@ -21,52 +21,52 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JakartaServletInstrumentation() {
-    super("undertow", "undertow-2.2");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.undertow.servlet.handlers.ServletInitialHandler";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("dispatchRequest")), getClass().getName() + "$DispatchAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".UndertowBlockResponseFunction",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response",
-      packageName + ".IgnoreSendAttribute",
-    };
-  }
-
-  public static class DispatchAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(
-        @Advice.Argument(0) final HttpServerExchange exchange,
-        @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
-      ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
-      if (continuation != null) {
-        AgentSpan undertowSpan = spanFromContext(continuation.context());
-        ServletRequest request = servletRequestContext.getServletRequest();
-        request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
-        undertowSpan.setSpanName(SERVLET_REQUEST);
-
-        undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
-        undertowSpan.setTag(SERVLET_PATH, exchange.getRelativePath());
-      }
+    public JakartaServletInstrumentation() {
+        super("undertow", "undertow-2.2");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.undertow.servlet.handlers.ServletInitialHandler";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("dispatchRequest")), getClass().getName() + "$DispatchAdvice");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".HttpServerExchangeURIDataAdapter",
+            packageName + ".UndertowDecorator",
+            packageName + ".UndertowBlockingHandler",
+            packageName + ".UndertowBlockResponseFunction",
+            packageName + ".UndertowExtractAdapter",
+            packageName + ".UndertowExtractAdapter$Request",
+            packageName + ".UndertowExtractAdapter$Response",
+            packageName + ".IgnoreSendAttribute",
+        };
+    }
+
+    public static class DispatchAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void enter(
+                @Advice.Argument(0) final HttpServerExchange exchange,
+                @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
+            ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+            if (continuation != null) {
+                AgentSpan undertowSpan = spanFromContext(continuation.context());
+                ServletRequest request = servletRequestContext.getServletRequest();
+                request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
+                undertowSpan.setSpanName(SERVLET_REQUEST);
+
+                undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
+                undertowSpan.setTag(SERVLET_PATH, exchange.getRelativePath());
+            }
+        }
+    }
 }

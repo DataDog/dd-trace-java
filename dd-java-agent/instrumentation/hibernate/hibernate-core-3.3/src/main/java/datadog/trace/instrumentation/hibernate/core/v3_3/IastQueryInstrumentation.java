@@ -18,46 +18,46 @@ import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(InstrumenterModule.class)
 public class IastQueryInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public IastQueryInstrumentation() {
-    super("hibernate", "hibernate-core");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.hibernate.impl.AbstractQueryImpl";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("before").and(takesArguments(0))),
-        IastQueryInstrumentation.class.getName() + "$QueryMethodAdvice");
-  }
-
-  public static class QueryMethodAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Sink(VulnerabilityTypes.SQL_INJECTION)
-    public static void beforeMethod(@Advice.This final Query query) {
-      final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
-      if (module != null) {
-        module.onJdbcQuery(query.getQueryString());
-      }
+    public IastQueryInstrumentation() {
+        super("hibernate", "hibernate-core");
     }
 
-    /**
-     * Some cases of instrumentation will match more broadly than others, so this unused method
-     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
-     */
-    public static void muzzleCheck(
-        // Not in 4.0
-        final Validatable validatable,
-        // Not before 3.3.0.GA
-        final JBossTransactionManagerLookup lookup) {
-      validatable.validate();
-      lookup.getUserTransactionName();
+    @Override
+    public String instrumentedType() {
+        return "org.hibernate.impl.AbstractQueryImpl";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("before").and(takesArguments(0))),
+                IastQueryInstrumentation.class.getName() + "$QueryMethodAdvice");
+    }
+
+    public static class QueryMethodAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        @Sink(VulnerabilityTypes.SQL_INJECTION)
+        public static void beforeMethod(@Advice.This final Query query) {
+            final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
+            if (module != null) {
+                module.onJdbcQuery(query.getQueryString());
+            }
+        }
+
+        /**
+         * Some cases of instrumentation will match more broadly than others, so this unused method
+         * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+         */
+        public static void muzzleCheck(
+                // Not in 4.0
+                final Validatable validatable,
+                // Not before 3.3.0.GA
+                final JBossTransactionManagerLookup lookup) {
+            validatable.validate();
+            lookup.getUserTransactionName();
+        }
+    }
 }

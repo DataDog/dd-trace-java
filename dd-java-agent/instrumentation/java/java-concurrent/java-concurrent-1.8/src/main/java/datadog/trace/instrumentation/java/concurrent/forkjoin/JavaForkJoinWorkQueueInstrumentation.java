@@ -28,62 +28,60 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JavaForkJoinWorkQueueInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JavaForkJoinWorkQueueInstrumentation() {
-    super(
-        EXECUTOR_INSTRUMENTATION_NAME,
-        FORK_JOIN_POOL_INSTRUMENTATION_NAME,
-        FORK_JOIN_POOL_INSTRUMENTATION_NAME + "-workqueue");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "java.util.concurrent.ForkJoinPool$WorkQueue";
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    String name = getClass().getName();
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("push"))
-            .and(takesArgument(0, named("java.util.concurrent.ForkJoinTask")))
-            .and(
-                isDeclaredBy(
-                    declaresField(fieldType(int.class).and(named("top")))
-                        .and(declaresField(fieldType(int.class).and(named("base")))))),
-        name + "$PushTask");
-  }
-
-  public static final class PushTask {
-    @SuppressWarnings("rawtypes")
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static <T> void push(
-        @Advice.This Object workQueue,
-        @Advice.FieldValue("top") int top,
-        @Advice.FieldValue("base") int base,
-        @Advice.Argument(0) ForkJoinTask<T> task) {
-      if (!exclude(FORK_JOIN_TASK, task)) {
-        ContextStore<ForkJoinTask, State> contextStore =
-            InstrumentationContext.get(ForkJoinTask.class, State.class);
-        QueueTimerHelper.startQueuingTimer(
-            contextStore, ForkJoinPool.class, workQueue.getClass(), top - base, task);
-      }
+    public JavaForkJoinWorkQueueInstrumentation() {
+        super(
+                EXECUTOR_INSTRUMENTATION_NAME,
+                FORK_JOIN_POOL_INSTRUMENTATION_NAME,
+                FORK_JOIN_POOL_INSTRUMENTATION_NAME + "-workqueue");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "java.util.concurrent.ForkJoinPool$WorkQueue";
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled()
+                && ConfigProvider.getInstance()
+                        .getBoolean(
+                                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+                                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        String name = getClass().getName();
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("push"))
+                        .and(takesArgument(0, named("java.util.concurrent.ForkJoinTask")))
+                        .and(isDeclaredBy(declaresField(fieldType(int.class).and(named("top")))
+                                .and(declaresField(fieldType(int.class).and(named("base")))))),
+                name + "$PushTask");
+    }
+
+    public static final class PushTask {
+        @SuppressWarnings("rawtypes")
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static <T> void push(
+                @Advice.This Object workQueue,
+                @Advice.FieldValue("top") int top,
+                @Advice.FieldValue("base") int base,
+                @Advice.Argument(0) ForkJoinTask<T> task) {
+            if (!exclude(FORK_JOIN_TASK, task)) {
+                ContextStore<ForkJoinTask, State> contextStore =
+                        InstrumentationContext.get(ForkJoinTask.class, State.class);
+                QueueTimerHelper.startQueuingTimer(
+                        contextStore, ForkJoinPool.class, workQueue.getClass(), top - base, task);
+            }
+        }
+    }
 }

@@ -20,35 +20,34 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ReactorServerHttpRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ReactorServerHttpRequestInstrumentation() {
-    super("spring-webflux");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.http.server.reactive.ReactorServerHttpRequest";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("initHeaders")).and(takesArguments(1)),
-        getClass().getName() + "$TaintHeadersAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class TaintHeadersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(
-        @Advice.Return Object object, @ActiveRequestContext RequestContext reqCtx) {
-      PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null) {
-        return;
-      }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      propagation.taintObject(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
+    public ReactorServerHttpRequestInstrumentation() {
+        super("spring-webflux");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.http.server.reactive.ReactorServerHttpRequest";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("initHeaders")).and(takesArguments(1)),
+                getClass().getName() + "$TaintHeadersAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class TaintHeadersAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void after(@Advice.Return Object object, @ActiveRequestContext RequestContext reqCtx) {
+            PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+            if (propagation == null) {
+                return;
+            }
+            IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+            propagation.taintObject(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
+        }
+    }
 }

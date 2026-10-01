@@ -17,52 +17,51 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public Dbcp2LinkedBlockingDequeInstrumentation() {
-    super("jdbc", "dbcp2");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.commons.pool2.impl.LinkedBlockingDeque", // standalone
-      "org.apache.tomcat.dbcp.pool2.impl.LinkedBlockingDeque" // bundled with Tomcat
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("pollFirst").and(takesArguments(1)),
-        Dbcp2LinkedBlockingDequeInstrumentation.class.getName() + "$PollFirstAdvice");
-  }
-
-  public static class PollFirstAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentSpan onEnter() {
-      if (CallDepthThreadLocalMap.getCallDepth(PoolWaitingDecorator.class) > 0) {
-        AgentSpan span = startSpan(JAVA_JDBC_POOL_WAITING.toString(), POOL_WAITING);
-        DECORATE.afterStart(span);
-        span.setResourceName("dbcp2.waiting");
-        return span;
-      } else {
-        return null;
-      }
+    public Dbcp2LinkedBlockingDequeInstrumentation() {
+        super("jdbc", "dbcp2");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
-      if (span != null) {
-        DECORATE.onError(span, throwable);
-        span.finish();
-      }
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.apache.commons.pool2.impl.LinkedBlockingDeque", // standalone
+            "org.apache.tomcat.dbcp.pool2.impl.LinkedBlockingDeque" // bundled with Tomcat
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("pollFirst").and(takesArguments(1)),
+                Dbcp2LinkedBlockingDequeInstrumentation.class.getName() + "$PollFirstAdvice");
+    }
+
+    public static class PollFirstAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static AgentSpan onEnter() {
+            if (CallDepthThreadLocalMap.getCallDepth(PoolWaitingDecorator.class) > 0) {
+                AgentSpan span = startSpan(JAVA_JDBC_POOL_WAITING.toString(), POOL_WAITING);
+                DECORATE.afterStart(span);
+                span.setResourceName("dbcp2.waiting");
+                return span;
+            } else {
+                return null;
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(@Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
+            if (span != null) {
+                DECORATE.onError(span, throwable);
+                span.finish();
+            }
+        }
+    }
 }

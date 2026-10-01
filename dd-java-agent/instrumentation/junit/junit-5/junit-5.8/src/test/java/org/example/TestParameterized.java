@@ -11,25 +11,24 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 public class TestParameterized {
 
-  static List<Arguments> parameters() {
-    return Collections.singletonList(() -> new Object[] {0, 0, "0", "some:\"parameter\""});
-  }
+    static List<Arguments> parameters() {
+        return Collections.singletonList(() -> new Object[] {0, 0, "0", "some:\"parameter\""});
+    }
 
-  @ParameterizedTest
-  @MethodSource("parameters")
-  public void test_parameterized(
-      final int first, final int second, final int expectedSum, final String message) {
-    final int actualSum = first + second;
-    assertEquals(expectedSum, actualSum);
-    assertNotNull(message);
-  }
+    @ParameterizedTest
+    @MethodSource("parameters")
+    public void test_parameterized(final int first, final int second, final int expectedSum, final String message) {
+        final int actualSum = first + second;
+        assertEquals(expectedSum, actualSum);
+        assertNotNull(message);
+    }
 
-  @ParameterizedTest
-  @MethodSource("parameters")
-  public void test_another_parameterized(
-      final int first, final int second, final int expectedSum, final String message) {
-    final int actualSum = first + second;
-    assertEquals(expectedSum, actualSum);
-    assertNotNull(message);
-  }
+    @ParameterizedTest
+    @MethodSource("parameters")
+    public void test_another_parameterized(
+            final int first, final int second, final int expectedSum, final String message) {
+        final int actualSum = first + second;
+        assertEquals(expectedSum, actualSum);
+        assertNotNull(message);
+    }
 }

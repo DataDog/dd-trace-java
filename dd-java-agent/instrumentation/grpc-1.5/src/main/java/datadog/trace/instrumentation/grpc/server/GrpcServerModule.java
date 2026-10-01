@@ -14,24 +14,23 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class GrpcServerModule extends InstrumenterModule.Tracing {
-  public GrpcServerModule() {
-    super("grpc", "grpc-server");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.grpc.ServerBuilder", Boolean.class.getName());
-  }
-
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    final List<Instrumenter> ret = new ArrayList<>(2);
-    ret.add(new GrpcServerBuilderInstrumentation());
-    if (!JavaVirtualMachine.isGraalVM()
-        && InstrumenterConfig.get()
-            .isIntegrationEnabled(singleton("grpc-server-code-origin"), true)) {
-      ret.add(new MethodHandlersInstrumentation());
+    public GrpcServerModule() {
+        super("grpc", "grpc-server");
     }
-    return ret;
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.grpc.ServerBuilder", Boolean.class.getName());
+    }
+
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        final List<Instrumenter> ret = new ArrayList<>(2);
+        ret.add(new GrpcServerBuilderInstrumentation());
+        if (!JavaVirtualMachine.isGraalVM()
+                && InstrumenterConfig.get().isIntegrationEnabled(singleton("grpc-server-code-origin"), true)) {
+            ret.add(new MethodHandlersInstrumentation());
+        }
+        return ret;
+    }
 }

@@ -16,40 +16,38 @@ import org.codehaus.plexus.PlexusContainer;
 
 @AutoService(InstrumenterModule.class)
 public class MavenInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public MavenInstrumentation() {
-    super("maven");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.apache.maven.cli.MavenCli";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("customizeContainer")
-            .and(takesArgument(0, named("org.codehaus.plexus.PlexusContainer"))),
-        MavenInstrumentation.class.getName() + "$MavenAdvice");
-  }
-
-  public static class MavenAdvice {
-    @Advice.OnMethodEnter
-    public static void addLifecycleExtension(@Advice.Argument(0) final PlexusContainer container) {
-      container.addComponent(
-          new MavenLifecycleParticipant(), AbstractMavenLifecycleParticipant.class, null);
+    public MavenInstrumentation() {
+        super("maven");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.apache.maven.cli.MavenCli";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("customizeContainer").and(takesArgument(0, named("org.codehaus.plexus.PlexusContainer"))),
+                MavenInstrumentation.class.getName() + "$MavenAdvice");
+    }
+
+    public static class MavenAdvice {
+        @Advice.OnMethodEnter
+        public static void addLifecycleExtension(@Advice.Argument(0) final PlexusContainer container) {
+            container.addComponent(new MavenLifecycleParticipant(), AbstractMavenLifecycleParticipant.class, null);
+        }
+    }
 }

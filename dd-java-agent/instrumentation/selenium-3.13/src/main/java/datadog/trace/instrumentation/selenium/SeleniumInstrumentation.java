@@ -19,73 +19,70 @@ import org.openqa.selenium.WebDriver;
 
 @AutoService(InstrumenterModule.class)
 public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public SeleniumInstrumentation() {
-    super("ci-visibility", "selenium");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.openqa.selenium.WebDriver";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(), SeleniumInstrumentation.class.getName() + "$InjectTestListener");
-    transformer.applyAdvice(
-        named("get").and(takesArguments(String.class)),
-        SeleniumInstrumentation.class.getName() + "$GetPageAdvice");
-    transformer.applyAdvice(
-        named("close").and(takesNoArguments()),
-        SeleniumInstrumentation.class.getName() + "$ClosePageAdvice");
-    transformer.applyAdvice(
-        named("quit").and(takesNoArguments()),
-        SeleniumInstrumentation.class.getName() + "$QuitPageAdvice");
-  }
-
-  public static class InjectTestListener {
-    @Advice.OnMethodExit
-    public static void afterWebDriverCreated() {
-      InstrumentationTestBridge.registerListener(SeleniumTestListener.INSTANCE);
+    public SeleniumInstrumentation() {
+        super("ci-visibility", "selenium");
     }
-  }
 
-  public static class GetPageAdvice {
-    @Advice.OnMethodExit
-    public static void afterPageLoad(@Advice.This WebDriver driver) {
-      TestContext testContext = InstrumentationTestBridge.getCurrentTestContext();
-      if (testContext != null) {
-        testContext.set(WebDriver.class, driver);
-      }
-      SeleniumUtils.afterPageOpen(driver);
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.openqa.selenium.WebDriver";
     }
-  }
 
-  public static class ClosePageAdvice {
-    @Advice.OnMethodEnter
-    public static void beforePageClose(@Advice.This WebDriver driver) {
-      SeleniumUtils.beforePageClose(driver);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
     }
-  }
 
-  public static class QuitPageAdvice {
-    @Advice.OnMethodEnter
-    public static void beforeBrowserQuit(@Advice.This WebDriver driver) {
-      Set<String> handles = driver.getWindowHandles();
-      if (handles == null) {
-        return;
-      }
-      for (String handle : handles) {
-        WebDriver window = driver.switchTo().window(handle);
-        SeleniumUtils.beforePageClose(window);
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), SeleniumInstrumentation.class.getName() + "$InjectTestListener");
+        transformer.applyAdvice(
+                named("get").and(takesArguments(String.class)),
+                SeleniumInstrumentation.class.getName() + "$GetPageAdvice");
+        transformer.applyAdvice(
+                named("close").and(takesNoArguments()), SeleniumInstrumentation.class.getName() + "$ClosePageAdvice");
+        transformer.applyAdvice(
+                named("quit").and(takesNoArguments()), SeleniumInstrumentation.class.getName() + "$QuitPageAdvice");
     }
-  }
+
+    public static class InjectTestListener {
+        @Advice.OnMethodExit
+        public static void afterWebDriverCreated() {
+            InstrumentationTestBridge.registerListener(SeleniumTestListener.INSTANCE);
+        }
+    }
+
+    public static class GetPageAdvice {
+        @Advice.OnMethodExit
+        public static void afterPageLoad(@Advice.This WebDriver driver) {
+            TestContext testContext = InstrumentationTestBridge.getCurrentTestContext();
+            if (testContext != null) {
+                testContext.set(WebDriver.class, driver);
+            }
+            SeleniumUtils.afterPageOpen(driver);
+        }
+    }
+
+    public static class ClosePageAdvice {
+        @Advice.OnMethodEnter
+        public static void beforePageClose(@Advice.This WebDriver driver) {
+            SeleniumUtils.beforePageClose(driver);
+        }
+    }
+
+    public static class QuitPageAdvice {
+        @Advice.OnMethodEnter
+        public static void beforeBrowserQuit(@Advice.This WebDriver driver) {
+            Set<String> handles = driver.getWindowHandles();
+            if (handles == null) {
+                return;
+            }
+            for (String handle : handles) {
+                WebDriver window = driver.switchTo().window(handle);
+                SeleniumUtils.beforePageClose(window);
+            }
+        }
+    }
 }

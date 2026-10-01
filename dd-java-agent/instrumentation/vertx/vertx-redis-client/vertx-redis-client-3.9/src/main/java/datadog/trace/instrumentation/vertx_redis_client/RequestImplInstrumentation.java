@@ -21,112 +21,104 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(InstrumenterModule.class)
 public class RequestImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithStructuralChange {
-  public RequestImplInstrumentation() {
-    super("vertx", "vertx-redis-client");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.redis.client.impl.RequestImpl";
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new RequestImplVisitorWrapper());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // This advice should never match any methods, and is only here for Muzzle
-    transformer.applyAdvice(none(), packageName + ".RequestImplMuzzle");
-  }
-
-  @Override
-  public Class<?> structuralChangeMarker() {
-    return Cloneable.class;
-  }
-
-  // This Transformer will add the Cloneable interface to RequestImpl, as well
-  // as a clone method that calls the protected shallow clone method in Object
-  public static class RequestImplVisitorWrapper implements AsmVisitorWrapper {
-    @Override
-    public int mergeWriter(int flags) {
-      return flags | ClassWriter.COMPUTE_MAXS;
+        implements Instrumenter.ForSingleType,
+                Instrumenter.HasTypeAdvice,
+                Instrumenter.HasMethodAdvice,
+                Instrumenter.WithStructuralChange {
+    public RequestImplInstrumentation() {
+        super("vertx", "vertx-redis-client");
     }
 
     @Override
-    public int mergeReader(int flags) {
-      return flags;
+    public String instrumentedType() {
+        return "io.vertx.redis.client.impl.RequestImpl";
     }
 
     @Override
-    public ClassVisitor wrap(
-        TypeDescription instrumentedType,
-        ClassVisitor classVisitor,
-        Implementation.Context implementationContext,
-        TypePool typePool,
-        FieldList<FieldDescription.InDefinedShape> fields,
-        MethodList<?> methods,
-        int writerFlags,
-        int readerFlags) {
-      return new ClassVisitor(Opcodes.ASM7, classVisitor) {
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new RequestImplVisitorWrapper());
+    }
 
-        private static final String CLONEABLE = "java/lang/Cloneable";
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // This advice should never match any methods, and is only here for Muzzle
+        transformer.applyAdvice(none(), packageName + ".RequestImplMuzzle");
+    }
 
-        private boolean addCloneable = false;
+    @Override
+    public Class<?> structuralChangeMarker() {
+        return Cloneable.class;
+    }
 
+    // This Transformer will add the Cloneable interface to RequestImpl, as well
+    // as a clone method that calls the protected shallow clone method in Object
+    public static class RequestImplVisitorWrapper implements AsmVisitorWrapper {
         @Override
-        public void visit(
-            int version,
-            int access,
-            String name,
-            String signature,
-            String superName,
-            String[] interfaces) {
-          // Add the Cloneable interface, unless it's already there (e.g. reapplying this
-          // change while retransforming a class that was already modified on initial load)
-          if (!arrayContains(interfaces, CLONEABLE)) {
-            interfaces = appendToArray(interfaces, CLONEABLE);
-            if (signature != null) {
-              signature += 'L' + CLONEABLE + ';';
-            }
-            addCloneable = true;
-          }
-          cv.visit(version, access, name, signature, superName, interfaces);
+        public int mergeWriter(int flags) {
+            return flags | ClassWriter.COMPUTE_MAXS;
         }
 
         @Override
-        public void visitEnd() {
-          if (addCloneable) {
-            // Add a clone method that calls the protected shallow clone method in Object
-            //
-            // public Object clone() throws CloneNotSupportedException {
-            //    return super.clone(); // Object is the super class
-            // }
-            //
-            final MethodVisitor mv =
-                cv.visitMethod(
-                    Opcodes.ACC_PUBLIC,
-                    "clone",
-                    "()Ljava/lang/Object;",
-                    null,
-                    new String[] {"java/lang/CloneNotSupportedException"});
-            mv.visitCode();
-            mv.visitIntInsn(Opcodes.ALOAD, 0);
-            mv.visitMethodInsn(
-                Opcodes.INVOKESPECIAL, "java/lang/Object", "clone", "()Ljava/lang/Object;", false);
-            mv.visitInsn(Opcodes.ARETURN);
-            mv.visitMaxs(0, 0);
-            mv.visitEnd();
-          }
-
-          cv.visitEnd();
+        public int mergeReader(int flags) {
+            return flags;
         }
-      };
+
+        @Override
+        public ClassVisitor wrap(
+                TypeDescription instrumentedType,
+                ClassVisitor classVisitor,
+                Implementation.Context implementationContext,
+                TypePool typePool,
+                FieldList<FieldDescription.InDefinedShape> fields,
+                MethodList<?> methods,
+                int writerFlags,
+                int readerFlags) {
+            return new ClassVisitor(Opcodes.ASM7, classVisitor) {
+
+                private static final String CLONEABLE = "java/lang/Cloneable";
+
+                private boolean addCloneable = false;
+
+                @Override
+                public void visit(
+                        int version, int access, String name, String signature, String superName, String[] interfaces) {
+                    // Add the Cloneable interface, unless it's already there (e.g. reapplying this
+                    // change while retransforming a class that was already modified on initial load)
+                    if (!arrayContains(interfaces, CLONEABLE)) {
+                        interfaces = appendToArray(interfaces, CLONEABLE);
+                        if (signature != null) {
+                            signature += 'L' + CLONEABLE + ';';
+                        }
+                        addCloneable = true;
+                    }
+                    cv.visit(version, access, name, signature, superName, interfaces);
+                }
+
+                @Override
+                public void visitEnd() {
+                    if (addCloneable) {
+                        // Add a clone method that calls the protected shallow clone method in Object
+                        //
+                        // public Object clone() throws CloneNotSupportedException {
+                        //    return super.clone(); // Object is the super class
+                        // }
+                        //
+                        final MethodVisitor mv =
+                                cv.visitMethod(Opcodes.ACC_PUBLIC, "clone", "()Ljava/lang/Object;", null, new String[] {
+                                    "java/lang/CloneNotSupportedException"
+                                });
+                        mv.visitCode();
+                        mv.visitIntInsn(Opcodes.ALOAD, 0);
+                        mv.visitMethodInsn(
+                                Opcodes.INVOKESPECIAL, "java/lang/Object", "clone", "()Ljava/lang/Object;", false);
+                        mv.visitInsn(Opcodes.ARETURN);
+                        mv.visitMaxs(0, 0);
+                        mv.visitEnd();
+                    }
+
+                    cv.visitEnd();
+                }
+            };
+        }
     }
-  }
 }

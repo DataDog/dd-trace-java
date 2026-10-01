@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Test;
 
 public class TestSucceedKarateSkipEfd {
 
-  @Test
-  public void test() {
-    Results results =
-        Runner.path("classpath:org/example/test_succeed_skip_efd.feature").parallel(1);
-    assertEquals(0, results.getFailCount(), results.getErrorMessages());
-  }
+    @Test
+    public void test() {
+        Results results = Runner.path("classpath:org/example/test_succeed_skip_efd.feature")
+                .parallel(1);
+        assertEquals(0, results.getFailCount(), results.getErrorMessages());
+    }
 }

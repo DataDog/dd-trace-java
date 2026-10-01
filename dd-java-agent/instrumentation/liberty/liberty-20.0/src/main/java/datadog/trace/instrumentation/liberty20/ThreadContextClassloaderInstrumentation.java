@@ -11,32 +11,31 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private static final String LIBERTY = "liberty";
+    private static final String LIBERTY = "liberty";
 
-  public ThreadContextClassloaderInstrumentation() {
-    super(LIBERTY, "liberty-classloading");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.ibm.ws.classloading.internal.ThreadContextClassLoader";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(), getClass().getName() + "$ThreadContextClassloaderAdvice");
-  }
-
-  public static class ThreadContextClassloaderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterConstruct(@Advice.This ThreadContextClassLoader self) {
-      final String name = BundleNameHelper.extractDeploymentName(self);
-      if (name != null && !name.isEmpty()) {
-        ClassloaderConfigurationOverrides.withPinnedServiceName(self, name);
-      }
+    public ThreadContextClassloaderInstrumentation() {
+        super(LIBERTY, "liberty-classloading");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.ibm.ws.classloading.internal.ThreadContextClassLoader";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$ThreadContextClassloaderAdvice");
+    }
+
+    public static class ThreadContextClassloaderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterConstruct(@Advice.This ThreadContextClassLoader self) {
+            final String name = BundleNameHelper.extractDeploymentName(self);
+            if (name != null && !name.isEmpty()) {
+                ClassloaderConfigurationOverrides.withPinnedServiceName(self, name);
+            }
+        }
+    }
 }

@@ -14,36 +14,35 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JmsMessageGetterInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JmsMessageGetterInstrumentation() {
-    super("jms");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.tibco.bw.jms.shared.primitives.SingleJMSMessageGetter";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
-  }
-
-  public static class ConstructorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(
-        @Advice.FieldValue(value = "callBackHandler") final JMSMessageCallBackHandler handler) {
-      // If we inferred the service name we should capture it and set on the receiver side as well
-      // (otherwise it will be missing or different)
-      if (handler != null && !Config.get().isServiceNameSetByUser()) {
-        final AgentSpan span = activeSpan();
-        if (span != null && span.getLocalRootSpan() != null) {
-          final String pinnedName = span.getLocalRootSpan().getServiceName();
-          InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class)
-              .put(handler, pinnedName);
-        }
-      }
+    public JmsMessageGetterInstrumentation() {
+        super("jms");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.tibco.bw.jms.shared.primitives.SingleJMSMessageGetter";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
+    }
+
+    public static class ConstructorAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void exit(@Advice.FieldValue(value = "callBackHandler") final JMSMessageCallBackHandler handler) {
+            // If we inferred the service name we should capture it and set on the receiver side as well
+            // (otherwise it will be missing or different)
+            if (handler != null && !Config.get().isServiceNameSetByUser()) {
+                final AgentSpan span = activeSpan();
+                if (span != null && span.getLocalRootSpan() != null) {
+                    final String pinnedName = span.getLocalRootSpan().getServiceName();
+                    InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class)
+                            .put(handler, pinnedName);
+                }
+            }
+        }
+    }
 }

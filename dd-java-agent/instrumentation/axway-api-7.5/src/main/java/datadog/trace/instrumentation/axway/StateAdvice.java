@@ -19,27 +19,26 @@ import net.bytebuddy.asm.Advice;
  * instrumentation intends to see to which services apigateway goes to prepare it response.
  */
 public class StateAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(@Advice.This final Object stateInstance) {
-    final AgentSpan span = startSpan("axway-http", AXWAY_TRY_TRANSACTION);
-    final ContextScope scope = activateSpan(span);
-    span.setMeasured(true);
-    DECORATE.onTransaction(span, stateInstance);
-    DECORATE.afterStart(span);
-    return scope;
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void onExit(
-      @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-    if (scope == null) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.This final Object stateInstance) {
+        final AgentSpan span = startSpan("axway-http", AXWAY_TRY_TRANSACTION);
+        final ContextScope scope = activateSpan(span);
+        span.setMeasured(true);
+        DECORATE.onTransaction(span, stateInstance);
+        DECORATE.afterStart(span);
+        return scope;
     }
-    final AgentSpan span = spanFromScope(scope);
-    final Context context = scope.context();
-    DECORATE.onError(span, throwable);
-    DECORATE.beforeFinish(context);
-    scope.close();
-    span.finish();
-  }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        if (scope == null) {
+            return;
+        }
+        final AgentSpan span = spanFromScope(scope);
+        final Context context = scope.context();
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(context);
+        scope.close();
+        span.finish();
+    }
 }

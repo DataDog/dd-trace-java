@@ -8,34 +8,34 @@ import javax.annotation.Nullable;
 
 public class IastOptOutContext implements IastContext {
 
-  @Nonnull
-  @SuppressWarnings("unchecked")
-  @Override
-  public TaintedObjects getTaintedObjects() {
-    return TaintedObjects.NoOp.INSTANCE;
-  }
-
-  @Override
-  public void close() throws IOException {}
-
-  public static class Provider extends IastContext.Provider {
-
-    final IastContext optOutContext = new IastOptOutContext();
-
-    @Nullable
+    @Nonnull
+    @SuppressWarnings("unchecked")
     @Override
-    public IastContext resolve() {
-      return optOutContext;
+    public TaintedObjects getTaintedObjects() {
+        return TaintedObjects.NoOp.INSTANCE;
     }
 
     @Override
-    public IastContext buildRequestContext() {
-      return new IastRequestContext(optOutContext.getTaintedObjects());
-    }
+    public void close() throws IOException {}
 
-    @Override
-    public void releaseRequestContext(@Nonnull final IastContext context) {
-      // nothing to release in opt out mode
+    public static class Provider extends IastContext.Provider {
+
+        final IastContext optOutContext = new IastOptOutContext();
+
+        @Nullable
+        @Override
+        public IastContext resolve() {
+            return optOutContext;
+        }
+
+        @Override
+        public IastContext buildRequestContext() {
+            return new IastRequestContext(optOutContext.getTaintedObjects());
+        }
+
+        @Override
+        public void releaseRequestContext(@Nonnull final IastContext context) {
+            // nothing to release in opt out mode
+        }
     }
-  }
 }

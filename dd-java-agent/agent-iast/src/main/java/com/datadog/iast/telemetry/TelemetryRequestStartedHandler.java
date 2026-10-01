@@ -12,18 +12,18 @@ import javax.annotation.Nonnull;
 
 public class TelemetryRequestStartedHandler extends RequestStartedHandler {
 
-  public TelemetryRequestStartedHandler(@Nonnull final Dependencies dependencies) {
-    super(dependencies);
-  }
+    public TelemetryRequestStartedHandler(@Nonnull final Dependencies dependencies) {
+        super(dependencies);
+    }
 
-  @Override
-  protected IastRequestContext newContext() {
-    final IastRequestContext ctx = super.newContext();
-    final Config config = Config.get();
-    final Verbosity verbosity = config.getIastTelemetryVerbosity();
-    final TaintedObjects withTelemetry = TaintedObjectsWithTelemetry.build(verbosity, ctx);
-    ctx.setTaintedObjects(withTelemetry);
-    ctx.setCollector(new IastMetricCollector());
-    return ctx;
-  }
+    @Override
+    protected IastRequestContext newContext() {
+        final IastRequestContext ctx = super.newContext();
+        final Config config = Config.get();
+        final Verbosity verbosity = config.getIastTelemetryVerbosity();
+        final TaintedObjects withTelemetry = TaintedObjectsWithTelemetry.build(verbosity, ctx);
+        ctx.setTaintedObjects(withTelemetry);
+        ctx.setCollector(new IastMetricCollector());
+        return ctx;
+    }
 }

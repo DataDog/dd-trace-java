@@ -16,22 +16,22 @@ import org.mockito.ArgumentCaptor;
 
 class ProductChangeActionTest {
 
-  private final ProductChangeAction action = new ProductChangeAction();
-  private final TelemetryService telemetryService = mock(TelemetryService.class);
+    private final ProductChangeAction action = new ProductChangeAction();
+    private final TelemetryService telemetryService = mock(TelemetryService.class);
 
-  @Test
-  void pushProductChangesIntoTheTelemetryService() {
-    ProductChangeCollector.get().update(new ProductChange().productType(APPSEC).enabled(true));
+    @Test
+    void pushProductChangesIntoTheTelemetryService() {
+        ProductChangeCollector.get()
+                .update(new ProductChange().productType(APPSEC).enabled(true));
 
-    action.doIteration(telemetryService);
+        action.doIteration(telemetryService);
 
-    ArgumentCaptor<ProductChange> productChangeCaptor =
-        ArgumentCaptor.forClass(ProductChange.class);
-    verify(telemetryService, times(1)).addProductChange(productChangeCaptor.capture());
-    ProductChange productChange = productChangeCaptor.getValue();
-    assertEquals(APPSEC, productChange.getProductType());
-    assertTrue(productChange.isEnabled());
+        ArgumentCaptor<ProductChange> productChangeCaptor = ArgumentCaptor.forClass(ProductChange.class);
+        verify(telemetryService, times(1)).addProductChange(productChangeCaptor.capture());
+        ProductChange productChange = productChangeCaptor.getValue();
+        assertEquals(APPSEC, productChange.getProductType());
+        assertTrue(productChange.isEnabled());
 
-    verifyNoMoreInteractions(telemetryService);
-  }
+        verifyNoMoreInteractions(telemetryService);
+    }
 }

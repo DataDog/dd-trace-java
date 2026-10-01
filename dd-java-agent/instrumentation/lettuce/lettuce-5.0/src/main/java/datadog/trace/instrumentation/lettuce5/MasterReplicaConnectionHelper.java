@@ -11,42 +11,41 @@ import java.util.concurrent.CompletableFuture;
 
 public final class MasterReplicaConnectionHelper {
 
-  private MasterReplicaConnectionHelper() {}
+    private MasterReplicaConnectionHelper() {}
 
-  public static boolean isRedisClientSpan(final AgentSpan span) {
-    return span != null && LettuceClientDecorator.REDIS_CLIENT.equals(span.getTag(Tags.COMPONENT));
-  }
-
-  public static void onConnection(
-      final AgentSpan span,
-      final StatefulConnection connection,
-      final ContextStore<StatefulConnection, RedisURI> contextStore) {
-    if (connection == null) {
-      return;
+    public static boolean isRedisClientSpan(final AgentSpan span) {
+        return span != null && LettuceClientDecorator.REDIS_CLIENT.equals(span.getTag(Tags.COMPONENT));
     }
 
-    final RedisURI redisURI = contextStore.get(connection);
-    if (redisURI != null) {
-      DECORATE.onConnection(span, redisURI);
-    }
-  }
+    public static void onConnection(
+            final AgentSpan span,
+            final StatefulConnection connection,
+            final ContextStore<StatefulConnection, RedisURI> contextStore) {
+        if (connection == null) {
+            return;
+        }
 
-  public static <T extends StatefulConnection> CompletableFuture<T> onConnectionFuture(
-      final AgentSpan span,
-      final CompletableFuture<T> connectionFuture,
-      final ContextStore<StatefulConnection, RedisURI> contextStore) {
-    if (connectionFuture.isDone()) {
-      if (!connectionFuture.isCompletedExceptionally() && !connectionFuture.isCancelled()) {
-        onConnection(span, connectionFuture.getNow(null), contextStore);
-      }
-      return connectionFuture;
+        final RedisURI redisURI = contextStore.get(connection);
+        if (redisURI != null) {
+            DECORATE.onConnection(span, redisURI);
+        }
     }
 
-    return connectionFuture.whenComplete(
-        (connection, throwable) -> {
-          if (throwable == null) {
-            onConnection(span, connection, contextStore);
-          }
+    public static <T extends StatefulConnection> CompletableFuture<T> onConnectionFuture(
+            final AgentSpan span,
+            final CompletableFuture<T> connectionFuture,
+            final ContextStore<StatefulConnection, RedisURI> contextStore) {
+        if (connectionFuture.isDone()) {
+            if (!connectionFuture.isCompletedExceptionally() && !connectionFuture.isCancelled()) {
+                onConnection(span, connectionFuture.getNow(null), contextStore);
+            }
+            return connectionFuture;
+        }
+
+        return connectionFuture.whenComplete((connection, throwable) -> {
+            if (throwable == null) {
+                onConnection(span, connection, contextStore);
+            }
         });
-  }
+    }
 }

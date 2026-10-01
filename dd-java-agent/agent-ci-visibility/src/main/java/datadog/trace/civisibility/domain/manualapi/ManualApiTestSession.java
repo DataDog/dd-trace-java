@@ -19,46 +19,46 @@ import javax.annotation.Nullable;
  */
 public class ManualApiTestSession extends AbstractTestSession implements DDTestSession {
 
-  private final CoverageStore.Factory coverageStoreFactory;
+    private final CoverageStore.Factory coverageStoreFactory;
 
-  public ManualApiTestSession(
-      String projectName,
-      @Nullable Long startTime,
-      Provider ciProvider,
-      Config config,
-      CiVisibilityMetricCollector metricCollector,
-      TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver,
-      Codeowners codeowners,
-      LinesResolver linesResolver,
-      CoverageStore.Factory coverageStoreFactory) {
-    super(
-        projectName,
-        startTime,
-        InstrumentationType.MANUAL_API,
-        ciProvider,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver);
-    this.coverageStoreFactory = coverageStoreFactory;
-  }
+    public ManualApiTestSession(
+            String projectName,
+            @Nullable Long startTime,
+            Provider ciProvider,
+            Config config,
+            CiVisibilityMetricCollector metricCollector,
+            TestDecorator testDecorator,
+            SourcePathResolver sourcePathResolver,
+            Codeowners codeowners,
+            LinesResolver linesResolver,
+            CoverageStore.Factory coverageStoreFactory) {
+        super(
+                projectName,
+                startTime,
+                InstrumentationType.MANUAL_API,
+                ciProvider,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver);
+        this.coverageStoreFactory = coverageStoreFactory;
+    }
 
-  @Override
-  public ManualApiTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
-    return new ManualApiTestModule(
-        span.spanContext(),
-        moduleName,
-        startTime,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        coverageStoreFactory,
-        tagPropagator::propagateCiVisibilityTags);
-  }
+    @Override
+    public ManualApiTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
+        return new ManualApiTestModule(
+                span.spanContext(),
+                moduleName,
+                startTime,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                coverageStoreFactory,
+                tagPropagator::propagateCiVisibilityTags);
+    }
 }

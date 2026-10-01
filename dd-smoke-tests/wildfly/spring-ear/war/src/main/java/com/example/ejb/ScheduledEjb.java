@@ -9,15 +9,15 @@ import javax.ejb.Stateless;
 @Stateless
 public class ScheduledEjb {
 
-  @Schedule(second = "*/1", minute = "*", hour = "*")
-  public void runIt() {
-    if (TRACE_REQUEST_PENDING.getAndSet(false)) {
-      generateSomeTrace();
+    @Schedule(second = "*/1", minute = "*", hour = "*")
+    public void runIt() {
+        if (TRACE_REQUEST_PENDING.getAndSet(false)) {
+            generateSomeTrace();
+        }
     }
-  }
 
-  @Trace
-  private void generateSomeTrace() {
-    // empty
-  }
+    @Trace
+    private void generateSomeTrace() {
+        // empty
+    }
 }

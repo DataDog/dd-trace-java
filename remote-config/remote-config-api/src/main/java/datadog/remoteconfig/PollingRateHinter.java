@@ -4,5 +4,5 @@ import java.time.Duration;
 
 @FunctionalInterface
 public interface PollingRateHinter {
-  void suggestPollingRate(Duration duration);
+    void suggestPollingRate(Duration duration);
 }

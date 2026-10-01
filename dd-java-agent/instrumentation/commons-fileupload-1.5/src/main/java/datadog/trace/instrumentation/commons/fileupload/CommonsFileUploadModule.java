@@ -9,17 +9,17 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class CommonsFileUploadModule extends InstrumenterModule.Iast {
-  public CommonsFileUploadModule() {
-    super("commons-fileupload");
-  }
+    public CommonsFileUploadModule() {
+        super("commons-fileupload");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new CommonsFileuploadInstrumentation(),
-        new FileItemInstrumentation(),
-        new FileItemIteratorInstrumentation(),
-        new FileItemStreamInstrumentation(),
-        new ServletFileUploadInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new CommonsFileuploadInstrumentation(),
+                new FileItemInstrumentation(),
+                new FileItemIteratorInstrumentation(),
+                new FileItemStreamInstrumentation(),
+                new ServletFileUploadInstrumentation());
+    }
 }

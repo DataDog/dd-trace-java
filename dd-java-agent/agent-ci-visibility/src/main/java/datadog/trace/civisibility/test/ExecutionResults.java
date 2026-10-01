@@ -5,22 +5,22 @@ import java.util.concurrent.atomic.LongAdder;
 
 public class ExecutionResults {
 
-  private final LongAdder testsSkippedByItr = new LongAdder();
-  private final AtomicBoolean hasFailedTestReplayTests = new AtomicBoolean();
+    private final LongAdder testsSkippedByItr = new LongAdder();
+    private final AtomicBoolean hasFailedTestReplayTests = new AtomicBoolean();
 
-  public void incrementTestsSkippedByItr() {
-    testsSkippedByItr.increment();
-  }
+    public void incrementTestsSkippedByItr() {
+        testsSkippedByItr.increment();
+    }
 
-  public long getTestsSkippedByItr() {
-    return testsSkippedByItr.sum();
-  }
+    public long getTestsSkippedByItr() {
+        return testsSkippedByItr.sum();
+    }
 
-  public void setHasFailedTestReplayTests() {
-    this.hasFailedTestReplayTests.set(true);
-  }
+    public void setHasFailedTestReplayTests() {
+        this.hasFailedTestReplayTests.set(true);
+    }
 
-  public boolean hasFailedTestReplayTests() {
-    return hasFailedTestReplayTests.get();
-  }
+    public boolean hasFailedTestReplayTests() {
+        return hasFailedTestReplayTests.get();
+    }
 }

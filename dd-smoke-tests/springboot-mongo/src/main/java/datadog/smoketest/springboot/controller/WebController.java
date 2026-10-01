@@ -13,20 +13,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class WebController {
 
-  @Autowired DocRepository docRepository;
+    @Autowired
+    DocRepository docRepository;
 
-  @RequestMapping("/docs")
-  public List<Doc> getDocs() {
-    return docRepository.findAll();
-  }
+    @RequestMapping("/docs")
+    public List<Doc> getDocs() {
+        return docRepository.findAll();
+    }
 
-  @RequestMapping("/docs/{id}")
-  public Doc getDoc(@PathVariable String id) {
-    return docRepository.findById(id).orElse(null);
-  }
+    @RequestMapping("/docs/{id}")
+    public Doc getDoc(@PathVariable String id) {
+        return docRepository.findById(id).orElse(null);
+    }
 
-  @PostMapping("/docs")
-  public Doc putDoc(@RequestBody String name) {
-    return docRepository.save(new Doc(name));
-  }
+    @PostMapping("/docs")
+    public Doc putDoc(@RequestBody String name) {
+        return docRepository.save(new Doc(name));
+    }
 }

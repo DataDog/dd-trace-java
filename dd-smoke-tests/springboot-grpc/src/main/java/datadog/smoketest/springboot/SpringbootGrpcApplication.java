@@ -17,31 +17,30 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class SpringbootGrpcApplication {
 
-  @Bean
-  SpannerTask spannerTask() {
-    return new SpannerTask();
-  }
+    @Bean
+    SpannerTask spannerTask() {
+        return new SpannerTask();
+    }
 
-  @Bean
-  AsyncTask asyncTask(AsynchronousGreeter greeter) {
-    return new AsyncTask(greeter);
-  }
+    @Bean
+    AsyncTask asyncTask(AsynchronousGreeter greeter) {
+        return new AsyncTask(greeter);
+    }
 
-  @Bean
-  AsynchronousGreeter asynchronousGreeter(LocalInterface localInterface) {
-    return new AsynchronousGreeter(localInterface.getPort());
-  }
+    @Bean
+    AsynchronousGreeter asynchronousGreeter(LocalInterface localInterface) {
+        return new AsynchronousGreeter(localInterface.getPort());
+    }
 
-  @Bean
-  LocalInterface localInterface() throws IOException {
-    return new LocalInterface();
-  }
+    @Bean
+    LocalInterface localInterface() throws IOException {
+        return new LocalInterface();
+    }
 
-  public static void main(final String[] args) {
-    ConfigurableApplicationContext app =
-        SpringApplication.run(SpringbootGrpcApplication.class, args);
-    Integer port = app.getBean("local.server.port", Integer.class);
-    System.out.println(
-        "Bound to " + port + " in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
-  }
+    public static void main(final String[] args) {
+        ConfigurableApplicationContext app = SpringApplication.run(SpringbootGrpcApplication.class, args);
+        Integer port = app.getBean("local.server.port", Integer.class);
+        System.out.println("Bound to " + port + " in "
+                + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
+    }
 }

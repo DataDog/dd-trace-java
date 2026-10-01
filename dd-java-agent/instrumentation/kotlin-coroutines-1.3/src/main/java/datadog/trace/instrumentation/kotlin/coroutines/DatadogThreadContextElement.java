@@ -12,88 +12,84 @@ import kotlinx.coroutines.ThreadContextElement;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
 public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
-  private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              DatadogThreadContextElement.class, ContextContinuation.class, "continuation");
+    private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation> CONTINUATION =
+            AtomicReferenceFieldUpdater.newUpdater(
+                    DatadogThreadContextElement.class, ContextContinuation.class, "continuation");
 
-  private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
-      new CoroutineContext.Key<DatadogThreadContextElement>() {};
+    private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
+            new CoroutineContext.Key<DatadogThreadContextElement>() {};
 
-  public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
-    if (coroutineContext.get(DATADOG_KEY) != null) {
-      return coroutineContext; // already added
+    public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
+        if (coroutineContext.get(DATADOG_KEY) != null) {
+            return coroutineContext; // already added
+        }
+        return coroutineContext.plus(new DatadogThreadContextElement());
     }
-    return coroutineContext.plus(new DatadogThreadContextElement());
-  }
 
-  private Context context;
-  private volatile ContextContinuation continuation;
+    private Context context;
+    private volatile ContextContinuation continuation;
 
-  @Nonnull
-  @Override
-  public Key<?> getKey() {
-    return DATADOG_KEY;
-  }
-
-  public static void captureDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
-    DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
-    if (datadog != null && datadog.context == null) {
-      // record context to use for this coroutine
-      datadog.context = Context.current();
-      // stop enclosing trace from finishing early
-      datadog.continuation = datadog.context.capture();
+    @Nonnull
+    @Override
+    public Key<?> getKey() {
+        return DATADOG_KEY;
     }
-  }
 
-  public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
-    DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
-    ContextContinuation continuation =
-        datadog == null ? null : CONTINUATION.getAndSet(datadog, null);
-    if (continuation != null) {
-      // release enclosing trace now the coroutine has completed
-      continuation.release();
+    public static void captureDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
+        DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
+        if (datadog != null && datadog.context == null) {
+            // record context to use for this coroutine
+            datadog.context = Context.current();
+            // stop enclosing trace from finishing early
+            datadog.continuation = datadog.context.capture();
+        }
     }
-  }
 
-  @Override
-  public Context updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
-    if (context == null) {
-      // record context to use for this coroutine
-      context = Context.current();
-      // stop enclosing trace from finishing early
-      continuation = context.capture();
+    public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
+        DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
+        ContextContinuation continuation = datadog == null ? null : CONTINUATION.getAndSet(datadog, null);
+        if (continuation != null) {
+            // release enclosing trace now the coroutine has completed
+            continuation.release();
+        }
     }
-    return context.swap();
-  }
 
-  @Override
-  public void restoreThreadContext(
-      @Nonnull CoroutineContext coroutineContext, Context originalContext) {
-    context = originalContext.swap();
-  }
+    @Override
+    public Context updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
+        if (context == null) {
+            // record context to use for this coroutine
+            context = Context.current();
+            // stop enclosing trace from finishing early
+            continuation = context.capture();
+        }
+        return context.swap();
+    }
 
-  @Nonnull
-  @Override
-  public CoroutineContext plus(@Nonnull CoroutineContext coroutineContext) {
-    return CoroutineContext.DefaultImpls.plus(this, coroutineContext);
-  }
+    @Override
+    public void restoreThreadContext(@Nonnull CoroutineContext coroutineContext, Context originalContext) {
+        context = originalContext.swap();
+    }
 
-  @Override
-  public <R> R fold(
-      R initial, @Nonnull Function2<? super R, ? super Element, ? extends R> operation) {
-    return CoroutineContext.Element.DefaultImpls.fold(this, initial, operation);
-  }
+    @Nonnull
+    @Override
+    public CoroutineContext plus(@Nonnull CoroutineContext coroutineContext) {
+        return CoroutineContext.DefaultImpls.plus(this, coroutineContext);
+    }
 
-  @Nullable
-  @Override
-  public <E extends Element> E get(@Nonnull Key<E> key) {
-    return CoroutineContext.Element.DefaultImpls.get(this, key);
-  }
+    @Override
+    public <R> R fold(R initial, @Nonnull Function2<? super R, ? super Element, ? extends R> operation) {
+        return CoroutineContext.Element.DefaultImpls.fold(this, initial, operation);
+    }
 
-  @Nonnull
-  @Override
-  public CoroutineContext minusKey(@Nonnull Key<?> key) {
-    return CoroutineContext.Element.DefaultImpls.minusKey(this, key);
-  }
+    @Nullable
+    @Override
+    public <E extends Element> E get(@Nonnull Key<E> key) {
+        return CoroutineContext.Element.DefaultImpls.get(this, key);
+    }
+
+    @Nonnull
+    @Override
+    public CoroutineContext minusKey(@Nonnull Key<?> key) {
+        return CoroutineContext.Element.DefaultImpls.minusKey(this, key);
+    }
 }

@@ -39,195 +39,181 @@ import org.tabletest.junit.TableTest;
 
 class PayloadDispatcherImplTest extends DDJavaSpecification {
 
-  static final MonitoringImpl monitoring =
-      new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
+    static final MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
 
-  @Timeout(180)
-  // spotless:off
+    @Timeout(180)
+    // spotless:off
   @TableTest({
       "scenario | traceEndpoint",
       "v0.5     | 'v0.5/traces'",
       "v0.4     | 'v0.4/traces'"
   })
   // spotless:on
-  void testFlushAutomaticallyWhenDataLimitIsBreached(String traceEndpoint) throws Exception {
-    AtomicBoolean flushed = new AtomicBoolean();
-    HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
-    DDAgentApi api = mock(DDAgentApi.class);
-    when(api.sendSerializedTraces(any()))
-        .thenAnswer(
-            inv -> {
-              flushed.set(true);
-              return RemoteApi.Response.success(200);
-            });
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
-    List<DDSpan> trace = Collections.singletonList(realSpan());
+    void testFlushAutomaticallyWhenDataLimitIsBreached(String traceEndpoint) throws Exception {
+        AtomicBoolean flushed = new AtomicBoolean();
+        HealthMetrics healthMetrics = mock(HealthMetrics.class);
+        DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+        when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
+        DDAgentApi api = mock(DDAgentApi.class);
+        when(api.sendSerializedTraces(any())).thenAnswer(inv -> {
+            flushed.set(true);
+            return RemoteApi.Response.success(200);
+        });
+        PayloadDispatcherImpl dispatcher =
+                new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+        List<DDSpan> trace = Collections.singletonList(realSpan());
 
-    while (!flushed.get()) {
-      dispatcher.addTrace(trace);
+        while (!flushed.get()) {
+            dispatcher.addTrace(trace);
+        }
+
+        // the dispatcher has flushed
+        assertTrue(flushed.get());
     }
 
-    // the dispatcher has flushed
-    assertTrue(flushed.get());
-  }
+    @TableTest({
+      "scenario        | traceEndpoint | traceCount",
+      "v0.4 1 trace    | 'v0.4/traces' | 1         ",
+      "v0.4 10 traces  | 'v0.4/traces' | 10        ",
+      "v0.4 100 traces | 'v0.4/traces' | 100       ",
+      "v0.5 1 trace    | 'v0.5/traces' | 1         ",
+      "v0.5 10 traces  | 'v0.5/traces' | 10        ",
+      "v0.5 100 traces | 'v0.5/traces' | 100       "
+    })
+    void testShouldFlushBufferOnDemand(String traceEndpoint, int traceCount) throws Exception {
+        HealthMetrics healthMetrics = mock(HealthMetrics.class);
+        DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+        DDAgentApi api = mock(DDAgentApi.class);
+        when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
+        when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+        PayloadDispatcherImpl dispatcher =
+                new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+        List<DDSpan> trace = Collections.singletonList(realSpan());
 
-  @TableTest({
-    "scenario        | traceEndpoint | traceCount",
-    "v0.4 1 trace    | 'v0.4/traces' | 1         ",
-    "v0.4 10 traces  | 'v0.4/traces' | 10        ",
-    "v0.4 100 traces | 'v0.4/traces' | 100       ",
-    "v0.5 1 trace    | 'v0.5/traces' | 1         ",
-    "v0.5 10 traces  | 'v0.5/traces' | 10        ",
-    "v0.5 100 traces | 'v0.5/traces' | 100       "
-  })
-  void testShouldFlushBufferOnDemand(String traceEndpoint, int traceCount) throws Exception {
-    HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    DDAgentApi api = mock(DDAgentApi.class);
-    when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
-    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
-    List<DDSpan> trace = Collections.singletonList(realSpan());
+        for (int i = 0; i < traceCount; ++i) {
+            dispatcher.addTrace(trace);
+        }
+        dispatcher.flush();
 
-    for (int i = 0; i < traceCount; ++i) {
-      dispatcher.addTrace(trace);
+        verify(discovery, org.mockito.Mockito.times(2)).getTraceEndpoint();
+        verify(healthMetrics).onSerialize(intThat(size -> size > 0));
+        verify(api).sendSerializedTraces(argThat(p -> p.traceCount() == traceCount));
     }
-    dispatcher.flush();
 
-    verify(discovery, org.mockito.Mockito.times(2)).getTraceEndpoint();
-    verify(healthMetrics).onSerialize(intThat(size -> size > 0));
-    verify(api).sendSerializedTraces(argThat(p -> p.traceCount() == traceCount));
-  }
+    @TableTest({
+      "scenario        | traceEndpoint | traceCount",
+      "v0.4 1 trace    | 'v0.4/traces' | 1         ",
+      "v0.4 10 traces  | 'v0.4/traces' | 10        ",
+      "v0.4 100 traces | 'v0.4/traces' | 100       ",
+      "v0.5 1 trace    | 'v0.5/traces' | 1         ",
+      "v0.5 10 traces  | 'v0.5/traces' | 10        ",
+      "v0.5 100 traces | 'v0.5/traces' | 100       "
+    })
+    void testShouldReportFailedRequestToMonitor(String traceEndpoint, int traceCount) throws Exception {
+        HealthMetrics healthMetrics = mock(HealthMetrics.class);
+        DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+        DDAgentApi api = mock(DDAgentApi.class);
+        when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
+        when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.failed(400));
+        PayloadDispatcherImpl dispatcher =
+                new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+        List<DDSpan> trace = Collections.singletonList(realSpan());
 
-  @TableTest({
-    "scenario        | traceEndpoint | traceCount",
-    "v0.4 1 trace    | 'v0.4/traces' | 1         ",
-    "v0.4 10 traces  | 'v0.4/traces' | 10        ",
-    "v0.4 100 traces | 'v0.4/traces' | 100       ",
-    "v0.5 1 trace    | 'v0.5/traces' | 1         ",
-    "v0.5 10 traces  | 'v0.5/traces' | 10        ",
-    "v0.5 100 traces | 'v0.5/traces' | 100       "
-  })
-  void testShouldReportFailedRequestToMonitor(String traceEndpoint, int traceCount)
-      throws Exception {
-    HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    DDAgentApi api = mock(DDAgentApi.class);
-    when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
-    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.failed(400));
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
-    List<DDSpan> trace = Collections.singletonList(realSpan());
+        for (int i = 0; i < traceCount; ++i) {
+            dispatcher.addTrace(trace);
+        }
+        dispatcher.flush();
 
-    for (int i = 0; i < traceCount; ++i) {
-      dispatcher.addTrace(trace);
+        verify(discovery, org.mockito.Mockito.times(2)).getTraceEndpoint();
+        verify(healthMetrics).onSerialize(intThat(size -> size > 0));
+        verify(api).sendSerializedTraces(argThat(p -> p.traceCount() == traceCount));
     }
-    dispatcher.flush();
 
-    verify(discovery, org.mockito.Mockito.times(2)).getTraceEndpoint();
-    verify(healthMetrics).onSerialize(intThat(size -> size > 0));
-    verify(api).sendSerializedTraces(argThat(p -> p.traceCount() == traceCount));
-  }
+    @Test
+    void testShouldDropTraceWhenThereIsNoAgentConnectivity() throws Exception {
+        HealthMetrics healthMetrics = mock(HealthMetrics.class);
+        DDAgentApi api = mock(DDAgentApi.class);
+        DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+        when(discovery.getTraceEndpoint()).thenReturn(null);
+        PayloadDispatcherImpl dispatcher =
+                new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+        List<DDSpan> trace = Collections.singletonList(realSpan());
 
-  @Test
-  void testShouldDropTraceWhenThereIsNoAgentConnectivity() throws Exception {
-    HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    DDAgentApi api = mock(DDAgentApi.class);
-    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    when(discovery.getTraceEndpoint()).thenReturn(null);
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
-    List<DDSpan> trace = Collections.singletonList(realSpan());
+        dispatcher.addTrace(trace);
 
-    dispatcher.addTrace(trace);
+        verify(healthMetrics).onFailedPublish(eq((int) PrioritySampling.UNSET), anyInt());
+    }
 
-    verify(healthMetrics).onFailedPublish(eq((int) PrioritySampling.UNSET), anyInt());
-  }
+    @Test
+    void testTraceAndSpanCountsAreResetAfterAccess() {
+        HealthMetrics healthMetrics = mock(HealthMetrics.class);
+        DDAgentApi api = mock(DDAgentApi.class);
+        DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+        when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+        PayloadDispatcherImpl dispatcher =
+                new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
 
-  @Test
-  void testTraceAndSpanCountsAreResetAfterAccess() {
-    HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    DDAgentApi api = mock(DDAgentApi.class);
-    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+        // add traces and dropped counts
+        dispatcher.addTrace(Collections.emptyList());
+        dispatcher.onDroppedTrace(20);
+        dispatcher.onDroppedTrace(2);
+        Payload payload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
 
-    // add traces and dropped counts
-    dispatcher.addTrace(Collections.emptyList());
-    dispatcher.onDroppedTrace(20);
-    dispatcher.onDroppedTrace(2);
-    Payload payload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
+        // dropped counts are accumulated
+        assertEquals(22, payload.droppedSpans());
+        assertEquals(2, payload.droppedTraces());
 
-    // dropped counts are accumulated
-    assertEquals(22, payload.droppedSpans());
-    assertEquals(2, payload.droppedTraces());
+        // create another payload
+        Payload newPayload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
 
-    // create another payload
-    Payload newPayload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
+        // counts are reset after access
+        assertEquals(0, newPayload.droppedSpans());
+        assertEquals(0, newPayload.droppedTraces());
+    }
 
-    // counts are reset after access
-    assertEquals(0, newPayload.droppedSpans());
-    assertEquals(0, newPayload.droppedTraces());
-  }
-
-  DDSpan realSpan() throws Exception {
-    // getTracer() and mapServiceName() are package-private in TraceCollector; use a custom
-    // Answer to handle them at runtime without compile-time accessibility issues
-    PendingTrace trace =
-        mock(
-            PendingTrace.class,
-            invocation -> {
-              Class<?> returnType = invocation.getMethod().getReturnType();
-              if (CoreTracer.class.isAssignableFrom(returnType)) {
+    DDSpan realSpan() throws Exception {
+        // getTracer() and mapServiceName() are package-private in TraceCollector; use a custom
+        // Answer to handle them at runtime without compile-time accessibility issues
+        PendingTrace trace = mock(PendingTrace.class, invocation -> {
+            Class<?> returnType = invocation.getMethod().getReturnType();
+            if (CoreTracer.class.isAssignableFrom(returnType)) {
                 // Use RETURNS_DEFAULTS so getTagInterceptor() returns null (matching Groovy Stub
                 // behavior)
                 return mock(CoreTracer.class);
-              }
-              if (returnType == String.class) {
+            }
+            if (returnType == String.class) {
                 Object[] args = invocation.getArguments();
                 // mapServiceName(String) - return the argument unchanged
                 if (args.length > 0 && args[0] instanceof String) {
-                  return args[0];
+                    return args[0];
                 }
                 return "";
-              }
-              return org.mockito.Mockito.RETURNS_DEFAULTS.answer(invocation);
-            });
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1L,
-            DDSpanId.ZERO,
-            null,
-            "",
-            "",
-            "",
-            PrioritySampling.UNSET,
-            "",
-            Collections.emptyMap(),
-            false,
-            "",
-            0,
-            trace,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
-    Constructor<DDSpan> ctor =
-        DDSpan.class.getDeclaredConstructor(
-            String.class, long.class, DDSpanContext.class, List.class);
-    ctor.setAccessible(true);
-    return ctor.newInstance("test", 0L, context, null);
-  }
+            }
+            return org.mockito.Mockito.RETURNS_DEFAULTS.answer(invocation);
+        });
+        DDSpanContext context = new DDSpanContext(
+                DDTraceId.ONE,
+                1L,
+                DDSpanId.ZERO,
+                null,
+                "",
+                "",
+                "",
+                PrioritySampling.UNSET,
+                "",
+                Collections.emptyMap(),
+                false,
+                "",
+                0,
+                trace,
+                null,
+                null,
+                NoopPathwayContext.INSTANCE,
+                false,
+                PropagationTags.factory().empty());
+        Constructor<DDSpan> ctor =
+                DDSpan.class.getDeclaredConstructor(String.class, long.class, DDSpanContext.class, List.class);
+        ctor.setAccessible(true);
+        return ctor.newInstance("test", 0L, context, null);
+    }
 }

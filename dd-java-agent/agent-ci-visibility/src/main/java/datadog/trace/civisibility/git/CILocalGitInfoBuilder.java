@@ -15,55 +15,55 @@ import org.slf4j.LoggerFactory;
 
 public class CILocalGitInfoBuilder implements GitInfoBuilder {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(CILocalGitInfoBuilder.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CILocalGitInfoBuilder.class);
 
-  private final GitClient.Factory gitClientFactory;
-  private final String gitFolderName;
+    private final GitClient.Factory gitClientFactory;
+    private final String gitFolderName;
 
-  public CILocalGitInfoBuilder(GitClient.Factory gitClientFactory, String gitFolderName) {
-    this.gitClientFactory = gitClientFactory;
-    this.gitFolderName = gitFolderName;
-  }
-
-  @Override
-  public GitInfo build(@Nullable String repositoryPath) {
-    if (repositoryPath == null) {
-      return GitInfo.NOOP;
+    public CILocalGitInfoBuilder(GitClient.Factory gitClientFactory, String gitFolderName) {
+        this.gitClientFactory = gitClientFactory;
+        this.gitFolderName = gitFolderName;
     }
 
-    Path gitPath = getGitPath(repositoryPath);
-    return new LocalFSGitInfoExtractor().headCommit(gitPath.toFile().getAbsolutePath());
-  }
-
-  private Path getGitPath(String repositoryPath) {
-    try {
-      GitClient gitClient = gitClientFactory.create(repositoryPath);
-      String gitFolder = gitClient.getGitFolder();
-      if (Strings.isNotBlank(gitFolder)) {
-        Path gitFolderPath = Paths.get(gitFolder);
-        if (Files.exists(gitFolderPath)) {
-          return gitFolderPath;
+    @Override
+    public GitInfo build(@Nullable String repositoryPath) {
+        if (repositoryPath == null) {
+            return GitInfo.NOOP;
         }
-      }
-    } catch (Exception e) {
-      LOGGER.debug("Error while getting Git folder in {}", repositoryPath, e);
-      LOGGER.warn("Error while getting Git folder");
+
+        Path gitPath = getGitPath(repositoryPath);
+        return new LocalFSGitInfoExtractor().headCommit(gitPath.toFile().getAbsolutePath());
     }
-    return Paths.get(repositoryPath, gitFolderName);
-  }
 
-  @Override
-  public int order() {
-    return 2;
-  }
+    private Path getGitPath(String repositoryPath) {
+        try {
+            GitClient gitClient = gitClientFactory.create(repositoryPath);
+            String gitFolder = gitClient.getGitFolder();
+            if (Strings.isNotBlank(gitFolder)) {
+                Path gitFolderPath = Paths.get(gitFolder);
+                if (Files.exists(gitFolderPath)) {
+                    return gitFolderPath;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.debug("Error while getting Git folder in {}", repositoryPath, e);
+            LOGGER.warn("Error while getting Git folder");
+        }
+        return Paths.get(repositoryPath, gitFolderName);
+    }
 
-  @Override
-  public GitProviderExpected providerAsExpected() {
-    return GitProviderExpected.LOCAL_GIT;
-  }
+    @Override
+    public int order() {
+        return 2;
+    }
 
-  @Override
-  public GitProviderDiscrepant providerAsDiscrepant() {
-    return GitProviderDiscrepant.LOCAL_GIT;
-  }
+    @Override
+    public GitProviderExpected providerAsExpected() {
+        return GitProviderExpected.LOCAL_GIT;
+    }
+
+    @Override
+    public GitProviderDiscrepant providerAsDiscrepant() {
+        return GitProviderDiscrepant.LOCAL_GIT;
+    }
 }

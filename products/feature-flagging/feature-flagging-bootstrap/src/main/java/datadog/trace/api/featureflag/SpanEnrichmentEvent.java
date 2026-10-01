@@ -19,64 +19,63 @@ package datadog.trace.api.featureflag;
  */
 public final class SpanEnrichmentEvent {
 
-  private final boolean serialIdPresent;
-  private final int serialId;
-  private final boolean doLog;
-  private final String targetingKey;
-  private final String flagKey;
-  private final Object defaultValue;
+    private final boolean serialIdPresent;
+    private final int serialId;
+    private final boolean doLog;
+    private final String targetingKey;
+    private final String flagKey;
+    private final Object defaultValue;
 
-  private SpanEnrichmentEvent(
-      final boolean serialIdPresent,
-      final int serialId,
-      final boolean doLog,
-      final String targetingKey,
-      final String flagKey,
-      final Object defaultValue) {
-    this.serialIdPresent = serialIdPresent;
-    this.serialId = serialId;
-    this.doLog = doLog;
-    this.targetingKey = targetingKey;
-    this.flagKey = flagKey;
-    this.defaultValue = defaultValue;
-  }
+    private SpanEnrichmentEvent(
+            final boolean serialIdPresent,
+            final int serialId,
+            final boolean doLog,
+            final String targetingKey,
+            final String flagKey,
+            final Object defaultValue) {
+        this.serialIdPresent = serialIdPresent;
+        this.serialId = serialId;
+        this.doLog = doLog;
+        this.targetingKey = targetingKey;
+        this.flagKey = flagKey;
+        this.defaultValue = defaultValue;
+    }
 
-  /** A UFC split evaluation carrying a serial id (and, when {@code doLog}, a subject). */
-  public static SpanEnrichmentEvent serialId(
-      final int serialId, final boolean doLog, final String targetingKey) {
-    return new SpanEnrichmentEvent(true, serialId, doLog, targetingKey, null, null);
-  }
+    /** A UFC split evaluation carrying a serial id (and, when {@code doLog}, a subject). */
+    public static SpanEnrichmentEvent serialId(final int serialId, final boolean doLog, final String targetingKey) {
+        return new SpanEnrichmentEvent(true, serialId, doLog, targetingKey, null, null);
+    }
 
-  /**
-   * A runtime-default evaluation (missing variant). {@code value} must already be unwrapped to a
-   * native Java type (Map/List/scalar/null) by the caller.
-   */
-  public static SpanEnrichmentEvent runtimeDefault(final String flagKey, final Object value) {
-    return new SpanEnrichmentEvent(false, 0, false, null, flagKey, value);
-  }
+    /**
+     * A runtime-default evaluation (missing variant). {@code value} must already be unwrapped to a
+     * native Java type (Map/List/scalar/null) by the caller.
+     */
+    public static SpanEnrichmentEvent runtimeDefault(final String flagKey, final Object value) {
+        return new SpanEnrichmentEvent(false, 0, false, null, flagKey, value);
+    }
 
-  /** True for the serial-id shape; false for the runtime-default shape. */
-  public boolean hasSerialId() {
-    return serialIdPresent;
-  }
+    /** True for the serial-id shape; false for the runtime-default shape. */
+    public boolean hasSerialId() {
+        return serialIdPresent;
+    }
 
-  public int serialId() {
-    return serialId;
-  }
+    public int serialId() {
+        return serialId;
+    }
 
-  public boolean doLog() {
-    return doLog;
-  }
+    public boolean doLog() {
+        return doLog;
+    }
 
-  public String targetingKey() {
-    return targetingKey;
-  }
+    public String targetingKey() {
+        return targetingKey;
+    }
 
-  public String flagKey() {
-    return flagKey;
-  }
+    public String flagKey() {
+        return flagKey;
+    }
 
-  public Object defaultValue() {
-    return defaultValue;
-  }
+    public Object defaultValue() {
+        return defaultValue;
+    }
 }

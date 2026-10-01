@@ -9,15 +9,15 @@ import okio.ByteString;
 import okio.Okio;
 
 public class RawJsonAdapter extends JsonAdapter<ByteString> {
-  public void toJson(JsonWriter writer, ByteString value) throws IOException {
-    if (value == null) {
-      writer.nullValue();
-      return;
+    public void toJson(JsonWriter writer, ByteString value) throws IOException {
+        if (value == null) {
+            writer.nullValue();
+            return;
+        }
+        writer.value(Okio.buffer(Okio.source(new ByteArrayInputStream(value.toByteArray()))));
     }
-    writer.value(Okio.buffer(Okio.source(new ByteArrayInputStream(value.toByteArray()))));
-  }
 
-  public ByteString fromJson(JsonReader reader) throws IOException {
-    return reader.nextSource().readByteString();
-  }
+    public ByteString fromJson(JsonReader reader) throws IOException {
+        return reader.nextSource().readByteString();
+    }
 }

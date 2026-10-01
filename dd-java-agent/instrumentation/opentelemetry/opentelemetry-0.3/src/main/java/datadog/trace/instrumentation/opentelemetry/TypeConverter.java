@@ -13,63 +13,63 @@ import io.opentelemetry.trace.SpanContext;
 
 // Centralized place to do conversions
 public class TypeConverter {
-  private final Span noopSpanWrapper;
-  private final SpanContext noopContextWrapper;
+    private final Span noopSpanWrapper;
+    private final SpanContext noopContextWrapper;
 
-  public TypeConverter() {
-    noopSpanWrapper = new OtelSpan(noopSpan(), this);
-    noopContextWrapper = new OtelSpanContext(noopSpanContext());
-  }
+    public TypeConverter() {
+        noopSpanWrapper = new OtelSpan(noopSpan(), this);
+        noopContextWrapper = new OtelSpanContext(noopSpanContext());
+    }
 
-  public AgentSpan toAgentSpan(final Span span) {
-    if (span instanceof OtelSpan) {
-      return ((OtelSpan) span).asAgentSpan();
+    public AgentSpan toAgentSpan(final Span span) {
+        if (span instanceof OtelSpan) {
+            return ((OtelSpan) span).asAgentSpan();
+        }
+        return null == span ? null : noopSpan();
     }
-    return null == span ? null : noopSpan();
-  }
 
-  public Span toSpan(final AgentSpan agentSpan) {
-    if (agentSpan == null) {
-      return null;
+    public Span toSpan(final AgentSpan agentSpan) {
+        if (agentSpan == null) {
+            return null;
+        }
+        if (agentSpan instanceof AttachableWrapper) {
+            AttachableWrapper attachableSpanWrapper = (AttachableWrapper) agentSpan;
+            Object wrapper = attachableSpanWrapper.getWrapper();
+            if (wrapper instanceof Span) {
+                return (Span) wrapper;
+            }
+            OtelSpan spanWrapper = new OtelSpan(agentSpan, this);
+            attachableSpanWrapper.attachWrapper(spanWrapper);
+            return spanWrapper;
+        }
+        if (agentSpan == noopSpan()) {
+            return noopSpanWrapper;
+        }
+        return new OtelSpan(agentSpan, this);
     }
-    if (agentSpan instanceof AttachableWrapper) {
-      AttachableWrapper attachableSpanWrapper = (AttachableWrapper) agentSpan;
-      Object wrapper = attachableSpanWrapper.getWrapper();
-      if (wrapper instanceof Span) {
-        return (Span) wrapper;
-      }
-      OtelSpan spanWrapper = new OtelSpan(agentSpan, this);
-      attachableSpanWrapper.attachWrapper(spanWrapper);
-      return spanWrapper;
-    }
-    if (agentSpan == noopSpan()) {
-      return noopSpanWrapper;
-    }
-    return new OtelSpan(agentSpan, this);
-  }
 
-  public Scope toScope(final ContextScope scope) {
-    if (scope == null) {
-      return null;
+    public Scope toScope(final ContextScope scope) {
+        if (scope == null) {
+            return null;
+        }
+        return new OtelScope(scope);
     }
-    return new OtelScope(scope);
-  }
 
-  public SpanContext toSpanContext(final AgentSpanContext context) {
-    if (context == null) {
-      return null;
+    public SpanContext toSpanContext(final AgentSpanContext context) {
+        if (context == null) {
+            return null;
+        }
+        // avoid a new SpanContext wrapper allocation for the noop context
+        if (context == noopSpanContext()) {
+            return noopContextWrapper;
+        }
+        return new OtelSpanContext(context);
     }
-    // avoid a new SpanContext wrapper allocation for the noop context
-    if (context == noopSpanContext()) {
-      return noopContextWrapper;
-    }
-    return new OtelSpanContext(context);
-  }
 
-  public AgentSpanContext toContext(final SpanContext spanContext) {
-    if (spanContext instanceof OtelSpanContext) {
-      return ((OtelSpanContext) spanContext).getDelegate();
+    public AgentSpanContext toContext(final SpanContext spanContext) {
+        if (spanContext instanceof OtelSpanContext) {
+            return ((OtelSpanContext) spanContext).getDelegate();
+        }
+        return null == spanContext ? null : noopSpanContext();
     }
-    return null == spanContext ? null : noopSpanContext();
-  }
 }

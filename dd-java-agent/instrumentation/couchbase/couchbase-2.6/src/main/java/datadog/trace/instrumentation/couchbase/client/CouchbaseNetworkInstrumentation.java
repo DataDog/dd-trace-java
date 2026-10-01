@@ -24,70 +24,69 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public CouchbaseNetworkInstrumentation() {
-    super("couchbase");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public CouchbaseNetworkInstrumentation() {
+        super("couchbase");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.couchbase.client.core.endpoint.AbstractGenericHandler";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.couchbase.client.core.endpoint.AbstractGenericHandler";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    // Exact class because private fields are used
-    return nameStartsWith("com.couchbase.client.").and(extendsClass(named(hierarchyMarkerType())));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        // Exact class because private fields are used
+        return nameStartsWith("com.couchbase.client.").and(extendsClass(named(hierarchyMarkerType())));
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.couchbase.client.core.message.CouchbaseRequest", AgentSpan.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap(
+                "com.couchbase.client.core.message.CouchbaseRequest", AgentSpan.class.getName());
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // encode(ChannelHandlerContext ctx, REQUEST msg, List<Object> out)
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("encode"))
-            .and(takesArguments(3))
-            .and(
-                takesArgument(
-                    0, named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")))
-            .and(takesArgument(2, named("java.util.List"))),
-        CouchbaseNetworkInstrumentation.class.getName() + "$CouchbaseNetworkAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // encode(ChannelHandlerContext ctx, REQUEST msg, List<Object> out)
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("encode"))
+                        .and(takesArguments(3))
+                        .and(takesArgument(
+                                0, named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")))
+                        .and(takesArgument(2, named("java.util.List"))),
+                CouchbaseNetworkInstrumentation.class.getName() + "$CouchbaseNetworkAdvice");
+    }
 
-  public static class CouchbaseNetworkAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addNetworkTagsToSpan(
-        @Advice.FieldValue("remoteHostname") final String remoteHostname,
-        @Advice.FieldValue("remoteSocket") final String remoteSocket,
-        @Advice.FieldValue("localSocket") final String localSocket,
-        @Advice.Argument(1) final CouchbaseRequest request) {
-      final ContextStore<CouchbaseRequest, AgentSpan> contextStore =
-          InstrumentationContext.get(CouchbaseRequest.class, AgentSpan.class);
+    public static class CouchbaseNetworkAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void addNetworkTagsToSpan(
+                @Advice.FieldValue("remoteHostname") final String remoteHostname,
+                @Advice.FieldValue("remoteSocket") final String remoteSocket,
+                @Advice.FieldValue("localSocket") final String localSocket,
+                @Advice.Argument(1) final CouchbaseRequest request) {
+            final ContextStore<CouchbaseRequest, AgentSpan> contextStore =
+                    InstrumentationContext.get(CouchbaseRequest.class, AgentSpan.class);
 
-      final AgentSpan span = contextStore.get(request);
-      if (span != null) {
-        span.setTag(Tags.PEER_HOSTNAME, remoteHostname);
+            final AgentSpan span = contextStore.get(request);
+            if (span != null) {
+                span.setTag(Tags.PEER_HOSTNAME, remoteHostname);
 
-        if (remoteSocket != null) {
-          final int splitIndex = remoteSocket.lastIndexOf(":");
-          if (splitIndex != -1) {
-            span.setTag(Tags.PEER_PORT, Integer.parseInt(remoteSocket.substring(splitIndex + 1)));
-          }
+                if (remoteSocket != null) {
+                    final int splitIndex = remoteSocket.lastIndexOf(":");
+                    if (splitIndex != -1) {
+                        span.setTag(Tags.PEER_PORT, Integer.parseInt(remoteSocket.substring(splitIndex + 1)));
+                    }
+                }
+
+                span.setTag("local.address", localSocket);
+            }
         }
 
-        span.setTag("local.address", localSocket);
-      }
+        // 2.6.0 and above
+        public static void muzzleCheck(final JsonCryptoTranscoder transcoder) {
+            transcoder.documentType();
+        }
     }
-
-    // 2.6.0 and above
-    public static void muzzleCheck(final JsonCryptoTranscoder transcoder) {
-      transcoder.documentType();
-    }
-  }
 }

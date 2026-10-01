@@ -10,21 +10,21 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class GrizzlyFilterChainModule extends InstrumenterModule.Tracing {
-  public GrizzlyFilterChainModule() {
-    super("grizzly-filterchain");
-  }
+    public GrizzlyFilterChainModule() {
+        super("grizzly-filterchain");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new DefaultFilterChainInstrumentation(),
-        new FilterInstrumentation(),
-        new HttpCodecFilterInstrumentation(),
-        new HttpServerFilterInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new DefaultFilterChainInstrumentation(),
+                new FilterInstrumentation(),
+                new HttpCodecFilterInstrumentation(),
+                new HttpServerFilterInstrumentation());
+    }
 }

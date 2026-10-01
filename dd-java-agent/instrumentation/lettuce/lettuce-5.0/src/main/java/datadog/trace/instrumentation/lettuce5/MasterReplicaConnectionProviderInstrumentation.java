@@ -29,78 +29,74 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class MasterReplicaConnectionProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public MasterReplicaConnectionProviderInstrumentation() {
-    super("lettuce", "lettuce-5");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      // Legacy Lettuce 5.x
-      "io.lettuce.core.masterslave.MasterSlaveConnectionProvider",
-      // Transitional Lettuce 6.0 provider
-      "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider",
-      // Lettuce 6.1+
-      "io.lettuce.core.masterreplica.MasterReplicaConnectionProvider"
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // Intent argument types move across Lettuce versions, but only the returned connection is used.
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("getConnection"))
-            .and(takesArguments(1))
-            .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("getConnectionAsync"))
-            .and(takesArguments(1))
-            .and(returns(named("java.util.concurrent.CompletableFuture"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
-  }
-
-  public static class SyncAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.Return final StatefulRedisConnection<?, ?> connection) {
-      final AgentSpan span = activeSpan();
-      if (!MasterReplicaConnectionHelper.isRedisClientSpan(span)) {
-        return;
-      }
-
-      MasterReplicaConnectionHelper.onConnection(
-          span, connection, InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
+    public MasterReplicaConnectionProviderInstrumentation() {
+        super("lettuce", "lettuce-5");
     }
-  }
 
-  public static class AsyncAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <T extends StatefulConnection> void onExit(
-        @Advice.Return(readOnly = false) CompletableFuture<T> connectionFuture) {
-      final AgentSpan span = activeSpan();
-      if (!MasterReplicaConnectionHelper.isRedisClientSpan(span) || connectionFuture == null) {
-        return;
-      }
-
-      connectionFuture =
-          MasterReplicaConnectionHelper.onConnectionFuture(
-              span,
-              connectionFuture,
-              InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            // Legacy Lettuce 5.x
+            "io.lettuce.core.masterslave.MasterSlaveConnectionProvider",
+            // Transitional Lettuce 6.0 provider
+            "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider",
+            // Lettuce 6.1+
+            "io.lettuce.core.masterreplica.MasterReplicaConnectionProvider"
+        };
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // Intent argument types move across Lettuce versions, but only the returned connection is used.
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("getConnection"))
+                        .and(takesArguments(1))
+                        .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
+                MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("getConnectionAsync"))
+                        .and(takesArguments(1))
+                        .and(returns(named("java.util.concurrent.CompletableFuture"))),
+                MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
+    }
+
+    public static class SyncAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(@Advice.Return final StatefulRedisConnection<?, ?> connection) {
+            final AgentSpan span = activeSpan();
+            if (!MasterReplicaConnectionHelper.isRedisClientSpan(span)) {
+                return;
+            }
+
+            MasterReplicaConnectionHelper.onConnection(
+                    span, connection, InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
+        }
+    }
+
+    public static class AsyncAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static <T extends StatefulConnection> void onExit(
+                @Advice.Return(readOnly = false) CompletableFuture<T> connectionFuture) {
+            final AgentSpan span = activeSpan();
+            if (!MasterReplicaConnectionHelper.isRedisClientSpan(span) || connectionFuture == null) {
+                return;
+            }
+
+            connectionFuture = MasterReplicaConnectionHelper.onConnectionFuture(
+                    span, connectionFuture, InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
+        }
+    }
 }

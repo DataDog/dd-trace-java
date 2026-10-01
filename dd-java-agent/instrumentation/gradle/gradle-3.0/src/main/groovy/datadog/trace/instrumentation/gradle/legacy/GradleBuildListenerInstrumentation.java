@@ -14,42 +14,42 @@ import org.gradle.invocation.DefaultGradle;
 
 @AutoService(InstrumenterModule.class)
 public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public GradleBuildListenerInstrumentation() {
-    super("gradle", "gradle-build-listener");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Only instrument Gradle older than 8.3
-    return not(hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions"));
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.gradle.invocation.DefaultGradle";
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-  }
-
-  public static class Construct {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterConstructor(@Advice.This final DefaultGradle gradle) {
-      gradle.addBuildListener(new GradleBuildListener());
+    public GradleBuildListenerInstrumentation() {
+        super("gradle", "gradle-build-listener");
     }
-  }
 
-  @Override
-  public String muzzleDirective() {
-    return "skipMuzzle";
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Only instrument Gradle older than 8.3
+        return not(hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions"));
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.gradle.invocation.DefaultGradle";
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    }
+
+    public static class Construct {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterConstructor(@Advice.This final DefaultGradle gradle) {
+            gradle.addBuildListener(new GradleBuildListener());
+        }
+    }
+
+    @Override
+    public String muzzleDirective() {
+        return "skipMuzzle";
+    }
 }

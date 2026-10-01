@@ -32,251 +32,253 @@ import io.grpc.StatusRuntimeException;
 import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 
-public final class ClientCallImplInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  @Override
-  public String instrumentedType() {
-    return "com.linecorp.armeria.internal.client.grpc.ArmeriaClientCall";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(4, named("io.grpc.MethodDescriptor"))),
-        getClass().getName() + "$CaptureCallPos4");
-    // from 1.32.3
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(2, named("io.grpc.MethodDescriptor"))),
-        getClass().getName() + "$CaptureCallPos2");
-    transformer.applyAdvices(
-        named("start").and(isMethod()),
-        getClass().getName() + "$Start",
-        getClass().getName() + "$StartContextPropagationAdvice");
-    transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
-    transformer.applyAdvice(
-        named("request")
-            .and(isMethod())
-            .and(takesArguments(int.class))
-            .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
-        getClass().getName() + "$ActivateSpan");
-    transformer.applyAdvice(
-        named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
-    transformer.applyAdvice(
-        // matches the method signature for versions until 1.40 excluded
-        named("close").and(isMethod().and(takesArguments(2))),
-        getClass().getName() + "$CloseObserver");
-    transformer.applyAdvice(
-        // matches the signature after v1.40
-        named("close")
-            .and(isMethod())
-            .and(takesArguments(3))
-            .and(takesArgument(2, named("java.lang.Throwable"))),
-        getClass().getName() + "$CloseObserverWithCause");
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
-      transformer.applyAdvice(
-          named("onNext").or(named("messageRead")), getClass().getName() + "$ReceiveMessages");
+public final class ClientCallImplInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    @Override
+    public String instrumentedType() {
+        return "com.linecorp.armeria.internal.client.grpc.ArmeriaClientCall";
     }
-  }
 
-  public static final class CaptureCallPos4 {
-    @Advice.OnMethodExit
-    public static void capture(
-        @Advice.This ClientCall<?, ?> call, @Advice.Argument(4) MethodDescriptor<?, ?> method) {
-      AgentSpan span = DECORATE.startCall(method);
-      if (null != span) {
-        InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
-      }
-    }
-  }
-
-  public static final class CaptureCallPos2 {
-    @Advice.OnMethodExit
-    public static void capture(
-        @Advice.This ClientCall<?, ?> call, @Advice.Argument(2) MethodDescriptor<?, ?> method) {
-      AgentSpan span = DECORATE.startCall(method);
-      if (null != span) {
-        InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
-      }
-    }
-  }
-
-  public static final class Start {
-    @Advice.OnMethodEnter
-    public static <T> ContextScope before(
-        @Advice.This ClientCall<?, ?> call,
-        @Advice.Argument(0) ClientCall.Listener<T> responseListener,
-        @Advice.Argument(1) Metadata headers,
-        @Advice.Local("$$ddSpan") AgentSpan span) {
-      if (null != responseListener && null != headers) {
-        span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
-        if (null != span) {
-          return activateSpan(span);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(4, named("io.grpc.MethodDescriptor"))),
+                getClass().getName() + "$CaptureCallPos4");
+        // from 1.32.3
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(2, named("io.grpc.MethodDescriptor"))),
+                getClass().getName() + "$CaptureCallPos2");
+        transformer.applyAdvices(
+                named("start").and(isMethod()),
+                getClass().getName() + "$Start",
+                getClass().getName() + "$StartContextPropagationAdvice");
+        transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
+        transformer.applyAdvice(
+                named("request")
+                        .and(isMethod())
+                        .and(takesArguments(int.class))
+                        .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
+                getClass().getName() + "$ActivateSpan");
+        transformer.applyAdvice(named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
+        transformer.applyAdvice(
+                // matches the method signature for versions until 1.40 excluded
+                named("close").and(isMethod().and(takesArguments(2))),
+                getClass().getName() + "$CloseObserver");
+        transformer.applyAdvice(
+                // matches the signature after v1.40
+                named("close")
+                        .and(isMethod())
+                        .and(takesArguments(3))
+                        .and(takesArgument(2, named("java.lang.Throwable"))),
+                getClass().getName() + "$CloseObserverWithCause");
+        if (InstrumenterConfig.get()
+                .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
+            transformer.applyAdvice(
+                    named("onNext").or(named("messageRead")), getClass().getName() + "$ReceiveMessages");
         }
-      }
-      return null;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(
-        @Advice.Enter ContextScope scope,
-        @Advice.Thrown Throwable error,
-        @Advice.Local("$$ddSpan") AgentSpan span)
-        throws Throwable {
-      if (null != error && null != span) {
-        DECORATE.onError(span, error);
-        DECORATE.beforeFinish(span);
-      }
-      if (null != scope) {
-        scope.close();
-      }
-      if (null != error && null != span) {
-        span.finish();
-        throw error;
-      }
-    }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static final class StartContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before(@Advice.Argument(1) Metadata headers) {
-      DECORATE.injectContext(currentContext(), headers, SETTER);
-    }
-  }
-
-  public static final class ActivateSpan {
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
-      if (null != span) {
-        return activateSpan(span);
-      }
-      return null;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      if (null != scope) {
-        scope.close();
-      }
-    }
-  }
-
-  public static final class SendMessage {
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
-      // could create a message span here for the request
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
-      if (span != null) {
-        return activateSpan(span);
-      }
-      return null;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      if (null != scope) {
-        scope.close();
-      }
-    }
-  }
-
-  public static final class Cancel {
-    @Advice.OnMethodEnter
-    public static void before(
-        @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
-      if (null != span) {
-        if (cause instanceof StatusRuntimeException) {
-          DECORATE.onClose(span, ((StatusRuntimeException) cause).getStatus());
-        } else if (cause instanceof StatusException) {
-          DECORATE.onClose(span, ((StatusException) cause).getStatus());
+    public static final class CaptureCallPos4 {
+        @Advice.OnMethodExit
+        public static void capture(
+                @Advice.This ClientCall<?, ?> call, @Advice.Argument(4) MethodDescriptor<?, ?> method) {
+            AgentSpan span = DECORATE.startCall(method);
+            if (null != span) {
+                InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
+            }
         }
-        span.finish();
-      }
-    }
-  }
-
-  public static final class CloseObserver {
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
-      if (span != null) {
-        return activateSpan(span);
-      }
-      return null;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void closeObserver(
-        @Advice.Enter ContextScope scope, @Advice.Argument(0) Status status) {
-      if (null != scope) {
-        AgentSpan span = spanFromScope(scope);
-        DECORATE.onClose(span, status);
-        scope.close();
-        span.finish();
-      }
-    }
-  }
-
-  /**
-   * After armeria 1.40 and <a href="https://github.com/line/armeria/pull/6717">this PR</a>, it is
-   * possible that the first call to close would not be the real close. We need to rely on the
-   * internal boolean `closed` to know if we are dealing with the real closing.
-   */
-  public static final class CloseObserverWithCause {
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
-      if (span != null) {
-        return activateSpan(span);
-      }
-      return null;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void closeObserver(
-        @Advice.This ClientCall<?, ?> call,
-        @Advice.Enter ContextScope scope,
-        @Advice.Argument(0) Status status,
-        @Advice.FieldValue("closed") boolean closed) {
-      if (null != scope) {
-        AgentSpan span = null;
-        if (closed) {
-          span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
-          if (span != null) {
-            DECORATE.onClose(span, status);
-          }
+    public static final class CaptureCallPos2 {
+        @Advice.OnMethodExit
+        public static void capture(
+                @Advice.This ClientCall<?, ?> call, @Advice.Argument(2) MethodDescriptor<?, ?> method) {
+            AgentSpan span = DECORATE.startCall(method);
+            if (null != span) {
+                InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
+            }
         }
-        scope.close();
-        if (span != null) {
-          span.finish();
+    }
+
+    public static final class Start {
+        @Advice.OnMethodEnter
+        public static <T> ContextScope before(
+                @Advice.This ClientCall<?, ?> call,
+                @Advice.Argument(0) ClientCall.Listener<T> responseListener,
+                @Advice.Argument(1) Metadata headers,
+                @Advice.Local("$$ddSpan") AgentSpan span) {
+            if (null != responseListener && null != headers) {
+                span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                        .get(call);
+                if (null != span) {
+                    return activateSpan(span);
+                }
+            }
+            return null;
         }
-      }
-    }
-  }
 
-  public static final class ReceiveMessages {
-    @Advice.OnMethodEnter
-    public static ContextScope before() {
-      AgentSpan clientSpan = activeSpan();
-      if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
-        AgentSpan messageSpan =
-            startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
-                .setTag("message.type", clientSpan.getTag("response.type"));
-        DECORATE.afterStart(messageSpan);
-        return activateSpan(messageSpan);
-      }
-      return null;
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(
+                @Advice.Enter ContextScope scope,
+                @Advice.Thrown Throwable error,
+                @Advice.Local("$$ddSpan") AgentSpan span)
+                throws Throwable {
+            if (null != error && null != span) {
+                DECORATE.onError(span, error);
+                DECORATE.beforeFinish(span);
+            }
+            if (null != scope) {
+                scope.close();
+            }
+            if (null != error && null != span) {
+                span.finish();
+                throw error;
+            }
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      if (null != scope) {
-        scope.close();
-        spanFromScope(scope).finish();
-      }
+    @AppliesOn(CONTEXT_TRACKING)
+    public static final class StartContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void before(@Advice.Argument(1) Metadata headers) {
+            DECORATE.injectContext(currentContext(), headers, SETTER);
+        }
     }
-  }
+
+    public static final class ActivateSpan {
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
+            AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                    .get(call);
+            if (null != span) {
+                return activateSpan(span);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            if (null != scope) {
+                scope.close();
+            }
+        }
+    }
+
+    public static final class SendMessage {
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
+            // could create a message span here for the request
+            AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                    .get(call);
+            if (span != null) {
+                return activateSpan(span);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            if (null != scope) {
+                scope.close();
+            }
+        }
+    }
+
+    public static final class Cancel {
+        @Advice.OnMethodEnter
+        public static void before(@Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
+            AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                    .remove(call);
+            if (null != span) {
+                if (cause instanceof StatusRuntimeException) {
+                    DECORATE.onClose(span, ((StatusRuntimeException) cause).getStatus());
+                } else if (cause instanceof StatusException) {
+                    DECORATE.onClose(span, ((StatusException) cause).getStatus());
+                }
+                span.finish();
+            }
+        }
+    }
+
+    public static final class CloseObserver {
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
+            AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                    .remove(call);
+            if (span != null) {
+                return activateSpan(span);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void closeObserver(@Advice.Enter ContextScope scope, @Advice.Argument(0) Status status) {
+            if (null != scope) {
+                AgentSpan span = spanFromScope(scope);
+                DECORATE.onClose(span, status);
+                scope.close();
+                span.finish();
+            }
+        }
+    }
+
+    /**
+     * After armeria 1.40 and <a href="https://github.com/line/armeria/pull/6717">this PR</a>, it is
+     * possible that the first call to close would not be the real close. We need to rely on the
+     * internal boolean `closed` to know if we are dealing with the real closing.
+     */
+    public static final class CloseObserverWithCause {
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
+            AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                    .get(call);
+            if (span != null) {
+                return activateSpan(span);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void closeObserver(
+                @Advice.This ClientCall<?, ?> call,
+                @Advice.Enter ContextScope scope,
+                @Advice.Argument(0) Status status,
+                @Advice.FieldValue("closed") boolean closed) {
+            if (null != scope) {
+                AgentSpan span = null;
+                if (closed) {
+                    span = InstrumentationContext.get(ClientCall.class, AgentSpan.class)
+                            .remove(call);
+                    if (span != null) {
+                        DECORATE.onClose(span, status);
+                    }
+                }
+                scope.close();
+                if (span != null) {
+                    span.finish();
+                }
+            }
+        }
+    }
+
+    public static final class ReceiveMessages {
+        @Advice.OnMethodEnter
+        public static ContextScope before() {
+            AgentSpan clientSpan = activeSpan();
+            if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
+                AgentSpan messageSpan = startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
+                        .setTag("message.type", clientSpan.getTag("response.type"));
+                DECORATE.afterStart(messageSpan);
+                return activateSpan(messageSpan);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            if (null != scope) {
+                scope.close();
+                spanFromScope(scope).finish();
+            }
+        }
+    }
 }

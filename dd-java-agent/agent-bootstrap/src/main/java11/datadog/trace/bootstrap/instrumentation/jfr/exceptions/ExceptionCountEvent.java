@@ -17,14 +17,14 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 @Enabled
 public class ExceptionCountEvent extends Event {
-  @Label("Exception type")
-  private String type;
+    @Label("Exception type")
+    private String type;
 
-  @Label("Exception count")
-  private long count;
+    @Label("Exception count")
+    private long count;
 
-  public ExceptionCountEvent(String type, long count) {
-    this.type = type;
-    this.count = count;
-  }
+    public ExceptionCountEvent(String type, long count) {
+        this.type = type;
+        this.count = count;
+    }
 }

@@ -30,80 +30,76 @@ import net.bytebuddy.matcher.ElementMatcher;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles JVM version.
  */
 public final class JavaForkJoinTaskInstrumentation
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return notExcludedByName(FORK_JOIN_TASK)
-        .and(declaresMethod(namedOneOf("doExec", "exec", "fork", "cancel")))
-        .and(extendsClass(named("java.util.concurrent.ForkJoinTask")));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
-    transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
-    // The delay scheduler cancels tasks internally without calling the public cancel method.
-    transformer.applyAdvice(
-        isMethod()
-            .and(
-                named("cancel")
-                    .or(
-                        named("trySetCancelled")
-                            .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))))),
-        getClass().getName() + "$Cancel");
-    // A delayed task can be completed before it ever executes or is cancelled.
-    transformer.applyAdvice(
-        isMethod()
-            .and(namedOneOf("complete", "quietlyComplete", "completeExceptionally"))
-            .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))),
-        getClass().getName() + "$Complete");
-  }
-
-  public static final class Exec {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
-      return exclude(FORK_JOIN_TASK, task)
-          ? null
-          : startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return notExcludedByName(FORK_JOIN_TASK)
+                .and(declaresMethod(namedOneOf("doExec", "exec", "fork", "cancel")))
+                .and(extendsClass(named("java.util.concurrent.ForkJoinTask")));
     }
-  }
 
-  public static final class Fork {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
-      if (!exclude(FORK_JOIN_TASK, task)) {
-        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
+        transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
+        // The delay scheduler cancels tasks internally without calling the public cancel method.
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("cancel")
+                                .or(named("trySetCancelled")
+                                        .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))))),
+                getClass().getName() + "$Cancel");
+        // A delayed task can be completed before it ever executes or is cancelled.
+        transformer.applyAdvice(
+                isMethod()
+                        .and(namedOneOf("complete", "quietlyComplete", "completeExceptionally"))
+                        .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))),
+                getClass().getName() + "$Complete");
     }
-  }
 
-  public static final class Cancel {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
-      cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-    }
-  }
+    public static final class Exec {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
+            return exclude(FORK_JOIN_TASK, task)
+                    ? null
+                    : startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        }
 
-  public static final class Complete {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void complete(@Advice.This ForkJoinTask<?> task) {
-      if (task.isDone()) {
-        cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-      }
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
     }
-  }
+
+    public static final class Fork {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
+            if (!exclude(FORK_JOIN_TASK, task)) {
+                capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+            }
+        }
+    }
+
+    public static final class Cancel {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
+            cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        }
+    }
+
+    public static final class Complete {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void complete(@Advice.This ForkJoinTask<?> task) {
+            if (task.isDone()) {
+                cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+            }
+        }
+    }
 }

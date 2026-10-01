@@ -31,62 +31,61 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public GlassFishMultipartInstrumentation() {
-    super("tomcat");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "glassfish";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.catalina.fileupload.Multipart";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)).and(isPublic()),
-        getClass().getName() + "$GetPartsAdvice");
-  }
-
-  public static class GetPartsAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return(readOnly = false) Collection<?> parts,
-        @Advice.Thrown Throwable t,
-        @Advice.FieldValue("request") org.apache.catalina.Request catRequest) {
-      if (t != null || parts == null || parts.isEmpty()) {
-        return;
-      }
-
-      AgentSpan agentSpan = AgentTracer.activeSpan();
-      if (agentSpan == null) {
-        return;
-      }
-      RequestContext reqCtx = agentSpan.getRequestContext();
-      if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
-          cbp.getCallback(EVENTS.requestFilesContent());
-      if (filenamesCb == null && contentCb == null) {
-        return;
-      }
-
-      if (GlassFishBlockingHelper.processPartsAndBlock(
-          parts, reqCtx, catRequest, filenamesCb, contentCb)) {
-        parts = Collections.emptyList();
-      }
+    public GlassFishMultipartInstrumentation() {
+        super("tomcat");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "glassfish";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.apache.catalina.fileupload.Multipart";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getParts").and(takesArguments(0)).and(isPublic()),
+                getClass().getName() + "$GetPartsAdvice");
+    }
+
+    public static class GetPartsAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return(readOnly = false) Collection<?> parts,
+                @Advice.Thrown Throwable t,
+                @Advice.FieldValue("request") org.apache.catalina.Request catRequest) {
+            if (t != null || parts == null || parts.isEmpty()) {
+                return;
+            }
+
+            AgentSpan agentSpan = AgentTracer.activeSpan();
+            if (agentSpan == null) {
+                return;
+            }
+            RequestContext reqCtx = agentSpan.getRequestContext();
+            if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+                    cbp.getCallback(EVENTS.requestFilesFilenames());
+            BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+                    cbp.getCallback(EVENTS.requestFilesContent());
+            if (filenamesCb == null && contentCb == null) {
+                return;
+            }
+
+            if (GlassFishBlockingHelper.processPartsAndBlock(parts, reqCtx, catRequest, filenamesCb, contentCb)) {
+                parts = Collections.emptyList();
+            }
+        }
+    }
 }

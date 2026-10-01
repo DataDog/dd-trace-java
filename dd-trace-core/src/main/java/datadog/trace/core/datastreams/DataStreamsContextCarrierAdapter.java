@@ -9,25 +9,23 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class DataStreamsContextCarrierAdapter
-    implements CarrierSetter<DataStreamsContextCarrier>, CarrierVisitor<DataStreamsContextCarrier> {
+        implements CarrierSetter<DataStreamsContextCarrier>, CarrierVisitor<DataStreamsContextCarrier> {
 
-  public static final DataStreamsContextCarrierAdapter INSTANCE =
-      new DataStreamsContextCarrierAdapter();
+    public static final DataStreamsContextCarrierAdapter INSTANCE = new DataStreamsContextCarrierAdapter();
 
-  private DataStreamsContextCarrierAdapter() {}
+    private DataStreamsContextCarrierAdapter() {}
 
-  @Override
-  public void set(DataStreamsContextCarrier carrier, String key, String value) {
-    carrier.set(key, value);
-  }
-
-  @Override
-  public void forEachKeyValue(
-      DataStreamsContextCarrier carrier, BiConsumer<String, String> visitor) {
-    for (Map.Entry<String, ?> entry : carrier.entries()) {
-      if (null != entry.getValue()) {
-        visitor.accept(entry.getKey(), entry.getValue().toString());
-      }
+    @Override
+    public void set(DataStreamsContextCarrier carrier, String key, String value) {
+        carrier.set(key, value);
     }
-  }
+
+    @Override
+    public void forEachKeyValue(DataStreamsContextCarrier carrier, BiConsumer<String, String> visitor) {
+        for (Map.Entry<String, ?> entry : carrier.entries()) {
+            if (null != entry.getValue()) {
+                visitor.accept(entry.getKey(), entry.getValue().toString());
+            }
+        }
+    }
 }

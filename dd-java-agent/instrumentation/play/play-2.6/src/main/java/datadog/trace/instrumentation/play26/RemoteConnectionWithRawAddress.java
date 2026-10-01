@@ -7,35 +7,35 @@ import scala.Option;
 import scala.collection.Seq;
 
 public class RemoteConnectionWithRawAddress implements RemoteConnection {
-  private final RemoteConnection rawConnection;
-  private final RemoteConnection delegate;
+    private final RemoteConnection rawConnection;
+    private final RemoteConnection delegate;
 
-  public RemoteConnectionWithRawAddress(RemoteConnection rawConnection, RemoteConnection delegate) {
-    this.rawConnection = rawConnection;
-    this.delegate = delegate;
-  }
+    public RemoteConnectionWithRawAddress(RemoteConnection rawConnection, RemoteConnection delegate) {
+        this.rawConnection = rawConnection;
+        this.delegate = delegate;
+    }
 
-  @Override
-  public InetAddress remoteAddress() {
-    return delegate.remoteAddress();
-  }
+    @Override
+    public InetAddress remoteAddress() {
+        return delegate.remoteAddress();
+    }
 
-  @Override
-  public String remoteAddressString() {
-    return delegate.remoteAddressString();
-  }
+    @Override
+    public String remoteAddressString() {
+        return delegate.remoteAddressString();
+    }
 
-  public String rawRemoteAddressString() {
-    return rawConnection.remoteAddressString();
-  }
+    public String rawRemoteAddressString() {
+        return rawConnection.remoteAddressString();
+    }
 
-  @Override
-  public boolean secure() {
-    return delegate.secure();
-  }
+    @Override
+    public boolean secure() {
+        return delegate.secure();
+    }
 
-  @Override
-  public Option<Seq<X509Certificate>> clientCertificateChain() {
-    return delegate.clientCertificateChain();
-  }
+    @Override
+    public Option<Seq<X509Certificate>> clientCertificateChain() {
+        return delegate.clientCertificateChain();
+    }
 }

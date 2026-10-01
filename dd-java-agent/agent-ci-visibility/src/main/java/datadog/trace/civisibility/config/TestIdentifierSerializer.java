@@ -6,12 +6,12 @@ import java.nio.ByteBuffer;
 
 public abstract class TestIdentifierSerializer {
 
-  public static void serialize(Serializer serializer, TestIdentifier testIdentifier) {
-    TestFQNSerializer.serialize(serializer, testIdentifier.toFQN());
-    serializer.write(testIdentifier.getParameters());
-  }
+    public static void serialize(Serializer serializer, TestIdentifier testIdentifier) {
+        TestFQNSerializer.serialize(serializer, testIdentifier.toFQN());
+        serializer.write(testIdentifier.getParameters());
+    }
 
-  public static TestIdentifier deserialize(ByteBuffer buffer) {
-    return new TestIdentifier(TestFQNSerializer.deserialize(buffer), Serializer.readString(buffer));
-  }
+    public static TestIdentifier deserialize(ByteBuffer buffer) {
+        return new TestIdentifier(TestFQNSerializer.deserialize(buffer), Serializer.readString(buffer));
+    }
 }

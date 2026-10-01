@@ -20,51 +20,48 @@ import net.bytebuddy.dynamic.DynamicType;
 
 /** Build-time plugin that scans each module once and runs ordered scan consumers. */
 public class AdviceScanningGradlePlugin extends Plugin.ForElementMatcher {
-  static {
-    SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());
-    HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
-  }
-
-  private final File targetDirectory;
-  private final HelperGenerationProcessor helperProcessor = new HelperGenerationProcessor();
-  private final List<AdviceProcessor> processors;
-
-  public AdviceScanningGradlePlugin(File targetDirectory) {
-    this(targetDirectory, singletonList(new MuzzleGenerationProcessor()));
-  }
-
-  AdviceScanningGradlePlugin(File targetDirectory, List<AdviceProcessor> processors) {
-    super(concreteClass().and(extendsClass(named(InstrumenterModule.class.getName()))));
-    this.targetDirectory = targetDirectory;
-    this.processors = processors;
-  }
-
-  @Override
-  public DynamicType.Builder<?> apply(
-      DynamicType.Builder<?> builder,
-      TypeDescription typeDescription,
-      ClassFileLocator classFileLocator) {
-    ClassLoader loader = Thread.currentThread().getContextClassLoader();
-    InstrumenterModule module;
-    try {
-      // The module instance is shared by scanning and every processor.
-      module =
-          (InstrumenterModule)
-              loader.loadClass(typeDescription.getName()).getConstructor().newInstance();
-    } catch (ReflectiveOperationException error) {
-      throw new IllegalStateException(
-          "Cannot instantiate instrumenter module " + typeDescription.getName(), error);
+    static {
+        SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());
+        HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
     }
 
-    AdviceScanResult scanResult = AdviceScanner.scan(module, classFileLocator);
-    String[] helpers = helperProcessor.resolveHelpers(scanResult, module);
-    AdviceProcessorContext context = new AdviceProcessorContext(module, targetDirectory, helpers);
-    for (AdviceProcessor processor : processors) {
-      processor.process(scanResult, context);
-    }
-    return helperProcessor.transform(builder, helpers, module);
-  }
+    private final File targetDirectory;
+    private final HelperGenerationProcessor helperProcessor = new HelperGenerationProcessor();
+    private final List<AdviceProcessor> processors;
 
-  @Override
-  public void close() throws IOException {}
+    public AdviceScanningGradlePlugin(File targetDirectory) {
+        this(targetDirectory, singletonList(new MuzzleGenerationProcessor()));
+    }
+
+    AdviceScanningGradlePlugin(File targetDirectory, List<AdviceProcessor> processors) {
+        super(concreteClass().and(extendsClass(named(InstrumenterModule.class.getName()))));
+        this.targetDirectory = targetDirectory;
+        this.processors = processors;
+    }
+
+    @Override
+    public DynamicType.Builder<?> apply(
+            DynamicType.Builder<?> builder, TypeDescription typeDescription, ClassFileLocator classFileLocator) {
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        InstrumenterModule module;
+        try {
+            // The module instance is shared by scanning and every processor.
+            module = (InstrumenterModule)
+                    loader.loadClass(typeDescription.getName()).getConstructor().newInstance();
+        } catch (ReflectiveOperationException error) {
+            throw new IllegalStateException(
+                    "Cannot instantiate instrumenter module " + typeDescription.getName(), error);
+        }
+
+        AdviceScanResult scanResult = AdviceScanner.scan(module, classFileLocator);
+        String[] helpers = helperProcessor.resolveHelpers(scanResult, module);
+        AdviceProcessorContext context = new AdviceProcessorContext(module, targetDirectory, helpers);
+        for (AdviceProcessor processor : processors) {
+            processor.process(scanResult, context);
+        }
+        return helperProcessor.transform(builder, helpers, module);
+    }
+
+    @Override
+    public void close() throws IOException {}
 }

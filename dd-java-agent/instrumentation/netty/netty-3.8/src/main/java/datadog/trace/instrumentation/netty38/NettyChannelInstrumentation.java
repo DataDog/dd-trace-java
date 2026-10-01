@@ -24,62 +24,59 @@ import org.jboss.netty.channel.Channel;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public NettyChannelInstrumentation() {
-    super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.jboss.netty.channel.Channel";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AbstractNettyAdvice",
-      packageName + ".ChannelTraceContext",
-      packageName + ".ChannelTraceContext$Factory"
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("connect"))
-            .and(returns(named("org.jboss.netty.channel.ChannelFuture"))),
-        NettyChannelInstrumentation.class.getName() + "$ChannelConnectAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
-  }
-
-  public static class ChannelConnectAdvice extends AbstractNettyAdvice {
-    @Advice.OnMethodEnter
-    public static void addConnectContinuation(@Advice.This final Channel channel) {
-      ContextContinuation continuation = currentContext().capture();
-      if (continuation.context() != rootContext()) {
-        final ContextStore<Channel, ChannelTraceContext> contextStore =
-            InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
-
-        if (contextStore
-                .getOrCreate(channel, ChannelTraceContext.Factory.INSTANCE)
-                .getConnectionContinuation()
-            != null) {
-          continuation.release();
-        } else {
-          contextStore.get(channel).setConnectionContinuation(continuation);
-        }
-      }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public NettyChannelInstrumentation() {
+        super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.jboss.netty.channel.Channel";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".AbstractNettyAdvice",
+            packageName + ".ChannelTraceContext",
+            packageName + ".ChannelTraceContext$Factory"
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("connect")).and(returns(named("org.jboss.netty.channel.ChannelFuture"))),
+                NettyChannelInstrumentation.class.getName() + "$ChannelConnectAdvice");
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
+    }
+
+    public static class ChannelConnectAdvice extends AbstractNettyAdvice {
+        @Advice.OnMethodEnter
+        public static void addConnectContinuation(@Advice.This final Channel channel) {
+            ContextContinuation continuation = currentContext().capture();
+            if (continuation.context() != rootContext()) {
+                final ContextStore<Channel, ChannelTraceContext> contextStore =
+                        InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
+
+                if (contextStore
+                                .getOrCreate(channel, ChannelTraceContext.Factory.INSTANCE)
+                                .getConnectionContinuation()
+                        != null) {
+                    continuation.release();
+                } else {
+                    contextStore.get(channel).setConnectionContinuation(continuation);
+                }
+            }
+        }
+    }
 }

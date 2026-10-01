@@ -10,22 +10,22 @@ import io.vertx.core.Handler;
  * @see VertxImplInstrumentation
  */
 public class BlockingExceptionHandler implements Handler<Throwable> {
-  private final AgentSpan span;
-  private final Handler<Throwable> delegate;
+    private final AgentSpan span;
+    private final Handler<Throwable> delegate;
 
-  public BlockingExceptionHandler(AgentSpan span, Handler<Throwable> delegate) {
-    this.span = span;
-    this.delegate = delegate;
-  }
-
-  @Override
-  public void handle(Throwable event) {
-    if (event instanceof BlockingException) {
-      VertxDecorator.DECORATE.onError(span, event);
+    public BlockingExceptionHandler(AgentSpan span, Handler<Throwable> delegate) {
+        this.span = span;
+        this.delegate = delegate;
     }
 
-    if (this.delegate != null) {
-      this.delegate.handle(event);
+    @Override
+    public void handle(Throwable event) {
+        if (event instanceof BlockingException) {
+            VertxDecorator.DECORATE.onError(span, event);
+        }
+
+        if (this.delegate != null) {
+            this.delegate.handle(event);
+        }
     }
-  }
 }

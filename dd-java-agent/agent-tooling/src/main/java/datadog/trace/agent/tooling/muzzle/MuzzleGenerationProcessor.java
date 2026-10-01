@@ -16,20 +16,20 @@ import java.util.Set;
  * Converts a neutral advice scan to references and emits the existing {@code $Muzzle} side class.
  */
 public final class MuzzleGenerationProcessor implements AdviceProcessor {
-  @Override
-  public void process(AdviceScanResult scanResult, AdviceProcessorContext context) {
-    InstrumenterModule module = context.getModule();
+    @Override
+    public void process(AdviceScanResult scanResult, AdviceProcessorContext context) {
+        InstrumenterModule module = context.getModule();
 
-    Set<String> ignoredClasses = new HashSet<>(asList(module.muzzleIgnoredClassNames()));
-    addAll(ignoredClasses, context.getHelperClassNames());
-    AdviceShader shader = AdviceShader.with(module.adviceShading());
-    List<Reference> references = ReferenceCreator.createReferences(scanResult, shader);
-    references.removeIf(reference -> ignoredClasses.contains(reference.className));
-    Reference[] additionalReferences = module.additionalMuzzleReferences();
-    if (additionalReferences != null) {
-      addAll(references, additionalReferences);
+        Set<String> ignoredClasses = new HashSet<>(asList(module.muzzleIgnoredClassNames()));
+        addAll(ignoredClasses, context.getHelperClassNames());
+        AdviceShader shader = AdviceShader.with(module.adviceShading());
+        List<Reference> references = ReferenceCreator.createReferences(scanResult, shader);
+        references.removeIf(reference -> ignoredClasses.contains(reference.className));
+        Reference[] additionalReferences = module.additionalMuzzleReferences();
+        if (additionalReferences != null) {
+            addAll(references, additionalReferences);
+        }
+
+        MuzzleGenerator.generate(context.getTargetDirectory(), module, references);
     }
-
-    MuzzleGenerator.generate(context.getTargetDirectory(), module, references);
-  }
 }

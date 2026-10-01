@@ -16,36 +16,35 @@ import org.slf4j.LoggerFactory;
 
 public class IastSecurityControlTransformer implements ClassFileTransformer {
 
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(IastSecurityControlTransformer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(IastSecurityControlTransformer.class);
 
-  private final Map<String, List<SecurityControl>> securityControls;
+    private final Map<String, List<SecurityControl>> securityControls;
 
-  public IastSecurityControlTransformer(Map<String, List<SecurityControl>> securityControls) {
-    this.securityControls = securityControls;
-  }
-
-  @Override
-  @Nullable
-  public byte[] transform(
-      ClassLoader loader,
-      String className,
-      Class<?> classBeingRedefined,
-      java.security.ProtectionDomain protectionDomain,
-      byte[] classfileBuffer) {
-    List<SecurityControl> match = securityControls.get(className);
-    if (match == null || match.isEmpty()) {
-      return null; // Do not transform classes that do not have a security control
+    public IastSecurityControlTransformer(Map<String, List<SecurityControl>> securityControls) {
+        this.securityControls = securityControls;
     }
-    try {
-      ClassReader cr = new ClassReader(classfileBuffer);
-      ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_FRAMES);
-      ClassVisitor cv = new SecurityControlMethodClassVisitor(cw, match);
-      cr.accept(cv, SKIP_DEBUG | SKIP_FRAMES);
-      return cw.toByteArray();
-    } catch (Throwable e) {
-      LOGGER.warn("Failed to transform class: {}", className, e);
-      return null;
+
+    @Override
+    @Nullable
+    public byte[] transform(
+            ClassLoader loader,
+            String className,
+            Class<?> classBeingRedefined,
+            java.security.ProtectionDomain protectionDomain,
+            byte[] classfileBuffer) {
+        List<SecurityControl> match = securityControls.get(className);
+        if (match == null || match.isEmpty()) {
+            return null; // Do not transform classes that do not have a security control
+        }
+        try {
+            ClassReader cr = new ClassReader(classfileBuffer);
+            ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_FRAMES);
+            ClassVisitor cv = new SecurityControlMethodClassVisitor(cw, match);
+            cr.accept(cv, SKIP_DEBUG | SKIP_FRAMES);
+            return cw.toByteArray();
+        } catch (Throwable e) {
+            LOGGER.warn("Failed to transform class: {}", className, e);
+            return null;
+        }
     }
-  }
 }

@@ -9,19 +9,19 @@ import java.io.IOException;
 
 class SourceTypeAdapter {
 
-  @ToJson
-  void toJson(JsonWriter writer, @SourceTypeString byte value) throws IOException {
-    final String stringValue = SourceTypes.toString(value);
-    if (stringValue == null) {
-      writer.nullValue();
-      return;
+    @ToJson
+    void toJson(JsonWriter writer, @SourceTypeString byte value) throws IOException {
+        final String stringValue = SourceTypes.toString(value);
+        if (stringValue == null) {
+            writer.nullValue();
+            return;
+        }
+        writer.value(stringValue);
     }
-    writer.value(stringValue);
-  }
 
-  @FromJson
-  @SourceTypeString
-  byte fromJson(JsonReader reader) {
-    throw new UnsupportedOperationException("SourceType deserialization not supported");
-  }
+    @FromJson
+    @SourceTypeString
+    byte fromJson(JsonReader reader) {
+        throw new UnsupportedOperationException("SourceType deserialization not supported");
+    }
 }

@@ -24,38 +24,36 @@ import org.junit.jupiter.api.Test;
  */
 class TagsPostProcessorFactoryTest extends DDJavaSpecification {
 
-  @AfterEach
-  void restoreDefaults() {
-    TagsPostProcessorFactory.reset();
-  }
+    @AfterEach
+    void restoreDefaults() {
+        TagsPostProcessorFactory.reset();
+    }
 
-  @Test
-  void resetRebuildsTheCachedEagerProcessorChain() {
-    TagsPostProcessor before = TagsPostProcessorFactory.eagerProcessor();
+    @Test
+    void resetRebuildsTheCachedEagerProcessorChain() {
+        TagsPostProcessor before = TagsPostProcessorFactory.eagerProcessor();
 
-    TagsPostProcessorFactory.reset();
+        TagsPostProcessorFactory.reset();
 
-    TagsPostProcessor after = TagsPostProcessorFactory.eagerProcessor();
+        TagsPostProcessor after = TagsPostProcessorFactory.eagerProcessor();
 
-    assertNotSame(
-        before,
-        after,
-        "reset() must rebuild the cached eager processor chain (including InternalTagsAdder,"
-            + " which stamps _dd.base_service) from the current Config, or the native-image"
-            + " base_service staleness fix (APMS-20492) silently regresses into a no-op");
-  }
+        assertNotSame(
+                before,
+                after,
+                "reset() must rebuild the cached eager processor chain (including InternalTagsAdder,"
+                        + " which stamps _dd.base_service) from the current Config, or the native-image"
+                        + " base_service staleness fix (APMS-20492) silently regresses into a no-op");
+    }
 
-  @Test
-  void resetRebuildsTheCachedLazyProcessorChain() {
-    TagsPostProcessor before = TagsPostProcessorFactory.lazyProcessor();
+    @Test
+    void resetRebuildsTheCachedLazyProcessorChain() {
+        TagsPostProcessor before = TagsPostProcessorFactory.lazyProcessor();
 
-    TagsPostProcessorFactory.reset();
+        TagsPostProcessorFactory.reset();
 
-    TagsPostProcessor after = TagsPostProcessorFactory.lazyProcessor();
+        TagsPostProcessor after = TagsPostProcessorFactory.lazyProcessor();
 
-    assertNotSame(
-        before,
-        after,
-        "reset() must also rebuild the cached lazy processor chain from the current Config");
-  }
+        assertNotSame(
+                before, after, "reset() must also rebuild the cached lazy processor chain from the current Config");
+    }
 }

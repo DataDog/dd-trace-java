@@ -19,113 +19,111 @@ import scala.Tuple2;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public ScalatestSkipInstrumentation() {
-    super("ci-visibility", "scalatest");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"org.scalatest.Filter", "org.scalatest.Args"};
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.scalatest.Filter", packageName + ".RunContext");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // org.scalatest.Args
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(2, named("org.scalatest.Filter")))
-            .and(takesArgument(5, named("org.scalatest.Tracker"))),
-        ScalatestSkipInstrumentation.class.getName() + "$ArgsContructorAdvice");
-    // org.scalatest.Filter
-    transformer.applyAdvice(
-        named("apply")
-            .and(takesArguments(3))
-            .and(takesArgument(0, String.class))
-            .and(takesArgument(1, named("scala.collection.immutable.Map")))
-            .and(takesArgument(2, String.class)),
-        ScalatestSkipInstrumentation.class.getName() + "$SingleTestFilterAdvice");
-    transformer.applyAdvice(
-        named("apply")
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("scala.collection.immutable.Set")))
-            .and(takesArgument(1, named("scala.collection.immutable.Map")))
-            .and(takesArgument(2, String.class)),
-        ScalatestSkipInstrumentation.class.getName() + "$MultipleTestsFilterAdvice");
-  }
-
-  public static class ArgsContructorAdvice {
-    @Advice.OnMethodExit
-    public static void apply(
-        @Advice.Argument(value = 2) Filter filter, @Advice.Argument(value = 5) Tracker tracker) {
-      int runStamp = tracker.nextOrdinal().runStamp();
-      RunContext context = RunContext.getOrCreate(runStamp);
-      RunContext existingContext =
-          InstrumentationContext.get(Filter.class, RunContext.class).getOrPut(filter, context);
-      if (existingContext != context) {
-        // This shouldn't happen.
-        // If it does, instrumentation isn't working as expected, or Scalatest internals changed.
-        // Either of the two means associating filters with runs should be done differently.
-        throw new IllegalStateException(
-            "Attempting to associate filter "
-                + filter
-                + " with runstamp "
-                + runStamp
-                + ", while already associated with "
-                + existingContext.getRunStamp());
-      }
+    public ScalatestSkipInstrumentation() {
+        super("ci-visibility", "scalatest");
     }
-  }
 
-  public static class SingleTestFilterAdvice {
-    @Advice.OnMethodExit
-    public static void apply(
-        @Advice.This Filter filter,
-        @Advice.Return(readOnly = false) Tuple2<Boolean, Boolean> filterResult,
-        @Advice.Argument(value = 0) String testName,
-        @Advice.Argument(value = 1)
-            scala.collection.immutable.Map<String, scala.collection.immutable.Set<String>> tags,
-        @Advice.Argument(value = 2) String suiteId) {
-      if (filterResult == null // filter terminated exceptionally
-          || filterResult._1() // test is filtered
-          || filterResult._2() // test is ignored
-      ) {
-        return;
-      }
-      TestIdentifier test = new TestIdentifier(suiteId, testName, null);
-      RunContext runContext =
-          InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
-      runContext.populateTags(test, tags);
-
-      if (runContext.skip(test, tags)) {
-        filterResult = new Tuple2<>(false, true);
-      }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"org.scalatest.Filter", "org.scalatest.Args"};
     }
-  }
 
-  public static class MultipleTestsFilterAdvice {
-    @Advice.OnMethodExit
-    public static void apply(
-        @Advice.This Filter filter,
-        @Advice.Return(readOnly = false)
-            scala.collection.immutable.List<Tuple2<String, Boolean>> filterResult,
-        @Advice.Argument(value = 1)
-            scala.collection.immutable.Map<String, scala.collection.immutable.Set<String>> tags,
-        @Advice.Argument(value = 2) String suiteId) {
-      if (filterResult == null /* filter terminated exceptionally */) {
-        return;
-      }
-      RunContext runContext =
-          InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
-      runContext.populateTags(suiteId, tags, filterResult);
-
-      filterResult = runContext.skip(suiteId, filterResult);
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("org.scalatest.Filter", packageName + ".RunContext");
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // org.scalatest.Args
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(2, named("org.scalatest.Filter")))
+                        .and(takesArgument(5, named("org.scalatest.Tracker"))),
+                ScalatestSkipInstrumentation.class.getName() + "$ArgsContructorAdvice");
+        // org.scalatest.Filter
+        transformer.applyAdvice(
+                named("apply")
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, String.class))
+                        .and(takesArgument(1, named("scala.collection.immutable.Map")))
+                        .and(takesArgument(2, String.class)),
+                ScalatestSkipInstrumentation.class.getName() + "$SingleTestFilterAdvice");
+        transformer.applyAdvice(
+                named("apply")
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, named("scala.collection.immutable.Set")))
+                        .and(takesArgument(1, named("scala.collection.immutable.Map")))
+                        .and(takesArgument(2, String.class)),
+                ScalatestSkipInstrumentation.class.getName() + "$MultipleTestsFilterAdvice");
+    }
+
+    public static class ArgsContructorAdvice {
+        @Advice.OnMethodExit
+        public static void apply(
+                @Advice.Argument(value = 2) Filter filter, @Advice.Argument(value = 5) Tracker tracker) {
+            int runStamp = tracker.nextOrdinal().runStamp();
+            RunContext context = RunContext.getOrCreate(runStamp);
+            RunContext existingContext =
+                    InstrumentationContext.get(Filter.class, RunContext.class).getOrPut(filter, context);
+            if (existingContext != context) {
+                // This shouldn't happen.
+                // If it does, instrumentation isn't working as expected, or Scalatest internals changed.
+                // Either of the two means associating filters with runs should be done differently.
+                throw new IllegalStateException("Attempting to associate filter "
+                        + filter
+                        + " with runstamp "
+                        + runStamp
+                        + ", while already associated with "
+                        + existingContext.getRunStamp());
+            }
+        }
+    }
+
+    public static class SingleTestFilterAdvice {
+        @Advice.OnMethodExit
+        public static void apply(
+                @Advice.This Filter filter,
+                @Advice.Return(readOnly = false) Tuple2<Boolean, Boolean> filterResult,
+                @Advice.Argument(value = 0) String testName,
+                @Advice.Argument(value = 1)
+                        scala.collection.immutable.Map<String, scala.collection.immutable.Set<String>> tags,
+                @Advice.Argument(value = 2) String suiteId) {
+            if (filterResult == null // filter terminated exceptionally
+                    || filterResult._1() // test is filtered
+                    || filterResult._2() // test is ignored
+            ) {
+                return;
+            }
+            TestIdentifier test = new TestIdentifier(suiteId, testName, null);
+            RunContext runContext =
+                    InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
+            runContext.populateTags(test, tags);
+
+            if (runContext.skip(test, tags)) {
+                filterResult = new Tuple2<>(false, true);
+            }
+        }
+    }
+
+    public static class MultipleTestsFilterAdvice {
+        @Advice.OnMethodExit
+        public static void apply(
+                @Advice.This Filter filter,
+                @Advice.Return(readOnly = false) scala.collection.immutable.List<Tuple2<String, Boolean>> filterResult,
+                @Advice.Argument(value = 1)
+                        scala.collection.immutable.Map<String, scala.collection.immutable.Set<String>> tags,
+                @Advice.Argument(value = 2) String suiteId) {
+            if (filterResult == null /* filter terminated exceptionally */) {
+                return;
+            }
+            RunContext runContext =
+                    InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
+            runContext.populateTags(suiteId, tags, filterResult);
+
+            filterResult = runContext.skip(suiteId, filterResult);
+        }
+    }
 }

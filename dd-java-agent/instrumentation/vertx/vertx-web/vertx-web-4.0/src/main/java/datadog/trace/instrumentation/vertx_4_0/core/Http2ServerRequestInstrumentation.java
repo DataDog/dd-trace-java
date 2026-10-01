@@ -11,17 +11,17 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  @Override
-  protected ElementMatcher.Junction<MethodDescription> attributesFilter() {
-    return isPublic().and(named("formAttributes"));
-  }
+    @Override
+    protected ElementMatcher.Junction<MethodDescription> attributesFilter() {
+        return isPublic().and(named("formAttributes"));
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.vertx.core.http.impl.Http2ServerRequest", "io.vertx.core.http.impl.Http2ServerRequestImpl"
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.vertx.core.http.impl.Http2ServerRequest", "io.vertx.core.http.impl.Http2ServerRequestImpl"
+        };
+    }
 }

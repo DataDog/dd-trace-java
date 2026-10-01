@@ -13,26 +13,25 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class DoNotTraceAnnotationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @SuppressForbidden
-  public DoNotTraceAnnotationInstrumentation() {
-    super("not-not-trace", "do-not-trace-annotation");
-  }
+    @SuppressForbidden
+    public DoNotTraceAnnotationInstrumentation() {
+        super("not-not-trace", "do-not-trace-annotation");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "datadog.trace.api.DoNotTrace";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "datadog.trace.api.DoNotTrace";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isAnnotatedWith(named(hierarchyMarkerType())), packageName + ".DoNotTraceAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isAnnotatedWith(named(hierarchyMarkerType())), packageName + ".DoNotTraceAdvice");
+    }
 }

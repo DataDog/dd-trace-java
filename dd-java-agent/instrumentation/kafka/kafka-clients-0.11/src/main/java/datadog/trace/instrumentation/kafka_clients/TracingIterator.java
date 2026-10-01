@@ -39,141 +39,140 @@ import org.slf4j.LoggerFactory;
 
 public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
-  private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
+    private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
 
-  private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
-  private final CharSequence operationName;
-  private final KafkaDecorator decorator;
-  private final String group;
-  private final String clusterId;
-  private final String bootstrapServers;
+    private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
+    private final CharSequence operationName;
+    private final KafkaDecorator decorator;
+    private final String group;
+    private final String clusterId;
+    private final String bootstrapServers;
 
-  public TracingIterator(
-      final Iterator<ConsumerRecord<?, ?>> delegateIterator,
-      final CharSequence operationName,
-      final KafkaDecorator decorator,
-      String group,
-      String clusterId,
-      String bootstrapServers) {
-    this.delegateIterator = delegateIterator;
-    this.operationName = operationName;
-    this.decorator = decorator;
-    this.group = group;
-    this.clusterId = clusterId;
-    this.bootstrapServers = bootstrapServers;
-  }
-
-  @Override
-  public boolean hasNext() {
-    boolean moreRecords = delegateIterator.hasNext();
-    if (!moreRecords) {
-      // no more records, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else {
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
-        }
-      }
+    public TracingIterator(
+            final Iterator<ConsumerRecord<?, ?>> delegateIterator,
+            final CharSequence operationName,
+            final KafkaDecorator decorator,
+            String group,
+            String clusterId,
+            String bootstrapServers) {
+        this.delegateIterator = delegateIterator;
+        this.operationName = operationName;
+        this.decorator = decorator;
+        this.group = group;
+        this.clusterId = clusterId;
+        this.bootstrapServers = bootstrapServers;
     }
-    return moreRecords;
-  }
 
-  @Override
-  public ConsumerRecord<?, ?> next() {
-    final ConsumerRecord<?, ?> next = delegateIterator.next();
-    startNewRecordSpan(next);
-    return next;
-  }
-
-  protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
-    try {
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else if (val == null) { // previous message span was the last
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
-        }
-      }
-      AgentSpan span, queueSpan = null;
-      if (val != null) {
-        if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
-          final AgentSpanContext spanContext =
-              extractContextAndGetSpanContext(val.headers(), GETTER);
-          long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
-          if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-            span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
-          } else {
-            queueSpan =
-                startSpan(
-                    JAVA_KAFKA.toString(),
-                    KAFKA_DELIVER,
-                    spanContext,
-                    MILLISECONDS.toMicros(timeInQueueStart));
-            BROKER_DECORATE.afterStart(queueSpan);
-            BROKER_DECORATE.onTimeInQueue(queueSpan, val);
-            span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());
-            BROKER_DECORATE.beforeFinish(queueSpan);
-            // The queueSpan will be finished after inner span has been activated to ensure that
-            // spans are written out together by TraceStructureWriter when running in strict mode
-          }
-
-          DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
-          final long payloadSize =
-              traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
-          if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
-          } else {
-            // when we're in a streaming context we want to consume only from source topics
-            if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
-              // We have to inject the context to headers here,
-              // since the data received from the source may leave the topology on
-              // some other instance of the application, breaking the context propagation
-              // for DSM users
-              Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-              DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
-              dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
+    @Override
+    public boolean hasNext() {
+        boolean moreRecords = delegateIterator.hasNext();
+        if (!moreRecords) {
+            // no more records, use this as a signal to close the last iteration scope
+            if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                closePrevious(true);
+            } else {
+                final AgentSpan previousSpan =
+                        AgentSpan.fromContext(Context.root().swap());
+                if (previousSpan != null) {
+                    previousSpan.finishWithEndToEnd();
+                }
             }
-          }
-        } else {
-          span = startSpan(JAVA_KAFKA.toString(), operationName, null);
         }
-        if (val.value() == null) {
-          span.setTag(InstrumentationTags.TOMBSTONE, true);
-        }
-        decorator.afterStart(span);
-        decorator.onConsume(span, val, group, clusterId, bootstrapServers);
-        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-          activateNext(span);
-        } else {
-          final AgentSpan previousSpan = AgentSpan.fromContext(span.swap());
-          if (previousSpan != null) {
-            previousSpan.finishWithEndToEnd();
-          }
-        }
-        if (null != queueSpan) {
-          queueSpan.finish();
-        }
-
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .trackTransaction(
-                span,
-                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
-                val.headers(),
-                DSM_TRANSACTION_SOURCE_READER);
-      }
-    } catch (final Exception e) {
-      log.debug("Error starting new record span", e);
+        return moreRecords;
     }
-  }
 
-  @Override
-  public void remove() {
-    delegateIterator.remove();
-  }
+    @Override
+    public ConsumerRecord<?, ?> next() {
+        final ConsumerRecord<?, ?> next = delegateIterator.next();
+        startNewRecordSpan(next);
+        return next;
+    }
+
+    protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
+        try {
+            if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                closePrevious(true);
+            } else if (val == null) { // previous message span was the last
+                final AgentSpan previousSpan =
+                        AgentSpan.fromContext(Context.root().swap());
+                if (previousSpan != null) {
+                    previousSpan.finishWithEndToEnd();
+                }
+            }
+            AgentSpan span, queueSpan = null;
+            if (val != null) {
+                if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+                    final AgentSpanContext spanContext = extractContextAndGetSpanContext(val.headers(), GETTER);
+                    long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
+                    if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+                        span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
+                    } else {
+                        queueSpan = startSpan(
+                                JAVA_KAFKA.toString(),
+                                KAFKA_DELIVER,
+                                spanContext,
+                                MILLISECONDS.toMicros(timeInQueueStart));
+                        BROKER_DECORATE.afterStart(queueSpan);
+                        BROKER_DECORATE.onTimeInQueue(queueSpan, val);
+                        span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());
+                        BROKER_DECORATE.beforeFinish(queueSpan);
+                        // The queueSpan will be finished after inner span has been activated to ensure that
+                        // spans are written out together by TraceStructureWriter when running in strict mode
+                    }
+
+                    DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
+                    final long payloadSize = traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
+                    if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
+                        AgentTracer.get()
+                                .getDataStreamsMonitoring()
+                                .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
+                    } else {
+                        // when we're in a streaming context we want to consume only from source topics
+                        if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
+                            // We have to inject the context to headers here,
+                            // since the data received from the source may leave the topology on
+                            // some other instance of the application, breaking the context propagation
+                            // for DSM users
+                            Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+                            DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
+                            dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
+                        }
+                    }
+                } else {
+                    span = startSpan(JAVA_KAFKA.toString(), operationName, null);
+                }
+                if (val.value() == null) {
+                    span.setTag(InstrumentationTags.TOMBSTONE, true);
+                }
+                decorator.afterStart(span);
+                decorator.onConsume(span, val, group, clusterId, bootstrapServers);
+                if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                    activateNext(span);
+                } else {
+                    final AgentSpan previousSpan = AgentSpan.fromContext(span.swap());
+                    if (previousSpan != null) {
+                        previousSpan.finishWithEndToEnd();
+                    }
+                }
+                if (null != queueSpan) {
+                    queueSpan.finish();
+                }
+
+                AgentTracer.get()
+                        .getDataStreamsMonitoring()
+                        .trackTransaction(
+                                span,
+                                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
+                                val.headers(),
+                                DSM_TRANSACTION_SOURCE_READER);
+            }
+        } catch (final Exception e) {
+            log.debug("Error starting new record span", e);
+        }
+    }
+
+    @Override
+    public void remove() {
+        delegateIterator.remove();
+    }
 }

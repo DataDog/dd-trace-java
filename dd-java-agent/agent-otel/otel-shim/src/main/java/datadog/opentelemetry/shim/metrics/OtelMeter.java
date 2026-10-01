@@ -29,112 +29,108 @@ import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
 final class OtelMeter implements Meter {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeter.class);
 
-  private static final Pattern VALID_INSTRUMENT_NAME_PATTERN =
-      Pattern.compile("([A-Za-z])([A-Za-z0-9_\\-./]){0,254}");
+    private static final Pattern VALID_INSTRUMENT_NAME_PATTERN =
+            Pattern.compile("([A-Za-z])([A-Za-z0-9_\\-./]){0,254}");
 
-  static final Meter NOOP_METER = MeterProvider.noop().get("noop");
-  static final String NOOP_INSTRUMENT_NAME = "noop";
+    static final Meter NOOP_METER = MeterProvider.noop().get("noop");
+    static final String NOOP_INSTRUMENT_NAME = "noop";
 
-  private final OtelInstrumentationScope instrumentationScope;
+    private final OtelInstrumentationScope instrumentationScope;
 
-  OtelMeter(OtelInstrumentationScope instrumentationScope) {
-    this.instrumentationScope = instrumentationScope;
-  }
-
-  @Override
-  public LongCounterBuilder counterBuilder(String instrumentName) {
-    if (!validInstrumentName(instrumentName)) {
-      return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME);
-    }
-    return new OtelLongCounter.Builder(this, instrumentName);
-  }
-
-  @Override
-  public LongUpDownCounterBuilder upDownCounterBuilder(String instrumentName) {
-    if (!validInstrumentName(instrumentName)) {
-      return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME);
-    }
-    return new OtelLongUpDownCounter.Builder(this, instrumentName);
-  }
-
-  @Override
-  public DoubleHistogramBuilder histogramBuilder(String instrumentName) {
-    if (!validInstrumentName(instrumentName)) {
-      return NOOP_METER.histogramBuilder(NOOP_INSTRUMENT_NAME);
-    }
-    return new OtelDoubleHistogram.Builder(this, instrumentName);
-  }
-
-  @Override
-  public DoubleGaugeBuilder gaugeBuilder(String instrumentName) {
-    if (!validInstrumentName(instrumentName)) {
-      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME);
-    }
-    return new OtelDoubleGauge.Builder(this, instrumentName);
-  }
-
-  @Override
-  public BatchCallback batchCallback(
-      Runnable callback,
-      ObservableMeasurement observableMeasurement,
-      ObservableMeasurement... additionalMeasurements) {
-    return registerObservableCallback(
-        callback,
-        concat(Stream.of(observableMeasurement), Stream.of(additionalMeasurements))
-            .filter(OtelObservableMeasurement.class::isInstance)
-            .map(OtelObservableMeasurement.class::cast)
-            .collect(toList()));
-  }
-
-  @Override
-  public String toString() {
-    return "OtelMeter{instrumentationScope=" + instrumentationScope + "}";
-  }
-
-  OtelMetricStorage registerStorage(
-      OtelInstrumentBuilder builder,
-      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
-    return OtelMetricRegistry.INSTANCE.registerStorage(
-        instrumentationScope, builder.descriptor(), storageFactory);
-  }
-
-  OtelObservableMeasurement registerObservableStorage(
-      OtelInstrumentBuilder builder,
-      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
-    return new OtelObservableMeasurement(
-        OtelMetricRegistry.INSTANCE.registerStorage(
-            instrumentationScope, builder.observableDescriptor(), storageFactory));
-  }
-
-  <M> OtelObservableCallback registerObservableCallback(Consumer<M> callback, M measurement) {
-    return registerObservableCallback(
-        () -> callback.accept(measurement), singletonList((OtelObservableMeasurement) measurement));
-  }
-
-  OtelObservableCallback registerObservableCallback(
-      Runnable callback, List<OtelObservableMeasurement> measurements) {
-    OtelObservableCallback observable = new OtelObservableCallback(this, callback, measurements);
-    OtelMetricRegistry.INSTANCE.registerObservable(instrumentationScope, observable);
-    return observable;
-  }
-
-  boolean unregisterObservableCallback(OtelObservableCallback observable) {
-    return OtelMetricRegistry.INSTANCE.unregisterObservable(instrumentationScope, observable);
-  }
-
-  private static boolean validInstrumentName(@Nullable String instrumentName) {
-    if (instrumentName != null && VALID_INSTRUMENT_NAME_PATTERN.matcher(instrumentName).matches()) {
-      return true;
+    OtelMeter(OtelInstrumentationScope instrumentationScope) {
+        this.instrumentationScope = instrumentationScope;
     }
 
-    LOGGER.warn(
-        "Instrument name \"{}\" is invalid, returning noop instrument."
-            + " Instrument names must consist of 255 or fewer characters"
-            + " including alphanumeric, _, ., -, /, and start with a letter.",
-        instrumentName);
+    @Override
+    public LongCounterBuilder counterBuilder(String instrumentName) {
+        if (!validInstrumentName(instrumentName)) {
+            return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME);
+        }
+        return new OtelLongCounter.Builder(this, instrumentName);
+    }
 
-    return false;
-  }
+    @Override
+    public LongUpDownCounterBuilder upDownCounterBuilder(String instrumentName) {
+        if (!validInstrumentName(instrumentName)) {
+            return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME);
+        }
+        return new OtelLongUpDownCounter.Builder(this, instrumentName);
+    }
+
+    @Override
+    public DoubleHistogramBuilder histogramBuilder(String instrumentName) {
+        if (!validInstrumentName(instrumentName)) {
+            return NOOP_METER.histogramBuilder(NOOP_INSTRUMENT_NAME);
+        }
+        return new OtelDoubleHistogram.Builder(this, instrumentName);
+    }
+
+    @Override
+    public DoubleGaugeBuilder gaugeBuilder(String instrumentName) {
+        if (!validInstrumentName(instrumentName)) {
+            return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME);
+        }
+        return new OtelDoubleGauge.Builder(this, instrumentName);
+    }
+
+    @Override
+    public BatchCallback batchCallback(
+            Runnable callback,
+            ObservableMeasurement observableMeasurement,
+            ObservableMeasurement... additionalMeasurements) {
+        return registerObservableCallback(
+                callback,
+                concat(Stream.of(observableMeasurement), Stream.of(additionalMeasurements))
+                        .filter(OtelObservableMeasurement.class::isInstance)
+                        .map(OtelObservableMeasurement.class::cast)
+                        .collect(toList()));
+    }
+
+    @Override
+    public String toString() {
+        return "OtelMeter{instrumentationScope=" + instrumentationScope + "}";
+    }
+
+    OtelMetricStorage registerStorage(
+            OtelInstrumentBuilder builder, Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
+        return OtelMetricRegistry.INSTANCE.registerStorage(instrumentationScope, builder.descriptor(), storageFactory);
+    }
+
+    OtelObservableMeasurement registerObservableStorage(
+            OtelInstrumentBuilder builder, Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
+        return new OtelObservableMeasurement(OtelMetricRegistry.INSTANCE.registerStorage(
+                instrumentationScope, builder.observableDescriptor(), storageFactory));
+    }
+
+    <M> OtelObservableCallback registerObservableCallback(Consumer<M> callback, M measurement) {
+        return registerObservableCallback(
+                () -> callback.accept(measurement), singletonList((OtelObservableMeasurement) measurement));
+    }
+
+    OtelObservableCallback registerObservableCallback(Runnable callback, List<OtelObservableMeasurement> measurements) {
+        OtelObservableCallback observable = new OtelObservableCallback(this, callback, measurements);
+        OtelMetricRegistry.INSTANCE.registerObservable(instrumentationScope, observable);
+        return observable;
+    }
+
+    boolean unregisterObservableCallback(OtelObservableCallback observable) {
+        return OtelMetricRegistry.INSTANCE.unregisterObservable(instrumentationScope, observable);
+    }
+
+    private static boolean validInstrumentName(@Nullable String instrumentName) {
+        if (instrumentName != null
+                && VALID_INSTRUMENT_NAME_PATTERN.matcher(instrumentName).matches()) {
+            return true;
+        }
+
+        LOGGER.warn(
+                "Instrument name \"{}\" is invalid, returning noop instrument."
+                        + " Instrument names must consist of 255 or fewer characters"
+                        + " including alphanumeric, _, ., -, /, and start with a letter.",
+                instrumentName);
+
+        return false;
+    }
 }

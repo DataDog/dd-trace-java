@@ -34,741 +34,727 @@ import org.msgpack.value.ValueType;
  * </ul>
  */
 public class SpanV1 implements DecodedSpan {
-  // Span field IDs (from TraceMapperV1)
-  static final int SPAN_FIELD_SERVICE = 1;
-  static final int SPAN_FIELD_NAME = 2;
-  static final int SPAN_FIELD_RESOURCE = 3;
-  static final int SPAN_FIELD_SPAN_ID = 4;
-  static final int SPAN_FIELD_PARENT_ID = 5;
-  static final int SPAN_FIELD_START = 6;
-  static final int SPAN_FIELD_DURATION = 7;
-  static final int SPAN_FIELD_ERROR = 8;
-  static final int SPAN_FIELD_ATTRIBUTES = 9;
-  static final int SPAN_FIELD_TYPE = 10;
-  static final int SPAN_FIELD_SPAN_LINKS = 11;
-  static final int SPAN_FIELD_SPAN_EVENTS = 12;
-  static final int SPAN_FIELD_ENV = 13;
-  static final int SPAN_FIELD_VERSION = 14;
-  static final int SPAN_FIELD_COMPONENT = 15;
-  static final int SPAN_FIELD_SPAN_KIND = 16;
+    // Span field IDs (from TraceMapperV1)
+    static final int SPAN_FIELD_SERVICE = 1;
+    static final int SPAN_FIELD_NAME = 2;
+    static final int SPAN_FIELD_RESOURCE = 3;
+    static final int SPAN_FIELD_SPAN_ID = 4;
+    static final int SPAN_FIELD_PARENT_ID = 5;
+    static final int SPAN_FIELD_START = 6;
+    static final int SPAN_FIELD_DURATION = 7;
+    static final int SPAN_FIELD_ERROR = 8;
+    static final int SPAN_FIELD_ATTRIBUTES = 9;
+    static final int SPAN_FIELD_TYPE = 10;
+    static final int SPAN_FIELD_SPAN_LINKS = 11;
+    static final int SPAN_FIELD_SPAN_EVENTS = 12;
+    static final int SPAN_FIELD_ENV = 13;
+    static final int SPAN_FIELD_VERSION = 14;
+    static final int SPAN_FIELD_COMPONENT = 15;
+    static final int SPAN_FIELD_SPAN_KIND = 16;
 
-  // Span link field IDs (from TraceMapperV1.encodeSpanLinks)
-  static final int LINK_FIELD_TRACE_ID = 1;
-  static final int LINK_FIELD_SPAN_ID = 2;
-  static final int LINK_FIELD_ATTRIBUTES = 3;
-  static final int LINK_FIELD_TRACE_STATE = 4;
-  static final int LINK_FIELD_TRACE_FLAGS = 5;
+    // Span link field IDs (from TraceMapperV1.encodeSpanLinks)
+    static final int LINK_FIELD_TRACE_ID = 1;
+    static final int LINK_FIELD_SPAN_ID = 2;
+    static final int LINK_FIELD_ATTRIBUTES = 3;
+    static final int LINK_FIELD_TRACE_STATE = 4;
+    static final int LINK_FIELD_TRACE_FLAGS = 5;
 
-  // Attribute value types
-  static final int STRING_VALUE_TYPE = 1;
-  static final int BOOL_VALUE_TYPE = 2;
-  static final int FLOAT_VALUE_TYPE = 3;
-  static final int INT_VALUE_TYPE = 4;
-  static final int BYTES_VALUE_TYPE = 5;
-  static final int ARRAY_VALUE_TYPE = 6;
-  static final int KEY_VALUE_LIST_TYPE = 7;
+    // Attribute value types
+    static final int STRING_VALUE_TYPE = 1;
+    static final int BOOL_VALUE_TYPE = 2;
+    static final int FLOAT_VALUE_TYPE = 3;
+    static final int INT_VALUE_TYPE = 4;
+    static final int BYTES_VALUE_TYPE = 5;
+    static final int ARRAY_VALUE_TYPE = 6;
+    static final int KEY_VALUE_LIST_TYPE = 7;
 
-  /**
-   * Unpacks an array of spans from the unpacker.
-   *
-   * @param unpacker the message unpacker
-   * @param stringTable the shared string table for streaming string decoding
-   * @return array of decoded spans
-   */
-  static DecodedSpan[] unpackSpans(MessageUnpacker unpacker, List<String> stringTable) {
-    return unpackSpans(unpacker, stringTable, 0);
-  }
-
-  static DecodedSpan[] unpackSpans(
-      MessageUnpacker unpacker, List<String> stringTable, long traceId) {
-    try {
-      int size = unpacker.unpackArrayHeader();
-      if (size < 0) {
-        throw new IllegalArgumentException("Negative span array size " + size);
-      }
-      DecodedSpan[] spans = new DecodedSpan[size];
-      for (int i = 0; i < size; i++) {
-        spans[i] = unpack(unpacker, stringTable, traceId);
-      }
-      return spans;
-    } catch (Throwable t) {
-      if (t instanceof RuntimeException) {
-        throw (RuntimeException) t;
-      } else {
-        throw new IllegalArgumentException(t);
-      }
+    /**
+     * Unpacks an array of spans from the unpacker.
+     *
+     * @param unpacker the message unpacker
+     * @param stringTable the shared string table for streaming string decoding
+     * @return array of decoded spans
+     */
+    static DecodedSpan[] unpackSpans(MessageUnpacker unpacker, List<String> stringTable) {
+        return unpackSpans(unpacker, stringTable, 0);
     }
-  }
 
-  /**
-   * Unpacks a single span from the unpacker.
-   *
-   * @param unpacker the message unpacker
-   * @param stringTable the shared string table for streaming string decoding
-   * @return the decoded span
-   */
-  static SpanV1 unpack(MessageUnpacker unpacker, List<String> stringTable) {
-    return unpack(unpacker, stringTable, 0);
-  }
-
-  static SpanV1 unpack(MessageUnpacker unpacker, List<String> stringTable, long traceId) {
-    try {
-      int mapSize = unpacker.unpackMapHeader();
-
-      String service = "";
-      String name = "";
-      String resource = "";
-      long spanId = 0;
-      long parentId = 0;
-      long start = 0;
-      long duration = 0;
-      int error = 0;
-      String type = "";
-      String env = "";
-      String version = "";
-      String component = "";
-      int spanKind = 0;
-      Map<String, String> meta = new HashMap<>();
-      Map<String, Number> metrics = new HashMap<>();
-      Map<String, Object> metaStruct = new HashMap<>();
-      List<DecodedSpanLink> links = emptyList();
-
-      for (int i = 0; i < mapSize; i++) {
-        int fieldId = unpacker.unpackInt();
-
-        switch (fieldId) {
-          case SPAN_FIELD_SERVICE:
-            service = unpackStreamingString(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_NAME:
-            name = unpackStreamingString(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_RESOURCE:
-            resource = unpackStreamingString(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_SPAN_ID:
-            spanId = unpackUnsignedLong(unpacker);
-            break;
-          case SPAN_FIELD_PARENT_ID:
-            parentId = unpackUnsignedLong(unpacker);
-            break;
-          case SPAN_FIELD_START:
-            start = unpacker.unpackLong();
-            break;
-          case SPAN_FIELD_DURATION:
-            duration = unpacker.unpackLong();
-            break;
-          case SPAN_FIELD_ERROR:
-            // V1.0 uses boolean for error
-            error = unpacker.unpackBoolean() ? 1 : 0;
-            break;
-          case SPAN_FIELD_ATTRIBUTES:
-            unpackAttributes(unpacker, stringTable, meta, metrics, metaStruct);
-            break;
-          case SPAN_FIELD_TYPE:
-            type = unpackStreamingString(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_SPAN_LINKS:
-            links = unpackSpanLinks(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_SPAN_EVENTS:
-            // TODO Span events are not decoded yet. This blind skip also consumes any streaming
-            // string the events introduced without registering it, desynchronizing the string
-            // table for the rest of the payload (see unpackSpanLinks for the table-aware pattern).
-            unpacker.skipValue();
-            break;
-          case SPAN_FIELD_ENV:
-            env = unpackStreamingString(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_VERSION:
-            version = unpackStreamingString(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_COMPONENT:
-            component = unpackStreamingString(unpacker, stringTable);
-            break;
-          case SPAN_FIELD_SPAN_KIND:
-            spanKind = unpacker.unpackInt();
-            break;
-          default:
-            // Skip unknown fields
-            unpacker.skipValue();
-            break;
+    static DecodedSpan[] unpackSpans(MessageUnpacker unpacker, List<String> stringTable, long traceId) {
+        try {
+            int size = unpacker.unpackArrayHeader();
+            if (size < 0) {
+                throw new IllegalArgumentException("Negative span array size " + size);
+            }
+            DecodedSpan[] spans = new DecodedSpan[size];
+            for (int i = 0; i < size; i++) {
+                spans[i] = unpack(unpacker, stringTable, traceId);
+            }
+            return spans;
+        } catch (Throwable t) {
+            if (t instanceof RuntimeException) {
+                throw (RuntimeException) t;
+            } else {
+                throw new IllegalArgumentException(t);
+            }
         }
-      }
-
-      // Add promoted fields to meta if non-empty
-      if (env != null && !env.isEmpty()) {
-        meta.put("env", env);
-      }
-      if (version != null && !version.isEmpty()) {
-        meta.put("version", version);
-      }
-      if (component != null && !component.isEmpty()) {
-        meta.put("component", component);
-      }
-      if (spanKind > 0) {
-        meta.put("span.kind", getSpanKindString(spanKind));
-      }
-
-      return new SpanV1(
-          service,
-          name,
-          resource,
-          traceId,
-          spanId,
-          parentId,
-          start,
-          duration,
-          error,
-          type,
-          metrics,
-          meta,
-          metaStruct.isEmpty() ? null : metaStruct,
-          links);
-    } catch (Throwable t) {
-      if (t instanceof RuntimeException) {
-        throw (RuntimeException) t;
-      } else {
-        throw new IllegalArgumentException(t);
-      }
-    }
-  }
-
-  /**
-   * Unpacks a streaming string value.
-   *
-   * <p>In V1.0 format, strings use streaming encoding:
-   *
-   * <ul>
-   *   <li>First occurrence: actual string is written and added to table
-   *   <li>Subsequent occurrences: integer index is written
-   *   <li>Index 0 is reserved for empty string
-   * </ul>
-   *
-   * @param unpacker the message unpacker
-   * @param stringTable the string table to use/update
-   * @return the decoded string
-   * @throws IOException if unpacking fails
-   */
-  static String unpackStreamingString(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
-    ValueType valueType = unpacker.getNextFormat().getValueType();
-    if (valueType == ValueType.INTEGER) {
-      // Reference to existing string in table
-      int index = unpacker.unpackInt();
-      if (index < 0 || index >= stringTable.size()) {
-        throw new IllegalArgumentException(
-            "Invalid string table index: " + index + ", table size: " + stringTable.size());
-      }
-      return stringTable.get(index);
-    } else if (valueType == ValueType.STRING) {
-      // New string, add to table
-      String str = unpacker.unpackString();
-      stringTable.add(str);
-      return str;
-    } else {
-      throw new IllegalArgumentException(
-          "Expected string or integer for streaming string, got: " + valueType);
-    }
-  }
-
-  /**
-   * Unpacks attributes array into meta and metrics maps.
-   *
-   * <p>Attributes are encoded as a flat array of triplets: (key, type, value)
-   *
-   * @param unpacker the message unpacker
-   * @param stringTable the string table
-   * @param meta output map for string attributes
-   * @param metrics output map for numeric attributes
-   * @throws IOException if unpacking fails
-   */
-  private static void unpackAttributes(
-      MessageUnpacker unpacker,
-      List<String> stringTable,
-      Map<String, String> meta,
-      Map<String, Number> metrics,
-      Map<String, Object> metaStruct)
-      throws IOException {
-    int arraySize = unpacker.unpackArrayHeader();
-    // Array contains triplets (key, type, value), so size must be divisible by 3
-    if (arraySize % 3 != 0) {
-      throw new IllegalArgumentException(
-          "Attributes array size must be divisible by 3, got: " + arraySize);
     }
 
-    int tripletCount = arraySize / 3;
-    for (int i = 0; i < tripletCount; i++) {
-      // Key is a streaming string
-      String key = unpackStreamingString(unpacker, stringTable);
-      // Type is an integer
-      int valueType = unpacker.unpackInt();
-      // Value depends on type
-      switch (valueType) {
-        case STRING_VALUE_TYPE:
-          String strValue = unpackStreamingString(unpacker, stringTable);
-          meta.put(key, strValue);
-          break;
-        case BOOL_VALUE_TYPE:
-          boolean boolValue = unpacker.unpackBoolean();
-          // Store booleans as strings in meta for compatibility
-          meta.put(key, String.valueOf(boolValue));
-          break;
-        case FLOAT_VALUE_TYPE:
-          double floatValue = unpacker.unpackDouble();
-          metrics.put(key, normalizeMetricValue(key, floatValue));
-          break;
-        case INT_VALUE_TYPE:
-          long intValue = unpacker.unpackLong();
-          metrics.put(key, intValue);
-          break;
-        case BYTES_VALUE_TYPE:
-          int payloadSize = unpacker.unpackBinaryHeader();
-          byte[] payload = unpacker.readPayload(payloadSize);
-          metaStruct.put(key, decodeObject(payload));
-          break;
-        case ARRAY_VALUE_TYPE:
-          // Skip array values
-          unpacker.skipValue();
-          break;
-        case KEY_VALUE_LIST_TYPE:
-          // Skip key-value list
-          unpacker.skipValue();
-          break;
-        default:
-          throw new IllegalArgumentException("Unknown attribute value type: " + valueType);
-      }
+    /**
+     * Unpacks a single span from the unpacker.
+     *
+     * @param unpacker the message unpacker
+     * @param stringTable the shared string table for streaming string decoding
+     * @return the decoded span
+     */
+    static SpanV1 unpack(MessageUnpacker unpacker, List<String> stringTable) {
+        return unpack(unpacker, stringTable, 0);
     }
-  }
 
-  /**
-   * Unpacks the structured span links of field {@value #SPAN_FIELD_SPAN_LINKS}, as {@code
-   * TraceMapperV1.encodeSpanLinks} writes them.
-   *
-   * <p>Link attributes and trace states are streaming strings, so they must be read through the
-   * table-aware helpers: skipping them blindly would consume the strings without registering them
-   * and desynchronize every later string index in the payload.
-   *
-   * @param unpacker The message unpacker.
-   * @param stringTable The shared string table for streaming string decoding.
-   * @return The decoded links.
-   * @throws IOException If unpacking fails.
-   */
-  static List<DecodedSpanLink> unpackSpanLinks(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
-    int linkCount = unpacker.unpackArrayHeader();
-    if (linkCount == 0) {
-      return emptyList();
-    }
-    List<DecodedSpanLink> links = new ArrayList<>(linkCount);
-    for (int i = 0; i < linkCount; i++) {
-      int fieldCount = unpacker.unpackMapHeader();
-      long traceId = 0;
-      long spanId = 0;
-      byte traceFlags = 0;
-      String traceState = "";
-      Map<String, String> attributes = new HashMap<>();
-      for (int field = 0; field < fieldCount; field++) {
-        switch (unpacker.unpackInt()) {
-          case LINK_FIELD_TRACE_ID:
-            traceId = unpackTraceId(unpacker);
-            break;
-          case LINK_FIELD_SPAN_ID:
-            spanId = unpackUnsignedLong(unpacker);
-            break;
-          case LINK_FIELD_ATTRIBUTES:
-            unpackLinkAttributes(unpacker, stringTable, attributes);
-            break;
-          case LINK_FIELD_TRACE_STATE:
-            traceState = unpackStreamingString(unpacker, stringTable);
-            break;
-          case LINK_FIELD_TRACE_FLAGS:
-            traceFlags = (byte) unpacker.unpackInt();
-            break;
-          default:
-            // Unknown link field; numeric or binary, so it cannot hold a streaming string.
-            unpacker.skipValue();
-            break;
+    static SpanV1 unpack(MessageUnpacker unpacker, List<String> stringTable, long traceId) {
+        try {
+            int mapSize = unpacker.unpackMapHeader();
+
+            String service = "";
+            String name = "";
+            String resource = "";
+            long spanId = 0;
+            long parentId = 0;
+            long start = 0;
+            long duration = 0;
+            int error = 0;
+            String type = "";
+            String env = "";
+            String version = "";
+            String component = "";
+            int spanKind = 0;
+            Map<String, String> meta = new HashMap<>();
+            Map<String, Number> metrics = new HashMap<>();
+            Map<String, Object> metaStruct = new HashMap<>();
+            List<DecodedSpanLink> links = emptyList();
+
+            for (int i = 0; i < mapSize; i++) {
+                int fieldId = unpacker.unpackInt();
+
+                switch (fieldId) {
+                    case SPAN_FIELD_SERVICE:
+                        service = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_NAME:
+                        name = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_RESOURCE:
+                        resource = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_SPAN_ID:
+                        spanId = unpackUnsignedLong(unpacker);
+                        break;
+                    case SPAN_FIELD_PARENT_ID:
+                        parentId = unpackUnsignedLong(unpacker);
+                        break;
+                    case SPAN_FIELD_START:
+                        start = unpacker.unpackLong();
+                        break;
+                    case SPAN_FIELD_DURATION:
+                        duration = unpacker.unpackLong();
+                        break;
+                    case SPAN_FIELD_ERROR:
+                        // V1.0 uses boolean for error
+                        error = unpacker.unpackBoolean() ? 1 : 0;
+                        break;
+                    case SPAN_FIELD_ATTRIBUTES:
+                        unpackAttributes(unpacker, stringTable, meta, metrics, metaStruct);
+                        break;
+                    case SPAN_FIELD_TYPE:
+                        type = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_SPAN_LINKS:
+                        links = unpackSpanLinks(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_SPAN_EVENTS:
+                        // TODO Span events are not decoded yet. This blind skip also consumes any streaming
+                        // string the events introduced without registering it, desynchronizing the string
+                        // table for the rest of the payload (see unpackSpanLinks for the table-aware pattern).
+                        unpacker.skipValue();
+                        break;
+                    case SPAN_FIELD_ENV:
+                        env = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_VERSION:
+                        version = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_COMPONENT:
+                        component = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case SPAN_FIELD_SPAN_KIND:
+                        spanKind = unpacker.unpackInt();
+                        break;
+                    default:
+                        // Skip unknown fields
+                        unpacker.skipValue();
+                        break;
+                }
+            }
+
+            // Add promoted fields to meta if non-empty
+            if (env != null && !env.isEmpty()) {
+                meta.put("env", env);
+            }
+            if (version != null && !version.isEmpty()) {
+                meta.put("version", version);
+            }
+            if (component != null && !component.isEmpty()) {
+                meta.put("component", component);
+            }
+            if (spanKind > 0) {
+                meta.put("span.kind", getSpanKindString(spanKind));
+            }
+
+            return new SpanV1(
+                    service,
+                    name,
+                    resource,
+                    traceId,
+                    spanId,
+                    parentId,
+                    start,
+                    duration,
+                    error,
+                    type,
+                    metrics,
+                    meta,
+                    metaStruct.isEmpty() ? null : metaStruct,
+                    links);
+        } catch (Throwable t) {
+            if (t instanceof RuntimeException) {
+                throw (RuntimeException) t;
+            } else {
+                throw new IllegalArgumentException(t);
+            }
         }
-      }
-      links.add(DecodedSpanLinks.link(traceId, spanId, traceFlags, traceState, attributes));
     }
-    return unmodifiableList(links);
-  }
 
-  /**
-   * Unpacks an identifier the writer emitted as an unsigned 64-bit value.
-   *
-   * <p>{@code TraceMapperV1} writes span and parent identifiers with {@code writeUnsignedLong}, so
-   * any identifier with its high bit set arrives as a msgpack {@code UINT64}. {@link
-   * MessageUnpacker#unpackLong()} rejects those, so read them through a {@link
-   * java.math.BigInteger} and keep the low-order 64 bits, which is the same two's-complement value
-   * the writer had.
-   *
-   * @param unpacker The message unpacker.
-   * @return The identifier.
-   * @throws IOException If unpacking fails.
-   */
-  private static long unpackUnsignedLong(MessageUnpacker unpacker) throws IOException {
-    if (unpacker.getNextFormat() == MessageFormat.UINT64) {
-      return unpacker.unpackBigInteger().longValue();
+    /**
+     * Unpacks a streaming string value.
+     *
+     * <p>In V1.0 format, strings use streaming encoding:
+     *
+     * <ul>
+     *   <li>First occurrence: actual string is written and added to table
+     *   <li>Subsequent occurrences: integer index is written
+     *   <li>Index 0 is reserved for empty string
+     * </ul>
+     *
+     * @param unpacker the message unpacker
+     * @param stringTable the string table to use/update
+     * @return the decoded string
+     * @throws IOException if unpacking fails
+     */
+    static String unpackStreamingString(MessageUnpacker unpacker, List<String> stringTable) throws IOException {
+        ValueType valueType = unpacker.getNextFormat().getValueType();
+        if (valueType == ValueType.INTEGER) {
+            // Reference to existing string in table
+            int index = unpacker.unpackInt();
+            if (index < 0 || index >= stringTable.size()) {
+                throw new IllegalArgumentException(
+                        "Invalid string table index: " + index + ", table size: " + stringTable.size());
+            }
+            return stringTable.get(index);
+        } else if (valueType == ValueType.STRING) {
+            // New string, add to table
+            String str = unpacker.unpackString();
+            stringTable.add(str);
+            return str;
+        } else {
+            throw new IllegalArgumentException("Expected string or integer for streaming string, got: " + valueType);
+        }
     }
-    return unpacker.unpackLong();
-  }
 
-  /**
-   * Unpacks the low-order 64 bits of a 16-byte big-endian trace identifier, narrowing it the same
-   * way {@code TraceV1} narrows a chunk's trace identifier.
-   */
-  private static long unpackTraceId(MessageUnpacker unpacker) throws IOException {
-    int payloadSize = unpacker.unpackBinaryHeader();
-    byte[] payload = unpacker.readPayload(payloadSize);
-    long id = 0;
-    for (int i = Math.max(0, payloadSize - Long.BYTES); i < payloadSize; i++) {
-      id = (id << 8) | (payload[i] & 0xffL);
+    /**
+     * Unpacks attributes array into meta and metrics maps.
+     *
+     * <p>Attributes are encoded as a flat array of triplets: (key, type, value)
+     *
+     * @param unpacker the message unpacker
+     * @param stringTable the string table
+     * @param meta output map for string attributes
+     * @param metrics output map for numeric attributes
+     * @throws IOException if unpacking fails
+     */
+    private static void unpackAttributes(
+            MessageUnpacker unpacker,
+            List<String> stringTable,
+            Map<String, String> meta,
+            Map<String, Number> metrics,
+            Map<String, Object> metaStruct)
+            throws IOException {
+        int arraySize = unpacker.unpackArrayHeader();
+        // Array contains triplets (key, type, value), so size must be divisible by 3
+        if (arraySize % 3 != 0) {
+            throw new IllegalArgumentException("Attributes array size must be divisible by 3, got: " + arraySize);
+        }
+
+        int tripletCount = arraySize / 3;
+        for (int i = 0; i < tripletCount; i++) {
+            // Key is a streaming string
+            String key = unpackStreamingString(unpacker, stringTable);
+            // Type is an integer
+            int valueType = unpacker.unpackInt();
+            // Value depends on type
+            switch (valueType) {
+                case STRING_VALUE_TYPE:
+                    String strValue = unpackStreamingString(unpacker, stringTable);
+                    meta.put(key, strValue);
+                    break;
+                case BOOL_VALUE_TYPE:
+                    boolean boolValue = unpacker.unpackBoolean();
+                    // Store booleans as strings in meta for compatibility
+                    meta.put(key, String.valueOf(boolValue));
+                    break;
+                case FLOAT_VALUE_TYPE:
+                    double floatValue = unpacker.unpackDouble();
+                    metrics.put(key, normalizeMetricValue(key, floatValue));
+                    break;
+                case INT_VALUE_TYPE:
+                    long intValue = unpacker.unpackLong();
+                    metrics.put(key, intValue);
+                    break;
+                case BYTES_VALUE_TYPE:
+                    int payloadSize = unpacker.unpackBinaryHeader();
+                    byte[] payload = unpacker.readPayload(payloadSize);
+                    metaStruct.put(key, decodeObject(payload));
+                    break;
+                case ARRAY_VALUE_TYPE:
+                    // Skip array values
+                    unpacker.skipValue();
+                    break;
+                case KEY_VALUE_LIST_TYPE:
+                    // Skip key-value list
+                    unpacker.skipValue();
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown attribute value type: " + valueType);
+            }
+        }
     }
-    return id;
-  }
 
-  /** Collects link attributes as strings, keeping the string table in sync. */
-  private static void unpackLinkAttributes(
-      MessageUnpacker unpacker, List<String> stringTable, Map<String, String> attributes)
-      throws IOException {
-    forEachAttribute(
-        unpacker,
-        stringTable,
-        (attributeUnpacker, table, key, valueType) -> {
-          switch (valueType) {
-            case STRING_VALUE_TYPE:
-              attributes.put(key, unpackStreamingString(attributeUnpacker, table));
-              break;
-            case BOOL_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackBoolean()));
-              break;
-            case FLOAT_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackDouble()));
-              break;
-            case INT_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackLong()));
-              break;
-            default:
-              attributeUnpacker.skipValue();
-              break;
-          }
+    /**
+     * Unpacks the structured span links of field {@value #SPAN_FIELD_SPAN_LINKS}, as {@code
+     * TraceMapperV1.encodeSpanLinks} writes them.
+     *
+     * <p>Link attributes and trace states are streaming strings, so they must be read through the
+     * table-aware helpers: skipping them blindly would consume the strings without registering them
+     * and desynchronize every later string index in the payload.
+     *
+     * @param unpacker The message unpacker.
+     * @param stringTable The shared string table for streaming string decoding.
+     * @return The decoded links.
+     * @throws IOException If unpacking fails.
+     */
+    static List<DecodedSpanLink> unpackSpanLinks(MessageUnpacker unpacker, List<String> stringTable)
+            throws IOException {
+        int linkCount = unpacker.unpackArrayHeader();
+        if (linkCount == 0) {
+            return emptyList();
+        }
+        List<DecodedSpanLink> links = new ArrayList<>(linkCount);
+        for (int i = 0; i < linkCount; i++) {
+            int fieldCount = unpacker.unpackMapHeader();
+            long traceId = 0;
+            long spanId = 0;
+            byte traceFlags = 0;
+            String traceState = "";
+            Map<String, String> attributes = new HashMap<>();
+            for (int field = 0; field < fieldCount; field++) {
+                switch (unpacker.unpackInt()) {
+                    case LINK_FIELD_TRACE_ID:
+                        traceId = unpackTraceId(unpacker);
+                        break;
+                    case LINK_FIELD_SPAN_ID:
+                        spanId = unpackUnsignedLong(unpacker);
+                        break;
+                    case LINK_FIELD_ATTRIBUTES:
+                        unpackLinkAttributes(unpacker, stringTable, attributes);
+                        break;
+                    case LINK_FIELD_TRACE_STATE:
+                        traceState = unpackStreamingString(unpacker, stringTable);
+                        break;
+                    case LINK_FIELD_TRACE_FLAGS:
+                        traceFlags = (byte) unpacker.unpackInt();
+                        break;
+                    default:
+                        // Unknown link field; numeric or binary, so it cannot hold a streaming string.
+                        unpacker.skipValue();
+                        break;
+                }
+            }
+            links.add(DecodedSpanLinks.link(traceId, spanId, traceFlags, traceState, attributes));
+        }
+        return unmodifiableList(links);
+    }
+
+    /**
+     * Unpacks an identifier the writer emitted as an unsigned 64-bit value.
+     *
+     * <p>{@code TraceMapperV1} writes span and parent identifiers with {@code writeUnsignedLong}, so
+     * any identifier with its high bit set arrives as a msgpack {@code UINT64}. {@link
+     * MessageUnpacker#unpackLong()} rejects those, so read them through a {@link
+     * java.math.BigInteger} and keep the low-order 64 bits, which is the same two's-complement value
+     * the writer had.
+     *
+     * @param unpacker The message unpacker.
+     * @return The identifier.
+     * @throws IOException If unpacking fails.
+     */
+    private static long unpackUnsignedLong(MessageUnpacker unpacker) throws IOException {
+        if (unpacker.getNextFormat() == MessageFormat.UINT64) {
+            return unpacker.unpackBigInteger().longValue();
+        }
+        return unpacker.unpackLong();
+    }
+
+    /**
+     * Unpacks the low-order 64 bits of a 16-byte big-endian trace identifier, narrowing it the same
+     * way {@code TraceV1} narrows a chunk's trace identifier.
+     */
+    private static long unpackTraceId(MessageUnpacker unpacker) throws IOException {
+        int payloadSize = unpacker.unpackBinaryHeader();
+        byte[] payload = unpacker.readPayload(payloadSize);
+        long id = 0;
+        for (int i = Math.max(0, payloadSize - Long.BYTES); i < payloadSize; i++) {
+            id = (id << 8) | (payload[i] & 0xffL);
+        }
+        return id;
+    }
+
+    /** Collects link attributes as strings, keeping the string table in sync. */
+    private static void unpackLinkAttributes(
+            MessageUnpacker unpacker, List<String> stringTable, Map<String, String> attributes) throws IOException {
+        forEachAttribute(unpacker, stringTable, (attributeUnpacker, table, key, valueType) -> {
+            switch (valueType) {
+                case STRING_VALUE_TYPE:
+                    attributes.put(key, unpackStreamingString(attributeUnpacker, table));
+                    break;
+                case BOOL_VALUE_TYPE:
+                    attributes.put(key, String.valueOf(attributeUnpacker.unpackBoolean()));
+                    break;
+                case FLOAT_VALUE_TYPE:
+                    attributes.put(key, String.valueOf(attributeUnpacker.unpackDouble()));
+                    break;
+                case INT_VALUE_TYPE:
+                    attributes.put(key, String.valueOf(attributeUnpacker.unpackLong()));
+                    break;
+                default:
+                    attributeUnpacker.skipValue();
+                    break;
+            }
         });
-  }
-
-  static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
-    forEachAttribute(unpacker, stringTable, AttributeSkipper.INSTANCE);
-  }
-
-  private static void forEachAttribute(
-      MessageUnpacker unpacker, List<String> stringTable, AttributeConsumer consumer)
-      throws IOException {
-    int arraySize = unpacker.unpackArrayHeader();
-    // Array contains triplets (key, type, value), so size must be divisible by 3
-    if (arraySize % 3 != 0) {
-      throw new IllegalArgumentException(
-          "Attributes array size must be divisible by 3, got: " + arraySize);
     }
 
-    int tripletCount = arraySize / 3;
-    for (int i = 0; i < tripletCount; i++) {
-      String key = unpackStreamingString(unpacker, stringTable);
-      int valueType = unpacker.unpackInt();
-      consumer.accept(unpacker, stringTable, key, valueType);
+    static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable) throws IOException {
+        forEachAttribute(unpacker, stringTable, AttributeSkipper.INSTANCE);
     }
-  }
 
-  private interface AttributeConsumer {
-    void accept(MessageUnpacker unpacker, List<String> stringTable, String key, int valueType)
-        throws IOException;
-  }
+    private static void forEachAttribute(MessageUnpacker unpacker, List<String> stringTable, AttributeConsumer consumer)
+            throws IOException {
+        int arraySize = unpacker.unpackArrayHeader();
+        // Array contains triplets (key, type, value), so size must be divisible by 3
+        if (arraySize % 3 != 0) {
+            throw new IllegalArgumentException("Attributes array size must be divisible by 3, got: " + arraySize);
+        }
 
-  private enum AttributeSkipper implements AttributeConsumer {
-    INSTANCE;
+        int tripletCount = arraySize / 3;
+        for (int i = 0; i < tripletCount; i++) {
+            String key = unpackStreamingString(unpacker, stringTable);
+            int valueType = unpacker.unpackInt();
+            consumer.accept(unpacker, stringTable, key, valueType);
+        }
+    }
+
+    private interface AttributeConsumer {
+        void accept(MessageUnpacker unpacker, List<String> stringTable, String key, int valueType) throws IOException;
+    }
+
+    private enum AttributeSkipper implements AttributeConsumer {
+        INSTANCE;
+
+        @Override
+        public void accept(MessageUnpacker unpacker, List<String> stringTable, String key, int valueType)
+                throws IOException {
+            switch (valueType) {
+                case STRING_VALUE_TYPE:
+                    unpackStreamingString(unpacker, stringTable);
+                    break;
+                case BOOL_VALUE_TYPE:
+                    unpacker.unpackBoolean();
+                    break;
+                case FLOAT_VALUE_TYPE:
+                    unpacker.unpackDouble();
+                    break;
+                default:
+                    unpacker.skipValue();
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Converts span kind integer to string representation.
+     *
+     * @param spanKind the OTEL span kind value
+     * @return the string representation
+     */
+    private static String getSpanKindString(int spanKind) {
+        switch (spanKind) {
+            case 1:
+                return "internal";
+            case 2:
+                return "server";
+            case 3:
+                return "client";
+            case 4:
+                return "producer";
+            case 5:
+                return "consumer";
+            default:
+                return "internal";
+        }
+    }
+
+    private static Number normalizeMetricValue(String key, double value) {
+        if (("_dd.measured".equals(key) || "_dd.top_level".equals(key)) && value % 1 == 0) {
+            long whole = (long) value;
+            if (whole >= Integer.MIN_VALUE && whole <= Integer.MAX_VALUE) {
+                return (int) whole;
+            }
+            return whole;
+        }
+        return value;
+    }
+
+    private static Object decodeObject(final byte[] input) {
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(input);
+        try {
+            final Value value = unpacker.unpackValue();
+            return convertValueToObject(value);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to decode object.", e);
+        }
+    }
+
+    private static Object convertValueToObject(final Value value) {
+        switch (value.getValueType()) {
+            case NIL:
+                return null;
+            case BOOLEAN:
+                return value.asBooleanValue().getBoolean();
+            case INTEGER:
+                return value.asIntegerValue().toLong();
+            case FLOAT:
+                return value.asFloatValue().toFloat();
+            case BINARY:
+                return value.asBinaryValue().asByteArray();
+            case STRING:
+                return value.asStringValue().asString();
+            case ARRAY:
+                final List<Value> array = value.asArrayValue().list();
+                final List<Object> result = new ArrayList<>(array.size());
+                for (final Value element : array) {
+                    result.add(convertValueToObject(element));
+                }
+                return result;
+            case MAP:
+                final Map<Value, Value> map = value.asMapValue().map();
+                final Map<String, Object> resultMap = new HashMap<>(map.size());
+                for (final Map.Entry<Value, Value> entry : map.entrySet()) {
+                    resultMap.put(entry.getKey().asStringValue().asString(), convertValueToObject(entry.getValue()));
+                }
+                return resultMap;
+            default:
+                throw new IllegalArgumentException(
+                        "Failed to convert value to object. Unexpected value type " + value.getValueType());
+        }
+    }
+
+    private final String service;
+    private final String name;
+    private final String resource;
+    private final long traceId;
+    private final long spanId;
+    private final long parentId;
+    private final long start;
+    private final long duration;
+    private final int error;
+    private final Map<String, String> meta;
+    private final Map<String, Object> metaStruct;
+    private final Map<String, Number> metrics;
+    private final String type;
+    private final List<DecodedSpanLink> links;
+
+    public SpanV1(
+            String service,
+            String name,
+            String resource,
+            long traceId,
+            long spanId,
+            long parentId,
+            long start,
+            long duration,
+            int error,
+            String type,
+            Map<String, Number> metrics,
+            Map<String, String> meta,
+            Map<String, Object> metaStruct) {
+        this(
+                service,
+                name,
+                resource,
+                traceId,
+                spanId,
+                parentId,
+                start,
+                duration,
+                error,
+                type,
+                metrics,
+                meta,
+                metaStruct,
+                emptyList());
+    }
+
+    public SpanV1(
+            String service,
+            String name,
+            String resource,
+            long traceId,
+            long spanId,
+            long parentId,
+            long start,
+            long duration,
+            int error,
+            String type,
+            Map<String, Number> metrics,
+            Map<String, String> meta,
+            Map<String, Object> metaStruct,
+            List<DecodedSpanLink> links) {
+        this.links = links == null ? emptyList() : links;
+        this.service = service;
+        this.name = name;
+        this.resource = resource;
+        this.traceId = traceId;
+        this.spanId = spanId;
+        this.parentId = parentId;
+        this.start = start;
+        this.duration = duration;
+        this.error = error;
+        this.meta = unmodifiableMap(meta);
+        this.metaStruct = metaStruct == null ? emptyMap() : unmodifiableMap(metaStruct);
+        this.metrics = unmodifiableMap(metrics);
+        this.type = type;
+    }
 
     @Override
-    public void accept(
-        MessageUnpacker unpacker, List<String> stringTable, String key, int valueType)
-        throws IOException {
-      switch (valueType) {
-        case STRING_VALUE_TYPE:
-          unpackStreamingString(unpacker, stringTable);
-          break;
-        case BOOL_VALUE_TYPE:
-          unpacker.unpackBoolean();
-          break;
-        case FLOAT_VALUE_TYPE:
-          unpacker.unpackDouble();
-          break;
-        default:
-          unpacker.skipValue();
-          break;
-      }
+    public List<DecodedSpanLink> getLinks() {
+        return this.links;
     }
-  }
 
-  /**
-   * Converts span kind integer to string representation.
-   *
-   * @param spanKind the OTEL span kind value
-   * @return the string representation
-   */
-  private static String getSpanKindString(int spanKind) {
-    switch (spanKind) {
-      case 1:
-        return "internal";
-      case 2:
-        return "server";
-      case 3:
-        return "client";
-      case 4:
-        return "producer";
-      case 5:
-        return "consumer";
-      default:
-        return "internal";
+    @Override
+    public String getService() {
+        return service;
     }
-  }
 
-  private static Number normalizeMetricValue(String key, double value) {
-    if (("_dd.measured".equals(key) || "_dd.top_level".equals(key)) && value % 1 == 0) {
-      long whole = (long) value;
-      if (whole >= Integer.MIN_VALUE && whole <= Integer.MAX_VALUE) {
-        return (int) whole;
-      }
-      return whole;
+    @Override
+    public String getName() {
+        return name;
     }
-    return value;
-  }
 
-  private static Object decodeObject(final byte[] input) {
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(input);
-    try {
-      final Value value = unpacker.unpackValue();
-      return convertValueToObject(value);
-    } catch (IOException e) {
-      throw new IllegalArgumentException("Failed to decode object.", e);
+    @Override
+    public String getResource() {
+        return resource;
     }
-  }
 
-  private static Object convertValueToObject(final Value value) {
-    switch (value.getValueType()) {
-      case NIL:
-        return null;
-      case BOOLEAN:
-        return value.asBooleanValue().getBoolean();
-      case INTEGER:
-        return value.asIntegerValue().toLong();
-      case FLOAT:
-        return value.asFloatValue().toFloat();
-      case BINARY:
-        return value.asBinaryValue().asByteArray();
-      case STRING:
-        return value.asStringValue().asString();
-      case ARRAY:
-        final List<Value> array = value.asArrayValue().list();
-        final List<Object> result = new ArrayList<>(array.size());
-        for (final Value element : array) {
-          result.add(convertValueToObject(element));
-        }
-        return result;
-      case MAP:
-        final Map<Value, Value> map = value.asMapValue().map();
-        final Map<String, Object> resultMap = new HashMap<>(map.size());
-        for (final Map.Entry<Value, Value> entry : map.entrySet()) {
-          resultMap.put(
-              entry.getKey().asStringValue().asString(), convertValueToObject(entry.getValue()));
-        }
-        return resultMap;
-      default:
-        throw new IllegalArgumentException(
-            "Failed to convert value to object. Unexpected value type " + value.getValueType());
+    @Override
+    public long getTraceId() {
+        return traceId;
     }
-  }
 
-  private final String service;
-  private final String name;
-  private final String resource;
-  private final long traceId;
-  private final long spanId;
-  private final long parentId;
-  private final long start;
-  private final long duration;
-  private final int error;
-  private final Map<String, String> meta;
-  private final Map<String, Object> metaStruct;
-  private final Map<String, Number> metrics;
-  private final String type;
-  private final List<DecodedSpanLink> links;
+    @Override
+    public long getSpanId() {
+        return spanId;
+    }
 
-  public SpanV1(
-      String service,
-      String name,
-      String resource,
-      long traceId,
-      long spanId,
-      long parentId,
-      long start,
-      long duration,
-      int error,
-      String type,
-      Map<String, Number> metrics,
-      Map<String, String> meta,
-      Map<String, Object> metaStruct) {
-    this(
-        service,
-        name,
-        resource,
-        traceId,
-        spanId,
-        parentId,
-        start,
-        duration,
-        error,
-        type,
-        metrics,
-        meta,
-        metaStruct,
-        emptyList());
-  }
+    @Override
+    public long getParentId() {
+        return parentId;
+    }
 
-  public SpanV1(
-      String service,
-      String name,
-      String resource,
-      long traceId,
-      long spanId,
-      long parentId,
-      long start,
-      long duration,
-      int error,
-      String type,
-      Map<String, Number> metrics,
-      Map<String, String> meta,
-      Map<String, Object> metaStruct,
-      List<DecodedSpanLink> links) {
-    this.links = links == null ? emptyList() : links;
-    this.service = service;
-    this.name = name;
-    this.resource = resource;
-    this.traceId = traceId;
-    this.spanId = spanId;
-    this.parentId = parentId;
-    this.start = start;
-    this.duration = duration;
-    this.error = error;
-    this.meta = unmodifiableMap(meta);
-    this.metaStruct = metaStruct == null ? emptyMap() : unmodifiableMap(metaStruct);
-    this.metrics = unmodifiableMap(metrics);
-    this.type = type;
-  }
+    @Override
+    public long getStart() {
+        return start;
+    }
 
-  @Override
-  public List<DecodedSpanLink> getLinks() {
-    return this.links;
-  }
+    @Override
+    public long getDuration() {
+        return duration;
+    }
 
-  @Override
-  public String getService() {
-    return service;
-  }
+    @Override
+    public int getError() {
+        return error;
+    }
 
-  @Override
-  public String getName() {
-    return name;
-  }
+    @Override
+    public Map<String, String> getMeta() {
+        return meta;
+    }
 
-  @Override
-  public String getResource() {
-    return resource;
-  }
+    @Override
+    public Map<String, Object> getMetaStruct() {
+        return metaStruct;
+    }
 
-  @Override
-  public long getTraceId() {
-    return traceId;
-  }
+    @Override
+    public Map<String, Number> getMetrics() {
+        return metrics;
+    }
 
-  @Override
-  public long getSpanId() {
-    return spanId;
-  }
+    @Override
+    public String getType() {
+        return type;
+    }
 
-  @Override
-  public long getParentId() {
-    return parentId;
-  }
-
-  @Override
-  public long getStart() {
-    return start;
-  }
-
-  @Override
-  public long getDuration() {
-    return duration;
-  }
-
-  @Override
-  public int getError() {
-    return error;
-  }
-
-  @Override
-  public Map<String, String> getMeta() {
-    return meta;
-  }
-
-  @Override
-  public Map<String, Object> getMetaStruct() {
-    return metaStruct;
-  }
-
-  @Override
-  public Map<String, Number> getMetrics() {
-    return metrics;
-  }
-
-  @Override
-  public String getType() {
-    return type;
-  }
-
-  @Override
-  public String toString() {
-    return "SpanV1{"
-        + "service='"
-        + service
-        + '\''
-        + ", name='"
-        + name
-        + '\''
-        + ", resource='"
-        + resource
-        + '\''
-        + ", traceId="
-        + traceId
-        + ", spanId="
-        + spanId
-        + ", parentId="
-        + parentId
-        + ", start="
-        + start
-        + ", duration="
-        + duration
-        + ", error="
-        + error
-        + ", meta="
-        + meta
-        + ", metaStruct="
-        + metaStruct
-        + ", metrics="
-        + metrics
-        + ", type='"
-        + type
-        + '\''
-        + '}';
-  }
+    @Override
+    public String toString() {
+        return "SpanV1{"
+                + "service='"
+                + service
+                + '\''
+                + ", name='"
+                + name
+                + '\''
+                + ", resource='"
+                + resource
+                + '\''
+                + ", traceId="
+                + traceId
+                + ", spanId="
+                + spanId
+                + ", parentId="
+                + parentId
+                + ", start="
+                + start
+                + ", duration="
+                + duration
+                + ", error="
+                + error
+                + ", meta="
+                + meta
+                + ", metaStruct="
+                + metaStruct
+                + ", metrics="
+                + metrics
+                + ", type='"
+                + type
+                + '\''
+                + '}';
+    }
 }

@@ -20,51 +20,51 @@ import net.bytebuddy.asm.Advice;
  * duplicate checkpoint emission.
  */
 public final class AsyncTaskInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  static final String[] CLASS_NAMES = {
-    "java.util.concurrent.CompletableFuture$AsyncSupply",
-    "java.util.concurrent.CompletableFuture$AsyncRun",
-  };
+    static final String[] CLASS_NAMES = {
+        "java.util.concurrent.CompletableFuture$AsyncSupply", "java.util.concurrent.CompletableFuture$AsyncRun",
+    };
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return CLASS_NAMES;
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(named("run"), getClass().getName() + "$Run");
-    transformer.applyAdvice(named("cancel"), getClass().getName() + "$Cancel");
-  }
-
-  public static class Construct {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void construct(@Advice.This ForkJoinTask<?> task) {
-      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-    }
-  }
-
-  public static class Run {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(@Advice.This ForkJoinTask<?> zis) {
-      return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
+    @Override
+    public String[] knownMatchingTypes() {
+        return CLASS_NAMES;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+        transformer.applyAdvice(named("run"), getClass().getName() + "$Run");
+        transformer.applyAdvice(named("cancel"), getClass().getName() + "$Cancel");
     }
-  }
 
-  public static class Cancel {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
-      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
-      if (null != state) {
-        state.closeContinuation();
-      }
+    public static class Construct {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void construct(@Advice.This ForkJoinTask<?> task) {
+            capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        }
     }
-  }
+
+    public static class Run {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(@Advice.This ForkJoinTask<?> zis) {
+            return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
+
+    public static class Cancel {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
+            State state =
+                    InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
+            if (null != state) {
+                state.closeContinuation();
+            }
+        }
+    }
 }

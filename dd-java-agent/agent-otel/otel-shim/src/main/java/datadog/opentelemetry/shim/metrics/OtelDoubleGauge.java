@@ -18,65 +18,64 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
-  OtelDoubleGauge(OtelMetricStorage storage) {
-    super(storage);
-  }
-
-  @Override
-  public void set(double value) {
-    set(value, Attributes.empty());
-  }
-
-  @Override
-  public void set(double value, Attributes attributes) {
-    storage.recordDouble(value, attributes);
-  }
-
-  @Override
-  public void set(double value, Attributes attributes, Context unused) {
-    set(value, attributes);
-  }
-
-  static final class Builder implements DoubleGaugeBuilder {
-    private final OtelMeter meter;
-    private final OtelInstrumentBuilder builder;
-
-    Builder(OtelMeter meter, String instrumentName) {
-      this.meter = meter;
-      this.builder = ofDoubles(instrumentName, GAUGE);
+    OtelDoubleGauge(OtelMetricStorage storage) {
+        super(storage);
     }
 
     @Override
-    public DoubleGaugeBuilder setDescription(String description) {
-      builder.setDescription(description);
-      return this;
+    public void set(double value) {
+        set(value, Attributes.empty());
     }
 
     @Override
-    public DoubleGaugeBuilder setUnit(String unit) {
-      builder.setUnit(unit);
-      return this;
+    public void set(double value, Attributes attributes) {
+        storage.recordDouble(value, attributes);
     }
 
     @Override
-    public LongGaugeBuilder ofLongs() {
-      return new OtelLongGauge.Builder(meter, builder);
+    public void set(double value, Attributes attributes, Context unused) {
+        set(value, attributes);
     }
 
-    @Override
-    public DoubleGauge build() {
-      return new OtelDoubleGauge(
-          meter.registerStorage(builder, OtelMetricStorage::newDoubleValueStorage));
-    }
+    static final class Builder implements DoubleGaugeBuilder {
+        private final OtelMeter meter;
+        private final OtelInstrumentBuilder builder;
 
-    @Override
-    public ObservableDoubleMeasurement buildObserver() {
-      return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleValueStorage);
-    }
+        Builder(OtelMeter meter, String instrumentName) {
+            this.meter = meter;
+            this.builder = ofDoubles(instrumentName, GAUGE);
+        }
 
-    @Override
-    public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
-      return meter.registerObservableCallback(callback, buildObserver());
+        @Override
+        public DoubleGaugeBuilder setDescription(String description) {
+            builder.setDescription(description);
+            return this;
+        }
+
+        @Override
+        public DoubleGaugeBuilder setUnit(String unit) {
+            builder.setUnit(unit);
+            return this;
+        }
+
+        @Override
+        public LongGaugeBuilder ofLongs() {
+            return new OtelLongGauge.Builder(meter, builder);
+        }
+
+        @Override
+        public DoubleGauge build() {
+            return new OtelDoubleGauge(meter.registerStorage(builder, OtelMetricStorage::newDoubleValueStorage));
+        }
+
+        @Override
+        public ObservableDoubleMeasurement buildObserver() {
+            return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleValueStorage);
+        }
+
+        @Override
+        public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
+            return meter.registerObservableCallback(callback, buildObserver());
+        }
     }
-  }
 }

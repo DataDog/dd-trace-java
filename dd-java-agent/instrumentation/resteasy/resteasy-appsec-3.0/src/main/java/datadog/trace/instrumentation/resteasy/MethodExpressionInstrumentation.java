@@ -25,66 +25,66 @@ import org.jboss.resteasy.spi.HttpRequest;
 
 @AutoService(InstrumenterModule.class)
 public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public MethodExpressionInstrumentation() {
-    super("resteasy");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "jaxrs";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.jboss.resteasy.core.registry.MethodExpression";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("populatePathParams")
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.jboss.resteasy.spi.HttpRequest")))
-            .and(takesArgument(1, named("java.util.regex.Matcher")))
-            .and(takesArgument(2, String.class)),
-        MethodExpressionInstrumentation.class.getName() + "$PopulatePathParamsAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class PopulatePathParamsAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Argument(0) HttpRequest req,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null) {
-        return;
-      }
-
-      MultivaluedMap<String, String> pathParameters = req.getUri().getPathParameters();
-      if (pathParameters.isEmpty()) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestPathParams());
-      if (callback == null) {
-        return;
-      }
-      Flow<Void> flow = callback.apply(reqCtx, pathParameters);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
-          t = new BlockingException("Blocked request (for MethodExpression/populatePathParams)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
-        }
-      }
+    public MethodExpressionInstrumentation() {
+        super("resteasy");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "jaxrs";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.jboss.resteasy.core.registry.MethodExpression";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("populatePathParams")
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, named("org.jboss.resteasy.spi.HttpRequest")))
+                        .and(takesArgument(1, named("java.util.regex.Matcher")))
+                        .and(takesArgument(2, String.class)),
+                MethodExpressionInstrumentation.class.getName() + "$PopulatePathParamsAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class PopulatePathParamsAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Argument(0) HttpRequest req,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (t != null) {
+                return;
+            }
+
+            MultivaluedMap<String, String> pathParameters = req.getUri().getPathParameters();
+            if (pathParameters.isEmpty()) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
+                    cbp.getCallback(EVENTS.requestPathParams());
+            if (callback == null) {
+                return;
+            }
+            Flow<Void> flow = callback.apply(reqCtx, pathParameters);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                if (blockResponseFunction != null) {
+                    blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+                    t = new BlockingException("Blocked request (for MethodExpression/populatePathParams)");
+                    reqCtx.getTraceSegment().effectivelyBlocked();
+                }
+            }
+        }
+    }
 }

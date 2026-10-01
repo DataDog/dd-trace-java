@@ -10,29 +10,27 @@ import com.datadog.debugger.el.Value;
  * @param <T>
  */
 public interface ValueExpression<T extends Value<?>> extends Expression<T> {
-  ValueExpression<?> NULL =
-      new ValueExpression<Value<?>>() {
+    ValueExpression<?> NULL = new ValueExpression<Value<?>>() {
         @Override
         public Value<?> evaluate(EvalContext evalContext) {
-          return Value.nullValue();
+            return Value.nullValue();
         }
 
         @Override
         public String toString() {
-          return Value.nullValue().toString();
+            return Value.nullValue().toString();
         }
-      };
+    };
 
-  ValueExpression<?> UNDEFINED =
-      new ValueExpression<Value<?>>() {
+    ValueExpression<?> UNDEFINED = new ValueExpression<Value<?>>() {
         @Override
         public Value<?> evaluate(EvalContext evalContext) {
-          return Value.undefinedValue();
+            return Value.undefinedValue();
         }
 
         @Override
         public String toString() {
-          return Value.undefinedValue().toString();
+            return Value.undefinedValue().toString();
         }
-      };
+    };
 }

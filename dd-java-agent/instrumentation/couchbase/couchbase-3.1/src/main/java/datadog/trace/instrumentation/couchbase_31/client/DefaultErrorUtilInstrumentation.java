@@ -11,34 +11,32 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class DefaultErrorUtilInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public DefaultErrorUtilInstrumentation() {
-    super("couchbase", "couchbase-3");
-  }
+    public DefaultErrorUtilInstrumentation() {
+        super("couchbase", "couchbase-3");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.couchbase.client.core.error.DefaultErrorUtil";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.couchbase.client.core.error.DefaultErrorUtil";
+    }
 
-  private static final Reference TRACING_IDENTIFIERS_REFERENCE =
-      new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
+    private static final Reference TRACING_IDENTIFIERS_REFERENCE =
+            new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
 
-  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
-      new Reference.Builder(
-              "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
-          .build();
+    private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
+            new Reference.Builder("com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent").build();
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {TRACING_IDENTIFIERS_REFERENCE, SUSPICIOUS_EXPIRY_REFERENCE};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {TRACING_IDENTIFIERS_REFERENCE, SUSPICIOUS_EXPIRY_REFERENCE};
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isStatic().and(isMethod()).and(named("keyValueStatusToException")),
-        packageName + ".DefaultErrorUtilAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isStatic().and(isMethod()).and(named("keyValueStatusToException")),
+                packageName + ".DefaultErrorUtilAdvice");
+    }
 }

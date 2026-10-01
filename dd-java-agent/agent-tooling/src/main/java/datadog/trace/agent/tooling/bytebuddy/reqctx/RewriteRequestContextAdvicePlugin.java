@@ -16,18 +16,18 @@ import net.bytebuddy.matcher.ElementMatchers;
  * @see datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin
  */
 public class RewriteRequestContextAdvicePlugin extends Plugin.ForElementMatcher {
-  public RewriteRequestContextAdvicePlugin(File targetDir) {
-    super(ElementMatchers.isAnnotatedWith(RequiresRequestContext.class));
-  }
+    public RewriteRequestContextAdvicePlugin(File targetDir) {
+        super(ElementMatchers.isAnnotatedWith(RequiresRequestContext.class));
+    }
 
-  @Override
-  public DynamicType.Builder<?> apply(
-      final DynamicType.Builder<?> builder,
-      final TypeDescription typeDescription,
-      final ClassFileLocator classFileLocator) {
-    return builder.visit(new InjectRequestContextVisitorWrapper());
-  }
+    @Override
+    public DynamicType.Builder<?> apply(
+            final DynamicType.Builder<?> builder,
+            final TypeDescription typeDescription,
+            final ClassFileLocator classFileLocator) {
+        return builder.visit(new InjectRequestContextVisitorWrapper());
+    }
 
-  @Override
-  public void close() throws IOException {}
+    @Override
+    public void close() throws IOException {}
 }

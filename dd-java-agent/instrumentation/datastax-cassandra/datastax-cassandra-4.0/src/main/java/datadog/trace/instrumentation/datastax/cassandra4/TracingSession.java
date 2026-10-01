@@ -29,90 +29,88 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TracingSession extends SessionWrapper implements CqlSession {
-  private static final ExecutorService EXECUTOR_SERVICE =
-      Executors.newCachedThreadPool(new AgentThreadFactory(TRACE_CASSANDRA_ASYNC_SESSION));
+    private static final ExecutorService EXECUTOR_SERVICE =
+            Executors.newCachedThreadPool(new AgentThreadFactory(TRACE_CASSANDRA_ASYNC_SESSION));
 
-  private final String contactPoints;
+    private final String contactPoints;
 
-  public TracingSession(final Session session, final String contactPoints) {
-    super(session);
-    this.contactPoints = contactPoints;
-  }
-
-  @Override
-  @Nullable
-  public <RequestT extends Request, ResultT> ResultT execute(
-      @Nonnull RequestT request, @Nonnull GenericType<ResultT> resultType) {
-
-    if (request instanceof Statement && resultType.equals(Statement.SYNC)) {
-      return (ResultT) wrapSyncRequest((Statement) request);
-    } else if (request instanceof Statement && resultType.equals(Statement.ASYNC)) {
-      return (ResultT) wrapAsyncRequest((Statement) request);
-    } else {
-      // PrepareRequest or unknown request: just forward to delegate
-      return getDelegate().execute(request, resultType);
+    public TracingSession(final Session session, final String contactPoints) {
+        super(session);
+        this.contactPoints = contactPoints;
     }
-  }
 
-  private ResultSet wrapSyncRequest(Statement request) {
-    AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
+    @Override
+    @Nullable
+    public <RequestT extends Request, ResultT> ResultT execute(
+            @Nonnull RequestT request, @Nonnull GenericType<ResultT> resultType) {
 
-    DECORATE.afterStart(span);
-    DECORATE.onConnection(span, getDelegate());
-    DECORATE.onStatement(span, getQuery(request));
-    span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
-
-    try (ContextScope scope = activateSpan(span)) {
-      ResultSet resultSet = getDelegate().execute(request, Statement.SYNC);
-      DECORATE.onResponse(span, resultSet);
-      DECORATE.beforeFinish(span);
-
-      return resultSet;
-    } catch (Exception e) {
-      DECORATE.onError(span, e);
-      DECORATE.beforeFinish(span);
-
-      throw e;
-    } finally {
-      span.finish();
+        if (request instanceof Statement && resultType.equals(Statement.SYNC)) {
+            return (ResultT) wrapSyncRequest((Statement) request);
+        } else if (request instanceof Statement && resultType.equals(Statement.ASYNC)) {
+            return (ResultT) wrapAsyncRequest((Statement) request);
+        } else {
+            // PrepareRequest or unknown request: just forward to delegate
+            return getDelegate().execute(request, resultType);
+        }
     }
-  }
 
-  private CompletionStage<AsyncResultSet> wrapAsyncRequest(Statement request) {
-    AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
+    private ResultSet wrapSyncRequest(Statement request) {
+        AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
 
-    DECORATE.afterStart(span);
-    DECORATE.onConnection(span, getDelegate());
-    DECORATE.onStatement(span, getQuery(request));
-    span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(span, getDelegate());
+        DECORATE.onStatement(span, getQuery(request));
+        span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
 
-    try (ContextScope scope = activateSpan(span)) {
-      CompletionStage<AsyncResultSet> completionStage =
-          getDelegate().execute(request, Statement.ASYNC);
+        try (ContextScope scope = activateSpan(span)) {
+            ResultSet resultSet = getDelegate().execute(request, Statement.SYNC);
+            DECORATE.onResponse(span, resultSet);
+            DECORATE.beforeFinish(span);
 
-      return completionStage.whenComplete(
-          (result, throwable) -> {
-            if (result != null) {
-              DECORATE.onResponse(span, result);
-            }
+            return resultSet;
+        } catch (Exception e) {
+            DECORATE.onError(span, e);
+            DECORATE.beforeFinish(span);
 
-            if (throwable instanceof CompletionException) {
-              throwable = throwable.getCause();
-            }
-            DECORATE.onError(span, throwable);
+            throw e;
+        } finally {
             span.finish();
-          });
-    }
-  }
-
-  private static String getQuery(final Statement statement) {
-    String query = null;
-    if (statement instanceof BoundStatement) {
-      query = ((BoundStatement) statement).getPreparedStatement().getQuery();
-    } else if (statement instanceof SimpleStatement) {
-      query = ((SimpleStatement) statement).getQuery();
+        }
     }
 
-    return query == null ? "" : query;
-  }
+    private CompletionStage<AsyncResultSet> wrapAsyncRequest(Statement request) {
+        AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
+
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(span, getDelegate());
+        DECORATE.onStatement(span, getQuery(request));
+        span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
+
+        try (ContextScope scope = activateSpan(span)) {
+            CompletionStage<AsyncResultSet> completionStage = getDelegate().execute(request, Statement.ASYNC);
+
+            return completionStage.whenComplete((result, throwable) -> {
+                if (result != null) {
+                    DECORATE.onResponse(span, result);
+                }
+
+                if (throwable instanceof CompletionException) {
+                    throwable = throwable.getCause();
+                }
+                DECORATE.onError(span, throwable);
+                span.finish();
+            });
+        }
+    }
+
+    private static String getQuery(final Statement statement) {
+        String query = null;
+        if (statement instanceof BoundStatement) {
+            query = ((BoundStatement) statement).getPreparedStatement().getQuery();
+        } else if (statement instanceof SimpleStatement) {
+            query = ((SimpleStatement) statement).getQuery();
+        }
+
+        return query == null ? "" : query;
+    }
 }

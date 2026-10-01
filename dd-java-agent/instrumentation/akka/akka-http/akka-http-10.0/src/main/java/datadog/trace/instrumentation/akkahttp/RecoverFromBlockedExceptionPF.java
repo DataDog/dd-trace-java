@@ -15,38 +15,37 @@ import scala.compat.java8.JFunction1;
 import scala.concurrent.Future;
 
 public class RecoverFromBlockedExceptionPF extends JavaPartialFunction<Throwable, HttpResponse> {
-  public static final PartialFunction<Throwable, HttpResponse> INSTANCE =
-      new RecoverFromBlockedExceptionPF();
-  public static final PartialFunction<Throwable, Future<HttpResponse>> INSTANCE_FUTURE;
+    public static final PartialFunction<Throwable, HttpResponse> INSTANCE = new RecoverFromBlockedExceptionPF();
+    public static final PartialFunction<Throwable, Future<HttpResponse>> INSTANCE_FUTURE;
 
-  static {
-    JFunction1<HttpResponse, Future<HttpResponse>> f = RecoverFromBlockedExceptionPF::valueToFuture;
-    INSTANCE_FUTURE = INSTANCE.andThen(f);
-  }
-
-  @Override
-  public HttpResponse apply(Throwable x, boolean isCheck) throws Exception {
-    if (x instanceof BlockingException) {
-      if (isCheck) {
-        return null;
-      }
-      AgentSpan agentSpan = AgentTracer.activeSpan();
-      if (agentSpan != null) {
-        agentSpan.addThrowable(x);
-      }
-
-      // will be replaced anyway
-      return new HttpResponse(
-          StatusCode.int2StatusCode(500),
-          List$.MODULE$.empty(),
-          HttpEntity$.MODULE$.Empty(),
-          HttpProtocols.HTTP$div1$u002E1());
-    } else {
-      throw noMatch();
+    static {
+        JFunction1<HttpResponse, Future<HttpResponse>> f = RecoverFromBlockedExceptionPF::valueToFuture;
+        INSTANCE_FUTURE = INSTANCE.andThen(f);
     }
-  }
 
-  private static <V> Future<V> valueToFuture(V value) {
-    return FastFuture$.MODULE$.<V>successful().apply(value);
-  }
+    @Override
+    public HttpResponse apply(Throwable x, boolean isCheck) throws Exception {
+        if (x instanceof BlockingException) {
+            if (isCheck) {
+                return null;
+            }
+            AgentSpan agentSpan = AgentTracer.activeSpan();
+            if (agentSpan != null) {
+                agentSpan.addThrowable(x);
+            }
+
+            // will be replaced anyway
+            return new HttpResponse(
+                    StatusCode.int2StatusCode(500),
+                    List$.MODULE$.empty(),
+                    HttpEntity$.MODULE$.Empty(),
+                    HttpProtocols.HTTP$div1$u002E1());
+        } else {
+            throw noMatch();
+        }
+    }
+
+    private static <V> Future<V> valueToFuture(V value) {
+        return FastFuture$.MODULE$.<V>successful().apply(value);
+    }
 }

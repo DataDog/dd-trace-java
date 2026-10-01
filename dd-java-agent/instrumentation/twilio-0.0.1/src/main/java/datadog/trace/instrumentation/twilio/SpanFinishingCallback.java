@@ -11,24 +11,24 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
  */
 public class SpanFinishingCallback implements FutureCallback {
 
-  /** Span that we should finish and annotate when the future is complete. */
-  private final AgentSpan span;
+    /** Span that we should finish and annotate when the future is complete. */
+    private final AgentSpan span;
 
-  public SpanFinishingCallback(final AgentSpan span) {
-    this.span = span;
-  }
+    public SpanFinishingCallback(final AgentSpan span) {
+        this.span = span;
+    }
 
-  @Override
-  public void onSuccess(final Object result) {
-    DECORATE.beforeFinish(span);
-    DECORATE.onResult(span, result);
-    span.finish();
-  }
+    @Override
+    public void onSuccess(final Object result) {
+        DECORATE.beforeFinish(span);
+        DECORATE.onResult(span, result);
+        span.finish();
+    }
 
-  @Override
-  public void onFailure(final Throwable t) {
-    DECORATE.onError(span, t);
-    DECORATE.beforeFinish(span);
-    span.finish();
-  }
+    @Override
+    public void onFailure(final Throwable t) {
+        DECORATE.onError(span, t);
+        DECORATE.beforeFinish(span);
+        span.finish();
+    }
 }

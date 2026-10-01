@@ -15,85 +15,92 @@ import javax.annotation.Nullable;
  */
 public abstract class NamedContext {
 
-  public abstract void taintValue(@Nullable String value);
+    public abstract void taintValue(@Nullable String value);
 
-  public abstract void taintName(@Nullable String name);
+    public abstract void taintName(@Nullable String name);
 
-  public abstract void setCurrentName(@Nullable final String name);
+    public abstract void setCurrentName(@Nullable final String name);
 
-  @Nonnull
-  public static <E> NamedContext getOrCreate(
-      @Nonnull final ContextStore<E, NamedContext> store, @Nonnull final E target) {
-    NamedContext result = store.get(target);
-    if (result != null) {
-      return result;
-    }
-    final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
-      final Source source = module.findSource(target);
-      if (source != null) {
-        result = new NamedContextImpl(module, source);
-      }
-    }
-    result = result == null ? NoOp.INSTANCE : result;
-    store.put(target, result);
-    return result;
-  }
-
-  private static class NoOp extends NamedContext {
-
-    private static final NamedContext INSTANCE = new NoOp();
-
-    @Override
-    public void taintValue(@Nullable final String value) {}
-
-    @Override
-    public void taintName(@Nullable final String name) {}
-
-    @Override
-    public void setCurrentName(@Nullable final String name) {}
-  }
-
-  private static class NamedContextImpl extends NamedContext {
-    @Nonnull private final PropagationModule module;
-    @Nonnull private final Source source;
-    @Nullable private String currentName;
-
-    private boolean fetched;
-    @Nullable private IastContext context;
-
-    public NamedContextImpl(@Nonnull final PropagationModule module, @Nonnull final Source source) {
-      this.module = module;
-      this.source = source;
+    @Nonnull
+    public static <E> NamedContext getOrCreate(
+            @Nonnull final ContextStore<E, NamedContext> store, @Nonnull final E target) {
+        NamedContext result = store.get(target);
+        if (result != null) {
+            return result;
+        }
+        final PropagationModule module = InstrumentationBridge.PROPAGATION;
+        if (module != null) {
+            final Source source = module.findSource(target);
+            if (source != null) {
+                result = new NamedContextImpl(module, source);
+            }
+        }
+        result = result == null ? NoOp.INSTANCE : result;
+        store.put(target, result);
+        return result;
     }
 
-    @Override
-    public void taintValue(@Nullable final String value) {
-      module.taintString(iastCtx(), value, source.getOrigin(), currentName, source.getValue());
+    private static class NoOp extends NamedContext {
+
+        private static final NamedContext INSTANCE = new NoOp();
+
+        @Override
+        public void taintValue(@Nullable final String value) {}
+
+        @Override
+        public void taintName(@Nullable final String name) {}
+
+        @Override
+        public void setCurrentName(@Nullable final String name) {}
     }
 
-    @Override
-    @SuppressWarnings("StringEquality")
-    @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
-    public void taintName(@Nullable final String name) {
-      // prevent tainting the same name more than once
-      if (currentName != name) {
-        currentName = name;
-        module.taintString(iastCtx(), name, source.getOrigin(), name, source.getValue());
-      }
-    }
+    private static class NamedContextImpl extends NamedContext {
+        @Nonnull
+        private final PropagationModule module;
 
-    @Override
-    public void setCurrentName(@Nullable final String name) {
-      currentName = name;
-    }
+        @Nonnull
+        private final Source source;
 
-    private IastContext iastCtx() {
-      if (!fetched) {
-        fetched = true;
-        context = IastContext.Provider.get();
-      }
-      return context;
+        @Nullable
+        private String currentName;
+
+        private boolean fetched;
+
+        @Nullable
+        private IastContext context;
+
+        public NamedContextImpl(@Nonnull final PropagationModule module, @Nonnull final Source source) {
+            this.module = module;
+            this.source = source;
+        }
+
+        @Override
+        public void taintValue(@Nullable final String value) {
+            module.taintString(iastCtx(), value, source.getOrigin(), currentName, source.getValue());
+        }
+
+        @Override
+        @SuppressWarnings("StringEquality")
+        @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+        public void taintName(@Nullable final String name) {
+            // prevent tainting the same name more than once
+            if (currentName != name) {
+                currentName = name;
+                module.taintString(iastCtx(), name, source.getOrigin(), name, source.getValue());
+            }
+        }
+
+        @Override
+        public void setCurrentName(@Nullable final String name) {
+            currentName = name;
+        }
+
+        private IastContext iastCtx() {
+            if (!fetched) {
+                fetched = true;
+                context = IastContext.Provider.get();
+            }
+            return context;
+        }
     }
-  }
 }

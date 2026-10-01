@@ -58,116 +58,114 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 public class ConcurrentHashtableDrainBenchmark {
 
-  static final int N_KEYS = 32;
-  static final int CAPACITY = 64;
+    static final int N_KEYS = 32;
+    static final int CAPACITY = 64;
 
-  static final long[] KEY_HASHES = new long[N_KEYS];
+    static final long[] KEY_HASHES = new long[N_KEYS];
 
-  static {
-    for (int i = 0; i < N_KEYS; ++i) {
-      KEY_HASHES[i] = LongHashingUtils.hash("key-" + i);
-    }
-  }
-
-  static final class DrainEntry extends ConcurrentHashtable.Entry<DrainEntry> {
-    DrainEntry(long keyHash) {
-      super(keyHash);
-    }
-
-    @Override
-    public boolean matches(@Nonnull DrainEntry other) {
-      // hashIterator already filters candidates by keyHash equality before yielding them.
-      return true;
-    }
-  }
-
-  /**
-   * The pre-PR strategy: one lock acquisition held for the entire bucket-array sweep, still
-   * releasing capacity per-entry (only lock granularity differs from the current {@code drain()}).
-   */
-  private static <TEntry extends ConcurrentHashtable.Entry<TEntry>> void drainWholeSweepLock(
-      @Nonnull ConcurrentHashtable.State<TEntry> state,
-      @Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
-    ReentrantLock lock = ConcurrentHashtable.getTableWriteLock(state);
-    AtomicReferenceArray<TEntry> buckets = state.buckets;
-    lock.lock();
-    try {
-      for (int i = 0; i < buckets.length(); i++) {
-        TEntry head = buckets.get(i);
-        if (head == null) {
-          continue;
+    static {
+        for (int i = 0; i < N_KEYS; ++i) {
+            KEY_HASHES[i] = LongHashingUtils.hash("key-" + i);
         }
-        buckets.set(i, null);
-        for (TEntry e = head; e != null; e = e.next()) {
-          state.sizeManager.decrement();
-          drainedEntryConsumer.accept(e);
+    }
+
+    static final class DrainEntry extends ConcurrentHashtable.Entry<DrainEntry> {
+        DrainEntry(long keyHash) {
+            super(keyHash);
         }
-      }
-      state.sizeManager.release(0); // full sweep: reset the scan position
-    } finally {
-      lock.unlock();
+
+        @Override
+        public boolean matches(@Nonnull DrainEntry other) {
+            // hashIterator already filters candidates by keyHash equality before yielding them.
+            return true;
+        }
     }
-  }
 
-  @State(Scope.Benchmark)
-  public static class SharedState {
-    ConcurrentHashtable.State<DrainEntry> table;
-
-    @Setup(Level.Iteration)
-    public void setUp() {
-      table = ConcurrentHashtable.createBounded(DrainEntry.class, CAPACITY);
+    /**
+     * The pre-PR strategy: one lock acquisition held for the entire bucket-array sweep, still
+     * releasing capacity per-entry (only lock granularity differs from the current {@code drain()}).
+     */
+    private static <TEntry extends ConcurrentHashtable.Entry<TEntry>> void drainWholeSweepLock(
+            @Nonnull ConcurrentHashtable.State<TEntry> state, @Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
+        ReentrantLock lock = ConcurrentHashtable.getTableWriteLock(state);
+        AtomicReferenceArray<TEntry> buckets = state.buckets;
+        lock.lock();
+        try {
+            for (int i = 0; i < buckets.length(); i++) {
+                TEntry head = buckets.get(i);
+                if (head == null) {
+                    continue;
+                }
+                buckets.set(i, null);
+                for (TEntry e = head; e != null; e = e.next()) {
+                    state.sizeManager.decrement();
+                    drainedEntryConsumer.accept(e);
+                }
+            }
+            state.sizeManager.release(0); // full sweep: reset the scan position
+        } finally {
+            lock.unlock();
+        }
     }
-  }
 
-  @State(Scope.Thread)
-  public static class WriterState {
-    int cursor;
+    @State(Scope.Benchmark)
+    public static class SharedState {
+        ConcurrentHashtable.State<DrainEntry> table;
 
-    int next() {
-      int i = cursor;
-      cursor = (i + 1) & (N_KEYS - 1);
-      return i;
+        @Setup(Level.Iteration)
+        public void setUp() {
+            table = ConcurrentHashtable.createBounded(DrainEntry.class, CAPACITY);
+        }
     }
-  }
 
-  private static void write(ConcurrentHashtable.State<DrainEntry> table, WriterState w) {
-    long keyHash = KEY_HASHES[w.next()];
-    for (DrainEntry entry : ConcurrentHashtable.hashIterable(table, keyHash)) {
-      return; // lock-free hit, mirroring LogCollector.find()
+    @State(Scope.Thread)
+    public static class WriterState {
+        int cursor;
+
+        int next() {
+            int i = cursor;
+            cursor = (i + 1) & (N_KEYS - 1);
+            return i;
+        }
     }
-    try (ConcurrentHashtable.Reservation<DrainEntry> r =
-        ConcurrentHashtable.tryReserve(table, keyHash)) {
-      if (r.isReserved()) {
-        r.tryGetOrInsertOrNull(new DrainEntry(keyHash));
-      }
+
+    private static void write(ConcurrentHashtable.State<DrainEntry> table, WriterState w) {
+        long keyHash = KEY_HASHES[w.next()];
+        for (DrainEntry entry : ConcurrentHashtable.hashIterable(table, keyHash)) {
+            return; // lock-free hit, mirroring LogCollector.find()
+        }
+        try (ConcurrentHashtable.Reservation<DrainEntry> r = ConcurrentHashtable.tryReserve(table, keyHash)) {
+            if (r.isReserved()) {
+                r.tryGetOrInsertOrNull(new DrainEntry(keyHash));
+            }
+        }
     }
-  }
 
-  @Benchmark
-  @Group("perBucketLock")
-  @GroupThreads(1)
-  public void perBucketLockDrainer(SharedState s) {
-    ConcurrentHashtable.drain(s.table, entry -> {});
-  }
+    @Benchmark
+    @Group("perBucketLock")
+    @GroupThreads(1)
+    public void perBucketLockDrainer(SharedState s) {
+        ConcurrentHashtable.drain(s.table, entry -> {});
+    }
 
-  @Benchmark
-  @Group("perBucketLock")
-  @GroupThreads(3)
-  public void perBucketLockWriter(SharedState s, WriterState w) {
-    write(s.table, w);
-  }
+    @Benchmark
+    @Group("perBucketLock")
+    @GroupThreads(3)
+    public void perBucketLockWriter(SharedState s, WriterState w) {
+        write(s.table, w);
+    }
 
-  @Benchmark
-  @Group("wholeSweepLock")
-  @GroupThreads(1)
-  public void wholeSweepLockDrainer(SharedState s) {
-    drainWholeSweepLock(s.table, entry -> {});
-  }
+    @Benchmark
+    @Group("wholeSweepLock")
+    @GroupThreads(1)
+    public void wholeSweepLockDrainer(SharedState s) {
+        drainWholeSweepLock(s.table, entry -> {});
+    }
 
-  @Benchmark
-  @Group("wholeSweepLock")
-  @GroupThreads(3)
-  public void wholeSweepLockWriter(SharedState s, WriterState w) {
-    write(s.table, w);
-  }
+    @Benchmark
+    @Group("wholeSweepLock")
+    @GroupThreads(3)
+    public void wholeSweepLockWriter(SharedState s, WriterState w) {
+        write(s.table, w);
+    }
 }

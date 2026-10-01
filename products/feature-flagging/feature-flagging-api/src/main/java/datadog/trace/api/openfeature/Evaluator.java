@@ -6,12 +6,11 @@ import java.util.concurrent.TimeUnit;
 
 interface Evaluator {
 
-  boolean initialize(long timeout, TimeUnit timeUnit, EvaluationContext context) throws Exception;
+    boolean initialize(long timeout, TimeUnit timeUnit, EvaluationContext context) throws Exception;
 
-  boolean hasConfiguration();
+    boolean hasConfiguration();
 
-  void shutdown();
+    void shutdown();
 
-  <T> ProviderEvaluation<T> evaluate(
-      Class<T> target, String key, T defaultValue, EvaluationContext context);
+    <T> ProviderEvaluation<T> evaluate(Class<T> target, String key, T defaultValue, EvaluationContext context);
 }

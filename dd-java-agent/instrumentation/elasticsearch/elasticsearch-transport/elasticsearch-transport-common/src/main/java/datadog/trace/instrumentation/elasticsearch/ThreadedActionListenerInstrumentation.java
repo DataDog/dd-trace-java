@@ -24,51 +24,49 @@ import org.elasticsearch.action.support.ThreadedActionListener;
  */
 @AutoService(InstrumenterModule.class)
 public final class ThreadedActionListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ThreadedActionListenerInstrumentation() {
-    super("elasticsearch", "elasticsearch-transport");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.elasticsearch.action.support.ThreadedActionListener";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.elasticsearch.action.support.ThreadedActionListener", State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // only one constructor
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(
-        namedOneOf("onResponse", "onFailure").and(takesArguments(1)),
-        getClass().getName() + "$OnResponse");
-  }
-
-  @SuppressWarnings("rawtypes")
-  public static final class Construct {
-    @Advice.OnMethodExit
-    public static void after(@Advice.This ThreadedActionListener listener) {
-      capture(InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
-    }
-  }
-
-  @SuppressWarnings("rawtypes")
-  public static final class OnResponse {
-    @Advice.OnMethodEnter
-    public static ContextScope before(@Advice.This ThreadedActionListener listener) {
-      return startTaskScope(
-          InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
+    public ThreadedActionListenerInstrumentation() {
+        super("elasticsearch", "elasticsearch-transport");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public String instrumentedType() {
+        return "org.elasticsearch.action.support.ThreadedActionListener";
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.elasticsearch.action.support.ThreadedActionListener", State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // only one constructor
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+        transformer.applyAdvice(
+                namedOneOf("onResponse", "onFailure").and(takesArguments(1)),
+                getClass().getName() + "$OnResponse");
+    }
+
+    @SuppressWarnings("rawtypes")
+    public static final class Construct {
+        @Advice.OnMethodExit
+        public static void after(@Advice.This ThreadedActionListener listener) {
+            capture(InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
+        }
+    }
+
+    @SuppressWarnings("rawtypes")
+    public static final class OnResponse {
+        @Advice.OnMethodEnter
+        public static ContextScope before(@Advice.This ThreadedActionListener listener) {
+            return startTaskScope(InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
 }

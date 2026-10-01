@@ -10,37 +10,37 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 final class DatadogProfilerRecordingData extends RecordingData {
-  private final Path recordingFile;
+    private final Path recordingFile;
 
-  public DatadogProfilerRecordingData(Path recordingFile, Instant start, Instant end, Kind kind) {
-    super(start, end, kind);
-    this.recordingFile = recordingFile;
-  }
-
-  @Nonnull
-  @Override
-  public RecordingInputStream getStream() throws IOException {
-    return new RecordingInputStream(Files.newInputStream(recordingFile));
-  }
-
-  @Override
-  public void release() {
-    try {
-      Files.deleteIfExists(recordingFile);
-    } catch (IOException e) {
-      e.printStackTrace();
+    public DatadogProfilerRecordingData(Path recordingFile, Instant start, Instant end, Kind kind) {
+        super(start, end, kind);
+        this.recordingFile = recordingFile;
     }
-  }
 
-  @Nonnull
-  @Override
-  public String getName() {
-    return "ddprof";
-  }
+    @Nonnull
+    @Override
+    public RecordingInputStream getStream() throws IOException {
+        return new RecordingInputStream(Files.newInputStream(recordingFile));
+    }
 
-  @Nullable
-  @Override
-  public Path getPath() {
-    return recordingFile;
-  }
+    @Override
+    public void release() {
+        try {
+            Files.deleteIfExists(recordingFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Nonnull
+    @Override
+    public String getName() {
+        return "ddprof";
+    }
+
+    @Nullable
+    @Override
+    public Path getPath() {
+        return recordingFile;
+    }
 }

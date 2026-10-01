@@ -9,91 +9,95 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SparkExecutorDecorator extends BaseDecorator {
-  private static final Logger log = LoggerFactory.getLogger(SparkExecutorDecorator.class);
+    private static final Logger log = LoggerFactory.getLogger(SparkExecutorDecorator.class);
 
-  public static final CharSequence SPARK_TASK = UTF8BytesString.create("spark.task");
-  public static final CharSequence SPARK = UTF8BytesString.create("spark");
-  public static SparkExecutorDecorator DECORATE = new SparkExecutorDecorator();
+    public static final CharSequence SPARK_TASK = UTF8BytesString.create("spark.task");
+    public static final CharSequence SPARK = UTF8BytesString.create("spark");
+    public static SparkExecutorDecorator DECORATE = new SparkExecutorDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"spark-executor"};
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return null;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return SPARK;
-  }
-
-  public void onTaskStart(AgentSpan span, Executor.TaskRunner taskRunner) {
-    span.setTag("task_id", taskRunner.taskId());
-    span.setTag("task_thread_name", taskRunner.threadName());
-  }
-
-  public final void onTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
-    try {
-      doOnTaskEnd(span, taskRunner);
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on task end", t);
-    }
-  }
-
-  protected void doOnTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
-    // task is set by spark in run() by deserializing the task binary coming from the driver
-    if (taskRunner.task() == null) {
-      return;
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"spark-executor"};
     }
 
-    span.setTag("stage_id", taskRunner.task().stageId());
-    span.setTag("stage_attempt_id", taskRunner.task().stageAttemptId());
-
-    if (taskRunner.task().jobId().isDefined()) {
-      span.setTag("job_id", taskRunner.task().jobId().get());
+    @Override
+    protected CharSequence spanType() {
+        return null;
     }
-    if (taskRunner.task().appId().isDefined()) {
-      span.setTag("app_id", taskRunner.task().appId().get());
+
+    @Override
+    protected CharSequence component() {
+        return SPARK;
     }
-    if (taskRunner.task().appAttemptId().isDefined()) {
-      span.setTag("app_attempt_id", taskRunner.task().appAttemptId().get());
+
+    public void onTaskStart(AgentSpan span, Executor.TaskRunner taskRunner) {
+        span.setTag("task_id", taskRunner.taskId());
+        span.setTag("task_thread_name", taskRunner.threadName());
     }
-    span.setTag(
-        "application_name", taskRunner.task().localProperties().getProperty("spark.app.name"));
 
-    TaskMetrics metrics = taskRunner.task().metrics();
-    span.setMetric("spark.executor_deserialize_time", metrics.executorDeserializeTime());
-    span.setMetric("spark.executor_deserialize_cpu_time", metrics.executorDeserializeCpuTime());
-    span.setMetric("spark.executor_run_time", metrics.executorRunTime());
-    span.setMetric("spark.executor_cpu_time", metrics.executorCpuTime());
-    span.setMetric("spark.result_size", metrics.resultSize());
-    span.setMetric("spark.jvm_gc_time", metrics.jvmGCTime());
-    span.setMetric("spark.result_serialization_time", metrics.resultSerializationTime());
-    span.setMetric("spark.memory_bytes_spilled", metrics.memoryBytesSpilled());
-    span.setMetric("spark.disk_bytes_spilled", metrics.diskBytesSpilled());
-    span.setMetric("spark.peak_execution_memory", metrics.peakExecutionMemory());
+    public final void onTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
+        try {
+            doOnTaskEnd(span, taskRunner);
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span on task end", t);
+        }
+    }
 
-    span.setMetric("spark.input_bytes", metrics.inputMetrics().bytesRead());
-    span.setMetric("spark.input_records", metrics.inputMetrics().recordsRead());
-    span.setMetric("spark.output_bytes", metrics.outputMetrics().bytesWritten());
-    span.setMetric("spark.output_records", metrics.outputMetrics().recordsWritten());
+    protected void doOnTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
+        // task is set by spark in run() by deserializing the task binary coming from the driver
+        if (taskRunner.task() == null) {
+            return;
+        }
 
-    span.setMetric("spark.shuffle_read_bytes", metrics.shuffleReadMetrics().totalBytesRead());
-    span.setMetric("spark.shuffle_read_bytes_local", metrics.shuffleReadMetrics().localBytesRead());
-    span.setMetric(
-        "spark.shuffle_read_bytes_remote", metrics.shuffleReadMetrics().remoteBytesRead());
-    span.setMetric(
-        "spark.shuffle_read_bytes_remote_to_disk",
-        metrics.shuffleReadMetrics().remoteBytesReadToDisk());
-    span.setMetric(
-        "spark.shuffle_read_fetch_wait_time", metrics.shuffleReadMetrics().fetchWaitTime());
-    span.setMetric("spark.shuffle_read_records", metrics.shuffleReadMetrics().recordsRead());
+        span.setTag("stage_id", taskRunner.task().stageId());
+        span.setTag("stage_attempt_id", taskRunner.task().stageAttemptId());
 
-    span.setMetric("spark.shuffle_write_bytes", metrics.shuffleWriteMetrics().bytesWritten());
-    span.setMetric("spark.shuffle_write_records", metrics.shuffleWriteMetrics().recordsWritten());
-    span.setMetric("spark.shuffle_write_time", metrics.shuffleWriteMetrics().writeTime());
-  }
+        if (taskRunner.task().jobId().isDefined()) {
+            span.setTag("job_id", taskRunner.task().jobId().get());
+        }
+        if (taskRunner.task().appId().isDefined()) {
+            span.setTag("app_id", taskRunner.task().appId().get());
+        }
+        if (taskRunner.task().appAttemptId().isDefined()) {
+            span.setTag("app_attempt_id", taskRunner.task().appAttemptId().get());
+        }
+        span.setTag("application_name", taskRunner.task().localProperties().getProperty("spark.app.name"));
+
+        TaskMetrics metrics = taskRunner.task().metrics();
+        span.setMetric("spark.executor_deserialize_time", metrics.executorDeserializeTime());
+        span.setMetric("spark.executor_deserialize_cpu_time", metrics.executorDeserializeCpuTime());
+        span.setMetric("spark.executor_run_time", metrics.executorRunTime());
+        span.setMetric("spark.executor_cpu_time", metrics.executorCpuTime());
+        span.setMetric("spark.result_size", metrics.resultSize());
+        span.setMetric("spark.jvm_gc_time", metrics.jvmGCTime());
+        span.setMetric("spark.result_serialization_time", metrics.resultSerializationTime());
+        span.setMetric("spark.memory_bytes_spilled", metrics.memoryBytesSpilled());
+        span.setMetric("spark.disk_bytes_spilled", metrics.diskBytesSpilled());
+        span.setMetric("spark.peak_execution_memory", metrics.peakExecutionMemory());
+
+        span.setMetric("spark.input_bytes", metrics.inputMetrics().bytesRead());
+        span.setMetric("spark.input_records", metrics.inputMetrics().recordsRead());
+        span.setMetric("spark.output_bytes", metrics.outputMetrics().bytesWritten());
+        span.setMetric("spark.output_records", metrics.outputMetrics().recordsWritten());
+
+        span.setMetric("spark.shuffle_read_bytes", metrics.shuffleReadMetrics().totalBytesRead());
+        span.setMetric(
+                "spark.shuffle_read_bytes_local", metrics.shuffleReadMetrics().localBytesRead());
+        span.setMetric(
+                "spark.shuffle_read_bytes_remote", metrics.shuffleReadMetrics().remoteBytesRead());
+        span.setMetric(
+                "spark.shuffle_read_bytes_remote_to_disk",
+                metrics.shuffleReadMetrics().remoteBytesReadToDisk());
+        span.setMetric(
+                "spark.shuffle_read_fetch_wait_time",
+                metrics.shuffleReadMetrics().fetchWaitTime());
+        span.setMetric(
+                "spark.shuffle_read_records", metrics.shuffleReadMetrics().recordsRead());
+
+        span.setMetric(
+                "spark.shuffle_write_bytes", metrics.shuffleWriteMetrics().bytesWritten());
+        span.setMetric(
+                "spark.shuffle_write_records", metrics.shuffleWriteMetrics().recordsWritten());
+        span.setMetric("spark.shuffle_write_time", metrics.shuffleWriteMetrics().writeTime());
+    }
 }

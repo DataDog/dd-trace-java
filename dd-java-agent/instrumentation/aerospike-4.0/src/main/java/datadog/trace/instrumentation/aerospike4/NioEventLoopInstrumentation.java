@@ -12,31 +12,27 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
-public final class NioEventLoopInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class NioEventLoopInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.aerospike.client.async.NioEventLoop";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, Runnable.class)),
-        getClass().getName() + "$WrapAsFutureTaskAdvice");
-  }
-
-  public static final class WrapAsFutureTaskAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enterExecute(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      if (task == null || task instanceof RunnableFuture || exclude(RUNNABLE, task)) {
-        return;
-      }
-      task = new FutureTask<Void>(task, null);
+    @Override
+    public String instrumentedType() {
+        return "com.aerospike.client.async.NioEventLoop";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("execute")).and(takesArguments(1)).and(takesArgument(0, Runnable.class)),
+                getClass().getName() + "$WrapAsFutureTaskAdvice");
+    }
+
+    public static final class WrapAsFutureTaskAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void enterExecute(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
+            if (task == null || task instanceof RunnableFuture || exclude(RUNNABLE, task)) {
+                return;
+            }
+            task = new FutureTask<Void>(task, null);
+        }
+    }
 }

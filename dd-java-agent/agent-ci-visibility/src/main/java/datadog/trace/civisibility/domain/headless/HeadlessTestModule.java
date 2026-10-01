@@ -41,155 +41,154 @@ import javax.annotation.Nullable;
  */
 public class HeadlessTestModule extends AbstractTestModule implements TestFrameworkModule {
 
-  private final CoverageStore.Factory coverageStoreFactory;
-  private final ExecutionStrategy executionStrategy;
-  private final ExecutionResults executionResults;
-  private final Collection<LibraryCapability> capabilities;
+    private final CoverageStore.Factory coverageStoreFactory;
+    private final ExecutionStrategy executionStrategy;
+    private final ExecutionResults executionResults;
+    private final Collection<LibraryCapability> capabilities;
 
-  public HeadlessTestModule(
-      AgentSpanContext sessionSpanContext,
-      String moduleName,
-      @Nullable Long startTime,
-      Config config,
-      CiVisibilityMetricCollector metricCollector,
-      TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver,
-      Codeowners codeowners,
-      LinesResolver linesResolver,
-      CoverageStore.Factory coverageStoreFactory,
-      ExecutionStrategy executionStrategy,
-      Collection<LibraryCapability> capabilities,
-      Consumer<AgentSpan> onSpanFinish) {
-    super(
-        sessionSpanContext,
-        moduleName,
-        startTime,
-        InstrumentationType.HEADLESS,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        onSpanFinish);
-    this.coverageStoreFactory = coverageStoreFactory;
-    this.executionStrategy = executionStrategy;
-    this.executionResults = new ExecutionResults();
-    this.capabilities = capabilities;
-  }
-
-  @Override
-  public boolean isNew(@Nonnull TestIdentifier test) {
-    return executionStrategy.isNew(test);
-  }
-
-  @Override
-  public boolean isModified(@Nonnull TestSourceData testSourceData) {
-    return executionStrategy.isModified(testSourceData);
-  }
-
-  @Override
-  public boolean isQuarantined(TestIdentifier test) {
-    return executionStrategy.isQuarantined(test);
-  }
-
-  @Override
-  public boolean isDisabled(TestIdentifier test) {
-    return executionStrategy.isDisabled(test);
-  }
-
-  @Override
-  public boolean isAttemptToFix(TestIdentifier test) {
-    return executionStrategy.isAttemptToFix(test);
-  }
-
-  @Nullable
-  @Override
-  public SkipReason skipReason(TestIdentifier test) {
-    return executionStrategy.skipReason(test);
-  }
-
-  @Override
-  @Nonnull
-  public TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
-    return executionStrategy.executionPolicy(test, testSource, testTags);
-  }
-
-  @Override
-  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
-    return executionStrategy.executionPriority(test, testSource);
-  }
-
-  @Override
-  public void end(@Nullable Long endTime) {
-    ExecutionSettings executionSettings = executionStrategy.getExecutionSettings();
-    executionSettings.getConfigurationErrors().applyTags(span);
-
-    if (executionSettings.isCodeCoverageEnabled()) {
-      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+    public HeadlessTestModule(
+            AgentSpanContext sessionSpanContext,
+            String moduleName,
+            @Nullable Long startTime,
+            Config config,
+            CiVisibilityMetricCollector metricCollector,
+            TestDecorator testDecorator,
+            SourcePathResolver sourcePathResolver,
+            Codeowners codeowners,
+            LinesResolver linesResolver,
+            CoverageStore.Factory coverageStoreFactory,
+            ExecutionStrategy executionStrategy,
+            Collection<LibraryCapability> capabilities,
+            Consumer<AgentSpan> onSpanFinish) {
+        super(
+                sessionSpanContext,
+                moduleName,
+                startTime,
+                InstrumentationType.HEADLESS,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                onSpanFinish);
+        this.coverageStoreFactory = coverageStoreFactory;
+        this.executionStrategy = executionStrategy;
+        this.executionResults = new ExecutionResults();
+        this.capabilities = capabilities;
     }
 
-    if (executionSettings.isTestSkippingEnabled()) {
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
-
-      long testsSkippedTotal = executionResults.getTestsSkippedByItr();
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
-      if (testsSkippedTotal > 0) {
-        setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
-      }
+    @Override
+    public boolean isNew(@Nonnull TestIdentifier test) {
+        return executionStrategy.isNew(test);
     }
 
-    EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
-        executionSettings.getEarlyFlakeDetectionSettings();
-    if (earlyFlakeDetectionSettings.isEnabled()) {
-      setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
-      if (executionStrategy.isEFDLimitReached()) {
-        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, Constants.EFD_ABORT_REASON_FAULTY);
-      }
+    @Override
+    public boolean isModified(@Nonnull TestSourceData testSourceData) {
+        return executionStrategy.isModified(testSourceData);
     }
 
-    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
-    if (testManagementSettings.isEnabled()) {
-      setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
+    @Override
+    public boolean isQuarantined(TestIdentifier test) {
+        return executionStrategy.isQuarantined(test);
     }
 
-    if (executionResults.hasFailedTestReplayTests()) {
-      setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
+    @Override
+    public boolean isDisabled(TestIdentifier test) {
+        return executionStrategy.isDisabled(test);
     }
 
-    super.end(endTime);
-  }
+    @Override
+    public boolean isAttemptToFix(TestIdentifier test) {
+        return executionStrategy.isAttemptToFix(test);
+    }
 
-  @Override
-  public TestSuiteImpl testSuiteStart(
-      String testSuiteName,
-      @Nullable Class<?> testClass,
-      @Nullable Long startTime,
-      boolean parallelized,
-      TestFrameworkInstrumentation instrumentation) {
-    return new TestSuiteImpl(
-        span.spanContext(),
-        moduleName,
-        testSuiteName,
-        executionStrategy.getExecutionSettings().getItrCorrelationId(),
-        executionStrategy.getExecutionSettings().isTestSkippingEnabled(),
-        testClass,
-        startTime,
-        parallelized,
-        InstrumentationType.HEADLESS,
-        instrumentation,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        coverageStoreFactory,
-        executionResults,
-        executionStrategy.getExecutionSettings().getConfigurationErrors(),
-        capabilities,
-        tagsPropagator::propagateCiVisibilityTags);
-  }
+    @Nullable
+    @Override
+    public SkipReason skipReason(TestIdentifier test) {
+        return executionStrategy.skipReason(test);
+    }
+
+    @Override
+    @Nonnull
+    public TestExecutionPolicy executionPolicy(
+            TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+        return executionStrategy.executionPolicy(test, testSource, testTags);
+    }
+
+    @Override
+    public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+        return executionStrategy.executionPriority(test, testSource);
+    }
+
+    @Override
+    public void end(@Nullable Long endTime) {
+        ExecutionSettings executionSettings = executionStrategy.getExecutionSettings();
+        executionSettings.getConfigurationErrors().applyTags(span);
+
+        if (executionSettings.isCodeCoverageEnabled()) {
+            setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+        }
+
+        if (executionSettings.isTestSkippingEnabled()) {
+            setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+            setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+
+            long testsSkippedTotal = executionResults.getTestsSkippedByItr();
+            setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
+            if (testsSkippedTotal > 0) {
+                setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+            }
+        }
+
+        EarlyFlakeDetectionSettings earlyFlakeDetectionSettings = executionSettings.getEarlyFlakeDetectionSettings();
+        if (earlyFlakeDetectionSettings.isEnabled()) {
+            setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
+            if (executionStrategy.isEFDLimitReached()) {
+                setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, Constants.EFD_ABORT_REASON_FAULTY);
+            }
+        }
+
+        TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+        if (testManagementSettings.isEnabled()) {
+            setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
+        }
+
+        if (executionResults.hasFailedTestReplayTests()) {
+            setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
+        }
+
+        super.end(endTime);
+    }
+
+    @Override
+    public TestSuiteImpl testSuiteStart(
+            String testSuiteName,
+            @Nullable Class<?> testClass,
+            @Nullable Long startTime,
+            boolean parallelized,
+            TestFrameworkInstrumentation instrumentation) {
+        return new TestSuiteImpl(
+                span.spanContext(),
+                moduleName,
+                testSuiteName,
+                executionStrategy.getExecutionSettings().getItrCorrelationId(),
+                executionStrategy.getExecutionSettings().isTestSkippingEnabled(),
+                testClass,
+                startTime,
+                parallelized,
+                InstrumentationType.HEADLESS,
+                instrumentation,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                coverageStoreFactory,
+                executionResults,
+                executionStrategy.getExecutionSettings().getConfigurationErrors(),
+                capabilities,
+                tagsPropagator::propagateCiVisibilityTags);
+    }
 }

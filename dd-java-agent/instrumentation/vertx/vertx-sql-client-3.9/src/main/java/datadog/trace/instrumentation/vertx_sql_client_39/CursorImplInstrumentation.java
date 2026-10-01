@@ -13,28 +13,25 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CursorImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public CursorImplInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public CursorImplInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.sqlclient.PreparedStatement", "datadog.trace.api.Pair");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.sqlclient.PreparedStatement", "datadog.trace.api.Pair");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.sqlclient.impl.CursorImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.sqlclient.impl.CursorImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("read"))
-            .and(takesArgument(1, named("io.vertx.core.Handler"))),
-        packageName + ".CursorReadAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("read")).and(takesArgument(1, named("io.vertx.core.Handler"))),
+                packageName + ".CursorReadAdvice");
+    }
 }

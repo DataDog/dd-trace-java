@@ -11,25 +11,23 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class NativeLibraryInstrumentation
-    implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.ForBootstrap {
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice, Instrumenter.ForBootstrap {
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("jdk.internal.loader.NativeLibrary"));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("jdk.internal.loader.NativeLibrary"));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(), "datadog.trace.instrumentation.java.lang.jdk22.CaptureLibraryNameAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("find")).and(returns(long.class)),
-        "datadog.trace.instrumentation.java.lang.jdk22.CaptureSymbolAddressAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor(), "datadog.trace.instrumentation.java.lang.jdk22.CaptureLibraryNameAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("find")).and(returns(long.class)),
+                "datadog.trace.instrumentation.java.lang.jdk22.CaptureSymbolAddressAdvice");
+    }
 }

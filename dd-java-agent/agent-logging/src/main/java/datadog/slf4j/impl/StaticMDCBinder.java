@@ -9,15 +9,15 @@ import org.slf4j.spi.MDCAdapter;
 
 public class StaticMDCBinder {
 
-  public static final StaticMDCBinder SINGLETON = new StaticMDCBinder();
+    public static final StaticMDCBinder SINGLETON = new StaticMDCBinder();
 
-  private StaticMDCBinder() {}
+    private StaticMDCBinder() {}
 
-  public MDCAdapter getMDCA() {
-    return new NOPMDCAdapter();
-  }
+    public MDCAdapter getMDCA() {
+        return new NOPMDCAdapter();
+    }
 
-  public String getMDCAdapterClassStr() {
-    return NOPMDCAdapter.class.getName();
-  }
+    public String getMDCAdapterClassStr() {
+        return NOPMDCAdapter.class.getName();
+    }
 }

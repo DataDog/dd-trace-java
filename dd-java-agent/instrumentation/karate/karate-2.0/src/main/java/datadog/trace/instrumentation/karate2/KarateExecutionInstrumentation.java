@@ -30,49 +30,48 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public KarateExecutionInstrumentation() {
-    super("ci-visibility", "karate", "test-retry");
-  }
+    public KarateExecutionInstrumentation() {
+        super("ci-visibility", "karate", "test-retry");
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"io.karatelabs.core.ScenarioRuntime", "io.karatelabs.core.ScenarioResult"};
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"io.karatelabs.core.ScenarioRuntime", "io.karatelabs.core.ScenarioResult"};
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".ExecutionContext",
-      packageName + ".KarateTracingListener"
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".KarateUtils",
+            packageName + ".TestEventsHandlerHolder",
+            packageName + ".ExecutionContext",
+            packageName + ".KarateTracingListener"
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // ScenarioRuntime#call() is the run()-equivalent; match the concrete ScenarioResult-returning
-    // method, not the synthetic Callable#call() bridge.
-    transformer.applyAdvice(
-        named("call")
-            .and(takesNoArguments())
-            .and(returns(named("io.karatelabs.core.ScenarioResult")))
-            .and(not(isBridge())),
-        packageName + ".KarateScenarioAdvice$RetryAdvice");
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // ScenarioRuntime#call() is the run()-equivalent; match the concrete ScenarioResult-returning
+        // method, not the synthetic Callable#call() bridge.
+        transformer.applyAdvice(
+                named("call")
+                        .and(takesNoArguments())
+                        .and(returns(named("io.karatelabs.core.ScenarioResult")))
+                        .and(not(isBridge())),
+                packageName + ".KarateScenarioAdvice$RetryAdvice");
 
-    // ScenarioResult#addStepResult(StepResult)
-    transformer.applyAdvice(
-        named("addStepResult")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.karatelabs.core.StepResult"))),
-        packageName + ".KarateScenarioAdvice$SuppressErrorAdvice");
-  }
+        // ScenarioResult#addStepResult(StepResult)
+        transformer.applyAdvice(
+                named("addStepResult")
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("io.karatelabs.core.StepResult"))),
+                packageName + ".KarateScenarioAdvice$SuppressErrorAdvice");
+    }
 }

@@ -4,5 +4,5 @@ import datadog.communication.serialization.ByteBufferConsumer;
 
 public interface Sink extends ByteBufferConsumer {
 
-  void register(EventListener listener);
+    void register(EventListener listener);
 }

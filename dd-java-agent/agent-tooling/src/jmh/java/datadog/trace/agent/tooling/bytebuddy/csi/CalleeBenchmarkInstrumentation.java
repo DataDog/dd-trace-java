@@ -10,38 +10,38 @@ import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import java.util.Set;
 
 public class CalleeBenchmarkInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CalleeBenchmarkInstrumentation() {
-    super("callee");
-  }
+    public CalleeBenchmarkInstrumentation() {
+        super("callee");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.apache.catalina.connector.Request";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.catalina.connector.Request";
+    }
 
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getParameter").and(takesArguments(String.class)).and(returns(String.class)),
-        CallSiteBenchmarkHelper.class.getName());
-  }
+    @Override
+    public void methodAdvice(final MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getParameter").and(takesArguments(String.class)).and(returns(String.class)),
+                CallSiteBenchmarkHelper.class.getName());
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {CallSiteBenchmarkHelper.class.getName()};
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {CallSiteBenchmarkHelper.class.getName()};
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return "callee".equals(System.getProperty("dd.benchmark.instrumentation", ""));
-  }
+    @Override
+    public boolean isEnabled() {
+        return "callee".equals(System.getProperty("dd.benchmark.instrumentation", ""));
+    }
 
-  @Override
-  public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return true;
-  }
+    @Override
+    public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
+        return true;
+    }
 
-  public static class Muzzle extends ReferenceMatcher {}
+    public static class Muzzle extends ReferenceMatcher {}
 }

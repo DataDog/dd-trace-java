@@ -13,46 +13,44 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  * {@code earlyDep10ForkedTest} Gradle task (Jetty 10.0.9).
  */
 @EnabledIfSystemProperty(named = "test.dd.earlyJetty10", matches = ".+")
-class Jetty10EarlyDepV0ForkedTest extends Jetty10Test
-    implements TestingGenericHttpNamingConventions.ServerV0 {
+class Jetty10EarlyDepV0ForkedTest extends Jetty10Test implements TestingGenericHttpNamingConventions.ServerV0 {
 
-  @Override
-  public int version() {
-    return 0;
-  }
+    @Override
+    public int version() {
+        return 0;
+    }
 
-  @Override
-  public String service() {
-    return null;
-  }
+    @Override
+    public String service() {
+        return null;
+    }
 
-  @Override
-  public String operation() {
-    return "servlet.request";
-  }
+    @Override
+    public String operation() {
+        return "servlet.request";
+    }
 }
 
 @EnabledIfSystemProperty(named = "test.dd.earlyJetty10", matches = ".+")
-class Jetty10EarlyDepV1ForkedTest extends Jetty10Test
-    implements TestingGenericHttpNamingConventions.ServerV1 {
+class Jetty10EarlyDepV1ForkedTest extends Jetty10Test implements TestingGenericHttpNamingConventions.ServerV1 {
 
-  @Override
-  public int version() {
-    return 1;
-  }
+    @Override
+    public int version() {
+        return 1;
+    }
 
-  @Override
-  public String service() {
-    return null;
-  }
+    @Override
+    public String service() {
+        return null;
+    }
 
-  @Override
-  public String operation() {
-    return "http.server.request";
-  }
+    @Override
+    public String operation() {
+        return "http.server.request";
+    }
 
-  @Override
-  protected boolean useWebsocketPojoEndpoint() {
-    return false;
-  }
+    @Override
+    protected boolean useWebsocketPojoEndpoint() {
+        return false;
+    }
 }

@@ -11,15 +11,15 @@ import datadog.trace.api.iast.sink.WeakRandomnessModule;
 @CallSite(spi = IastCallSites.class)
 public class MathCallSite {
 
-  @CallSite.Before("double java.lang.Math.random()")
-  public static void before() {
-    final WeakRandomnessModule module = InstrumentationBridge.WEAK_RANDOMNESS;
-    if (module != null) {
-      try {
-        module.onWeakRandom(Math.class);
-      } catch (Throwable e) {
-        module.onUnexpectedException("random threw", e);
-      }
+    @CallSite.Before("double java.lang.Math.random()")
+    public static void before() {
+        final WeakRandomnessModule module = InstrumentationBridge.WEAK_RANDOMNESS;
+        if (module != null) {
+            try {
+                module.onWeakRandom(Math.class);
+            } catch (Throwable e) {
+                module.onUnexpectedException("random threw", e);
+            }
+        }
     }
-  }
 }

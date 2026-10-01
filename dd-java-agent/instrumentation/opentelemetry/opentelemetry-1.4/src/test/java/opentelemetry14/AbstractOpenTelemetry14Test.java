@@ -22,33 +22,32 @@ import org.junit.jupiter.api.BeforeEach;
  */
 @WithConfig(key = "integration.opentelemetry.experimental.enabled", value = "true")
 public abstract class AbstractOpenTelemetry14Test extends AbstractInstrumentationTest {
-  private static int tracerInstance;
+    private static int tracerInstance;
 
-  protected Tracer otelTracer;
+    protected Tracer otelTracer;
 
-  @BeforeEach
-  void setupOtelTracer() {
-    this.otelTracer =
-        GlobalOpenTelemetry.get().getTracerProvider().get("test-tracer-" + tracerInstance++);
-  }
-
-  @AfterEach
-  void checkOtelContextAndCleanup() {
-    try {
-      assertEquals(Context.current(), Context.root(), "OTel context leak detected");
-    } finally {
-      clearContextStorage();
+    @BeforeEach
+    void setupOtelTracer() {
+        this.otelTracer = GlobalOpenTelemetry.get().getTracerProvider().get("test-tracer-" + tracerInstance++);
     }
-  }
 
-  private static void clearContextStorage() {
-    try {
-      Class<?> storageClass = Class.forName("io.opentelemetry.context.ThreadLocalContextStorage");
-      Field field = storageClass.getDeclaredField("THREAD_LOCAL_STORAGE");
-      field.setAccessible(true);
-      ((ThreadLocal<?>) field.get(null)).remove();
-    } catch (ReflectiveOperationException e) {
-      throw new AssertionError("Failed to clear OTel context storage", e);
+    @AfterEach
+    void checkOtelContextAndCleanup() {
+        try {
+            assertEquals(Context.current(), Context.root(), "OTel context leak detected");
+        } finally {
+            clearContextStorage();
+        }
     }
-  }
+
+    private static void clearContextStorage() {
+        try {
+            Class<?> storageClass = Class.forName("io.opentelemetry.context.ThreadLocalContextStorage");
+            Field field = storageClass.getDeclaredField("THREAD_LOCAL_STORAGE");
+            field.setAccessible(true);
+            ((ThreadLocal<?>) field.get(null)).remove();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to clear OTel context storage", e);
+        }
+    }
 }

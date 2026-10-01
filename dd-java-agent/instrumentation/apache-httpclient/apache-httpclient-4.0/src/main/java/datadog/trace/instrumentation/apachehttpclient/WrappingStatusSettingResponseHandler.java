@@ -9,20 +9,19 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 
 public class WrappingStatusSettingResponseHandler implements ResponseHandler {
-  final AgentSpan span;
-  final ResponseHandler handler;
+    final AgentSpan span;
+    final ResponseHandler handler;
 
-  public WrappingStatusSettingResponseHandler(final AgentSpan span, final ResponseHandler handler) {
-    this.span = span;
-    this.handler = handler;
-  }
-
-  @Override
-  public Object handleResponse(final HttpResponse response)
-      throws ClientProtocolException, IOException {
-    if (null != span) {
-      DECORATE.onResponse(span, response);
+    public WrappingStatusSettingResponseHandler(final AgentSpan span, final ResponseHandler handler) {
+        this.span = span;
+        this.handler = handler;
     }
-    return handler.handleResponse(response);
-  }
+
+    @Override
+    public Object handleResponse(final HttpResponse response) throws ClientProtocolException, IOException {
+        if (null != span) {
+            DECORATE.onResponse(span, response);
+        }
+        return handler.handleResponse(response);
+    }
 }

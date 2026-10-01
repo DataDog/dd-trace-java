@@ -24,61 +24,59 @@ import redis.clients.jedis.Protocol.Command;
 
 @AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JedisInstrumentation() {
-    super("jedis", "redis");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching Jedis 3+ which has its own instrumentation.
-    return not(hasClassNamed("redis.clients.jedis.commands.ProtocolCommand"));
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "redis.clients.jedis.Connection";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("sendCommand"))
-            .and(takesArgument(0, named("redis.clients.jedis.Protocol$Command"))),
-        JedisInstrumentation.class.getName() + "$JedisAdvice");
-    // FIXME: This instrumentation only incorporates sending the command, not processing the result.
-  }
-
-  public static class JedisAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(0) final Command command, @Advice.This final Connection thiz) {
-      if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
-        return null;
-      }
-      final AgentSpan span =
-          startSpan(COMPONENT_NAME.toString(), JedisClientDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onConnection(span, thiz);
-      DECORATE.onStatement(span, command.name());
-      return activateSpan(span);
+    public JedisInstrumentation() {
+        super("jedis", "redis");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      CallDepthThreadLocalMap.reset(Connection.class);
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching Jedis 3+ which has its own instrumentation.
+        return not(hasClassNamed("redis.clients.jedis.commands.ProtocolCommand"));
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "redis.clients.jedis.Connection";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("sendCommand"))
+                        .and(takesArgument(0, named("redis.clients.jedis.Protocol$Command"))),
+                JedisInstrumentation.class.getName() + "$JedisAdvice");
+        // FIXME: This instrumentation only incorporates sending the command, not processing the result.
+    }
+
+    public static class JedisAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(0) final Command command, @Advice.This final Connection thiz) {
+            if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
+                return null;
+            }
+            final AgentSpan span = startSpan(COMPONENT_NAME.toString(), JedisClientDecorator.OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onConnection(span, thiz);
+            DECORATE.onStatement(span, command.name());
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            CallDepthThreadLocalMap.reset(Connection.class);
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

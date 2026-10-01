@@ -7,83 +7,83 @@ import java.util.BitSet;
  * coherent.
  */
 class SafeJsonStructure implements JsonStructure {
-  private final BitSet structure;
-  private int depth;
-  private boolean complete;
+    private final BitSet structure;
+    private int depth;
+    private boolean complete;
 
-  SafeJsonStructure() {
-    this.structure = new BitSet();
-    this.depth = -1;
-    this.complete = false;
-  }
-
-  @Override
-  public void beginObject() {
-    if (this.complete) {
-      throw new IllegalStateException("Object is complete");
+    SafeJsonStructure() {
+        this.structure = new BitSet();
+        this.depth = -1;
+        this.complete = false;
     }
-    this.structure.set(++this.depth);
-  }
 
-  @Override
-  public boolean objectStarted() {
-    return this.depth >= 0 && this.structure.get(this.depth);
-  }
+    @Override
+    public void beginObject() {
+        if (this.complete) {
+            throw new IllegalStateException("Object is complete");
+        }
+        this.structure.set(++this.depth);
+    }
 
-  @Override
-  public void endObject() {
-    if (!objectStarted()) {
-      throw new IllegalStateException("Object not started");
+    @Override
+    public boolean objectStarted() {
+        return this.depth >= 0 && this.structure.get(this.depth);
     }
-    this.depth--;
-    if (this.depth < 0) {
-      this.complete = true;
-    }
-  }
 
-  @Override
-  public void beginArray() {
-    if (this.complete) {
-      throw new IllegalStateException("Object is complete");
+    @Override
+    public void endObject() {
+        if (!objectStarted()) {
+            throw new IllegalStateException("Object not started");
+        }
+        this.depth--;
+        if (this.depth < 0) {
+            this.complete = true;
+        }
     }
-    this.structure.clear(++this.depth);
-  }
 
-  @Override
-  public boolean arrayStarted() {
-    return this.depth >= 0 && !this.structure.get(this.depth);
-  }
+    @Override
+    public void beginArray() {
+        if (this.complete) {
+            throw new IllegalStateException("Object is complete");
+        }
+        this.structure.clear(++this.depth);
+    }
 
-  @Override
-  public void endArray() {
-    if (!arrayStarted()) {
-      throw new IllegalStateException("Array not started");
+    @Override
+    public boolean arrayStarted() {
+        return this.depth >= 0 && !this.structure.get(this.depth);
     }
-    this.depth--;
-    if (this.depth < 0) {
-      this.complete = true;
-    }
-  }
 
-  @Override
-  public void addName() {
-    if (!objectStarted()) {
-      throw new IllegalStateException("Object not started");
+    @Override
+    public void endArray() {
+        if (!arrayStarted()) {
+            throw new IllegalStateException("Array not started");
+        }
+        this.depth--;
+        if (this.depth < 0) {
+            this.complete = true;
+        }
     }
-  }
 
-  @Override
-  public void addValue() {
-    if (this.complete) {
-      throw new IllegalStateException("Object is complete");
+    @Override
+    public void addName() {
+        if (!objectStarted()) {
+            throw new IllegalStateException("Object not started");
+        }
     }
-    if (this.depth < 0) {
-      this.complete = true;
-    }
-  }
 
-  @Override
-  public String toString() {
-    return (this.complete ? "complete" : "") + this.structure;
-  }
+    @Override
+    public void addValue() {
+        if (this.complete) {
+            throw new IllegalStateException("Object is complete");
+        }
+        if (this.depth < 0) {
+            this.complete = true;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return (this.complete ? "complete" : "") + this.structure;
+    }
 }

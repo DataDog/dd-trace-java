@@ -31,84 +31,82 @@ import org.junit.runner.notification.RunNotifier;
  */
 @AutoService(InstrumenterModule.class)
 public class BazelRunNotifierWrapperInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public BazelRunNotifierWrapperInstrumentation() {
-    super("ci-visibility", "junit-4");
-  }
+    public BazelRunNotifierWrapperInstrumentation() {
+        super("ci-visibility", "junit-4");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.junit.runner.notification.RunNotifier";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.junit.runner.notification.RunNotifier";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".SkippedByDatadog",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".JUnit4Utils", packageName + ".TracingListener", packageName + ".SkippedByDatadog",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("fireTestSuiteStarted").and(takesArgument(0, named("org.junit.runner.Description"))),
-        BazelRunNotifierWrapperInstrumentation.class.getName() + "$FireSuiteStartedAdvice");
-    transformer.applyAdvice(
-        named("fireTestSuiteFinished").and(takesArgument(0, named("org.junit.runner.Description"))),
-        BazelRunNotifierWrapperInstrumentation.class.getName() + "$FireSuiteFinishedAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("fireTestSuiteStarted").and(takesArgument(0, named("org.junit.runner.Description"))),
+                BazelRunNotifierWrapperInstrumentation.class.getName() + "$FireSuiteStartedAdvice");
+        transformer.applyAdvice(
+                named("fireTestSuiteFinished").and(takesArgument(0, named("org.junit.runner.Description"))),
+                BazelRunNotifierWrapperInstrumentation.class.getName() + "$FireSuiteFinishedAdvice");
+    }
 
-  public static class FireSuiteStartedAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void fireOnTracingListener(
-        @Advice.This final RunNotifier self, @Advice.Argument(0) final Description description) {
-      RunNotifier inner = JUnit4Utils.unwrapRunNotifier(self);
-      if (inner == null || inner == self) {
-        return;
-      }
-      List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(inner);
-      if (listeners == null) {
-        return;
-      }
-      for (RunListener listener : listeners) {
-        TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
-        if (tracingListener != null) {
-          tracingListener.testSuiteStarted(description);
+    public static class FireSuiteStartedAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void fireOnTracingListener(
+                @Advice.This final RunNotifier self, @Advice.Argument(0) final Description description) {
+            RunNotifier inner = JUnit4Utils.unwrapRunNotifier(self);
+            if (inner == null || inner == self) {
+                return;
+            }
+            List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(inner);
+            if (listeners == null) {
+                return;
+            }
+            for (RunListener listener : listeners) {
+                TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
+                if (tracingListener != null) {
+                    tracingListener.testSuiteStarted(description);
+                }
+            }
         }
-      }
-    }
 
-    // JUnit 4.13 muzzle marker: fireTestSuiteStarted exists from 4.13.
-    public static void muzzleCheck(final RunNotifier notifier) {
-      notifier.fireTestSuiteStarted(null);
-    }
-  }
-
-  public static class FireSuiteFinishedAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void fireOnTracingListener(
-        @Advice.This final RunNotifier self, @Advice.Argument(0) final Description description) {
-      RunNotifier inner = JUnit4Utils.unwrapRunNotifier(self);
-      if (inner == null || inner == self) {
-        return;
-      }
-      List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(inner);
-      if (listeners == null) {
-        return;
-      }
-      for (RunListener listener : listeners) {
-        TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
-        if (tracingListener != null) {
-          tracingListener.testSuiteFinished(description);
+        // JUnit 4.13 muzzle marker: fireTestSuiteStarted exists from 4.13.
+        public static void muzzleCheck(final RunNotifier notifier) {
+            notifier.fireTestSuiteStarted(null);
         }
-      }
     }
 
-    public static void muzzleCheck(final RunNotifier notifier) {
-      notifier.fireTestSuiteFinished(null);
+    public static class FireSuiteFinishedAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void fireOnTracingListener(
+                @Advice.This final RunNotifier self, @Advice.Argument(0) final Description description) {
+            RunNotifier inner = JUnit4Utils.unwrapRunNotifier(self);
+            if (inner == null || inner == self) {
+                return;
+            }
+            List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(inner);
+            if (listeners == null) {
+                return;
+            }
+            for (RunListener listener : listeners) {
+                TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
+                if (tracingListener != null) {
+                    tracingListener.testSuiteFinished(description);
+                }
+            }
+        }
+
+        public static void muzzleCheck(final RunNotifier notifier) {
+            notifier.fireTestSuiteFinished(null);
+        }
     }
-  }
 }

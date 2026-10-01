@@ -9,10 +9,9 @@ import javax.servlet.http.HttpServletResponse;
 
 @WebServlet(value = "/xml")
 public class XmlServlet extends HttpServlet {
-  @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    resp.setContentType("text/xml");
-    resp.getWriter().print("<response><head></head></response>");
-  }
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        resp.setContentType("text/xml");
+        resp.getWriter().print("<response><head></head></response>");
+    }
 }

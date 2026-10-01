@@ -10,26 +10,26 @@ import org.openjdk.jmh.annotations.State;
 @AuxCounters(AuxCounters.Type.EVENTS)
 public class TraceCounters {
 
-  long traces;
-  long spans;
-  long drops;
+    long traces;
+    long spans;
+    long drops;
 
-  public long traces() {
-    return traces;
-  }
+    public long traces() {
+        return traces;
+    }
 
-  public long spans() {
-    return spans;
-  }
+    public long spans() {
+        return spans;
+    }
 
-  public long drops() {
-    return drops;
-  }
+    public long drops() {
+        return drops;
+    }
 
-  @Setup(Level.Iteration)
-  public void reset() {
-    traces = 0;
-    spans = 0;
-    drops = 0;
-  }
+    @Setup(Level.Iteration)
+    public void reset() {
+        traces = 0;
+        spans = 0;
+        drops = 0;
+    }
 }

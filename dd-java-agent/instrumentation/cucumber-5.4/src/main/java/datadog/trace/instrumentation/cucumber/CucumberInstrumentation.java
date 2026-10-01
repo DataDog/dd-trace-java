@@ -16,45 +16,45 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CucumberInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public CucumberInstrumentation() {
-    super("cucumber", "cucumber-5");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.cucumber.core.backend.StepDefinition";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        .and(namedNoneOf("io.cucumber.core.runner.CoreStepDefinition"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("execute").and(takesArguments(Object[].class)),
-        CucumberInstrumentation.class.getName() + "$CucumberAdvice");
-  }
-
-  public static class CucumberAdvice {
-    @Advice.OnMethodEnter
-    public static ContextScope onCucumberStepStart(
-        @Advice.This StepDefinition step, @Advice.Argument(0) Object[] arguments) {
-      return CucumberStepDecorator.DECORATE.onStepStart(step, arguments);
+    public CucumberInstrumentation() {
+        super("cucumber", "cucumber-5");
     }
 
-    @Advice.OnMethodExit
-    public static void onCucumberStepFinish(@Advice.Enter ContextScope scope) {
-      CucumberStepDecorator.DECORATE.onStepFinish(scope);
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.cucumber.core.backend.StepDefinition";
     }
 
-    // Cucumber 5.0.0 and above
-    public static void muzzleCheck(io.cucumber.core.backend.StepDefinition stepDefinition) {
-      stepDefinition.execute(null);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()))
+                .and(namedNoneOf("io.cucumber.core.runner.CoreStepDefinition"));
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("execute").and(takesArguments(Object[].class)),
+                CucumberInstrumentation.class.getName() + "$CucumberAdvice");
+    }
+
+    public static class CucumberAdvice {
+        @Advice.OnMethodEnter
+        public static ContextScope onCucumberStepStart(
+                @Advice.This StepDefinition step, @Advice.Argument(0) Object[] arguments) {
+            return CucumberStepDecorator.DECORATE.onStepStart(step, arguments);
+        }
+
+        @Advice.OnMethodExit
+        public static void onCucumberStepFinish(@Advice.Enter ContextScope scope) {
+            CucumberStepDecorator.DECORATE.onStepFinish(scope);
+        }
+
+        // Cucumber 5.0.0 and above
+        public static void muzzleCheck(io.cucumber.core.backend.StepDefinition stepDefinition) {
+            stepDefinition.execute(null);
+        }
+    }
 }

@@ -4,30 +4,25 @@ import java.util.BitSet;
 import javax.annotation.Nullable;
 
 public class TestReportFileEntry {
-  private final String sourceFileName;
-  private final @Nullable BitSet coveredLines;
+    private final String sourceFileName;
+    private final @Nullable BitSet coveredLines;
 
-  public TestReportFileEntry(String sourceFileName, @Nullable BitSet coveredLines) {
-    this.sourceFileName = sourceFileName;
-    this.coveredLines = coveredLines;
-  }
+    public TestReportFileEntry(String sourceFileName, @Nullable BitSet coveredLines) {
+        this.sourceFileName = sourceFileName;
+        this.coveredLines = coveredLines;
+    }
 
-  public String getSourceFileName() {
-    return sourceFileName;
-  }
+    public String getSourceFileName() {
+        return sourceFileName;
+    }
 
-  @Nullable
-  public BitSet getCoveredLines() {
-    return coveredLines;
-  }
+    @Nullable
+    public BitSet getCoveredLines() {
+        return coveredLines;
+    }
 
-  @Override
-  public String toString() {
-    return "TestReportFileEntry{"
-        + "sourceFileName='"
-        + sourceFileName
-        + "', lines=["
-        + coveredLines
-        + "]}";
-  }
+    @Override
+    public String toString() {
+        return "TestReportFileEntry{" + "sourceFileName='" + sourceFileName + "', lines=[" + coveredLines + "]}";
+    }
 }

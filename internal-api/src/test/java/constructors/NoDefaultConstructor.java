@@ -2,5 +2,5 @@ package constructors;
 
 public class NoDefaultConstructor {
 
-  public NoDefaultConstructor(Object foo) {}
+    public NoDefaultConstructor(Object foo) {}
 }

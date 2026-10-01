@@ -24,25 +24,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(WithConfigExtension.class)
 class AgentLambdaProfilingContextForkedTest {
 
-  @Test
-  @WithConfig(key = APPSEC_ENABLED, value = "true")
-  @WithConfig(key = PROFILING_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
-  @WithConfig(
-      key = "AWS_LAMBDA_FUNCTION_NAME",
-      value = "my-function",
-      env = true,
-      addPrefix = false)
-  void doesNotCreateTheDdprofIntegrationInAwsLambda() {
-    // The exclusion is only observable when the configuration would otherwise have triggered the
-    // ddprof context integration; the Datadog profiler is vetoed on some platforms and JVMs.
-    assumeTrue(
-        Config.get().isOtelThreadContextEnabled(),
-        "OTel context exposure is unavailable on this platform/JVM version");
+    @Test
+    @WithConfig(key = APPSEC_ENABLED, value = "true")
+    @WithConfig(key = PROFILING_ENABLED, value = "false")
+    @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
+    @WithConfig(key = "AWS_LAMBDA_FUNCTION_NAME", value = "my-function", env = true, addPrefix = false)
+    void doesNotCreateTheDdprofIntegrationInAwsLambda() {
+        // The exclusion is only observable when the configuration would otherwise have triggered the
+        // ddprof context integration; the Datadog profiler is vetoed on some platforms and JVMs.
+        assumeTrue(
+                Config.get().isOtelThreadContextEnabled(),
+                "OTel context exposure is unavailable on this platform/JVM version");
 
-    // AGENT_CLASSLOADER is null in this unit test, so reaching the ddprof branch at all would fail
-    // loudly rather than silently return the no-op integration.
-    assertSame(
-        ProfilingContextIntegration.NoOp.INSTANCE, Agent.createProfilingContextIntegration());
-  }
+        // AGENT_CLASSLOADER is null in this unit test, so reaching the ddprof branch at all would fail
+        // loudly rather than silently return the no-op integration.
+        assertSame(ProfilingContextIntegration.NoOp.INSTANCE, Agent.createProfilingContextIntegration());
+    }
 }

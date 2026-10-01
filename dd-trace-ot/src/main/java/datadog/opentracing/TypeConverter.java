@@ -13,72 +13,72 @@ import io.opentracing.SpanContext;
 
 // Centralized place to do conversions
 class TypeConverter {
-  private final LogHandler logHandler;
-  private final OTSpan noopSpanWrapper;
-  private final OTSpanContext noopContextWrapper;
+    private final LogHandler logHandler;
+    private final OTSpan noopSpanWrapper;
+    private final OTSpanContext noopContextWrapper;
 
-  public TypeConverter(final LogHandler logHandler) {
-    this.logHandler = logHandler;
-    noopSpanWrapper = new OTSpan(noopSpan(), this, logHandler);
-    noopContextWrapper = new OTSpanContext(noopSpanContext());
-  }
+    public TypeConverter(final LogHandler logHandler) {
+        this.logHandler = logHandler;
+        noopSpanWrapper = new OTSpan(noopSpan(), this, logHandler);
+        noopContextWrapper = new OTSpanContext(noopSpanContext());
+    }
 
-  public AgentSpan toAgentSpan(final Span span) {
-    if (span == null) {
-      return null;
-    } else if (span instanceof OTSpan) {
-      return ((OTSpan) span).asAgentSpan();
-    } else {
-      // NOOP Span
-      return noopSpan();
+    public AgentSpan toAgentSpan(final Span span) {
+        if (span == null) {
+            return null;
+        } else if (span instanceof OTSpan) {
+            return ((OTSpan) span).asAgentSpan();
+        } else {
+            // NOOP Span
+            return noopSpan();
+        }
     }
-  }
 
-  public OTSpan toSpan(final AgentSpan agentSpan) {
-    if (agentSpan == null) {
-      return null;
+    public OTSpan toSpan(final AgentSpan agentSpan) {
+        if (agentSpan == null) {
+            return null;
+        }
+        if (agentSpan instanceof AttachableWrapper) {
+            AttachableWrapper attachableSpanWrapper = (AttachableWrapper) agentSpan;
+            Object wrapper = attachableSpanWrapper.getWrapper();
+            if (wrapper instanceof OTSpan) {
+                return (OTSpan) wrapper;
+            }
+            OTSpan spanWrapper = new OTSpan(agentSpan, this, logHandler);
+            attachableSpanWrapper.attachWrapper(spanWrapper);
+            return spanWrapper;
+        }
+        if (agentSpan == noopSpan()) {
+            return noopSpanWrapper;
+        }
+        return new OTSpan(agentSpan, this, logHandler);
     }
-    if (agentSpan instanceof AttachableWrapper) {
-      AttachableWrapper attachableSpanWrapper = (AttachableWrapper) agentSpan;
-      Object wrapper = attachableSpanWrapper.getWrapper();
-      if (wrapper instanceof OTSpan) {
-        return (OTSpan) wrapper;
-      }
-      OTSpan spanWrapper = new OTSpan(agentSpan, this, logHandler);
-      attachableSpanWrapper.attachWrapper(spanWrapper);
-      return spanWrapper;
-    }
-    if (agentSpan == noopSpan()) {
-      return noopSpanWrapper;
-    }
-    return new OTSpan(agentSpan, this, logHandler);
-  }
 
-  public Scope toScope(final ContextScope scope, final boolean finishSpanOnClose) {
-    if (scope == null) {
-      return null;
+    public Scope toScope(final ContextScope scope, final boolean finishSpanOnClose) {
+        if (scope == null) {
+            return null;
+        }
+        return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
     }
-    return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
-  }
 
-  public SpanContext toSpanContext(final AgentSpanContext context) {
-    if (context == null) {
-      return null;
+    public SpanContext toSpanContext(final AgentSpanContext context) {
+        if (context == null) {
+            return null;
+        }
+        // avoid a new SpanContext wrapper allocation for the noop context
+        if (context == noopSpanContext()) {
+            return noopContextWrapper;
+        }
+        return new OTSpanContext(context);
     }
-    // avoid a new SpanContext wrapper allocation for the noop context
-    if (context == noopSpanContext()) {
-      return noopContextWrapper;
-    }
-    return new OTSpanContext(context);
-  }
 
-  public AgentSpanContext toContext(final SpanContext spanContext) {
-    if (spanContext == null) {
-      return null;
-    } else if (spanContext instanceof OTSpanContext) {
-      return ((OTSpanContext) spanContext).getDelegate();
-    } else {
-      return noopSpanContext();
+    public AgentSpanContext toContext(final SpanContext spanContext) {
+        if (spanContext == null) {
+            return null;
+        } else if (spanContext instanceof OTSpanContext) {
+            return ((OTSpanContext) spanContext).getDelegate();
+        } else {
+            return noopSpanContext();
+        }
     }
-  }
 }

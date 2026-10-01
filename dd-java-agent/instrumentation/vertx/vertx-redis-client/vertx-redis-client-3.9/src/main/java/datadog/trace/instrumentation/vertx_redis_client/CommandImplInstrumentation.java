@@ -13,25 +13,25 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CommandImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public CommandImplInstrumentation() {
-    super("vertx", "vertx-redis-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public CommandImplInstrumentation() {
+        super("vertx", "vertx-redis-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.redis.client.Command", UTF8BytesString.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.redis.client.Command", UTF8BytesString.class.getName());
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.redis.client.impl.CommandImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.redis.client.impl.CommandImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(0, named("java.lang.String"))),
-        packageName + ".CommandImplConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(0, named("java.lang.String"))),
+                packageName + ".CommandImplConstructorAdvice");
+    }
 }

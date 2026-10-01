@@ -15,35 +15,35 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class OgnlInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public OgnlInstrumentation() {
-    super("ognl");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "ognl.Ognl";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("parseExpression")).and(isStatic()).and(takesArguments(String.class)),
-        OgnlInstrumentation.class.getName() + "$OgnlParseExpressionAdvice");
-  }
-
-  static class OgnlParseExpressionAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(@Advice.Argument(0) String expression) {
-      AgentSpan parentSpan = activeSpan();
-      if (parentSpan == null) {
-        return;
-      }
-
-      AgentSpan agentSpan = startSpan("ognl", "ognl.parse", parentSpan.spanContext());
-      agentSpan.setTag("ognl.expression", expression);
-      agentSpan.finish();
+    public OgnlInstrumentation() {
+        super("ognl");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "ognl.Ognl";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("parseExpression")).and(isStatic()).and(takesArguments(String.class)),
+                OgnlInstrumentation.class.getName() + "$OgnlParseExpressionAdvice");
+    }
+
+    static class OgnlParseExpressionAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void before(@Advice.Argument(0) String expression) {
+            AgentSpan parentSpan = activeSpan();
+            if (parentSpan == null) {
+                return;
+            }
+
+            AgentSpan agentSpan = startSpan("ognl", "ognl.parse", parentSpan.spanContext());
+            agentSpan.setTag("ognl.expression", expression);
+            agentSpan.finish();
+        }
+    }
 }

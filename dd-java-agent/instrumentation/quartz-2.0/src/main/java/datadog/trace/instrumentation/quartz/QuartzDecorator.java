@@ -14,43 +14,44 @@ import org.quartz.JobKey;
 import org.quartz.TriggerKey;
 
 public class QuartzDecorator extends BaseDecorator {
-  public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
-  public static final QuartzDecorator DECORATE = new QuartzDecorator();
+    public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
+    public static final QuartzDecorator DECORATE = new QuartzDecorator();
 
-  private QuartzDecorator() {}
+    private QuartzDecorator() {}
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"quartz"};
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return null;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return "quartz";
-  }
-
-  public void onExecute(final AgentSpan span, JobExecutionContext context) {
-    if (context != null) {
-      if (context.getJobInstance() != null) {
-        span.setTag(DDTags.RESOURCE_NAME, context.getJobInstance().getClass()).toString();
-      }
-      if (context.getTrigger() != null) {
-        final TriggerKey key = context.getTrigger().getKey();
-        if (key != null) {
-          span.setTag(QUARTZ_TRIGGER_NAME, key.getName());
-          span.setTag(QUARTZ_TRIGGER_GROUP, key.getGroup());
-        }
-        final JobKey jobKey = context.getJobDetail().getKey();
-        if (jobKey != null) {
-          span.setTag(QUARTZ_JOB_NAME, jobKey.getName());
-          span.setTag(QUARTZ_JOB_GROUP, jobKey.getGroup());
-        }
-      }
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"quartz"};
     }
-  }
+
+    @Override
+    protected CharSequence spanType() {
+        return null;
+    }
+
+    @Override
+    protected CharSequence component() {
+        return "quartz";
+    }
+
+    public void onExecute(final AgentSpan span, JobExecutionContext context) {
+        if (context != null) {
+            if (context.getJobInstance() != null) {
+                span.setTag(DDTags.RESOURCE_NAME, context.getJobInstance().getClass())
+                        .toString();
+            }
+            if (context.getTrigger() != null) {
+                final TriggerKey key = context.getTrigger().getKey();
+                if (key != null) {
+                    span.setTag(QUARTZ_TRIGGER_NAME, key.getName());
+                    span.setTag(QUARTZ_TRIGGER_GROUP, key.getGroup());
+                }
+                final JobKey jobKey = context.getJobDetail().getKey();
+                if (jobKey != null) {
+                    span.setTag(QUARTZ_JOB_NAME, jobKey.getName());
+                    span.setTag(QUARTZ_JOB_GROUP, jobKey.getGroup());
+                }
+            }
+        }
+    }
 }

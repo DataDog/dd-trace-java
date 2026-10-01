@@ -25,87 +25,87 @@ import org.apache.commons.fileupload.FileItem;
 
 @AutoService(InstrumenterModule.class)
 public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public CommonsFileUploadAppSecInstrumentation() {
-    super("commons-fileupload");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.commons.fileupload.servlet.ServletFileUpload";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parseRequest")
-            .and(isPublic())
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
-        getClass().getName() + "$ParseRequestAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class ParseRequestAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return final List<FileItem> fileItems,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null || fileItems == null || fileItems.isEmpty()) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
-          cbp.getCallback(EVENTS.requestFilesContent());
-      if (filenamesCallback == null && contentCallback == null) {
-        return;
-      }
-
-      List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
-      List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
-      for (FileItem fileItem : fileItems) {
-        if (fileItem.isFormField()) {
-          continue;
-        }
-        String name = fileItem.getName();
-        if (filenames != null && name != null && !name.isEmpty()) {
-          filenames.add(name);
-        }
-        if (filesContent != null) {
-          FileItemContentReader.addToContents(fileItem, filesContent);
-        }
-      }
-
-      if (filenames != null && !filenames.isEmpty()) {
-        Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
-        Flow.Action action = flow.getAction();
-        if (action instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-          if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx, rba);
-            t = new BlockingException("Blocked request (multipart file upload)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
-        }
-      }
-
-      if (t == null && filesContent != null && !filesContent.isEmpty()) {
-        Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-        Flow.Action contentAction = contentFlow.getAction();
-        if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
-          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-          if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx, rba);
-            t = new BlockingException("Blocked request (multipart file upload content)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
-        }
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public CommonsFileUploadAppSecInstrumentation() {
+        super("commons-fileupload");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.apache.commons.fileupload.servlet.ServletFileUpload";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parseRequest")
+                        .and(isPublic())
+                        .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+                getClass().getName() + "$ParseRequestAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class ParseRequestAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return final List<FileItem> fileItems,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (t != null || fileItems == null || fileItems.isEmpty()) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+                    cbp.getCallback(EVENTS.requestFilesFilenames());
+            BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+                    cbp.getCallback(EVENTS.requestFilesContent());
+            if (filenamesCallback == null && contentCallback == null) {
+                return;
+            }
+
+            List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
+            List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
+            for (FileItem fileItem : fileItems) {
+                if (fileItem.isFormField()) {
+                    continue;
+                }
+                String name = fileItem.getName();
+                if (filenames != null && name != null && !name.isEmpty()) {
+                    filenames.add(name);
+                }
+                if (filesContent != null) {
+                    FileItemContentReader.addToContents(fileItem, filesContent);
+                }
+            }
+
+            if (filenames != null && !filenames.isEmpty()) {
+                Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
+                Flow.Action action = flow.getAction();
+                if (action instanceof Flow.Action.RequestBlockingAction) {
+                    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+                    if (brf != null) {
+                        brf.tryCommitBlockingResponse(reqCtx, rba);
+                        t = new BlockingException("Blocked request (multipart file upload)");
+                        reqCtx.getTraceSegment().effectivelyBlocked();
+                    }
+                }
+            }
+
+            if (t == null && filesContent != null && !filesContent.isEmpty()) {
+                Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+                Flow.Action contentAction = contentFlow.getAction();
+                if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+                    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
+                    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+                    if (brf != null) {
+                        brf.tryCommitBlockingResponse(reqCtx, rba);
+                        t = new BlockingException("Blocked request (multipart file upload content)");
+                        reqCtx.getTraceSegment().effectivelyBlocked();
+                    }
+                }
+            }
+        }
+    }
 }

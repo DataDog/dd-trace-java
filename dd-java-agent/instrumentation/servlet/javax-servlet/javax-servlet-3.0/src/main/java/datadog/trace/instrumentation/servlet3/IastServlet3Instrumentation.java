@@ -18,56 +18,56 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public IastServlet3Instrumentation() {
-    super("servlet", "servlet-3");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public IastServlet3Instrumentation() {
+        super("servlet", "servlet-3");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "servlet-3.x";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "servlet-3.x";
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching servlet 2 which has its own instrumentation
-    return hasClassNamed("javax.servlet.AsyncEvent");
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching servlet 2 which has its own instrumentation
+        return hasClassNamed("javax.servlet.AsyncEvent");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.servlet.http.HttpServlet";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.servlet.http.HttpServlet";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("javax.servlet.http.HttpServlet"))
-        .or(implementsInterface(named("javax.servlet.FilterChain")));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("javax.servlet.http.HttpServlet"))
+                .or(implementsInterface(named("javax.servlet.FilterChain")));
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("javax.servlet.ServletContext", Boolean.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("javax.servlet.ServletContext", Boolean.class.getName());
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        namedOneOf("doFilter", "service")
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
-        packageName + ".IastServlet3Advice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                namedOneOf("doFilter", "service")
+                        .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+                        .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+                        .and(isPublic()),
+                packageName + ".IastServlet3Advice");
+    }
 
-  @Override
-  protected boolean isOptOutEnabled() {
-    return true;
-  }
+    @Override
+    protected boolean isOptOutEnabled() {
+        return true;
+    }
 
-  @Override
-  public int order() {
-    // apply this instrumentation after the regular servlet one.
-    return 1;
-  }
+    @Override
+    public int order() {
+        // apply this instrumentation after the regular servlet one.
+        return 1;
+    }
 }

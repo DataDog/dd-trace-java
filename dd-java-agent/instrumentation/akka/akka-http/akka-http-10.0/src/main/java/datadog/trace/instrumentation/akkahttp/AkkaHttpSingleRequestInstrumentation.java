@@ -27,99 +27,96 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public AkkaHttpSingleRequestInstrumentation() {
-    super("akka-http", "akka-http-client");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.http.scaladsl.HttpExt";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AkkaHttpClientHelpers",
-      packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
-      packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
-      packageName + ".AkkaHttpClientHelpers$HasSpanHeader",
-      packageName + ".AkkaHttpClientDecorator",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // This is mainly for compatibility with 10.0
-    transformer.applyAdvices(
-        named("singleRequest").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
-        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
-        AkkaHttpSingleRequestInstrumentation.class.getName()
-            + "$SingleRequestContextPropagationAdvice");
-    // This is for 10.1+
-    transformer.applyAdvices(
-        named("singleRequestImpl")
-            .and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
-        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
-        AkkaHttpSingleRequestInstrumentation.class.getName()
-            + "$SingleRequestContextPropagationAdvice");
-  }
-
-  public static class SingleRequestAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
-      /*
-      Versions 10.0 and 10.1 have slightly different structure that is hard to distinguish so here
-      we cast 'wider net' and avoid instrumenting twice.
-      In the future we may want to separate these, but since lots of code is reused we would need to come up
-      with way of continuing to reusing it.
-       */
-      final AkkaHttpHeaders headers = new AkkaHttpHeaders(request);
-      if (headers.hadSpan()) {
-        return null;
-      }
-
-      final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      return activateSpan(span);
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public AkkaHttpSingleRequestInstrumentation() {
+        super("akka-http", "akka-http-client");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.This final HttpExt thiz,
-        @Advice.Return final Future<HttpResponse> responseFuture,
-        @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-
-      final AgentSpan span = spanFromScope(scope);
-
-      if (throwable == null) {
-        responseFuture.onComplete(new OnCompleteHandler(span), thiz.system().dispatcher());
-        scope.close();
-      } else {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      }
+    @Override
+    public String instrumentedType() {
+        return "akka.http.scaladsl.HttpExt";
     }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class SingleRequestContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
-      if (request == null) {
-        return;
-      }
-      final AkkaHttpHeaders headers = new AkkaHttpHeaders(request);
-      DECORATE.injectContext(currentContext(), request, headers);
-      request = headers.getRequest();
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".AkkaHttpClientHelpers",
+            packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
+            packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
+            packageName + ".AkkaHttpClientHelpers$HasSpanHeader",
+            packageName + ".AkkaHttpClientDecorator",
+        };
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // This is mainly for compatibility with 10.0
+        transformer.applyAdvices(
+                named("singleRequest").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
+                AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
+                AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestContextPropagationAdvice");
+        // This is for 10.1+
+        transformer.applyAdvices(
+                named("singleRequestImpl").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
+                AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
+                AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestContextPropagationAdvice");
+    }
+
+    public static class SingleRequestAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
+            /*
+            Versions 10.0 and 10.1 have slightly different structure that is hard to distinguish so here
+            we cast 'wider net' and avoid instrumenting twice.
+            In the future we may want to separate these, but since lots of code is reused we would need to come up
+            with way of continuing to reusing it.
+             */
+            final AkkaHttpHeaders headers = new AkkaHttpHeaders(request);
+            if (headers.hadSpan()) {
+                return null;
+            }
+
+            final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, request);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.This final HttpExt thiz,
+                @Advice.Return final Future<HttpResponse> responseFuture,
+                @Advice.Enter final ContextScope scope,
+                @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+
+            final AgentSpan span = spanFromScope(scope);
+
+            if (throwable == null) {
+                responseFuture.onComplete(
+                        new OnCompleteHandler(span), thiz.system().dispatcher());
+                scope.close();
+            } else {
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            }
+        }
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class SingleRequestContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter(@Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+            if (request == null) {
+                return;
+            }
+            final AkkaHttpHeaders headers = new AkkaHttpHeaders(request);
+            DECORATE.injectContext(currentContext(), request, headers);
+            request = headers.getRequest();
+        }
+    }
 }

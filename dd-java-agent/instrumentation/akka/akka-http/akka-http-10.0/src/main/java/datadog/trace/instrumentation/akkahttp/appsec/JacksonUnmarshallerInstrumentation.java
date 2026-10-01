@@ -16,39 +16,39 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JacksonUnmarshallerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JacksonUnmarshallerInstrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.http.javadsl.marshallers.jackson.Jackson";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
-            .and(returns(named("akka.http.javadsl.unmarshalling.Unmarshaller")))
-            .and(named("byteStringUnmarshaller").or(named("unmarshaller")))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("com.fasterxml.jackson.databind.ObjectMapper")))
-            .and(takesArgument(1, Class.class)),
-        JacksonUnmarshallerInstrumentation.class.getName() + "$UnmarshallerAdvice");
-  }
-
-  static class UnmarshallerAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return(readOnly = false) Unmarshaller ret) {
-      ret = UnmarshallerHelpers.transformJacksonUnmarshaller(ret);
+    public JacksonUnmarshallerInstrumentation() {
+        super("akka-http");
     }
-  }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "akka.http.javadsl.marshallers.jackson.Jackson";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isStatic())
+                        .and(returns(named("akka.http.javadsl.unmarshalling.Unmarshaller")))
+                        .and(named("byteStringUnmarshaller").or(named("unmarshaller")))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("com.fasterxml.jackson.databind.ObjectMapper")))
+                        .and(takesArgument(1, Class.class)),
+                JacksonUnmarshallerInstrumentation.class.getName() + "$UnmarshallerAdvice");
+    }
+
+    static class UnmarshallerAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return(readOnly = false) Unmarshaller ret) {
+            ret = UnmarshallerHelpers.transformJacksonUnmarshaller(ret);
+        }
+    }
 }

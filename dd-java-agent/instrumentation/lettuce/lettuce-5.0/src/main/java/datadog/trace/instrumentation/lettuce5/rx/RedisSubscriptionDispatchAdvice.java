@@ -10,18 +10,18 @@ import net.bytebuddy.asm.Advice;
 
 public class RedisSubscriptionDispatchAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope beforeDispatch(
-      @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
-    AgentSpan span =
-        InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(subscriptionCommand);
-    return span != null ? activateSpan(span) : null;
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterDispatch(@Advice.Enter ContextScope scope) {
-    if (scope != null) {
-      scope.close();
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope beforeDispatch(
+            @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
+        AgentSpan span =
+                InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(subscriptionCommand);
+        return span != null ? activateSpan(span) : null;
     }
-  }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterDispatch(@Advice.Enter ContextScope scope) {
+        if (scope != null) {
+            scope.close();
+        }
+    }
 }

@@ -4,119 +4,119 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Metric {
-  private String namespace;
-  private Boolean common;
-  private String metric;
-  private List<List<Number>> points = new ArrayList<>();
-  private List<String> tags = new ArrayList<>();
+    private String namespace;
+    private Boolean common;
+    private String metric;
+    private List<List<Number>> points = new ArrayList<>();
+    private List<String> tags = new ArrayList<>();
 
-  public enum TypeEnum {
-    GAUGE("gauge"),
+    public enum TypeEnum {
+        GAUGE("gauge"),
 
-    @com.squareup.moshi.Json(name = "rate")
-    RATE("rate"),
+        @com.squareup.moshi.Json(name = "rate")
+        RATE("rate"),
 
-    @com.squareup.moshi.Json(name = "count")
-    COUNT("count");
+        @com.squareup.moshi.Json(name = "count")
+        COUNT("count");
 
-    final String value;
+        final String value;
 
-    TypeEnum(String v) {
-      value = v;
+        TypeEnum(String v) {
+            value = v;
+        }
+
+        public String value() {
+            return value;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
     }
 
-    public String value() {
-      return value;
+    private TypeEnum type;
+
+    public Boolean getCommon() {
+        return common;
     }
 
-    @Override
-    public String toString() {
-      return value;
+    public void setCommon(boolean common) {
+        common(common);
     }
-  }
 
-  private TypeEnum type;
+    public Metric common(Boolean common) {
+        this.common = common;
+        return this;
+    }
 
-  public Boolean getCommon() {
-    return common;
-  }
+    public String getMetric() {
+        return metric;
+    }
 
-  public void setCommon(boolean common) {
-    common(common);
-  }
+    public void setMetric(String metric) {
+        this.metric = metric;
+    }
 
-  public Metric common(Boolean common) {
-    this.common = common;
-    return this;
-  }
+    public Metric metric(String metric) {
+        this.metric = metric;
+        return this;
+    }
 
-  public String getMetric() {
-    return metric;
-  }
+    public List<List<Number>> getPoints() {
+        return points;
+    }
 
-  public void setMetric(String metric) {
-    this.metric = metric;
-  }
+    public void setPoints(List<List<Number>> points) {
+        this.points = points;
+    }
 
-  public Metric metric(String metric) {
-    this.metric = metric;
-    return this;
-  }
+    public Metric points(List<List<Number>> points) {
+        this.points = points;
+        return this;
+    }
 
-  public List<List<Number>> getPoints() {
-    return points;
-  }
+    public Metric addPointsItem(List<Number> pointsItem) {
+        this.points.add(pointsItem);
+        return this;
+    }
 
-  public void setPoints(List<List<Number>> points) {
-    this.points = points;
-  }
+    public List<String> getTags() {
+        return tags;
+    }
 
-  public Metric points(List<List<Number>> points) {
-    this.points = points;
-    return this;
-  }
+    public void setTags(List<String> tags) {
+        tags(tags);
+    }
 
-  public Metric addPointsItem(List<Number> pointsItem) {
-    this.points.add(pointsItem);
-    return this;
-  }
+    public Metric tags(List<String> tags) {
+        this.tags = tags;
+        return this;
+    }
 
-  public List<String> getTags() {
-    return tags;
-  }
+    public TypeEnum getType() {
+        return type;
+    }
 
-  public void setTags(List<String> tags) {
-    tags(tags);
-  }
+    public void setType(TypeEnum type) {
+        type(type);
+    }
 
-  public Metric tags(List<String> tags) {
-    this.tags = tags;
-    return this;
-  }
+    public Metric type(TypeEnum type) {
+        this.type = type;
+        return this;
+    }
 
-  public TypeEnum getType() {
-    return type;
-  }
+    public Metric namespace(final String namespace) {
+        setNamespace(namespace);
+        return this;
+    }
 
-  public void setType(TypeEnum type) {
-    type(type);
-  }
+    public void setNamespace(final String namespace) {
+        this.namespace = namespace;
+    }
 
-  public Metric type(TypeEnum type) {
-    this.type = type;
-    return this;
-  }
-
-  public Metric namespace(final String namespace) {
-    setNamespace(namespace);
-    return this;
-  }
-
-  public void setNamespace(final String namespace) {
-    this.namespace = namespace;
-  }
-
-  public String getNamespace() {
-    return namespace;
-  }
+    public String getNamespace() {
+        return namespace;
+    }
 }

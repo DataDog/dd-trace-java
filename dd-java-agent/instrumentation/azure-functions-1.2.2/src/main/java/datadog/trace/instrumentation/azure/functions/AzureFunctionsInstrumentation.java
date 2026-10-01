@@ -28,78 +28,76 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public AzureFunctionsInstrumentation() {
-    super("azure-functions");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    /*
-    Due to the class-loading in the Azure Function environment we cannot assume that
-    "com.microsoft.azure.functions.annotation.FunctionName" will be visible (as in defined as a
-    resource) for any types using that annotation
-    */
-    return null;
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(
-        isAnnotatedWith(named("com.microsoft.azure.functions.annotation.FunctionName")));
-  }
-
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(isPublic())
-            .and(takesArgument(0, named("com.microsoft.azure.functions.HttpRequestMessage")))
-            .and(takesArgument(1, named("com.microsoft.azure.functions.ExecutionContext"))),
-        AzureFunctionsInstrumentation.class.getName() + "$ContextTrackingAdvice",
-        AzureFunctionsInstrumentation.class.getName() + "$AzureFunctionsAdvice");
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(@Advice.Argument(0) final HttpRequestMessage<?> request) {
-      Context parentContext = DECORATE.extract(request);
-      return parentContext.attach();
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public AzureFunctionsInstrumentation() {
+        super("azure-functions");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      scope.close();
-    }
-  }
-
-  public static class AzureFunctionsAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(
-        @Advice.Argument(0) final HttpRequestMessage<?> request,
-        @Advice.Argument(1) final ExecutionContext executionContext) {
-      final Context parentContext =
-          currentContext(); // parent context attached by ContextTrackingAdvice
-      final Context context = DECORATE.startSpan(request, parentContext);
-      final AgentSpan span = fromContext(context);
-      DECORATE.afterStart(span, executionContext.getFunctionName());
-      DECORATE.onRequest(span, request, request, parentContext);
-      HTTP_RESOURCE_DECORATOR.withRoute(
-          span, request.getHttpMethod().name(), request.getUri().getPath());
-      return context.attach();
+    @Override
+    public String hierarchyMarkerType() {
+        /*
+        Due to the class-loading in the Azure Function environment we cannot assume that
+        "com.microsoft.azure.functions.annotation.FunctionName" will be visible (as in defined as a
+        resource) for any types using that annotation
+        */
+        return null;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Return final HttpResponseMessage response,
-        @Advice.Thrown final Throwable throwable) {
-      final AgentSpan span = fromContext(scope.context());
-      DECORATE.onError(span, throwable);
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(scope.context());
-      scope.close();
-      span.finish();
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return declaresMethod(isAnnotatedWith(named("com.microsoft.azure.functions.annotation.FunctionName")));
     }
-  }
+
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(isPublic())
+                        .and(takesArgument(0, named("com.microsoft.azure.functions.HttpRequestMessage")))
+                        .and(takesArgument(1, named("com.microsoft.azure.functions.ExecutionContext"))),
+                AzureFunctionsInstrumentation.class.getName() + "$ContextTrackingAdvice",
+                AzureFunctionsInstrumentation.class.getName() + "$AzureFunctionsAdvice");
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(@Advice.Argument(0) final HttpRequestMessage<?> request) {
+            Context parentContext = DECORATE.extract(request);
+            return parentContext.attach();
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Enter final ContextScope scope) {
+            scope.close();
+        }
+    }
+
+    public static class AzureFunctionsAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(
+                @Advice.Argument(0) final HttpRequestMessage<?> request,
+                @Advice.Argument(1) final ExecutionContext executionContext) {
+            final Context parentContext = currentContext(); // parent context attached by ContextTrackingAdvice
+            final Context context = DECORATE.startSpan(request, parentContext);
+            final AgentSpan span = fromContext(context);
+            DECORATE.afterStart(span, executionContext.getFunctionName());
+            DECORATE.onRequest(span, request, request, parentContext);
+            HTTP_RESOURCE_DECORATOR.withRoute(
+                    span, request.getHttpMethod().name(), request.getUri().getPath());
+            return context.attach();
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Return final HttpResponseMessage response,
+                @Advice.Thrown final Throwable throwable) {
+            final AgentSpan span = fromContext(scope.context());
+            DECORATE.onError(span, throwable);
+            DECORATE.onResponse(span, response);
+            DECORATE.beforeFinish(scope.context());
+            scope.close();
+            span.finish();
+        }
+    }
 }

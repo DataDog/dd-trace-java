@@ -7,42 +7,42 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public abstract class ClientDecorator extends BaseDecorator {
-  // Deliberately not volatile, reading a stale null and creating an extra Entry is safe
-  private TagMap.Entry cachedSpanKindEntry = null;
+    // Deliberately not volatile, reading a stale null and creating an extra Entry is safe
+    private TagMap.Entry cachedSpanKindEntry = null;
 
-  protected abstract String service();
+    protected abstract String service();
 
-  /** Caches span kind entry to reduce allocation */
-  private final TagMap.Entry spanKindEntry() {
-    // DQH - I considered moving the creation of the TagMap.Entry into a ClientDecorator
-    // constructor, but that introduces a subtle ordering requirement.
+    /** Caches span kind entry to reduce allocation */
+    private final TagMap.Entry spanKindEntry() {
+        // DQH - I considered moving the creation of the TagMap.Entry into a ClientDecorator
+        // constructor, but that introduces a subtle ordering requirement.
 
-    // If the spanKind method refers to a static that isn't yet initialized,
-    // then spanKind will return null when the Decorator singleton is being constructed.
+        // If the spanKind method refers to a static that isn't yet initialized,
+        // then spanKind will return null when the Decorator singleton is being constructed.
 
-    // Such an ordering problem did occur with similar changes in BaseDecorator, so I've
-    // decided to be cautious here, too.
-    TagMap.Entry kindEntry = cachedSpanKindEntry;
-    if (kindEntry == null) {
-      cachedSpanKindEntry = kindEntry = TagMap.Entry.create(Tags.SPAN_KIND, spanKind());
+        // Such an ordering problem did occur with similar changes in BaseDecorator, so I've
+        // decided to be cautious here, too.
+        TagMap.Entry kindEntry = cachedSpanKindEntry;
+        if (kindEntry == null) {
+            cachedSpanKindEntry = kindEntry = TagMap.Entry.create(Tags.SPAN_KIND, spanKind());
+        }
+        return kindEntry;
     }
-    return kindEntry;
-  }
 
-  protected String spanKind() {
-    return Tags.SPAN_KIND_CLIENT;
-  }
-
-  @Override
-  protected void doAfterStart(final AgentSpan span) {
-    final String service = service();
-    if (service != null) {
-      span.setServiceName(service, component());
+    protected String spanKind() {
+        return Tags.SPAN_KIND_CLIENT;
     }
-    span.setTag(spanKindEntry());
 
-    // Generate metrics for all client spans.
-    span.setMeasured(true);
-    super.doAfterStart(span);
-  }
+    @Override
+    protected void doAfterStart(final AgentSpan span) {
+        final String service = service();
+        if (service != null) {
+            span.setServiceName(service, component());
+        }
+        span.setTag(spanKindEntry());
+
+        // Generate metrics for all client spans.
+        span.setMeasured(true);
+        super.doAfterStart(span);
+    }
 }

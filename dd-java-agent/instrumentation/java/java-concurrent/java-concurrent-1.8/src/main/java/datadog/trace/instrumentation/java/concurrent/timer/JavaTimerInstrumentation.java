@@ -18,45 +18,43 @@ import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 
 public class JavaTimerInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  @Override
-  public String instrumentedType() {
-    return "java.util.Timer";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPrivate())
-            .and(
-                named("sched")
-                    .and(takesArguments(3))
-                    .and(takesArgument(0, named("java.util.TimerTask")))
-                    .and(takesArgument(1, long.class))
-                    .and(takesArgument(2, long.class))),
-        getClass().getName() + "$TimerScheduleAdvice");
-  }
-
-  public static final class TimerScheduleAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before(@Advice.Argument(0) TimerTask task, @Advice.Argument(2) long period) {
-      // don't propagate fixed time / rate executions
-      if (period != 0) {
-        return;
-      }
-      if (!exclude(RUNNABLE, task)) {
-        ContextStore<Runnable, State> contextStore =
-            InstrumentationContext.get(Runnable.class, State.class);
-        capture(contextStore, task);
-      }
+        implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    @Override
+    public String instrumentedType() {
+        return "java.util.Timer";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Argument(0) TimerTask task, @Advice.Thrown Throwable thrown) {
-      if (null != thrown && !exclude(RUNNABLE, task)) {
-        cancelTask(InstrumentationContext.get(Runnable.class, State.class), task);
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPrivate())
+                        .and(named("sched")
+                                .and(takesArguments(3))
+                                .and(takesArgument(0, named("java.util.TimerTask")))
+                                .and(takesArgument(1, long.class))
+                                .and(takesArgument(2, long.class))),
+                getClass().getName() + "$TimerScheduleAdvice");
     }
-  }
+
+    public static final class TimerScheduleAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void before(@Advice.Argument(0) TimerTask task, @Advice.Argument(2) long period) {
+            // don't propagate fixed time / rate executions
+            if (period != 0) {
+                return;
+            }
+            if (!exclude(RUNNABLE, task)) {
+                ContextStore<Runnable, State> contextStore = InstrumentationContext.get(Runnable.class, State.class);
+                capture(contextStore, task);
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Argument(0) TimerTask task, @Advice.Thrown Throwable thrown) {
+            if (null != thrown && !exclude(RUNNABLE, task)) {
+                cancelTask(InstrumentationContext.get(Runnable.class, State.class), task);
+            }
+        }
+    }
 }

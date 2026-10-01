@@ -22,31 +22,29 @@ import net.bytebuddy.matcher.ElementMatcher;
  * RunnableInstrumentation}
  */
 public final class TimerTaskInstrumentation
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("java.util.TimerTask"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("cancel").and(takesArguments(0)).and(isPublic()),
-        TimerTaskInstrumentation.class.getName() + "$CancelAdvice");
-  }
-
-  public static class CancelAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onCancel(@Advice.This TimerTask self) {
-      AdviceUtils.cancelTask(InstrumentationContext.get(Runnable.class, State.class), self);
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("java.util.TimerTask"));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("cancel").and(takesArguments(0)).and(isPublic()),
+                TimerTaskInstrumentation.class.getName() + "$CancelAdvice");
+    }
+
+    public static class CancelAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onCancel(@Advice.This TimerTask self) {
+            AdviceUtils.cancelTask(InstrumentationContext.get(Runnable.class, State.class), self);
+        }
+    }
 }

@@ -19,31 +19,30 @@ import org.eclipse.jetty.server.handler.ContextHandler;
  * when it is actually set.
  */
 public class SetContextPathAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void updateContextPath(
-      @Advice.This final Request req,
-      @Advice.Argument(0) final ContextHandler.Context context,
-      @Advice.Argument(1) final String pathInContext) {
-    Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    // Don't want to update while being dispatched to new servlet
-    if (!(contextObj instanceof Context) || req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) != null) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void updateContextPath(
+            @Advice.This final Request req,
+            @Advice.Argument(0) final ContextHandler.Context context,
+            @Advice.Argument(1) final String pathInContext) {
+        Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+        // Don't want to update while being dispatched to new servlet
+        if (!(contextObj instanceof Context) || req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) != null) {
+            return;
+        }
+        Context ctx = (Context) contextObj;
+        AgentSpan span = spanFromContext(ctx);
+        if (span == null || context == null || context.getContextPath() == null) {
+            return;
+        }
+        final String servletContext = context.getContextPath();
+        span.setTag(SERVLET_CONTEXT, servletContext);
+        req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, servletContext);
+        if (pathInContext != null) {
+            final String relativePath = pathInContext.startsWith(servletContext)
+                    ? pathInContext.substring(servletContext.length())
+                    : pathInContext;
+            span.setTag(SERVLET_PATH, relativePath);
+            req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, relativePath);
+        }
     }
-    Context ctx = (Context) contextObj;
-    AgentSpan span = spanFromContext(ctx);
-    if (span == null || context == null || context.getContextPath() == null) {
-      return;
-    }
-    final String servletContext = context.getContextPath();
-    span.setTag(SERVLET_CONTEXT, servletContext);
-    req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, servletContext);
-    if (pathInContext != null) {
-      final String relativePath =
-          pathInContext.startsWith(servletContext)
-              ? pathInContext.substring(servletContext.length())
-              : pathInContext;
-      span.setTag(SERVLET_PATH, relativePath);
-      req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, relativePath);
-    }
-  }
 }

@@ -16,40 +16,38 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class KarateInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public KarateInstrumentation() {
-    super("ci-visibility", "karate");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.intuit.karate.Runner$Builder";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.intuit.karate.core.FeatureRuntime", "java.lang.Boolean");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(), KarateInstrumentation.class.getName() + "$KarateAdvice");
-  }
-
-  public static class KarateAdvice {
-    @Advice.OnMethodExit
-    public static void onRunnerBuilderConstructorExit(
-        @Advice.This Runner.Builder<?> runnerBuilder) {
-      ContextStore<FeatureRuntime, Boolean> featureRuntimeContextStore =
-          InstrumentationContext.get(FeatureRuntime.class, Boolean.class);
-      runnerBuilder.hook(new KarateTracingHook(featureRuntimeContextStore));
+    public KarateInstrumentation() {
+        super("ci-visibility", "karate");
     }
 
-    // Karate 1.0.0 and above
-    public static void muzzleCheck(RuntimeHook runtimeHook) {
-      runtimeHook.beforeSuite(null);
+    @Override
+    public String instrumentedType() {
+        return "com.intuit.karate.Runner$Builder";
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.intuit.karate.core.FeatureRuntime", "java.lang.Boolean");
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), KarateInstrumentation.class.getName() + "$KarateAdvice");
+    }
+
+    public static class KarateAdvice {
+        @Advice.OnMethodExit
+        public static void onRunnerBuilderConstructorExit(@Advice.This Runner.Builder<?> runnerBuilder) {
+            ContextStore<FeatureRuntime, Boolean> featureRuntimeContextStore =
+                    InstrumentationContext.get(FeatureRuntime.class, Boolean.class);
+            runnerBuilder.hook(new KarateTracingHook(featureRuntimeContextStore));
+        }
+
+        // Karate 1.0.0 and above
+        public static void muzzleCheck(RuntimeHook runtimeHook) {
+            runtimeHook.beforeSuite(null);
+        }
+    }
 }

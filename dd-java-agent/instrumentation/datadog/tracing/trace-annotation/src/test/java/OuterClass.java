@@ -6,7 +6,7 @@ import java.lang.annotation.Target;
 
 public class OuterClass {
 
-  @Retention(RUNTIME)
-  @Target(METHOD)
-  public @interface InterestingMethod {}
+    @Retention(RUNTIME)
+    @Target(METHOD)
+    public @interface InterestingMethod {}
 }
