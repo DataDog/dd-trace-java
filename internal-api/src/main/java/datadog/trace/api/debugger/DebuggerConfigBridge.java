@@ -36,7 +36,8 @@ public final class DebuggerConfigBridge {
           new DebuggerConfigUpdate(
               config.isDynamicInstrumentationEnabled(),
               config.isDebuggerExceptionEnabled(),
-              config.isDebuggerCodeOriginEnabled(),
+              // if DI is enabled it enables also CodeOrigin, so we check both for initial state
+              config.isDebuggerCodeOriginEnabled() || config.isDynamicInstrumentationEnabled(),
               config.isDistributedDebuggerEnabled()));
     }
   }
