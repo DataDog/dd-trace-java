@@ -5,8 +5,10 @@ import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
 import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.appsec.HttpClientResponse
 import datadog.trace.api.config.TracerConfig
@@ -16,6 +18,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -990,7 +993,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   boolean ignorePeer = false,
   Map<String, Serializable> extraTags = null) {
 
-    def expectedQuery = tagQueryString ? uri.query : null
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
+    def expectedQuery = otelSemantics || tagQueryString ? uri.query : null
     def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
     if (expectedQuery != null && !expectedQuery.empty) {
       expectedUrl = "$expectedUrl?$expectedQuery"
@@ -1005,28 +1009,40 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         serviceName uri.host
       }
       operationName operation()
-      resourceName "$method $uri.path"
+      resourceName otelSemantics ? OtelHttpSemantics.spanNameMethod(method) : "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
-      errored error
+      errored otelSemantics && status != null && status >= 400 ? true : error
       measured true
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" {
-          it == uri.host || ignorePeer
-        }
-        "$Tags.PEER_HOST_IPV4" {
-          it == null || it == "127.0.0.1" || ignorePeer
-        } // Optional
-        "$Tags.PEER_PORT" {
-          it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer
+        if (otelSemantics) {
+          "$Tags.PEER_HOSTNAME" null
+          "$Tags.PEER_HOST_IPV4" null
+          "$Tags.PEER_PORT" null
+          "$KnownTags.SERVER_ADDRESS_NAME" uri.host
+          "$KnownTags.SERVER_PORT_NAME" OtelHttpSemantics.serverPort(uri)
+        } else {
+          "$Tags.PEER_HOSTNAME" {
+            it == uri.host || ignorePeer
+          }
+          "$Tags.PEER_HOST_IPV4" {
+            it == null || it == "127.0.0.1" || ignorePeer
+          } // Optional
+          "$Tags.PEER_PORT" {
+            it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer
+          }
         }
         "$Tags.HTTP_URL" expectedUrl
         "$Tags.HTTP_METHOD" method
         if (status) {
           "$Tags.HTTP_STATUS" status
         }
-        if (tagQueryString) {
+        if (otelSemantics) {
+          "$DDTags.HTTP_QUERY" null
+          "$KnownTags.URL_QUERY_NAME" null
+          "$DDTags.HTTP_FRAGMENT" null
+        } else if (tagQueryString) {
           "$DDTags.HTTP_QUERY" expectedQuery
           "$DDTags.HTTP_FRAGMENT" {
             it == null || it == uri.fragment
@@ -1041,9 +1057,15 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         }
         if (exception) {
           this.assertErrorTags(it, exception)
+        } else if (otelSemantics && status != null && status >= 400) {
+          "$DDTags.ERROR_TYPE" status.toString()
         }
-        peerServiceFrom(Tags.PEER_HOSTNAME)
-        defaultTags()
+        if (otelSemantics) {
+          defaultTagsNoPeerService()
+        } else {
+          peerServiceFrom(Tags.PEER_HOSTNAME)
+          defaultTags()
+        }
         if (extraTags) {
           it.addTags(extraTags)
         }

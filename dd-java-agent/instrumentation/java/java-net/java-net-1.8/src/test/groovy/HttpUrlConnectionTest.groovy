@@ -380,3 +380,12 @@ class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest implements Tes
 
 class HttpUrlConnectionV1ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }
+
+class HttpUrlConnectionOtelSemanticsForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.otel.semantics.enabled", "true")
+  }
+}
