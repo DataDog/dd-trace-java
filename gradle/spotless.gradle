@@ -46,10 +46,22 @@ spotless {
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
       target 'src/**/*.java'
       // ignore embedded test projects and everything in build dir, e.g. generated sources
-      targetExclude('src/test/resources/**', buildDirectory)
+      // Prince of Space 2.2.0 does not preserve this toggle fence and conflicts with TableTest formatting.
+      targetExclude(
+        'src/test/resources/**',
+        '**/CiVisibilityCountMetric.java',
+        '**/ClientIpAddressResolver.java',
+        '**/RumInjectorConfigTest.java',
+        '**/TagInterceptorTest.java',
+        '**/TraceStructureWriterTest.java',
+        buildDirectory)
       removeUnusedImports()
       forbidWildcardImports()
-      googleJavaFormat(libs.versions.google.java.format.get())
+      princeOfSpace(libs.versions.prince.of.space.get())
+        .indentSize(2)
+        .lineLength(100)
+        .javaLanguageLevel(25)
+      trimTrailingWhitespace()
       tableTestFormatter(libs.versions.tabletest.formatter.get())
     }
   }
