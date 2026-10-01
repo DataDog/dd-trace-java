@@ -43,8 +43,9 @@
 # direction.
 # A tag whose MEANING flips with direction, like peer.port (the server's port on an outbound span, the
 # client's on an inbound one), is declared once per direction, each in a directional mixin. Each
-# declaration is its own tag, `<dd-name>@<direction>`, with fixed names in both namespaces; the
-# Datadog name is shared. Any other repeated declaration is still an error.
+# declaration becomes its own tag, with fixed names in both namespaces; the Datadog name is shared.
+# (The generator labels these tags `<dd-name>@<direction>` in its reports; that label is not YAML
+# syntax.) Any other repeated declaration is still an error.
 # Until name resolution knows a span's direction, only renames that apply in every direction are used.
 # `span-kind-neutral: true` widens a directional rename to every direction -- the author's assertion
 # that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
@@ -113,7 +114,9 @@ span_types:
       - { dd-name: servlet.path,      type: string, required: optional }
       - { dd-name: servlet.context,   type: string, required: optional }
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
-      - { dd-name: network.client.ip, type: string, required: recommended, otel-name: network.peer.address }  # inbound only: the client's socket address
+      # Inbound only: the client's socket address. Server spans also carry that address in peer.ipv4 /
+      # peer.ipv6, so do not map those inbound too, or the attribute is exported twice.
+      - { dd-name: network.client.ip, type: string, required: recommended, otel-name: network.peer.address }
 
   http.client:
     extends: http
@@ -151,11 +154,14 @@ mixins:
   # peer_address — the other end's IP address, on both client and server spans.
   peer_address:
     tags:
-      - { dd-name: peer.ipv4, type: string }  # TODO(otel): network.peer.address, but split by address family
-      - { dd-name: peer.ipv6, type: string }  # TODO(otel): network.peer.address, but split by address family
+      # TODO(otel): both are network.peer.address, split by address family -- input needs the value to
+      # pick one, which the registry cannot model. Planned: a `resolved-by: <layer>` marker that names
+      # the layer responsible (e.g. otel-api) and allows the mutually exclusive shared output name.
+      - { dd-name: peer.ipv4, type: string }
+      - { dd-name: peer.ipv6, type: string }
 
   # outbound_peer / inbound_peer declare peer.port once per direction. `peer.port` is then a SHARED
-  # Datadog name for two tags, peer.port@outbound and peer.port@inbound: emitting it needs no context,
+  # Datadog name for two tags (reported as peer.port@outbound and peer.port@inbound): emitting it needs no context,
   # but resolving the bare name needs the span's direction.
 
   # outbound_peer — the other end of an outbound connection: the server.
