@@ -52,6 +52,7 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
       packageName + ".TracerArgumentsProvider",
       packageName + ".AndroidGradleUtils",
       packageName + ".CiVisibilityGradleListener",
+      packageName + ".CiVisibilityGradleListener$EmptyTestTaskListener",
       packageName + ".CiVisibilityPluginExtension",
       packageName + ".CiVisibilityPlugin"
     };

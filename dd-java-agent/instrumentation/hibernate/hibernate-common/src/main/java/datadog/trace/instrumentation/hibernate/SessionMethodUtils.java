@@ -2,11 +2,12 @@ package datadog.trace.instrumentation.hibernate;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -39,7 +40,7 @@ public class SessionMethodUtils {
       return null; // This method call is being traced already.
     }
 
-    final AgentScope scope;
+    final ContextScope scope;
     if (createSpan) {
       final AgentSpan span =
           startSpan("java-hibernate", operationName, sessionState.getSessionSpan().spanContext());
@@ -62,7 +63,7 @@ public class SessionMethodUtils {
       final Object entity,
       final boolean closeSpan) {
 
-    final AgentScope scope = sessionState == null ? null : sessionState.getMethodScope();
+    final ContextScope scope = sessionState == null ? null : sessionState.getMethodScope();
     if (scope == null) {
       // This method call was re-entrant. Do nothing, since it is being traced by the parent/first
       // call.
@@ -71,7 +72,7 @@ public class SessionMethodUtils {
 
     CallDepthThreadLocalMap.reset(SessionMethodUtils.class);
     sessionState.setMethodScope(null);
-    final AgentSpan span = scope.span();
+    final AgentSpan span = spanFromScope(scope);
     if (span != null && (sessionState.hasChildSpan() || closeSpan)) {
       DECORATOR.onError(span, throwable);
       if (entity != null) {

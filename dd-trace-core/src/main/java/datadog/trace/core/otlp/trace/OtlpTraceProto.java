@@ -49,6 +49,7 @@ import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
@@ -101,6 +102,7 @@ public final class OtlpTraceProto {
       int nestedSpanLinkBytes,
       OtlpProtoBuffer protobuf) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
+    SamplingState samplingState = propagationTags.samplingState();
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, span.getTraceId());
@@ -108,7 +110,7 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, span.getSpanId());
 
-    String tracestate = propagationTags.getW3CTracestate();
+    String tracestate = propagationTags.getW3CTracestate(samplingState);
     if (tracestate != null) {
       writeTag(buf, 3, LEN_WIRE_TYPE);
       writeString(buf, tracestate);
@@ -120,7 +122,7 @@ public final class OtlpTraceProto {
     }
 
     int traceFlags = NO_TRACE_FLAGS;
-    if (span.samplingPriority() > 0) {
+    if (samplingState.getSamplingPriority() > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
     if (span.spanContext().isRemote()) {

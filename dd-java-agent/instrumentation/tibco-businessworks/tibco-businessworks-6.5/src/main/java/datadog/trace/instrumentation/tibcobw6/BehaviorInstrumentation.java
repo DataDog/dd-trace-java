@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -16,11 +17,11 @@ import com.tibco.pvm.api.PmWorkUnit;
 import com.tibco.pvm.api.behavior.PmBehavior;
 import com.tibco.pvm.api.event.PmEvent;
 import com.tibco.pvm.api.session.PmContext;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -69,7 +70,7 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
 
   public static class ActivityEvalAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope activityBegin(
+    public static ContextScope activityBegin(
         @Advice.This final Object self,
         @Advice.Argument(0) final PmContext pmContext,
         @Advice.Argument(1) final PmTask pmTask) {
@@ -101,14 +102,14 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void activityEnd(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.This final PmBehavior self,
         @Advice.Argument(0) final PmContext pmContext,
         @Advice.Argument(1) final PmTask pmTask) {
       if (scope == null) {
         return;
       }
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       boolean finished = false;
       try {
         finished = self.isFinished(pmContext, pmTask);

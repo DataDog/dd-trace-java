@@ -8,7 +8,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.instrumentation.opentracing31.TypeConverter
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
@@ -41,8 +41,8 @@ class TypeConverterTest extends InstrumentationSpecification {
   }
 
   def "should reuse the noop span wrapper via scope"() {
-    def noopScope = Stub(AgentScope) {
-      span() >> noopSpan()
+    def noopScope = Stub(ContextScope) {
+      context() >> noopSpan()
     }
     def noopSpanWrapper = typeConverter.toSpan(noopSpan())
     expect:

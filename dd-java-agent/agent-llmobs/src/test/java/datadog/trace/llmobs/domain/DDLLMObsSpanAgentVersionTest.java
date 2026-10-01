@@ -4,10 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -67,7 +67,7 @@ class DDLLMObsSpanAgentVersionTest {
   @Test
   void childSpanInheritsAgentVersionFromParentContext() {
     DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent1", "v3");
-    try (AgentScope ignored = AgentTracer.activateSpan(spanOf(agent))) {
+    try (ContextScope ignored = AgentTracer.activateSpan(spanOf(agent))) {
       DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", null);
       try {
         assertEquals("v3", spanOf(child).getTag(AGENT_VERSION_TAG));
@@ -82,9 +82,9 @@ class DDLLMObsSpanAgentVersionTest {
   @Test
   void grandchildTransitivelyInheritsAgentVersionThroughIntermediateSpan() {
     DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent1", "v3");
-    try (AgentScope agentScope = AgentTracer.activateSpan(spanOf(agent))) {
+    try (ContextScope agentScope = AgentTracer.activateSpan(spanOf(agent))) {
       DDLLMObsSpan workflow = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "workflow1", null);
-      try (AgentScope workflowScope = AgentTracer.activateSpan(spanOf(workflow))) {
+      try (ContextScope workflowScope = AgentTracer.activateSpan(spanOf(workflow))) {
         DDLLMObsSpan grandchild = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "llm1", null);
         try {
           assertEquals("v3", spanOf(grandchild).getTag(AGENT_VERSION_TAG));
@@ -102,9 +102,9 @@ class DDLLMObsSpanAgentVersionTest {
   @Test
   void nestedAgentWithOwnVersionOverridesForItsOwnSubtree() {
     DDLLMObsSpan outerAgent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent", "v1");
-    try (AgentScope outerScope = AgentTracer.activateSpan(spanOf(outerAgent))) {
+    try (ContextScope outerScope = AgentTracer.activateSpan(spanOf(outerAgent))) {
       DDLLMObsSpan innerAgent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner-agent", "v2");
-      try (AgentScope innerScope = AgentTracer.activateSpan(spanOf(innerAgent))) {
+      try (ContextScope innerScope = AgentTracer.activateSpan(spanOf(innerAgent))) {
         assertEquals("v2", spanOf(innerAgent).getTag(AGENT_VERSION_TAG));
 
         DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "inner-tool", null);
@@ -127,7 +127,7 @@ class DDLLMObsSpanAgentVersionTest {
   @Test
   void noVersionSetAnywhereMeansNoTagOnAnySpanInTheSubtree() {
     DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent1", null);
-    try (AgentScope agentScope = AgentTracer.activateSpan(spanOf(agent))) {
+    try (ContextScope agentScope = AgentTracer.activateSpan(spanOf(agent))) {
       DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", null);
       try {
         assertNull(spanOf(agent).getTag(AGENT_VERSION_TAG));
@@ -150,13 +150,13 @@ class DDLLMObsSpanAgentVersionTest {
     DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "stale-agent", "stale-v1");
     // Close the standalone APM scope to simulate async boundary — LLMObs context leaks but
     // APM scope does not.
-    AgentScope apmScope = (AgentScope) STANDALONE_APM_SCOPE_FIELD.get(agent);
+    ContextScope apmScope = (ContextScope) STANDALONE_APM_SCOPE_FIELD.get(agent);
     if (apmScope != null) {
       apmScope.close();
     }
     try {
       DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", null);
-      try (AgentScope childScope = AgentTracer.activateSpan(spanOf(child))) {
+      try (ContextScope childScope = AgentTracer.activateSpan(spanOf(child))) {
         assertNotEquals(
             spanOf(agent).getTraceId(),
             spanOf(child).getTraceId(),

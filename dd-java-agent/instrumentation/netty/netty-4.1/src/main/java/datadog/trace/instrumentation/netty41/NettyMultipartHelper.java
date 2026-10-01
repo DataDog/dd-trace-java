@@ -6,7 +6,6 @@ import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.MultipartContentDecoder;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.multipart.Attribute;
@@ -99,12 +98,7 @@ public final class NettyMultipartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
-        if (!brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba)) {
-          Object rawAppSecCtx = ctx.getData(RequestContextSlot.APPSEC);
-          if (rawAppSecCtx instanceof AppSecContext) {
-            ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-          }
-        }
+        brf.tryCommitBlockingResponse(ctx, rba);
         return new BlockingException(message);
       }
     }

@@ -22,18 +22,6 @@ public class GooglePubSubModule extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PubSubDecorator",
-      packageName + ".PubSubDecorator$RegexExtractor",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TextMapExtractAdapter",
-      packageName + ".MessageReceiverWrapper",
-      packageName + ".MessageReceiverWithAckResponseWrapper",
-    };
-  }
-
-  @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
     return singletonMap(RUNNABLE, singletonList("com.google.api.gax.rpc.Watchdog"));
   }

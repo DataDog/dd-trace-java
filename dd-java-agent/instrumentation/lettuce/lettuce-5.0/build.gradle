@@ -1,6 +1,7 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
   id 'dd-trace-java.jmh-conventions'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -22,13 +23,21 @@ addTestSuiteForDir('lettuce62Test', 'test')
 dependencies {
   compileOnly group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
   jmh group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
+  testContainerImage(image('redis:6.2.6', 'test.redis.image'))
 
   testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
   testImplementation libs.testcontainers
   testImplementation group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
-
+  // Needed for tests using Lettuce 5.1.0 -> Reactor 3.2.0, 6.0.0 -> 3.3.10, and 6.1.0 -> 3.3.15.
+  // Reinstalling the agent retransforms Reactor classes loaded by earlier tests,
+  // including MonoMetrics/FluxMetrics and their fuseable variants.
+  // Without micrometer-core, verification fails when resolving CompositeMeterRegistry as a subtype
+  // of MeterRegistry, for the affected reactor versions, resulting in flaky tests.
+  // Retries start in a fresh JVM and avoid retransformation of these classes;
+  // initial class loading can defer this check while metrics remain unused.
+  testRuntimeOnly 'io.micrometer:micrometer-core:1.6.5'
 
   latestDepTestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '+'
   lettuce51TestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '5.1.0.RELEASE'

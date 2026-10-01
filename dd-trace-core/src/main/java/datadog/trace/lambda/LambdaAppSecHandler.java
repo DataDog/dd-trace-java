@@ -143,7 +143,9 @@ public class LambdaAppSecHandler {
     }
 
     RequestContext requestContext = span.getRequestContext();
-    if (requestContext != null) {
+    Object rawAppSecCtx =
+        requestContext != null ? requestContext.getData(RequestContextSlot.APPSEC) : null;
+    if (rawAppSecCtx != null) {
       AgentTracer.TracerAPI tracer = AgentTracer.get();
       BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
           tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestEnded());
@@ -157,7 +159,6 @@ public class LambdaAppSecHandler {
       // GatewayBridge propagates ASM_KEEP based on WAF attack events, but not on
       // isManuallyKept(), which is set by trace-tagging rules that produce no events.
       // Apply it here so those traces are not silently dropped.
-      Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
       AppSecContext appSecCtx =
           rawAppSecCtx instanceof AppSecContext ? (AppSecContext) rawAppSecCtx : null;
       if (appSecCtx != null && appSecCtx.isManuallyKept()) {
@@ -189,6 +190,10 @@ public class LambdaAppSecHandler {
       return;
     }
 
+    RequestContext requestContext = span.getRequestContext();
+    boolean hasAppSecContext =
+        requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null;
+
     try {
       byte[] bytes = ((ByteArrayOutputStream) result).toByteArray();
       if (bytes.length == 0 || bytes.length > MAX_EVENT_SIZE) {
@@ -214,9 +219,11 @@ public class LambdaAppSecHandler {
         span.setError(isError, ErrorPriorities.HTTP_SERVER_DECORATOR);
       }
 
-      RequestContext requestContext = span.getRequestContext();
-      if (requestContext == null) {
-        log.debug("Span has no RequestContext, skipping response processing");
+      // http.status_code is a tracing tag and is published above whether or not AppSec ran: a
+      // failure inside processRequestStart must not also cost the span its status. The WAF
+      // callbacks below, in contrast, have nowhere to deliver without an AppSec request context.
+      if (!hasAppSecContext) {
+        log.debug("Span has no AppSec request context, skipping response WAF callbacks");
         return;
       }
 
@@ -319,6 +326,8 @@ public class LambdaAppSecHandler {
    * tags, {@code span.kind} and {@code http.fragment}.
    */
   static void applyHttpTags(TagContext ctx, LambdaRequestData req, LambdaURIDataAdapter url) {
+    ctx.putTag(Tags.COMPONENT, "aws-lambda");
+
     // The synthetic "WEBSOCKET" method stays inside the AppSec path; none is fabricated here.
     if (req.method != null && req.triggerType != LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET) {
       ctx.putTag(Tags.HTTP_METHOD, req.method);
