@@ -26,6 +26,7 @@ dependencies {
 
   testImplementation project(':dd-openfeature')
   testImplementation project(':products:feature-flagging:feature-flagging-bootstrap')
+  testImplementation project(':products:feature-flagging:feature-flagging-config')
   testImplementation libs.bundles.mockito
 }
 

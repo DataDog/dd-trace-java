@@ -204,15 +204,14 @@ public final class Settings {
     if (value == null) {
       return null;
     }
-    // Same parsing as the agent: invalid values are ignored.
+    // Same parsing as the agent: invalid values are read as false.
     if ("true".equals(value) || "1".equals(value)) {
       return Boolean.TRUE;
     }
-    if ("false".equals(value) || "0".equals(value)) {
-      return Boolean.FALSE;
+    if (!"false".equals(value) && !"0".equals(value)) {
+      LOGGER.warn("Invalid boolean value for {}: {}", key, value);
     }
-    LOGGER.warn("Invalid boolean value for {}: {}", key, value);
-    return null;
+    return Boolean.FALSE;
   }
 
   private int getPositiveInt(final String key, final int defaultValue) {
