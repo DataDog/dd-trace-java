@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 muzzle {
@@ -15,4 +16,5 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
   testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
+  testImplementation project(':utils:test-utils')
 }

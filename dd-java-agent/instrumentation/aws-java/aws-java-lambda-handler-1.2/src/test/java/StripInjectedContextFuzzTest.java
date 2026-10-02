@@ -1,4 +1,4 @@
-package datadog.trace.lambda;
+package datadog.trace.instrumentation.aws.v1.lambda;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Randomized invariant testing for {@link StripInjectedContext}, mirroring the repo's existing
  * fuzz-style test pattern (see {@code TagMapFuzzTest}). Generates many random payloads in
- * EventBridge, SQS, and SNS shapes instead of enumerating fixed cases by hand, and asserts
- * core invariants hold for every one of them.
+ * EventBridge, SQS, and SNS shapes instead of enumerating fixed cases by hand, and asserts core
+ * invariants hold for every one of them.
  */
 public final class StripInjectedContextFuzzTest {
 
@@ -77,7 +77,7 @@ public final class StripInjectedContextFuzzTest {
 
   // SQS/generic-shaped: _datadog appears directly as a top-level key.
   // Randomly places _datadog as the sole field, the first field, a middle field,
-  // or the last field so that all four comma-placement cases in carrierRemovalRange
+  // or the last field so that all four comma-placement cases in carrierRange
   // are exercised across the fuzz iterations.
   private static byte[] randomTopLevelCarrierPayload(ThreadLocalRandom random) {
     boolean includeDatadog = random.nextBoolean();
