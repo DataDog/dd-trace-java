@@ -1,8 +1,9 @@
-package datadog.trace.lambda;
+package datadog.trace.instrumentation.aws.v1.lambda;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.config.GeneralConfig;
@@ -10,6 +11,7 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 /** Unit tests for {@link StripInjectedContext}. */
@@ -186,8 +188,9 @@ class StripInjectedContextTest extends DDJavaSpecification {
   void removesTopLevelDatadogKeyFromSqsStylePayload() {
     // SQS-style: _datadog appears as a direct top-level property alongside business data.
     byte[] input =
-        bytes("{\"orderId\":\"abc-123\",\"amount\":99,"
-            + "\"_datadog\":{\"x-datadog-trace-id\":\"456\",\"x-datadog-parent-id\":\"789\"}}");
+        bytes(
+            "{\"orderId\":\"abc-123\",\"amount\":99,"
+                + "\"_datadog\":{\"x-datadog-trace-id\":\"456\",\"x-datadog-parent-id\":\"789\"}}");
 
     byte[] result = StripInjectedContext.stripInternal(input);
     String json = toUtf8(result);
@@ -263,7 +266,7 @@ class StripInjectedContextTest extends DDJavaSpecification {
 
   @Test
   void removesDatadogWhenItIsTheSoleField() {
-    // carrierRemovalRange: no preceding comma, no following comma -> remove key+value only.
+    // carrierRange: no preceding comma, no following comma -> remove key+value only.
     // Result must be a valid empty object, not a dangling comma.
     byte[] input = bytes("{\"_datadog\":{\"trace\":\"1\"}}");
 
@@ -276,8 +279,10 @@ class StripInjectedContextTest extends DDJavaSpecification {
 
   @Test
   void removesDatadogWhenItIsTheFirstField() {
-    // carrierRemovalRange: no preceding comma but a following comma exists -> remove trailing comma.
-    // If the trailing comma is left in, the result is invalid JSON: {"other":"val"} vs {,"other":"val"}.
+    // carrierRange: no preceding comma but a following comma exists -> remove trailing
+    // comma.
+    // If the trailing comma is left in, the result is invalid JSON: {"other":"val"} vs
+    // {,"other":"val"}.
     byte[] input = bytes("{\"_datadog\":{\"trace\":\"1\"},\"other\":\"val\"}");
 
     byte[] result = StripInjectedContext.stripInternal(input);
@@ -290,10 +295,9 @@ class StripInjectedContextTest extends DDJavaSpecification {
 
   @Test
   void removesDatadogWhenItIsTheMiddleField() {
-    // carrierRemovalRange: both a preceding comma and a following comma exist.
+    // carrierRange: both a preceding comma and a following comma exist.
     // The preceding comma is consumed (preferred), so the remaining fields stay adjacent.
-    byte[] input =
-        bytes("{\"first\":\"a\",\"_datadog\":{\"trace\":\"1\"},\"last\":\"b\"}");
+    byte[] input = bytes("{\"first\":\"a\",\"_datadog\":{\"trace\":\"1\"},\"last\":\"b\"}");
 
     byte[] result = StripInjectedContext.stripInternal(input);
     String json = toUtf8(result);
@@ -318,7 +322,7 @@ class StripInjectedContextTest extends DDJavaSpecification {
   @Test
   void doesNotMatchDatadogTextEmbeddedInsideAStringValue() {
     // A string value that happens to contain the text "_datadog:" must not trigger removal.
-    // isObjectProperty() guards against this by checking the preceding byte is '{' or ','.
+    // String tokens are skipped as a whole, so text inside a value is never treated as a key.
     byte[] input = bytes("{\"note\":\"the _datadog: key is for tracing\",\"other\":1}");
 
     byte[] result = StripInjectedContext.stripInternal(input);
@@ -328,10 +332,9 @@ class StripInjectedContextTest extends DDJavaSpecification {
 
   @Test
   void handlesWhitespacePaddedJson() {
-    // skipWhitespaceForward and skipWhitespaceBackward must tolerate spaces, tabs, and newlines
+    // skipWhitespace and skipWhitespaceBackward must tolerate spaces, tabs, and newlines
     // around the key, colon, and value so that pretty-printed payloads are handled correctly.
-    byte[] input =
-        bytes("{ \"_datadog\": { \"trace\" : \"1\" } , \"other\" : 1 }");
+    byte[] input = bytes("{ \"_datadog\": { \"trace\" : \"1\" } , \"other\" : 1 }");
 
     byte[] result = StripInjectedContext.stripInternal(input);
     String json = toUtf8(result);
@@ -365,5 +368,161 @@ class StripInjectedContextTest extends DDJavaSpecification {
     // readAllBytes() inside replaceInputStream() must mark/reset, not drain, the original stream
     String originalJson = new String(readAll(original), StandardCharsets.UTF_8);
     assertTrue(originalJson.contains("_datadog"), "original stream must still be fully readable");
+  }
+
+  @Test
+  void doesNotRemoveNonObjectDatadogValueInsideStringEncodedField() {
+    // Regression test for review feedback: a string-encoded business payload (e.g. SQS body)
+    // whose "_datadog" field holds a plain string, not an object, must survive untouched.
+    // Only object-shaped propagation carriers ("_datadog":{...}) are carriers; anything else
+    // is customer data that happens to reuse the same key name.
+    byte[] input =
+        bytes(
+            "{\"Records\":[{\"body\":\"{\\\"_datadog\\\":\\\"customer-value\\\","
+                + "\\\"order\\\":\\\"foo\\\"}\"}]}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+
+    assertArrayEquals(
+        input, result, "non-object _datadog value inside a string-encoded field must be preserved");
+  }
+
+  @Test
+  void removesDatadogFromNestedSqsRecordsBody() {
+    // SQS Records[*].body is itself a string-encoded JSON object.
+    byte[] input =
+        bytes(
+            "{\"Records\":[{\"body\":\"{\\\"orderId\\\":1,"
+                + "\\\"_datadog\\\":{\\\"trace\\\":\\\"1\\\"}}\"}]}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog inside Records[].body must be stripped");
+    assertTrue(json.contains("orderId"));
+  }
+
+  @Test
+  void removesDatadogFromDoubleEncodedSnsInsideSqsBody() {
+    // SQS body containing an SNS envelope whose Message is itself string-encoded JSON.
+    String snsMessage =
+        "{\\\\\\\"orderId\\\\\\\":1,\\\\\\\"_datadog\\\\\\\":"
+            + "{\\\\\\\"trace\\\\\\\":\\\\\\\"1\\\\\\\"}}";
+    byte[] input =
+        bytes("{\"Records\":[{\"body\":\"{\\\"Message\\\":\\\"" + snsMessage + "\\\"}\"}]}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "double-encoded _datadog must be stripped");
+    assertTrue(json.contains("orderId"));
+  }
+
+  @Test
+  void removesObjectCarrierWithWhitespaceBeforeColon() {
+    byte[] input = bytes("{\"_datadog\" : {\"trace\":\"1\"},\"other\":1}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "whitespace before colon must not block removal");
+    assertTrue(json.contains("\"other\":1"));
+  }
+
+  @Test
+  void doesNotRecurseBeyondMaxDepth() {
+    // The carrier is wrapped one level deeper than MAX_DEPTH allows. The final layer is never
+    // decoded,
+    // so no plain "_datadog" object key is ever seen.
+    int wraps = StripInjectedContext.MAX_DEPTH + 1;
+    String payload = "{\"orderId\":1,\"_datadog\":{\"trace\":\"1\"}}";
+    for (int i = 0; i < wraps; i++) {
+      payload = "{\"detail\":" + jsonQuote(payload) + "}";
+    }
+
+    byte[] input = bytes(payload);
+    byte[] result = StripInjectedContext.stripInternal(input);
+
+    assertArrayEquals(input, result, "carrier nested beyond MAX_DEPTH must be returned unchanged");
+  }
+
+  /** Encodes {@code raw} as a JSON string literal (adds surrounding quotes and escapes). */
+  private static String jsonQuote(String raw) {
+    StringBuilder sb = new StringBuilder("\"");
+    for (int i = 0; i < raw.length(); i++) {
+      char c = raw.charAt(i);
+      if (c == '"' || c == '\\') {
+        sb.append('\\');
+      }
+      sb.append(c);
+    }
+    return sb.append('"').toString();
+  }
+
+  @Test
+  void stripsCarrierNestedExactlyAtMaxDepth() {
+    int wraps = StripInjectedContext.MAX_DEPTH;
+    String payload = "{\"orderId\":1,\"_datadog\":{\"trace\":\"1\"}}";
+    for (int i = 0; i < wraps; i++) {
+      payload = "{\"detail\":" + jsonQuote(payload) + "}";
+    }
+
+    byte[] result = StripInjectedContext.stripInternal(bytes(payload));
+    String json = toUtf8(result);
+
+    assertTrue(
+        !json.contains("_datadog"), "carrier nested exactly at MAX_DEPTH must still be stripped");
+    assertTrue(json.contains("orderId"));
+  }
+
+  @Test
+  void preservesSurrogatePairEmojiInStringEncodedBusinessData() {
+    // Business text containing an astral-plane character encoded as a surrogate pair of unicode
+    // escapes (e.g. an emoji) must survive when it sits in the same string-encoded field as a
+    // genuine _datadog carrier that gets stripped.
+    byte[] input =
+        bytes(
+            "{\"Message\":\"{\\\"note\\\":\\\"Thanks \\uD83D\\uDE00\\\","
+                + "\\\"_datadog\\\":{\\\"trace\\\":\\\"1\\\"}}\"}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be stripped");
+    assertTrue(
+        json.contains("Thanks \\uD83D\\uDE00"),
+        "surrogate-pair emoji in business data must survive intact");
+  }
+
+  @Test
+  void doesNotThrowOnSignedHexInUnicodeEscape() {
+    byte[] input = bytes("{\"Message\":\"{\\\"n\\\":\\\"\\u-001\\\",\\\"_datadog\\\":{}}\"}");
+
+    String json = toUtf8(StripInjectedContext.stripInternal(input));
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be stripped");
+  }
+
+  @Test
+  void preservesLoneSurrogateWhileStrippingCarrier() {
+    byte[] input = bytes("{\"Message\":\"{\\\"n\\\":\\\"x\\uD83D y\\\",\\\"_datadog\\\":{}}\"}");
+
+    String json = toUtf8(StripInjectedContext.stripInternal(input));
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be stripped");
+    assertTrue(json.contains("x\\uD83D y"), "a lone surrogate must not be turned into '?'");
+  }
+
+  @Test
+  void unclosedCarriersDoNotCauseQuadraticScan() {
+    StringBuilder body = new StringBuilder();
+    for (int i = 0; i < 20_000; i++) {
+      body.append("{\\\"_datadog\\\":{");
+    }
+    byte[] input = bytes("{\"Records\":[{\"body\":\"" + body + "\"}]}");
+
+    assertTimeoutPreemptively(
+        Duration.ofSeconds(1),
+        () -> assertArrayEquals(input, StripInjectedContext.stripInternal(input)));
   }
 }
