@@ -459,6 +459,23 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `every tag id is positive, at both ends of the serial range`() {
+    for (serial in listOf(TagRegistry.FIRST_SERIAL, TagRegistry.SERIAL_LIMIT - 1)) {
+      assertThat(TagRegistry.encode(serial, traceLevel = false)).isPositive()
+      assertThat(TagRegistry.encode(serial, traceLevel = true)).isPositive()
+    }
+  }
+
+  @Test
+  fun `a serial outside the range that keeps ids positive is rejected`() {
+    for (serial in listOf(0, TagRegistry.SERIAL_LIMIT, Short.MAX_VALUE + 1)) {
+      assertThatIllegalArgumentException()
+        .isThrownBy { TagRegistry.encode(serial, traceLevel = false) }
+        .withMessageContaining("serial $serial is outside")
+    }
+  }
+
+  @Test
   fun `span-kind-neutral without an otel-name fails`() {
     val yaml = directory.conventionsFile(
       """

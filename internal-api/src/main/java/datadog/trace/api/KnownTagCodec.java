@@ -10,7 +10,9 @@ package datadog.trace.api;
  */
 public final class KnownTagCodec {
   /*
-   * tagId bit layout: [63-48 serialNum (16 bits)] [47-32 reserved, zero] [31-0 flags]. serialNum is
+   * tagId bit layout: [63-48 serialNum (16 bits, 15 used: bit 63 is kept clear)] [47-32 reserved,
+   * zero] [31-0 flags]. Keeping bit 63 clear makes every id positive, so 0 (unknown) and the
+   * negative lookup sentinels below can never be ids; the generator enforces it. serialNum is
    * globally unique per known tag and is the whole of the tag's identity — nameOf/
    * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
    * are RESERVED and always zero here: they are the window the dense tag store uses for its
