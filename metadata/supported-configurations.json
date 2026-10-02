@@ -11884,6 +11884,38 @@
         "aliases": []
       }
     ],
+    "OTEL_BLRP_SCHEDULE_DELAY": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_EXPORT_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30000",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_MAX_QUEUE_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2048",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
+        "aliases": []
+      }
+    ],
     "OTEL_LOGS_EXPORTER": [
       {
         "version": "A",
