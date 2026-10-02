@@ -41,6 +41,7 @@ public class JettyEndpoints {
     final List<Boolean> finalFragments = new ArrayList<>();
     final List<AgentSpan> messageSpans = new ArrayList<>();
     boolean failMessages;
+    boolean echoMessages;
     boolean failClose;
     boolean deferCallback;
     boolean failCallback;
@@ -52,6 +53,9 @@ public class JettyEndpoints {
     void recordMessage(String message) {
       messages.add(message);
       messageSpans.add(activeSpan());
+      if (echoMessages) {
+        session.sendText(message, Callback.NOOP);
+      }
       if (failMessages) {
         throw new IllegalStateException("handler failed");
       }
