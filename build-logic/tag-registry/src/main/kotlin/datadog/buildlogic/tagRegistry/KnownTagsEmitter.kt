@@ -162,7 +162,7 @@ object KnownTagsEmitter {
       }
       // A direction-dependent name's value is not an id but a marker saying which kind it is.
       for (name in directional.keys) {
-        val marker = if (name in sharedNames) "SHARED_NAME" else "DIRECTION_SCOPED_NAME"
+        val marker = if (name in sharedNames) "SHARED_DATADOG_NAME_SENTINEL" else "DIRECTION_SCOPED_OTEL_NAME_SENTINEL"
         appendLine("    KnownTagCodec.$marker, // $name")
       }
       // Resolver. KnownTagCodec.Installed links to this field directly, so merely resolving a tag
@@ -263,7 +263,7 @@ object KnownTagsEmitter {
           appendLine("          return ${idC(tag)};")
         }
         appendLine("        default:")
-        appendLine("          return KnownTagCodec.NO_TAG_IN_DIRECTION;")
+        appendLine("          return KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL;")
         appendLine("      }")
       }
       appendLine(

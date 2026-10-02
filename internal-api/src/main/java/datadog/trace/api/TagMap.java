@@ -1436,7 +1436,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     long tagId = KnownTagCodec.keyOrSharedName(tag);
     if (tagId == 0) {
       return this.getEntry(tag, Entry.customHash(tag));
-    } else if (tagId != KnownTagCodec.SHARED_NAME) {
+    } else if (tagId != KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL) {
       return this.getEntry(KnownTagCodec.nameOf(tagId), tagId);
     }
     // A Datadog name shared by a tag per direction: a map holds at most one of them per span.
@@ -1981,7 +1981,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     long tagId = KnownTagCodec.keyOrSharedName(tag);
     if (tagId == 0) {
       return this.getAndRemove(tag, Entry.customHash(tag));
-    } else if (tagId != KnownTagCodec.SHARED_NAME) {
+    } else if (tagId != KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL) {
       return this.getAndRemove(KnownTagCodec.nameOf(tagId), tagId);
     }
     // A shared name removes whichever of its tags the map holds, and any custom tag of that name.

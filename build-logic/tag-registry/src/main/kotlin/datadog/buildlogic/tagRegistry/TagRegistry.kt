@@ -48,6 +48,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val FIRST_SERIAL = 1
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
 
+    /** Serials stay below 2^15, so every id (serial << 48) is positive; negatives are sentinels. */
+    const val MAX_TAGS = 1 shl 15
+
     /**
      * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() -- must stay in sync. LEVEL_TRACE at
      * bit 2, other low bits and the reserved [47-32] window zero.
@@ -81,6 +84,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
           )
         }
 
+      // A serial at bit 63 would make the id negative, where KnownTagCodec's lookup sentinels live.
+      require(tags.size < MAX_TAGS) { "${tags.size} tags exceed the $MAX_TAGS that keep tag ids positive" }
       validateOtelNames(tags)
       return TagRegistry(tags)
     }

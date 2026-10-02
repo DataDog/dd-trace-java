@@ -953,7 +953,7 @@ public class DDSpanContext
     if (tagId > 0) {
       return tagId;
     }
-    if (tagId == KnownTagCodec.NO_TAG_IN_DIRECTION
+    if (tagId == KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL
         && direction == KnownTagCodec.DIRECTION_UNKNOWN) {
       unresolvedDirectionalTags = true;
     }
