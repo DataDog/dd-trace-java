@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.json.JsonMapper;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -18,7 +19,6 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

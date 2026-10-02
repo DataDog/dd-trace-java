@@ -21,11 +21,28 @@ import java.time.Instant;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Platform-agnostic API for operations required when retrieving data using the ProfilingSystem. */
+/**
+ * Platform-agnostic API for operations required when retrieving data using the ProfilingSystem.
+ *
+ * <p>Subclassing note: {@link #release()} is final and reference-counted; subclasses implement
+ * resource cleanup by overriding {@link #doRelease()}, invoked exactly once when the reference
+ * count reaches zero.
+ */
 public abstract class RecordingData implements ProfilingSnapshot {
   protected final Instant start;
   protected final Instant end;
   protected final Kind kind;
+
+  // Reference counting for multiple listeners. Starts at 1 (the base reference owned by the
+  // first listener in the chain). Additional listeners call retain() before use and release()
+  // when done. doRelease() fires when the count reaches 0.
+  // Plain fields suffice: both are only ever accessed under the private lock below.
+  private int refCount = 1;
+  private boolean released = false;
+
+  // Private lock so the intrinsic lock of this publicly exposed class is not used for
+  // synchronization (SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION / CERT LCK00-J).
+  private final Object lock = new Object();
 
   public RecordingData(final Instant start, final Instant end, Kind kind) {
     this.start = start;
@@ -41,9 +58,35 @@ public abstract class RecordingData implements ProfilingSnapshot {
   public abstract RecordingInputStream getStream() throws IOException;
 
   /**
+   * Increment reference count. Must be called once for each *additional* handler that will process
+   * this RecordingData beyond the base reference.
+   *
+   * <p>The reference count starts at 1, representing the base reference that the primary listener
+   * releases via {@code release()}. Each additional handler must call {@code retain()} before
+   * processing and {@code release()} when done.
+   *
+   * @return this instance for chaining
+   * @throws IllegalStateException if the recording has already been released
+   */
+  @Nonnull
+  public final RecordingData retain() {
+    synchronized (lock) {
+      if (released) {
+        throw new IllegalStateException("Cannot retain released RecordingData");
+      }
+      refCount++;
+      return this;
+    }
+  }
+
+  /**
    * Releases the resources associated with the recording, for example the underlying file.
    *
-   * <p>Forgetting to releasing this when done streaming, will lead to one or more of the following:
+   * <p>This method uses reference counting to support multiple handlers. The base reference count
+   * is 1; each call to {@link #retain()} must be matched with a call to {@code release()}. The
+   * actual resource cleanup via {@link #doRelease()} happens when the reference count reaches zero.
+   *
+   * <p>Forgetting to release this when done streaming will lead to one or more of the following:
    *
    * <ul>
    *   <li>Memory leak
@@ -51,8 +94,37 @@ public abstract class RecordingData implements ProfilingSnapshot {
    * </ul>
    *
    * <p>Please don't forget to call release when done streaming...
+   *
+   * <p>Releasing an already fully-released recording is a silent no-op — the {@code released} flag
+   * guards against double release. Retaining after full release, in contrast, throws {@link
+   * IllegalStateException}.
    */
-  public abstract void release();
+  public final void release() {
+    boolean shouldRelease = false;
+    synchronized (lock) {
+      if (released) {
+        // retain() refuses to hand out new references once released, so the count can never
+        // reach zero a second time
+        return;
+      }
+      int remaining = --refCount;
+      if (remaining == 0) {
+        released = true;
+        shouldRelease = true;
+      }
+    }
+    if (shouldRelease) {
+      doRelease();
+    }
+  }
+
+  /**
+   * Actual resource cleanup implementation. Subclasses must override this method instead of {@link
+   * #release()}.
+   *
+   * <p>This method is called exactly once when the reference count reaches zero.
+   */
+  protected abstract void doRelease();
 
   /**
    * Returns the name of the recording from which the data is originating.

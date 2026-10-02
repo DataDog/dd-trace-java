@@ -5,13 +5,13 @@ import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordScopedSpansMess
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanLinkMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanMessage;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpCommonProto;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import java.util.List;
 

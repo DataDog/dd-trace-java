@@ -17,6 +17,7 @@
 
 # Shared communication
 /communication/*.*                                                          @DataDog/apm-java
+/communication/otlp-exporter/                                               @DataDog/apm-sdk-capabilities-java
 /communication/src/*/*/datadog/communication/*.*                            @DataDog/apm-java
 /communication/src/*/*/datadog/communication/ddagent/                       @DataDog/apm-java
 /communication/src/*/*/datadog/communication/http/                          @DataDog/apm-java
@@ -345,6 +346,7 @@
 
 # @DataDog/profiling-java
 /dd-java-agent/ddprof-lib/                                                                  @DataDog/profiling-java
+/docker/Dockerfile.profcheck                                                                @DataDog/profiling-java
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
 /dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/jfr/   @DataDog/profiling-java
