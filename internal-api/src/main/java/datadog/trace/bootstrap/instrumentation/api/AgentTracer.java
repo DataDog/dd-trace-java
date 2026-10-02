@@ -27,7 +27,6 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.NoopTraceScope;
 import datadog.trace.context.TraceScope;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -383,8 +382,6 @@ public class AgentTracer {
 
     void notifyAppSecEnd(AgentSpan span, Object result);
 
-    InputStream stripLambdaInjectedContext(InputStream in);
-
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
     String getTraceId(AgentSpan span);
@@ -663,11 +660,6 @@ public class AgentTracer {
 
     @Override
     public void notifyAppSecEnd(AgentSpan span, Object result) {}
-
-    @Override
-    public InputStream stripLambdaInjectedContext(InputStream in) {
-      return null;
-    }
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

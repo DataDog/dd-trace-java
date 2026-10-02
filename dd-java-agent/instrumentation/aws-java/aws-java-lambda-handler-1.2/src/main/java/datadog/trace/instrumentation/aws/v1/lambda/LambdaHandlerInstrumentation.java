@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.lambda;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
-import static net.bytebuddy.matcher.ElementMatchers.isSubTypeOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -13,6 +12,7 @@ import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isSubTypeOf;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -104,7 +104,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
           AgentTracer.get().notifyLambdaStart(inputStream, lambdaRequestId);
       // Skip the strip pass entirely (extra read/parse/re-serialize) unless explicitly enabled.
       if (Config.get().isLambdaStripInjectedContextEnabled()) {
-        InputStream stripped = AgentTracer.get().stripLambdaInjectedContext(inputStream);
+        InputStream stripped = StripInjectedContext.replaceInputStream(inputStream);
         if (stripped != null) {
           inputStream = stripped;
         }
