@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * the worker has been joined, counting any remainder as a closed drop so shutdown loss is
  * observable rather than silent.
  */
-public class FlagEvaluationPipeline implements AutoCloseable {
+public class FlagEvaluationPipeline implements FlagEvaluationWriter, AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationPipeline.class);
 
@@ -168,12 +168,7 @@ public class FlagEvaluationPipeline implements AutoCloseable {
     countMetric(FLAG_EVALUATION_DROPPED_METRIC, residual, DROP_REASON_CLOSED);
   }
 
-  /**
-   * Non-blocking enqueue of a flag evaluation event. Drops the event, and counts the drop, if the
-   * queue is full.
-   *
-   * @param event the event to enqueue.
-   */
+  @Override
   public void enqueue(final FlagEvalEvent event) {
     if (event == null) {
       return;
@@ -200,27 +195,17 @@ public class FlagEvaluationPipeline implements AutoCloseable {
     }
   }
 
-  /**
-   * Reports whether the async hand-off queue currently has room for another event. Producers
-   * consult this before performing any expensive context-copy work so a saturated queue is observed
-   * as an O(1) read rather than a full snapshot followed by a discarded offer. Best-effort only:
-   * the worker can drain (or a peer producer can fill) between this check and the subsequent
-   * enqueue, so callers must still tolerate offer failure.
-   */
+  @Override
   public boolean hasCapacityForEnqueue() {
     return queue.size() < queue.capacity();
   }
 
-  /** Counts one queue-overflow drop without offering an event. */
+  @Override
   public void countPreQueueOverflow() {
     droppedQueueOverflow.incrementAndGet();
   }
 
-  /**
-   * Counts one evaluation whose context was truncated.
-   *
-   * @param reason the sorted, comma-separated set of the caps that fired.
-   */
+  @Override
   public void countContextTruncated(final String reason) {
     contextTruncatedCounts.computeIfAbsent(reason, k -> new AtomicLong(0)).incrementAndGet();
   }

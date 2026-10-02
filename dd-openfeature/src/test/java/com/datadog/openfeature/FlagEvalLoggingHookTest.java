@@ -13,10 +13,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
-import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
@@ -43,8 +44,8 @@ class FlagEvalLoggingHookTest {
   // ---- helpers ----
 
   /** Creates a pipeline mock that captures the enqueued event for assertion. */
-  private static FlagEvaluationPipeline capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
-    final FlagEvaluationPipeline writer = mock(FlagEvaluationPipeline.class);
+  private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     doAnswer(
             invocation -> {
@@ -56,7 +57,7 @@ class FlagEvalLoggingHookTest {
     return writer;
   }
 
-  private static FlagEvalLoggingHook<Object> hookWithWriter(final FlagEvaluationPipeline writer) {
+  private static FlagEvalLoggingHook<Object> hookWithWriter(final FlagEvaluationWriter writer) {
     return new FlagEvalLoggingHook<>(() -> writer);
   }
 
@@ -329,7 +330,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void finallyAfterOnlyCallsEnqueueAndCapacityCheckOnWriter() {
-    final FlagEvaluationPipeline writer = mock(FlagEvaluationPipeline.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -338,18 +339,15 @@ class FlagEvalLoggingHookTest {
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
-    // Capacity check gates the enqueue; exactly one enqueue call; no start/close.
+    // Capacity check gates the enqueue; exactly one enqueue call; nothing else.
     verify(writer, times(1)).hasCapacityForEnqueue();
     verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
-    verify(writer, never()).countPreQueueOverflow();
-    verify(writer, never()).countContextTruncated(any());
-    verify(writer, never()).close();
-    verify(writer, never()).start();
+    verifyNoMoreInteractions(writer);
   }
 
   @Test
   void finallyAfterSkipsEnqueueAndCountsDropWhenQueueSaturated() {
-    final FlagEvaluationPipeline writer = mock(FlagEvaluationPipeline.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
     when(writer.hasCapacityForEnqueue()).thenReturn(false);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -366,7 +364,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void countContextTruncatedCalledWhenContextIsTruncated() {
-    final FlagEvaluationPipeline writer = mock(FlagEvaluationPipeline.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -398,7 +396,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void countContextTruncatedNotCalledWhenNoTruncation() {
-    final FlagEvaluationPipeline writer = mock(FlagEvaluationPipeline.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
@@ -454,7 +452,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void detailsNullIsNoOp() {
-    final FlagEvaluationPipeline writer = mock(FlagEvaluationPipeline.class);
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
     // Should not throw
