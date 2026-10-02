@@ -515,7 +515,7 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
               payloadWriter,
               DEFAULT_BUCKET_DURATION_NANOS);
 
-      BaseHash.updateBaseHash(BASE_HASH);
+      BaseHash.updateIdentityHash(BASE_HASH);
       DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
       timeSource.advance(MILLISECONDS.toNanos(50));
       context.setCheckpoint(
@@ -575,7 +575,7 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
               payloadWriter,
               DEFAULT_BUCKET_DURATION_NANOS);
 
-      BaseHash.updateBaseHash(BASE_HASH);
+      BaseHash.updateIdentityHash(BASE_HASH);
       DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
       timeSource.advance(MILLISECONDS.toNanos(50));
       context.setCheckpoint(
@@ -635,7 +635,7 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
               payloadWriter,
               DEFAULT_BUCKET_DURATION_NANOS);
 
-      BaseHash.updateBaseHash(BASE_HASH);
+      BaseHash.updateIdentityHash(BASE_HASH);
       DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
       timeSource.advance(MILLISECONDS.toNanos(50));
       context.setCheckpoint(
