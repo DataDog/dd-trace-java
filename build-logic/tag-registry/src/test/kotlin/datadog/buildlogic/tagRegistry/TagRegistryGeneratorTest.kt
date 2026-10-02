@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatIllegalArgumentException
-import org.assertj.core.api.Assertions.entry
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -325,14 +324,14 @@ class TagRegistryGeneratorTest {
 
     val tags = TagRegistry.build(conventions).tags.associateBy { it.name }
 
-    assertThat(tags.getValue("http.hostname").otelByDirection)
-      .containsExactly(entry(TagConventions.Direction.INBOUND, "server.address"))
-    assertThat(tags.getValue("peer.hostname").otelByDirection)
-      .containsExactly(entry(TagConventions.Direction.OUTBOUND, "server.address"))
-    assertThat(tags.getValue("peer.port@outbound").otelByDirection)
-      .containsExactly(entry(TagConventions.Direction.OUTBOUND, "server.port"))
-    assertThat(tags.getValue("peer.port@inbound").otelByDirection)
-      .containsExactly(entry(TagConventions.Direction.INBOUND, "client.port"))
+    assertThat(tags.getValue("http.hostname").let { it.declaredOtelName to it.otelDirection })
+      .isEqualTo("server.address" to TagConventions.Direction.INBOUND)
+    assertThat(tags.getValue("peer.hostname").let { it.declaredOtelName to it.otelDirection })
+      .isEqualTo("server.address" to TagConventions.Direction.OUTBOUND)
+    assertThat(tags.getValue("peer.port@outbound").let { it.declaredOtelName to it.otelDirection })
+      .isEqualTo("server.port" to TagConventions.Direction.OUTBOUND)
+    assertThat(tags.getValue("peer.port@inbound").let { it.declaredOtelName to it.otelDirection })
+      .isEqualTo("client.port" to TagConventions.Direction.INBOUND)
     assertThat(tags.values.filter { it.name.startsWith("peer.port") }.map { it.ddName })
       .containsOnly("peer.port")
     assertThat(tags.values.map { it.otelName }).containsOnlyNulls()
@@ -397,7 +396,7 @@ class TagRegistryGeneratorTest {
     val dbType = TagRegistry.build(conventions).tags.single()
 
     assertThat(dbType.otelName).isEqualTo("db.system")
-    assertThat(dbType.otelByDirection).hasSize(TagConventions.Direction.entries.size)
+    assertThat(dbType.otelDirection).isNull()
   }
 
   @TableTest(

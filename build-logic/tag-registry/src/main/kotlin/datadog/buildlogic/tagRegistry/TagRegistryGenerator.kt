@@ -102,12 +102,9 @@ object TagRegistryGenerator {
       """.trimIndent()
     )
     val scoped =
-      reg.tags
-        .flatMap { t -> t.otelByDirection.map { (direction, otel) -> Triple(otel, direction, t) } }
-        .filter { (otel, _, t) -> otel != t.otelName }
-        .sortedWith(compareBy({ it.first }, { it.second }))
-    for ((otel, direction, t) in scoped) {
-      appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, otel, direction.yamlKey, t.name))
+      reg.tags.filter { it.otelDirection != null }.sortedWith(compareBy({ it.declaredOtelName }, { it.otelDirection }))
+    for (t in scoped) {
+      appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, t.declaredOtelName, t.otelDirection!!.yamlKey, t.name))
     }
     appendLine(
       """

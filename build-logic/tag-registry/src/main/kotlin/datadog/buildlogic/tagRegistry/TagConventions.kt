@@ -59,8 +59,8 @@ class TagConventions private constructor(
     NONE("none"),
   }
 
-  /** One OpenTelemetry name for [tag] on spans of [direction]. */
-  data class OtelMapping(val tag: String, val direction: Direction, val otelName: String)
+  /** The OpenTelemetry name for [tag] on spans of [direction], or of every direction when null. */
+  data class OtelMapping(val tag: String, val otelName: String, val direction: Direction?)
 
   /**
    * A `{ ref: <dd-name>, required: <level> }` entry. It reuses a tag declared elsewhere, optionally
@@ -172,16 +172,15 @@ class TagConventions private constructor(
     }
 
   /**
-   * Returns every OpenTelemetry name per direction. A rename in a scope without a direction
-   * (`trace_level`, a span type or mixin without a `span-kind`), or marked `span-kind-neutral`,
-   * applies in every direction. An unmarked rename in a directional scope applies only in that
-   * scope's direction.
+   * Returns each tag's OpenTelemetry name and the direction it applies in. A rename in a scope
+   * without a direction (`trace_level`, a span type or mixin without a `span-kind`), or marked
+   * `span-kind-neutral`, applies in every direction (a null direction). An unmarked rename in a
+   * directional scope applies only in that scope's direction.
    */
   fun otelMappings(): List<OtelMapping> = buildList {
     fun add(t: Tag, direction: Direction?) {
       val otel = t.otelName ?: return
-      val directions = if (direction == null || t.spanKindNeutral) Direction.entries else listOf(direction)
-      directions.forEach { add(OtelMapping(t.name, it, otel)) }
+      add(OtelMapping(t.name, otel, direction.takeUnless { t.spanKindNeutral }))
     }
     traceLevel.forEach { add(it, null) }
     for (st in spanTypes.toSortedMap().values) {

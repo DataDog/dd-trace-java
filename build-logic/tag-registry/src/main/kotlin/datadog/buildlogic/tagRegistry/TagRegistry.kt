@@ -25,21 +25,24 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val serial: Int,
     val traceLevel: Boolean,
     val id: Long,
+    /** The tag's OpenTelemetry name, in [otelDirection] or every direction; null when not renamed. */
+    val declaredOtelName: String? = null,
     /**
-     * The OpenTelemetry name that applies in every direction, or null when the tag has no rename or
-     * its rename is scoped to a direction; see [otelByDirection].
+     * The one direction [declaredOtelName] applies in, or null when it applies in every direction. A
+     * tag has one declaration, so its rename covers either every direction or exactly one.
      */
-    val otelName: String? = null,
-    /**
-     * The OpenTelemetry name per span direction. A superset of [otelName]: a rename scoped to one
-     * direction appears only here, and is not applied until name resolution knows the direction.
-     */
-    val otelByDirection: Map<TagConventions.Direction, String> = emptyMap(),
+    val otelDirection: TagConventions.Direction? = null,
     /** The Datadog-namespace name, shared by the tags of a name declared per direction. */
     val ddName: String = name,
     /** The direction of a tag whose Datadog name is shared by a tag per direction, else null. */
     val sharedNameDirection: TagConventions.Direction? = null,
-  )
+  ) {
+    /**
+     * The OpenTelemetry name that applies in every direction, or null when the tag has no rename or
+     * its rename is scoped to a direction, which is not applied until name resolution knows it.
+     */
+    val otelName: String? = declaredOtelName.takeIf { otelDirection == null }
+  }
 
   companion object {
     const val FIRST_SERIAL = 1
@@ -57,12 +60,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     fun build(conv: TagConventions): TagRegistry {
       val traceNames = conv.traceLevelTags().map { it.name }.toSet()
-      val byDirection =
-        conv.otelMappings().groupBy { it.tag }.mapValues { (_, m) -> m.associate { it.direction to it.otelName } }
-      // A rename that covers every direction is safe to apply without knowing a span's direction. A
-      // tag has one declaration, so its names agree across directions.
-      val directionFree =
-        byDirection.filterValues { it.size == TagConventions.Direction.entries.size }.mapValues { (_, m) -> m.values.first() }
+      val renames = conv.otelMappings().associateBy { it.tag }
 
       // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
       val tags =
@@ -76,8 +74,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             traceLevel,
             id = encode(serial, traceLevel),
-            otelName = directionFree[t.name],
-            otelByDirection = byDirection[t.name].orEmpty(),
+            declaredOtelName = renames[t.name]?.otelName,
+            otelDirection = renames[t.name]?.direction,
             ddName = t.ddName,
             sharedNameDirection = t.sharedNameDirection,
           )
@@ -97,7 +95,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
       val canonical = tags.map { it.ddName }.toSet()
       val owner = HashMap<Pair<TagConventions.Direction, String>, String>()
       for (t in tags) {
-        for ((direction, otel) in t.otelByDirection) {
+        val otel = t.declaredOtelName ?: continue
+        for (direction in t.otelDirection?.let { listOf(it) } ?: TagConventions.Direction.entries) {
           require(otel !in canonical) {
             "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
           }
