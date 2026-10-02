@@ -1,5 +1,8 @@
 package com.datadog.openfeature.internal.delivery;
 
+import static java.net.http.HttpClient.Redirect.NEVER;
+import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
+
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.connector.EventTransport;
 import java.io.IOException;
@@ -52,10 +55,7 @@ public final class DirectIntakeTransport implements EventTransport {
     return new DirectIntakeTransport(
         URI.create("https://event-platform-intake." + settings.site() + "/api/v2/"),
         apiKey,
-        HttpClient.newBuilder()
-            .connectTimeout(REQUEST_TIMEOUT)
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build(),
+        HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).followRedirects(NEVER).build(),
         TimeUnit.MILLISECONDS::sleep);
   }
 
@@ -69,7 +69,7 @@ public final class DirectIntakeTransport implements EventTransport {
             .header("x-datadog-trace-id", this.traceId)
             .header("x-datadog-parent-id", this.traceId);
     Headers.addMetadata(builder);
-    final HttpRequest request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(json)).build();
+    final HttpRequest request = builder.POST(ofByteArray(json)).build();
     IOException failure = null;
     long delayMillis = INITIAL_RETRY_DELAY_MILLIS;
     for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {

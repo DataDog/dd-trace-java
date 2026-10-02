@@ -16,7 +16,6 @@ final class Headers {
    *
    * @param request the request to add the headers to.
    */
-  // TODO Add the Datadog-Container-ID and Datadog-Entity-ID headers once the SDK detects them.
   static void addMetadata(final HttpRequest.Builder request) {
     request
         .header("Datadog-Meta-Lang", "java")
