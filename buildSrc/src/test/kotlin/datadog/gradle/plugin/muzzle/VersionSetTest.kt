@@ -1,8 +1,9 @@
 package datadog.gradle.plugin.muzzle
 
+import org.assertj.core.api.Assertions.assertThat
 import org.eclipse.aether.version.Version
 import org.junit.jupiter.api.Test
-import org.assertj.core.api.Assertions.assertThat
+import kotlin.random.Random
 
 class VersionSetTest {
 
@@ -71,6 +72,63 @@ class VersionSetTest {
       val versionSet = VersionSet(versions)
       assertThat(versionSet.lowAndHighForMajorMinor).isEqualTo(expected)
     }
+  }
+
+  @Test
+  fun `lazy eligible boundaries match eager filtering including equivalent spellings`() {
+    val random = Random(48)
+    val versions = (0..3).flatMap { minor -> (0..7).map { patch -> ver("1.$minor.$patch") } } +
+      listOf(ver("1.2.7-foo"), ver("1.2.7.foo"), ver("1.3.7-foo"), ver("1.3.7.foo"))
+
+    repeat(100) {
+      val shuffled = versions.shuffled(random)
+      val eligible = shuffled.filter { random.nextBoolean() }.toSet()
+      val checked = mutableListOf<Version>()
+
+      val versionSet = VersionSet(shuffled) {
+        checked.add(it)
+        it in eligible
+      }
+      assertThat(versionSet.lowestEligibleVersion).isEqualTo(eligible.minOrNull())
+      assertThat(versionSet.highestEligibleVersion).isEqualTo(eligible.maxOrNull())
+      val actual = versionSet.lowAndHighForMajorMinor
+      val expected = VersionSet(shuffled.filter { it in eligible }).lowAndHighForMajorMinor
+
+      assertThat(actual).isEqualTo(expected)
+      assertThat(checked).doesNotHaveDuplicates()
+    }
+  }
+
+  @Test
+  fun `checks only boundary versions when they are eligible`() {
+    val versions = (0..49).flatMap { minor -> (0..19).map { patch -> ver("1.$minor.$patch") } }
+    val checked = mutableListOf<Version>()
+
+    val bounds = VersionSet(versions) {
+      checked.add(it)
+      true
+    }.lowAndHighForMajorMinor
+
+    assertThat(bounds).hasSize(100)
+    assertThat(checked).hasSize(100).containsExactlyInAnyOrderElementsOf(bounds)
+  }
+
+  @Test
+  fun `endpoint and group searches share eligibility while preserving both version orderings`() {
+    // TestVersion sorts strings lexically; ParsedVersion sorts their numeric components.
+    val versions = listOf(ver("1.0.1"), ver("1.0.2"), ver("1.0.10"))
+    val checked = mutableListOf<Version>()
+    val versionSet = VersionSet(versions) {
+      checked.add(it)
+      true
+    }
+
+    repeat(2) {
+      assertThat(versionSet.lowestEligibleVersion).isEqualTo(ver("1.0.1"))
+      assertThat(versionSet.highestEligibleVersion).isEqualTo(ver("1.0.2"))
+      assertThat(versionSet.lowAndHighForMajorMinor).containsExactly(ver("1.0.1"), ver("1.0.10"))
+    }
+    assertThat(checked).containsExactlyInAnyOrderElementsOf(versions)
   }
 
   private fun ver(v: String): Version = TestVersion(v)

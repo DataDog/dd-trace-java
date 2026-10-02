@@ -19,7 +19,6 @@ import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.file.FileTransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
-import org.gradle.api.GradleException
 import org.gradle.api.logging.Logging
 import java.nio.file.Files
 
@@ -42,7 +41,7 @@ internal object MuzzleMavenRepoUtils {
     } else {
       val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
       // TODO: temporary hack for Maven Central rate limiting
-      listOf(proxy /*, central*/)
+      listOf(proxy)
     }
   }
 
@@ -82,7 +81,8 @@ internal object MuzzleMavenRepoUtils {
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
     session: RepositorySystemSession,
-    defaultRepos: List<RemoteRepository> = defaultMuzzleRepos()
+    defaultRepos: List<RemoteRepository> = defaultMuzzleRepos(),
+    isEligible: (Version) -> Boolean = { true }
   ): Set<MuzzleDirective> {
     val allVersionsArtifact = DefaultArtifact(
       muzzleDirective.group,
@@ -114,12 +114,14 @@ internal object MuzzleMavenRepoUtils {
     return MuzzleVersionUtils.filterAndLimitVersions(
       allRangeResult,
       muzzleDirective.skipVersions,
-      muzzleDirective.includeSnapshots
+      muzzleDirective.includeSnapshots,
+      isEligible
     ).map { version ->
       MuzzleDirective().apply {
         name = muzzleDirective.name
         group = muzzleDirective.group
         module = muzzleDirective.module
+        additionalRepositories = muzzleDirective.additionalRepositories
         versions = version.toString()
         assertPass = !muzzleDirective.assertPass
         excludedDependencies = muzzleDirective.excludedDependencies
@@ -273,8 +275,7 @@ internal object MuzzleMavenRepoUtils {
    */
   fun lowest(a: Version, b: Version): Version = if (a < b) a else b
 
-  private fun VersionRangeResult.hasBounds(): Boolean =
-    lowestVersion != null && highestVersion != null
+  private fun VersionRangeResult.hasBounds(): Boolean = lowestVersion != null && highestVersion != null
 
   private fun sleepBeforeBackoffRetry(delaySeconds: Long, artifact: Artifact) {
     try {
@@ -367,20 +368,19 @@ internal object MuzzleMavenRepoUtils {
     ).joinToString(":")
   }
 
-  /**
-   * Convert a muzzle directive to a set of artifacts for all filtered versions.
-   * Throws GradleException if no artifacts are found.
-   */
+  /** Convert a muzzle directive's selected versions to artifacts. */
   fun muzzleDirectiveToArtifacts(
     muzzleDirective: MuzzleDirective,
-    rangeResult: VersionRangeResult
+    rangeResult: VersionRangeResult,
+    isEligible: (Version) -> Boolean = { true }
   ): Set<Artifact> {
     val versions = MuzzleVersionUtils.filterAndLimitVersions(
       rangeResult,
       muzzleDirective.skipVersions,
-      muzzleDirective.includeSnapshots
+      muzzleDirective.includeSnapshots,
+      isEligible
     )
-    val allVersionArtifacts = versions.map { version ->
+    return versions.map { version ->
       DefaultArtifact(
         muzzleDirective.group,
         muzzleDirective.module,
@@ -389,9 +389,5 @@ internal object MuzzleMavenRepoUtils {
         version.toString()
       )
     }.toSet()
-    if (allVersionArtifacts.isEmpty()) {
-      throw GradleException("No muzzle artifacts found for ${muzzleDirective.group}:${muzzleDirective.module} ${muzzleDirective.versions} ${muzzleDirective.classifier}")
-    }
-    return allVersionArtifacts
   }
 }
