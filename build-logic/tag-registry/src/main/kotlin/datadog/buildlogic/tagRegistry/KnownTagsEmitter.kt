@@ -224,10 +224,14 @@ object KnownTagsEmitter {
         val otel = t.declaredOtelName ?: continue
         val scoped = t.otelDirection
         val result =
-          if (scoped == null) {
-            otelNameC(t.name)
-          } else {
-            "direction == KnownTagCodec.DIRECTION_${scoped.name} ? \"${escape(otel)}\" : null"
+          when {
+            scoped == null -> otelNameC(t.name)
+
+            // A tag declared per direction exists only on spans of its direction, so emitting it
+            // needs none; only resolving the name to it does.
+            t.sharedNameDirection != null -> "\"${escape(otel)}\""
+
+            else -> "direction == KnownTagCodec.DIRECTION_${scoped.name} ? \"${escape(otel)}\" : null"
           }
         appendLine("case ${serialC(t.name)}:")
         appendLine("  return $result;")

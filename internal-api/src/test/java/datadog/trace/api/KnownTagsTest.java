@@ -229,6 +229,16 @@ class KnownTagsTest {
     assertEquals(Tags.HTTP_HOSTNAME, KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID));
   }
 
+  /** A tag declared per direction exists only on spans of its direction, so its name needs none. */
+  @Test
+  void aTagDeclaredPerDirectionIsEmittedWithoutADirection() {
+    assertEquals("server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertEquals("client.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_INBOUND_ID));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID, DIRECTION_UNKNOWN));
+  }
+
   @Test
   void unknownIdsResolveToNullName() {
     assertNull(KnownTagCodec.nameOf(0L));

@@ -106,8 +106,8 @@ public final class KnownTagCodec {
 
     /**
      * The tag's OpenTelemetry-namespace name on spans of {@code direction}, or {@code null} when it
-     * declares none there. {@link #DIRECTION_UNKNOWN} returns only a name that holds in every
-     * direction.
+     * declares none there. {@link #DIRECTION_UNKNOWN} returns every name that needs no direction:
+     * one that holds in every direction, or that of a tag declared per direction.
      */
     String openTelemetryNameOf(long tagId, int direction);
 
@@ -158,15 +158,21 @@ public final class KnownTagCodec {
    * <p>This is the one place the pass-through policy lives, so no serializer re-decides it. Pair it
    * with {@link #datadogNameOf} for the same tag under the Datadog namespace; outbound naming is
    * per-namespace, never normalized to one of them.
+   *
+   * <p>Needs no direction for nearly every tag, including one declared per direction ({@code
+   * peer.port} on an outbound span is {@code server.port}). The exception is a single tag whose
+   * rename holds in one direction only ({@code http.hostname} is {@code server.address} on inbound
+   * spans): without a direction it passes through under its Datadog name. A caller naming a span's
+   * tags uses {@link #openTelemetryTagOf(long, int)}.
    */
   public static String openTelemetryTagOf(long tagId) {
     return openTelemetryTagOf(tagId, DIRECTION_UNKNOWN);
   }
 
   /**
-   * {@link #openTelemetryTagOf(long)} on spans of {@code direction}, which also applies a rename
-   * that holds only in that direction: {@code http.hostname} is {@code server.address} on inbound
-   * spans.
+   * {@link #openTelemetryTagOf(long)} on spans of {@code direction}, which also applies a single
+   * tag's rename that holds only in that direction: {@code http.hostname} is {@code server.address}
+   * on inbound spans, but stays {@code http.hostname} on outbound ones.
    */
   public static String openTelemetryTagOf(long tagId, int direction) {
     Resolver resolver = Installed.RESOLVER;

@@ -377,6 +377,31 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `a tag declared per direction is emitted under its OpenTelemetry name without a direction`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+        http.server:
+          span-kind: server
+          include: [inbound_peer]
+          tags: [{dd-name: http.hostname, otel-name: server.address}]
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int, otel-name: server.port}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int, otel-name: client.port}]}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    val emit = source.substringAfter("public String openTelemetryNameOf(long tagId, int direction)")
+    assertThat(emit).contains("return \"server.port\";", "return \"client.port\";")
+    assertThat(emit).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
+  }
+
+  @Test
   fun `a ref to a Datadog name declared per direction resolves by the referencing direction`() {
     val conventions = tagConventions(
       """
