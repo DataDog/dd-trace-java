@@ -34,7 +34,12 @@ public class FeatureFlaggingSystem {
       return;
     }
     final FeatureFlagsBackend backend = new FeatureFlagsBackend(sco, config);
-    backend.start();
+    try {
+      backend.start();
+    } catch (final RuntimeException | Error e) {
+      backend.close();
+      throw e;
+    }
     BACKEND = backend;
     FeatureFlaggingGateway.register(backend);
     LOGGER.debug("Feature Flagging system started");
