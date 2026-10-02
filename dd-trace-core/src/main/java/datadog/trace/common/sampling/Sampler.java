@@ -57,9 +57,20 @@ public interface Sampler {
         @Nullable final RateByServiceTraceSampler agentSampler) {
       Sampler sampler;
       if (config != null) {
-        if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
-          log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new AsmStandaloneSampler(Clock.systemUTC());
+        if (!config.isApmTracingEnabled()) {
+          if (isAsmEnabled(config)) {
+            log.debug(
+                "APM tracing is disabled, but ASM is enabled. Only 1 APM trace per minute will be sent.");
+            return new AsmStandaloneSampler(Clock.systemUTC());
+          }
+          // ASM is the only product needing a trickle of APM traces to stay in the service
+          // catalog, so with it off we can drop every APM trace. Traces a product does want
+          // (asm.keep, ai_guard.keep) are force-kept on the span, which no sampler can override.
+          // AppSec can still be activated later by Remote Configuration, so the drop is decided
+          // per trace rather than here.
+          log.debug(
+              "APM tracing is disabled. APM traces will be dropped, unless AppSec is activated at runtime.");
+          return new ApmTracingDisabledSampler(Clock.systemUTC());
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
@@ -133,6 +144,11 @@ public interface Sampler {
       return sampler;
     }
 
+    /**
+     * Whether any Application Security product is on at startup. Only AppSec can change after this:
+     * IAST instrumentation is installed in {@code premain} and SCA is read once, so neither has a
+     * Remote Configuration product to activate it with. See {@link ApmTracingDisabledSampler}.
+     */
     private static boolean isAsmEnabled(Config config) {
       return config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
           || config.getIastActivation() == ProductActivation.FULLY_ENABLED

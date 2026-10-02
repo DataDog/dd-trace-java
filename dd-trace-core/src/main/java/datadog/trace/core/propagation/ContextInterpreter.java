@@ -19,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
@@ -72,6 +73,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private final boolean requestHeaderTagsCommaAllowed;
   private final int baggageMaxItems;
   private final int baggageMaxBytes;
+  private final boolean apmTracingEnabled;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -89,6 +91,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
     this.baggageMaxItems = config.getTraceBaggageMaxItems();
     this.baggageMaxBytes = config.getTraceBaggageMaxBytes();
+    this.apmTracingEnabled = config.isApmTracingEnabled();
   }
 
   final TagMap.Ledger tagLedger() {
@@ -345,6 +348,15 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   private int samplingPriorityOrDefault(DDTraceId traceId, int samplingPriority) {
+    if (!apmTracingEnabled
+        && (propagationTags == null
+            || propagationTags.getTraceSource() == ProductTraceSource.UNSET)) {
+      // With APM tracing disabled, an upstream decision is only meaningful when a product asked
+      // for the trace (_dd.p.ts). Otherwise it is an APM decision we must not inherit: the
+      // extracted priority is locked onto the span context at construction, so it would silence
+      // the local sampler before it ever votes.
+      return PrioritySampling.UNSET;
+    }
     return samplingPriority == PrioritySampling.UNSET || DDTraceId.ZERO.equals(traceId)
         ? defaultSamplingPriority()
         : samplingPriority;
