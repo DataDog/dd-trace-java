@@ -47,6 +47,27 @@ public class DD64bTraceId extends DDTraceId {
   }
 
   /**
+   * Like {@link #from(String)}, but returns {@code null} instead of throwing when the given {@code
+   * String} is not a plain decimal unsigned 64 bit id. Stricter than {@link #from(String)}: a
+   * leading {@code +} and non-ASCII digits are rejected.
+   *
+   * <p>Internal API for parsing untrusted input, such as propagation headers, on the request path.
+   * Not intended for use outside the tracer.
+   *
+   * @param s String of unsigned 64 bit id
+   * @return DDTraceId, or {@code null} if the {@code String} is not a valid id
+   */
+  public static DD64bTraceId fromOrNull(String s) {
+    int len = s == null ? 0 : s.length();
+    long id = LongStringUtils.parseUnsignedLong(s, 0, len, 0L);
+    // 0 is both a valid id and the invalid sentinel, so re-parse with another sentinel to tell
+    if (id == 0L && LongStringUtils.parseUnsignedLong(s, 0, len, -1L) != 0L) {
+      return null;
+    }
+    return DD64bTraceId.create(id, s);
+  }
+
+  /**
    * Create a new {@code DDTraceId} from the given {@code String} hex representation of the unsigned
    * 64 bit id.
    *
