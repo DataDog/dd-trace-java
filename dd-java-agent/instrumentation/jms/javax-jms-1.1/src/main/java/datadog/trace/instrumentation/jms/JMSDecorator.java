@@ -271,7 +271,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   /**
    * {@code getDestination} is {@code >= 1.1}; latched per class rather than ignored outright
-   * because the {@code <=1.1} fallback below costs an extra {@code instanceOf}.
+   * because the {@code <=1.1} fallback costs an extra {@code instanceOf}.
    */
   private static final ClassLatch<MessageProducer, Destination, JMSException>
       GET_DESTINATION_LATCH =
@@ -281,20 +281,19 @@ public final class JMSDecorator extends MessagingClientDecorator {
               return handleAbstractMethod(
                   target, "getDestination", MessageProducer::getDestination);
             }
+
+            @Override
+            protected Destination fallback(MessageProducer target) throws JMSException {
+              // <=1.1 getDestination is not available so we need to pay an additional instanceOf
+              if (target instanceof QueueSender) {
+                return ((QueueSender) target).getQueue();
+              }
+              return ((TopicPublisher) target).getTopic();
+            }
           };
 
   public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
-    Destination destination = GET_DESTINATION_LATCH.tryApplyOrNull(messageProducer);
-    // a producer created with an unidentified destination legitimately returns null; only a
-    // latched class means getDestination() itself is unavailable and needs the fallback below
-    if (destination != null || !GET_DESTINATION_LATCH.isLatched(messageProducer)) {
-      return destination;
-    }
-    // <=1.1 getDestination is not available so we need to pay an additional instanceOf
-    if (messageProducer instanceof QueueSender) {
-      return ((QueueSender) messageProducer).getQueue();
-    }
-    return ((TopicPublisher) messageProducer).getTopic();
+    return GET_DESTINATION_LATCH.tryApplyOrNull(messageProducer);
   }
 
   public String getDestinationName(Destination destination) {
