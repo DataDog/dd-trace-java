@@ -1,6 +1,6 @@
-package datadog.trace.instrumentation.jdbc;
+package datadog.trace.bootstrap.instrumentation.dbm;
 
-import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.SubSequence;
 
 public class SQLCommenter {
@@ -26,7 +26,8 @@ public class SQLCommenter {
    * for large SQL). Consume it in place and discard; if the value must be retained, call {@link
    * SubSequence#toString()} to detach a standalone copy.
    */
-  protected static SubSequence getFirstWord(String sql) {
+  @VisibleForTesting
+  public static SubSequence getFirstWord(String sql) {
     int beginIndex = 0;
     while (beginIndex < sql.length() && Character.isWhitespace(sql.charAt(beginIndex))) {
       beginIndex++;
