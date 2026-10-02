@@ -89,6 +89,7 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
+  implementation(libs.forbiddenapis)
 
   implementation("net.bytebuddy", "byte-buddy-gradle-plugin", libs.versions.byte.buddy.get())
 
