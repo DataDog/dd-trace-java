@@ -9,11 +9,11 @@ import datadog.telemetry.api.RequestType
 import datadog.telemetry.dependency.Dependency
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
-import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.DebuggerConfig
 import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.ConfigStrings
 
@@ -484,7 +484,8 @@ class TelemetryServiceSpecification extends DDSpecification {
 
   def 'app-started must include activated products info'() {
     setup:
-    injectEnvConfig(ConfigStrings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
+    def previousAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = appsecActive
     injectEnvConfig(ConfigStrings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
     injectEnvConfig(ConfigStrings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig)
 
@@ -496,16 +497,18 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendAppStartedEvent()
 
     then: 'app-started'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products(appsecEnabled, profilingEnabled, dynInstrEnabled)
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products(appsecActive, profilingEnabled, dynInstrEnabled)
     testHttpClient.assertNoMoreRequests()
 
+    cleanup:
+    ActiveSubsystems.APPSEC_ACTIVE = previousAppSecActive
+
     where:
-    appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled
-    "1"          | true          | "1"             | true             | "1"            | true
-    "1"          | true          | "1"             | true             | "0"            | false
-    "1"          | true          | "0"             | false            | "1"            | true
-    "1"          | true          | "0"             | false            | "0"            | false
-    "0"          | false         | "0"             | false            | "0"            | false
-    "inactive"   | true          | "0"             | false            | "0"            | false
+    appsecActive | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled
+    true         | "1"             | true             | "1"            | true
+    true         | "1"             | true             | "0"            | false
+    true         | "0"             | false            | "1"            | true
+    true         | "0"             | false            | "0"            | false
+    false        | "0"             | false            | "0"            | false
   }
 }
