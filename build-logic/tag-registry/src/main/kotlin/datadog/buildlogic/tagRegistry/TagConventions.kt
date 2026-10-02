@@ -303,6 +303,7 @@ class TagConventions private constructor(
       val traceLevel = tagList(traceLevelRaw)
       require(refList(traceLevelRaw).isEmpty()) { "trace_level tags must be declarations, not refs" }
 
+      validateInheritedDirections(parsedSpanTypes)
       validateMixinDirections(parsedSpanTypes, parsedMixins)
       val identities = assignIdentities(parsedSpanTypes, parsedMixins, traceLevel)
       val spanTypes =
@@ -322,6 +323,22 @@ class TagConventions private constructor(
         }
       validateOtelNameScope(spanTypes, mixins, traceLevel)
       return TagConventions(spanTypes, mixins, traceLevel)
+    }
+
+    /**
+     * A span type may not change the direction it inherits: its own `span-kind` must agree with the
+     * nearest ancestor's. Otherwise the ancestor's tags, resolved in the ancestor's direction, would
+     * mix with the type's own, and one type could receive both sides of a tag declared per direction.
+     */
+    private fun validateInheritedDirections(spanTypes: Map<String, SpanType>) {
+      for (st in spanTypes.values) {
+        val direction = st.direction ?: continue
+        val ancestor = st.extends?.let { chainOf(spanTypes, it) }?.firstOrNull { it.direction != null } ?: continue
+        require(direction == ancestor.direction) {
+          "span type '${st.name}' (${direction.yamlKey}) changes the direction it inherits from " +
+            "'${ancestor.name}' (${ancestor.direction!!.yamlKey})"
+        }
+      }
     }
 
     /**
