@@ -55,6 +55,61 @@ boolean enabled = client.getBooleanValue("my-feature", false,
     new MutableContext("user-123"));
 ```
 
+## Exposure hooks (draft API)
+
+The provider registers an internal Datadog exposure logging hook by default. It uses the existing
+agent exposure writer and transport. Set `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false`
+(or `-Ddd.feature.flags.exposures.datadog.logging.enabled=false`) before constructing the provider to
+disable that hook. Evaluation metrics, evaluation logging and span enrichment have separate controls.
+
+Customers can explicitly register the public `ExposureHook` at the OpenFeature client, API or
+invocation level. Customer registration is independent of the Datadog logging setting:
+
+```java
+import datadog.trace.api.openfeature.ExposureHook;
+
+client.addHooks(new ExposureHook(evaluation -> {
+    if (evaluation.shouldSend()) {
+        // Example only: copy the fields needed by your destination into its asynchronous queue.
+        System.out.printf("Exposure: flag=%s variant=%s subject=%s serialId=%s%n",
+            evaluation.getDetails().getFlagKey(),
+            evaluation.getDetails().getVariant(),
+            evaluation.getContext().getTargetingKey(),
+            evaluation.getDetails().getFlagMetadata().getInteger("__dd_split_serial_id"));
+    }
+}));
+```
+
+The callback runs synchronously at OpenFeature's `finallyAfter` stage for every evaluation,
+including errors, non-exposures and repeats. Callback exceptions do not change the flag result.
+Copy fields before handing work to a background queue; the OpenFeature context may be caller-owned.
+
+- `isExposure()` means a successful result came from an allocation with `doLog=true`.
+  It cannot confirm that the application used the result or a person saw the feature.
+- `getCacheHit()` is `false` for a new or changed assignment, `true` for an unchanged assignment,
+  and `null` when not applicable or unavailable. Every hook sees the same advisory.
+- `shouldSend()` recommends exposure candidates with a cache miss. Customers may ignore this
+  recommendation, for example by sending all results with `isExposure() == true`.
+- Standard OpenFeature hooks can read the same metadata directly: `__dd_do_log`,
+  `__dd_exposure_cache_hit`, `allocationKey`, `__dd_eval_timestamp_ms`, and optional
+  `__dd_split_serial_id`. These names and the helper API are proposed by this draft.
+
+The advisory cache belongs to one provider and retains up to 1,024 `(flag, targeting key)` entries
+using LRU eviction. Each entry records the last `(allocation, variant, split serial ID)` assignment;
+assignment changes, including returning to an earlier assignment, are misses. Concurrent observations
+are atomic. Eviction or a new provider allows another miss; there is no time-based expiry.
+
+This cache records **observations, not delivery acknowledgements**. It advances during resolution,
+even with Datadog logging disabled, no customer hook, or a failed customer callback. Late hook
+registration does not replay assignments. If an application `after` hook rejects a result, final
+hooks see an error and emit no exposure, but the observation remains cached. Destinations that need
+retries or different deduplication should own that policy and ignore the advisory as needed.
+Datadog's existing writer retains its own cache and best-effort transport behavior.
+
+Split serial IDs remain available without span enrichment. Older agents without split serial IDs or
+the newer exposure constructor keep their existing compatibility fallback. This draft does not add
+new holdout fields or a public transport API.
+
 ## Evaluation metrics
 
 When `DD_METRICS_OTEL_ENABLED=true` and the OpenTelemetry API is on the classpath, the provider

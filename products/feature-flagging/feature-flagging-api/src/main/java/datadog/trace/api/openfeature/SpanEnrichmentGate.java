@@ -7,8 +7,8 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
  * Single source for reading the experimental span-enrichment gate, with full {@link ConfigProvider}
  * precedence (system property > stable config > env var {@code
  * DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED}). OFF by default; distinct from the
- * provider-enabled gate. Shared so {@link Provider} (per construction) and {@link DDEvaluator}
- * (once at class load) read it the same way.
+ * provider-enabled gate. Read by {@link Provider} once per construction. Exposure metadata is
+ * independent of this setting.
  */
 final class SpanEnrichmentGate {
 
