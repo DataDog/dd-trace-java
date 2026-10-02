@@ -45,6 +45,7 @@ testing {
     named<JvmTestSuite>("test") {
       useJUnitJupiter(libs.versions.junit5)
       dependencies {
+        implementation(platform(libs.junit.bom))
         implementation(libs.assertj.core)
         implementation(libs.okhttp3.mockwebserver)
         implementation("com.squareup.okhttp3:okhttp-tls:${libs.versions.okhttp3.testing.get()}")
