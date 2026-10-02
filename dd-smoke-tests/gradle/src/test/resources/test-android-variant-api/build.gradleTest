@@ -1,0 +1,29 @@
+apply plugin: 'java'
+apply plugin: 'java-test-fixtures'
+apply plugin: 'com.android.application'
+
+repositories {
+  mavenLocal()
+
+  def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+  if (proxyUrl) {
+    println "Using proxy repository: $proxyUrl"
+    maven {
+      url = proxyUrl
+      allowInsecureProtocol = true
+    }
+  }
+
+  mavenCentral()
+}
+
+dependencies {
+  testImplementation 'junit:junit:4.10'
+}
+
+def productionClassesJar = tasks.named('jar')
+def testFixturesJar = tasks.named('testFixturesJar')
+tasks.named('test') {
+  dependsOn productionClassesJar, testFixturesJar
+  classpath = classpath - sourceSets.main.output - sourceSets.testFixtures.output + files(productionClassesJar, testFixturesJar)
+}

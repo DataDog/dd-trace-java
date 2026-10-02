@@ -1,0 +1,19 @@
+apply plugin: 'java'
+
+repositories {
+  mavenLocal()
+
+  def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+  if (proxyUrl) {
+    maven {
+      url = proxyUrl
+      allowInsecureProtocol = true
+    }
+  }
+
+  mavenCentral()
+}
+
+dependencies {
+  implementation gradleApi()
+}
