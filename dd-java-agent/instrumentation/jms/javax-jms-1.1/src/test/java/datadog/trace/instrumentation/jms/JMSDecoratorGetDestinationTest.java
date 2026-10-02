@@ -118,6 +118,31 @@ class JMSDecoratorGetDestinationTest {
   }
 
   @Test
+  void anErrorNamingAnotherClassStillFallsBackButDoesNotLatch() throws Exception {
+    // e.g. a wrapper whose delegate lacks getDestination: the error names the delegate, so the
+    // wrapper's class is not latched, but the <=1.1 fallback is still the right answer
+    AtomicInteger calls = new AtomicInteger();
+    Queue queue =
+        (Queue)
+            Proxy.newProxyInstance(
+                JMSDecoratorGetDestinationTest.class.getClassLoader(),
+                new Class<?>[] {Queue.class},
+                (proxy, method, args) -> null);
+    MessageProducer sender =
+        producer(
+            new Class<?>[] {QueueSender.class, Runnable.class},
+            calls,
+            () -> {
+              throw unimplemented(queue);
+            },
+            queue);
+
+    assertSame(queue, PRODUCER_DECORATE.getDestination(sender));
+    assertSame(queue, PRODUCER_DECORATE.getDestination(sender));
+    assertEquals(2, calls.get());
+  }
+
+  @Test
   void fallsBackToGetTopicForATopicPublisher() throws Exception {
     AtomicInteger calls = new AtomicInteger();
     Topic topic =
