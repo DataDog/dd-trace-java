@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLong;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
@@ -10,6 +12,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
+import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -171,10 +174,27 @@ class DatadogHttpCodec {
           if (null != value) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDTraceId.from(firstHeaderValue(value));
+                {
+                  String traceIdValue = firstHeaderValue(value);
+                  DDTraceId parsedTraceId = DD64bTraceId.fromOrNull(traceIdValue);
+                  if (parsedTraceId == null) {
+                    return rejectInvalidId(TRACE_ID_KEY, traceIdValue);
+                  }
+                  traceId = parsedTraceId;
+                }
                 break;
               case SPAN_ID:
-                spanId = DDSpanId.from(firstHeaderValue(value));
+                {
+                  String spanIdValue = firstHeaderValue(value);
+                  int len = spanIdValue.length();
+                  long parsedSpanId = parseUnsignedLong(spanIdValue, 0, len, DDSpanId.ZERO);
+                  // ZERO is both a valid value and the invalid sentinel, so re-parse to tell
+                  if (parsedSpanId == DDSpanId.ZERO
+                      && parseUnsignedLong(spanIdValue, 0, len, DDSpanId.MAX) != DDSpanId.ZERO) {
+                    return rejectInvalidId(SPAN_ID_KEY, spanIdValue);
+                  }
+                  spanId = parsedSpanId;
+                }
                 break;
               case ORIGIN:
                 origin = firstHeaderValue(value);
@@ -207,6 +227,14 @@ class DatadogHttpCodec {
         handleMappedBaggage(key, value);
       }
       return true;
+    }
+
+    // Malformed ids come from the caller, not from a tracer bug, and repeat on every request from
+    // that caller, so they are rejected without an exception and kept out of telemetry
+    private boolean rejectInvalidId(String headerName, String headerValue) {
+      invalidateContext();
+      log.debug(EXCLUDE_TELEMETRY, "Ignoring context with invalid {}: {}", headerName, headerValue);
+      return false;
     }
 
     @Override
