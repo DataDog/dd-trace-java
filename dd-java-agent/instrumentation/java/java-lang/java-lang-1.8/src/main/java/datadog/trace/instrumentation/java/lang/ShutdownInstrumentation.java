@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.shutdown.ShutdownHelper;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -15,7 +16,7 @@ import net.bytebuddy.asm.Advice;
  * before the shutdown hooks are called.<br>
  */
 @AutoService(InstrumenterModule.class)
-public class ShutdownInstrumentation extends InstrumenterModule.Tracing
+public class ShutdownInstrumentation extends InstrumenterModule
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ShutdownInstrumentation() {
@@ -25,6 +26,13 @@ public class ShutdownInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String instrumentedType() {
     return "java.lang.Shutdown";
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // Agent-owned subsystems such as Feature Flagging can run while tracing is disabled. Their
+    // bounded final drains still depend on ShutdownHelper running before application hooks.
+    return true;
   }
 
   @Override
