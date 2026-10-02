@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.armeria.grpc.server;
 
+import static datadog.context.Context.root;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.DECORATE;
@@ -11,6 +12,7 @@ import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecora
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
@@ -68,7 +70,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return next.startCall(call, headers);
     }
 
-    AgentSpanContext spanContext = extractContextAndGetSpanContext(headers, GETTER);
+    // Extract the full context so non-span elements (e.g. W3C baggage) stay current with the span
+    Context parentContext = defaultPropagator().extract(root(), headers, GETTER);
+    AgentSpan extractedSpan = fromContext(parentContext);
+    AgentSpanContext spanContext = extractedSpan == null ? null : extractedSpan.spanContext();
     AgentTracer.TracerAPI tracer = tracer();
     spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
@@ -90,11 +95,13 @@ public class TracingServerInterceptor implements ServerInterceptor {
     DECORATE.afterStart(span);
     DECORATE.onCall(span, call);
 
+    final Context context = parentContext.with(span);
     final ServerCall.Listener<ReqT> result;
-    try (ContextScope scope = activateSpan(span)) {
+    try (ContextScope scope = context.attach()) {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
-      final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
+      final TracingServerCall<ReqT, RespT> tracingServerCall =
+          new TracingServerCall<>(span, context, call);
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
     } catch (final Throwable e) {
@@ -108,22 +115,25 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
 
     // This ensures the server implementation can see the span in scope
-    return new TracingServerCallListener<>(span, result);
+    return new TracingServerCallListener<>(span, context, result);
   }
 
   static final class TracingServerCall<ReqT, RespT>
       extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> {
     final AgentSpan span;
+    final Context context;
 
-    TracingServerCall(final AgentSpan span, final ServerCall<ReqT, RespT> delegate) {
+    TracingServerCall(
+        final AgentSpan span, final Context context, final ServerCall<ReqT, RespT> delegate) {
       super(delegate);
       this.span = span;
+      this.context = context;
     }
 
     @Override
     public void close(final Status status, final Metadata trailers) {
       DECORATE.onClose(span, status);
-      try (final ContextScope scope = activateSpan(span)) {
+      try (final ContextScope scope = context.attach()) {
         delegate().close(status, trailers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
@@ -141,10 +151,13 @@ public class TracingServerInterceptor implements ServerInterceptor {
   public static final class TracingServerCallListener<ReqT>
       extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT> {
     private final AgentSpan span;
+    private final Context context;
 
-    TracingServerCallListener(final AgentSpan span, final ServerCall.Listener<ReqT> delegate) {
+    TracingServerCallListener(
+        final AgentSpan span, final Context context, final ServerCall.Listener<ReqT> delegate) {
       super(delegate);
       this.span = span;
+      this.context = context;
     }
 
     @Override
@@ -153,7 +166,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
           startSpan(DECORATE.instrumentationNames()[0], GRPC_MESSAGE, this.span.spanContext())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
-      try (ContextScope scope = activateSpan(msgSpan)) {
+      try (ContextScope scope = context.with(msgSpan).attach()) {
         callIGCallbackGrpcMessage(msgSpan, message);
         delegate().onMessage(message);
       } catch (final Throwable e) {
@@ -173,7 +186,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onHalfClose() {
-      try (final ContextScope scope = activateSpan(span)) {
+      try (final ContextScope scope = context.attach()) {
         delegate().onHalfClose();
       } catch (final Throwable e) {
         if (span.phasedFinish()) {
@@ -189,7 +202,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onCancel() {
       // Finishes span.
-      try (final ContextScope scope = activateSpan(span)) {
+      try (final ContextScope scope = context.attach()) {
         delegate().onCancel();
         span.setTag("canceled", true);
       } catch (CancellationException e) {
@@ -210,7 +223,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onComplete() {
       // Finishes span.
-      try (final ContextScope scope = activateSpan(span)) {
+      try (final ContextScope scope = context.attach()) {
         delegate().onComplete();
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
@@ -230,7 +243,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onReady() {
-      try (final ContextScope scope = activateSpan(span)) {
+      try (final ContextScope scope = context.attach()) {
         delegate().onReady();
       } catch (final Throwable e) {
         if (span.phasedFinish()) {
