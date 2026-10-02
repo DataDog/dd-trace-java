@@ -171,6 +171,7 @@ include(
 
 // misc
 include(
+  ":dd-java-agent:observer",
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",

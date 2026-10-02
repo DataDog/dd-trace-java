@@ -14,13 +14,10 @@ public final class ObserverBootstrap {
             ObserverBootstrap.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     instrumentation.appendToBootstrapClassLoaderSearch(new JarFile(jar));
     Class.forName("datadog.trace.observer.bootstrap.ObserverRuntime", true, null)
-        .getMethod("initializePremain", String.class)
-        .invoke(null, arguments);
+        .getMethod("initializePremain")
+        .invoke(null);
     Class.forName("datadog.trace.observer.trace.bootstrap.AgentPreCheck", true, null)
         .getMethod("premain", String.class, Instrumentation.class)
-        .invoke(
-            null,
-            arguments != null && arguments.startsWith("v1:") ? null : arguments,
-            instrumentation);
+        .invoke(null, arguments, instrumentation);
   }
 }

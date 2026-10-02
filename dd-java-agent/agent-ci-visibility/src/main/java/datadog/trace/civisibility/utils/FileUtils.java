@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,22 +50,24 @@ public abstract class FileUtils {
    */
   public static Path findParentPathBackwards(
       final Path current, final String target, final boolean isTargetDirectory) {
-    if (current == null || target == null || target.isEmpty()) {
+    return findParentPathBackwards(
+        current,
+        target,
+        isTargetDirectory ? path -> Files.isDirectory(path) : path -> Files.isRegularFile(path));
+  }
+
+  /** Like {@link #findParentPathBackwards(Path, String, boolean)}, for any kind of target. */
+  public static Path findParentPathBackwards(
+      final Path current, final String target, final Predicate<Path> isTarget) {
+    if (target == null || target.isEmpty()) {
       return null;
     }
-
-    final Path targetPath = current.resolve(target);
-    if (Files.exists(targetPath)) {
-      if (isTargetDirectory && Files.isDirectory(targetPath)) {
-        return current;
-      } else if (!isTargetDirectory && Files.isRegularFile(targetPath)) {
-        return current;
-      } else {
-        return findParentPathBackwards(current.getParent(), target, isTargetDirectory);
+    for (Path path = current; path != null; path = path.getParent()) {
+      if (isTarget.test(path.resolve(target))) {
+        return path;
       }
-    } else {
-      return findParentPathBackwards(current.getParent(), target, isTargetDirectory);
     }
+    return null;
   }
 
   public static String expandTilde(final String path) {

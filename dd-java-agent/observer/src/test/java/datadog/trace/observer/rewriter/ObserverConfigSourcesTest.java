@@ -1,7 +1,6 @@
-package datadog.gradle.plugin.observer;
+package datadog.trace.observer.rewriter;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -23,7 +22,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -36,10 +34,10 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Differential source tests without installing either tracer or reading host stable files. */
-@EnabledIfSystemProperty(named = "observer.test.artifact", matches = ".+")
 class ObserverConfigSourcesTest {
   private static final String STOCK = "datadog.trace.";
   private static final String OBSERVER = "datadog.trace.observer.trace.";
+  private static final String RUNTIME = "datadog/trace/observer/bootstrap/ObserverRuntime";
 
   /** Only test environment transport is substituted, below the stock config helper. */
   public static class Environment {
@@ -173,8 +171,17 @@ class ObserverConfigSourcesTest {
               .invoke(third, "api-key", null, system, new String[0]));
       assertEquals("/subject-file-must-not-be-read", System.getProperty("dd.trace.config"));
       Class<?> stable = loader.loadClass(OBSERVER + "bootstrap.config.provider.StableConfigSource");
+      // No host stable-config file is read: local only carries the observer's own defaults.
       assertEquals(
-          java.util.Collections.emptySet(),
+          new java.util.HashSet<>(
+              asList(
+                  "DD_TRACE_JUNIT_4_ENABLED",
+                  "DD_TRACE_TESTNG_ENABLED",
+                  "DD_TRACE_KARATE_ENABLED",
+                  "DD_TRACE_SCALATEST_ENABLED",
+                  "DD_TRACE_WEAVER_ENABLED",
+                  "DD_TRACE_CUCUMBER_ENABLED",
+                  "DD_CIVISIBILITY_CODE_COVERAGE_INCLUDES")),
           stable.getMethod("getKeys").invoke(stable.getField("LOCAL").get(null)));
       assertEquals(
           java.util.Collections.emptySet(),
@@ -259,7 +266,7 @@ class ObserverConfigSourcesTest {
     environment.put("TRACING_OBSERVER_CONFIG_DD_ENV", "private-environment");
     environment.put("TRACING_OBSERVER_CONFIG_DD_API_KEY", "owned-secret-marker");
     try (SourceLoader parent = loader(true)) {
-      System.clearProperty("tracing.observer.child.v1");
+      System.clearProperty("tracing.observer.child.v2");
       System.setProperty("tracing.observer.config.dd.trace.config", file.toString());
       parent.loadClass(Environment.class.getName()).getField("values").set(null, environment);
       Class<?> runtime = parent.loadClass("datadog.trace.observer.bootstrap.ObserverRuntime");
@@ -286,12 +293,12 @@ class ObserverConfigSourcesTest {
       assertEquals(
           stockArguments.subList(stockArguments.size() - 2, stockArguments.size()),
           arguments.subList(0, 2));
-      String child = arguments.get(2).substring("-Dtracing.observer.child.v1=".length());
+      String child = arguments.get(2).substring("-Dtracing.observer.child.v2=".length());
       assertTrue(
           !new String(java.util.Base64.getUrlDecoder().decode(child), "UTF-8")
               .contains("owned-secret-marker"));
       Files.write(file, "dd.service=file-worker\n".getBytes("ISO-8859-1"));
-      System.setProperty("tracing.observer.child.v1", child);
+      System.setProperty("tracing.observer.child.v2", child);
       try (SourceLoader worker = loader(true)) {
         worker.loadClass(Environment.class.getName()).getField("values").set(null, environment);
         Class<?> provider = worker.loadClass(OBSERVER + "bootstrap.config.provider.ConfigProvider");
@@ -382,6 +389,14 @@ class ObserverConfigSourcesTest {
             {
               "logs-intake/datadog/trace/observer/trace/logging/intake/LogsWriterImpl.classdata",
               "datadog.product:"
+            },
+            {
+              "datadog/trace/observer/trace/api/ClassloaderConfigurationOverrides.class",
+              "java:comp/env/datadog/tags/"
+            },
+            {
+              "ci-visibility/datadog/trace/observer/trace/civisibility/compiler/CompilerModuleExporter.classdata",
+              "datadog/compiler/"
             }
           }) {
         java.util.jar.JarEntry entry = observer.getJarEntry(expected[0]);
@@ -399,6 +414,74 @@ class ObserverConfigSourcesTest {
         }
         assertTrue(constants.contains(expected[1]), expected[0] + " " + expected[1]);
       }
+      // The javac plugin writes these annotation types into user classes; both tracers share them.
+      assertTrue(observer.getJarEntry("datadog/compiler/annotations/SourcePath.class") != null);
+      assertTrue(
+          observer.getJarEntry("datadog/trace/observer/compiler/annotations/SourcePath.class")
+              == null);
+      ClassNode utils = new ClassNode();
+      new ClassReader(
+              SourceLoader.read(
+                  observer.getInputStream(
+                      observer.getJarEntry("datadog/compiler/utils/CompilerUtils.class"))))
+          .accept(utils, 0);
+      boolean readsSharedAnnotation = false;
+      for (MethodNode method : utils.methods) {
+        for (AbstractInsnNode instruction : method.instructions) {
+          if (instruction instanceof org.objectweb.asm.tree.LdcInsnNode
+              && String.valueOf(((org.objectweb.asm.tree.LdcInsnNode) instruction).cst)
+                  .equals("Ldatadog/compiler/annotations/SourcePath;")) {
+            readsSharedAnnotation = true;
+          }
+        }
+      }
+      assertTrue(readsSharedAnnotation, "CompilerUtils must read the shared SourcePath annotation");
+    }
+  }
+
+  @Test
+  void nestedOnlyFrameworkDefaultsLoseToAnyExplicitSetting(@TempDir Path directory)
+      throws Exception {
+    Path file = directory.resolve("observer.properties");
+    Files.write(file, "dd.trace.karate.enabled=true\n".getBytes("ISO-8859-1"));
+    Properties original = (Properties) System.getProperties().clone();
+    try (SourceLoader loader = loader(true)) {
+      System.setProperty("tracing.observer.config.dd.integration.testng.enabled", "true");
+      System.setProperty("tracing.observer.config.dd.trace.config", file.toString());
+      Map<String, String> env = new HashMap<>();
+      env.put("TRACING_OBSERVER_CONFIG_DD_TRACE_JUNIT_4_ENABLED", "true");
+      loader.loadClass(Environment.class.getName()).getField("values").set(null, env);
+      Class<?> provider = loader.loadClass(OBSERVER + "bootstrap.config.provider.ConfigProvider");
+      Object config = provider.getMethod("createDefault").invoke(null);
+      Method getBoolean =
+          provider.getMethod("getBoolean", String.class, boolean.class, String[].class);
+      Map<String, Object> enabled = new LinkedHashMap<>();
+      for (String name : asList("junit-4", "testng", "karate", "scalatest", "junit-5")) {
+        // Same keys and order as InstrumenterConfig.isIntegrationEnabled.
+        enabled.put(
+            name,
+            getBoolean.invoke(
+                config,
+                "trace." + name + ".enabled",
+                true,
+                new String[] {
+                  "trace.integration." + name + ".enabled", "integration." + name + ".enabled"
+                }));
+      }
+      Map<String, Object> expected = new LinkedHashMap<>();
+      expected.put("junit-4", true);
+      expected.put("testng", true);
+      expected.put("karate", true);
+      expected.put("scalatest", false);
+      expected.put("junit-5", true);
+      assertEquals(expected, enabled);
+      assertEquals(
+          "datadog.*:com.datadog.*",
+          provider
+              .getMethod("getString", String.class)
+              .invoke(config, "civisibility.code.coverage.includes"));
+    } finally {
+      System.setProperties(original);
     }
   }
 
@@ -521,7 +604,7 @@ class ObserverConfigSourcesTest {
       String decoded =
           new String(
               java.util.Base64.getUrlDecoder()
-                  .decode(result.get(1).substring("-Dtracing.observer.child.v1=".length())),
+                  .decode(result.get(1).substring("-Dtracing.observer.child.v2=".length())),
               "UTF-8");
       assertTrue(decoded.contains("tag:resolved $ value"));
       assertTrue(!decoded.contains("${fixture}"));
@@ -539,11 +622,7 @@ class ObserverConfigSourcesTest {
   }
 
   private static void initializeParent(Class<?> runtime) throws Exception {
-    Method encode = runtime.getDeclaredMethod("encode", List.class);
-    encode.setAccessible(true);
-    String envelope =
-        (String) encode.invoke(null, asList(emptyMap(), emptyMap(), emptyMap(), emptyMap()));
-    runtime.getMethod("initializePremain", String.class).invoke(null, "v1:" + envelope);
+    runtime.getMethod("initializePremain").invoke(null);
   }
 
   private static Object configString(Class<?> provider, Object config, String key)
@@ -660,7 +739,13 @@ class ObserverConfigSourcesTest {
       String resource = name.replace('.', '/') + ".class";
       try {
         byte[] bytes;
-        if (!observer && name.equals(STOCK + "bootstrap.config.provider.StableConfigSource")) {
+        if (!observer && name.equals(RUNTIME.replace('/', '.'))) {
+          // The stock oracle shares the observer's stable-config seam, which calls the runtime.
+          try (java.util.jar.JarFile jar = new java.util.jar.JarFile(artifact.toFile())) {
+            bytes = read(jar.getInputStream(jar.getJarEntry(resource)));
+          }
+        } else if (!observer
+            && name.equals(STOCK + "bootstrap.config.provider.StableConfigSource")) {
           // Only the host-file seam is disabled in the stock oracle. All factory/parsing code is
           // stock.
           try (java.util.jar.JarFile jar = new java.util.jar.JarFile(artifact.toFile())) {
@@ -677,7 +762,9 @@ class ObserverConfigSourcesTest {
                       new Remapper(Opcodes.ASM9) {
                         @Override
                         public String map(String value) {
-                          return value.replace("datadog/trace/observer/", "datadog/");
+                          return value.equals(RUNTIME)
+                              ? value
+                              : value.replace("datadog/trace/observer/", "datadog/");
                         }
                       }),
                   0);

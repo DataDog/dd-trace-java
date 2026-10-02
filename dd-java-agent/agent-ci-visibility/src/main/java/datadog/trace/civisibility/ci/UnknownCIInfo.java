@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.civisibility.utils.FileUtils.findParentPathBackwards;
+
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
@@ -46,7 +48,11 @@ class UnknownCIInfo implements CIProviderInfo {
 
   @Override
   public CIInfo buildCIInfo() {
-    Path workspace = findWorkspace(getCurrentPath(), getTargetFolder());
+    Path workspace =
+        findParentPathBackwards(
+            getCurrentPath(),
+            getTargetFolder(),
+            git -> Files.isDirectory(git) || Files.isRegularFile(git));
     if (workspace == null) {
       return CIInfo.NOOP;
     }
@@ -58,19 +64,6 @@ class UnknownCIInfo implements CIProviderInfo {
     }
 
     return CIInfo.builder(environment).ciWorkspace(workspace.toAbsolutePath().toString()).build();
-  }
-
-  private static Path findWorkspace(Path current, String gitFolder) {
-    if (gitFolder == null || gitFolder.isEmpty()) {
-      return null;
-    }
-    for (Path path = current; path != null; path = path.getParent()) {
-      Path git = path.resolve(gitFolder);
-      if (Files.isDirectory(git) || Files.isRegularFile(git)) {
-        return path;
-      }
-    }
-    return null;
   }
 
   @Nonnull

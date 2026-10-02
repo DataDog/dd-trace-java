@@ -84,6 +84,23 @@ class TypeFactoryTransformTest {
     assertEquals(1, restored.getDeclaredFields().size());
   }
 
+  @Test
+  void transformBytesOnAColdCacheAreSharedLikeAnyOtherParse() throws Exception {
+    String name = Example.class.getName();
+    byte[] augmented =
+        withInterfaceAndField(ClassFileLocator.ForClassLoader.read(Example.class), "sharedField");
+
+    factory.beginTransform(name, augmented);
+    assertAugmented(TypeFactory.findType(name), "sharedField");
+    factory.endTransform();
+
+    // Later lookups, such as supertype walks from other classes, reuse the shared description.
+    factory.switchContext(Example.class.getClassLoader());
+    assertEquals(
+        Serializable.class.getName(),
+        TypeFactory.findType(name).getInterfaces().getOnly().asErasure().getName());
+  }
+
   private static void assertAugmented(TypeDescription type, String field) {
     assertEquals(
         Serializable.class.getName(), type.getInterfaces().getOnly().asErasure().getName());

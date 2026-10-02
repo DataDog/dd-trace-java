@@ -112,7 +112,7 @@ final class TypeFactory {
 
   byte[] targetBytecode;
 
-  /** Memoizes the supplied transform schema independently of shared classpath descriptions. */
+  /** Description of the current transform target, resolved from the supplied bytes. */
   private LazyType targetType;
 
   /** Sets the current class-loader context of this type-factory. */
@@ -263,16 +263,17 @@ final class TypeFactory {
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
 
-    // Earlier transformers may have changed this schema since it was cached from the classpath.
-    // Keep the supplied target bytes local to this transform, not in the shared type caches.
-    if (request == targetType) {
+    SharedTypeInfo<TypeDescription> sharedType = types.find(name);
+
+    // A cached description of the transform target can predate changes from earlier transformers,
+    // so parse the supplied bytes instead. Leave the cached entry for other lookups.
+    if (request == targetType && null != sharedType) {
       TypeDescription type = typeParser.parse(targetBytecode);
       InstrumenterMetrics.buildTypeDescription(fromTick, isOutline);
       return type;
     }
 
     // existing type description from same classloader?
-    SharedTypeInfo<TypeDescription> sharedType = types.find(name);
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoaderId))) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);

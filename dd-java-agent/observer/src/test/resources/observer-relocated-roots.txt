@@ -1,0 +1,4 @@
+com/datadog/debugger
+datadog/slf4j
+datadog/trace
+net/bytebuddy

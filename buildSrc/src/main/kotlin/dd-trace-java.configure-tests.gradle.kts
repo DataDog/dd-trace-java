@@ -85,17 +85,12 @@ if (providers.gradleProperty("traceTracer").map { it.toBoolean() }.orElse(false)
   require(!gradle.startParameter.isConfigurationCacheRequested) {
     "The experimental Gradle observer does not support configuration cache"
   }
-  require(!providers.gradleProperty("traceTracerIntakePort").isPresent &&
-    !providers.gradleProperty("traceTracerDebug").isPresent) {
-    "Use ordinary namespaced tracer configuration instead of traceTracerIntakePort/traceTracerDebug"
-  }
   val observerJar = datadog.gradle.plugin.observer.ObserverAgentSelection.validate()
   tasks.withType<Test>().configureEach {
     inputs.file(observerJar).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.NONE)
     inputs.property("observerConfiguration", provider {
       datadog.gradle.plugin.observer.ObserverAgentSelection.configurationFingerprint()
     })
-    // The relocated stock Gradle service is the sole worker injector and module owner.
   }
 }
 
