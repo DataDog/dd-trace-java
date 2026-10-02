@@ -13,6 +13,10 @@ import javax.annotation.Nullable;
  * counts as a failure in their own {@code try/catch} inside {@link #apply}, so checked exceptions
  * and a tight {@code try} scope come for free, and call {@link #latch()} themselves.
  *
+ * <p>{@link #fallback} is what every call yields once latched: {@code null} unless overridden.
+ * Override it when the call site has a known answer for the failed case, rather than passing the
+ * same default to {@link #tryApplyOrDefault} at every call.
+ *
  * <p>This is a hint, not a lock. The flag is deliberately plain. A stale read only costs another
  * failure; a thread always sees its own write, so each thread pays for at most one failure after
  * its own first. Other threads' writes become visible eventually, with no bound on how long that
@@ -30,29 +34,37 @@ public abstract class Latch<T, R, E extends Exception> {
   protected abstract R apply(T target) throws E;
 
   /**
-   * Performs the operation unless latched, in which case returns {@code null}. A {@code null}
-   * result means nothing is available: the operation was skipped, or it produced no value.
+   * What every call yields once latched, instead of the operation. {@code null} unless overridden.
    */
   @Nullable
-  public final R tryApplyOrNull(T target) throws E {
-    return latched ? null : apply(target);
+  protected R fallback(T target) throws E {
+    return null;
   }
 
   /**
-   * Like {@link #tryApplyOrNull}, but returns {@code fallback} when there is nothing available. The
-   * fallback is also used when the operation itself produced {@code null}, so a call and a skipped
-   * call always agree.
+   * Performs the operation unless latched, in which case returns {@link #fallback}. A {@code null}
+   * result means nothing is available: neither the operation nor the fallback produced a value.
    */
-  public final R tryApplyOrDefault(T target, R fallback) throws E {
+  @Nullable
+  public final R tryApplyOrNull(T target) throws E {
+    return latched ? fallback(target) : apply(target);
+  }
+
+  /**
+   * Like {@link #tryApplyOrNull}, but returns {@code defaultValue} when there is nothing available.
+   * It is also used when the operation or {@link #fallback} itself produced {@code null}, so a call
+   * and a skipped call always agree.
+   */
+  public final R tryApplyOrDefault(T target, R defaultValue) throws E {
     final R result = tryApplyOrNull(target);
-    return result != null ? result : fallback;
+    return result != null ? result : defaultValue;
   }
 
   /**
    * For a read of a field that some classes on the classpath may lack: latches if the call raises
-   * {@link NoSuchFieldError}, then rethrows it so the first failure is still reported. A missing
-   * field is the same for every receiver, so one latch covers the site. Anything else propagates
-   * without latching.
+   * {@link NoSuchFieldError}, then rethrows it so the first failure is still reported; only later,
+   * skipped calls yield {@link #fallback}. A missing field is the same for every receiver, so one
+   * latch covers the site. Anything else propagates without latching.
    *
    * <pre>{@code
    * protected Boolean apply(ByteQuadsCanonicalizer symbols) {

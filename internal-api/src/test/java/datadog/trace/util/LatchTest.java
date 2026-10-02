@@ -59,6 +59,54 @@ class LatchTest {
   }
 
   @Test
+  void onceLatchedEveryCallYieldsTheFallback() {
+    AtomicInteger calls = new AtomicInteger();
+    Latch<String, String, RuntimeException> latch =
+        new Latch<String, String, RuntimeException>() {
+          @Override
+          protected String apply(String target) {
+            calls.incrementAndGet();
+            return handleNoSuchField(
+                target,
+                t -> {
+                  throw new NoSuchFieldError("f");
+                });
+          }
+
+          @Override
+          protected String fallback(String target) {
+            return "fallback:" + target;
+          }
+        };
+
+    // the first failure is still rethrown, not replaced by the fallback
+    assertThrows(NoSuchFieldError.class, () -> latch.tryApplyOrNull("x"));
+
+    assertEquals("fallback:x", latch.tryApplyOrNull("x"));
+    assertEquals("fallback:y", latch.tryApplyOrDefault("y", "default"));
+    assertEquals(1, calls.get(), "later calls should be skipped");
+  }
+
+  @Test
+  void aRealNullIsNotReplacedByTheFallback() {
+    Latch<String, String, RuntimeException> latch =
+        new Latch<String, String, RuntimeException>() {
+          @Override
+          protected String apply(String target) {
+            return null;
+          }
+
+          @Override
+          protected String fallback(String target) {
+            return "fallback";
+          }
+        };
+
+    assertNull(latch.tryApplyOrNull("x"));
+    assertFalse(latch.isLatched());
+  }
+
+  @Test
   void tryApplyOrDefaultReturnsTheResultWhenThereIsOne() {
     FieldLatch latch = new FieldLatch();
     latch.fieldPresent = true;
