@@ -47,8 +47,25 @@ This mechanism exists to make sure either java agent state or static data are re
 
 ### Flaky Tests
 
-If a test runs unreliably, or doesn't have a fully deterministic behavior, this will lead to recurrent unexpected errors in continuous integration.
-In order to identify such tests and avoid the continuous integration to fail, they are marked as _flaky_ and must be annotated with the `@Flaky` annotation.
+Mark unreliable test methods or classes with `@Flaky` in both JUnit and Spock.
+
+All tests run by default. Use `-PskipFlakyTests` to skip flaky tests or `-PrunFlakyTests` to run only flaky tests.
+
+If a JUnit test is flaky only in certain environments, use `conditionMethod` to reference a static,
+no-argument method that returns `true` when the test is flaky:
+
+```java
+@Test
+@Flaky(conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm")
+void testOnSupportedJvms() {
+  // ...
+}
+```
+
+Use `suites = {"SomeSubclass"}` to limit the annotation to the concrete class executing the test,
+such as a subclass that inherits the annotated method. Simple and canonical class names are
+supported. Matching is exact, so subclasses and nested classes must each be listed. When both
+`suites` and a condition are specified, both must match.
 
 > [!TIP]
 > In case your pull request checks failed due to some unexpected flaky tests, you can retry the continuous 
