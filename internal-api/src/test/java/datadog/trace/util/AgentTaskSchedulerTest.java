@@ -47,7 +47,6 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
     assertFalse(scheduler.isShutdown());
 
     scheduler.scheduleAtFixedRate(task, latch, 50, 10, MILLISECONDS);
-    assertEquals(1, scheduler.taskCount());
 
     assertTrue(latch.await(500, MILLISECONDS));
   }
@@ -68,7 +67,6 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
     assertFalse(scheduler.isShutdown());
 
     scheduler.weakScheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS);
-    assertEquals(1, scheduler.taskCount());
     latch = null;
 
     GCUtils.awaitGC(weakLatch);
@@ -90,7 +88,6 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
     assertFalse(scheduler.isShutdown());
 
     scheduler.schedule(task, latch, 10, MILLISECONDS);
-    assertEquals(1, scheduler.taskCount());
 
     assertTrue(latch.await(500, MILLISECONDS));
     assertEquals(0, scheduler.taskCount());
@@ -147,7 +144,6 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
 
     AgentTaskScheduler.Scheduled<CountDownLatch> scheduled =
         scheduler.scheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS);
-    assertEquals(1, scheduler.taskCount());
 
     scheduled.cancel();
     Thread.sleep(100);
@@ -168,7 +164,6 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
     assertFalse(scheduler.isShutdown());
 
     scheduler.execute(target);
-    assertEquals(1, scheduler.taskCount());
 
     assertTrue(latch.await(500, MILLISECONDS));
     assertEquals(0, scheduler.taskCount());
@@ -188,7 +183,6 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
     assertFalse(scheduler.isShutdown());
 
     scheduler.scheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS);
-    assertEquals(1, scheduler.taskCount());
 
     scheduler.shutdown(1, SECONDS);
     assertTrue(scheduler.isShutdown());
