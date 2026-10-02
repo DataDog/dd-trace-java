@@ -83,7 +83,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * null}, or neither the operation nor the fallback produced a value.
    */
   @Nullable
-  public final R tryApplyOrNull(@Nullable T target) throws E {
+  public final R tryApply(@Nullable T target) throws E {
     if (target == null) {
       return null;
     }
@@ -110,12 +110,12 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * Like {@link #tryApplyOrNull}, but returns {@code defaultValue} when there is nothing available.
-   * It is also used when the operation or {@link #fallback} itself produced {@code null}, so a call
-   * and a skipped call always agree.
+   * Like {@link #tryApply}, but returns {@code defaultValue} when there is nothing available. It is
+   * also used when the operation or {@link #fallback} itself produced {@code null}, so a call and a
+   * skipped call always agree.
    */
   public final R tryApplyOrDefault(@Nullable T target, R defaultValue) throws E {
-    final R result = tryApplyOrNull(target);
+    final R result = tryApply(target);
     return result != null ? result : defaultValue;
   }
 

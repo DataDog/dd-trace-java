@@ -61,9 +61,9 @@ class HandleNoSuchOrAbstractMethodTest {
   void noSuchMethodYieldsNullAndLatchesTheTargetsClass() throws Exception {
     Throwing latch = new Throwing(new NoSuchMethodError("I.b()Ljava/lang/String;"));
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("y"));
-    assertNull(latch.tryApplyOrNull("z"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("y"));
+    assertNull(latch.tryApply("z"));
 
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
     assertTrue(latch.isLatched("x"));
@@ -74,10 +74,10 @@ class HandleNoSuchOrAbstractMethodTest {
     // the message names the declared type, not the receiver, so it cannot be attributed to a class;
     // latching only the target's key means another class still gets its own attempt
     Throwing latch = new Throwing(new NoSuchMethodError("I.b()Ljava/lang/String;"));
-    latch.tryApplyOrNull("x");
+    latch.tryApply("x");
 
     assertFalse(latch.isLatched(Integer.valueOf(1)));
-    assertNull(latch.tryApplyOrNull(Integer.valueOf(1)));
+    assertNull(latch.tryApply(Integer.valueOf(1)));
     assertEquals(2, latch.calls.get());
     assertTrue(latch.isLatched(Integer.valueOf(1)));
   }
@@ -91,12 +91,12 @@ class HandleNoSuchOrAbstractMethodTest {
                     + String.class.getName()
                     + " does not define or inherit an implementation of the resolved method"
                     + " 'abstract java.lang.String m()' of interface I."));
-    assertNull(named.tryApplyOrNull("x"));
+    assertNull(named.tryApply("x"));
     assertTrue(named.isLatched("x"));
 
     Throwing unnamed = new Throwing(new AbstractMethodError("something else entirely"));
-    assertNull(unnamed.tryApplyOrNull("x"));
-    assertNull(unnamed.tryApplyOrNull("x"));
+    assertNull(unnamed.tryApply("x"));
+    assertNull(unnamed.tryApply("x"));
     assertFalse(unnamed.isLatched("x"));
     assertEquals(2, unnamed.calls.get());
   }
@@ -105,8 +105,8 @@ class HandleNoSuchOrAbstractMethodTest {
   void unsupportedOperationIsSwallowedAndNeverLatched() throws Exception {
     Throwing latch = new Throwing(new UnsupportedOperationException());
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("x"));
 
     assertEquals(2, latch.calls.get());
     assertFalse(latch.isLatched("x"));
@@ -115,11 +115,11 @@ class HandleNoSuchOrAbstractMethodTest {
   @Test
   void otherFailuresPropagateWithoutLatching() {
     Throwing checked = new Throwing(new SQLException("boom"));
-    assertThrows(SQLException.class, () -> checked.tryApplyOrNull("x"));
+    assertThrows(SQLException.class, () -> checked.tryApply("x"));
     assertFalse(checked.isLatched("x"));
 
     Throwing unchecked = new Throwing(new IllegalStateException());
-    assertThrows(IllegalStateException.class, () -> unchecked.tryApplyOrNull("x"));
+    assertThrows(IllegalStateException.class, () -> unchecked.tryApply("x"));
     assertFalse(unchecked.isLatched("x"));
   }
 
@@ -172,8 +172,8 @@ class HandleNoSuchOrAbstractMethodTest {
             }
           };
 
-      assertNull(latch.tryApplyOrNull(impl));
-      assertNull(latch.tryApplyOrNull(impl));
+      assertNull(latch.tryApply(impl));
+      assertNull(latch.tryApply(impl));
 
       assertEquals(1, latch.calls.get(), "second call should be skipped");
       assertTrue(latch.isLatched(impl));

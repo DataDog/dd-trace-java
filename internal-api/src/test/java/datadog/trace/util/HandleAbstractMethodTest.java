@@ -84,7 +84,7 @@ class HandleAbstractMethodTest {
           }
         };
 
-    assertEquals("ok", latch.tryApplyOrNull("x"));
+    assertEquals("ok", latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
   }
 
@@ -92,9 +92,9 @@ class HandleAbstractMethodTest {
   void latchesTheReceiverClassAndStopsCalling() throws Exception {
     Throwing latch = new Throwing(new AbstractMethodError());
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("y"));
-    assertNull(latch.tryApplyOrNull("z"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("y"));
+    assertNull(latch.tryApply("z"));
 
     assertEquals(1, latch.calls.get());
     assertTrue(latch.isLatched("x"));
@@ -103,10 +103,10 @@ class HandleAbstractMethodTest {
   @Test
   void otherClassesAreUnaffectedByALatch() throws Exception {
     Throwing latch = new Throwing(new AbstractMethodError());
-    latch.tryApplyOrNull("x");
+    latch.tryApply("x");
 
     assertFalse(latch.isLatched(Integer.valueOf(1)));
-    assertNull(latch.tryApplyOrNull(Integer.valueOf(1)));
+    assertNull(latch.tryApply(Integer.valueOf(1)));
     assertEquals(2, latch.calls.get());
   }
 
@@ -123,8 +123,8 @@ class HandleAbstractMethodTest {
           }
         };
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("x"));
 
     assertEquals(2, calls.get());
     assertFalse(latch.isLatched("x"));
@@ -163,8 +163,8 @@ class HandleAbstractMethodTest {
     // Object.class stands for "name the receiver's own class"
     WithFallback latch = new WithFallback(Object.class, null);
 
-    assertEquals("fallback", latch.tryApplyOrNull("x"));
-    assertEquals("fallback", latch.tryApplyOrNull("y"));
+    assertEquals("fallback", latch.tryApply("x"));
+    assertEquals("fallback", latch.tryApply("y"));
 
     assertEquals(1, latch.calls.get());
     assertEquals(2, latch.fallbacks.get());
@@ -176,8 +176,8 @@ class HandleAbstractMethodTest {
     // the fallback is correct whether or not the error can be attributed; latching only caches it
     WithFallback latch = new WithFallback(Integer.class, null);
 
-    assertEquals("fallback", latch.tryApplyOrNull("x"));
-    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertEquals("fallback", latch.tryApply("x"));
+    assertEquals("fallback", latch.tryApply("x"));
 
     assertEquals(2, latch.calls.get());
     assertFalse(latch.isLatched("x"));
@@ -188,8 +188,8 @@ class HandleAbstractMethodTest {
     // an operation that succeeds with null is not a failure: the fallback is never consulted
     WithFallback latch = new WithFallback(null, null);
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("x"));
 
     assertEquals(2, latch.calls.get());
     assertEquals(0, latch.fallbacks.get());
@@ -211,7 +211,7 @@ class HandleAbstractMethodTest {
           }
         };
 
-    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertEquals("fallback", latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
   }
 
@@ -229,8 +229,8 @@ class HandleAbstractMethodTest {
           }
         };
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("x"));
 
     assertEquals(2, calls.get());
     assertFalse(latch.isLatched("x"));
@@ -252,7 +252,7 @@ class HandleAbstractMethodTest {
             }
           };
 
-      assertNull(latch.tryApplyOrNull("x"));
+      assertNull(latch.tryApply("x"));
       assertFalse(latch.isLatched("x"));
     }
     assertEquals(2, calls.get());
@@ -262,8 +262,8 @@ class HandleAbstractMethodTest {
   void unsupportedOperationYieldsTheDefaultOnEveryCallAndIsNeverLatched() throws Exception {
     Throwing latch = new Throwing(new UnsupportedOperationException());
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("x"));
 
     assertEquals(2, latch.calls.get());
     assertFalse(latch.isLatched("x"));
@@ -274,7 +274,7 @@ class HandleAbstractMethodTest {
     SQLException failure = new SQLException("boom");
     Throwing latch = new Throwing(failure);
 
-    SQLException thrown = assertThrows(SQLException.class, () -> latch.tryApplyOrNull("x"));
+    SQLException thrown = assertThrows(SQLException.class, () -> latch.tryApply("x"));
 
     assertSame(failure, thrown);
     assertFalse(latch.isLatched("x"));
@@ -284,7 +284,7 @@ class HandleAbstractMethodTest {
   void otherUncheckedExceptionsPropagateAndDoNotLatch() {
     Throwing latch = new Throwing(new IllegalStateException());
 
-    assertThrows(IllegalStateException.class, () -> latch.tryApplyOrNull("x"));
+    assertThrows(IllegalStateException.class, () -> latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
   }
 
@@ -346,8 +346,8 @@ class HandleAbstractMethodTest {
             }
           };
 
-      assertNull(latch.tryApplyOrNull(impl));
-      assertNull(latch.tryApplyOrNull(impl));
+      assertNull(latch.tryApply(impl));
+      assertNull(latch.tryApply(impl));
 
       assertEquals(1, calls.get(), "second call should be skipped");
       assertTrue(latch.isLatched(impl));
@@ -403,8 +403,8 @@ class HandleAbstractMethodTest {
             }
           };
 
-      assertNull(latch.tryApplyOrNull(impl));
-      assertNull(latch.tryApplyOrNull(impl));
+      assertNull(latch.tryApply(impl));
+      assertNull(latch.tryApply(impl));
 
       assertEquals(
           2, calls.get(), "an error naming the key but not the guarded method must not latch");
@@ -418,7 +418,7 @@ class HandleAbstractMethodTest {
    * a target method missing altogether surfaces there, bypassing the helper's own {@code try/catch}
    * entirely. HotSpot reports it as a {@link BootstrapMethodError} wrapping {@link
    * NoSuchMethodError} on some JVM versions and as a bare {@link NoSuchMethodError} on others;
-   * {@link #tryApplyOrNull} must catch both.
+   * {@link #tryApply} must catch both.
    */
   @Test
   void latchesARealBootstrapMethodError(@TempDir Path dir) throws Exception {
@@ -481,8 +481,8 @@ class HandleAbstractMethodTest {
             }
           };
 
-      assertNull(latch.tryApplyOrNull(impl));
-      assertNull(latch.tryApplyOrNull(impl));
+      assertNull(latch.tryApply(impl));
+      assertNull(latch.tryApply(impl));
 
       assertEquals(1, calls.get(), "second call should be skipped");
       assertTrue(latch.isLatched(impl));

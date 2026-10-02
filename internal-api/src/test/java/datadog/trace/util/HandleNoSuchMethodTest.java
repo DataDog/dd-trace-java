@@ -45,7 +45,7 @@ class HandleNoSuchMethodTest {
           }
         };
 
-    assertEquals("ok", latch.tryApplyOrNull("x"));
+    assertEquals("ok", latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
   }
 
@@ -70,8 +70,8 @@ class HandleNoSuchMethodTest {
           }
         };
 
-    assertEquals("fallback", latch.tryApplyOrNull("x"));
-    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertEquals("fallback", latch.tryApply("x"));
+    assertEquals("fallback", latch.tryApply("x"));
     assertEquals(1, calls.get());
   }
 
@@ -79,8 +79,8 @@ class HandleNoSuchMethodTest {
   void noSuchMethodYieldsNullAndLatchesTheTargetsClass() throws Exception {
     Throwing latch = new Throwing(new NoSuchMethodError("I.b()Ljava/lang/String;"));
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("y"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("y"));
 
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
     assertTrue(latch.isLatched("x"));
@@ -91,18 +91,18 @@ class HandleNoSuchMethodTest {
   @Test
   void doesNotHandleAbstractMethodErrorOrUnsupportedOperation() {
     Throwing abstractMethod = new Throwing(new AbstractMethodError("Impl.b()V"));
-    assertThrows(AbstractMethodError.class, () -> abstractMethod.tryApplyOrNull("x"));
+    assertThrows(AbstractMethodError.class, () -> abstractMethod.tryApply("x"));
     assertFalse(abstractMethod.isLatched("x"));
 
     Throwing unsupported = new Throwing(new UnsupportedOperationException());
-    assertThrows(UnsupportedOperationException.class, () -> unsupported.tryApplyOrNull("x"));
+    assertThrows(UnsupportedOperationException.class, () -> unsupported.tryApply("x"));
     assertFalse(unsupported.isLatched("x"));
   }
 
   @Test
   void otherFailuresPropagateWithoutLatching() {
     Throwing checked = new Throwing(new SQLException("boom"));
-    assertThrows(SQLException.class, () -> checked.tryApplyOrNull("x"));
+    assertThrows(SQLException.class, () -> checked.tryApply("x"));
     assertFalse(checked.isLatched("x"));
   }
 }

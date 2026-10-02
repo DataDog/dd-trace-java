@@ -40,9 +40,9 @@ class ClassLatchTest {
   void latchesTheTargetsClassAndSkipsLaterCalls() {
     Counting latch = new Counting();
 
-    assertEquals("failed", latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("y"));
-    assertNull(latch.tryApplyOrNull("z"));
+    assertEquals("failed", latch.tryApply("x"));
+    assertNull(latch.tryApply("y"));
+    assertNull(latch.tryApply("z"));
 
     assertEquals(1, latch.calls.get());
     assertTrue(latch.isLatched("x"));
@@ -51,10 +51,10 @@ class ClassLatchTest {
   @Test
   void otherClassesAreUnaffected() {
     Counting latch = new Counting();
-    latch.tryApplyOrNull("x");
+    latch.tryApply("x");
 
     assertFalse(latch.isLatched(Integer.valueOf(1)));
-    assertEquals("failed", latch.tryApplyOrNull(Integer.valueOf(1)));
+    assertEquals("failed", latch.tryApply(Integer.valueOf(1)));
     assertEquals(2, latch.calls.get());
   }
 
@@ -62,7 +62,7 @@ class ClassLatchTest {
   void nullTargetReturnsTheDefaultWithoutCalling() {
     Counting latch = new Counting();
 
-    assertNull(latch.tryApplyOrNull(null));
+    assertNull(latch.tryApply(null));
     assertFalse(latch.isLatched(null));
     assertEquals(0, latch.calls.get());
   }
@@ -121,7 +121,7 @@ class ClassLatchTest {
           }
         };
 
-    assertNull(latch.tryApplyOrNull(null));
+    assertNull(latch.tryApply(null));
     assertEquals("default", latch.tryApplyOrDefault(null, "default"));
   }
 
@@ -169,11 +169,11 @@ class ClassLatchTest {
           }
         };
 
-    assertEquals("called", latch.tryApplyOrNull(new Wrapper("x")));
+    assertEquals("called", latch.tryApply(new Wrapper("x")));
 
     assertTrue(latch.isLatched(new Wrapper("another string")));
     assertFalse(latch.isLatched(new Wrapper(Integer.valueOf(1))));
-    assertEquals("called", latch.tryApplyOrNull(new Wrapper(Integer.valueOf(1))));
+    assertEquals("called", latch.tryApply(new Wrapper(Integer.valueOf(1))));
   }
 
   /** A subclass may expose {@code unlatch}, for a policy that retries. */
@@ -192,8 +192,8 @@ class ClassLatchTest {
   @Test
   void unlatchResumesForThatKeyOnly() {
     Resumable latch = new Resumable();
-    latch.tryApplyOrNull("x");
-    latch.tryApplyOrNull(Integer.valueOf(1));
+    latch.tryApply("x");
+    latch.tryApply(Integer.valueOf(1));
     assertTrue(latch.isLatched("x"));
     assertTrue(latch.isLatched(Integer.valueOf(1)));
 
@@ -201,7 +201,7 @@ class ClassLatchTest {
 
     assertFalse(latch.isLatched("x"));
     assertTrue(latch.isLatched(Integer.valueOf(1)));
-    assertEquals("called", latch.tryApplyOrNull("x"));
+    assertEquals("called", latch.tryApply("x"));
   }
 
   @Test
@@ -215,7 +215,7 @@ class ClassLatchTest {
             return "named";
           }
         };
-    latch.tryApplyOrNull("x");
+    latch.tryApply("x");
     assertTrue(result[0]);
     assertTrue(latch.isLatched("x"));
 
@@ -227,7 +227,7 @@ class ClassLatchTest {
             return "other";
           }
         };
-    other.tryApplyOrNull("x");
+    other.tryApply("x");
     assertFalse(result[0]);
     assertFalse(other.isLatched("x"));
   }
@@ -254,7 +254,7 @@ class ClassLatchTest {
             return "named";
           }
         };
-    latch.tryApplyOrNull("x");
+    latch.tryApply("x");
     assertFalse(result[0]);
     assertFalse(latch.isLatched("x"));
   }
@@ -316,7 +316,7 @@ class ClassLatchTest {
           }
         };
 
-    assertThrows(SQLException.class, () -> latch.tryApplyOrNull("x"));
+    assertThrows(SQLException.class, () -> latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
   }
 }

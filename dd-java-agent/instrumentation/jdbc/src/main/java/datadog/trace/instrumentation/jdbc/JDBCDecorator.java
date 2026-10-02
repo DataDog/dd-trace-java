@@ -256,7 +256,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (metaData != null && (url = metaData.getURL()) != null) {
         Properties clientInfo = null;
         try {
-          clientInfo = CLIENT_INFO_LATCH.tryApplyOrNull(connection);
+          clientInfo = CLIENT_INFO_LATCH.tryApply(connection);
         } catch (final Throwable ex) {
           // getClientInfo can fail in many ways (old drivers, pool proxies, test doubles), and we
           // can still extract info from the url alone

@@ -266,15 +266,15 @@ public class ClassLatchBenchmark {
             .asType(MethodType.methodType(Object.class, Object.class));
 
     // reach the steady state: the latch has already met the deficient class
-    MISSING.tryApplyOrNull(impl);
+    MISSING.tryApply(impl);
     if (!MISSING.isLatched(impl)) {
       throw new IllegalStateException("expected the latch to latch " + impl.getClass());
     }
-    WRAPPER.tryApplyOrNull(wrapper);
+    WRAPPER.tryApply(wrapper);
     if (WRAPPER.isLatched(wrapper) || WRAPPER.isLatched(impl)) {
       throw new IllegalStateException("a wrapper must never be latched");
     }
-    SUBCLASS_MISSING.tryApplyOrNull(impl);
+    SUBCLASS_MISSING.tryApply(impl);
     if (!SUBCLASS_MISSING.isLatched(impl)) {
       throw new IllegalStateException(
           "expected the subclass-style latch to latch " + impl.getClass());
@@ -335,11 +335,11 @@ public class ClassLatchBenchmark {
   }
 
   private Object latchedMissing(int remaining) {
-    return remaining > 0 ? latchedMissing(remaining - 1) : MISSING.tryApplyOrNull(impl);
+    return remaining > 0 ? latchedMissing(remaining - 1) : MISSING.tryApply(impl);
   }
 
   private Object latchedWrapperMissing(int remaining) {
-    return remaining > 0 ? latchedWrapperMissing(remaining - 1) : WRAPPER.tryApplyOrNull(wrapper);
+    return remaining > 0 ? latchedWrapperMissing(remaining - 1) : WRAPPER.tryApply(wrapper);
   }
 
   private Object unguardedPresent(int remaining) {
@@ -347,15 +347,15 @@ public class ClassLatchBenchmark {
   }
 
   private Object latchedPresent(int remaining) {
-    return remaining > 0 ? latchedPresent(remaining - 1) : PRESENT.tryApplyOrNull(full);
+    return remaining > 0 ? latchedPresent(remaining - 1) : PRESENT.tryApply(full);
   }
 
   private Object subclassMissing(int remaining) {
-    return remaining > 0 ? subclassMissing(remaining - 1) : SUBCLASS_MISSING.tryApplyOrNull(impl);
+    return remaining > 0 ? subclassMissing(remaining - 1) : SUBCLASS_MISSING.tryApply(impl);
   }
 
   private Object subclassPresent(int remaining) {
-    return remaining > 0 ? subclassPresent(remaining - 1) : SUBCLASS_PRESENT.tryApplyOrNull(full);
+    return remaining > 0 ? subclassPresent(remaining - 1) : SUBCLASS_PRESENT.tryApply(full);
   }
 
   private static void compile(
