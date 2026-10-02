@@ -150,6 +150,32 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void failedStartDoesNotCacheTheSharedRuntime() {
+    final ConfigurationSource failing =
+        listener -> {
+          throw new IllegalStateException("subscription failed");
+        };
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            FeatureFlagsRuntime.acquire(
+                new TestConnector(failing, null),
+                TestSettings.of("feature.flags.configuration.source", "remote_config")));
+
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.acquire(
+            new TestConnector(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    try {
+      assertNotNull(runtime);
+      assertNotNull(source.listener, "a later acquisition starts a new runtime");
+    } finally {
+      FeatureFlagsRuntime.release();
+    }
+  }
+
+  @Test
   void recordsExposuresOnlyWhenDeliveryIsEnabled() {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(Connector.NONE, TestSettings.of());

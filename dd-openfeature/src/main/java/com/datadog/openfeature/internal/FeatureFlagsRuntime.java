@@ -62,8 +62,9 @@ public final class FeatureFlagsRuntime {
   public static FeatureFlagsRuntime acquire(final Connector connector, final Settings settings) {
     synchronized (SHARED_LOCK) {
       if (shared == null) {
-        shared = create(connector, settings);
-        shared.start();
+        final FeatureFlagsRuntime created = create(connector, settings);
+        created.start();
+        shared = created;
       }
       references++;
       return shared;
