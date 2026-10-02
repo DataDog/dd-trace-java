@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'idea'
   id 'java-test-fixtures'
 }
 
@@ -82,10 +81,4 @@ tasks.named("compileMain_java11Java", JavaCompile) {
 
 tasks.withType(Test).configureEach {
   javaLauncher = getJavaLauncherFor(11)
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }

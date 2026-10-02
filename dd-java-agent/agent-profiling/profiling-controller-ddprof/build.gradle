@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
 }
 
 tracerJava {
@@ -41,10 +40,4 @@ tasks.withType(AbstractCompile).configureEach {
   // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
   // Disable '-path' because we do not have some of the paths seem to be missing.
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }

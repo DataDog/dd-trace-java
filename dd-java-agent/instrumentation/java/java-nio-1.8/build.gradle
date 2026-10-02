@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'idea'
 }
 
 muzzle {
@@ -20,11 +19,5 @@ testJvmConstraints {
 ["compileMain_java11Java", "compileTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
     it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
-  }
-}
-
-idea {
-  module {
-    jdkName = '11'
   }
 }
