@@ -8,10 +8,16 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.eclipse.aether.repository.RemoteRepository
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.io.FileNotFoundException
+import java.net.ConnectException
 import java.net.InetSocketAddress
+import java.net.SocketTimeoutException
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicInteger
 
 class MuzzleDependencyAgeTest {
@@ -153,6 +159,132 @@ class MuzzleDependencyAgeTest {
   }
 
   @Test
+  fun `does not repeat unreachable Central timestamp requests for different versions`() {
+    val requested = mutableListOf<String>()
+    val policy = policy { url ->
+      requested.add(url)
+      if (url.startsWith(proxy.url)) {
+        Timestamp(null, "missing or invalid Last-Modified header")
+      } else {
+        throw SocketTimeoutException("https://secret-token.example/")
+      }
+    }
+
+    repeat(100) { version ->
+      assertThat(policy.isEligible("com.example", "lib", "1.$version", listOf(proxy))).isTrue()
+    }
+
+    assertThat(requested.count { it.startsWith(proxy.url) }).isEqualTo(100)
+    assertThat(requested.count { it.startsWith("https://repo1.maven.org/") }).isEqualTo(1)
+    assertThat(warnings).hasSize(100).allSatisfy {
+      assertThat(it).contains(
+        "cannot verify publication age",
+        "central-timestamp: SocketTimeoutException",
+        "timestamp lookups disabled for this repository for this build",
+        "continuing without age verification"
+      ).doesNotContain("secret-token")
+    }
+  }
+
+  @Test
+  fun `continues using proxy timestamps after the Central timestamp fallback times out`() {
+    val requested = mutableListOf<String>()
+    val policy = policy { url ->
+      requested.add(url)
+      when {
+        !url.startsWith(proxy.url) -> throw SocketTimeoutException()
+        url.contains("/1.0/") -> Timestamp(null, "missing or invalid Last-Modified header")
+        else -> Timestamp(now)
+      }
+    }
+
+    assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy))).isTrue()
+    assertThat(policy.isEligible("com.example", "lib", "1.1", listOf(proxy))).isFalse()
+    assertThat(requested).hasSize(3)
+    assertThat(warnings[1]).contains("Muzzle deferring com.example:lib:1.1")
+  }
+
+  @Test
+  fun `continues trying healthy repositories after a connection failure`() {
+    val requested = mutableListOf<String>()
+    val policy = policy { url ->
+      requested.add(url)
+      if (url.startsWith("https://repo.example/")) throw ConnectException()
+      Timestamp(now)
+    }
+    val repos = repositories + repository("extra", "https://extra.example/maven2/")
+
+    repeat(2) { version ->
+      assertThat(policy.isEligible("com.example", "lib", "1.$version", repos)).isFalse()
+    }
+
+    assertThat(requested.count { it.startsWith("https://repo.example/") }).isEqualTo(1)
+    assertThat(requested.count { it.startsWith("https://extra.example/") }).isEqualTo(2)
+    assertThat(warnings).hasSize(2).allSatisfy { assertThat(it).contains("Muzzle deferring") }
+  }
+
+  @Test
+  fun `a subsequent build retries repositories after transport failures`() {
+    val requests = AtomicInteger()
+    val lookup: (String) -> Timestamp = {
+      if (requests.incrementAndGet() == 1) throw SocketTimeoutException()
+      Timestamp(now)
+    }
+    val first = policy(lookup)
+    val second = policy(lookup)
+
+    assertThat(eligible(first, "1.0")).isTrue()
+    assertThat(eligible(first, "1.1")).isTrue()
+    assertThat(eligible(second, "1.0")).isFalse()
+    assertThat(requests).hasValue(2)
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [true, false])
+  fun `retains cached publication timestamps when another version has a transport failure`(oldEnough: Boolean) {
+    val requests = AtomicInteger()
+    val policy = policy {
+      if (requests.incrementAndGet() == 1) {
+        Timestamp(if (oldEnough) now.minusSeconds(72 * 3600L) else now)
+      } else {
+        throw SocketTimeoutException()
+      }
+    }
+
+    assertThat(eligible(policy, "1.0")).isEqualTo(oldEnough)
+    assertThat(eligible(policy, "1.1")).isTrue()
+    assertThat(eligible(policy, "1.0")).isEqualTo(oldEnough)
+    assertThat(requests).hasValue(2)
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["HTTP 404", "missing or invalid Last-Modified header"])
+  fun `artifact-specific missing timestamps do not disable a repository`(reason: String) {
+    val requests = AtomicInteger()
+    val policy = policy {
+      if (requests.incrementAndGet() == 1) Timestamp(null, reason) else Timestamp(now)
+    }
+
+    assertThat(eligible(policy, "1.0")).isTrue()
+    assertThat(eligible(policy, "1.1")).isFalse()
+    assertThat(requests).hasValue(2)
+  }
+
+  @Test
+  fun `a missing local file does not disable timestamps for other local versions`() {
+    val requests = AtomicInteger()
+    val policy = policy {
+      if (requests.incrementAndGet() == 1) throw FileNotFoundException()
+      Timestamp(now)
+    }
+    val repos = listOf(repository("fixture", "file:/tmp/muzzle-repo/"))
+
+    assertThat(policy.isEligible("com.example", "lib", "1.0", repos)).isTrue()
+    assertThat(policy.isEligible("com.example", "lib", "1.1", repos)).isFalse()
+    assertThat(requests).hasValue(2)
+  }
+
+  @Test
   fun `does not duplicate Central timestamp requests when Central is already configured`() {
     val requested = mutableListOf<String>()
     val policy = policy { url ->
@@ -274,24 +406,46 @@ class MuzzleDependencyAgeTest {
   }
 
   @Test
-  fun `reads POM publication time with HEAD and retries transient failures once`() {
+  fun `reads POM publication time with HEAD and caches it`() {
     val requests = AtomicInteger()
     withRepository({ exchange ->
       assertThat(exchange.requestMethod).isEqualTo("HEAD")
       assertThat(exchange.requestURI.path).isEqualTo("/com/example/lib/1.0/lib-1.0.pom")
-      if (requests.incrementAndGet() == 1) {
-        exchange.sendResponseHeaders(503, -1)
-      } else {
-        exchange.responseHeaders.add("Last-Modified", "Mon, 28 Sep 2026 12:00:00 GMT")
-        exchange.sendResponseHeaders(200, -1)
-      }
+      requests.incrementAndGet()
+      exchange.responseHeaders.add("Last-Modified", "Mon, 28 Sep 2026 12:00:00 GMT")
+      exchange.sendResponseHeaders(200, -1)
     }) { repo ->
       val policy = MuzzleDependencyAge(48, now, warn = warnings::add)
       repeat(2) {
         assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(repo))).isTrue()
       }
     }
-    assertThat(requests).hasValue(2)
+    assertThat(requests).hasValue(1)
+    assertThat(warnings).isEmpty()
+  }
+
+  @Test
+  @Timeout(10)
+  fun `a stalled HTTP response times out without retries and retains later versions`() {
+    val requests = AtomicInteger()
+    val releaseResponse = CountDownLatch(1)
+    withRepository({ _ ->
+      requests.incrementAndGet()
+      releaseResponse.await(10, SECONDS)
+    }) { repo ->
+      try {
+        val policy = MuzzleDependencyAge(48, now, warn = warnings::add)
+        repeat(3) { version ->
+          assertThat(policy.isEligible("com.example", "lib", "1.$version", listOf(repo))).isTrue()
+        }
+      } finally {
+        releaseResponse.countDown()
+      }
+    }
+    assertThat(requests).hasValue(1)
+    assertThat(warnings).hasSize(3).allSatisfy {
+      assertThat(it).contains("SocketTimeoutException", "continuing without age verification")
+    }
   }
 
   @ParameterizedTest
@@ -310,8 +464,8 @@ class MuzzleDependencyAgeTest {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = [403, 404, 429, 500])
-  fun `bounds retries and retains versions when repositories are unavailable`(status: Int) {
+  @ValueSource(ints = [403, 404, 429, 500, 503])
+  fun `does not retry HTTP failures and retains versions when repositories are unavailable`(status: Int) {
     val requests = AtomicInteger()
     withRepository({ exchange ->
       requests.incrementAndGet()
@@ -322,7 +476,7 @@ class MuzzleDependencyAgeTest {
           .isEligible("com.example", "lib", "1.0", listOf(repo))
       ).isTrue()
     }
-    assertThat(requests).hasValue(if (status == 429 || status == 500) 2 else 1)
+    assertThat(requests).hasValue(1)
     assertThat(warnings).singleElement().asString().contains("HTTP $status")
   }
 

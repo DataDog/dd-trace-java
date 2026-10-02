@@ -25,6 +25,7 @@ internal class MuzzleDependencyAge(
 
   private val cutoff = buildStartedAt.minus(minimumAgeHours.toLong(), HOURS)
   private val timestamps = ConcurrentHashMap<String, Timestamp>()
+  private val unavailableRepositories = ConcurrentHashMap<String, Timestamp>()
 
   init {
     require(minimumAgeHours >= 0) { "Muzzle minimum dependency age must be non-negative" }
@@ -47,8 +48,21 @@ internal class MuzzleDependencyAge(
       repositories
     }
     for (repository in timestampRepositories) {
-      val url = "${repository.url.trimEnd('/')}/$pomPath"
-      val timestamp = timestamps.computeIfAbsent(url, lookup)
+      val repositoryUrl = repository.url.trimEnd('/')
+      val url = "$repositoryUrl/$pomPath"
+      val timestamp = timestamps[url] ?: unavailableRepositories[repositoryUrl] ?: timestamps.computeIfAbsent(url) {
+        try {
+          lookup(it)
+        } catch (e: IOException) {
+          if (repositoryUrl.startsWith("https://") || repositoryUrl.startsWith("http://")) {
+            // Avoid repeating optional network timeouts for every sampled version in this build.
+            Timestamp(null, "${e.javaClass.simpleName}; timestamp lookups disabled for this repository for this build")
+              .also { unavailableRepositories.putIfAbsent(repositoryUrl, it) }
+          } else {
+            Timestamp(null, e.javaClass.simpleName)
+          }
+        }
+      }
       val publishedAt = timestamp.publishedAt
       if (publishedAt != null) {
         if (publishedAt <= cutoff) return true
@@ -67,7 +81,7 @@ internal class MuzzleDependencyAge(
 
   companion object {
     private val log = Logging.getLogger(MuzzleDependencyAge::class.java)
-    private const val TIMEOUT_MILLIS = 30_000
+    private const val TIMEOUT_MILLIS = 2_000
     private val centralTimestampRepository = RemoteRepository.Builder(
       "central-timestamp",
       "default",
@@ -82,41 +96,33 @@ internal class MuzzleDependencyAge(
         )
     }
 
-    /** Read the POM's Last-Modified header, retrying transient failures once. */
+    /** Read the POM's Last-Modified header with short best-effort timeouts and no retries. */
     private fun readTimestamp(url: String): Timestamp {
-      repeat(2) { attempt ->
-        var connection: URLConnection? = null
-        try {
-          connection = URL(url).openConnection().apply {
-            connectTimeout = TIMEOUT_MILLIS
-            readTimeout = TIMEOUT_MILLIS
-            useCaches = false
-          }
-          if (connection is HttpURLConnection) {
-            connection.requestMethod = "HEAD"
-            val status = connection.responseCode
-            if (status !in 200..299) {
-              if (status == 403 || status == 404 || attempt == 1) {
-                return Timestamp(null, "HTTP $status")
-              }
-              return@repeat
-            }
-          } else {
-            connection.connect()
-          }
-          val modifiedAt = connection.getHeaderFieldDate("Last-Modified", -1L)
-          return if (modifiedAt >= 0) {
-            Timestamp(Instant.ofEpochMilli(modifiedAt))
-          } else {
-            Timestamp(null, "missing or invalid Last-Modified header")
-          }
-        } catch (e: IOException) {
-          if (attempt == 1) return Timestamp(null, e.javaClass.simpleName)
-        } finally {
-          if (connection is HttpURLConnection) connection.disconnect()
+      var connection: URLConnection? = null
+      try {
+        connection = URL(url).openConnection().apply {
+          connectTimeout = TIMEOUT_MILLIS
+          readTimeout = TIMEOUT_MILLIS
+          useCaches = false
         }
+        if (connection is HttpURLConnection) {
+          connection.requestMethod = "HEAD"
+          val status = connection.responseCode
+          if (status !in 200..299) {
+            return Timestamp(null, "HTTP $status")
+          }
+        } else {
+          connection.connect()
+        }
+        val modifiedAt = connection.getHeaderFieldDate("Last-Modified", -1L)
+        return if (modifiedAt >= 0) {
+          Timestamp(Instant.ofEpochMilli(modifiedAt))
+        } else {
+          Timestamp(null, "missing or invalid Last-Modified header")
+        }
+      } finally {
+        if (connection is HttpURLConnection) connection.disconnect()
       }
-      return Timestamp(null, "publication timestamp unavailable")
     }
   }
 }
