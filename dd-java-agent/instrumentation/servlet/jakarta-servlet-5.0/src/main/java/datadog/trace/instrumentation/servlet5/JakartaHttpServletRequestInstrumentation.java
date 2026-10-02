@@ -57,11 +57,6 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.agent.tooling.iast.TaintableEnumeration"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getHeader")).and(takesArguments(String.class)),

@@ -46,11 +46,6 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {FREEMARKER_CORE + ".DollarVariable2_3_9Helper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("accept")

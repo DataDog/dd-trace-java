@@ -144,7 +144,7 @@ public final class AdviceScanner {
     }
     if ((adviceRoot
             || AdviceScanResult.isInstrumentationClass(info.className)
-            || isHelperClass(info.className, info.fromModuleOutput))
+            || isHelperClass(info.className, info.fromModuleOutput, module))
         && visited.add(info.className)) {
       scanQueue.addLast(info.className);
       if (!adviceRoot && info.fromModuleOutput) {

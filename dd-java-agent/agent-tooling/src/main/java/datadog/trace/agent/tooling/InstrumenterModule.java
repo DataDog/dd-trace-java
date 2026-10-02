@@ -129,6 +129,11 @@ public abstract class InstrumenterModule implements Instrumenter {
     return NO_HELPERS;
   }
 
+  /** Override this to claim classes from other sources as helpers. */
+  public boolean isHelperClass(String className) {
+    return false;
+  }
+
   /**
    * @return {@code true} if helper classes should be injected with the agent's {@link CodeSource}
    */

@@ -1,12 +1,14 @@
 package datadog.trace.api.debugger;
 
 public class DebuggerConfigUpdate {
+  public static final DebuggerConfigUpdate EMPTY = new DebuggerConfigUpdate();
+
   private final Boolean dynamicInstrumentationEnabled;
   private final Boolean exceptionReplayEnabled;
   private final Boolean codeOriginEnabled;
   private final Boolean distributedDebuggerEnabled;
 
-  public DebuggerConfigUpdate() {
+  private DebuggerConfigUpdate() {
     this(null, null, null, null);
   }
 
