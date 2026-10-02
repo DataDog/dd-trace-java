@@ -29,8 +29,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * final}. It replaces an earlier pair of generic variants that stored the strategy in a field or
  * took it at call time, which are not needed once the subclass carries the hooks. It has two public
  * flavors: {@link AdaptiveLatch#get} lets the failure flow to the caller (throwing a stackless
- * stand-in while engaged), and {@link AdaptiveLatch#tryGetOrNull} converts it to {@code null} and
- * never builds an exception at all while engaged.
+ * stand-in while engaged), and {@link AdaptiveLatch#tryApply} converts it to {@code null} and never
+ * builds an exception at all while engaged.
  *
  * <p>The hand-written {@link Breaker} is the specialized baseline the latch is compared against.
  *
@@ -44,11 +44,11 @@ import org.openjdk.jmh.infra.Blackhole;
  * always pre-check                            71.3           2.75
  * hand-written Breaker, converting            31.2           2.73
  * hand-written Breaker, throwing              31.4           11.6
- * AdaptiveLatch.tryGetOrNull                   31.1           2.78
- * AdaptiveLatch.get                            31.2           11.5
+ * AdaptiveLatch.tryApply                      31.1           2.78
+ * AdaptiveLatch.get                           31.2           11.5
  *
  * Mix, ns/op, one invalid input in every N
- *      N  unguarded  pre-check  Breaker  throwing  latch.get  tryGetOrNull
+ *      N  unguarded  pre-check  Breaker  throwing  latch.get      tryApply
  *      2      467.1       36.6     47.7      49.9       51.9          47.3
  *     10      118.4       64.9     71.0      71.3       72.1          70.0
  *    100       41.9       70.0     46.1      46.4       47.9          45.9
@@ -61,9 +61,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * 35.3 ns). While engaged, the converting flavor costs about 2.8 ns where the status quo costs
  * about 906 ns; the flow-through flavor costs about 11.5 ns, the price of building a stackless
  * exception. Always pre-checking more than doubles the cost of valid input (71 ns against 30 ns),
- * which is what the adaptive form avoids. (Measured before {@code fallback} was added and the
- * sketch renamed from {@code DynamicLatch}; the default {@code null} fallback is expected to inline
- * away, but has not been re-measured.)
+ * which is what the adaptive form avoids. (Measured before {@code fallback} was added, while the
+ * sketch was {@code DynamicLatch} and {@code tryApply} was {@code tryGetOrNull}; the default {@code
+ * null} fallback is expected to inline away, but has not been re-measured.)
  *
  * <p>It is a tradeoff, not a free win. With one invalid input in 100 or rarer, the guard costs 1 to
  * 4 ns over doing nothing and is about 24 to 34 ns cheaper than always pre-checking. With a high
@@ -185,8 +185,8 @@ public class FunctionsBase64Benchmark {
    * It counts calls, not time, never rejects a call, and keeps plain racy state: a stale read costs
    * one more pre-check or one more exception, never a wrong result.
    *
-   * <p>Three hooks, all cheap to state: {@link #handle}, {@link #isKnownToFail} and {@link
-   * #stacklessFailure}. The last is needed only by {@link #get}; {@link #tryGetOrNull} converts the
+   * <p>Three hooks, all cheap to state: {@link #apply}, {@link #isKnownToFail} and {@link
+   * #stacklessFailure}. The last is needed only by {@link #get}; {@link #tryApply} converts the
    * failure to {@link #fallback} and never builds an exception while engaged. {@link #fallback} is
    * {@code null} unless overridden, as on {@code Latch} and {@code ClassLatch}.
    *
@@ -205,17 +205,17 @@ public class FunctionsBase64Benchmark {
     /**
      * The operation, optimistically (for a parser, the parse). May throw {@code X} for bad input.
      */
-    abstract O handle(I input);
+    abstract O apply(I input);
 
     /**
-     * A cheap, correct pre-check: true only if {@link #handle} would definitely fail. Never throws.
+     * A cheap, correct pre-check: true only if {@link #apply} would definitely fail. Never throws.
      */
     abstract boolean isKnownToFail(I input);
 
     /** A failure to throw while engaged. Must carry no stack trace, and must not be shared. */
     abstract X stacklessFailure(I input);
 
-    /** What a failed or known-to-fail input yields from {@link #tryGetOrNull}. */
+    /** What a failed or known-to-fail input yields from {@link #tryApply}. */
     O fallback(I input) {
       return null;
     }
@@ -231,7 +231,7 @@ public class FunctionsBase64Benchmark {
         throw stacklessFailure(input);
       }
       try {
-        O result = handle(input);
+        O result = apply(input);
         if (state > 0) {
           state--;
         }
@@ -245,12 +245,12 @@ public class FunctionsBase64Benchmark {
     }
 
     /** Converting: {@link #fallback} for bad input. While engaged, no exception is built at all. */
-    final O tryGetOrNull(I input) {
+    final O tryApply(I input) {
       if (state > 0 && isKnownToFail(input)) {
         return fallback(input);
       }
       try {
-        O result = handle(input);
+        O result = apply(input);
         if (state > 0) {
           state--;
         }
@@ -272,7 +272,7 @@ public class FunctionsBase64Benchmark {
     }
 
     @Override
-    String handle(byte[] input) {
+    String apply(byte[] input) {
       return new String(Base64.getDecoder().decode(input), StandardCharsets.UTF_8);
     }
 
@@ -305,10 +305,10 @@ public class FunctionsBase64Benchmark {
   public void checkTheSketchBehaves() {
     Base64Latch latch = new Base64Latch();
     String expected = new String(Base64.getDecoder().decode(VALID), StandardCharsets.UTF_8);
-    if (!expected.equals(latch.get(VALID)) || !expected.equals(latch.tryGetOrNull(VALID))) {
+    if (!expected.equals(latch.get(VALID)) || !expected.equals(latch.tryApply(VALID))) {
       throw new IllegalStateException("a valid value must decode");
     }
-    if (latch.tryGetOrNull(INVALID) != null) {
+    if (latch.tryApply(INVALID) != null) {
       throw new IllegalStateException("bad input must convert to null");
     }
     // the failure above engaged it: the flow-through flavor must now fail without a stack trace
@@ -365,12 +365,12 @@ public class FunctionsBase64Benchmark {
 
   @Benchmark
   public void latchConvertValid(Blackhole bh) {
-    bh.consume(LATCH_CONVERT_VALID.tryGetOrNull(VALID));
+    bh.consume(LATCH_CONVERT_VALID.tryApply(VALID));
   }
 
   @Benchmark
   public void latchConvertInvalid(Blackhole bh) {
-    bh.consume(LATCH_CONVERT_INVALID.tryGetOrNull(INVALID));
+    bh.consume(LATCH_CONVERT_INVALID.tryApply(INVALID));
   }
 
   @Benchmark
@@ -451,6 +451,6 @@ public class FunctionsBase64Benchmark {
 
   @Benchmark
   public void mixLatchConvert(Mix mix, Blackhole bh) {
-    bh.consume(LATCH_CONVERT_MIX.tryGetOrNull(mix.next()));
+    bh.consume(LATCH_CONVERT_MIX.tryApply(mix.next()));
   }
 }
