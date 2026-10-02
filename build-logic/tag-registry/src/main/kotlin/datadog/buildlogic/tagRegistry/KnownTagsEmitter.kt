@@ -39,50 +39,50 @@ object KnownTagsEmitter {
       return u
     }
 
-    val nameOfConst = HashMap<String, String>()
-    val idOfConst = HashMap<String, String>()
-    val serialOfConst = HashMap<String, String>()
-    val otelNameOfConst = HashMap<String, String>()
+    val nameOfConst = HashMap<TagConventions.TagIdentity, String>()
+    val idOfConst = HashMap<TagConventions.TagIdentity, String>()
+    val serialOfConst = HashMap<TagConventions.TagIdentity, String>()
+    val otelNameOfConst = HashMap<TagConventions.TagIdentity, String>()
     for (t in reg.tags) {
       val base = sanitize(t.name)
-      // A Datadog name declared per direction is shared by a tag per direction, so on its own it
-      // names no single tag. It gets no NAME constant: callers use the unambiguous per-direction ID
-      // (PEER_PORT_OUTBOUND_ID), and nameOf returns the shared name as a literal.
-      if (t.sharedNameDirection == null) nameOfConst[t.name] = unique(withSuffix(base, "_NAME"))
-      idOfConst[t.name] = unique(withSuffix(base, "_ID"))
-      serialOfConst[t.name] = unique(withSuffix(base, "_SERIAL_NUM"))
+      // Shared Datadog names get no NAME constant because they identify several tags.
+      // Callers use a direction-specific ID (e.g. PEER_PORT_OUTBOUND_ID); nameOf emits the
+      // shared Datadog name as a literal.
+      if (t.sharedNameDirection == null) nameOfConst[t.identity] = unique(withSuffix(base, "_NAME"))
+      idOfConst[t.identity] = unique(withSuffix(base, "_ID"))
+      serialOfConst[t.identity] = unique(withSuffix(base, "_SERIAL_NUM"))
       // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
       // already-suffixed identifier would produce a redundant compound like NAME_OTEL_NAME.
-      if (t.otelName != null) otelNameOfConst[t.name] = unique(withSuffix(base, "_OTEL_NAME"))
+      if (t.otelName != null) otelNameOfConst[t.identity] = unique(withSuffix(base, "_OTEL_NAME"))
     }
-    fun nameC(name: String) = nameOfConst.getValue(name)
+    fun nameC(identity: TagConventions.TagIdentity) = nameOfConst.getValue(identity)
 
     // The expression nameOf returns: the NAME constant, or the shared name's literal.
-    fun nameExpr(t: TagRegistry.Tag) = nameOfConst[t.name] ?: "\"${escape(t.ddName)}\""
-    fun idC(name: String) = idOfConst.getValue(name)
-    fun serialC(name: String) = serialOfConst.getValue(name)
-    fun otelNameC(name: String) = otelNameOfConst.getValue(name)
+    fun nameExpr(t: TagRegistry.Tag) = nameOfConst[t.identity] ?: "\"${escape(t.ddName)}\""
+    fun idC(identity: TagConventions.TagIdentity) = idOfConst.getValue(identity)
+    fun serialC(identity: TagConventions.TagIdentity) = serialOfConst.getValue(identity)
+    fun otelNameC(identity: TagConventions.TagIdentity) = otelNameOfConst.getValue(identity)
 
-    val order = reg.tags.map { it.name } // stable emit order
-    // A shared name cannot pick one of its tags without the span's direction, so it is left out of
-    // keyOf and resolves to no tag until resolution knows the direction.
-    val keyOfOrder = reg.tags.filter { it.sharedNameDirection == null }.map { it.name }
+    val order = reg.tags.map { it.identity } // stable emit order
+    // keyOf(name) has no direction, so shared names are left out here and resolve to 0 (unknown);
+    // they are added below, marked, for keyOf(name, direction).
+    val keyOfOrder = reg.tags.filter { it.sharedNameDirection == null }.map { it.identity }
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
-    val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.name to it } }.toMap()
+    val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.identity to it } }.toMap()
     // Names whose tag depends on the span's direction: a shared Datadog name (one tag per direction)
     // and a direction-scoped OpenTelemetry name. keyOf(name) resolves none of them; keyOf(name,
     // direction) switches on each one's tag per direction.
-    val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, String>>()
+    val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, TagConventions.TagIdentity>>()
     // Shared Datadog names, marked in the keyOf table so a lookup by that name alone can probe its tags.
     val sharedNames = sortedSetOf<String>()
     for (t in reg.tags) {
       t.sharedNameDirection?.let {
-        directional.getOrPut(t.ddName) { mutableMapOf() }[it] = t.name
+        directional.getOrPut(t.ddName) { mutableMapOf() }[it] = t.identity
         sharedNames.add(t.ddName)
       }
-      t.otelDirection?.let { directional.getOrPut(t.declaredOtelName!!) { mutableMapOf() }[it] = t.name }
+      t.otelDirection?.let { directional.getOrPut(t.declaredOtelName!!) { mutableMapOf() }[it] = t.identity }
     }
-    check(directional.keys.none { it in keyOfOrder || it in otelName.values }) {
+    check(directional.keys.none { name -> keyOfOrder.any { it.ddName == name } || name in otelName.values }) {
       "a direction-dependent name is also direction-free: ${directional.keys}"
     }
     return buildString {
@@ -105,16 +105,16 @@ object KnownTagsEmitter {
       for (t in reg.tags) {
         val direction = t.sharedNameDirection
         if (direction == null) {
-          appendLine("  public static final String ${nameC(t.name)} = \"${escape(t.ddName)}\";")
+          appendLine("  public static final String ${nameC(t.identity)} = \"${escape(t.ddName)}\";")
         } else {
           appendLine(
-            "  /** {@code ${escape(t.ddName)}} on ${direction.yamlKey} spans. That name alone is shared by a " +
-              "tag per direction. */"
+            "  /** {@code ${escape(t.ddName)}} on ${direction.yamlKey} spans. This ID identifies the direction; " +
+              "the Datadog name is shared across directions. */"
           )
         }
-        appendLine("  public static final long ${idC(t.name)} = ${hex(t.id)};")
+        appendLine("  public static final long ${idC(t.identity)} = ${hex(t.id)};")
         if (t.otelName != null) {
-          appendLine("  public static final String ${otelNameC(t.name)} = \"${escape(t.otelName)}\";")
+          appendLine("  public static final String ${otelNameC(t.identity)} = \"${escape(t.otelName)}\";")
         }
         append("// makeTagId(serial=${t.serial})")
         if (t.traceLevel) append(" + trace-level")
@@ -126,14 +126,14 @@ object KnownTagsEmitter {
       // Serial numbers (globalSerial per tag) — package-private, consumed by the resolver switch.
       appendLine("  // ---- serial numbers ----")
       for (t in reg.tags) {
-        appendLine("  static final int ${serialC(t.name)} = ${t.serial};")
+        appendLine("  static final int ${serialC(t.identity)} = ${t.serial};")
       }
 
       // OpenTelemetry name -> canonical tag name. Validation ensures aliases are distinct from all
       // canonical names. Sort by OTel name to keep output deterministic.
       val otelByCanonical =
         reg.tags
-          .mapNotNull { t -> t.otelName?.let { it to t.name } }
+          .mapNotNull { t -> t.otelName?.let { it to t.identity } }
           .sortedBy { it.first }
 
       // keyOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then
@@ -201,7 +201,7 @@ object KnownTagsEmitter {
       for (t in reg.tags) {
         appendLine(
           """
-                      case ${serialC(t.name)}:
+                      case ${serialC(t.identity)}:
                         return ${nameExpr(t)};
           """.trimIndent()
         )
@@ -225,7 +225,7 @@ object KnownTagsEmitter {
         val scoped = t.otelDirection
         val result =
           when {
-            scoped == null -> otelNameC(t.name)
+            scoped == null -> otelNameC(t.identity)
 
             // A tag declared per direction exists only on spans of its direction, so emitting it
             // needs none; only resolving the name to it does.
@@ -233,7 +233,7 @@ object KnownTagsEmitter {
 
             else -> "direction == KnownTagCodec.DIRECTION_${scoped.name} ? \"${escape(otel)}\" : null"
           }
-        appendLine("case ${serialC(t.name)}:")
+        appendLine("case ${serialC(t.identity)}:")
         appendLine("  return $result;")
       }
       appendLine(
