@@ -996,6 +996,16 @@ public class DDSpanContext
     }
   }
 
+  /** Removes a known tag by id, rather than by its name, which need not resolve back to the id. */
+  public void removeTag(long tagId) {
+    if (tagId == KnownTags.SPAN_KIND_ID) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    synchronized (unsafeTags) {
+      unsafeTags.getAndRemove(tagId);
+    }
+  }
+
   /**
    * Sets a tag to the span. Tags are not propagated to the children.
    *
@@ -1042,7 +1052,7 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      removeTag(tag);
+      removeTag(tagId);
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1056,7 +1066,7 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      removeTag(tag);
+      removeTag(tagId);
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);

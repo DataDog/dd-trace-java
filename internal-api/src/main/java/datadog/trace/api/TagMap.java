@@ -1411,7 +1411,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // and silently miss the entry stored under the Datadog name.
     long tagHash = Entry.tagHashOf(tag);
     String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
+    return this.getEntry(canonicalTag, tagHash);
+  }
 
+  /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
+  public Entry getEntry(long tagId) {
+    return this.getEntry(Entry.requireKnownName(tagId), tagId);
+  }
+
+  private Entry getEntry(String canonicalTag, long tagHash) {
     Entry local = this.getLocalEntry(canonicalTag, tagHash);
     if (local != null) {
       // Local entry shadows the parent (local-wins) — unchanged hot path.
@@ -1427,7 +1435,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     if (this.removedFromParent != null && this.removedFromParent.contains(canonicalTag)) {
       return null; // tombstoned: removed locally, do not read through
     }
-    return parent.getEntry(canonicalTag);
+    return parent.getEntry(canonicalTag, tagHash);
   }
 
   /** Looks up an entry in this map's own buckets only — no read-through to the parent. */
@@ -1929,7 +1937,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // OpenTelemetry rename must canonicalize first to find (and tombstone) the right entry.
     long tagHash = Entry.tagHashOf(tag);
     String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
+    return this.getAndRemove(canonicalTag, tagHash);
+  }
 
+  /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
+  public Entry getAndRemove(long tagId) {
+    this.checkWriteAccess();
+
+    return this.getAndRemove(Entry.requireKnownName(tagId), tagId);
+  }
+
+  private Entry getAndRemove(String canonicalTag, long tagHash) {
     Entry localRemoved = this.removeLocal(canonicalTag, tagHash);
 
     TagMap parent = this.parent;
@@ -1941,7 +1959,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       boolean alreadyTombstoned =
           this.removedFromParent != null && this.removedFromParent.contains(canonicalTag);
       if (!alreadyTombstoned) {
-        Entry parentEntry = parent.getEntry(canonicalTag);
+        Entry parentEntry = parent.getEntry(canonicalTag, tagHash);
         if (parentEntry != null) {
           if (this.removedFromParent == null) {
             // Small initial capacity: this set is rare and almost always holds only a handful of

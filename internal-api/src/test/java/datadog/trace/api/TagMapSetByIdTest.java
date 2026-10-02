@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.HashMap;
@@ -51,6 +52,17 @@ class TagMapSetByIdTest {
 
     assertEquals(new HashMap<>(byName), new HashMap<>(byId));
     assertEquals(5432, byId.getEntry(KnownTags.PEER_PORT_NAME).intValue());
+  }
+
+  @Test
+  void getsAndRemovesById() {
+    TagMap map = TagMap.create();
+    map.set(KnownTags.HTTP_METHOD_NAME, "GET");
+
+    assertEquals("GET", map.getEntry(KnownTags.HTTP_METHOD_ID).stringValue());
+    assertEquals("GET", map.getAndRemove(KnownTags.HTTP_METHOD_ID).stringValue());
+    assertNull(map.getEntry(KnownTags.HTTP_METHOD_ID));
+    assertNull(map.getAndRemove(KnownTags.HTTP_METHOD_ID));
   }
 
   @Test

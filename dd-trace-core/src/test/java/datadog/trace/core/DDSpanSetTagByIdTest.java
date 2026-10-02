@@ -41,6 +41,29 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void aNullOrEmptyValueRemovesTheTagById() {
+    span.setTag(KnownTags.PEER_HOSTNAME_ID, "db.internal");
+    span.setTag(KnownTags.COMPONENT_ID, "okhttp");
+
+    span.setTag(KnownTags.PEER_HOSTNAME_ID, (String) null);
+    span.setTag(KnownTags.COMPONENT_ID, "");
+
+    assertNull(span.getTag(KnownTags.PEER_HOSTNAME_NAME));
+    assertNull(span.getTag(KnownTags.COMPONENT_NAME));
+  }
+
+  @Test
+  void removingTheSpanKindByIdClearsTheKind() {
+    span.setTag(KnownTags.SPAN_KIND_ID, "client");
+    assertEquals("client", span.getSpanKindString());
+
+    span.setTag(KnownTags.SPAN_KIND_ID, (String) null);
+
+    assertNull(span.getSpanKindString());
+    assertNull(span.getTag(KnownTags.SPAN_KIND_NAME));
+  }
+
+  @Test
   void interceptedTagsAreStillIntercepted() {
     span.setTag(KnownTags.DB_STATEMENT_ID, "select 1");
     span.setTag(KnownTags.SERVICE_ID, "orders-db");
