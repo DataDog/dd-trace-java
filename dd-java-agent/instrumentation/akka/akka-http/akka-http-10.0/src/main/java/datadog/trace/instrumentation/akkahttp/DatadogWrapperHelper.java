@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 
 import akka.http.scaladsl.model.HttpRequest;
@@ -77,5 +79,19 @@ public class DatadogWrapperHelper {
     DECORATE.beforeFinish(context);
 
     span.finish();
+  }
+
+  public static void deactivateFlowContext(final Context context) {
+    if (context != Context.current()) {
+      return;
+    }
+    if (LEGACY_CONTEXT_MANAGER_ENABLED) {
+      // Close request scopes left active for stream propagation, then restore the actor checkpoint.
+      rollbackActiveToCheckpoint();
+      checkpointActiveForRollback();
+    } else {
+      // There is one current context; detach it now and let actor exit restore its saved context.
+      Context.root().swap();
+    }
   }
 }

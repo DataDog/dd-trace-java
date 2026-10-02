@@ -36,6 +36,40 @@ class PekkoHttpTestWebServer(binder: Binder) extends HttpServer {
   private var port: Int                          = 0
   private var portBinding: Future[ServerBinding] = null
 
+  def checkResponseContext(): Unit = {
+    import datadog.context.Context
+    import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+    import datadog.trace.core.DDSpan
+    import datadog.trace.instrumentation.pekkohttp.DatadogServerRequestResponseFlowWrapper
+    import org.apache.pekko.stream.scaladsl.{BidiFlow, Flow, Sink, Source}
+
+    var previousContext: Context = null
+    var requestSpan: AgentSpan   = null
+    val handler                  = Flow[HttpRequest].map { _ =>
+      requestSpan = activeSpan()
+      HttpResponse()
+    }
+    val flow = BidiFlow
+      .fromGraph(new DatadogServerRequestResponseFlowWrapper(ServerSettings(system)))
+      .reversed
+      .join(handler)
+    val result = Source
+      .single(HttpRequest(uri = "/response-context"))
+      .map { request =>
+        previousContext = Context.current()
+        request
+      }
+      .via(flow)
+      .map { response =>
+        assert(requestSpan.asInstanceOf[DDSpan].isFinished)
+        assert(Context.current() eq previousContext, "request context is still active downstream")
+        response
+      }
+      .runWith(Sink.ignore)
+
+    Await.result(result, 10 seconds)
+  }
+
   override def start(): Unit = {
     portBinding = Await.ready(binder.bind(0), 10 seconds)
     port = portBinding.value.get.get.localAddress.getPort

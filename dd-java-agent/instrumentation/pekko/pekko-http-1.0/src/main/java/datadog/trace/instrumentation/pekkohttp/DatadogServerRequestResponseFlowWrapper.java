@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
@@ -55,7 +54,8 @@ public class DatadogServerRequestResponseFlowWrapper
         // that this connection was created with. This means that we can safely
         // close the span at the front of the queue when we receive the response
         // from the user code, since it will match up to the request for that span.
-        final Queue<ContextScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
+        // Actor invocation cleanup owns the scopes; only contexts cross the response boundary.
+        final Queue<Context> contexts = new ArrayBlockingQueue<>(pipeliningLimit);
 
         // This is where the request comes in from the server and TCP layer
         setHandler(
@@ -65,7 +65,7 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onPush() throws Exception {
                 final HttpRequest request = grab(requestInlet);
                 final ContextScope scope = DatadogWrapperHelper.createSpanForFlow(request);
-                scopes.add(scope);
+                contexts.add(scope.context());
                 push(requestOutlet, request);
                 // Legacy mode leaves the scope open so the surrounding actor can clean it up.
                 // Context-manager mode swaps the context and the actor restores it on exit.
@@ -109,15 +109,10 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onPush() throws Exception {
                 final HttpResponse response = grab(responseInlet);
-                final ContextScope scope = scopes.poll();
-                if (scope != null) {
-                  DatadogWrapperHelper.finishSpan(scope.context(), response);
-                  // Legacy mode may still own the scope when the response arrives.
-                  AgentSpan activeSpan = activeSpan();
-                  AgentSpan span = fromContext(scope.context());
-                  if (activeSpan == span) {
-                    scope.close();
-                  }
+                final Context context = contexts.poll();
+                if (context != null) {
+                  DatadogWrapperHelper.finishSpan(context, response);
+                  DatadogWrapperHelper.deactivateFlowContext(context);
                 }
                 push(responseOutlet, response);
               }
@@ -126,27 +121,28 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onUpstreamFinish() throws Exception {
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
-                ContextScope scope = scopes.poll();
-                while (scope != null) {
-                  fromContext(scope.context()).finish();
-                  scope = scopes.poll();
+                Context context = contexts.poll();
+                while (context != null) {
+                  fromContext(context).finish();
+                  context = contexts.poll();
                 }
                 completeStage();
               }
 
               @Override
               public void onUpstreamFailure(final Throwable ex) throws Exception {
-                ContextScope scope = scopes.poll();
-                if (scope != null) {
+                Context context = contexts.poll();
+                if (context != null) {
                   // Mark the span as failed
-                  DatadogWrapperHelper.finishSpan(scope.context(), ex);
+                  DatadogWrapperHelper.finishSpan(context, ex);
+                  DatadogWrapperHelper.deactivateFlowContext(context);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
-                scope = scopes.poll();
-                while (scope != null) {
-                  fromContext(scope.context()).finish();
-                  scope = scopes.poll();
+                context = contexts.poll();
+                while (context != null) {
+                  fromContext(context).finish();
+                  context = contexts.poll();
                 }
                 fail(responseOutlet, ex);
               }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
@@ -14,6 +13,7 @@ import akka.stream.stage.AbstractInHandler;
 import akka.stream.stage.AbstractOutHandler;
 import akka.stream.stage.GraphStage;
 import akka.stream.stage.GraphStageLogic;
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -57,7 +57,8 @@ public class DatadogServerRequestResponseFlowWrapper
         // that this connection was created with. This means that we can safely
         // close the span at the front of the queue when we receive the response
         // from the user code, since it will match up to the request for that span.
-        final Queue<ContextScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
+        // Actor invocation cleanup owns the scopes; only contexts cross the response boundary.
+        final Queue<Context> contexts = new ArrayBlockingQueue<>(pipeliningLimit);
         boolean[] skipNextPull = new boolean[] {false};
 
         // This is where the request comes in from the server and TCP layer
@@ -85,7 +86,7 @@ public class DatadogServerRequestResponseFlowWrapper
                   }
                 }
 
-                scopes.add(scope);
+                contexts.add(scope.context());
                 push(requestOutlet, request);
                 // Legacy mode leaves the scope open so the surrounding actor can clean it up.
                 // Context-manager mode swaps the context and the actor restores it on exit.
@@ -129,9 +130,9 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onPush() throws Exception {
                 HttpResponse response = grab(responseInlet);
-                final ContextScope scope = scopes.poll();
-                if (scope != null) {
-                  AgentSpan span = fromContext(scope.context());
+                final Context context = contexts.poll();
+                if (context != null) {
+                  AgentSpan span = fromContext(context);
                   HttpResponse newResponse =
                       BlockingResponseHelper.handleFinishForWaf(span, response);
                   if (newResponse != response) {
@@ -139,12 +140,8 @@ public class DatadogServerRequestResponseFlowWrapper
                     response.discardEntityBytes(materializer());
                     response = newResponse;
                   }
-                  DatadogWrapperHelper.finishSpan(scope.context(), response);
-                  // Legacy mode may still own the scope when the response arrives.
-                  AgentSpan activeSpan = activeSpan();
-                  if (activeSpan == span) {
-                    scope.close();
-                  }
+                  DatadogWrapperHelper.finishSpan(context, response);
+                  DatadogWrapperHelper.deactivateFlowContext(context);
                 }
                 push(responseOutlet, response);
               }
@@ -153,28 +150,28 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onUpstreamFinish() throws Exception {
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
-                ContextScope scope = scopes.poll();
-                while (scope != null) {
-                  fromContext(scope.context()).finish();
-                  scope = scopes.poll();
+                Context context = contexts.poll();
+                while (context != null) {
+                  fromContext(context).finish();
+                  context = contexts.poll();
                 }
                 completeStage();
               }
 
               @Override
               public void onUpstreamFailure(final Throwable ex) throws Exception {
-                ContextScope scope = scopes.poll();
-                if (scope != null) {
+                Context context = contexts.poll();
+                if (context != null) {
                   // Mark the span as failed
-                  AgentSpan span = fromContext(scope.context());
-                  DatadogWrapperHelper.finishSpan(scope.context(), ex);
+                  DatadogWrapperHelper.finishSpan(context, ex);
+                  DatadogWrapperHelper.deactivateFlowContext(context);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
-                scope = scopes.poll();
-                while (scope != null) {
-                  fromContext(scope.context()).finish();
-                  scope = scopes.poll();
+                context = contexts.poll();
+                while (context != null) {
+                  fromContext(context).finish();
+                  context = contexts.poll();
                 }
                 fail(responseOutlet, ex);
               }
