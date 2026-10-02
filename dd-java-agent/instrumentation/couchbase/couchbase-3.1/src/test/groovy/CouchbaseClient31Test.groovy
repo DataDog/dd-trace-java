@@ -40,7 +40,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   Bucket bucket
 
   def setupSpec() {
-    couchbase = new CouchbaseContainer(
+    couchbase = new RetryingCouchbaseContainer(
       DockerImageName.parse(System.getProperty("test.couchbase.image"))
       .asCompatibleSubstituteFor("couchbase/server"))
       .withBucket(new BucketDefinition(BUCKET).withPrimaryIndex(true))
