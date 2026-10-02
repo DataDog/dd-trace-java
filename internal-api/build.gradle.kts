@@ -151,6 +151,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
   // Internal cross-module bridge
   "datadog.trace.api.llmobs.LLMObsInternal",
+  // POJO; the values it carries are asserted end to end by agent-llmobs tests
+  "datadog.trace.api.llmobs.LLMObsPropagationValues",
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",

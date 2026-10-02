@@ -336,6 +336,7 @@ include(
   ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
+  ":dd-java-agent:instrumentation:couchbase:couchbase-3-common",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.2",
   ":dd-java-agent:instrumentation:cucumber-5.4",

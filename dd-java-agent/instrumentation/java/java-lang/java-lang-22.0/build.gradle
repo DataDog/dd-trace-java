@@ -14,10 +14,6 @@ tracerJava {
   addSourceSetFor(JavaVersion.VERSION_25)
 }
 
-testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_25
-}
-
 idea {
   module {
     jdkName = '25'
@@ -30,12 +26,6 @@ tasks.named("compileMain_java25Java", JavaCompile) {
   configureCompiler(it, JavaVersion.VERSION_1_8, "Uses Foreign Function & Memory API (java.lang.foreign, Java 22+) at Java 8 bytecode")
 }
 
-// TODO Drop Groovy here
-tasks.named("compileTestGroovy", GroovyCompile) {
-  // Groovy 3 cannot emit bytecode newer than Java 17. Keep the existing Java 8 bytecode while
-  // compiling against the Java 25 Foreign Function & Memory API used by this Java 25-only test.
-  configureCompiler(it, JavaVersion.VERSION_1_8)
-}
 dependencies {
   implementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 }
