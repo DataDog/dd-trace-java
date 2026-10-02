@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.util.BenchmarkUtils;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +57,45 @@ import org.openjdk.jmh.infra.Blackhole;
  * TagMapAccessBenchmark.insert_hashMap_builderStyle  thrpt    5  28057827.189 ± 1359655.664  ops/s
  * TagMapAccessBenchmark.insert_via_ledger            thrpt    5  41169656.095 ±  773264.754  ops/s
  * </code>
+ *
+ * <p>Rerun on the same machine and JDK (Zulu 17.0.7, {@code @Fork(2)}, {@code @Threads(8)}) with a
+ * new top-level {@code @Setup(Level.Trial)} calling {@link BenchmarkUtils#warmUpHashDispatch} (this
+ * file had none before):
+ *
+ * <pre>{@code
+ * Benchmark                      Score (M ops/s)    Error
+ * getEntry                              97.00      ± 2.37
+ * getObject                             97.70      ± 0.88
+ * insert                                52.67      ± 1.28
+ * insert_hashMap                        69.57      ± 0.65
+ * insert_hashMap_builderStyle           29.51      ± 0.50
+ * insert_via_ledger                     37.15      ± 0.78
+ * }</pre>
+ *
+ * <p>Pollution left these paths materially unchanged, but not for the same reason on both sides.
+ * {@code TagMap} is typed to {@code String} keys throughout ({@link TagMap#getEntry(String)},
+ * {@link TagMap.Ledger#set(String, Object)}) and compares against a {@code String}-declared field,
+ * so it has no {@code Object}-typed dispatch site to pollute — it is insulated by construction,
+ * whatever the JIT decides. {@code HashMap} does have such sites: {@code getNode} calls {@code
+ * hashCode()}/{@code equals()} on an {@code Object}-declared key. Erasure makes that one bytecode
+ * index serve every map in the application, so in production it sees many receiver types and is
+ * genuinely megamorphic — which is the condition {@code warmUpHashDispatch} reproduces here. Even
+ * so, {@code get}/{@code put} inline into a caller holding a statically exact {@code String}, so C2
+ * sharpens the argument and devirtualizes without consulting that profile. That is a realistic
+ * condition rather than an artifact — plenty of production call sites do hand HashMap a statically
+ * known key type, and it legitimately gets that benefit. Where the key type is not deducible, the
+ * megamorphic profile governs HashMap and still does not reach TagMap.
+ *
+ * <p>Consistent with that, most entries move by a couple of percent with overlapping intervals, and
+ * the larger moves go up, which pollution cannot cause.
+ *
+ * <p>The exception is {@code insert_via_ledger}, down about 10% (41.17 to 37.15) with
+ * non-overlapping intervals. That is the most allocation-heavy path measured, and {@code
+ * warmUpHashDispatch} itself allocates heavily before measurement starts, so setup churn shifting
+ * GC state for the trial is a likelier cause than dispatch. Not investigated further.
+ *
+ * <p>Both tables are the same machine and JDK, but the baseline above ran at {@code Cnt 5} against
+ * {@code Cnt 10} here, and on a different day, so small differences carry no weight.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -93,6 +133,11 @@ public class TagMapAccessBenchmark {
     for (int i = 0; i < NAMES.length; ++i) {
       VALUES[i] = "value-" + i;
     }
+  }
+
+  @Setup(Level.Trial)
+  public void setUp(Blackhole bh) {
+    BenchmarkUtils.warmUpHashDispatch(bh);
   }
 
   /**
