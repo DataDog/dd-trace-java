@@ -134,6 +134,9 @@ testing {
 
     withType(JvmTestSuite::class).configureEach {
       useJUnitJupiter(libs.versions.junit5)
+      dependencies {
+        implementation(platform(libs.junit.bom))
+      }
       targets.configureEach {
         testTask
       }
