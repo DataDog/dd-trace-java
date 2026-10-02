@@ -1,7 +1,7 @@
 package com.datadog.openfeature;
 
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
-import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
@@ -33,9 +33,9 @@ import java.util.function.Supplier;
 class FlagEvalLoggingHook<T> implements Hook<T> {
 
   /** Pipeline resolver, returning {@code null} when evaluation counts are not delivered. */
-  private final Supplier<FlagEvaluationPipeline> writerSupplier;
+  private final Supplier<FlagEvaluationWriter> writerSupplier;
 
-  FlagEvalLoggingHook(final Supplier<FlagEvaluationPipeline> writerSupplier) {
+  FlagEvalLoggingHook(final Supplier<FlagEvaluationWriter> writerSupplier) {
     this.writerSupplier = writerSupplier;
   }
 
@@ -55,7 +55,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       if (details == null) {
         return;
       }
-      final FlagEvaluationPipeline w = writerSupplier.get();
+      final FlagEvaluationWriter w = writerSupplier.get();
       if (w == null) {
         return;
       }

@@ -6,7 +6,7 @@ import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.connector.Connectors;
-import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventProvider;
@@ -227,7 +227,7 @@ public class Provider extends EventProvider implements Metadata {
     return new DDEvaluator(this::onConfigurationChange, this.connector, this.settings);
   }
 
-  private FlagEvaluationPipeline flagEvaluationPipeline() {
+  private FlagEvaluationWriter flagEvaluationPipeline() {
     final Evaluator current = this.evaluator;
     if (!(current instanceof DDEvaluator)) {
       return null;

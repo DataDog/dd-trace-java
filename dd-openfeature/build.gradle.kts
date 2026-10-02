@@ -6,6 +6,7 @@ plugins {
   idea
   id("dd-trace-java.module.distributable.api")
   id("dd-trace-java.version-file")
+  id("dd-trace-java.jmh-conventions")
 }
 
 description = "Datadog OpenFeature provider SDK."
@@ -38,9 +39,6 @@ java {
   }
 }
 
-// TODO Port the evaluation hot path JMH benchmarks removed with the former feature-flagging-api and
-//  feature-flagging-lib modules (FlagEvalHookHotPathBenchmark, FlagEvaluationHotPathBenchmark and
-//  FlagEvaluationEnqueueContentionBenchmark).
 dependencies {
   api("dev.openfeature:sdk:1.22.0")
   api("io.opentelemetry:opentelemetry-api:1.66.0")
@@ -48,6 +46,10 @@ dependencies {
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
 }
 
 tasks.withType<JavaCompile>().configureEach {
