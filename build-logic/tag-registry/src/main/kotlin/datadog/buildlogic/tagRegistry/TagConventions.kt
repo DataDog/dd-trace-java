@@ -37,7 +37,8 @@ class TagConventions private constructor(
      * Until name resolution knows a span's direction, only renames that apply in every direction
      * are used, so an unmarked directional rename is recorded but not yet applied. A rename on a
      * concrete span type with no `span-kind` requires the flag; renames in `trace_level`, abstract
-     * types, and mixins without a `span-kind` need none. Setting it without a rename is invalid.
+     * types, and mixins without a `span-kind` need none. Setting it without a rename, or on a tag
+     * declared per direction, is invalid.
      *
      * The flag is interim: it goes away once name resolution is direction-aware.
      */
@@ -403,6 +404,11 @@ class TagConventions private constructor(
     private class Identities(val names: Set<String>, val perDirection: Map<String, Map<Direction, String>>) {
       fun rename(t: Tag, direction: Direction?): Tag {
         val identity = perDirection[t.name]?.getValue(direction!!) ?: return t
+        // Declaring a tag per direction says its meaning flips with direction; neutral says it doesn't.
+        require(!t.spanKindNeutral) {
+          "tag '${t.name}' is declared per direction, so its otel-name '${t.otelName}' cannot be " +
+            "span-kind-neutral; each direction's declaration names its own"
+        }
         return t.copy(name = identity, ddName = t.name, sharedNameDirection = direction)
       }
 
