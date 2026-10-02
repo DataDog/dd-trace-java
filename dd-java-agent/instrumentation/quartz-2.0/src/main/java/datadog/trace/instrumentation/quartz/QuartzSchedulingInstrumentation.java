@@ -49,11 +49,6 @@ public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tr
         QuartzSchedulingInstrumentation.class.getName() + "$QuartzSchedulingAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".QuartzDecorator"};
-  }
-
   public static class QuartzSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope enter(@Advice.Argument(0) JobExecutionContext context) {

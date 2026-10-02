@@ -179,15 +179,15 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
       async(jobName("first"), CoroutineStart.LAZY) {
         childSpan("first-span").activateAndUse {
           spans.incrementAndGet()
-          delay(1)
         }
+        delay(1)
       }.run(jobs::add)
 
       async(jobName("second"), CoroutineStart.LAZY) {
         childSpan("second-span").activateAndUse {
           spans.incrementAndGet()
-          delay(1)
         }
+        delay(1)
       }.run(jobs::add)
     }
 

@@ -23,10 +23,6 @@ idea {
   }
 }
 
-project.tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, JavaVersion.VERSION_1_8)
-}
-
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -35,4 +31,3 @@ dependencies {
   testImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.0.0'
   latestDepTestImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.+'
 }
-
