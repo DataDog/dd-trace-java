@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.couchbase;
+
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import java.io.IOException;
 import java.time.Duration;
@@ -5,11 +7,11 @@ import org.testcontainers.couchbase.CouchbaseContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** Retries the transient Couchbase node-renaming race during container initialization. */
-final class RetryingCouchbaseContainer extends CouchbaseContainer {
+public final class RetryingCouchbaseContainer extends CouchbaseContainer {
   private static final int MAX_RENAME_ATTEMPTS = 3;
   private static final Duration RETRY_DELAY = Duration.ofSeconds(1);
 
-  RetryingCouchbaseContainer(DockerImageName dockerImageName) {
+  public RetryingCouchbaseContainer(DockerImageName dockerImageName) {
     super(dockerImageName);
   }
 

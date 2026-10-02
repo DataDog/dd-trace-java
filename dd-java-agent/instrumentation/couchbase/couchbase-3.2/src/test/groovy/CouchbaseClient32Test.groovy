@@ -22,6 +22,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.couchbase.RetryingCouchbaseContainer
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 import org.slf4j.Logger
