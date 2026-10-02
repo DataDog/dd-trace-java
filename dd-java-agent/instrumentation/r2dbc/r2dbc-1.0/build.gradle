@@ -80,6 +80,10 @@ dependencies {
   testImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.0.0.RELEASE'
   testImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.0.0.RELEASE'
 
+  // r2dbc-proxy runs on Reactor, so exercise it alongside our Reactor instrumentation
+  testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
+
   latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.+'
   latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.+'
 }
