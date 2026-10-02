@@ -39,6 +39,7 @@ public abstract class FeatureFlaggingGateway {
       new AtomicReference<>();
 
   private static volatile boolean flagEvalEnqueueEnabled = true;
+  private static volatile boolean spanEnrichmentEnabled;
 
   private FeatureFlaggingGateway() {}
 
@@ -115,6 +116,16 @@ public abstract class FeatureFlaggingGateway {
   /** Returns whether EVP flagevaluation hook events may be enqueued. */
   public static boolean isFlagEvaluationEnqueueEnabled() {
     return flagEvalEnqueueEnabled;
+  }
+
+  /** Publishes whether feature-flag evaluation metadata should enrich APM spans. */
+  public static void setSpanEnrichmentEnabled(final boolean enabled) {
+    spanEnrichmentEnabled = enabled;
+  }
+
+  /** Returns whether feature-flag evaluation metadata should enrich APM spans. */
+  public static boolean isSpanEnrichmentEnabled() {
+    return spanEnrichmentEnabled;
   }
 
   public static void addSpanEnrichmentListener(final SpanEnrichmentListener listener) {
