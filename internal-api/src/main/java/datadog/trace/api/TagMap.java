@@ -243,41 +243,65 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
           || (value instanceof CharSequence && ((CharSequence) value).length() == 0);
     }
 
+    /*
+     * Name-keyed factories. They accept only a name whose tag needs no span direction: an entry is
+     * built with no span, so it cannot resolve peer.port (the client's port inbound, the server's
+     * outbound) or server.address. For those, use the id-keyed create(long, ...) below with the
+     * tag for the direction, or set the name on the span, which resolves it by its kind. Prefer
+     * the id-keyed factories generally: these are expected to be deprecated.
+     */
+
     /**
      * Entry for {@code (tag, value)}, or null when {@code value} is null or an empty {@code
      * CharSequence} -- checked by runtime type, so an empty String passed as {@code Object} skips
      * the same as via the {@link #create(String, CharSequence)} overload.
+     *
+     * @throws IllegalArgumentException if {@code tag}'s tag depends on the span's direction
      */
     @Nullable
     public static final Entry create(@Nonnull String tag, Object value) {
-      return isEmptyValue(value) ? null : TagMap.Entry.newAnyEntry(tag, value);
+      return isEmptyValue(value) ? null : new Entry(directionFreeKeyOf(tag), tag, ANY, 0L, value);
     }
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
     @Nullable
     public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
-      return isEmptyValue(value) ? null : TagMap.Entry.newObjectEntry(tag, value);
+      return isEmptyValue(value) ? null : new Entry(directionFreeKeyOf(tag), tag, OBJECT, 0, value);
     }
 
     public static final Entry create(@Nonnull String tag, boolean value) {
-      return TagMap.Entry.newBooleanEntry(tag, value);
+      return new Entry(
+          directionFreeKeyOf(tag), tag, BOOLEAN, boolean2Prim(value), Boolean.valueOf(value));
     }
 
     public static final Entry create(@Nonnull String tag, int value) {
-      return TagMap.Entry.newIntEntry(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, INT, int2Prim(value), null);
     }
 
     public static final Entry create(@Nonnull String tag, long value) {
-      return TagMap.Entry.newLongEntry(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, LONG, long2Prim(value), null);
     }
 
     public static final Entry create(@Nonnull String tag, float value) {
-      return TagMap.Entry.newFloatEntry(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, FLOAT, float2Prim(value), null);
     }
 
     public static final Entry create(@Nonnull String tag, double value) {
-      return TagMap.Entry.newDoubleEntry(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, DOUBLE, double2Prim(value), null);
+    }
+
+    /** {@code tag}'s id, or 0 for a custom tag; rejects a name whose tag depends on direction. */
+    private static long directionFreeKeyOf(String tag) {
+      long key = KnownTagCodec.lookup(tag);
+      if (key < 0) {
+        throw new IllegalArgumentException(
+            "'"
+                + tag
+                + "' names a different tag depending on the span's direction; create the entry"
+                + " with a KnownTags id for the direction, or set the name on the span");
+      }
+      return key;
     }
 
     /*

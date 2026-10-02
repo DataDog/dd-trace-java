@@ -217,6 +217,14 @@ public final class KnownTagCodec {
   }
 
   /**
+   * The raw registry lookup: {@code name}'s id, 0 when it is not a known tag, or {@link
+   * #SHARED_NAME} / {@link #DIRECTION_SCOPED_NAME} when its tag depends on direction.
+   */
+  static long lookup(String name) {
+    return Installed.RESOLVER.lookup(name);
+  }
+
+  /**
    * {@link #keyOf(String)}, except that a Datadog name shared by a tag per direction returns {@link
    * #SHARED_NAME}, so {@link TagMap} can find whichever of those tags it holds, through {@link
    * #directionalKeyOf}. One lookup, like {@code keyOf}.
