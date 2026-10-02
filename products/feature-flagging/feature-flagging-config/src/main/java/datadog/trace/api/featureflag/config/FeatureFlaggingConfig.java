@@ -1,5 +1,8 @@
 package datadog.trace.api.featureflag.config;
 
+import static java.lang.Boolean.FALSE;
+import static java.util.Locale.ROOT;
+
 /**
  * The Feature Flags settings the agent needs: the product switch and the configuration source. The
  * {@code dd-openfeature} SDK resolves them with the same semantics, see {@code
@@ -28,7 +31,7 @@ public class FeatureFlaggingConfig {
       final String explicitSource,
       final Boolean legacyProviderEnabled) {
     final String normalizedSource = normalizeConfigurationSource(explicitSource);
-    if (Boolean.FALSE.equals(providerEnabled)) {
+    if (FALSE.equals(providerEnabled)) {
       return new Resolution(false, normalizedSource);
     }
     if (normalizedSource != null) {
@@ -57,7 +60,7 @@ public class FeatureFlaggingConfig {
     if (source == null) {
       return null;
     }
-    final String normalized = source.trim().toLowerCase(java.util.Locale.ROOT);
+    final String normalized = source.trim().toLowerCase(ROOT);
     return normalized.isEmpty() ? null : normalized;
   }
 
