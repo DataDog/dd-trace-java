@@ -11,11 +11,7 @@ tasks.register("latestDepTest", Test)
 Project parent_project = project
 subprojects { Project subProj ->
   subProj.pluginManager.withPlugin("dd-trace-java.module.instrumentation") {
-    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs'
-      && subProj.path != ':dd-java-agent:instrumentation:tibco-businessworks:tibco-businessworks-stubs') {
-      // don't include the redis or tibco stubs
-      parent_project.dependencies.add("implementation", parent_project.dependencies.project(subProj.path))
-    }
+    parent_project.dependencies.add("implementation", parent_project.dependencies.project(subProj.path))
   }
 }
 
