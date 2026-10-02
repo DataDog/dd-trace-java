@@ -1,12 +1,14 @@
 package datadog.trace.instrumentation.jetty_client12;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.jetty_client12.JettyClientDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -56,15 +58,33 @@ public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tra
   }
 
   public static class WebSocketUpgradeAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterUpgrade(@Advice.Argument(0) Response response) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope beforeUpgrade(@Advice.Argument(0) Response response) {
       AgentSpan span =
           InstrumentationContext.get(Request.class, AgentSpan.class).get(response.getRequest());
-      if (span != null) {
-        // Successful upgrades bypass the request's response completion listeners.
-        DECORATE.onResponse(span, response);
-        DECORATE.beforeFinish(span);
-        span.finish();
+      return span == null ? null : activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterUpgrade(
+        @Advice.Argument(0) Response response,
+        @Advice.Enter ContextScope scope,
+        @Advice.Thrown Throwable failure) {
+      AgentSpan span =
+          InstrumentationContext.get(Request.class, AgentSpan.class).get(response.getRequest());
+      try {
+        if (span != null && failure == null) {
+          // Successful upgrades bypass the request's response completion listeners.
+          DECORATE.onResponse(span, response);
+          DECORATE.beforeFinish(span);
+        }
+      } finally {
+        if (scope != null) {
+          scope.close();
+        }
+        if (span != null && failure == null) {
+          span.finish();
+        }
       }
     }
 
