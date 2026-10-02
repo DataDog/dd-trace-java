@@ -56,7 +56,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
-      if (activeSpan() == null) {
+      if (message != null && activeSpan() == null) {
         // no local active span, so extract from message to avoid disconnected trace
         scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
       }
