@@ -1409,9 +1409,36 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
     // an OpenTelemetry rename must canonicalize the same way, or it would hash to the wrong bucket
     // and silently miss the entry stored under the Datadog name.
-    long tagHash = Entry.tagHashOf(tag);
-    String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
+    long tagId = KnownTagCodec.keyOrSharedName(tag);
+    if (tagId == 0) {
+      return this.getEntry(tag, Entry.customHash(tag));
+    } else if (tagId != KnownTagCodec.SHARED_NAME) {
+      return this.getEntry(KnownTagCodec.nameOf(tagId), tagId);
+    }
+    // A Datadog name shared by a tag per direction: a map holds at most one of them per span.
+    for (int direction = KnownTagCodec.DIRECTION_INBOUND;
+        direction <= KnownTagCodec.DIRECTION_NONE;
+        direction++) {
+      long sharingId = KnownTagCodec.tagIdSharing(tag, direction);
+      Entry entry = sharingId == 0 ? null : this.getEntry(tag, sharingId);
+      if (entry != null) {
+        return entry;
+      }
+    }
+    // Set by that name alone, with no direction: stored as a custom tag.
+    return this.getEntry(tag, Entry.customHash(tag));
+  }
 
+  /**
+   * The entry for a known tag id. Unlike a lookup by a Datadog name shared by a tag per direction
+   * ({@code peer.port}), which finds whichever of those tags the map holds, this finds only the
+   * one.
+   */
+  public Entry getEntry(long tagId) {
+    return this.getEntry(Entry.requireKnownName(tagId), tagId);
+  }
+
+  private Entry getEntry(String canonicalTag, long tagHash) {
     Entry local = this.getLocalEntry(canonicalTag, tagHash);
     if (local != null) {
       // Local entry shadows the parent (local-wins) — unchanged hot path.
@@ -1427,7 +1454,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     if (this.removedFromParent != null && this.removedFromParent.contains(canonicalTag)) {
       return null; // tombstoned: removed locally, do not read through
     }
-    return parent.getEntry(canonicalTag);
+    return parent.getEntry(canonicalTag, tagHash);
   }
 
   /** Looks up an entry in this map's own buckets only — no read-through to the parent. */
@@ -1443,7 +1470,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private static Entry findInBucket(Object bucket, int hash, String tag) {
     if (bucket instanceof Entry) {
       Entry tagEntry = (Entry) bucket;
-      return tagEntry.matches(tag) ? tagEntry : null;
+      return tagEntry.hash() == hash && tagEntry.matches(tag) ? tagEntry : null;
     } else if (bucket instanceof BucketGroup) {
       return ((BucketGroup) bucket).findInChain(hash, tag);
     }
@@ -1613,7 +1640,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return null;
     } else if (bucket instanceof Entry) {
       Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(newEntry.tag)) {
+      if (existingEntry.hash() == newHash && existingEntry.matches(newEntry.tag)) {
         thisBuckets[bucketIndex] = newEntry;
 
         // replaced existing entry - no size change
@@ -1927,9 +1954,34 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must canonicalize first to find (and tombstone) the right entry.
-    long tagHash = Entry.tagHashOf(tag);
-    String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
+    long tagId = KnownTagCodec.keyOrSharedName(tag);
+    if (tagId == 0) {
+      return this.getAndRemove(tag, Entry.customHash(tag));
+    } else if (tagId != KnownTagCodec.SHARED_NAME) {
+      return this.getAndRemove(KnownTagCodec.nameOf(tagId), tagId);
+    }
+    // A shared name removes whichever of its tags the map holds, and any custom tag of that name.
+    Entry removed = this.getAndRemove(tag, Entry.customHash(tag));
+    for (int direction = KnownTagCodec.DIRECTION_INBOUND;
+        direction <= KnownTagCodec.DIRECTION_NONE;
+        direction++) {
+      long sharingId = KnownTagCodec.tagIdSharing(tag, direction);
+      Entry entry = sharingId == 0 ? null : this.getAndRemove(tag, sharingId);
+      if (removed == null) {
+        removed = entry;
+      }
+    }
+    return removed;
+  }
 
+  /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
+  public Entry getAndRemove(long tagId) {
+    this.checkWriteAccess();
+
+    return this.getAndRemove(Entry.requireKnownName(tagId), tagId);
+  }
+
+  private Entry getAndRemove(String canonicalTag, long tagHash) {
     Entry localRemoved = this.removeLocal(canonicalTag, tagHash);
 
     TagMap parent = this.parent;
@@ -1941,7 +1993,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       boolean alreadyTombstoned =
           this.removedFromParent != null && this.removedFromParent.contains(canonicalTag);
       if (!alreadyTombstoned) {
-        Entry parentEntry = parent.getEntry(canonicalTag);
+        Entry parentEntry = parent.getEntry(canonicalTag, tagHash);
         if (parentEntry != null) {
           if (this.removedFromParent == null) {
             // Small initial capacity: this set is rare and almost always holds only a handful of
@@ -1967,7 +2019,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // null bucket case - do nothing
     if (bucket instanceof Entry) {
       Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(tag)) {
+      if (existingEntry.hash() == hash && existingEntry.matches(tag)) {
         thisBuckets[bucketIndex] = null;
 
         this.size -= 1;

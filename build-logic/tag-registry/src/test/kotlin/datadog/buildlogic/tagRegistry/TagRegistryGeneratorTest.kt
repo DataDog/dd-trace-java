@@ -293,7 +293,13 @@ class TagRegistryGeneratorTest {
     TagRegistryGenerator.generate(yaml, output)
 
     val generated = contents(output)
-    assertThat(generated.getValue("java/datadog/trace/api/KnownTags.java")).doesNotContain("server.address")
+    val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source).doesNotContain("HTTP_HOSTNAME_OTEL_NAME")
+    assertThat(source).contains("KnownTagCodec.DIRECTION_SCOPED_NAME, // server.address")
+    assertThat(source.substringAfter("case \"server.address\":").substringBefore("default:"))
+      .contains("case KnownTagCodec.DIRECTION_INBOUND:", "return HTTP_HOSTNAME_ID;")
+      .doesNotContain("DIRECTION_OUTBOUND")
+    assertThat(source).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
     assertThat(generated.getValue("tag-assignment.txt"))
       .containsPattern("server\\.address +inbound +-> http\\.hostname")
   }
@@ -340,7 +346,7 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `a Datadog name declared per direction is not resolvable without a direction`() {
+  fun `a Datadog name declared per direction resolves only with a direction`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -361,7 +367,11 @@ class TagRegistryGeneratorTest {
       .contains("PEER_PORT_INBOUND_ID", "PEER_PORT_OUTBOUND_ID")
       .contains("{@code peer.port} on outbound spans.", "{@code peer.port} on inbound spans.")
       .doesNotContain("PEER_PORT_NAME", "PEER_PORT_INBOUND_NAME", "PEER_PORT_OUTBOUND_NAME")
-    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("PEER_PORT")
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
+      .doesNotContain("PEER_PORT")
+      .contains("KnownTagCodec.SHARED_NAME, // peer.port")
+    assertThat(source.substringAfter("case \"peer.port\":").substringBefore("default:"))
+      .contains("return PEER_PORT_INBOUND_ID;", "return PEER_PORT_OUTBOUND_ID;")
     assertThat(generated.getValue("tag-assignment.txt"))
       .containsPattern("peer\\.port +-> peer\\.port@inbound, peer\\.port@outbound")
   }

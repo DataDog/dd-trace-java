@@ -32,7 +32,7 @@ class TagMapSetByIdTest {
   @Test
   void matchesTheNameKeyedSettersForEveryValueType() {
     TagMap byId = TagMap.create();
-    byId.set(KnownTags.PEER_PORT_ID, 5432);
+    byId.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
     byId.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
     byId.set(KnownTags.PEER_HOSTNAME_ID, (CharSequence) "db.internal");
     byId.set(KnownTags.DB_INSTANCE_ID, (Object) "orders");
@@ -41,7 +41,7 @@ class TagMapSetByIdTest {
     byId.set(KnownTags.DB_POOL_NAME_ID, 2.5d);
 
     TagMap byName = TagMap.create();
-    byName.set(KnownTags.PEER_PORT_NAME, 5432);
+    byName.set(KnownTags.HTTP_STATUS_CODE_NAME, 200);
     byName.set(KnownTags.HTTP_RESEND_COUNT_NAME, 2L);
     byName.set(KnownTags.PEER_HOSTNAME_NAME, (CharSequence) "db.internal");
     byName.set(KnownTags.DB_INSTANCE_NAME, (Object) "orders");
@@ -50,7 +50,7 @@ class TagMapSetByIdTest {
     byName.set(KnownTags.DB_POOL_NAME, 2.5d);
 
     assertEquals(new HashMap<>(byName), new HashMap<>(byId));
-    assertEquals(5432, byId.getEntry(KnownTags.PEER_PORT_NAME).intValue());
+    assertEquals(200, byId.getEntry(KnownTags.HTTP_STATUS_CODE_NAME).intValue());
   }
 
   @Test

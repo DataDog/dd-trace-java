@@ -49,7 +49,7 @@ public class TagMapInsertBenchmark {
     KnownTags.HTTP_CLIENT_IP_NAME,
     KnownTags.PEER_HOSTNAME_NAME,
     KnownTags.PEER_IPV4_NAME,
-    KnownTags.PEER_PORT_NAME,
+    KnownTags.HTTP_STATUS_CODE_NAME,
     KnownTags.DD_INTEGRATION_NAME,
   };
 
@@ -64,7 +64,7 @@ public class TagMapInsertBenchmark {
     KnownTags.HTTP_CLIENT_IP_ID,
     KnownTags.PEER_HOSTNAME_ID,
     KnownTags.PEER_IPV4_ID,
-    KnownTags.PEER_PORT_ID,
+    KnownTags.HTTP_STATUS_CODE_ID,
     KnownTags.DD_INTEGRATION_ID,
   };
 

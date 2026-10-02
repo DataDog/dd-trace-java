@@ -61,15 +61,57 @@ public final class KnownTagCodec {
     return (long) serialNum << 48;
   }
 
+  /*
+   * A span's direction, which resolves the few names whose tag depends on it: peer.port is the
+   * client's port on inbound spans and the server's on outbound ones. Pass one of these to
+   * keyOf(String, int) and openTelemetryTagOf(long, int).
+   */
+
+  /** Direction not known, for example a span with no kind: only names that need none resolve. */
+  public static final int DIRECTION_UNKNOWN = -1;
+
+  /** Server and consumer spans, which receive a request or message. */
+  public static final int DIRECTION_INBOUND = 0;
+
+  /** Client and producer spans, which send a request or message. */
+  public static final int DIRECTION_OUTBOUND = 1;
+
+  /** Internal spans, which have no other end. */
+  public static final int DIRECTION_NONE = 2;
+
+  /**
+   * What {@link Resolver#lookup} returns for a Datadog name shared by a tag per direction ({@code
+   * peer.port}): no single tag, but whichever of them a map holds is that name's value.
+   */
+  static final long SHARED_NAME = -1L;
+
+  /**
+   * What {@link Resolver#lookup} returns for an OpenTelemetry name that applies in one direction
+   * only: {@code server.address} is {@code http.hostname} on inbound spans and {@code
+   * peer.hostname} on outbound ones.
+   */
+  static final long DIRECTION_SCOPED_NAME = -2L;
+
+  /** The registry's tables. Generated as {@code KnownTags.RESOLVER}; this class owns the policy. */
   public interface Resolver {
     /** The tag's Datadog-namespace (canonical) name. */
     String nameOf(long tagId);
 
-    /** The tag's OpenTelemetry-namespace name, or {@code null} when it declares none. */
-    String openTelemetryNameOf(long tagId);
+    /**
+     * The tag's OpenTelemetry-namespace name on spans of {@code direction}, or {@code null} when it
+     * declares none there. {@link #DIRECTION_UNKNOWN} returns only a name that holds in every
+     * direction.
+     */
+    String openTelemetryNameOf(long tagId, int direction);
 
-    /** The id for {@code name} in ANY namespace (many→one), or 0 when it is not a known tag. */
-    long keyOf(String name);
+    /**
+     * The id for {@code name} in any namespace; {@link #SHARED_NAME} or {@link
+     * #DIRECTION_SCOPED_NAME} when its tag depends on direction; 0 when it is not a known tag.
+     */
+    long lookup(String name);
+
+    /** The tag a direction-dependent name denotes on spans of a known direction, or 0 for none. */
+    long directionalKeyOf(String name, int direction);
   }
 
   /**
@@ -97,7 +139,7 @@ public final class KnownTagCodec {
    * #openTelemetryTagOf} instead.
    */
   public static String openTelemetryNameOf(long tagId) {
-    return Installed.RESOLVER.openTelemetryNameOf(tagId);
+    return Installed.RESOLVER.openTelemetryNameOf(tagId, DIRECTION_UNKNOWN);
   }
 
   /**
@@ -111,14 +153,59 @@ public final class KnownTagCodec {
    * per-namespace, never normalized to one of them.
    */
   public static String openTelemetryTagOf(long tagId) {
+    return openTelemetryTagOf(tagId, DIRECTION_UNKNOWN);
+  }
+
+  /**
+   * {@link #openTelemetryTagOf(long)} on spans of {@code direction}, which also applies a rename
+   * that holds only in that direction: {@code http.hostname} is {@code server.address} on inbound
+   * spans.
+   */
+  public static String openTelemetryTagOf(long tagId, int direction) {
     Resolver resolver = Installed.RESOLVER;
-    String otelName = resolver.openTelemetryNameOf(tagId);
+    String otelName = resolver.openTelemetryNameOf(tagId, direction);
     return otelName != null ? otelName : resolver.nameOf(tagId);
   }
 
-  /** The id for {@code name} in any namespace, or 0 when it is not a known tag. */
+  /**
+   * The id for {@code name} in any namespace, or 0 when it is not a known tag. A name whose tag
+   * depends on the span's direction also resolves to 0; see {@link #keyOf(String, int)}.
+   */
   public static long keyOf(String name) {
-    return Installed.RESOLVER.keyOf(name);
+    long key = Installed.RESOLVER.lookup(name);
+    return key < 0 ? 0L : key;
+  }
+
+  /**
+   * The id for {@code name} on spans of {@code direction}, or 0 when it is not a known tag there.
+   * Costs the same as {@link #keyOf(String)} for every name but the few that depend on direction.
+   */
+  public static long keyOf(String name, int direction) {
+    Resolver resolver = Installed.RESOLVER;
+    long key = resolver.lookup(name);
+    if (key >= 0) {
+      return key;
+    }
+    return direction == DIRECTION_UNKNOWN ? 0L : resolver.directionalKeyOf(name, direction);
+  }
+
+  /**
+   * {@link #keyOf(String)}, except that a Datadog name shared by a tag per direction returns {@link
+   * #SHARED_NAME}, so {@link TagMap} can find whichever of those tags it holds. One lookup, like
+   * {@code keyOf}; only a shared name costs more, in {@link #tagIdSharing}.
+   */
+  static long keyOrSharedName(String name) {
+    long key = Installed.RESOLVER.lookup(name);
+    return key == DIRECTION_SCOPED_NAME ? 0L : key;
+  }
+
+  /**
+   * The tag that shares Datadog name {@code name} on spans of {@code direction}, or 0 when none
+   * does. A caller probing every tag of a shared name walks {@link #DIRECTION_INBOUND} through
+   * {@link #DIRECTION_NONE}.
+   */
+  static long tagIdSharing(String name, int direction) {
+    return Installed.RESOLVER.directionalKeyOf(name, direction);
   }
 
   /**

@@ -31,11 +31,11 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
 
   @Test
   void storesTheTagUnderItsName() {
-    span.setTag(KnownTags.PEER_PORT_ID, 5432);
+    span.setTag(KnownTags.HTTP_RESEND_COUNT_ID, 2);
     span.setTag(KnownTags.PEER_HOSTNAME_ID, "db.internal");
     span.setTag(KnownTags.DD_PROFILING_ENABLED_ID, true);
 
-    assertEquals(5432, span.getTag(KnownTags.PEER_PORT_NAME));
+    assertEquals(2, span.getTag(KnownTags.HTTP_RESEND_COUNT_NAME));
     assertEquals("db.internal", span.getTag(KnownTags.PEER_HOSTNAME_NAME));
     assertEquals(true, span.getTag(KnownTags.DD_PROFILING_ENABLED_NAME));
   }
