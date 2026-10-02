@@ -16,6 +16,7 @@ import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.BiConsumer;
@@ -74,11 +75,37 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
         span.setTag(Tags.PEER_HOSTNAME, hostName);
+        onRdsEndpoint(span, AwsRdsEndpoint.parse(hostName));
 
         if (Config.get().isDbClientSplitByHost()) {
           span.setServiceName(hostName.toString(), DB_CLIENT_SPLIT_BY_HOST);
         }
       }
+    }
+  }
+
+  /**
+   * Tags the identity an Amazon RDS endpoint hostname carries: the identifier, what kind of
+   * endpoint it is and its Region. The DB instance or cluster identifier is only claimed when the
+   * endpoint type proves it, since a cluster endpoint does not name the instance behind it.
+   */
+  protected void onRdsEndpoint(final AgentSpan span, final AwsRdsEndpoint endpoint) {
+    if (endpoint == null) {
+      return;
+    }
+    span.setTag(InstrumentationTags.AWS_RDS_IDENTIFIER, endpoint.identifier());
+    span.setTag(InstrumentationTags.AWS_RDS_ENDPOINT_TYPE, endpoint.type().tagValue());
+    span.setTag(InstrumentationTags.AWS_REGION, endpoint.region());
+    switch (endpoint.type()) {
+      case INSTANCE:
+        span.setTag(InstrumentationTags.RDS_DB_INSTANCE_IDENTIFIER, endpoint.identifier());
+        break;
+      case CLUSTER:
+      case CLUSTER_READER:
+        span.setTag(InstrumentationTags.RDS_DB_CLUSTER_IDENTIFIER, endpoint.identifier());
+        break;
+      default:
+        break;
     }
   }
 
