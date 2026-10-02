@@ -32,12 +32,6 @@ repositories {
       includeGroupAndSubgroups "org.apache.kafka"
     }
   }
-  maven {
-    url = 'https://repo.spring.io/libs-milestone'
-    content {
-      includeGroupAndSubgroups "org.springframework"
-    }
-  }
   // Hosts gradle-tooling-api, used by build-logic:smoke-test to run nested
   // Gradle builds for smoke-test applications pinned to older Gradle versions.
   maven {
