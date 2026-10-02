@@ -15,7 +15,6 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
-import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -521,7 +520,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public DDSpan setTag(final long tagId, final String value) {
     if (value == null || value.isEmpty()) {
-      context.removeTag(KnownTagCodec.nameOf(tagId));
+      context.removeTag(tagId);
     } else {
       context.setTag(tagId, value);
     }
