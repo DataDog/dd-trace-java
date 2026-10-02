@@ -293,7 +293,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
           };
 
   public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
-    return GET_DESTINATION_LATCH.tryApplyOrNull(messageProducer);
+    return GET_DESTINATION_LATCH.tryApply(messageProducer);
   }
 
   public String getDestinationName(Destination destination) {
