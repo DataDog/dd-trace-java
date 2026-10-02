@@ -35,7 +35,8 @@ class TagConventions private constructor(
      * qualifies, because `db.system` only describes a database.
      *
      * Until name resolution knows a span's direction, only renames that apply in every direction
-     * are used, so an unmarked directional rename is recorded but not yet applied. A rename on a
+     * are used, so an unmarked directional rename is recorded but not yet applied. That includes
+     * `span-kind: internal`, which scopes a rename to spans with no direction. A rename on a
      * concrete span type with no `span-kind` requires the flag; renames in `trace_level`, abstract
      * types, and mixins without a `span-kind` need none. Setting it without a rename, or on a tag
      * declared per direction, is invalid.

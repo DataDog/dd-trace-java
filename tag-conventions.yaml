@@ -47,6 +47,8 @@
 # (The generator labels these tags `<dd-name>@<direction>` in its reports; that label is not YAML
 # syntax.) Any other repeated declaration is still an error.
 # Until name resolution knows a span's direction, only renames that apply in every direction are used.
+# A directional rename, including one under `span-kind: internal` (spans with no direction), is
+# listed in tag-assignment.txt but not yet applied.
 # `span-kind-neutral: true` widens a directional rename to every direction -- the author's assertion
 # that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
 # interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
