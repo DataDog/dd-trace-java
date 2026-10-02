@@ -9,7 +9,7 @@ import spock.lang.Ignore
 
 class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   def "test afterStart"() {

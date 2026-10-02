@@ -15,6 +15,8 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
@@ -511,6 +513,67 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
+    return this;
+  }
+
+  // Id-keyed overrides: same behavior as the String family above, including interception and the
+  // http.status_code quirk, but the tag is stored by id with no name lookup.
+  @Override
+  public DDSpan setTag(final long tagId, final String value) {
+    if (value == null || value.isEmpty()) {
+      context.removeTag(KnownTagCodec.nameOf(tagId));
+    } else {
+      context.setTag(tagId, value);
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final boolean value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final int value) {
+    if (tagId == KnownTags.HTTP_STATUS_CODE_ID) {
+      context.setHttpStatusCode((short) value);
+    }
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final long value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final float value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final double value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final CharSequence value) {
+    if (value == null || value.length() == 0) {
+      context.setTag(tagId, (Object) null);
+    } else {
+      context.setTag(tagId, value);
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final Object value) {
+    context.setTag(tagId, value);
     return this;
   }
 
