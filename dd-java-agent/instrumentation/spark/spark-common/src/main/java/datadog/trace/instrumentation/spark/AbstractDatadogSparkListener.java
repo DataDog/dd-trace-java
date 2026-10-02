@@ -101,6 +101,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final SparkConf sparkConf;
   private final String sparkVersion;
   private final String appId;
+  private final String serializer;
 
   private final AgentTracer.TracerAPI tracer;
 
@@ -157,6 +158,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     this.sparkConf = sparkConf;
     this.appId = appId;
     this.sparkVersion = sparkVersion;
+    serializer = sparkConf.get("spark.serializer", "org.apache.spark.serializer.JavaSerializer");
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
@@ -523,7 +525,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         buildSparkSpan("spark.job", jobStart.properties())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
-            .withTag("stage_count", getStageCount(jobStart));
+            .withTag("stage_count", getStageCount(jobStart))
+            .withTag("config.spark_serializer", serializer);
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
     Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
@@ -650,6 +653,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                 "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
+            .withTag("config.spark_serializer", serializer)
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
             .start();
 
@@ -1340,6 +1344,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
+    builder.withTag("config.spark_serializer", serializer);
   }
 
   private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
