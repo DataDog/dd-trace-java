@@ -144,6 +144,8 @@ class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
+              "aws.topic.arn" "arn:aws:sns::123:some-topic"
+              "aws.sns.topic_arn" "arn:aws:sns::123:some-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"
@@ -284,6 +286,8 @@ class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
+              "aws.topic.arn" "arn:aws:sns::123:some-topic"
+              "aws.sns.topic_arn" "arn:aws:sns::123:some-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"

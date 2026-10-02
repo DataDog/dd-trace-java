@@ -201,6 +201,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.stream.name" "somestream"
             "streamname" "somestream"
+            "aws.stream.arn" "arnprefix:stream/somestream"
             "$DDTags.PATHWAY_HASH" {
               String
             }
@@ -347,6 +348,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.stream.name" "somestream"
             "streamname" "somestream"
+            "aws.stream.arn" "arnprefix:stream/somestream"
             "$DDTags.PATHWAY_HASH" {
               String
             }

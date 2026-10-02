@@ -32,6 +32,9 @@ import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.sns.AmazonSNSClientBuilder
+import com.amazonaws.services.stepfunctions.AWSStepFunctionsClientBuilder
+import com.amazonaws.services.stepfunctions.model.DescribeExecutionRequest
+import com.amazonaws.services.stepfunctions.model.StartExecutionRequest
 import com.amazonaws.services.sns.model.PublishRequest
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import com.amazonaws.services.sqs.model.CreateQueueRequest
@@ -176,7 +179,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" { it.contains(service) }
-            "aws_service" { it.contains(service.toLowerCase()) }
+            "aws_service" { it.toLowerCase().contains(service.toLowerCase()) }
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
@@ -211,6 +214,8 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     "DynamoDBv2" | "CreateTable"       |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""                  | "aws.table.name"    | null
     "DynamoDBv2" | "GetItem"           |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.getItem(new GetItemRequest("sometable", ["attribute": new AttributeValue("somevalue")])) } | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""                  | "aws.table.name"    | null
     "Kinesis"    | "DeleteStream"      |  "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream", "streamname": "somestream"] | ""                | "aws.stream.name"   | null
+    "AWSStepFunctions" | "StartExecution"    |  "POST" | "/"                   | AWSStepFunctionsClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                       | { c -> c.startExecution(new StartExecutionRequest().withStateMachineArn("arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine")) } | ["aws.state_machine.arn": "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine", "statemachinearn": "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"] | "" | null | null
+    "AWSStepFunctions" | "DescribeExecution" |  "POST" | "/"                   | AWSStepFunctionsClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                       | { c -> c.describeExecution(new DescribeExecutionRequest().withExecutionArn("arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution")) } | ["aws.execution.arn": "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"] | "" | null | null
     "SQS"        | "CreateQueue"       |  "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue", "queuename": "somequeue"]   | """
 
         <CreateQueueResponse>
@@ -228,7 +233,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
       """  | "aws.queue.url" | "/SendMessageResponse/SendMessageResult"
-    "SNS"        | "Publish"           | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic", "topicname": "some-topic"]  | """
+    "SNS"        | "Publish"           | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic", "topicname": "some-topic", "aws.topic.arn": "arn:aws:sns::123:some-topic", "aws.sns.topic_arn": "arn:aws:sns::123:some-topic"]  | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
             <PublishResult>
                 <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -280,7 +285,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" 61
             "aws.service" { it.contains(service) }
-            "aws_service" { it.contains(service.toLowerCase()) }
+            "aws_service" { it.toLowerCase().contains(service.toLowerCase()) }
             "aws.endpoint" "http://localhost:${UNUSABLE_PORT}"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
@@ -453,7 +458,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" { it.contains(service) }
-            "aws_service" { it.contains(service.toLowerCase()) }
+            "aws_service" { it.toLowerCase().contains(service.toLowerCase()) }
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
@@ -490,7 +495,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     "S3"         | "CreateBucket" | "PUT"  | "/test-bucket/"       | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.createBucket("test-bucket") }                                                                            | ["aws.bucket.name": "test-bucket", "bucketname": "test-bucket"]                                                  | ""                                                                                                                                 | null
     "SQS"        | "CreateQueue"  | "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("test-queue")) }                                                      | ["aws.queue.name": "test-queue", "queuename": "test-queue"]                                                      | """<CreateQueueResponse><CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/test-queue</QueueUrl></CreateQueueResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></CreateQueueResponse>""" | "/CreateQueueResponse/CreateQueueResult"
     "SQS"        | "SendMessage"  | "POST" | "/test-queue-url"     | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.sendMessage(new SendMessageRequest("test-queue-url", "test")) }                                          | ["aws.queue.url": "test-queue-url"]                                                                              | """<SendMessageResponse><SendMessageResult><MD5OfMessageBody>098f6bcd4621d373cade4e832627b4f6</MD5OfMessageBody><MessageId>test-msg-id</MessageId></SendMessageResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></SendMessageResponse>""" | "/SendMessageResponse/SendMessageResult"
-    "SNS"        | "Publish"      | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:test-topic", "test")) }                                     | ["aws.topic.name": "test-topic", "topicname": "test-topic"]                                                      | """<PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>test-msg-id</MessageId></PublishResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></PublishResponse>"""     | "/PublishResponse/PublishResult"
+    "SNS"        | "Publish"      | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:test-topic", "test")) }                                     | ["aws.topic.name": "test-topic", "topicname": "test-topic", "aws.topic.arn": "arn:aws:sns::123:test-topic", "aws.sns.topic_arn": "arn:aws:sns::123:test-topic"]                                                      | """<PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>test-msg-id</MessageId></PublishResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></PublishResponse>"""     | "/PublishResponse/PublishResult"
     "DynamoDBv2" | "CreateTable"  | "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("test-table", null)) }                                                | ["aws.table.name": "test-table", "tablename": "test-table"]                                                      | ""                                                                                                                                 | null
     "Kinesis"    | "DeleteStream" | "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("test-stream")) }                                   | ["aws.stream.name": "test-stream", "streamname": "test-stream"]                                                  | ""                                                                                                                                 | null
   }

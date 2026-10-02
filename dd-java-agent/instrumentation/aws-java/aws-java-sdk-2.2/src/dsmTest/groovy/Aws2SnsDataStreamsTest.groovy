@@ -186,6 +186,8 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.topic.name" "mytopic"
             "topicname" "mytopic"
+            "aws.topic.arn" "arnprefix:mytopic"
+            "aws.sns.topic_arn" "arnprefix:mytopic"
             "$DDTags.PATHWAY_HASH" {
               String
             }
@@ -296,6 +298,8 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.topic.name" "mytopic"
             "topicname" "mytopic"
+            "aws.topic.arn" "arnprefix:mytopic"
+            "aws.sns.topic_arn" "arnprefix:mytopic"
             "$DDTags.PATHWAY_HASH" {
               String
             }
