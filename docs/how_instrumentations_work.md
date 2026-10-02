@@ -231,6 +231,7 @@ that specifies how target types will be selected for instrumentation.
 | [`ForSingleType`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java#L70)               | `String instrumentedType()`                                                        | Instruments only a single class name known at compile time.(see [Json2FactoryInstrumentation](https://github.com/DataDog/dd-trace-java/blob/9a28dc3f0333e781b2defc378c9020bf0a44ee9a/dd-java-agent/instrumentation/jackson-core/src/main/java/datadog/trace/instrumentation/jackson/core/Json2FactoryInstrumentation.java#L19))                                                                                                                                                                                                                                                                                                                                                                                 |
 | [`ForKnownTypes`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java#L75)               | `String[] knownMatchingTypes()`                                                    | Instruments multiple class names known at compile time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | [`ForTypeHierarchy`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java#L80)            | `String hierarchyMarkerType()``ElementMatcher<TypeDescription> hierarchyMatcher()` | Composes more complex matchers using chained [HierarchyMatchers](https://github.com/DataDog/dd-trace-java/blob/9a28dc3f0333e781b2defc378c9020bf0a44ee9a/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/HierarchyMatchers.java#L18) methods.  The `hierarchyMarkerType()` method should return a type name.  Classloaders without this type can skip the more expensive `hierarchyMatcher()` method. (see [HttpClientInstrumentation](https://github.com/DataDog/dd-trace-java/blob/9a28dc3f0333e781b2defc378c9020bf0a44ee9a/dd-java-agent/instrumentation/java-http-client/src/main/java/datadog/trace/instrumentation/httpclient/HttpClientInstrumentation.java#L43)) |
+| [`ForLambda`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java)                                                                                                          | `String lambdaInterface()` `ElementMatcher<TypeDescription> lambdaMatcher()`       | Selects generated implementations of one exact functional interface. This mode is opt-in; see [Instrumenting Generated Lambda Classes](#instrumenting-generated-lambda-classes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | [`ForConfiguredType`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java#L93) | `Collection<String> configuredMatchingTypes()`                                     | **_Do not implement this interface_**_._Use `ForKnownType` instead.  `ForConfiguredType` is only used   for last minute additions in the field - such as when a customer has a new JDBC driver that's not in the allowed list and we need to  test it and provide a workaround until the next release.                                                                                                                                                                                                                                                                                                                                                                                                          |
 | [`ForConfiguredTypes`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java#L88)          | `String configuredMatchingType();`                                                 | **_Do not implement this interface._** __Like `ForConfiguredType,` for multiple classes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
@@ -261,6 +262,45 @@ or [`UrlInstrumentation`](https://github.com/DataDog/dd-trace-java/blob/3e81c006
 > [!NOTE]
 > Without classloader available, helper classes for bootstrap instrumentation must be place into the 
 > `:dd-java-agent:agent-bootstrap` module rather than loaded using [the default mechanism](#helper-classes). 
+
+### Instrumenting Generated Lambda Classes
+
+Lambda classes need special handling. The JDK creates their bytecode inside `LambdaMetafactory` and defines the class
+immediately, so the usual agent transformation callback cannot reliably add fields or advice afterward. The lambda mode
+routes those bytes through the existing transformer just before the class is defined.
+
+This mode is disabled by default. Both of the following are required:
+
+- Set `dd.trace.lambda.enabled=true` before the agent is installed.
+- Have an enabled instrumentation implement `Instrumenter.ForLambda` for the functional interface it supports.
+
+The configuration flag alone does not select any lambdas. Each consumer names one exact functional interface and may
+apply additional checks to the generated class:
+
+```java
+@Override
+public String lambdaInterface() {
+  return "com.example.Callback";
+}
+
+@Override
+public ElementMatcher<TypeDescription> lambdaMatcher() {
+  return any();
+}
+```
+
+There is no separate allowlist to maintain. Enabled `ForLambda` instrumentations provide the interface names used by the
+runtime fast path. Once selected, their normal advice, context-store field injection, helper injection, classloader
+checks, and muzzle checks still apply. Context stores declared for unrelated key types are not injected.
+
+Lambda matching happens during generation because these classes cannot be retransformed later. For the same reason,
+tests should enable the setting before agent installation and create the lambda from a call site that has not already
+been linked.
+
+The mechanism is deliberately best-effort. Reentrant generation is skipped to avoid transformer recursion, and
+CDS/AppCDS classes that bypass runtime generation are not covered. GraalVM Native Image builder processes are excluded.
+If a future JDK changes the internal byte-generation shape, the agent leaves the metafactory unchanged and logs a
+warning.
 
 ### Method Matching
 

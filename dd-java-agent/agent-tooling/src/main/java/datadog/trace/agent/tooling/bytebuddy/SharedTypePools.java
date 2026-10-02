@@ -32,9 +32,9 @@ public final class SharedTypePools {
     SUPPLIER.endInstall();
   }
 
-  /** Hints that the javaagent has finished calling {@link ClassFileTransformer#transform}. */
-  public static void endTransform() {
-    SUPPLIER.endTransform();
+  /** Ends the transform associated with this callback's input bytes, if it reached resolution. */
+  public static void endTransform(byte[] classFileBuffer) {
+    SUPPLIER.endTransform(classFileBuffer);
   }
 
   public static void clear() {
@@ -61,8 +61,8 @@ public final class SharedTypePools {
     /** Hints that the javaagent has finished installing as a {@link ClassFileTransformer}. */
     void endInstall();
 
-    /** Hints that the javaagent has finished calling {@link ClassFileTransformer#transform}. */
-    void endTransform();
+    /** Ends the transform associated with this callback's input bytes, if it reached resolution. */
+    void endTransform(byte[] classFileBuffer);
 
     void clear();
   }
@@ -82,7 +82,7 @@ public final class SharedTypePools {
       public void endInstall() {}
 
       @Override
-      public void endTransform() {}
+      public void endTransform(byte[] classFileBuffer) {}
 
       @Override
       public void clear() {}

@@ -37,6 +37,21 @@ public interface Instrumenter {
   interface ForBootstrap {}
 
   /**
+   * Instrumentation selected directly for an exact lambda interface.
+   *
+   * <p>Lambda transformation also requires the opt-in {@code trace.lambda.enabled} setting. An
+   * enabled {@code ForLambda} instrumentation registers its interface but does not enable the
+   * lambda metafactory instrumentation by itself.
+   */
+  interface ForLambda {
+    /** Exact functional interface name reported by the lambda metafactory. */
+    String lambdaInterface();
+
+    /** Additional checks not already guaranteed by the lambda metafactory. */
+    ElementMatcher<TypeDescription> lambdaMatcher();
+  }
+
+  /**
    * Instrumentation that matches a series of types configured at runtime. This is used for last
    * minute additions in the field such as testing a new JDBC driver that is not yet in the allowed
    * list and to provide a workaround until the next release. The ForKnownTypes interface is more
