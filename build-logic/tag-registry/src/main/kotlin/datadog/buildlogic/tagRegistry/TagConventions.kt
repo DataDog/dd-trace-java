@@ -31,8 +31,8 @@ class TagConventions private constructor(
     /**
      * Set `span-kind-neutral: true` to apply a rename declared in a directional scope (a span type
      * or mixin with a `span-kind`) in every direction, not only in that scope's. Set it only when
-     * OpenTelemetry uses the name for this tag alone: `db.type` -> `db.system` on `db.client`
-     * qualifies, because `db.system` only describes a database.
+     * the Datadog and OpenTelemetry names denote the same value on every span kind: `db.type` ->
+     * `db.system` on `db.client` qualifies, because `db.system` only ever describes a database.
      *
      * Until name resolution knows a span's direction, only renames that apply in every direction
      * are used, so an unmarked directional rename is recorded but not yet applied. That includes
