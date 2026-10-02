@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.jaxrs2;
 
+import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isOpen;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
+import javax.ws.rs.container.AsyncResponse;
 
 public class JaxRsAnnotationsDecorator extends BaseDecorator {
 
@@ -50,6 +53,42 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   @Override
   protected CharSequence component() {
     return JAX_RS_CONTROLLER;
+  }
+
+  /**
+   * Finishes {@code span} unless some other, concurrent caller (a racing {@code resume()}/{@code
+   * cancel()} on another thread, or the resource method's own exit advice) already claimed it
+   * first. {@link ContextStore#remove} is the atomic hand-off: it removes and returns the mapping
+   * in one step, so exactly one caller ever sees a non-null result, no matter how the calls
+   * interleave across threads.
+   */
+  public void finishUnlessAlreadyClaimed(
+      final ContextStore<AsyncResponse, AgentSpan> contextStore,
+      final AsyncResponse asyncResponse) {
+    final AgentSpan claimed = contextStore.remove(asyncResponse);
+    if (claimed != null) {
+      beforeFinish(claimed);
+      claimed.finish();
+    }
+  }
+
+  /**
+   * Called from the {@code resume()}/{@code cancel()} advice once it has already tagged {@code
+   * span} as needed: defers to the resource method's own exit advice if that method's invocation is
+   * still open ({@link datadog.trace.bootstrap.ResourceMethodSpanTracker#isOpen}), otherwise
+   * finishes {@code span} via {@link #finishUnlessAlreadyClaimed}. Shared by all three advice
+   * classes ({@code resume()} with a result, {@code resume()} with a {@link Throwable}, and {@code
+   * cancel()}) since they differ only in how {@code span} gets tagged before reaching this common
+   * tail.
+   */
+  public void finishUnlessOpenOrAlreadyClaimed(
+      final ContextStore<AsyncResponse, AgentSpan> contextStore,
+      final AsyncResponse asyncResponse,
+      final AgentSpan span) {
+    if (isOpen(span)) {
+      return;
+    }
+    finishUnlessAlreadyClaimed(contextStore, asyncResponse);
   }
 
   public void onJaxRsSpan(
