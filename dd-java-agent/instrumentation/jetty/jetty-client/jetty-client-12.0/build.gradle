@@ -10,6 +10,12 @@ muzzle {
     javaVersion = "17"
     assertInverse = true
   }
+  pass {
+    group = "org.eclipse.jetty.websocket"
+    module = "jetty-websocket-core-client"
+    versions = "[12,)"
+    javaVersion = "17"
+  }
 }
 
 tracerJava {
@@ -26,6 +32,7 @@ configurations.matching { it.name.startsWith('test') || it.name.startsWith('late
 
 dependencies {
   main_java17CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.0.0'
+  main_java17CompileOnly group: 'org.eclipse.jetty.websocket', name: 'jetty-websocket-core-client', version: '12.0.0'
   // to test conflicts
   testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1'))
   testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0'))
