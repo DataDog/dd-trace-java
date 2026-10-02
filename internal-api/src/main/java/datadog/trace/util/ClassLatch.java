@@ -18,6 +18,11 @@ import javax.annotation.Nullable;
  * so checked exceptions and a tight {@code try} scope come for free, and latch through the
  * protected helpers. Only the declaring subclass can change the state.
  *
+ * <p>{@link #fallback} is what a latched target yields instead of the operation: {@code null}
+ * unless overridden. The helpers return it too when the operation fails, so the failing call and
+ * every skipped call after it agree. Override it when the operation has a slower alternative, such
+ * as an older API, rather than checking {@link #isLatched} at the call site.
+ *
  * <p>{@link #keyOf} chooses the class the latch is keyed on, and is used by every operation, so the
  * check and the latch cannot disagree. The default is the target's own class. Never key on a
  * wrapper whose contents can differ from one instance to the next; override {@link #keyOf} to
@@ -57,20 +62,33 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   @Nullable
   protected abstract R apply(T target) throws E;
 
+  /**
+   * What a latched target yields instead of the operation; the helpers also return it when the
+   * operation fails. {@code null} unless overridden. A latch that calls {@link #latch} directly
+   * should return this too, so that the failing call and later skipped calls agree.
+   */
+  @Nullable
+  protected R fallback(T target) throws E {
+    return null;
+  }
+
   /** The class the latch is keyed on. The target's own class unless overridden. */
   protected Class<?> keyOf(T target) {
     return target.getClass();
   }
 
   /**
-   * Performs the operation unless the target is {@code null} or latched, in which case returns
-   * {@code null}. A {@code null} result means nothing is available: the operation was skipped, or
-   * it produced no value.
+   * Performs the operation, returning {@code null} for a {@code null} target and {@link #fallback}
+   * for a latched one. A {@code null} result means nothing is available: the target was {@code
+   * null}, or neither the operation nor the fallback produced a value.
    */
   @Nullable
   public final R tryApplyOrNull(@Nullable T target) throws E {
-    if (target == null || isLatched(target)) {
+    if (target == null) {
       return null;
+    }
+    if (isLatched(target)) {
+      return fallback(target);
     }
     try {
       return apply(target);
@@ -80,25 +98,25 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       // invokedynamic call site's own linkage failure; HotSpot reports this directly as
       // NoSuchMethodError on some JVM versions
       latch(target);
-      return null;
+      return fallback(target);
     } catch (BootstrapMethodError e) {
       // on other JVM versions the same linkage failure is wrapped instead
       if (e.getCause() instanceof NoSuchMethodError) {
         latch(target);
-        return null;
+        return fallback(target);
       }
       throw e;
     }
   }
 
   /**
-   * Like {@link #tryApplyOrNull}, but returns {@code fallback} when there is nothing available. The
-   * fallback is also used when the operation itself produced {@code null}, so a call and a skipped
-   * call always agree.
+   * Like {@link #tryApplyOrNull}, but returns {@code defaultValue} when there is nothing available.
+   * It is also used when the operation or {@link #fallback} itself produced {@code null}, so a call
+   * and a skipped call always agree.
    */
-  public final R tryApplyOrDefault(@Nullable T target, R fallback) throws E {
+  public final R tryApplyOrDefault(@Nullable T target, R defaultValue) throws E {
     final R result = tryApplyOrNull(target);
-    return result != null ? result : fallback;
+    return result != null ? result : defaultValue;
   }
 
   /** Returns whether the operation is being skipped for the target. */
@@ -137,9 +155,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * For a call to a method that some implementations may lack: returns {@code null} if the call
-   * raises {@link AbstractMethodError} or {@link UnsupportedOperationException}, latching the key
-   * first in the former case if, and only if, the error names it (see {@link #latchIfNamed}). An
+   * For a call to a method that some implementations may lack: returns {@link #fallback} if the
+   * call raises {@link AbstractMethodError} or {@link UnsupportedOperationException}, latching the
+   * key first in the former case if, and only if, the error names it (see {@link #latchIfNamed}).
+   * An error that does not name the key still yields the fallback; it just is not latched. An
    * unsupported operation names no class, so it is never latched, and is caught on every call.
    * Anything else, checked exceptions included, propagates unchanged.
    *
@@ -171,19 +190,19 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       return call.apply(target);
     } catch (AbstractMethodError e) {
       latchIfNamed(target, methodName, e);
-      return null;
+      return fallback(target);
     } catch (UnsupportedOperationException e) {
       // no class to attribute it to, and it may come from a delegate: never latched
-      return null;
+      return fallback(target);
     }
   }
 
   /**
    * For a call to a method that is missing from the classes on the classpath altogether, for
    * example because the caller was built against a newer library than the one present: returns
-   * {@code null} if the call raises {@link NoSuchMethodError}, latching the target's key first.
-   * Anything else propagates unchanged; see {@link #handleNoSuchOrAbstractMethod} if the method may
-   * instead be present but unimplemented by some classes ({@link AbstractMethodError}).
+   * {@link #fallback} if the call raises {@link NoSuchMethodError}, latching the target's key
+   * first. Anything else propagates unchanged; see {@link #handleNoSuchOrAbstractMethod} if the
+   * method may instead be present but unimplemented by some classes ({@link AbstractMethodError}).
    *
    * <p>A {@link NoSuchMethodError} is a failure of resolution, which the JVM keeps for the call
    * site, but it can equally be raised by a call made <em>inside</em> one receiver's
@@ -206,13 +225,13 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       return call.apply(target);
     } catch (NoSuchMethodError e) {
       latch(target);
-      return null;
+      return fallback(target);
     }
   }
 
   /**
    * For a call to a method that may be missing ({@link NoSuchMethodError}) or unimplemented by some
-   * classes ({@link AbstractMethodError}): both yield {@code null}, as does {@link
+   * classes ({@link AbstractMethodError}): both yield {@link #fallback}, as does {@link
    * UnsupportedOperationException}. This is {@link #handleAbstractMethod} and {@link
    * #handleNoSuchMethod} together, with the same latching rules: an {@link AbstractMethodError}
    * latches only if its message names the key, and a {@link NoSuchMethodError} latches the target's
@@ -232,7 +251,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       return handleAbstractMethod(target, methodName, call);
     } catch (NoSuchMethodError e) {
       latch(target);
-      return null;
+      return fallback(target);
     }
   }
 

@@ -107,6 +107,45 @@ class ClassLatchTest {
   }
 
   @Test
+  void aNullTargetYieldsNullNotTheFallback() {
+    ClassLatch<Object, String, RuntimeException> latch =
+        new ClassLatch<Object, String, RuntimeException>() {
+          @Override
+          protected String apply(Object target) {
+            return "called";
+          }
+
+          @Override
+          protected String fallback(Object target) {
+            return "fallback";
+          }
+        };
+
+    assertNull(latch.tryApplyOrNull(null));
+    assertEquals("default", latch.tryApplyOrDefault(null, "default"));
+  }
+
+  @Test
+  void tryApplyOrDefaultPrefersTheFallbackOverTheDefault() {
+    ClassLatch<Object, String, RuntimeException> latch =
+        new ClassLatch<Object, String, RuntimeException>() {
+          @Override
+          protected String apply(Object target) {
+            latch(target);
+            return fallback(target);
+          }
+
+          @Override
+          protected String fallback(Object target) {
+            return "fallback";
+          }
+        };
+
+    assertEquals("fallback", latch.tryApplyOrDefault("x", "default"));
+    assertEquals("fallback", latch.tryApplyOrDefault("x", "default"));
+  }
+
+  @Test
   void keyOfChoosesTheClassToLatch() {
     // a wrapper whose contents differ: latch on what it holds, never on the wrapper itself
     final class Wrapper {

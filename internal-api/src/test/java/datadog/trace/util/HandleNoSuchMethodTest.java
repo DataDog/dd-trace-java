@@ -50,6 +50,32 @@ class HandleNoSuchMethodTest {
   }
 
   @Test
+  void noSuchMethodYieldsTheFallbackNowAndOnceLatched() {
+    AtomicInteger calls = new AtomicInteger();
+    ClassLatch<Object, String, RuntimeException> latch =
+        new ClassLatch<Object, String, RuntimeException>() {
+          @Override
+          protected String apply(Object target) {
+            return handleNoSuchMethod(
+                target,
+                t -> {
+                  calls.incrementAndGet();
+                  throw new NoSuchMethodError();
+                });
+          }
+
+          @Override
+          protected String fallback(Object target) {
+            return "fallback";
+          }
+        };
+
+    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertEquals(1, calls.get());
+  }
+
+  @Test
   void noSuchMethodYieldsNullAndLatchesTheTargetsClass() throws Exception {
     Throwing latch = new Throwing(new NoSuchMethodError("I.b()Ljava/lang/String;"));
 

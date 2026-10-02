@@ -130,6 +130,91 @@ class HandleAbstractMethodTest {
     assertFalse(latch.isLatched("x"));
   }
 
+  /** Fails like {@link Throwing} with an {@link AbstractMethodError}, but has a fallback. */
+  private static final class WithFallback extends Handling<Object, String, RuntimeException> {
+    final AtomicInteger calls = new AtomicInteger();
+    final AtomicInteger fallbacks = new AtomicInteger();
+    final Class<?> named;
+    final String result;
+
+    WithFallback(Class<?> named, String result) {
+      this.named = named;
+      this.result = result;
+    }
+
+    @Override
+    protected String invoke(Object target) {
+      calls.incrementAndGet();
+      if (named == null) {
+        return result;
+      }
+      throw receiverError(named == Object.class ? target.getClass() : named);
+    }
+
+    @Override
+    protected String fallback(Object target) {
+      fallbacks.incrementAndGet();
+      return "fallback";
+    }
+  }
+
+  @Test
+  void theFailingCallAndLaterSkippedCallsBothYieldTheFallback() {
+    // Object.class stands for "name the receiver's own class"
+    WithFallback latch = new WithFallback(Object.class, null);
+
+    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertEquals("fallback", latch.tryApplyOrNull("y"));
+
+    assertEquals(1, latch.calls.get());
+    assertEquals(2, latch.fallbacks.get());
+    assertTrue(latch.isLatched("x"));
+  }
+
+  @Test
+  void anUnnamedErrorYieldsTheFallbackWithoutLatching() {
+    // the fallback is correct whether or not the error can be attributed; latching only caches it
+    WithFallback latch = new WithFallback(Integer.class, null);
+
+    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertEquals("fallback", latch.tryApplyOrNull("x"));
+
+    assertEquals(2, latch.calls.get());
+    assertFalse(latch.isLatched("x"));
+  }
+
+  @Test
+  void aRealNullIsNotReplacedByTheFallback() {
+    // an operation that succeeds with null is not a failure: the fallback is never consulted
+    WithFallback latch = new WithFallback(null, null);
+
+    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApplyOrNull("x"));
+
+    assertEquals(2, latch.calls.get());
+    assertEquals(0, latch.fallbacks.get());
+    assertFalse(latch.isLatched("x"));
+  }
+
+  @Test
+  void anUnsupportedOperationYieldsTheFallbackWithoutLatching() {
+    Handling<Object, String, RuntimeException> latch =
+        new Handling<Object, String, RuntimeException>() {
+          @Override
+          protected String invoke(Object target) {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          protected String fallback(Object target) {
+            return "fallback";
+          }
+        };
+
+    assertEquals("fallback", latch.tryApplyOrNull("x"));
+    assertFalse(latch.isLatched("x"));
+  }
+
   @Test
   void doesNotLatchWhenTheErrorNamesTheKeyButADifferentMethod() throws Exception {
     // "m"'s own implementation calls a different method internally; that method's
