@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.core.Behavior;
@@ -58,11 +59,16 @@ public class NativeSendContext {
 
   public synchronized void finish() {
     closed = true;
-    for (Message message : pending) {
-      message.finished = true;
-      DECORATE.onFrameEnd(message);
+    for (Iterator<Message> iterator = pending.iterator(); iterator.hasNext(); ) {
+      Message message = iterator.next();
+      // Close ends the message, but pending callbacks still determine the send outcome.
+      message.complete = true;
+      if (message.pendingCallbacks == 0) {
+        message.finished = true;
+        DECORATE.onFrameEnd(message);
+        iterator.remove();
+      }
     }
-    pending.clear();
     partialMessage = null;
   }
 
@@ -152,11 +158,13 @@ public class NativeSendContext {
     }
 
     private void onError(Throwable failure) {
-      if (failure != null && !message.finished) {
-        DECORATE.onError(span, failure);
-        message.complete = true;
-        if (context.partialMessage == message) {
-          context.partialMessage = null;
+      synchronized (context) {
+        if (failure != null && !message.finished) {
+          DECORATE.onError(span, failure);
+          message.complete = true;
+          if (context.partialMessage == message) {
+            context.partialMessage = null;
+          }
         }
       }
     }

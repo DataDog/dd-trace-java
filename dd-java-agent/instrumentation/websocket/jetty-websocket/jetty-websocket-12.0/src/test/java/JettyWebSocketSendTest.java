@@ -228,7 +228,7 @@ class JettyWebSocketSendTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void closeFinishesIncompleteAndPendingSends() throws Exception {
+  void closeFinishesIncompleteSendsAndWaitsForPendingCallbacks() throws Exception {
     Connection connection = new Connection(true);
     connection.send(false, true, "hello", false, null);
     connection.callbacks.get(0).succeeded();
@@ -237,17 +237,53 @@ class JettyWebSocketSendTest extends AbstractInstrumentationTest {
     Callback.Completable closed = new Callback.Completable();
     connection.handler.onClosed(new CloseStatus(CloseStatus.NORMAL, "bye"), closed);
     closed.get(5, SECONDS);
-    writer.waitForTraces(3);
-    assertEquals(
-        2,
-        writer.stream()
-            .flatMap(List::stream)
-            .filter(s -> "websocket.send".equals(s.getOperationName().toString()))
-            .count());
-    int traces = writer.size();
+    assertTraces(trace(handshakeSpan()), trace(sendSpan(connection, false, 5, 1).root()));
+    connection.callbacks.get(1).succeeded();
+    assertTraces(
+        trace(handshakeSpan()),
+        trace(sendSpan(connection, false, 5, 1).root()),
+        trace(sendSpan(connection, false, 5, 1).root()));
     connection.callbacks.forEach(Callback::succeeded);
-    assertEquals(traces, writer.size());
+    assertEquals(3, writer.size());
     assertNull(activeSpan());
+  }
+
+  @TableTest({
+    "scenario        | partial | failed",
+    "full success    | false   | false ",
+    "full failure    | false   | true  ",
+    "partial success | true    | false ",
+    "partial failure | true    | true  "
+  })
+  void peerClosePreservesPendingSendOutcome(boolean partial, boolean failed) throws Exception {
+    Connection connection = new Connection(true);
+    RecordingCallback callback = new RecordingCallback();
+    connection.send(false, partial, "hello", !partial, callback);
+    Callback.Completable closed = new Callback.Completable();
+    connection.handler.onFrame(new CloseStatus(CloseStatus.NORMAL, "bye").toFrame(), closed);
+    closed.get(5, SECONDS);
+    assertEquals(1, writer.size());
+
+    if (failed) {
+      connection.callbacks.get(0).failed(connection.failure);
+      assertSame(connection.failure, callback.failure);
+      assertEquals("send failed", connection.spans.get(0).getTag("error.message"));
+    } else {
+      connection.callbacks.get(0).succeeded();
+      callback.get(5, SECONDS);
+    }
+    assertSame(connection.spans.get(0), callback.span);
+    assertNull(activeSpan());
+    SpanMatcher expected =
+        failed
+            ? span()
+                .operationName(compile(quote("websocket.send")))
+                .type(DDSpanTypes.WEBSOCKET)
+                .error()
+            : sendSpan(connection, false, 5, 1);
+    assertTraces(trace(handshakeSpan()), trace(expected.root()));
+    connection.callbacks.get(0).succeeded();
+    assertEquals(2, writer.size());
   }
 
   @Test
