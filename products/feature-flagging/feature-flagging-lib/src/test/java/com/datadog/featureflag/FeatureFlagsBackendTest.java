@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,6 +22,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class FeatureFlagsBackendTest {
   private final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
@@ -58,6 +61,49 @@ class FeatureFlagsBackendTest {
     assertEquals("service", this.backend.setting("service"));
     assertEquals("1.0", this.backend.setting("version"));
     assertEquals("agentless", this.backend.setting("feature.flags.configuration.source"));
+  }
+
+  @TableTest({
+    "Scenario               | Source        | RC enabled | Registers",
+    "remote config source   | remote_config | true       | true     ",
+    "remote config disabled | remote_config | false      | false    ",
+    "agentless source       | agentless     | true       | false    "
+  })
+  void startRegistersRemoteConfigOnlyWhenItIsTheSource(
+      final String source, final boolean rcEnabled, final boolean registers) {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    when(this.sco.configurationPoller(this.config)).thenReturn(poller);
+    when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
+    when(this.config.isRemoteConfigEnabled()).thenReturn(rcEnabled);
+
+    this.backend.start();
+
+    verify(poller, times(registers ? 1 : 0)).addCapabilities(anyLong());
+  }
+
+  @TableTest({
+    "Scenario                  | Source        | API key",
+    "agentless with API key    | agentless     | key    ",
+    "agentless without API key | agentless     |        ",
+    "remote config             | remote_config | key    "
+  })
+  void createsTheBackendFromTheAgentConfiguration(final String source, final String apiKey) {
+    when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
+    when(this.config.getApiKey()).thenReturn(apiKey);
+
+    final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config);
+
+    assertEquals(apiKey, created.setting("api-key"));
+  }
+
+  @Test
+  void closeWithoutRemoteConfigClearsSpanEnrichment() {
+    this.backend.enrichSerialId(1, false, null);
+
+    this.backend.close();
+
+    verify(this.sco, never()).configurationPoller(any());
+    assertTrue(this.spanEnrichmentWriter.states().isEmpty());
   }
 
   @Test
