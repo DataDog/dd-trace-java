@@ -1,10 +1,13 @@
 package com.datadog.featureflag;
 
+import static com.datadog.featureflag.FeatureFlagEventType.EXPOSURE;
+import static com.datadog.featureflag.FeatureFlagEventType.FLAG_EVALUATION;
+import static datadog.communication.http.HttpRetryPolicy.Factory.NEVER_RETRY;
+import static datadog.trace.api.intake.Intake.EVENT_PLATFORM;
+
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.HttpResponseException;
-import datadog.communication.http.HttpRetryPolicy;
-import datadog.trace.api.intake.Intake;
 import java.io.IOException;
 import java.net.ConnectException;
 import javax.annotation.Nullable;
@@ -73,8 +76,8 @@ class EventProxy {
       if (this.resolved) {
         return;
       }
-      this.exposures = create(FeatureFlagEventType.EXPOSURE);
-      this.flagEvaluations = create(FeatureFlagEventType.FLAG_EVALUATION);
+      this.exposures = create(EXPOSURE);
+      this.flagEvaluations = create(FLAG_EVALUATION);
       this.resolved = true;
     }
   }
@@ -83,11 +86,9 @@ class EventProxy {
   private BackendApi create(final FeatureFlagEventType eventType) {
     return this.directFallbackAvailable
         ? this.backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            eventType.responseCompressionEnabled(),
-            HttpRetryPolicy.Factory.NEVER_RETRY)
+            EVENT_PLATFORM, eventType.responseCompressionEnabled(), NEVER_RETRY)
         : this.backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
+            EVENT_PLATFORM, eventType.responseCompressionEnabled());
   }
 
   static boolean isDefinitiveRejection(final IOException exception) {

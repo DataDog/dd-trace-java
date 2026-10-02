@@ -1,10 +1,11 @@
 package com.datadog.featureflag;
 
-import datadog.remoteconfig.Capabilities;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES;
+import static datadog.remoteconfig.Product.FFE_FLAGS;
+
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
-import datadog.remoteconfig.Product;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -37,8 +38,9 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       return;
     }
     this.started = true;
-    this.configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    this.configurationPoller.addListener(Product.FFE_FLAGS, content -> content, this);
+    this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    // Listen as serialized event to prevent depending on the deserializer from agent
+    this.configurationPoller.addListener(FFE_FLAGS, content -> content, this);
     this.configurationPoller.start();
   }
 
@@ -64,9 +66,8 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       return;
     }
     this.started = false;
-    this.configurationPoller.removeCapabilities(
-        Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    this.configurationPoller.removeListeners(Product.FFE_FLAGS);
+    this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    this.configurationPoller.removeListeners(FFE_FLAGS);
     this.subscribers.clear();
     this.current = null;
   }
