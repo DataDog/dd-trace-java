@@ -1,0 +1,47 @@
+// An applied script does not inherit the plugin classpath. Use Spotless's own
+// classes so the step also works in buildSrc and standalone builds.
+def spotlessLoader = project.plugins.getPlugin('com.diffplug.spotless').class.classLoader
+def stepType = spotlessLoader.loadClass('com.diffplug.spotless.FormatterStep')
+def jarType = spotlessLoader.loadClass('com.diffplug.spotless.JarState')
+def funcType = spotlessLoader.loadClass('com.diffplug.spotless.FormatterFunc')
+
+// Keep the formatter and its dependencies outside the buildscript classloader.
+def formatterClasspath = project.configurations.findByName('openJavaFormat')
+if (formatterClasspath == null) {
+  formatterClasspath = project.configurations.create('openJavaFormat') {
+    canBeConsumed = false
+    defaultDependencies {
+      add(project.dependencies.create("dev.openjavaformat:open-java-format:${libs.versions.open.java.format.get()}"))
+    }
+  }
+}
+def formatterVersion = libs.versions.open.java.format.get()
+ext.openJavaFormatStep = stepType.createLazy(
+  'open-java-format',
+  { new OpenJavaFormatState(formatterVersion, jarType.preserveOrder(formatterClasspath.files as List), funcType) },
+  { state -> state.createFormat() }.dehydrate()
+  )
+
+class OpenJavaFormatState implements Serializable {
+  private static final long serialVersionUID = 1L
+  final String version
+  final String style = 'OJF'
+  final Serializable jars
+  final Class funcType
+
+  OpenJavaFormatState(String version, Serializable jars, Class funcType) {
+    this.version = version
+    this.jars = jars
+    this.funcType = funcType
+  }
+
+  Object createFormat() {
+    def loader = jars.classLoader
+    def optionsType = loader.loadClass('com.palantir.javaformat.java.JavaFormatterOptions')
+    def styleType = loader.loadClass('com.palantir.javaformat.java.JavaFormatterOptions$Style')
+    def options = optionsType.builder().style(styleType.getField(style).get(null)).build()
+    def formatter = loader.loadClass('com.palantir.javaformat.java.Formatter').createFormatter(options)
+    // String reflow produces concatenations that TableTest 1.1.2 turns into extra rows.
+    return { String input -> formatter.formatSource(formatter.fixImports(input)) }.asType(funcType)
+  }
+}
