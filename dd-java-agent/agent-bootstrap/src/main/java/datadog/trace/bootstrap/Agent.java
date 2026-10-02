@@ -431,6 +431,8 @@ public class Agent {
             CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
             TimeUnit.SECONDS);
 
+    ObjectStoreCleaner.schedule();
+
     StaticEventLogger.end("Agent.start");
   }
 
