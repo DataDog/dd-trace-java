@@ -56,7 +56,7 @@ class SettingsTest {
     "legacy enabled selects rc        |         |                   | 'true'  | 'remote_config'",
     "legacy disabled disables         |         |                   | 'false' |                ",
     "explicit source wins over legacy |         | 'agentless'       | 'false' | 'agentless'    ",
-    "invalid enabled is ignored       | 'maybe' |                   |         | 'agentless'    ",
+    "invalid enabled reads as false   | 'maybe' |                   |         |                ",
     "numeric disabled                 | '0'     |                   |         |                "
   })
   void resolvesConfigurationSource(
