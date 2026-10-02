@@ -258,36 +258,91 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
 
   @Test
   void cancelledQueryStillFinishesSpan() {
-    // Insert some data first so the query has something to stream — use a separate
-    // span so the INSERT trace doesn't merge with the test's assertion target.
-    AgentSpan setupParent = startSpan("test", "setup");
-    try (ContextScope setupScope = activateSpan(setupParent)) {
-      Mono.from(
-              connection
-                  .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'a')")
-                  .execute())
-          .flatMapMany(Result::getRowsUpdated)
-          .blockLast();
-    } finally {
-      setupParent.finish();
-    }
-    // Clear setup traces
-    tracer.flush();
-    writer.clear();
+    insertRowsOutsideTestTrace();
 
     // Now cancel a query mid-stream using take(1)
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
-      Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
-          .flatMap(result -> result.map((row, metadata) -> row.get(0)))
-          .take(1)
-          .blockLast();
+      selectRows().take(1).blockLast();
     } finally {
       parent.finish();
     }
 
     // The key assertion: even though the reactive stream was cancelled via take(1),
     // the span must still finish — no leaked, never-finished spans.
+    assertCancelledSelectSpan();
+  }
+
+  @Test
+  void queryCancelledByNextStillFinishesSpan() {
+    insertRowsOutsideTestTrace();
+
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope scope = activateSpan(parent)) {
+      selectRows().next().block();
+    } finally {
+      parent.finish();
+    }
+
+    assertCancelledSelectSpan();
+  }
+
+  @Test
+  void queryCancelledByBlockFirstStillFinishesSpan() {
+    insertRowsOutsideTestTrace();
+
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope scope = activateSpan(parent)) {
+      selectRows().blockFirst();
+    } finally {
+      parent.finish();
+    }
+
+    assertCancelledSelectSpan();
+  }
+
+  @Test
+  void queryCancelledByMonoFromStillFinishesSpan() {
+    insertRowsOutsideTestTrace();
+
+    // Mono.from takes the first element and cancels upstream — the shape behind Spring's
+    // DatabaseClient ... .first()
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope scope = activateSpan(parent)) {
+      Mono.from(selectRows()).block();
+    } finally {
+      parent.finish();
+    }
+
+    assertCancelledSelectSpan();
+  }
+
+  /**
+   * Inserts two rows under a separate trace (so the query has more than one row to cancel on), then
+   * clears it so it doesn't merge with the test's assertion target.
+   */
+  private void insertRowsOutsideTestTrace() {
+    AgentSpan setupParent = startSpan("test", "setup");
+    try (ContextScope setupScope = activateSpan(setupParent)) {
+      Mono.from(
+              connection
+                  .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'a'), (2, 'b')")
+                  .execute())
+          .flatMapMany(Result::getRowsUpdated)
+          .blockLast();
+    } finally {
+      setupParent.finish();
+    }
+    tracer.flush();
+    writer.clear();
+  }
+
+  private Flux<Object> selectRows() {
+    return Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
+        .flatMap(result -> result.map((row, metadata) -> row.get(0)));
+  }
+
+  private void assertCancelledSelectSpan() {
     assertTraces(
         trace(
             SORT_BY_START_TIME,
