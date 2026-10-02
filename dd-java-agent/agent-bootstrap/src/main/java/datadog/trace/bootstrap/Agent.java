@@ -44,7 +44,6 @@ import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.git.EmbeddedGitInfoBuilder;
@@ -195,7 +194,7 @@ public class Agent {
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
   private static boolean appLogsCollectionEnabled = false;
-  private static boolean featureFlaggingEnabled = false;
+  private static volatile boolean featureFlaggingEnabled = false;
 
   private static void safelySetContextClassLoader(ClassLoader classLoader) {
     try {
@@ -284,7 +283,6 @@ public class Agent {
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
-    featureFlaggingEnabled = isFeatureFlaggingEnabled();
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -1278,6 +1276,7 @@ public class Agent {
   }
 
   private static void maybeStartFeatureFlagging(final Class<?> scoClass, final Object sco) {
+    featureFlaggingEnabled = Config.get().isFeatureFlaggingProviderEnabled();
     if (featureFlaggingEnabled) {
       StaticEventLogger.begin("Feature Flagging");
 
@@ -1794,45 +1793,6 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
-  }
-
-  private static boolean isFeatureFlaggingEnabled() {
-    final Boolean providerEnabled =
-        featureFlaggingBooleanSetting(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED);
-    final String configurationSource =
-        featureFlaggingSetting(FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE);
-    final Boolean legacyProviderEnabled =
-        featureFlaggingBooleanSetting(FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
-
-    return FeatureFlaggingConfig.resolveConfiguration(
-            providerEnabled, configurationSource, legacyProviderEnabled)
-        .isEnabled();
-  }
-
-  @SuppressFBWarnings(
-      value = "NP_BOOLEAN_RETURN_NULL",
-      justification = "A null value preserves the distinction between absent and explicitly false")
-  private static Boolean featureFlaggingBooleanSetting(final String configKey) {
-    final String value = featureFlaggingSetting(configKey);
-    if (value == null) {
-      return null;
-    }
-    return Boolean.parseBoolean(value) || "1".equals(value);
-  }
-
-  private static String featureFlaggingSetting(final String configKey) {
-    final String systemProperty = propertyNameToSystemPropertyName(configKey);
-    String value = SystemProperties.get(systemProperty);
-    if (value == null) {
-      value = getStableConfig(FLEET, configKey);
-    }
-    if (value == null) {
-      value = ddGetEnv(systemProperty);
-    }
-    if (value == null) {
-      value = getStableConfig(LOCAL, configKey);
-    }
-    return value;
   }
 
   /**
