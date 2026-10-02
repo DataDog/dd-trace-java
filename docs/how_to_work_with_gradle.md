@@ -188,6 +188,19 @@ However, via the command line, `buildSrc/` tests are disabled unless opted in wi
 Repository proxies configured through `MAVEN_REPOSITORY_PROXY` or `GRADLE_PLUGIN_PROXY` are
 propagated to TestKit builds through `repository-proxy.init.gradle.kts`.
 
+### Muzzle Repository Proxies
+
+Muzzle's Aether version discovery uses `MAVEN_REPOSITORY_PROXY`, or Maven Central when unset.
+Set `MUZZLE_MAVEN_REPOSITORY_PROXY` to add a preferred endpoint for Muzzle while retaining
+`MAVEN_REPOSITORY_PROXY` as a second route. Blank values are ignored; identical URLs are queried once.
+These settings do not change Gradle's dependency repositories.
+
+Aether queries metadata from all configured repositories and combines the versions it finds;
+this is not sequential failover. A successful route can supply versions when another fails,
+but resolution can still wait for the failing route to time out.
+For a Fabric endpoint, enable it only where DNS, routing, and the Gradle JVM's certificate trust
+are configured. Fabric is not enabled by default.
+
 ### How Gradle Compiles Build Scripts
 
 During the **Configuration phase**, Gradle doesn't simply execute build scripts top-to-bottom. Instead, it first extracts and processes certain special blocks before compiling the rest of the script. This is necessary because Gradle needs to know which plugins to apply before it can understand the DSL extensions they provide.
