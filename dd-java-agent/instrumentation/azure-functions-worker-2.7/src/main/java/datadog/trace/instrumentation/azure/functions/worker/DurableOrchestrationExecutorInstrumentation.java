@@ -13,7 +13,6 @@ import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.Tas
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import java.util.List;
@@ -23,9 +22,6 @@ import net.bytebuddy.asm.Advice;
 public final class DurableOrchestrationExecutorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private static final Reference EXECUTOR_REFERENCE =
-      new Reference.Builder("com.microsoft.durabletask.TaskOrchestrationExecutor").build();
-
   public DurableOrchestrationExecutorInstrumentation() {
     super("azure-functions");
   }
@@ -33,11 +29,6 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
   @Override
   public String instrumentedType() {
     return "com.microsoft.durabletask.TaskOrchestrationExecutor";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {EXECUTOR_REFERENCE};
   }
 
   @Override

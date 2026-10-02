@@ -11,7 +11,6 @@ import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import net.bytebuddy.asm.Advice;
@@ -20,11 +19,6 @@ import net.bytebuddy.asm.Advice;
 public final class DurableOrchestrationMiddlewareInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private static final Reference MIDDLEWARE_REFERENCE =
-      new Reference.Builder(
-              "com.microsoft.durabletask.azurefunctions.internal.middleware.OrchestrationMiddleware")
-          .build();
-
   public DurableOrchestrationMiddlewareInstrumentation() {
     super("azure-functions");
   }
@@ -32,11 +26,6 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
   @Override
   public String instrumentedType() {
     return "com.microsoft.durabletask.azurefunctions.internal.middleware.OrchestrationMiddleware";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {MIDDLEWARE_REFERENCE};
   }
 
   @Override

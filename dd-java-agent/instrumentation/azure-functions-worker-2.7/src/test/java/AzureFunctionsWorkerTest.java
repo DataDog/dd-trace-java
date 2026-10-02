@@ -27,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyByte;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
@@ -309,7 +308,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
                   span, new IllegalStateException("failure"), state));
 
       verify(span).setError(true);
-      verify(span).finish(anyLong());
+      verify(span).finish();
       assertTrue(state.errorRecorded());
     }
     assertTraces();

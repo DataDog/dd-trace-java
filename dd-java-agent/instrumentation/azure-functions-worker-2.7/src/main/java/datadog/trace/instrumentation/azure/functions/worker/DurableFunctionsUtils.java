@@ -95,7 +95,7 @@ public final class DurableFunctionsUtils {
         }
       } finally {
         try {
-          span.finish(nowMicros());
+          span.finish();
         } finally {
           if (state != null && span.isError()) {
             state.markErrorRecorded();
