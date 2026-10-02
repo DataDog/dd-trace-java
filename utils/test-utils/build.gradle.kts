@@ -18,6 +18,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.test.util.ConfigTransformSpockExtension*",
   "datadog.trace.test.util.ControllableEnvironmentVariables*",
   "datadog.trace.test.util.DDSpecification*",
+  "datadog.trace.test.util.ExcludeInheritedFeatures*",
   "datadog.trace.test.util.Flaky*",
   "datadog.trace.test.util.FlakySpockExtension*",
   "datadog.trace.test.util.MultipartRequestParser*",
