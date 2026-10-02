@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openfeature;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.FEATURE_FLAGS;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -14,6 +15,7 @@ import java.util.Set;
  * Connects the {@code dd-openfeature} SDK to the agent: Remote Configuration, the event platform
  * proxy, health metrics and span enrichment.
  */
+@SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class DDOpenFeatureInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
@@ -24,7 +26,7 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.FEATURE_FLAGS);
+    return enabledSystems.contains(FEATURE_FLAGS);
   }
 
   @Override
