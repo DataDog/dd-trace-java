@@ -35,6 +35,7 @@ class FlagEvalMetrics implements Closeable {
   private volatile OpenTelemetry telemetry;
   private volatile boolean closed;
   private volatile Boolean legacyAgentBridge;
+  private volatile boolean getOrNoopUnavailable;
   private final boolean suppliedCounter;
 
   FlagEvalMetrics() {
@@ -46,23 +47,36 @@ class FlagEvalMetrics implements Closeable {
       return counter;
     }
     try {
-      OpenTelemetry current = GlobalOpenTelemetry.getOrNoop();
-      if (current == OpenTelemetry.noop() && hasLegacyAgentBridge()) {
-        // Older OTel agents bridge get(), but predate getOrNoop(). Only use get() when the
-        // agent has injected its API bridge. Mere agent-JAR presence is not sufficient.
-        current = GlobalOpenTelemetry.get();
-      }
+      final OpenTelemetry current = currentOpenTelemetry();
       if (current == telemetry) {
         return counter;
       }
       return initializeCounter(current);
     } catch (LinkageError e) {
-      log.debug("OpenTelemetry API 1.57 or newer is required for evaluation metrics", e);
+      log.debug("OpenTelemetry API is not available for evaluation metrics", e);
       shutdown();
     } catch (Exception e) {
       log.error("Failed to initialize flag evaluation metrics", e);
     }
     return null;
+  }
+
+  private OpenTelemetry currentOpenTelemetry() {
+    if (!getOrNoopUnavailable) {
+      try {
+        OpenTelemetry current = GlobalOpenTelemetry.getOrNoop();
+        if (current == OpenTelemetry.noop() && hasLegacyAgentBridge()) {
+          // Older OTel agents bridge get(), but predate getOrNoop(). Only use get() when the
+          // agent has injected its API bridge. Mere agent-JAR presence is not sufficient.
+          current = GlobalOpenTelemetry.get();
+        }
+        return current;
+      } catch (NoSuchMethodError e) {
+        // getOrNoop() was added in OpenTelemetry API 1.57
+        getOrNoopUnavailable = true;
+      }
+    }
+    return GlobalOpenTelemetry.get();
   }
 
   private boolean hasLegacyAgentBridge() {
