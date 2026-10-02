@@ -39,8 +39,8 @@ class LatchTest {
     FieldLatch latch = new FieldLatch();
     latch.fieldPresent = true;
 
-    assertEquals(false, latch.tryApplyOrNull("x"));
-    assertEquals(false, latch.tryApplyOrNull("x"));
+    assertEquals(false, latch.tryApply("x"));
+    assertEquals(false, latch.tryApply("x"));
 
     assertEquals(2, latch.calls.get());
     assertFalse(latch.isLatched());
@@ -50,11 +50,11 @@ class LatchTest {
   void rethrowsTheFirstFailureThenSkipsTheOperation() {
     FieldLatch latch = new FieldLatch();
 
-    assertThrows(NoSuchFieldError.class, () -> latch.tryApplyOrNull("x"));
+    assertThrows(NoSuchFieldError.class, () -> latch.tryApply("x"));
     assertTrue(latch.isLatched());
 
-    assertNull(latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("y"));
+    assertNull(latch.tryApply("x"));
+    assertNull(latch.tryApply("y"));
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
   }
 
@@ -80,9 +80,9 @@ class LatchTest {
         };
 
     // the first failure is still rethrown, not replaced by the fallback
-    assertThrows(NoSuchFieldError.class, () -> latch.tryApplyOrNull("x"));
+    assertThrows(NoSuchFieldError.class, () -> latch.tryApply("x"));
 
-    assertEquals("fallback:x", latch.tryApplyOrNull("x"));
+    assertEquals("fallback:x", latch.tryApply("x"));
     assertEquals("fallback:y", latch.tryApplyOrDefault("y", "default"));
     assertEquals(1, calls.get(), "later calls should be skipped");
   }
@@ -102,7 +102,7 @@ class LatchTest {
           }
         };
 
-    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApply("x"));
     assertFalse(latch.isLatched());
   }
 
@@ -161,14 +161,14 @@ class LatchTest {
   void unlatchResumesTheOperation() {
     Resumable latch = new Resumable();
 
-    assertEquals("called", latch.tryApplyOrNull("x"));
-    assertNull(latch.tryApplyOrNull("x"));
+    assertEquals("called", latch.tryApply("x"));
+    assertNull(latch.tryApply("x"));
     assertEquals(1, latch.calls);
 
     latch.resume();
 
     assertFalse(latch.isLatched());
-    assertEquals("called", latch.tryApplyOrNull("x"));
+    assertEquals("called", latch.tryApply("x"));
     assertEquals(2, latch.calls);
   }
 
@@ -182,7 +182,7 @@ class LatchTest {
           }
         };
 
-    assertThrows(SQLException.class, () -> latch.tryApplyOrNull("x"));
+    assertThrows(SQLException.class, () -> latch.tryApply("x"));
     assertFalse(latch.isLatched());
   }
 
@@ -207,7 +207,7 @@ class LatchTest {
     Handling latch = new Handling();
     latch.read = t -> "value";
 
-    assertEquals("value", latch.tryApplyOrNull("x"));
+    assertEquals("value", latch.tryApply("x"));
     assertFalse(latch.isLatched());
   }
 
@@ -220,11 +220,11 @@ class LatchTest {
           throw failure;
         };
 
-    NoSuchFieldError thrown = assertThrows(NoSuchFieldError.class, () -> latch.tryApplyOrNull("x"));
+    NoSuchFieldError thrown = assertThrows(NoSuchFieldError.class, () -> latch.tryApply("x"));
 
     assertSame(failure, thrown);
     assertTrue(latch.isLatched());
-    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApply("x"));
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
   }
 
@@ -236,8 +236,8 @@ class LatchTest {
           throw new IllegalStateException("boom");
         };
 
-    assertThrows(IllegalStateException.class, () -> latch.tryApplyOrNull("x"));
-    assertThrows(IllegalStateException.class, () -> latch.tryApplyOrNull("x"));
+    assertThrows(IllegalStateException.class, () -> latch.tryApply("x"));
+    assertThrows(IllegalStateException.class, () -> latch.tryApply("x"));
 
     assertFalse(latch.isLatched());
     assertEquals(2, latch.calls.get());

@@ -196,7 +196,7 @@ public class LatchBenchmark {
       // the field really is missing
     }
     try {
-      LATCH_MISSING.tryApplyOrNull(missingTarget);
+      LATCH_MISSING.tryApply(missingTarget);
     } catch (NoSuchFieldError expected) {
       // the first failure is rethrown
     }

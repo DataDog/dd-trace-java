@@ -46,17 +46,17 @@ public abstract class Latch<T, R, E extends Exception> {
    * result means nothing is available: neither the operation nor the fallback produced a value.
    */
   @Nullable
-  public final R tryApplyOrNull(T target) throws E {
+  public final R tryApply(T target) throws E {
     return latched ? fallback(target) : apply(target);
   }
 
   /**
-   * Like {@link #tryApplyOrNull}, but returns {@code defaultValue} when there is nothing available.
-   * It is also used when the operation or {@link #fallback} itself produced {@code null}, so a call
-   * and a skipped call always agree.
+   * Like {@link #tryApply}, but returns {@code defaultValue} when there is nothing available. It is
+   * also used when the operation or {@link #fallback} itself produced {@code null}, so a call and a
+   * skipped call always agree.
    */
   public final R tryApplyOrDefault(T target, R defaultValue) throws E {
-    final R result = tryApplyOrNull(target);
+    final R result = tryApply(target);
     return result != null ? result : defaultValue;
   }
 
