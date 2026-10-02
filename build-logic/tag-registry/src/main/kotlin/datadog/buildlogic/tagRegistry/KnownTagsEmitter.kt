@@ -259,7 +259,7 @@ object KnownTagsEmitter {
           appendLine("          return ${idC(tag)};")
         }
         appendLine("        default:")
-        appendLine("          return 0L;")
+        appendLine("          return KnownTagCodec.NO_TAG_IN_DIRECTION;")
         appendLine("      }")
       }
       appendLine(

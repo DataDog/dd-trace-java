@@ -92,6 +92,13 @@ public final class KnownTagCodec {
    */
   static final long DIRECTION_SCOPED_NAME = -2L;
 
+  /**
+   * What {@link #directionalKeyOf} returns for a name whose tag depends on the span's direction but
+   * that names no tag on spans of the given direction: {@code client.port} on an outbound span, or
+   * any such name while the direction is unknown.
+   */
+  public static final long NO_TAG_IN_DIRECTION = -1L;
+
   /** The registry's tables. Generated as {@code KnownTags.RESOLVER}; this class owns the policy. */
   public interface Resolver {
     /** The tag's Datadog-namespace (canonical) name. */
@@ -110,7 +117,7 @@ public final class KnownTagCodec {
      */
     long lookup(String name);
 
-    /** The tag a direction-dependent name denotes on spans of a known direction, or 0 for none. */
+    /** See {@link KnownTagCodec#directionalKeyOf}. */
     long directionalKeyOf(String name, int direction);
   }
 
@@ -186,26 +193,31 @@ public final class KnownTagCodec {
     if (key >= 0) {
       return key;
     }
-    return direction == DIRECTION_UNKNOWN ? 0L : resolver.directionalKeyOf(name, direction);
+    long tagId = resolver.directionalKeyOf(name, direction);
+    return tagId > 0 ? tagId : 0L;
+  }
+
+  /**
+   * Only the direction-dependent part of {@link #keyOf(String, int)}, for a caller that already
+   * resolves every other name: the tag {@code name} denotes on spans of {@code direction} when it
+   * is one of the few names that depend on direction ({@code peer.port}, {@code server.address}); 0
+   * for every other name; or {@link #NO_TAG_IN_DIRECTION}.
+   *
+   * <p>A switch over just those names, so a miss is far cheaper than a full lookup. A span uses it
+   * before handing a name to {@link TagMap}, which then does its usual single lookup.
+   */
+  public static long directionalKeyOf(String name, int direction) {
+    return Installed.RESOLVER.directionalKeyOf(name, direction);
   }
 
   /**
    * {@link #keyOf(String)}, except that a Datadog name shared by a tag per direction returns {@link
-   * #SHARED_NAME}, so {@link TagMap} can find whichever of those tags it holds. One lookup, like
-   * {@code keyOf}; only a shared name costs more, in {@link #tagIdSharing}.
+   * #SHARED_NAME}, so {@link TagMap} can find whichever of those tags it holds, through {@link
+   * #directionalKeyOf}. One lookup, like {@code keyOf}.
    */
   static long keyOrSharedName(String name) {
     long key = Installed.RESOLVER.lookup(name);
     return key == DIRECTION_SCOPED_NAME ? 0L : key;
-  }
-
-  /**
-   * The tag that shares Datadog name {@code name} on spans of {@code direction}, or 0 when none
-   * does. A caller probing every tag of a shared name walks {@link #DIRECTION_INBOUND} through
-   * {@link #DIRECTION_NONE}.
-   */
-  static long tagIdSharing(String name, int direction) {
-    return Installed.RESOLVER.directionalKeyOf(name, direction);
   }
 
   /**

@@ -1419,8 +1419,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     for (int direction = KnownTagCodec.DIRECTION_INBOUND;
         direction <= KnownTagCodec.DIRECTION_NONE;
         direction++) {
-      long sharingId = KnownTagCodec.tagIdSharing(tag, direction);
-      Entry entry = sharingId == 0 ? null : this.getEntry(tag, sharingId);
+      long sharingId = KnownTagCodec.directionalKeyOf(tag, direction);
+      Entry entry = sharingId > 0 ? this.getEntry(tag, sharingId) : null;
       if (entry != null) {
         return entry;
       }
@@ -1965,8 +1965,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     for (int direction = KnownTagCodec.DIRECTION_INBOUND;
         direction <= KnownTagCodec.DIRECTION_NONE;
         direction++) {
-      long sharingId = KnownTagCodec.tagIdSharing(tag, direction);
-      Entry entry = sharingId == 0 ? null : this.getAndRemove(tag, sharingId);
+      long sharingId = KnownTagCodec.directionalKeyOf(tag, direction);
+      Entry entry = sharingId > 0 ? this.getAndRemove(tag, sharingId) : null;
       if (removed == null) {
         removed = entry;
       }

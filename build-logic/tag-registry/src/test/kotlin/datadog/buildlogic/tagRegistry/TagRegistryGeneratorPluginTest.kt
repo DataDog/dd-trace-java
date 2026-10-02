@@ -250,6 +250,7 @@ class TagRegistryGeneratorPluginTest {
         public static final int DIRECTION_NONE = 2;
         static final long SHARED_NAME = -1L;
         static final long DIRECTION_SCOPED_NAME = -2L;
+        public static final long NO_TAG_IN_DIRECTION = -1L;
         public interface Resolver {
           String nameOf(long id);
           String openTelemetryNameOf(long id, int direction);
