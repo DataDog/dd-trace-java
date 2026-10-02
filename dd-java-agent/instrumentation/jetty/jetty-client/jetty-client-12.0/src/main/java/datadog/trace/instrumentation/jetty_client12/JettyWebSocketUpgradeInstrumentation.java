@@ -15,12 +15,19 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
+import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.websocket.core.client.CoreClientUpgradeRequest;
 
 @AutoService(InstrumenterModule.class)
 public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public JettyWebSocketUpgradeInstrumentation() {
     super("jetty-client");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "jetty-websocket-core-client";
   }
 
   @Override
@@ -59,6 +66,15 @@ public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tra
         DECORATE.beforeFinish(span);
         span.finish();
       }
+    }
+
+    /**
+     * Lets Muzzle fail CI if the upgrade method is removed or its signature changes, instead of
+     * silently skipping instrumentation.
+     */
+    private void muzzleCheck(
+        CoreClientUpgradeRequest request, Response response, EndPoint endPoint) {
+      request.upgrade(response, endPoint);
     }
   }
 }
