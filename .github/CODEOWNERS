@@ -279,6 +279,9 @@
 
 # @DataDog/ci-app-libraries
 /dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries
+/dd-java-agent/observer/                            @DataDog/ci-app-libraries
+/buildSrc/src/*/kotlin/datadog/gradle/plugin/observer/ @DataDog/ci-app-libraries
+/docs/tracing_the_tracer.md                         @DataDog/ci-app-libraries
 /dd-smoke-tests/backend-mock/                       @DataDog/ci-app-libraries
 /dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries
 /dd-smoke-tests/junit-console/                      @DataDog/ci-app-libraries

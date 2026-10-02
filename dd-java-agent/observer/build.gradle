@@ -1,0 +1,45 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'dd-trace-java.conventions.java'
+}
+
+description = 'Experimental namespace-isolated copy of the agent that traces this repository\'s own tests'
+
+minimumBranchCoverage = 0.7
+minimumInstructionCoverage = 0.8
+
+dependencies {
+  implementation libs.asm
+  implementation libs.asm.tree
+  implementation libs.asm.commons
+
+  testImplementation libs.bundles.junit5
+  // Only to define the relocated Gradle argument provider in a test.
+  testImplementation gradleApi()
+}
+
+evaluationDependsOn(':dd-java-agent')
+
+def stockAgent = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+def observerAgent = layout.buildDirectory.file('libs/dd-observer-agent.jar')
+
+// Developer-only artifact; never part of assemble or publication.
+def observerJar = tasks.register('observerJar', JavaExec) {
+  description = 'Rewrites the stock agent jar into the observer agent jar'
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'datadog.trace.observer.rewriter.ObserverAgentRewriter'
+  inputs.file(stockAgent).withPathSensitivity(PathSensitivity.NONE)
+  outputs.file(observerAgent)
+  argumentProviders.add({ [stockAgent.get().asFile.path, observerAgent.get().asFile.path] } as CommandLineArgumentProvider)
+}
+
+tasks.named('test', Test) {
+  inputs.files(stockAgent, observerJar).withPathSensitivity(PathSensitivity.NONE)
+  jvmArgumentProviders.add({
+    [
+      "-Dobserver.test.stock=${stockAgent.get().asFile.path}",
+      "-Dobserver.test.artifact=${observerAgent.get().asFile.path}"
+    ]
+  } as CommandLineArgumentProvider)
+}

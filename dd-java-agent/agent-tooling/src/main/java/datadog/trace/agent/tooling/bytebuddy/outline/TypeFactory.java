@@ -112,6 +112,9 @@ final class TypeFactory {
 
   byte[] targetBytecode;
 
+  /** Description of the current transform target, resolved from the supplied bytes. */
+  private LazyType targetType;
+
   /** Sets the current class-loader context of this type-factory. */
   void switchContext(ClassLoader classLoader) {
     if (currentClassLoader != classLoader || null == classFileLocator) {
@@ -153,6 +156,7 @@ final class TypeFactory {
   void beginTransform(String name, byte[] bytecode) {
     targetName = name;
     targetBytecode = bytecode;
+    targetType = new LazyType(name);
 
     if (installing) {
       originalClassLoader = currentClassLoader;
@@ -186,6 +190,7 @@ final class TypeFactory {
 
     targetName = null;
     targetBytecode = null;
+    targetType = null;
     createOutlines = OUTLINING_ENABLED;
   }
 
@@ -228,7 +233,7 @@ final class TypeFactory {
   }
 
   private TypeDescription deferTypeResolution(String name) {
-    return deferredTypes.computeIfAbsent(name, deferType);
+    return name.equals(targetName) ? targetType : deferredTypes.computeIfAbsent(name, deferType);
   }
 
   /** Attempts to resolve the named type using the current context. */
@@ -236,7 +241,7 @@ final class TypeFactory {
     if (null != classFileLocator) {
       TypeDescription result;
       if (createOutlines) {
-        if ("java.lang.Object".equals(request.name)) {
+        if (request != targetType && "java.lang.Object".equals(request.name)) {
           return objectOutline;
         }
         result = lookupType(request, outlineTypes, outlineTypeParser);
@@ -258,8 +263,17 @@ final class TypeFactory {
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
 
-    // existing type description from same classloader?
     SharedTypeInfo<TypeDescription> sharedType = types.find(name);
+
+    // A cached description of the transform target can predate changes from earlier transformers,
+    // so parse the supplied bytes instead. Leave the cached entry for other lookups.
+    if (request == targetType && null != sharedType) {
+      TypeDescription type = typeParser.parse(targetBytecode);
+      InstrumenterMetrics.buildTypeDescription(fromTick, isOutline);
+      return type;
+    }
+
+    // existing type description from same classloader?
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoaderId))) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
@@ -396,7 +410,7 @@ final class TypeFactory {
 
     @Override
     public boolean isPublic() {
-      return isPublicFilter.contains(name) || super.isPublic();
+      return (this != targetType && isPublicFilter.contains(name)) || super.isPublic();
     }
 
     private TypeDescription outline() {

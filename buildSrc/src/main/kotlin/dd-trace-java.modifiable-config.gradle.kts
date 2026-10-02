@@ -27,7 +27,8 @@ tasks.withType<Test>().configureEach {
   // doFirst prepends, so this runs after any -javaagent registered later via doFirst.
   doFirst {
     val foreignAgent = allJvmArgs.firstOrNull {
-      it.startsWith("-javaagent:") && !it.contains("modifiable-config-agent")
+      it.startsWith("-javaagent:") && !it.contains("modifiable-config-agent") &&
+        !datadog.gradle.plugin.observer.ObserverAgentSelection.isAttachedAgentArgument(it)
     }
     if (foreignAgent != null) {
       logger.info(

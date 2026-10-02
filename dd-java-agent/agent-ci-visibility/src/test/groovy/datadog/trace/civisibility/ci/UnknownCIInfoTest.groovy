@@ -8,7 +8,10 @@ import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
 import datadog.trace.civisibility.git.tree.GitClient
+import spock.lang.TempDir
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 
 class UnknownCIInfoTest extends CITagsProviderTest {
@@ -53,6 +56,24 @@ class UnknownCIInfoTest extends CITagsProviderTest {
 
     then:
     ciTags == expectedTags
+  }
+
+  @TempDir
+  Path temporaryFolder
+
+  def "test workspace is found from a worktree git file"() {
+    setup:
+    def worktree = Files.createDirectories(temporaryFolder.resolve("worktree"))
+    Files.write(worktree.resolve(GIT_FOLDER_FOR_TESTS), "gitdir: /repo/.git/worktrees/worktree\n".bytes)
+    def module = Files.createDirectories(worktree.resolve("module"))
+
+    when:
+    def ciInfo = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
+      .createCIProviderInfo(module)
+      .buildCIInfo()
+
+    then:
+    ciInfo.ciWorkspace == worktree.toRealPath().toString()
   }
 
   def "test workspace is null if target folder does not exist"() {
