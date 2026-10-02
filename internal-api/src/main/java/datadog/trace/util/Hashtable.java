@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -8,6 +9,9 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Light weight simple Hashtable system that can be useful when HashMap would be unnecessarily
@@ -23,10 +27,33 @@ import java.util.function.Function;
  * Convenience classes are provided for lower key dimensions.
  *
  * <p>For higher key dimensions, client code must implement its own class, but can still use the
- * support class to ease the implementation complexity.
+ * static building blocks on this class to ease the implementation complexity.
+ *
+ * <h2>Choosing between the three tables</h2>
+ *
+ * <ol>
+ *   <li><b>Concurrent access?</b> Use {@code ConcurrentHashtable} -- the only thread-safe one of
+ *       the three. {@code FlatHashtable} is racy by design, and this class is not thread-safe at
+ *       all.
+ *   <li><b>Otherwise: does the population reset wholesale, or evolve?</b> A table cleared as a unit
+ *       -- once per cycle, per request, or built and then discarded -- wants {@code FlatHashtable},
+ *       whose open addressing has no tombstones and so offers no removal beyond clearing. A table
+ *       whose entries come and go independently wants this one, where chaining removes and evicts
+ *       in place.
+ * </ol>
+ *
+ * <p>Lifetime is the usual shorthand for that second question and mostly works, because a
+ * short-lived table never needs to remove -- it just dies. The case it mis-sorts is a long-lived
+ * table that resets on a cycle: that is a sequence of short lives, and belongs with the short-lived
+ * ones. Compare a table that evicts stale entries one at a time while the busy ones survive the
+ * cycle (evolving -- this class) against one that clears every entry each time it reports (resets
+ * -- {@code FlatHashtable}).
  *
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
- * {@link D1}, {@link D2}, and (for higher-arity callers) {@link Support}-driven custom tables.
+ * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
+ * building blocks on this class (see {@link #create(Class, int)}, {@link
+ * #bucketFor(Hashtable.Entry[], long)}, {@link #insertHeadEntryAt(Hashtable.Entry[], int,
+ * Hashtable.Entry)}, and friends).
  */
 public final class Hashtable {
   private Hashtable() {}
@@ -37,7 +64,8 @@ public final class Hashtable {
    *
    * <p>Subclasses add the actual key field(s) and a {@code matches(...)} method tailored to their
    * key arity. See {@link D1.Entry} and {@link D2.Entry}; for higher arities, client code can
-   * subclass this directly and use {@link Support} to drive the table mechanics.
+   * subclass this directly and drive the table with the static building blocks on {@link
+   * Hashtable}.
    */
   public abstract static class Entry {
     public final long keyHash;
@@ -47,11 +75,12 @@ public final class Hashtable {
       this.keyHash = keyHash;
     }
 
-    public final <TEntry extends Entry> void setNext(TEntry next) {
+    public final <TEntry extends Entry> void setNext(@Nullable TEntry next) {
       this.next = next;
     }
 
     @SuppressWarnings("unchecked")
+    @Nullable
     public final <TEntry extends Entry> TEntry next() {
       return (TEntry) this.next;
     }
@@ -68,8 +97,14 @@ public final class Hashtable {
    * Long>} and produces effectively zero GC pressure.
    *
    * <p>Capacity is fixed at construction. The table does not resize, so the caller is responsible
-   * for choosing a capacity appropriate to the working set. Actual bucket-array length is rounded
-   * up to the next power of two.
+   * for choosing a capacity appropriate to the working set. Once {@link #size()} reaches that
+   * capacity, {@link #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns
+   * {@code null} rather than adding more entries -- a lookup hit is still always returned even at
+   * capacity, the cap only blocks new entries. Want your own eviction policy instead of a hard cap?
+   * Drop down to the static building blocks and drive the bucket array yourself -- {@link
+   * Hashtable#createBounded(int)} hands you a spine and a {@link SizeManager} already matched to
+   * each other, and the manager evicts as well as counts. Actual bucket-array length is rounded up
+   * to the next power of two.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -94,17 +129,18 @@ public final class Hashtable {
     public abstract static class Entry<K> extends Hashtable.Entry {
       final K key;
 
-      protected Entry(K key) {
+      protected Entry(@Nullable K key) {
         super(hash(key));
         this.key = key;
       }
 
       /** The key this entry was created with. */
+      @Nullable
       public K key() {
         return this.key;
       }
 
-      public boolean matches(Object key) {
+      public boolean matches(@Nullable Object key) {
         return Objects.equals(this.key, key);
       }
 
@@ -116,105 +152,273 @@ public final class Hashtable {
        * [Integer.MIN_VALUE, Integer.MAX_VALUE]}; real-key collisions in chains are resolved by
        * {@link #matches(Object)}.
        */
-      public static long hash(Object key) {
+      public static long hash(@Nullable Object key) {
         return (key == null) ? Long.MIN_VALUE : key.hashCode();
       }
     }
 
-    // Package-private so iterator tests in the same package can drive Support.bucketIterator and
-    // friends directly against the table's bucket array.
+    // Package-private so iterator tests in the same package can drive the Hashtable static
+    // building blocks directly against the table's bucket array.
     final Hashtable.Entry[] buckets;
-    private int size;
+    private final SizeManager sizeManager;
 
-    public D1(int capacity) {
-      this.buckets = Support.create(capacity);
-      this.size = 0;
+    private D1(int maxCapacity) {
+      // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
+      // short even when the table is full; see Hashtable#capacityFor.
+      this.buckets = Hashtable.create(capacityFor(maxCapacity));
+      this.sizeManager = new SizeManager(maxCapacity);
     }
 
+    /**
+     * A <em>capped</em> single-key table: it holds at most {@code maxCapacity} live entries, after
+     * which {@link #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code
+     * null}. A lookup hit is still always returned at capacity -- the cap only blocks new entries.
+     *
+     * <p>"Capped" names the promise, not the mechanism: the bucket array is sized once from {@code
+     * maxCapacity} via {@link Hashtable#capacityFor(int)} and never resized, but that is an
+     * implementation detail. What the caller is choosing here is a bounded entry count and, with
+     * it, a bounded footprint -- the posture an agent living in someone else's heap wants by
+     * default. Callers that need overflow to be absorbed rather than refused should pair a {@link
+     * SizeManager}'s eviction half over the static building blocks (see {@link
+     * Hashtable#createBounded(int)}) rather than reaching for an uncapped table.
+     *
+     * <p><b>Pick {@code maxCapacity} in the right ballpark of what you actually expect to hold</b>
+     * -- the bucket array is sized from it, so it is read as both the limit and a rough estimate.
+     * Nothing assumes you will reach the cap, but a cap set as a paranoid safety valve far above
+     * typical usage over-allocates the spine for a fill that never arrives. When the limit and the
+     * expectation genuinely differ by a lot, size the two independently with the low-level API:
+     * {@code Hashtable.create(capacityFor(expected))} paired with {@code new SizeManager(limit)}.
+     *
+     * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
+     * infers both {@code K} and {@code TEntry} at the call site (e.g. {@code
+     * D1.createBounded(MyEntry.class, 64)}), keeping the factory symmetric with the rest of the
+     * collections family. Unlike {@link Hashtable#create(Class, int)} it is not reflectively
+     * allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally, matching the
+     * static building blocks ({@link Hashtable#bucketFor}, {@link Hashtable#insertHeadEntryFor},
+     * etc.) that {@link #get}, {@link #insert}, and friends delegate to.
+     *
+     * @param entryClass type token pinning {@code TEntry} for inference; not used for reflective
+     *     allocation
+     * @param maxCapacity strict cap on live entries
+     * @return a capped, non-resizing single-key table
+     */
+    @Nonnull
+    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
+        @Nonnull Class<TEntry> entryClass, int maxCapacity) {
+      return new D1<>(maxCapacity);
+    }
+
+    /**
+     * Live entry count. Exact here, unlike {@link SizeManager#estimateSize()}: this class reserves
+     * and links within a single call, so a caller can never observe the reservation window.
+     */
     public int size() {
-      return this.size;
+      return this.sizeManager.estimateSize();
     }
 
-    public TEntry get(K key) {
-      long keyHash = D1.Entry.hash(key);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key)) {
-          return te;
-        }
-      }
-      return null;
+    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    public boolean isFull() {
+      return this.sizeManager.isFull();
     }
 
-    public TEntry remove(K key) {
+    @Nullable
+    public TEntry get(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
-
-      for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, keyHash);
-          iter.hasNext(); ) {
-        TEntry curEntry = iter.next();
-
-        if (curEntry.matches(key)) {
-          iter.remove();
-          this.size -= 1;
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
           return curEntry;
         }
       }
-
       return null;
     }
 
-    public void insert(TEntry newEntry) {
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
+    @Nullable
+    public TEntry remove(@Nullable K key) {
+      // Walks the chain directly rather than delegating to Hashtable#removeMatching: a
+      // `e -> e.matches(key)` predicate captures `key`, so it allocates a fresh Predicate on every
+      // call. This class ships context-passing forEach/drain overloads precisely so callers can
+      // avoid capturing lambdas -- the write paths follow the same discipline. Same loop shape as
+      // tryInsertOrReplace below.
+      long keyHash = D1.Entry.hash(key);
+      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
+        if (curEntry.matches(key)) {
+          iter.remove();
+          this.sizeManager.decrement();
+          return curEntry;
+        }
+      }
+      return null;
     }
 
-    public TEntry insertOrReplace(TEntry newEntry) {
+    /**
+     * Removes every entry matching {@code predicate}, returning {@code true} if any were removed.
+     */
+    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
+      return Hashtable.removeIf(this.sizeManager, this.buckets, predicate);
+    }
+
+    /**
+     * Unconditionally adds {@code newEntry} ({@code true}), or {@code false} if the table is
+     * already at capacity. Caller-responsible: {@code newEntry}'s key must be absent, else it lands
+     * shadowed behind the existing entry. {@code newEntry} must also be a fresh entry, not already
+     * linked into this or any other table's bucket chain -- reinserting an already-linked entry
+     * corrupts the chain it's still part of (guarded by an assertion in {@link
+     * #insertHeadEntryAt(Hashtable.Entry[], int, Hashtable.Entry)}).
+     */
+    public boolean insert(@Nonnull TEntry newEntry) {
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
+    }
+
+    /**
+     * Makes {@code newEntry} the entry for its key: replaces the existing entry for that key if one
+     * is present, otherwise inserts it fresh. Returns {@code false} only when the key is absent
+     * <em>and</em> the table is at capacity -- a replacement swaps one entry for another without
+     * growing {@link #size()}, so it always succeeds, even on a full table.
+     *
+     * <p>Does not hand back the entry it displaced. Callers that need it can {@link #get} first;
+     * that is rare enough (the same way {@code Map.put}'s return value is rarely read) not to be
+     * worth the cost of the alternative, which was throwing {@link IllegalStateException} on
+     * refusal because {@code null} was already spoken for by "inserted fresh". Refusal at a cap is
+     * ordinary steady-state behaviour, not a programming error, and an exception would allocate a
+     * throwable plus stack trace exactly when the table is under the most pressure.
+     *
+     * <p>Note this swaps the entry <em>object</em>. Where the goal is to change values on an entry
+     * that may or may not exist yet, prefer looking it up once and mutating in place -- that is the
+     * allocation-free path this class exists for.
+     */
+    public boolean tryInsertOrReplace(@Nonnull TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
+              mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
         TEntry curEntry = iter.next();
 
         if (curEntry.matches(newEntry.key)) {
           iter.replace(newEntry);
-          return curEntry;
+          return true;
         }
       }
 
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
-      return null;
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
-     * Returns the entry for {@code key}, building one via {@code creator} if absent. Computes the
-     * hash once and reuses it for both the lookup and (on miss) the insert -- avoids the
+     * Returns the entry for {@code key}, building one via {@code creator} if absent -- wrapped in a
+     * {@link Maybe} that is absent if the key is absent and the table is <b>at capacity</b>. A
+     * lookup hit is always returned even at capacity, so only the create half can fail. Check
+     * {@link #isFull()} beforehand if you want to distinguish "refused" from "created" without
+     * inspecting the result.
+     *
+     * <p>Refusal is a designed steady state for a capped table, not an exceptional condition -- see
+     * {@link #createBounded}. Decide deliberately what a refused create should do (drop the sample,
+     * fall back, make room); silently ignoring an absent {@link Maybe} turns the cap into data loss
+     * you cannot see.
+     *
+     * <p>Computes the hash once, reused for both the lookup and (on miss) the insert -- avoids the
      * double-hash that "{@code get}; if null then {@code insert}" would incur.
      *
-     * <p>The {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
-     * Entry#hash(Object) D1.Entry.hash(key)} -- typically by passing {@code key} to a constructor
-     * that calls {@code super(key)}. A mismatched hash will leave the new entry inserted at a
-     * bucket that future {@link #get} calls won't probe.
+     * <p>{@code creator} must build an entry whose {@code keyHash} equals {@link Entry#hash(Object)
+     * D1.Entry.hash(key)} (typically by passing {@code key} to a constructor that calls {@code
+     * super(key)}), or a future {@link #get} for that key won't find it.
+     *
+     * <p>Exactly one {@link Maybe#of} call site, fed by delegating to {@link #tryGetOrCreateOrNull}
+     * -- see {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
+     * Use {@link #tryGetOrCreateOrNull} directly only when a manual null check is genuinely more
+     * convenient than {@link Maybe#update}/{@link Maybe#getOrNull}.
+     *
+     * @param key key to look up
+     * @param creator creates an entry when the key is absent
+     * @return the existing or created entry, or an absent value when a new key is refused at
+     *     capacity
      */
-    public TEntry getOrCreate(K key, Function<? super K, ? extends TEntry> creator) {
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
+      return Maybe.of(tryGetOrCreateOrNull(key, creator));
+    }
+
+    /**
+     * Low-level, {@code null}-returning form of {@link #tryGetOrCreate}. Prefer the {@link Maybe}
+     * form above for new call sites; this one remains as an escape hatch for callers where the
+     * {@link Maybe} allocation-free contract doesn't fit (e.g. storing the result past the current
+     * stack frame) or that pre-date it.
+     */
+    @Nullable
+    public TEntry tryGetOrCreateOrNull(
+        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key)) {
-          return te;
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+          return curEntry;
         }
       }
+      // Deliberately isFull() -> create -> increment, not the one-call tracked
+      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: creator runs
+      // between check and link and may throw, so reserving up front could leak.
+      if (this.sizeManager.isFull()) {
+        return null;
+      }
       TEntry newEntry = creator.apply(key);
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
+      this.sizeManager.increment();
       return newEntry;
     }
 
-    public void clear() {
-      Support.clear(this.buckets);
-      this.size = 0;
+    /**
+     * {@link #tryGetOrCreateOrNull}, but evicting one entry matching {@code evictable} instead of
+     * refusing when the table is full -- see {@link #tryGetOrCreateOrEvictOrNull} for the
+     * null-returning form and the eviction/creation ordering.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateOrEvict(
+        @Nullable K key,
+        @Nonnull Function<? super K, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      return Maybe.of(tryGetOrCreateOrEvictOrNull(key, creator, evictable));
     }
 
-    public void forEach(Consumer<? super TEntry> consumer) {
-      Support.forEach(this.buckets, consumer);
+    /**
+     * Nullable form of {@link #tryGetOrCreateOrEvict}. When full, evicts before invoking {@code
+     * creator}; if creation then throws, the table remains one entry smaller without leaking a
+     * reservation.
+     *
+     * @param key key to look up
+     * @param creator creates an entry when the key is absent
+     * @param evictable selects an entry to remove when the table is full
+     * @return the existing or created entry, or {@code null} when full with no evictable entry
+     */
+    @Nullable
+    public TEntry tryGetOrCreateOrEvictOrNull(
+        @Nullable K key,
+        @Nonnull Function<? super K, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      long keyHash = D1.Entry.hash(key);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+          return curEntry;
+        }
+      }
+      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: creator
+      // runs between eviction and link and may throw, so reserving the freed slot up front could
+      // leak it. See tryGetOrCreateOrNull above for the non-evicting form of this reasoning.
+      if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
+        return null;
+      }
+      TEntry newEntry = creator.apply(key);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
+      this.sizeManager.increment();
+      return newEntry;
+    }
+
+    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
+      Hashtable.forEach(this.buckets, consumer);
     }
 
     /**
@@ -222,8 +426,30 @@ public final class Hashtable {
      * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
      * side-band state it needs as {@code context}.
      */
-    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      Support.forEach(this.buckets, context, consumer);
+    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+      Hashtable.forEach(this.buckets, context, consumer);
+    }
+
+    public void clear() {
+      Hashtable.clear(this.sizeManager, this.buckets);
+    }
+
+    /**
+     * Removes every entry, passing each to {@code sink} as it is unlinked -- the read-and-reset
+     * primitive for flush/publish workflows (drain the table into a telemetry batch, an event
+     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
+     */
+    public void drain(@Nonnull Consumer<? super TEntry> sink) {
+      Hashtable.<TEntry>drain(this.sizeManager, this.buckets, sink);
+    }
+
+    /**
+     * Context-passing {@link #drain(Consumer)}. Pass a non-capturing {@link BiConsumer} (typically
+     * a {@code static final}) plus the accumulator as {@code context} to avoid a capturing-lambda
+     * allocation.
+     */
+    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      Hashtable.<C, TEntry>drain(this.sizeManager, this.buckets, context, sink);
     }
   }
 
@@ -233,12 +459,12 @@ public final class Hashtable {
    * <p>The user supplies a {@link D2.Entry} subclass carrying both key parts and any value fields.
    * Compared to {@code HashMap<Pair, V>} this avoids the per-lookup {@code Pair} (or record)
    * allocation: both key parts are passed directly through {@link #get}, {@link #remove}, {@link
-   * #insert}, and {@link #insertOrReplace}. Combined with in-place value mutation, this makes
+   * #insert}, and {@link #tryInsertOrReplace}. Combined with in-place value mutation, this makes
    * {@code D2} substantially less GC-intensive than the equivalent {@code HashMap<Pair, Long>} for
    * counter-style workloads.
    *
-   * <p>Capacity is fixed at construction; the table does not resize. Actual bucket-array length is
-   * rounded up to the next power of two.
+   * <p>Capacity is fixed at construction; the table does not resize. Same strict-cap semantics as
+   * {@link D1} once {@link #size()} reaches capacity.
    *
    * <p>Key parts are combined into a 64-bit hash via {@link LongHashingUtils}; see {@link
    * D2.Entry#hash(Object, Object)}.
@@ -264,23 +490,25 @@ public final class Hashtable {
       final K1 key1;
       final K2 key2;
 
-      protected Entry(K1 key1, K2 key2) {
+      protected Entry(@Nullable K1 key1, @Nullable K2 key2) {
         super(hash(key1, key2));
         this.key1 = key1;
         this.key2 = key2;
       }
 
       /** The first key part this entry was created with. */
+      @Nullable
       public K1 key1() {
         return this.key1;
       }
 
       /** The second key part this entry was created with. */
+      @Nullable
       public K2 key2() {
         return this.key2;
       }
 
-      public boolean matches(K1 key1, K2 key2) {
+      public boolean matches(@Nullable K1 key1, @Nullable K2 key2) {
         return Objects.equals(this.key1, key1) && Objects.equals(this.key2, key2);
       }
 
@@ -291,100 +519,219 @@ public final class Hashtable {
        * combinations whose chained hash equals {@code hash(0, 0) = 0} or similar values. {@link
        * #matches(Object, Object)} resolves any such collision.
        */
-      public static long hash(Object key1, Object key2) {
+      public static long hash(@Nullable Object key1, @Nullable Object key2) {
         return LongHashingUtils.hash(key1, key2);
       }
     }
 
     // Package-private to match D1.buckets -- available for iterator tests in the same package.
     final Hashtable.Entry[] buckets;
-    private int size;
+    private final SizeManager sizeManager;
 
-    public D2(int capacity) {
-      this.buckets = Support.create(capacity);
-      this.size = 0;
+    private D2(int maxCapacity) {
+      // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
+      // short even when the table is full; see Hashtable#capacityFor.
+      this.buckets = Hashtable.create(capacityFor(maxCapacity));
+      this.sizeManager = new SizeManager(maxCapacity);
     }
 
+    /**
+     * Composite-key analogue of {@link D1#createBounded}: a <em>capped</em> table holding at most
+     * {@code maxCapacity} live entries, after which {@link #insert} returns {@code false} and
+     * {@link #tryGetOrCreateOrNull} returns {@code null}, with lookup hits still always returned.
+     * See {@link D1#createBounded} for what "capped" promises and why it is the default posture.
+     *
+     * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
+     * infers {@code K1}, {@code K2}, and {@code TEntry} at the call site (e.g. {@code
+     * D2.createBounded(MyEntry.class, 64)}). Unlike {@link Hashtable#create(Class, int)} it is not
+     * reflectively allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally,
+     * matching the static building blocks that {@link #get}, {@link #insert}, and friends delegate
+     * to.
+     *
+     * @param entryClass type token pinning {@code TEntry} for inference; not used for reflective
+     *     allocation
+     * @param maxCapacity strict cap on live entries
+     * @return a capped, non-resizing two-key table
+     */
+    @Nonnull
+    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
+        @Nonnull Class<TEntry> entryClass, int maxCapacity) {
+      return new D2<>(maxCapacity);
+    }
+
+    /**
+     * Live entry count. Exact here, unlike {@link SizeManager#estimateSize()}: this class reserves
+     * and links within a single call, so a caller can never observe the reservation window.
+     */
     public int size() {
-      return this.size;
+      return this.sizeManager.estimateSize();
     }
 
-    public TEntry get(K1 key1, K2 key2) {
-      long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key1, key2)) {
-          return te;
-        }
-      }
-      return null;
+    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    public boolean isFull() {
+      return this.sizeManager.isFull();
     }
 
-    public TEntry remove(K1 key1, K2 key2) {
+    @Nullable
+    public TEntry get(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-
-      for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, keyHash);
-          iter.hasNext(); ) {
-        TEntry curEntry = iter.next();
-
-        if (curEntry.matches(key1, key2)) {
-          iter.remove();
-          this.size -= 1;
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
           return curEntry;
         }
       }
-
       return null;
     }
 
-    public void insert(TEntry newEntry) {
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
+    @Nullable
+    public TEntry remove(@Nullable K1 key1, @Nullable K2 key2) {
+      // Chain walked directly rather than via Hashtable#removeMatching -- see D1#remove for why a
+      // capturing predicate is avoided on this path.
+      long keyHash = D2.Entry.hash(key1, key2);
+      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
+        if (curEntry.matches(key1, key2)) {
+          iter.remove();
+          this.sizeManager.decrement();
+          return curEntry;
+        }
+      }
+      return null;
     }
 
-    public TEntry insertOrReplace(TEntry newEntry) {
+    /**
+     * Removes every entry matching {@code predicate}, returning {@code true} if any were removed.
+     */
+    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
+      return Hashtable.removeIf(this.sizeManager, this.buckets, predicate);
+    }
+
+    /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
+    public boolean insert(@Nonnull TEntry newEntry) {
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
+    }
+
+    /** Two-key analogue of {@link D1#tryInsertOrReplace}, with the same refusal contract. */
+    public boolean tryInsertOrReplace(@Nonnull TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
+              mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
         TEntry curEntry = iter.next();
 
         if (curEntry.matches(newEntry.key1, newEntry.key2)) {
           iter.replace(newEntry);
-          return curEntry;
+          return true;
         }
       }
 
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
-      return null;
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
-     * Two-key analogue of {@link D1#getOrCreate}. Computes the combined hash once and reuses it for
-     * both lookup and (on miss) insert. The {@code creator} is expected to build an entry whose
-     * {@code keyHash} equals {@link Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
+     * Two-key analogue of {@link D1#tryGetOrCreate}: returns the entry for {@code (key1, key2)},
+     * building one via {@code creator} if absent -- wrapped in a {@link Maybe} that is absent if
+     * the pair is absent and the table is <b>at capacity</b>. Refusal is a designed steady state
+     * rather than an exceptional one; see {@link D1#tryGetOrCreate} for the full contract and what
+     * to do about a refused create.
+     *
+     * <p>Computes the combined hash once and reuses it for both lookup and (on miss) insert. The
+     * {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
+     * Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
+     *
+     * <p>Delegates to {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site.
      */
-    public TEntry getOrCreate(
-        K1 key1, K2 key2, BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+      return Maybe.of(tryGetOrCreateOrNull(key1, key2, creator));
+    }
+
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateOrNull}: low-level, {@code null}-returning form
+     * of {@link #tryGetOrCreate}. Prefer the {@link Maybe} form above for new call sites.
+     */
+    @Nullable
+    public TEntry tryGetOrCreateOrNull(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key1, key2)) {
-          return te;
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+          return curEntry;
         }
       }
+      // Deliberately isFull() -> create -> increment, rather than the one-call tracked
+      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: `creator` runs
+      // between the check and the link and may throw, so a slot reserved up front could leak. See
+      // SizeManager#tryReserve.
+      if (this.sizeManager.isFull()) {
+        return null;
+      }
       TEntry newEntry = creator.apply(key1, key2);
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
+      this.sizeManager.increment();
       return newEntry;
     }
 
-    public void clear() {
-      Support.clear(this.buckets);
-      this.size = 0;
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateOrEvict}: {@link #tryGetOrCreateOrNull}, but
+     * evicting one entry matching {@code evictable} instead of refusing when the table is full --
+     * see {@link #tryGetOrCreateOrEvictOrNull} for the null-returning form and the
+     * eviction/creation ordering.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateOrEvict(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      return Maybe.of(tryGetOrCreateOrEvictOrNull(key1, key2, creator, evictable));
     }
 
-    public void forEach(Consumer<? super TEntry> consumer) {
-      Support.forEach(this.buckets, consumer);
+    /**
+     * Escape hatch for {@link #tryGetOrCreateOrEvict} for callers that want the nullable entry
+     * directly. Eviction runs before {@code creator}, not after: {@code creator} may throw, so
+     * freeing a slot and only then attempting the fallible create keeps a thrown exception from
+     * ever leaving a slot double-booked. A creator that throws after a successful eviction simply
+     * leaves the table one entry smaller -- no corruption, just a wasted eviction.
+     */
+    @Nullable
+    public TEntry tryGetOrCreateOrEvictOrNull(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      long keyHash = D2.Entry.hash(key1, key2);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+          return curEntry;
+        }
+      }
+      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: `creator`
+      // runs between eviction and the link and may throw, so reserving the freed slot up front
+      // could leak it. See tryGetOrCreateOrNull above for the non-evicting form of this same
+      // reasoning.
+      if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
+        return null;
+      }
+      TEntry newEntry = creator.apply(key1, key2);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
+      this.sizeManager.increment();
+      return newEntry;
+    }
+
+    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
+      Hashtable.forEach(this.buckets, consumer);
     }
 
     /**
@@ -392,195 +739,1023 @@ public final class Hashtable {
      * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
      * side-band state it needs as {@code context}.
      */
-    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      Support.forEach(this.buckets, context, consumer);
+    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+      Hashtable.forEach(this.buckets, context, consumer);
+    }
+
+    public void clear() {
+      Hashtable.clear(this.sizeManager, this.buckets);
+    }
+
+    /**
+     * Removes every entry, passing each to {@code sink} as it is unlinked -- the read-and-reset
+     * primitive for flush/publish workflows (drain the table into a telemetry batch, an event
+     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
+     */
+    public void drain(@Nonnull Consumer<? super TEntry> sink) {
+      Hashtable.<TEntry>drain(this.sizeManager, this.buckets, sink);
+    }
+
+    /**
+     * Context-passing {@link #drain(Consumer)}. Pass a non-capturing {@link BiConsumer} (typically
+     * a {@code static final}) plus the accumulator as {@code context} to avoid a capturing-lambda
+     * allocation.
+     */
+    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      Hashtable.<C, TEntry>drain(this.sizeManager, this.buckets, context, sink);
+    }
+  }
+
+  // ============================================================================================
+  // Static building blocks over a caller-owned bucket array.
+  //
+  // Use these to assemble a custom table (higher arity, primitive keys, extra value fields) when
+  // D1/D2 don't fit; D1/D2 delegate to them internally. The calling class owns the array and
+  // exposes whatever operations it needs.
+  //
+  // Not thread-safe: there is no locking here. Concurrent access, including mixing reads with
+  // writes, requires external synchronization.
+  // ============================================================================================
+
+  /** Upper bound on the bucket-array length returned by {@link #sizeFor(int)}. */
+  static final int MAX_BUCKETS = 1 << 30;
+
+  /**
+   * Allocates a fixed-size bucket array sized to hold {@code capacity} entries: {@code capacity}
+   * rounded up to the next power of two.
+   *
+   * <p>Erasure stops a caller writing {@code new TEntry[n]}, so {@code entryClass} is allocated
+   * reflectively via {@link Array#newInstance}. That buys a real {@code TEntry} component type
+   * rather than the base {@code Entry[]}: typed reads, real array-store checks, and a monomorphic
+   * element type for the JIT. The one reflective call happens at construction, off any hot path.
+   * Capacity is fixed; the table does not resize. Use {@link #create(int)} when the spine is driven
+   * purely through the static building blocks and the base component type is enough.
+   *
+   * <p>{@code capacity} sizes the bucket array 1:1 (no headroom) -- chains stay a plain hash table
+   * at exactly this many entries. For load-factor headroom over a target cap on live entries (so
+   * chains stay short even as the table fills, the way {@link D1}/{@link D2}/{@link #createBounded}
+   * size themselves), pass {@link #capacityFor(int)} instead: {@code create(MyEntry.class,
+   * capacityFor(cardinalityLimit))}.
+   */
+  @SuppressWarnings("unchecked")
+  @Nonnull
+  public static <TEntry extends Entry> TEntry[] create(
+      @Nonnull Class<TEntry> entryClass, int capacity) {
+    return (TEntry[]) Array.newInstance(entryClass, sizeFor(capacity));
+  }
+
+  /**
+   * Untyped sibling of {@link #create(Class, int)}: allocates a bucket array of {@code buckets}
+   * rounded up to the next power of two, with the base {@code Hashtable.Entry[]} component type.
+   *
+   * <p>Use this when the spine is driven purely through the static building blocks, which all take
+   * {@code Hashtable.Entry[]} -- that is what {@link D1}, {@link D2}, and {@link #createBounded}
+   * allocate internally. Prefer {@link #create(Class, int)} when you own the array and want a real
+   * {@code TEntry} component type (typed reads, array-store checks, a monomorphic element type for
+   * the JIT); prefer this one when a typed spine would only buy you covariant array-store checks on
+   * every insert. Capacity is fixed; the table does not resize.
+   *
+   * <p>{@code buckets} is a bucket count, not an entry cap -- see {@link #capacityFor(int)} to
+   * derive one from a target cap on live entries.
+   */
+  @Nonnull
+  public static Hashtable.Entry[] create(int buckets) {
+    return new Hashtable.Entry[sizeFor(buckets)];
+  }
+
+  /**
+   * Balanced default load factor for a chained bucket array: at this target fill, chains from a
+   * well-spread hash stay short (average chain length {@code ~DEFAULT_LOAD_FACTOR}, i.e. entries
+   * per bucket) without over-provisioning the array. Chaining tolerates a high target fill: past
+   * 1.0 it degrades gradually into longer chains rather than failing, so there is no cliff to stay
+   * clear of and no reason to over-allocate the spine.
+   */
+  public static final float DEFAULT_LOAD_FACTOR = 0.75f;
+
+  /**
+   * Bucket-array length for a strict cap of {@code cardinalityLimit} live entries at {@link
+   * #DEFAULT_LOAD_FACTOR}: infers a reasonable bucket count from the entry cap you actually care
+   * about, rather than making every caller redo the headroom math ({@link D1}, {@link D2}, and
+   * {@link #createBounded} all size themselves this way). Pair with a {@link SizeManager} of {@code
+   * cardinalityLimit} for the matching strict cap; this method only sizes the array.
+   */
+  public static int capacityFor(int cardinalityLimit) {
+    return capacityFor(cardinalityLimit, DEFAULT_LOAD_FACTOR);
+  }
+
+  /**
+   * {@link #capacityFor(int)} at an explicit {@code loadFactor} in {@code (0, 1)}: the bucket-array
+   * length for a strict cap of {@code cardinalityLimit} live entries, rounded up to a power of two
+   * via {@link #sizeFor(int)}.
+   *
+   * <p>Divides in {@code double} and rounds up ({@code Math.ceil}) before handing off to {@link
+   * #sizeFor(int)}, rather than truncating via an {@code int} cast: truncating first can collapse
+   * the requested headroom away entirely for small {@code cardinalityLimit} -- e.g. {@code
+   * cardinalityLimit=1} at the default 0.75 load factor would truncate {@code 1/0.75 = 1.333} down
+   * to {@code 1} and size a 1-bucket array, a 1.0 load factor rather than the documented 0.75.
+   */
+  public static int capacityFor(int cardinalityLimit, float loadFactor) {
+    if (!(loadFactor > 0f && loadFactor < 1f)) {
+      throw new IllegalArgumentException("loadFactor must be in (0, 1): " + loadFactor);
+    }
+    return sizeFor((int) Math.ceil(cardinalityLimit / (double) loadFactor));
+  }
+
+  /**
+   * Rounds {@code requestedSize} up to the next power of two, capped at {@link #MAX_BUCKETS}, and
+   * returns the bucket-array length to allocate. Throws {@link IllegalArgumentException} for
+   * negative inputs or inputs above the cap.
+   */
+  public static int sizeFor(int requestedSize) {
+    if (requestedSize < 0) {
+      throw new IllegalArgumentException("requestedSize must be non-negative: " + requestedSize);
+    }
+    if (requestedSize > MAX_BUCKETS) {
+      throw new IllegalArgumentException(
+          "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize);
+    }
+    if (requestedSize <= 1) {
+      return 1;
+    }
+    return Integer.highestOneBit(requestedSize - 1) << 1;
+  }
+
+  public static int bucketIndex(@Nonnull Object[] buckets, long keyHash) {
+    return (int) (keyHash & buckets.length - 1);
+  }
+
+  /**
+   * Returns the head entry of the bucket that {@code keyHash} maps to, cast to the caller's
+   * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
+   * doesn't need to thread a raw {@link Entry} variable through.
+   *
+   * <p>Named {@code bucketFor} rather than {@code bucket}: there is no competing {@code int}-index
+   * overload today, but the {@code For} suffix marks "derives the index from a key hash" up front,
+   * so adding an index-taking sibling later cannot reintroduce the int-vs-long overload ambiguity
+   * described on {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}.
+   */
+  @SuppressWarnings("unchecked")
+  @Nullable
+  public static <TEntry extends Entry> TEntry bucketFor(
+      @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+    return (TEntry) buckets[bucketIndex(buckets, keyHash)];
+  }
+
+  /**
+   * Splices {@code entry} in as the new head of the chain at {@code bucketIndex}. Caller is
+   * responsible for size accounting -- this method only touches the chain pointers.
+   */
+  public static void insertHeadEntryAt(
+      @Nonnull Hashtable.Entry[] buckets, int bucketIndex, @Nonnull Hashtable.Entry entry) {
+    assert entry.next() == null
+        : "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
+    entry.setNext(buckets[bucketIndex]);
+    buckets[bucketIndex] = entry;
+  }
+
+  /**
+   * Convenience form of {@link #insertHeadEntryAt} that derives the bucket index from {@code
+   * keyHash}. Use this when the caller has the hash but not the index; if the index has already
+   * been computed for another reason, prefer {@link #insertHeadEntryAt} to avoid the redundant
+   * mask.
+   *
+   * <p>Named distinctly from {@link #insertHeadEntryAt} rather than overloaded on {@code long} vs.
+   * {@code int}, because the overloaded form is a trap: a caller with a primitive {@code int}-typed
+   * key hash calling an overloaded {@code insertHeadEntry(buckets, intHash, entry)} would silently
+   * bind to the {@code int}-index overload instead of widening to this one, treating the raw hash
+   * as an array index.
+   */
+  public static void insertHeadEntryFor(
+      @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
+    insertHeadEntryAt(buckets, bucketIndex(buckets, keyHash), entry);
+  }
+
+  /**
+   * {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}, but folding in the
+   * strict-cap check that every unconditional insert needs: reserves a slot from {@code
+   * sizeManager} first, splicing {@code entry} in only if the reservation succeeds. Returns {@code
+   * false} (without touching {@code buckets}) once {@code sizeManager} is at capacity. Lets a
+   * composer working directly against the static building blocks (e.g. {@link D1#insert}, or a
+   * caller-owned table of higher key arity) get the same one-call insert-with-cap-check contract
+   * that {@link D1}/{@link D2} give their own callers.
+   *
+   * <p>{@code sizeManager} leads, per this class's parameter order for the size-tracked statics:
+   * mutated bookkeeping, then the spine, then the key, then callbacks. Putting it first (rather
+   * than appending it) makes the tracked and untracked forms visibly different at the head of the
+   * call instead of differing only in a trailing argument -- forgetting the tracker leaks the cap
+   * silently, so the distinction should be hard to overlook at the call site and in review.
+   */
+  public static boolean insertHeadEntryFor(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash,
+      @Nonnull Hashtable.Entry entry) {
+    if (!sizeManager.tryReserve()) {
+      return false;
+    }
+    insertHeadEntryFor(buckets, keyHash, entry);
+    return true;
+  }
+
+  /**
+   * {@link #insertHeadEntryFor(SizeManager, Hashtable.Entry[], long, Hashtable.Entry)} over a
+   * {@link State}, which carries the spine and its manager together -- so there is no way to pass a
+   * manager that belongs to a different table, and {@code TEntry} is inferred rather than needing a
+   * witness at the call site.
+   */
+  public static <TEntry extends Entry> boolean insertHeadEntryFor(
+      @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
+    return insertHeadEntryFor(state.sizeManager, state.buckets, keyHash, entry);
+  }
+
+  /**
+   * Scans the bucket chain at {@code keyHash} for the first entry matching {@code matches}, unlinks
+   * it, decrements {@code sizeManager}, and returns it -- or returns {@code null} (leaving {@code
+   * buckets} and {@code sizeManager} untouched) if nothing in the chain matches. Mirrors {@link
+   * #insertHeadEntryFor(SizeManager, Hashtable.Entry[], long, Hashtable.Entry)} on the removal
+   * side: the one-call, size-tracked shape a composer driving the static building blocks directly
+   * can use instead of hand-rolling the mutating-iterator loop and remembering to decrement.
+   *
+   * <p>{@code sizeManager} leads for the same reason it does on the insert side.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry removeMatching(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash,
+      @Nonnull Predicate<? super TEntry> matches) {
+    for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(buckets, keyHash);
+        iter.hasNext(); ) {
+      TEntry curEntry = iter.next();
+      if (matches.test(curEntry)) {
+        iter.remove();
+        sizeManager.decrement();
+        return curEntry;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * {@link #drain(Hashtable.Entry[], Consumer)} plus the matching bookkeeping: empties the table
+   * into {@code sink}, decrementing {@code sizeManager} for each entry as it is unlinked -- before
+   * handing it to {@code sink}, so a sink that throws mid-drain leaves the count matching exactly
+   * what {@code buckets} still holds, rather than the whole reset being skipped and the cap staying
+   * permanently consumed. Same one-call reasoning as {@link #clear(SizeManager,
+   * Hashtable.Entry[])}.
+   */
+  public static <TEntry extends Entry> void drain(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      @Nonnull Consumer<? super TEntry> sink) {
+    drain(
+        buckets,
+        (Consumer<TEntry>)
+            entry -> {
+              sizeManager.decrement();
+              sink.accept(entry);
+            });
+  }
+
+  /** Context-passing form of {@link #drain(SizeManager, Hashtable.Entry[], Consumer)}. */
+  public static <C, TEntry extends Entry> void drain(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    drain(
+        buckets,
+        context,
+        (BiConsumer<C, TEntry>)
+            (ctx, entry) -> {
+              sizeManager.decrement();
+              sink.accept(ctx, entry);
+            });
+  }
+
+  /** {@link #drain(SizeManager, Hashtable.Entry[], Consumer)} over a {@link State}. */
+  public static <TEntry extends Entry> void drain(
+      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> sink) {
+    drain(state.sizeManager, state.buckets, sink);
+  }
+
+  /** Context-passing form of {@link #drain(State, Consumer)}. */
+  public static <C, TEntry extends Entry> void drain(
+      @Nonnull State<TEntry> state,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    drain(state.sizeManager, state.buckets, context, sink);
+  }
+
+  /** Live entries in {@code state}; see {@link SizeManager#estimateSize()} for why an estimate. */
+  public static int estimateSize(@Nonnull State<?> state) {
+    return state.sizeManager.estimateSize();
+  }
+
+  /**
+   * {@code true} when {@code state} appears to hold no entries. Derived from {@link
+   * SizeManager#estimateSize()} and inherits its imprecision -- an outstanding reservation reads as
+   * non-empty, and a link made without one can read as empty while the spine is not. Named for what
+   * it can honestly promise: use it to skip work that is merely wasted on an empty table, not to
+   * establish that there is nothing there.
+   */
+  public static boolean isLikelyEmpty(@Nonnull State<?> state) {
+    return state.sizeManager.estimateSize() == 0;
+  }
+
+  /**
+   * Head entry of the bucket {@code keyHash} maps to in {@code state}, typed to the state's entry
+   * type so the chain walk at the call site needs no cast or witness.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry bucketFor(
+      @Nonnull State<TEntry> state, long keyHash) {
+    return bucketFor(state.buckets, keyHash);
+  }
+
+  /**
+   * Splices {@code entry} in as the new head of its bucket <em>without</em> touching the count,
+   * because the caller already holds a reservation for it -- from {@link #tryReserveOrEvict} or a
+   * bare {@link SizeManager#tryReserve()}. Pairing those is the shape of a miss path that wants to
+   * refuse before it allocates:
+   *
+   * <pre>{@code
+   * if (!tryReserveOrEvict(state, STALE)) {
+   *   return null;                       // refused -- no entry was built
+   * }
+   * insertReserved(state, keyHash, buildEntry());
+   * }</pre>
+   *
+   * <p>Distinct from {@link #insertHeadEntryFor(State, long, Entry)}, which reserves as it inserts;
+   * calling that one here would count the entry twice.
+   */
+  public static <TEntry extends Entry> void insertReserved(
+      @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
+    insertHeadEntryFor(state.buckets, keyHash, entry);
+  }
+
+  /** {@link #forEach(Hashtable.Entry[], Consumer)} over a {@link State}. */
+  public static <TEntry extends Entry> void forEach(
+      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> consumer) {
+    Hashtable.<TEntry>forEach(state.buckets, consumer);
+  }
+
+  /** {@link #forEach(Hashtable.Entry[], Object, BiConsumer)} over a {@link State}. */
+  public static <C, TEntry extends Entry> void forEach(
+      @Nonnull State<TEntry> state,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+    Hashtable.<C, TEntry>forEach(state.buckets, context, consumer);
+  }
+
+  /**
+   * Reserves a slot in {@code state} for a fresh insert, evicting one entry matching {@code
+   * evictable} if the table is full. {@code false} means full with nothing evictable -- the caller
+   * should drop the datum. The whole capacity decision of a self-evicting table's miss path in one
+   * call; pass a non-capturing {@code evictable} (typically a {@code static final}) to keep it
+   * allocation-free.
+   */
+  public static <TEntry extends Entry> boolean tryReserveOrEvict(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+    return state.sizeManager.tryReserveOrEvict(state.buckets, evictable);
+  }
+
+  /**
+   * Unlinks the first entry in {@code state} matching {@code evictable}, resuming from where the
+   * last eviction looked, and decrements the count. {@code null} if nothing matched anywhere.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry evictOne(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+    return state.sizeManager.evictOne(state.buckets, evictable);
+  }
+
+  /**
+   * Unlinks every entry in {@code state} matching {@code evictable}, decrementing per removal, and
+   * returns how many went.
+   */
+  public static <TEntry extends Entry> int evictAll(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+    return state.sizeManager.evictAll(state.buckets, evictable);
+  }
+
+  /**
+   * Removes every entry matching {@code predicate} from {@code buckets}, decrementing {@code
+   * sizeManager} once per removal, and returns {@code true} if any were removed. Delegates to
+   * {@link SizeManager#evictAll} for the sweep -- same full-table unlink, just the general-purpose
+   * removal entry point rather than the capacity-eviction one {@link #evictAll} is for.
+   */
+  public static <TEntry extends Entry> boolean removeIf(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      @Nonnull Predicate<? super TEntry> predicate) {
+    return sizeManager.evictAll(buckets, predicate) > 0;
+  }
+
+  /** {@link #removeIf(SizeManager, Hashtable.Entry[], Predicate)} over a {@link State}. */
+  public static <TEntry extends Entry> boolean removeIf(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> predicate) {
+    return removeIf(state.sizeManager, state.buckets, predicate);
+  }
+
+  /** {@link #clear(SizeManager, Hashtable.Entry[])} over a {@link State}. */
+  public static void clear(@Nonnull State<?> state) {
+    clear(state.sizeManager, state.buckets);
+  }
+
+  /**
+   * Walks every entry in {@code buckets} and invokes {@code consumer} on it. The unchecked cast to
+   * {@code TEntry} lives here (mirroring {@link Entry#next()}) so callers don't have to sprinkle it
+   * across their own forEach loops.
+   */
+  @SuppressWarnings("unchecked")
+  public static <TEntry extends Entry> void forEach(
+      @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> consumer) {
+    for (int i = 0; i < buckets.length; i++) {
+      for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
+        consumer.accept((TEntry) e);
+      }
     }
   }
 
   /**
-   * Building blocks for hash-table operations.
-   *
-   * <p>Used by {@link D1} and {@link D2}, and available to callers that want to assemble their own
-   * higher-arity table (3+ key parts) without re-implementing the bucket-array mechanics. The
-   * typical recipe:
-   *
-   * <ul>
-   *   <li>Subclass {@link Hashtable.Entry} directly, adding the key fields and a {@code
-   *       matches(...)} method of your chosen arity.
-   *   <li>Allocate a backing array with {@link #create(int)} or {@link #create(int, float)} (the
-   *       latter scales for a target load factor; see {@link #MAX_RATIO}).
-   *   <li>Use {@link #bucketIndex(Object[], long)} for the bucket lookup, {@link
-   *       #bucketIterator(Hashtable.Entry[], long)} for read-only chain walks, and {@link
-   *       #mutatingBucketIterator(Hashtable.Entry[], long)} when you also need {@code remove} /
-   *       {@code replace}.
-   *   <li>Use {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)} to splice a new
-   *       entry as the head of a bucket chain.
-   *   <li>Iterate every entry with {@link #forEach(Hashtable.Entry[], Consumer)} or its
-   *       context-passing sibling. For full-table sweeps with {@code remove}, use {@link
-   *       #mutatingTableIterator(Hashtable.Entry[])}.
-   *   <li>Clear with {@link #clear(Hashtable.Entry[])}.
-   * </ul>
-   *
-   * <p>All bucket arrays produced by {@code create} have a power-of-two length, so {@link
-   * #bucketIndex(Object[], long)} can use a bit mask.
+   * Context-passing variant of {@link #forEach(Hashtable.Entry[], Consumer)}. Pair a non-capturing
+   * {@link BiConsumer} (typically a {@code static final}) with side-band state passed as {@code
+   * context} to avoid a fresh-Consumer allocation each call.
    */
-  public static final class Support {
+  @SuppressWarnings("unchecked")
+  public static <C, TEntry extends Entry> void forEach(
+      @Nonnull Hashtable.Entry[] buckets,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+    for (int i = 0; i < buckets.length; i++) {
+      for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
+        consumer.accept(context, (TEntry) e);
+      }
+    }
+  }
+
+  @Nonnull
+  public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
+      @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+    return new BucketIterator<TEntry>(buckets, keyHash);
+  }
+
+  @Nonnull
+  public static <TEntry extends Hashtable.Entry>
+      MutatingBucketIterator<TEntry> mutatingBucketIterator(
+          @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+    return new MutatingBucketIterator<TEntry>(buckets, keyHash);
+  }
+
+  /**
+   * Returns a {@link MutatingTableIterator} over every entry in {@code buckets}. Useful for sweeps
+   * -- eviction, expunge -- that aren't keyed to a specific hash.
+   */
+  @Nonnull
+  public static <TEntry extends Hashtable.Entry>
+      MutatingTableIterator<TEntry> mutatingTableIterator(@Nonnull Hashtable.Entry[] buckets) {
+    return new MutatingTableIterator<TEntry>(buckets, 0, buckets.length);
+  }
+
+  /**
+   * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
+   * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. the
+   * cursor-based eviction in {@link SizeManager#evictOne} -- where one call drives {@code [cursor,
+   * length)} and a wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap
+   * around within a single instance; callers compose two iterators when wrap-around is desired. An
+   * empty range ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
+   *
+   * @param startBucket inclusive lower bound; must be in {@code [0, buckets.length]}.
+   * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
+   */
+  @Nonnull
+  public static <TEntry extends Hashtable.Entry>
+      MutatingTableIterator<TEntry> mutatingTableIterator(
+          @Nonnull Hashtable.Entry[] buckets, int startBucket, int endBucket) {
+    return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
+  }
+
+  /**
+   * Variant of {@link #mutatingTableIterator(Hashtable.Entry[], int, int)} that resumes {@code
+   * bucket} after {@code resumeAfter} instead of at its head -- see {@link
+   * MutatingTableIterator#MutatingTableIterator(Hashtable.Entry[], int, int, Hashtable.Entry)}.
+   */
+  @Nonnull
+  public static <TEntry extends Hashtable.Entry>
+      MutatingTableIterator<TEntry> resumingTableIterator(
+          @Nonnull Hashtable.Entry[] buckets,
+          int bucket,
+          int endBucket,
+          @Nullable Hashtable.Entry resumeAfter) {
+    return new MutatingTableIterator<TEntry>(buckets, bucket, endBucket, resumeAfter);
+  }
+
+  /**
+   * {@link #removeMatching(SizeManager, Hashtable.Entry[], long, Predicate)} over a {@link State}.
+   * The predicate is typed to {@code TEntry}, so a caller matching on entry fields needs no cast.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry removeMatching(
+      @Nonnull State<TEntry> state, long keyHash, @Nonnull Predicate<? super TEntry> matches) {
+    return removeMatching(state.sizeManager, state.buckets, keyHash, matches);
+  }
+
+  public static void clear(@Nonnull Hashtable.Entry[] buckets) {
+    Arrays.fill(buckets, null);
+  }
+
+  /**
+   * {@link #clear(Hashtable.Entry[])} plus the matching bookkeeping: empties {@code buckets} and
+   * resets {@code sizeManager} to zero. Emptying a table without resetting its tracker leaves the
+   * cap permanently consumed, so the two belong in one call rather than as a pair a caller has to
+   * remember.
+   *
+   * <p>{@code sizeManager} leads, per this class's parameter order for the size-tracked statics.
+   */
+  public static void clear(@Nonnull SizeManager sizeManager, @Nonnull Hashtable.Entry[] buckets) {
+    clear(buckets);
+    sizeManager.reset();
+  }
+
+  /**
+   * Removes every entry, passing each removed entry to {@code sink} as it is unlinked -- the
+   * read-and-reset primitive for flush/publish workflows (drain the table into a telemetry batch,
+   * an event emitter, etc.). Equivalent to {@link #forEach} then {@link #clear}, offered as one
+   * call so composers don't have to spell out both steps.
+   */
+  @SuppressWarnings("unchecked")
+  public static <TEntry extends Entry> void drain(
+      @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> sink) {
+    for (int i = 0; i < buckets.length; i++) {
+      Entry entry = buckets[i];
+      buckets[i] = null;
+      while (entry != null) {
+        // Unhook before handing over: a sink that retains one entry of a chain would otherwise pin
+        // the whole chain through `next`, including entries it chose not to keep. Read `next`
+        // first, since the sink may do anything with the entry once it has it.
+        Entry next = entry.next();
+        entry.setNext(null);
+        sink.accept((TEntry) entry);
+        entry = next;
+      }
+    }
+  }
+
+  /**
+   * Context-passing variant of {@link #drain(Hashtable.Entry[], Consumer)}. Pass a non-capturing
+   * {@link BiConsumer} (typically a {@code static final}) plus the accumulator as {@code context}
+   * (e.g. the target list or event builder) to avoid a capturing-lambda allocation.
+   */
+  @SuppressWarnings("unchecked")
+  public static <C, TEntry extends Entry> void drain(
+      @Nonnull Hashtable.Entry[] buckets,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    for (int i = 0; i < buckets.length; i++) {
+      Entry entry = buckets[i];
+      buckets[i] = null;
+      while (entry != null) {
+        Entry next = entry.next();
+        entry.setNext(null);
+        sink.accept(context, (TEntry) entry);
+        entry = next;
+      }
+    }
+  }
+
+  /**
+   * Manages a table's occupancy against a fixed cap -- both directions. Reserving a slot for an
+   * insert and evicting to make room are two halves of the same policy, so they live on one object:
+   * a caller never has to remember to decrement after unlinking, and there is no second object to
+   * wire up (or mis-wire) alongside the count.
+   *
+   * <p>{@link D1} and {@link D2} use one internally for their strict entry-count cap; composers
+   * driving a {@code Hashtable.Entry[]} through the static building blocks can reuse it instead of
+   * hand-rolling the same increment/decrement/cap-check bookkeeping. A table that never evicts
+   * simply never calls the eviction half.
+   *
+   * <pre>{@code
+   * // miss path of a capped, self-evicting table
+   * if (!sizeManager.tryReserveOrEvict(buckets, STALE)) {
+   *   return null;                       // full, and nothing was evictable -- drop the datum
+   * }
+   * insertHeadEntryFor(buckets, keyHash, newEntry);   // slot already reserved
+   * }</pre>
+   *
+   * <p>Not thread-safe, matching the rest of this class.
+   */
+  public static final class SizeManager {
+    private final int capacity;
+    private int size;
+
     /**
-     * Allocates a bucket array sized to hold {@code requestedSize} entries. Returned length is
-     * {@code requestedSize} rounded up to the next power of two (capped at {@link #MAX_BUCKETS}).
+     * Bucket index the last eviction removed from. The next scan resumes here, so a sustained
+     * eviction stream doesn't repeatedly re-walk the same hot entries clustered near bucket 0.
      */
-    public static final Hashtable.Entry[] create(int requestedSize) {
-      return new Entry[sizeFor(requestedSize)];
+    private int cursor;
+
+    /**
+     * Predecessor of the entry the last eviction removed, within {@code cursor}'s chain -- or
+     * {@code null} if that entry was the bucket head or no eviction has happened yet since the last
+     * {@link #reset()}. Lets the next scan resume mid-chain instead of re-testing a non-evictable
+     * prefix on every call, which is what made a sustained eviction stream from one hot bucket
+     * quadratic. See {@link
+     * Hashtable.MutatingTableIterator#MutatingTableIterator(Hashtable.Entry[], int, int,
+     * Hashtable.Entry)} for what happens if this entry itself gets removed elsewhere before the
+     * next resume.
+     */
+    @Nullable private Hashtable.Entry cursorPrev;
+
+    public SizeManager(int capacity) {
+      this.capacity = capacity;
     }
 
     /**
-     * Variant of {@link #create(int)} that scales the requested working-set size before sizing the
-     * bucket array. Pair with {@link #MAX_RATIO} to leave headroom over the working set for a
-     * desired load factor; the canonical call is {@code create(n, MAX_RATIO)}.
+     * Live entries, as far as this manager knows -- an estimate, not a census. A reservation taken
+     * by {@link #tryReserve()} or {@link #tryReserveOrEvict} counts immediately, so between
+     * reserving and linking the figure runs one high; and {@link Hashtable#insertReserved} trusts
+     * the caller to have reserved, so a link without one leaves it low. The manager counts what it
+     * is told, and cannot audit the spine to check.
      *
-     * <p>The scaled size is truncated to {@code int} before going through {@link #sizeFor(int)}.
-     * Truncation rather than {@code ceil} is intentional: {@code sizeFor} rounds up to the next
-     * power of two anyway, so the fractional part would only matter when float fuzz pushes the
-     * result across a power-of-two boundary -- {@code ceil} would then double the array size for no
-     * reason (e.g. {@code 12 * 4/3 = 16.0...0005f -> ceil 17 -> sizeFor 32}).
+     * <p>Wrappers that never expose the reservation window -- {@link D1} and {@link D2}, which
+     * reserve and link inside a single call -- can and do present this as an exact {@code size()}.
      */
-    public static final Hashtable.Entry[] create(int requestedSize, float scale) {
-      return new Entry[sizeFor((int) (requestedSize * scale))];
+    public int estimateSize() {
+      return this.size;
     }
 
-    /** Upper bound on the bucket array length returned by {@link #sizeFor(int)}. */
-    static final int MAX_BUCKETS = 1 << 30;
+    public int capacity() {
+      return this.capacity;
+    }
+
+    /** {@code true} once {@link #estimateSize()} has reached {@link #capacity()}. */
+    public boolean isFull() {
+      return this.size >= this.capacity;
+    }
+
+    /**
+     * Reserves a slot for a fresh insert: increments and returns {@code true}, or leaves the count
+     * unchanged and returns {@code false} if already at capacity. Use this when the entry to link
+     * is already fully built (nothing between the check and the increment can fail). When building
+     * the entry is itself fallible, check {@link #isFull()} first, do the fallible work, then call
+     * {@link #increment()} only once linking actually succeeds.
+     *
+     * <p>Returning {@code false} is not a final refusal -- it is the caller's cue to either refuse
+     * the insert or make room. {@link #tryReserveOrEvict} folds those two steps into one call.
+     */
+    public boolean tryReserve() {
+      if (isFull()) {
+        return false;
+      }
+      this.size += 1;
+      return true;
+    }
+
+    /**
+     * {@link #tryReserve()}, falling back to evicting one entry matching {@code evictable} when the
+     * table is full. Returns {@code true} with a slot reserved, or {@code false} if the table was
+     * full and nothing was evictable -- in which case {@code buckets} is untouched and the caller
+     * should drop the datum.
+     *
+     * <p>The whole capacity decision of a self-evicting table's miss path, in one call. Pass a
+     * non-capturing {@code evictable} (typically a {@code static final}) to keep it
+     * allocation-free.
+     */
+    public <TEntry extends Entry> boolean tryReserveOrEvict(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
+      if (tryReserve()) {
+        return true;
+      }
+      if (evictOne(buckets, evictable) == null) {
+        return false;
+      }
+      // evictOne decremented; the slot it freed is ours.
+      this.size += 1;
+      return true;
+    }
+
+    /** Call after successfully linking a new entry. */
+    public void increment() {
+      this.size += 1;
+    }
+
+    /** Call after successfully unlinking an entry. */
+    public void decrement() {
+      this.size -= 1;
+    }
+
+    /** Zeroes both the live count and the eviction scan position. */
+    public void reset() {
+      this.size = 0;
+      this.cursor = 0;
+      this.cursorPrev = null;
+    }
+
+    /**
+     * Scans {@code buckets} for the first entry matching {@code evictable}, starting where the last
+     * eviction left off and wrapping around if needed. Unlinks and returns the evicted entry,
+     * decrementing the count; returns {@code null} (count untouched) if nothing matched anywhere.
+     *
+     * <p>Resuming from the previous position -- including mid-chain, via {@link #cursorPrev} -- is
+     * what keeps a sustained eviction stream amortized: without it, a bucket with a non-evictable
+     * prefix followed by many evictable entries pays that prefix's cost again on every single
+     * eviction pulled from the bucket, making N evictions from one hot bucket O(N * prefix) instead
+     * of amortized O(chain length). With it, each call resumes right after the previous removal.
+     *
+     * <p><b>That amortization covers successes only.</b> A call that matches nothing has, by
+     * definition, tested every live entry -- so a table that is full and entirely hot pays a full
+     * pass per attempt. The cursor still steps on, so repeated refusals at least start from a
+     * different bucket rather than re-testing in identical order, but the per-attempt cost does not
+     * shrink. Size the cap to the steady-state working set so this stays the rare path, and keep
+     * {@code evictable} cheap -- it is called once per live entry on every refusal.
+     */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public <TEntry extends Entry> TEntry evictOne(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
+      Entry evicted =
+          evictOneInRange(buckets, evictable, this.cursor, buckets.length, this.cursorPrev);
+      if (evicted == null && this.cursor != 0) {
+        evicted = evictOneInRange(buckets, evictable, 0, this.cursor, null);
+      }
+      if (evicted != null) {
+        this.size -= 1;
+        return (TEntry) evicted;
+      }
+      // Nothing matched anywhere. Step the cursor on regardless, so a table that is full of hot
+      // entries doesn't retry from the same origin every time -- successive refusals sweep a
+      // different starting bucket instead of re-testing the same entries in the same order.
+      // (buckets.length is a power of two, so the mask wraps.) A full pass found no resume point.
+      this.cursor = (this.cursor + 1) & (buckets.length - 1);
+      this.cursorPrev = null;
+      return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nullable
+    private <TEntry extends Entry> Entry evictOneInRange(
+        @Nonnull Hashtable.Entry[] buckets,
+        @Nonnull Predicate<? super TEntry> evictable,
+        int startBucket,
+        int endBucket,
+        @Nullable Entry resumeAfter) {
+      MutatingTableIterator<Entry> iter =
+          resumeAfter != null
+              ? resumingTableIterator(buckets, startBucket, endBucket, resumeAfter)
+              : mutatingTableIterator(buckets, startBucket, endBucket);
+      while (iter.hasNext()) {
+        Entry candidate = iter.next();
+        if (evictable.test((TEntry) candidate)) {
+          int bucket = iter.currentBucket();
+          Entry prev = iter.currentPrev();
+          iter.remove();
+          this.cursor = bucket;
+          this.cursorPrev = prev;
+          return candidate;
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Unlinks every entry matching {@code evictable} in one full pass, decrementing the count for
+     * each, and returns how many were removed. Resets the scan position, since a full pass leaves
+     * nothing later to resume from.
+     *
+     * <p>Named {@code evictAll} rather than {@code drain} to keep it distinct from {@link
+     * Hashtable#drain(Hashtable.Entry[], Consumer)}, which empties the whole table into a sink.
+     * This one removes only what matches, and hands back a count rather than the entries.
+     */
+    @SuppressWarnings("unchecked")
+    public <TEntry extends Entry> int evictAll(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
+      int count = 0;
+      MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets);
+      while (iter.hasNext()) {
+        Entry candidate = iter.next();
+        if (evictable.test((TEntry) candidate)) {
+          iter.remove();
+          // Decrement per removal rather than subtracting `count` after the loop: if `evictable`
+          // throws part way through, the entries unlinked so far are already gone from the chains,
+          // and a deferred subtraction would never run -- leaving the count permanently high.
+          this.size -= 1;
+          count++;
+        }
+      }
+      this.cursor = 0;
+      this.cursorPrev = null;
+      return count;
+    }
+  }
+
+  /**
+   * The mutable state of a caller-driven table: a bucket array and the {@link SizeManager} sized
+   * and matched to it. Both halves are stateful and neither is much use without the other, which is
+   * what the name is getting at -- the spine holds the entries, the manager holds how many there
+   * are and where the last eviction looked.
+   *
+   * <p><b>Hold this, rather than unpacking it.</b> Keeping one field instead of two is not just
+   * tidier: it keeps the array and its manager passed and stored together, so callers who hold a
+   * {@code State} can't accidentally pair one table's array with another's manager. Composers reach
+   * through it -- {@code state.buckets}, {@code state.sizeManager} -- when calling the static
+   * building blocks; both fields are package-private since only {@code datadog.trace.util} calls
+   * those building blocks directly.
+   *
+   * <p>Same headroom idiom as {@link D1}/{@link D2}: {@code maxCapacity} is the strict cap on live
+   * entries, and the backing array is sized with load-factor headroom over it.
+   */
+  public static final class State<TEntry extends Entry> {
+    final Hashtable.Entry[] buckets;
+    final SizeManager sizeManager;
+
+    private State(Hashtable.Entry[] buckets, int maxCapacity) {
+      this.buckets = buckets;
+      this.sizeManager = new SizeManager(maxCapacity);
+    }
+  }
+
+  /**
+   * Creates a {@link State}: a bucket array sized with load-factor headroom over {@code
+   * maxCapacity}, paired with a {@link SizeManager} capped at the strict {@code maxCapacity}.
+   */
+  @Nonnull
+  public static <TEntry extends Entry> State<TEntry> createBounded(int maxCapacity) {
+    Hashtable.Entry[] buckets = create(capacityFor(maxCapacity));
+    return new State<>(buckets, maxCapacity);
+  }
+
+  /**
+   * Deprecated facade over the static building blocks that are now methods on {@link Hashtable}
+   * itself. Every member here delegates to its {@code Hashtable.*} counterpart -- no real logic
+   * lives in this class, so it can be deleted outright once the last caller migrates.
+   *
+   * <p>Retained only for source compatibility with existing callers. New code should call the
+   * {@code Hashtable.*} statics directly.
+   *
+   * @deprecated use the static building blocks on {@link Hashtable} directly.
+   */
+  @Deprecated
+  public static final class Support {
+    private Support() {}
+
+    /**
+     * @deprecated use {@link Hashtable#create(int)} (or {@link Hashtable#create(Class, int)} for a
+     *     typed spine).
+     */
+    @Deprecated
+    @Nonnull
+    public static Hashtable.Entry[] create(int requestedSize) {
+      return Hashtable.create(requestedSize);
+    }
+
+    /**
+     * Scales the requested working-set size before sizing the bucket array. Pair with {@link
+     * #MAX_RATIO} to leave headroom over the working set for a desired load factor; the canonical
+     * call is {@code create(n, MAX_RATIO)}.
+     *
+     * <p>The scaled size is truncated to {@code int} before going through {@link
+     * Hashtable#sizeFor(int)}. Truncation rather than {@code ceil} is intentional: {@code sizeFor}
+     * rounds up to the next power of two anyway, so the fractional part would only matter when
+     * float fuzz pushes the result across a power-of-two boundary -- {@code ceil} would then double
+     * the array size for no reason (e.g. {@code 12 * 4/3 = 16.0...0005f -> ceil 17 -> sizeFor 32}).
+     *
+     * @deprecated use {@link Hashtable#capacityFor(int)} (or {@link Hashtable#capacityFor(int,
+     *     float)} for a load factor other than {@link Hashtable#DEFAULT_LOAD_FACTOR}), then {@link
+     *     Hashtable#create(Class, int)} with the result.
+     */
+    @Deprecated
+    @Nonnull
+    public static Hashtable.Entry[] create(int requestedSize, float scale) {
+      // Deliberately multiplies by `scale` rather than routing through
+      // Hashtable#capacityFor(int, float), which divides by a load factor: `n * MAX_RATIO` and
+      // `n / DEFAULT_LOAD_FACTOR` are not bit-identical in float, and this deprecated path keeps
+      // its exact legacy sizing. Only the allocation itself is inverted onto the blessed API.
+      return Hashtable.create((int) (requestedSize * scale));
+    }
 
     /**
      * Inverse of a 75% load factor. Callers that size their bucket array from a target working-set
      * size {@code n} should pass {@code create(n, MAX_RATIO)} to leave ~25% headroom in the array.
-     */
-    public static final float MAX_RATIO = 4.0f / 3.0f;
-
-    /**
-     * Rounds {@code requestedSize} up to the next power of two, capped at {@link #MAX_BUCKETS}.
-     * Throws {@link IllegalArgumentException} for negative inputs or inputs above the cap. Returns
-     * the bucket-array length to allocate.
-     */
-    static final int sizeFor(int requestedSize) {
-      if (requestedSize < 0) {
-        throw new IllegalArgumentException("requestedSize must be non-negative: " + requestedSize);
-      }
-      if (requestedSize > MAX_BUCKETS) {
-        throw new IllegalArgumentException(
-            "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize);
-      }
-      if (requestedSize <= 1) {
-        return 1;
-      }
-      return Integer.highestOneBit(requestedSize - 1) << 1;
-    }
-
-    public static final void clear(Hashtable.Entry[] buckets) {
-      Arrays.fill(buckets, null);
-    }
-
-    public static final <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
-        Hashtable.Entry[] buckets, long keyHash) {
-      return new BucketIterator<TEntry>(buckets, keyHash);
-    }
-
-    public static final <TEntry extends Hashtable.Entry>
-        MutatingBucketIterator<TEntry> mutatingBucketIterator(
-            Hashtable.Entry[] buckets, long keyHash) {
-      return new MutatingBucketIterator<TEntry>(buckets, keyHash);
-    }
-
-    /**
-     * Returns a {@link MutatingTableIterator} over every entry in {@code buckets}. Useful for
-     * sweeps -- eviction, expunge -- that aren't keyed to a specific hash.
-     */
-    public static final <TEntry extends Hashtable.Entry>
-        MutatingTableIterator<TEntry> mutatingTableIterator(Hashtable.Entry[] buckets) {
-      return new MutatingTableIterator<TEntry>(buckets, 0, buckets.length);
-    }
-
-    /**
-     * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
-     * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. cursor-
-     * based eviction in {@code AggregateTable} -- where one call drives {@code [cursor, length)}
-     * and a wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap around
-     * within a single instance; callers compose two iterators when wrap-around is desired. An empty
-     * range ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
      *
-     * @param startBucket inclusive lower bound; must be in {@code [0, buckets.length]}.
-     * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
+     * @deprecated equivalent to {@code 1f / Hashtable#DEFAULT_LOAD_FACTOR}; prefer {@link
+     *     Hashtable#capacityFor(int)}, which applies that load factor directly.
      */
-    public static final <TEntry extends Hashtable.Entry>
+    @Deprecated public static final float MAX_RATIO = 1.0f / Hashtable.DEFAULT_LOAD_FACTOR;
+
+    /**
+     * @deprecated use {@link Hashtable#sizeFor(int)}.
+     */
+    @Deprecated
+    static int sizeFor(int requestedSize) {
+      return Hashtable.sizeFor(requestedSize);
+    }
+
+    /**
+     * @deprecated use {@link Hashtable#clear(Hashtable.Entry[])}.
+     */
+    @Deprecated
+    public static void clear(@Nonnull Hashtable.Entry[] buckets) {
+      Hashtable.clear(buckets);
+    }
+
+    /**
+     * @deprecated use {@link Hashtable#bucketIterator(Hashtable.Entry[], long)}.
+     */
+    @Deprecated
+    @Nonnull
+    public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
+        @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+      return Hashtable.bucketIterator(buckets, keyHash);
+    }
+
+    /**
+     * @deprecated use {@link Hashtable#mutatingBucketIterator(Hashtable.Entry[], long)}.
+     */
+    @Deprecated
+    @Nonnull
+    public static <TEntry extends Hashtable.Entry>
+        MutatingBucketIterator<TEntry> mutatingBucketIterator(
+            @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+      return Hashtable.mutatingBucketIterator(buckets, keyHash);
+    }
+
+    /**
+     * @deprecated use {@link Hashtable#mutatingTableIterator(Hashtable.Entry[])}.
+     */
+    @Deprecated
+    @Nonnull
+    public static <TEntry extends Hashtable.Entry>
+        MutatingTableIterator<TEntry> mutatingTableIterator(@Nonnull Hashtable.Entry[] buckets) {
+      return Hashtable.mutatingTableIterator(buckets);
+    }
+
+    /**
+     * @deprecated use {@link Hashtable#mutatingTableIterator(Hashtable.Entry[], int, int)}.
+     */
+    @Deprecated
+    @Nonnull
+    public static <TEntry extends Hashtable.Entry>
         MutatingTableIterator<TEntry> mutatingTableIterator(
-            Hashtable.Entry[] buckets, int startBucket, int endBucket) {
-      return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
-    }
-
-    public static final int bucketIndex(Object[] buckets, long keyHash) {
-      return (int) (keyHash & buckets.length - 1);
+            @Nonnull Hashtable.Entry[] buckets, int startBucket, int endBucket) {
+      return Hashtable.mutatingTableIterator(buckets, startBucket, endBucket);
     }
 
     /**
-     * Splices {@code entry} in as the new head of the chain at {@code bucketIndex}. Caller is
-     * responsible for size accounting -- this method only touches the chain pointers.
+     * @deprecated use {@link Hashtable#bucketIndex(Object[], long)}.
      */
-    public static final void insertHeadEntry(
-        Hashtable.Entry[] buckets, int bucketIndex, Hashtable.Entry entry) {
-      entry.setNext(buckets[bucketIndex]);
-      buckets[bucketIndex] = entry;
+    @Deprecated
+    public static int bucketIndex(@Nonnull Object[] buckets, long keyHash) {
+      return Hashtable.bucketIndex(buckets, keyHash);
     }
 
     /**
-     * Convenience overload of {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)}
-     * that derives the bucket index from {@code keyHash}. Use this when the caller has the hash but
-     * not the index; if the index has already been computed for another reason, prefer the
-     * int-taking overload to avoid the redundant mask.
+     * @deprecated use {@link Hashtable#insertHeadEntryAt(Hashtable.Entry[], int, Hashtable.Entry)}.
      */
-    public static final void insertHeadEntry(
-        Hashtable.Entry[] buckets, long keyHash, Hashtable.Entry entry) {
-      insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
+    @Deprecated
+    public static void insertHeadEntry(
+        @Nonnull Hashtable.Entry[] buckets, int bucketIndex, @Nonnull Hashtable.Entry entry) {
+      Hashtable.insertHeadEntryAt(buckets, bucketIndex, entry);
     }
 
     /**
-     * Returns the head entry of the bucket that {@code keyHash} maps to, cast to the caller's
-     * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
-     * doesn't need to thread a raw {@link Entry} variable through.
+     * @deprecated use {@link Hashtable#insertHeadEntryFor(Hashtable.Entry[], long,
+     *     Hashtable.Entry)}.
      */
-    @SuppressWarnings("unchecked")
-    public static final <TEntry extends Hashtable.Entry> TEntry bucket(
-        Hashtable.Entry[] buckets, long keyHash) {
-      return (TEntry) buckets[bucketIndex(buckets, keyHash)];
+    @Deprecated
+    public static void insertHeadEntry(
+        @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
+      Hashtable.insertHeadEntryFor(buckets, keyHash, entry);
     }
 
     /**
-     * Walks every entry in {@code buckets} and invokes {@code consumer} on it. The unchecked cast
-     * to {@code TEntry} lives here (mirroring {@link Entry#next()}) so callers don't have to
-     * sprinkle it across their own forEach loops.
+     * @deprecated use {@link Hashtable#bucketFor(Hashtable.Entry[], long)}.
      */
-    @SuppressWarnings("unchecked")
-    public static final <TEntry extends Hashtable.Entry> void forEach(
-        Hashtable.Entry[] buckets, Consumer<? super TEntry> consumer) {
-      for (int i = 0; i < buckets.length; i++) {
-        for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-          consumer.accept((TEntry) e);
-        }
-      }
+    @Deprecated
+    @Nullable
+    public static <TEntry extends Hashtable.Entry> TEntry bucket(
+        @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+      return Hashtable.bucketFor(buckets, keyHash);
     }
 
     /**
-     * Context-passing variant of {@link #forEach(Hashtable.Entry[], Consumer)}. Pair a
-     * non-capturing {@link BiConsumer} (typically a {@code static final}) with side-band state
-     * passed as {@code context} to avoid a fresh-Consumer allocation each call.
+     * @deprecated use {@link Hashtable#forEach(Hashtable.Entry[], Consumer)}.
      */
-    @SuppressWarnings("unchecked")
-    public static final <T, TEntry extends Hashtable.Entry> void forEach(
-        Hashtable.Entry[] buckets, T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      for (int i = 0; i < buckets.length; i++) {
-        for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-          consumer.accept(context, (TEntry) e);
-        }
-      }
+    @Deprecated
+    public static <TEntry extends Hashtable.Entry> void forEach(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> consumer) {
+      Hashtable.forEach(buckets, consumer);
+    }
+
+    /**
+     * @deprecated use {@link Hashtable#forEach(Hashtable.Entry[], Object, BiConsumer)}.
+     */
+    @Deprecated
+    public static <C, TEntry extends Hashtable.Entry> void forEach(
+        @Nonnull Hashtable.Entry[] buckets,
+        C context,
+        @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+      Hashtable.forEach(buckets, context, consumer);
     }
   }
 
@@ -599,9 +1774,9 @@ public final class Hashtable {
     private final long keyHash;
     private Hashtable.Entry nextEntry;
 
-    BucketIterator(Hashtable.Entry[] buckets, long keyHash) {
+    BucketIterator(@Nonnull Hashtable.Entry[] buckets, long keyHash) {
       this.keyHash = keyHash;
-      Hashtable.Entry cur = buckets[Support.bucketIndex(buckets, keyHash)];
+      Hashtable.Entry cur = buckets[Hashtable.bucketIndex(buckets, keyHash)];
       while (cur != null && cur.keyHash != keyHash) {
         cur = cur.next();
       }
@@ -615,6 +1790,7 @@ public final class Hashtable {
 
     @Override
     @SuppressWarnings("unchecked")
+    @Nonnull
     public TEntry next() {
       Hashtable.Entry cur = this.nextEntry;
       if (cur == null) {
@@ -661,11 +1837,11 @@ public final class Hashtable {
     /** The next entry to be returned by next */
     private Hashtable.Entry nextEntry;
 
-    MutatingBucketIterator(Hashtable.Entry[] buckets, long keyHash) {
+    MutatingBucketIterator(@Nonnull Hashtable.Entry[] buckets, long keyHash) {
       this.buckets = buckets;
       this.keyHash = keyHash;
 
-      int bucketIndex = Support.bucketIndex(buckets, keyHash);
+      int bucketIndex = Hashtable.bucketIndex(buckets, keyHash);
       Hashtable.Entry headEntry = this.buckets[bucketIndex];
       if (headEntry == null) {
         this.nextEntry = null;
@@ -695,6 +1871,7 @@ public final class Hashtable {
 
     @Override
     @SuppressWarnings("unchecked")
+    @Nonnull
     public TEntry next() {
       Hashtable.Entry curEntry = this.nextEntry;
       if (curEntry == null) {
@@ -739,11 +1916,13 @@ public final class Hashtable {
       this.curEntry = null;
     }
 
-    public void replace(TEntry replacementEntry) {
+    public void replace(@Nonnull TEntry replacementEntry) {
       Hashtable.Entry oldCurEntry = this.curEntry;
       if (oldCurEntry == null) {
         throw new IllegalStateException();
       }
+      assert replacementEntry.next() == null
+          : "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
 
       Hashtable.Entry oldNext = oldCurEntry.next();
       replacementEntry.setNext(oldNext);
@@ -759,10 +1938,10 @@ public final class Hashtable {
       this.curEntry = replacementEntry;
     }
 
-    void setPrevNext(Hashtable.Entry nextEntry) {
+    void setPrevNext(@Nullable Hashtable.Entry nextEntry) {
       if (this.curPrevEntry == null) {
         Hashtable.Entry[] buckets = this.buckets;
-        buckets[Support.bucketIndex(buckets, this.keyHash)] = nextEntry;
+        buckets[Hashtable.bucketIndex(buckets, this.keyHash)] = nextEntry;
       } else {
         this.curPrevEntry.setNext(nextEntry);
       }
@@ -816,7 +1995,7 @@ public final class Hashtable {
      */
     private Hashtable.Entry curEntry;
 
-    MutatingTableIterator(Hashtable.Entry[] buckets, int startBucket, int endBucket) {
+    MutatingTableIterator(@Nonnull Hashtable.Entry[] buckets, int startBucket, int endBucket) {
       this.buckets = buckets;
       if (startBucket < 0 || startBucket > buckets.length) {
         throw new IndexOutOfBoundsException(
@@ -837,6 +2016,35 @@ public final class Hashtable {
     }
 
     /**
+     * Resumes a walk of {@code bucket} immediately after {@code resumeAfter}, instead of from the
+     * bucket's head -- so a caller that remembers where it last stopped inside a chain doesn't pay
+     * to re-test the entries before that point. {@code resumeAfter}'s own successor is read lazily
+     * ({@code resumeAfter.next()}), so any unrelated removal elsewhere in the chain since it was
+     * saved is picked up correctly. The one caveat: if {@code resumeAfter} <i>itself</i> was
+     * removed in the meantime, its {@code next()} now reads {@code null} (removal detaches a node
+     * from its own successor), so this walk sees {@code bucket} as exhausted and moves on to {@code
+     * bucket + 1} -- under-scanning {@code bucket} for this one pass rather than corrupting
+     * anything. A resumable sweep that revisits every bucket over time (e.g. {@link
+     * SizeManager#evictOne}'s cursor) self-heals that on its next lap.
+     */
+    MutatingTableIterator(
+        @Nonnull Hashtable.Entry[] buckets,
+        int bucket,
+        int endBucket,
+        @Nullable Hashtable.Entry resumeAfter) {
+      this.buckets = buckets;
+      this.endBucket = endBucket;
+      Hashtable.Entry head = (resumeAfter == null) ? buckets[bucket] : resumeAfter.next();
+      if (head != null) {
+        this.nextBucketIndex = bucket;
+        this.nextPrevEntry = resumeAfter;
+        this.nextEntry = head;
+      } else {
+        seekFromBucket(bucket + 1);
+      }
+    }
+
+    /**
      * Bucket index of the entry last returned by {@link #next()}, or {@code -1} if {@code next} has
      * not yet been called or the most recent call was {@link #remove()}. Useful for callers driving
      * a cursor — e.g. resumable eviction sweeps that want to remember where the last successful
@@ -846,6 +2054,17 @@ public final class Hashtable {
       return this.curBucketIndex;
     }
 
+    /**
+     * Predecessor of the entry last returned by {@link #next()} within its bucket, or {@code null}
+     * if it was the bucket head. Paired with {@link #currentBucket()}, this is enough for a caller
+     * to resume this exact chain position later via the {@code resumeAfter} constructor, without
+     * re-walking the entries already tested.
+     */
+    @Nullable
+    public Hashtable.Entry currentPrev() {
+      return this.curPrevEntry;
+    }
+
     @Override
     public boolean hasNext() {
       return this.nextEntry != null;
@@ -853,6 +2072,7 @@ public final class Hashtable {
 
     @Override
     @SuppressWarnings("unchecked")
+    @Nonnull
     public TEntry next() {
       Hashtable.Entry e = this.nextEntry;
       if (e == null) {
