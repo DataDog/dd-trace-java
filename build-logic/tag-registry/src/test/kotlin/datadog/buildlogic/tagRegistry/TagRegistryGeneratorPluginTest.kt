@@ -245,10 +245,17 @@ class TagRegistryGeneratorPluginTest {
       """
       package datadog.trace.api;
       public final class KnownTagCodec {
+        public static final int DIRECTION_INBOUND = 0;
+        public static final int DIRECTION_OUTBOUND = 1;
+        public static final int DIRECTION_NONE = 2;
+        static final long SHARED_DATADOG_NAME_SENTINEL = -1L;
+        static final long DIRECTION_SCOPED_OTEL_NAME_SENTINEL = -2L;
+        public static final long NO_TAG_IN_DIRECTION_SENTINEL = -3L;
         public interface Resolver {
           String nameOf(long id);
-          String openTelemetryNameOf(long id);
-          long keyOf(String name);
+          String openTelemetryNameOf(long id, int direction);
+          long lookup(String name);
+          long directionalKeyOf(String name, int direction);
         }
         public static int serialNum(long id) { return (int) (id >>> 48); }
       }

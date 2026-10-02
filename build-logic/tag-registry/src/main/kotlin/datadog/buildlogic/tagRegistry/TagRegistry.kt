@@ -49,10 +49,21 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
 
     /**
+     * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
+     * (unknown) and of KnownTagCodec's negative lookup sentinels.
+     */
+    const val SERIAL_LIMIT = 1 shl 15
+
+    /**
      * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() -- must stay in sync. LEVEL_TRACE at
-     * bit 2, other low bits and the reserved [47-32] window zero.
+     * bit 2, other low bits and the reserved [47-32] window zero. Every id is made here, and the
+     * range check makes each one positive by construction.
      */
     fun encode(serial: Int, traceLevel: Boolean): Long {
+      require(serial in FIRST_SERIAL until SERIAL_LIMIT) {
+        "serial $serial is outside [$FIRST_SERIAL, $SERIAL_LIMIT): more tags would make tag ids " +
+          "negative, where KnownTagCodec's lookup sentinels live"
+      }
       var id = serial.toLong() shl 48
       if (traceLevel) id = id or LEVEL_TRACE
       return id

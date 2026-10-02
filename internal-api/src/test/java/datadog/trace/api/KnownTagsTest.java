@@ -1,5 +1,9 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.KnownTagCodec.DIRECTION_INBOUND;
+import static datadog.trace.api.KnownTagCodec.DIRECTION_NONE;
+import static datadog.trace.api.KnownTagCodec.DIRECTION_OUTBOUND;
+import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -170,6 +174,69 @@ class KnownTagsTest {
     assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_OUTBOUND_ID));
     assertNotEquals(KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID);
     assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
+  }
+
+  static Stream<Arguments> directionalNames() {
+    return Stream.of(
+        Arguments.of(Tags.PEER_PORT, DIRECTION_INBOUND, KnownTags.PEER_PORT_INBOUND_ID),
+        Arguments.of(Tags.PEER_PORT, DIRECTION_OUTBOUND, KnownTags.PEER_PORT_OUTBOUND_ID),
+        Arguments.of(Tags.PEER_PORT, DIRECTION_NONE, 0L),
+        Arguments.of(Tags.PEER_PORT, DIRECTION_UNKNOWN, 0L),
+        Arguments.of("server.address", DIRECTION_INBOUND, KnownTags.HTTP_HOSTNAME_ID),
+        Arguments.of("server.address", DIRECTION_OUTBOUND, KnownTags.PEER_HOSTNAME_ID),
+        Arguments.of("server.address", DIRECTION_UNKNOWN, 0L),
+        Arguments.of("server.port", DIRECTION_OUTBOUND, KnownTags.PEER_PORT_OUTBOUND_ID),
+        Arguments.of("server.port", DIRECTION_INBOUND, 0L),
+        Arguments.of("client.port", DIRECTION_INBOUND, KnownTags.PEER_PORT_INBOUND_ID),
+        Arguments.of("client.port", DIRECTION_OUTBOUND, 0L),
+        Arguments.of("network.peer.address", DIRECTION_INBOUND, KnownTags.NETWORK_CLIENT_IP_ID));
+  }
+
+  /** A name whose tag depends on the span's direction resolves only once the direction is known. */
+  @ParameterizedTest(name = "{0} on direction {1}")
+  @MethodSource("directionalNames")
+  void aDirectionalNameResolvesByDirection(String name, int direction, long expected) {
+    assertEquals(expected, KnownTagCodec.keyOf(name, direction));
+    assertEquals(0L, KnownTagCodec.keyOf(name));
+  }
+
+  @Test
+  void aDirectionFreeNameResolvesTheSameInEveryDirection() {
+    for (int direction = DIRECTION_UNKNOWN; direction <= DIRECTION_NONE; direction++) {
+      assertEquals(KnownTags.HTTP_METHOD_ID, KnownTagCodec.keyOf("http.request.method", direction));
+      assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTagCodec.keyOf(Tags.PEER_HOSTNAME, direction));
+      assertEquals(0L, KnownTagCodec.keyOf("my.custom.tag", direction));
+    }
+  }
+
+  @Test
+  void aDirectionScopedRenameIsEmittedOnlyInItsDirection() {
+    assertEquals(
+        "server.address",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID, DIRECTION_INBOUND));
+    assertEquals(
+        Tags.HTTP_HOSTNAME,
+        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID, DIRECTION_OUTBOUND));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID, DIRECTION_OUTBOUND));
+    assertEquals(
+        "client.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_INBOUND_ID, DIRECTION_INBOUND));
+    assertEquals(
+        "http.request.method",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_METHOD_ID, DIRECTION_UNKNOWN));
+    assertEquals(Tags.HTTP_HOSTNAME, KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID));
+  }
+
+  /** A tag declared per direction exists only on spans of its direction, so its name needs none. */
+  @Test
+  void aTagDeclaredPerDirectionIsEmittedWithoutADirection() {
+    assertEquals("server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertEquals("client.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_INBOUND_ID));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID, DIRECTION_UNKNOWN));
   }
 
   @Test
