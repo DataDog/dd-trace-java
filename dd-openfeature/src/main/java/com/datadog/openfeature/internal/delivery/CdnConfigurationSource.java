@@ -1,5 +1,7 @@
 package com.datadog.openfeature.internal.delivery;
 
+import static com.datadog.openfeature.internal.delivery.Retries.isRetryableStatus;
+
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.config.Settings;
@@ -46,7 +48,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private final Duration requestTimeout;
   private final HttpClient httpClient;
   private final ScheduledExecutorService executor;
-  private final RetrySleeper retrySleeper;
+  private final Retries.Sleeper retrySleeper;
   private final DoubleSupplier jitter;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean polling = new AtomicBoolean();
@@ -81,7 +83,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final Duration requestTimeout,
       final HttpClient httpClient,
       final ScheduledExecutorService executor,
-      final RetrySleeper retrySleeper,
+      final Retries.Sleeper retrySleeper,
       final DoubleSupplier jitter) {
     this.endpoint = endpoint;
     this.apiKey = apiKey;
@@ -230,24 +232,14 @@ public final class CdnConfigurationSource implements ConfigurationService {
   }
 
   private HttpResponse<byte[]> fetchWithRetries() throws IOException, InterruptedException {
-    final HttpRequest request = buildRequest();
-    int attempt = 0;
-    while (true) {
-      attempt++;
-      try {
-        final HttpResponse<byte[]> response =
-            this.httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        if (!isRetryableStatus(response.statusCode()) || attempt == MAX_ATTEMPTS || this.closed) {
-          return response;
-        }
-      } catch (final IOException e) {
-        if (attempt == MAX_ATTEMPTS || this.closed || Thread.currentThread().isInterrupted()) {
-          throw e;
-        }
-      }
-      this.retrySleeper.sleep(
-          retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble()));
-    }
+    return Retries.send(
+        this.httpClient,
+        buildRequest(),
+        HttpResponse.BodyHandlers.ofByteArray(),
+        MAX_ATTEMPTS,
+        attempt -> retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble()),
+        this.retrySleeper,
+        () -> this.closed);
   }
 
   private HttpRequest buildRequest() {
@@ -274,12 +266,6 @@ public final class CdnConfigurationSource implements ConfigurationService {
     } else {
       LOGGER.debug(message, arguments);
     }
-  }
-
-  static boolean isRetryableStatus(final int status) {
-    return status == HttpURLConnection.HTTP_CLIENT_TIMEOUT
-        || status == 429
-        || (status >= 500 && status <= 599);
   }
 
   static URI endpoint(final Settings settings) {
@@ -333,10 +319,5 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   private static long clamp(final long value, final long minimum, final long maximum) {
     return Math.max(minimum, Math.min(maximum, value));
-  }
-
-  @FunctionalInterface
-  interface RetrySleeper {
-    void sleep(long delayMillis) throws InterruptedException;
   }
 }

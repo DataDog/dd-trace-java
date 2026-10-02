@@ -25,13 +25,13 @@ public final class DirectIntakeTransport implements EventTransport {
   private final String apiKey;
   private final String traceId;
   private final HttpClient httpClient;
-  private final CdnConfigurationSource.RetrySleeper retrySleeper;
+  private final Retries.Sleeper retrySleeper;
 
   DirectIntakeTransport(
       final URI intake,
       final String apiKey,
       final HttpClient httpClient,
-      final CdnConfigurationSource.RetrySleeper retrySleeper) {
+      final Retries.Sleeper retrySleeper) {
     this.intake = intake;
     this.apiKey = apiKey;
     // Intake requests are attributed to a stable, random trace id.
@@ -70,34 +70,24 @@ public final class DirectIntakeTransport implements EventTransport {
             .header("x-datadog-parent-id", this.traceId);
     Headers.addMetadata(builder);
     final HttpRequest request = builder.POST(ofByteArray(json)).build();
-    IOException failure = null;
-    long delayMillis = INITIAL_RETRY_DELAY_MILLIS;
-    for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        if (attempt > 0) {
-          this.retrySleeper.sleep(delayMillis);
-          delayMillis *= 2;
-        }
-        final int status =
-            this.httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
-        if (status >= 200 && status < 300) {
-          return;
-        }
-        failure = new IOException("Request to " + route + " returned error response " + status);
-        if (!isRetryableStatus(status)) {
-          break;
-        }
-      } catch (final IOException e) {
-        failure = e;
-      } catch (final InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IOException("Request to " + route + " was interrupted", e);
-      }
+    final int status;
+    try {
+      status =
+          Retries.send(
+                  this.httpClient,
+                  request,
+                  HttpResponse.BodyHandlers.discarding(),
+                  MAX_RETRIES + 1,
+                  attempt -> INITIAL_RETRY_DELAY_MILLIS << (attempt - 1),
+                  this.retrySleeper,
+                  () -> false)
+              .statusCode();
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Request to " + route + " was interrupted", e);
     }
-    throw failure;
-  }
-
-  static boolean isRetryableStatus(final int status) {
-    return status == 429 || status >= 500;
+    if (status < 200 || status >= 300) {
+      throw new IOException("Request to " + route + " returned error response " + status);
+    }
   }
 }

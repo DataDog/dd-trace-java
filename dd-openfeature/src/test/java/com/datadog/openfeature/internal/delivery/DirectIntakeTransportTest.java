@@ -60,6 +60,7 @@ class DirectIntakeTransportTest {
 
   @TableTest({
     "scenario          | status",
+    "client timeout    | 408   ",
     "server error      | 500   ",
     "unavailable       | 503   ",
     "too many requests | 429   "
