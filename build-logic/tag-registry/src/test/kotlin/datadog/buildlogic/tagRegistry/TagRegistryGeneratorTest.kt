@@ -424,6 +424,46 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `a declared name that looks like a derived identity is a separate tag`() {
+    val conventions = tagConventions(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+        http.server: {span-kind: server, include: [inbound_peer]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: x}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: x}]}
+        literal: {tags: [{dd-name: x@inbound}]}
+      """
+    )
+
+    assertThat(TagRegistry.build(conventions).tags.map { it.identity })
+      .containsExactlyInAnyOrder(
+        TagConventions.TagIdentity("x", TagConventions.Direction.INBOUND),
+        TagConventions.TagIdentity("x", TagConventions.Direction.OUTBOUND),
+        TagConventions.TagIdentity("x@inbound"),
+      )
+  }
+
+  @Test
+  fun `a declared name containing @ is allowed when it collides with no derived identity`() {
+    val conventions = tagConventions(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+        http.server: {span-kind: server, include: [inbound_peer]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port}]}
+        misc: {tags: [{dd-name: user@domain}]}
+      """
+    )
+
+    assertThat(TagRegistry.build(conventions).tags.map { it.name })
+      .containsExactlyInAnyOrder("peer.port@inbound", "peer.port@outbound", "user@domain")
+  }
+
+  @Test
   fun `span-kind-neutral without an otel-name fails`() {
     val yaml = directory.conventionsFile(
       """

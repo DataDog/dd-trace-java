@@ -18,8 +18,7 @@ package datadog.buildlogic.tagRegistry
  */
 class TagRegistry private constructor(val tags: List<Tag>) {
   data class Tag(
-    /** The tag's identity: its Datadog name, or `<dd-name>@<direction>` when declared per direction. */
-    val name: String,
+    val identity: TagConventions.TagIdentity,
     val type: String,
     val required: String,
     val serial: Int,
@@ -32,14 +31,15 @@ class TagRegistry private constructor(val tags: List<Tag>) {
      * tag has one declaration, so its rename covers either every direction or exactly one.
      */
     val otelDirection: TagConventions.Direction? = null,
-    /** The Datadog-namespace name, shared by the tags of a name declared per direction. */
-    val ddName: String = name,
-    /** The direction of a tag whose Datadog name is shared by a tag per direction, else null. */
-    val sharedNameDirection: TagConventions.Direction? = null,
   ) {
+    /** The identity's label, as reports and constant names show it. */
+    val name: String = identity.label
+    val ddName: String = identity.ddName
+    val sharedNameDirection: TagConventions.Direction? = identity.direction
+
     /**
-     * The OpenTelemetry name that applies in every direction, or null when the tag has no rename or
-     * its rename is scoped to a direction, which is not applied until name resolution knows it.
+     * The rename included in the direction-free lookup tables, or null when absent or scoped
+     * to one direction. Scoped renames remain in `declaredOtelName` for later resolution.
      */
     val otelName: String? = declaredOtelName.takeIf { otelDirection == null }
   }
@@ -59,25 +59,23 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     }
 
     fun build(conv: TagConventions): TagRegistry {
-      val traceNames = conv.traceLevelTags().map { it.name }.toSet()
+      val traceLevel = conv.traceLevelTags().map { it.identity }.toSet()
       val renames = conv.otelMappings().associateBy { it.tag }
 
       // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
       val tags =
         conv.allDeclaredTags().sortedBy { it.name }.mapIndexed { i, t ->
           val serial = FIRST_SERIAL + i
-          val traceLevel = t.name in traceNames
+          val isTraceLevel = t.identity in traceLevel
           Tag(
-            t.name,
+            t.identity,
             t.type,
             t.required,
             serial,
-            traceLevel,
-            id = encode(serial, traceLevel),
-            declaredOtelName = renames[t.name]?.otelName,
-            otelDirection = renames[t.name]?.direction,
-            ddName = t.ddName,
-            sharedNameDirection = t.sharedNameDirection,
+            isTraceLevel,
+            id = encode(serial, isTraceLevel),
+            declaredOtelName = renames[t.identity]?.otelName,
+            otelDirection = renames[t.identity]?.direction,
           )
         }
 
@@ -86,10 +84,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     }
 
     /**
-     * An OpenTelemetry name must be unambiguous in each direction: it may not collide with any
-     * canonical tag name, nor be claimed by two tags on spans of the same direction, or resolving it
-     * would have no single answer. Two tags may share a name across directions: `server.address` is
-     * `http.hostname` on inbound spans and `peer.hostname` on outbound ones.
+     * Rejects OpenTelemetry names that collide with any Datadog name. Within each direction,
+     * a rename must also belong to a single tag. Direction-free renames reserve their name
+     * in every direction. Scoped renames may share a name across directions: `server.address`
+     * maps to `http.hostname` inbound and `peer.hostname` outbound.
      */
     private fun validateOtelNames(tags: List<Tag>) {
       val canonical = tags.map { it.ddName }.toSet()
