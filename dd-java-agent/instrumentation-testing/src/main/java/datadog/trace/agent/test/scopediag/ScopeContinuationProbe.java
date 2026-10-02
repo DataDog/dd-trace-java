@@ -208,16 +208,14 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /** Records an out-of-order close when the internal stack can be inspected. */
+  /** Checks ownership independently of stack order, which is inspected when available. */
   public static void onScopeClosing(Object scope) {
     Object window = ScopeDiagnostics.recordingWindow();
     if (window == null) {
       return;
     }
     try {
-      if (isNotOnTop(scope)) {
-        ScopeDiagnostics.recordScopeCloseWrongThread(window, scope);
-      }
+      ScopeDiagnostics.recordScopeClosing(window, scope, isNotOnTop(scope));
     } catch (Throwable ignored) {
     }
   }

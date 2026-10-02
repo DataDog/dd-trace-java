@@ -20,6 +20,7 @@ public final class ScopeRecord {
   private ScopeEvent close;
   private boolean deferredCleanup;
   private final List<ScopeEvent> wrongThreadCloses = new ArrayList<>(0);
+  private final List<ScopeEvent> outOfOrderCloses = new ArrayList<>(0);
 
   ScopeRecord(
       long seq,
@@ -50,6 +51,10 @@ public final class ScopeRecord {
     wrongThreadCloses.add(event);
   }
 
+  synchronized void addOutOfOrderClose(ScopeEvent event) {
+    outOfOrderCloses.add(event);
+  }
+
   synchronized ScopeRecord snapshot() {
     ScopeRecord copy =
         new ScopeRecord(
@@ -67,6 +72,9 @@ public final class ScopeRecord {
     for (ScopeEvent event : wrongThreadCloses) {
       copy.wrongThreadCloses.add(event.snapshot());
     }
+    for (ScopeEvent event : outOfOrderCloses) {
+      copy.outOfOrderCloses.add(event.snapshot());
+    }
     return copy;
   }
 
@@ -80,6 +88,10 @@ public final class ScopeRecord {
 
   public synchronized List<ScopeEvent> wrongThreadCloses() {
     return new ArrayList<>(wrongThreadCloses);
+  }
+
+  public synchronized List<ScopeEvent> outOfOrderCloses() {
+    return new ArrayList<>(outOfOrderCloses);
   }
 
   public synchronized boolean closed() {
@@ -96,7 +108,7 @@ public final class ScopeRecord {
 
   /** {@code true} when the scope was opened and closed on different threads. */
   public synchronized boolean threadHandoff() {
-    return open != null && close != null && !open.threadName.equals(close.threadName);
+    return open != null && close != null && open.threadId != close.threadId;
   }
 
   /** Nanos the scope was active, or {@code null} if it was never closed. */
@@ -115,6 +127,9 @@ public final class ScopeRecord {
     if (!wrongThreadCloses.isEmpty()) {
       failures.add(Failure.CLOSE_WRONG_THREAD);
     }
+    if (!outOfOrderCloses.isEmpty()) {
+      failures.add(Failure.CLOSE_OUT_OF_ORDER);
+    }
     return failures;
   }
 
@@ -124,6 +139,9 @@ public final class ScopeRecord {
       min = Math.min(min, close.nanos);
     }
     for (ScopeEvent e : wrongThreadCloses) {
+      min = Math.min(min, e.nanos);
+    }
+    for (ScopeEvent e : outOfOrderCloses) {
       min = Math.min(min, e.nanos);
     }
     return min;
