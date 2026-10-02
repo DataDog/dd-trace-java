@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
-public class LogbackTestApplication {
+public class LogbackTestApplication implements LogbackApplication {
   private final Logger logger = (Logger) LoggerFactory.getLogger("test.logback.intake");
   private final CountDownLatch release = new CountDownLatch(1);
   private final CountDownLatch delivered = new CountDownLatch(1);
@@ -35,10 +35,12 @@ public class LogbackTestApplication {
     logger.addAppender(sink);
   }
 
+  @Override
   public List<Map<String, String>> getContexts() {
     return contexts;
   }
 
+  @Override
   public void log(String level, String message) {
     switch (level) {
       case "DEBUG":
@@ -55,14 +57,17 @@ public class LogbackTestApplication {
     }
   }
 
+  @Override
   public void put(String key, String value) {
     MDC.put(key, value);
   }
 
+  @Override
   public void clear() {
     MDC.clear();
   }
 
+  @Override
   public void startAsync() {
     AppenderBase<ILoggingEvent> sink =
         new AppenderBase<ILoggingEvent>() {
@@ -87,6 +92,7 @@ public class LogbackTestApplication {
     logger.addAppender(async);
   }
 
+  @Override
   public Map<String, String> finishAsync() throws InterruptedException {
     release.countDown();
     try {
@@ -100,6 +106,7 @@ public class LogbackTestApplication {
     }
   }
 
+  @Override
   public void jul() {
     java.util.logging.Logger jul = java.util.logging.Logger.getLogger(logger.getName());
     SLF4JBridgeHandler bridge = new SLF4JBridgeHandler();
