@@ -133,7 +133,12 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
-      scope.close();
+      // scope can be null if extractParent() above threw before assigning it (the throwable is
+      // swallowed by suppress = Throwable.class), which would otherwise NPE here and mask the
+      // real failure.
+      if (scope != null) {
+        scope.close();
+      }
     }
   }
 
@@ -167,7 +172,12 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("serverScope") ContextScope serverScope) {
-      serverScope.close();
+      // serverScope can be null if onService() above threw before assigning it (the throwable is
+      // swallowed by suppress = Throwable.class), which would otherwise NPE here and mask the
+      // real failure.
+      if (serverScope != null) {
+        serverScope.close();
+      }
     }
 
     private void muzzleCheck(CoyoteAdapter adapter, Request request, Response response)
