@@ -237,11 +237,11 @@ public interface AgentSpan
    * order-independent, and self-neutralizes once construction has already seeded the same
    * prototype.
    *
-   * <p>This is the single seam through which a prototype's constant initial state is applied,
-   * shared by the construction path (buildSpan/startSpan) and decorator {@code afterStart}. Core
-   * spans override to route straight to the context, which owns the tag map and will host the
-   * eventual fast path (bulk share / identity short-circuit); this default is the best-effort
-   * fallback for other span implementations.
+   * <p>This is the fill-absent seam through which a prototype's constant initial state is applied
+   * at construction (buildSpan/startSpan) -- see {@link #applyOverwriting} for the decorator {@code
+   * afterStart} seam, which needs different precedence. Core spans override to route straight to
+   * the context, which owns the tag map and will host the eventual fast path (bulk share / identity
+   * short-circuit); this default is the best-effort fallback for other span implementations.
    */
   default void apply(@Nonnull final SpanPrototype prototype) {
     if (getSpanType() == null) {
@@ -267,6 +267,32 @@ public interface AgentSpan
       if (integrationName != null) {
         spanContext().setIntegrationName(integrationName);
       }
+    }
+  }
+
+  /**
+   * Applies a {@link SpanPrototype} unconditionally: stamps its span type, constant tags, and
+   * integration name over whatever is already present. This is the decorator {@code afterStart}
+   * seam -- a decorator's identity (its component, span kind, span type, integration name) is
+   * authoritative and must win over anything set earlier, such as a global tag from {@code DD_TAGS}
+   * / {@code DD_TRACE_SPAN_TAGS} seeded onto the span at construction, matching the unconditional
+   * {@code setTag}/{@code setSpanType} calls this replaced.
+   *
+   * <p>Kept separate from {@link #apply}, which is the fill-absent seam for construction-time
+   * seeding: the two callers have genuinely different precedence needs, and collapsing them
+   * previously let a global tag silently suppress a decorator's own value.
+   */
+  default void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    final CharSequence spanType = prototype.spanType();
+    if (spanType != null) {
+      setSpanType(spanType);
+    }
+
+    prototype.tags().forEach((tag, value) -> setTag(tag, value));
+
+    final CharSequence integrationName = prototype.integrationName();
+    if (integrationName != null) {
+      spanContext().setIntegrationName(integrationName);
     }
   }
 
