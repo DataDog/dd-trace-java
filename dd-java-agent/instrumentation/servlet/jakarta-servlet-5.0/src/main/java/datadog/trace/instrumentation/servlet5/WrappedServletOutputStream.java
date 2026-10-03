@@ -42,6 +42,10 @@ public class WrappedServletOutputStream extends ServletOutputStream {
     filtered.commit();
   }
 
+  public void discard() {
+    filtered.discard();
+  }
+
   @Override
   public void flush() throws IOException {
     filtered.flush();
