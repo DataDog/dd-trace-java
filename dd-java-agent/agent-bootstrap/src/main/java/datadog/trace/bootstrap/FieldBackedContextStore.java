@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.instrument.fieldinject.GlobalObjectStore;
-import datadog.trace.api.InstrumenterConfig;
+import datadog.instrument.fieldinject.KeyWithValue;
 import java.util.function.Function;
 
 /**
@@ -9,9 +8,6 @@ import java.util.function.Function;
  * fields. Delegates to a lazy {@link WeakMap} for keys that don't have a field for this store.
  */
 public final class FieldBackedContextStore implements ContextStore<Object, Object> {
-  private static final boolean MAP_PER_STORE =
-      InstrumenterConfig.get().isRuntimeContextMapPerStore();
-
   final int storeId;
 
   FieldBackedContextStore(final int storeId) {
@@ -20,88 +16,78 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
 
   @Override
   public Object get(final Object key) {
-    if (key instanceof FieldBackedContextAccessor) {
-      return ((FieldBackedContextAccessor) key).$get$__datadogContext$(storeId);
-    } else if (MAP_PER_STORE) {
-      return weakStore().get(key);
+    if (key instanceof KeyWithValue) {
+      return ((KeyWithValue) key).$get$__dd_instrument$(storeId);
     } else {
-      return GlobalObjectStore.get(key, storeId);
+      return weakStore().get(key);
     }
   }
 
   @Override
   public void put(final Object key, final Object context) {
-    if (key instanceof FieldBackedContextAccessor) {
-      ((FieldBackedContextAccessor) key).$put$__datadogContext$(storeId, context);
-    } else if (MAP_PER_STORE) {
-      weakStore().put(key, context);
+    if (key instanceof KeyWithValue) {
+      ((KeyWithValue) key).$put$__dd_instrument$(storeId, context);
     } else {
-      GlobalObjectStore.put(key, storeId, context);
+      weakStore().put(key, context);
     }
   }
 
   @Override
   public Object getOrPut(final Object key, final Object context) {
-    if (key instanceof FieldBackedContextAccessor) {
-      final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
-      Object existingContext = accessor.$get$__datadogContext$(storeId);
+    if (key instanceof KeyWithValue) {
+      final KeyWithValue accessor = (KeyWithValue) key;
+      Object existingContext = accessor.$get$__dd_instrument$(storeId);
       if (null == existingContext) {
         synchronized (accessor) {
-          existingContext = accessor.$get$__datadogContext$(storeId);
+          existingContext = accessor.$get$__dd_instrument$(storeId);
           if (null == existingContext) {
             existingContext = context;
-            accessor.$put$__datadogContext$(storeId, existingContext);
+            accessor.$put$__dd_instrument$(storeId, existingContext);
           }
         }
       }
       return existingContext;
-    } else if (MAP_PER_STORE) {
-      return weakStore().getOrPut(key, context);
     } else {
-      return GlobalObjectStore.getOrPut(key, storeId, context);
+      return weakStore().getOrPut(key, context);
     }
   }
 
   @Override
   public Object getOrCompute(Object key, Function<? super Object, Object> contextFactory) {
-    if (key instanceof FieldBackedContextAccessor) {
-      final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
-      Object existingContext = accessor.$get$__datadogContext$(storeId);
+    if (key instanceof KeyWithValue) {
+      final KeyWithValue accessor = (KeyWithValue) key;
+      Object existingContext = accessor.$get$__dd_instrument$(storeId);
       if (null == existingContext) {
         synchronized (accessor) {
-          existingContext = accessor.$get$__datadogContext$(storeId);
+          existingContext = accessor.$get$__dd_instrument$(storeId);
           if (null == existingContext) {
             existingContext = contextFactory.apply(key);
-            accessor.$put$__datadogContext$(storeId, existingContext);
+            accessor.$put$__dd_instrument$(storeId, existingContext);
           }
         }
       }
       return existingContext;
-    } else if (MAP_PER_STORE) {
-      return weakStore().getOrCompute(key, contextFactory);
     } else {
-      return GlobalObjectStore.getOrCompute(key, storeId, contextFactory);
+      return weakStore().getOrCompute(key, contextFactory);
     }
   }
 
   @Override
   public Object remove(Object key) {
-    if (key instanceof FieldBackedContextAccessor) {
-      final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
-      Object existingContext = accessor.$get$__datadogContext$(storeId);
+    if (key instanceof KeyWithValue) {
+      final KeyWithValue accessor = (KeyWithValue) key;
+      Object existingContext = accessor.$get$__dd_instrument$(storeId);
       if (null != existingContext) {
         synchronized (accessor) {
-          existingContext = accessor.$get$__datadogContext$(storeId);
+          existingContext = accessor.$get$__dd_instrument$(storeId);
           if (null != existingContext) {
-            accessor.$put$__datadogContext$(storeId, null);
+            accessor.$put$__dd_instrument$(storeId, null);
           }
         }
       }
       return existingContext;
-    } else if (MAP_PER_STORE) {
-      return weakStore().remove(key);
     } else {
-      return GlobalObjectStore.remove(key, storeId);
+      return weakStore().remove(key);
     }
   }
 

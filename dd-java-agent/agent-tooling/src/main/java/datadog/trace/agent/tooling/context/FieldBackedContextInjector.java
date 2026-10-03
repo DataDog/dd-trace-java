@@ -1,14 +1,14 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
-import datadog.instrument.fieldinject.GlobalObjectStore;
+import datadog.instrument.fieldinject.KeyWithValue;
+import datadog.instrument.fieldinject.ObjectStoreDispatch;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.WeakMapPerStore;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -37,15 +37,15 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextInjector.class);
 
   static final String FIELD_BACKED_CONTEXT_ACCESSOR_CLASS =
-      getInternalName(FieldBackedContextAccessor.class.getName());
+      getInternalName(KeyWithValue.class.getName());
 
-  static final String CONTEXT_STORE_ACCESS_PREFIX = "__datadogContext$";
+  static final String INJECTED_STORE_MARKER = "__dd_instrument$";
 
-  static final String GETTER_METHOD = "$get$" + CONTEXT_STORE_ACCESS_PREFIX;
+  static final String GETTER_METHOD = "$get$" + INJECTED_STORE_MARKER;
   static final String GETTER_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.getType(Object.class), Type.INT_TYPE);
 
-  static final String PUTTER_METHOD = "$put$" + CONTEXT_STORE_ACCESS_PREFIX;
+  static final String PUTTER_METHOD = "$put$" + INJECTED_STORE_MARKER;
   static final String PUTTER_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.VOID_TYPE, Type.INT_TYPE, Type.getType(Object.class));
 
@@ -53,7 +53,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       getInternalName(
           (InstrumenterConfig.get().isRuntimeContextMapPerStore()
                   ? WeakMapPerStore.class
-                  : GlobalObjectStore.class)
+                  : ObjectStoreDispatch.class)
               .getName());
 
   static final String WEAK_GET_METHOD_DESCRIPTOR =
@@ -70,8 +70,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
   static final String OBJECT_DESCRIPTOR = Type.getDescriptor(Object.class);
 
-  public static final Type EXPECTED_SUPER_STORE_TYPE =
-      Type.getType(FieldBackedContextAccessor.class);
+  public static final Type EXPECTED_SUPER_STORE_TYPE = Type.getType(KeyWithValue.class);
 
   /** Keeps track of injection requests for the class being transformed by the current thread. */
   static final ThreadLocal<Pair<String, BitSet>> INJECTED_STORE_IDS = new ThreadLocal<>();
@@ -134,7 +133,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         // keep track of all injection requests for the class currently being transformed
         // because we need to switch between them in the generated getter/putter methods
         int storeId = injectContextStore(name, keyClassName, contextClassName);
-        storeFieldName = CONTEXT_STORE_ACCESS_PREFIX + storeId;
+        storeFieldName = INJECTED_STORE_MARKER + storeId;
 
         if (interfaces == null) {
           interfaces = new String[] {};
@@ -165,7 +164,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           final String descriptor,
           final String signature,
           final Object value) {
-        if (name.startsWith(CONTEXT_STORE_ACCESS_PREFIX)) {
+        if (name.startsWith(INJECTED_STORE_MARKER)) {
           if (storeFieldName.equals(name)) {
             foundField = true;
           }
@@ -206,7 +205,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         if (!foundField) {
           addStoreField();
         }
-        // first injector to reach here is responsible for adding the generated getter and setter
+        // first injector to reach here is responsible for adding the generated getter and putter
         // for the class - at this point all the other injectors will have recorded their requests
         final BitSet injectedStoreIds = getInjectedContextStores();
         if (null != injectedStoreIds) {
@@ -426,7 +425,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitFieldInsn(
             Opcodes.GETFIELD,
             instrumentedName,
-            CONTEXT_STORE_ACCESS_PREFIX + injectedStoreId,
+            INJECTED_STORE_MARKER + injectedStoreId,
             OBJECT_DESCRIPTOR);
         mv.visitInsn(Opcodes.ARETURN);
       }
@@ -438,7 +437,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitFieldInsn(
             Opcodes.PUTFIELD,
             instrumentedName,
-            CONTEXT_STORE_ACCESS_PREFIX + injectedStoreId,
+            INJECTED_STORE_MARKER + injectedStoreId,
             OBJECT_DESCRIPTOR);
         mv.visitInsn(Opcodes.RETURN);
       }
@@ -447,7 +446,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ALOAD, 0);
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, WEAK_REDIRECT_CLASS, "get", WEAK_GET_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESTATIC,
+            WEAK_REDIRECT_CLASS,
+            "weakGet",
+            WEAK_GET_METHOD_DESCRIPTOR,
+            false);
         mv.visitInsn(Opcodes.ARETURN);
       }
 
@@ -456,7 +459,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitIntInsn(Opcodes.ALOAD, 2);
         mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, WEAK_REDIRECT_CLASS, "put", WEAK_PUT_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESTATIC,
+            WEAK_REDIRECT_CLASS,
+            "weakPut",
+            WEAK_PUT_METHOD_DESCRIPTOR,
+            false);
         mv.visitInsn(Opcodes.RETURN);
       }
 

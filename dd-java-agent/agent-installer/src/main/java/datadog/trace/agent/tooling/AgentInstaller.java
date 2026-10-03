@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
+import datadog.instrument.fieldinject.KeyWithValue;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
@@ -17,7 +18,6 @@ import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.IntegrationsCollector;
-import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
 import datadog.trace.util.AgentTaskScheduler;
@@ -58,8 +58,10 @@ public class AgentInstaller {
   static {
     enableByteBuddyRawTypes();
     disableByteBuddyNexus();
-    // register weak map supplier as early as possible
-    WeakMaps.registerAsSupplier();
+    if (InstrumenterConfig.get().isRuntimeContextMapPerStore()) {
+      // register weak map supplier as early as possible
+      WeakMaps.registerAsSupplier();
+    }
     circularityErrorWorkaround();
   }
 
@@ -158,7 +160,7 @@ public class AgentInstaller {
     agentBuilder =
         agentBuilder
             .disableClassFormatChanges()
-            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
+            .assureReadEdgeTo(inst, KeyWithValue.class)
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())

@@ -56,7 +56,7 @@ class FieldInjectionForkedTest extends InstrumentationSpecification {
     boolean isPrivate = false
     boolean isTransient = false
     for (Field field : keyClass.getDeclaredFields()) {
-      if (field.getName().startsWith("__datadog")) {
+      if (field.getName().startsWith("__dd_instrument")) {
         isPrivate = Modifier.isPrivate(field.getModifiers())
         isTransient = Modifier.isTransient(field.getModifiers())
         hasField = true
@@ -66,7 +66,7 @@ class FieldInjectionForkedTest extends InstrumentationSpecification {
 
     boolean hasAccessorInterface = false
     for (Class inter : keyClass.getInterfaces()) {
-      if (inter.getName() == 'datadog.trace.bootstrap.FieldBackedContextAccessor') {
+      if (inter.getName() == 'datadog.instrument.fieldinject.KeyWithValue') {
         hasAccessorInterface = true
       }
     }
@@ -238,7 +238,7 @@ class FieldInjectionDisabledForkedTest extends InstrumentationSpecification {
     def keyClass = DisabledKeyClass
     boolean hasField = false
     for (Field field : keyClass.getDeclaredFields()) {
-      if (field.getName().startsWith("__datadog")) {
+      if (field.getName().startsWith("__dd_instrument")) {
         hasField = true
         break
       }
@@ -246,7 +246,7 @@ class FieldInjectionDisabledForkedTest extends InstrumentationSpecification {
 
     boolean hasAccessorInterface = false
     for (Class inter : keyClass.getInterfaces()) {
-      if (inter.getName() == 'datadog.trace.bootstrap.FieldBackedContextAccessor') {
+      if (inter.getName() == 'datadog.instrument.fieldinject.KeyWithValue') {
         hasAccessorInterface = true
       }
     }

@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +10,6 @@ import org.slf4j.LoggerFactory;
 public final class FieldBackedContextStores {
 
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextStores.class);
-
-  // provide fast lookup for a fixed number of stores
-  public static final int FAST_STORE_ID_LIMIT = 32;
 
   // these fields will be accessed directly from field-injected instrumentation
   public static final FieldBackedContextStore contextStore0 = new FieldBackedContextStore(0);
@@ -84,54 +81,46 @@ public final class FieldBackedContextStores {
     contextStore31
   };
 
-  public static FieldBackedContextStore getContextStore(final int storeId) {
-    return stores[storeId]; // createStore ensures array is big enough for allocated storeIds
-  }
-
-  private static final ConcurrentHashMap<String, FieldBackedContextStore> STORES_BY_NAME =
+  private static final Map<String, FieldBackedContextStore> storesByName =
       new ConcurrentHashMap<>();
+  private static final Object allocationLock = new Object();
 
-  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
-  public static int getContextStoreId(final String keyClassName, final String contextClassName) {
-    final String storeName = storeName(keyClassName, contextClassName);
-    FieldBackedContextStore existingStore = STORES_BY_NAME.get(storeName);
-    if (null == existingStore) {
-      synchronized (STORES_BY_NAME) {
-        // speculatively create the next store in the sequence and attempt to map this name to it;
-        // if another thread has mapped this name then the store will be kept for the next mapping
-        final int newStoreId = STORES_BY_NAME.size();
-        existingStore = STORES_BY_NAME.putIfAbsent(storeName, createStore(newStoreId));
-        if (null == existingStore) {
-          log.debug(
-              "Allocated ContextStore #{} - instrumentation.target.context={}->{}",
-              newStoreId,
-              keyClassName,
-              contextClassName);
-          return newStoreId;
+  private static int nextStoreId;
+
+  public static int getContextStoreId(String keyClassName, String contextClassName) {
+    String storeName = keyClassName + ';' + contextClassName;
+    FieldBackedContextStore store = storesByName.get(storeName);
+    if (store == null) {
+      FieldBackedContextStore existing;
+      synchronized (allocationLock) {
+        existing = storesByName.putIfAbsent(storeName, store = allocateStore(nextStoreId++));
+        if (existing != null) {
+          nextStoreId--;
+          return existing.storeId;
         }
       }
+      log.debug(
+          "Allocated ContextStore #{} - instrumentation.target.context={}->{}",
+          store.storeId,
+          keyClassName,
+          contextClassName);
     }
-    return existingStore.storeId;
+    return store.storeId;
   }
 
-  private static String storeName(final String keyClassName, final String contextClassName) {
-    return keyClassName + ';' + contextClassName;
+  public static FieldBackedContextStore getContextStore(final int storeId) {
+    return stores[storeId];
   }
 
-  // this method should only be called while holding a synchronized lock on STORES_BY_NAME
-  private static FieldBackedContextStore createStore(final int storeId) {
-    if (storeId < FAST_STORE_ID_LIMIT) {
-      return stores[storeId]; // pre-allocated
+  private static FieldBackedContextStore allocateStore(int allocatedId) {
+    FieldBackedContextStore[] snapshot = stores;
+    if (allocatedId >= snapshot.length) {
+      stores = snapshot = Arrays.copyOf(snapshot, Math.max(allocatedId + 1, snapshot.length + 16));
     }
-    if (stores.length <= storeId) {
-      stores = Arrays.copyOf(stores, storeId + 16);
+    FieldBackedContextStore allocatedStore = snapshot[allocatedId];
+    if (allocatedStore == null) {
+      snapshot[allocatedId] = allocatedStore = new FieldBackedContextStore(allocatedId);
     }
-    // check in case an earlier thread created the store but didn't end up using it
-    FieldBackedContextStore store = stores[storeId];
-    if (null == store) {
-      store = new FieldBackedContextStore(storeId);
-      stores[storeId] = store;
-    }
-    return store;
+    return allocatedStore;
   }
 }

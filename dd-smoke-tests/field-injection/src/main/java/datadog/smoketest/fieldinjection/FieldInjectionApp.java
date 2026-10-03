@@ -14,7 +14,7 @@ public class FieldInjectionApp {
         Class<?> klass = Class.forName(className);
         while (klass != null) {
           for (Field field : klass.getDeclaredFields()) {
-            if (field.getName().startsWith("__datadogContext")) {
+            if (field.getName().startsWith("__dd_instrument")) {
               System.out.println("___FIELD___:" + className + ":" + field.getName());
             }
           }

@@ -126,6 +126,6 @@ class FieldInjectionSmokeTest extends Specification {
   }
 
   def fieldName(String klass) {
-    return "__datadogContext\$" + klass.replace('.', '$')
+    return "__dd_instrument\$" + klass.replace('.', '$')
   }
 }

@@ -56,8 +56,24 @@ public final class NativeImageGeneratorRunnerInstrumentation
       args[oldLength++] =
           "-H:ReflectionConfigurationResources="
               + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json";
+
+      String contextStoresInitialization =
+          InstrumenterConfig.get().isRuntimeContextMapPerStore()
+              ? "datadog.trace.bootstrap.FieldBackedContextStores:build_time,"
+                  + "datadog.trace.bootstrap.FieldBackedContextStore:build_time,"
+                  + "datadog.trace.bootstrap.WeakMapPerStore:build_time,"
+                  + "datadog.trace.agent.tooling.WeakMaps$Adapter:build_time,"
+                  + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap:build_time,"
+                  + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap$1:build_time,"
+              : "datadog.trace.bootstrap.BoxedContextStores:build_time,"
+                  + "datadog.trace.bootstrap.BoxedContextStore:build_time,"
+                  + "datadog.instrument.fieldinject.GlobalObjectStore:build_time,"
+                  + "datadog.instrument.fieldinject.GlobalObjectStore$LookupKey:build_time,"
+                  + "datadog.instrument.fieldinject.GlobalObjectStore$LookupKeyCache:build_time,";
+
       args[oldLength++] =
           "-H:ClassInitialization="
+              + contextStoresInitialization
               + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.DeadlockEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"
@@ -70,7 +86,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.environment.JavaVirtualMachine:rerun,"
               + "datadog.environment.OperatingSystem:rerun,"
               + "datadog.environment.OperatingSystem$Architecture:rerun,"
-              + "datadog.trace.agent.tooling.WeakMaps$Adapter:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.Platform$Captured:build_time,"
@@ -126,8 +141,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.ContextStore$Factory:build_time,"
               + "datadog.trace.bootstrap.DatadogClassLoader:build_time,"
               + "datadog.trace.bootstrap.InstrumentationClassLoader:build_time,"
-              + "datadog.trace.bootstrap.FieldBackedContextStores:build_time,"
-              + "datadog.trace.bootstrap.FieldBackedContextStore:build_time,"
               + "datadog.trace.bootstrap.benchmark.StaticEventLogger:build_time,"
               + "datadog.trace.bootstrap.blocking.BlockingExceptionHandler:build_time,"
               + "datadog.trace.bootstrap.InstrumentationErrors:build_time,"
@@ -147,7 +160,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureSampleEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationTotalEvent:build_time,"
-              + "datadog.trace.bootstrap.WeakMapPerStore:build_time,"
               + "datadog.trace.config.inversion.ConfigHelper:rerun,"
               + "datadog.trace.config.inversion.ConfigHelper$StrictnessPolicy:rerun,"
               + "datadog.trace.config.inversion.GeneratedSupportedConfigurations:build_time,"
@@ -174,10 +186,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.slf4j.helpers.SubstituteLoggerFactory:build_time,"
               + "datadog.slf4j.impl.StaticLoggerBinder:build_time,"
               + "datadog.slf4j.LoggerFactory:build_time,"
-              + "datadog.instrument.fieldinject.GlobalObjectStore:build_time,"
-              + "datadog.instrument.fieldinject.GlobalObjectStore$LookupKey:build_time,"
-              + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap:build_time,"
-              + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap$1:build_time,"
               + "net.bytebuddy:build_time,"
               + "com.sun.proxy:build_time,"
               + "jnr.enxio.channels:run_time,"

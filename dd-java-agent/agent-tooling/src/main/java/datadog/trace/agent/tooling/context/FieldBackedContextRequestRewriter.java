@@ -1,11 +1,10 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.FieldBackedContextStore;
-import datadog.trace.bootstrap.FieldBackedContextStores;
+import datadog.trace.bootstrap.ContextStores;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -36,7 +35,7 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
       getInternalName(InstrumentationContext.class.getName());
 
   static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
-      getInternalName(FieldBackedContextStores.class.getName());
+      Type.getType(ContextStores.STORES_DESCRIPTOR).getInternalName();
 
   static final String GET_METHOD = "get";
   static final String GET_METHOD_DESCRIPTOR =
@@ -48,10 +47,7 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
 
   static final String GET_CONTENT_STORE_METHOD = "getContextStore";
   static final String GET_CONTENT_STORE_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(Type.getType(FieldBackedContextStore.class), Type.INT_TYPE);
-
-  static final String FIELD_BACKED_CONTENT_STORE_DESCRIPTOR =
-      Type.getDescriptor(FieldBackedContextStore.class);
+      Type.getMethodDescriptor(Type.getType(ContextStores.STORE_DESCRIPTOR), Type.INT_TYPE);
 
   static final String FAST_CONTENT_STORE_PREFIX = "contextStore";
 
@@ -151,12 +147,12 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
 
                 int storeId = getContextStoreId(keyClassName, contextClassName);
                 // use fast direct field access for a small number of stores
-                if (storeId < FieldBackedContextStores.FAST_STORE_ID_LIMIT) {
+                if (storeId < ContextStores.FAST_STORE_ID_LIMIT) {
                   mv.visitFieldInsn(
                       Opcodes.GETSTATIC,
                       FIELD_BACKED_CONTEXT_STORES_CLASS,
                       FAST_CONTENT_STORE_PREFIX + storeId,
-                      FIELD_BACKED_CONTENT_STORE_DESCRIPTOR);
+                      ContextStores.STORE_DESCRIPTOR);
                 } else {
                   mv.visitLdcInsn(storeId);
                   mv.visitMethodInsn(

@@ -1,8 +1,8 @@
 package excludefilter
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.bootstrap.ContextStores
 import datadog.trace.config.inversion.ConfigHelper
-import datadog.trace.bootstrap.FieldBackedContextStores
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
 
 import java.lang.reflect.Field
@@ -63,8 +63,8 @@ class ExcludeFilterForkedTest extends InstrumentationSpecification {
     private final boolean hasAccessorInterface
 
     InjectionCheck(Class<?> clazz, Class<?> key, Class<?> value) {
-      int storeId = FieldBackedContextStores.getContextStoreId(key.name, value.name)
-      String fieldName = "__datadogContext\$${storeId}"
+      int storeId = ContextStores.getContextStoreId(key.name, value.name)
+      String fieldName = "__dd_instrument\$${storeId}"
       boolean hasField = false
       for (Field field : clazz.getDeclaredFields()) {
         if (field.name == fieldName) {
@@ -76,7 +76,7 @@ class ExcludeFilterForkedTest extends InstrumentationSpecification {
 
       boolean hasAccessorInterface = false
       for (Class inter : clazz.getInterfaces()) {
-        if (inter.name == 'datadog.trace.bootstrap.FieldBackedContextAccessor') {
+        if (inter.name == 'datadog.instrument.fieldinject.KeyWithValue') {
           hasAccessorInterface = true
         }
       }
