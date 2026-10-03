@@ -35,6 +35,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -121,6 +122,27 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     scope.close();
 
     assertNull(scopeManager.active());
+  }
+
+  @Test
+  void activatingNullSpanReturnsNoopScopeAndDoesNotCorruptStack() {
+    AgentScope nullScope = scopeManager.activateSpan(null);
+
+    assertInstanceOf(NoopScope.class, nullScope);
+    assertNull(scopeManager.active());
+
+    nullScope.close();
+
+    // a subsequent activation on the same thread must not NPE, even though the noop
+    // activation above never pushed a scope with a null context onto the stack
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    AgentScope scope = tracer.activateSpan(span);
+
+    assertSame(scope, scopeManager.active());
+    assertSame(span, scope.span());
+
+    scope.close();
+    span.finish();
   }
 
   @Test
