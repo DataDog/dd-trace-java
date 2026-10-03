@@ -1,5 +1,6 @@
 package datadog.communication.serialization;
 
+import datadog.trace.api.function.BackgroundOnly;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 import javax.annotation.concurrent.ThreadSafe;
@@ -15,6 +16,11 @@ import javax.annotation.concurrent.ThreadSafe;
  * String#getBytes(java.nio.charset.Charset)}.
  *
  * <p>The cache is thread safe.
+ *
+ * <p>{@link BackgroundOnly}: the eden/tenured promotion and recalibration bookkeeping costs more
+ * than the {@code getBytes} call it replaces, so the saving only shows up as reduced allocation/GC
+ * pressure on the thread that pays it -- confine it to the background serializer thread, not an
+ * application thread.
  */
 /*
  * Cache works by using a 2-level promotion based scheme.
@@ -64,6 +70,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * provide better cache utilization.
  */
 @ThreadSafe
+@BackgroundOnly
 @SuppressFBWarnings(
     value = "IS2_INCONSISTENT_SYNC",
     justification =

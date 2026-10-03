@@ -81,3 +81,19 @@ Context ctx = Context.current();
 // GOOD - use the bytecode bridge, static-imported
 Context ctx = currentContext();
 ```
+
+### 4. Foreground/background thread cost contract
+
+**Why it matters:**
+
+- Advice bodies and span lifecycle methods run on the application (foreground) thread, where added cost is
+  customer-visible latency, as opposed to a background thread the tracer owns and paces itself
+- Code meant to run only on a background thread must never become reachable from a foreground call site
+
+**What to do:**
+
+Mark code with `datadog.trace.api.function.ForegroundSafe` (cheap enough for either thread) or `.BackgroundOnly`
+(must never be reached from the foreground) where the distinction matters, and see their Javadoc for the full
+contract, including the inheritance-narrowing rule for overrides. This is a documentation-and-tooling convention
+today (not yet compiler- or runtime-enforced); it is checked by hand and by the `dd-apm-sdk-review` skill's
+performance lens.

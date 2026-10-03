@@ -1,5 +1,6 @@
 package datadog.trace.api.cache;
 
+import datadog.trace.api.function.BackgroundOnly;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -16,6 +17,13 @@ public interface DDCache<K, V> {
   /** Clear the cache. */
   void clear();
 
-  /** Visits elements currently in the cache; for debugging/triage purposes. */
+  /**
+   * Visits elements currently in the cache; for debugging/triage purposes.
+   *
+   * <p>{@link BackgroundOnly}: every implementation invokes the caller-supplied {@code consumer}
+   * once per entry over a full scan, so the cost is unbounded regardless of the implementation's
+   * own scan shape.
+   */
+  @BackgroundOnly
   void visit(BiConsumer<K, V> consumer);
 }
