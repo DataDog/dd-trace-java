@@ -109,6 +109,18 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  boolean testBlockFailure() {
+    true
+  }
+
+  @Override
+  BlockFailureVariant blockFailureVariant() {
+    // Ratpack's own blocking call site for request headers lives in the Netty instrumentation;
+    // path params are published by PathBindingPublishingHandler, a Ratpack-specific call site.
+    BlockFailureVariant.PATH_PARAMS
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     return String
   }

@@ -4,6 +4,8 @@
     <Or>
       <Class name="~com.datadog.debugger.util.WeakIdentityHashMap.*" />
       <Package name="datadog.trace.bootstrap.instrumentation.decorator.http.utils" />
+      <!-- test infrastructure shared across instrumentation test suites, not production code -->
+      <Package name="datadog.trace.agent.test.base" />
       <Package name="datadog.smoketest.appsec.springboot.controller" />
       <Package name="datadog.smoketest.appsec.springboot.service" />
       <!-- these are auto-generated -->
