@@ -82,7 +82,9 @@ public class DatadogWrapperHelper {
   }
 
   public static void deactivateFlowContext(final Context context) {
-    if (context != Context.current()) {
+    final AgentSpan requestSpan = fromContext(context);
+    // A derived context can carry additional values while retaining the same request span.
+    if (requestSpan == null || requestSpan != fromContext(Context.current())) {
       return;
     }
     if (LEGACY_CONTEXT_MANAGER_ENABLED) {
@@ -91,8 +93,8 @@ public class DatadogWrapperHelper {
       rollbackActiveToCheckpoint();
       // Rollback consumes the checkpoint marker; restore it for the actor's eventual cleanup.
       checkpointActiveForRollback();
-      if (context == Context.current()) {
-        // An async response can resume the request context as the checkpointed scope itself.
+      if (requestSpan == fromContext(Context.current())) {
+        // An async response can checkpoint a context carrying this span, including a derived one.
         // Leave that actor-owned scope open, but mask it before pushing the response downstream.
         // Do not checkpoint the root scope: actor rollback must close it on exit.
         Context.root().attach();

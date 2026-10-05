@@ -85,16 +85,17 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
     Await.result(result, 10 seconds)
   }
 
-  def checkAsyncResponseContext(): Unit = {
+  def checkAsyncResponseContext(derivedContext: Boolean): Unit = {
     import akka.stream.scaladsl.{BidiFlow, Flow, Sink, Source}
     import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
     import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
-    import datadog.context.Context
+    import datadog.context.{Context, ContextKey}
     import datadog.trace.bootstrap.instrumentation.api.AgentSpan
     import datadog.trace.core.DDSpan
     import datadog.trace.instrumentation.akkahttp.DatadogServerRequestResponseFlowWrapper
     import scala.concurrent.Promise
 
+    val responseContextKey       = ContextKey.named[String]("response-test-value")
     val respond                  = Promise[() => Unit]()
     var previousContext: Context = null
     var requestSpan: AgentSpan   = null
@@ -109,6 +110,9 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
         private val response = getAsyncCallback[Unit] { _ =>
           assert(activeSpan() eq requestSpan, "async callback did not resume the request context")
           assert(!requestSpan.asInstanceOf[DDSpan].isFinished)
+          if (derivedContext) {
+            assert(Context.current().get(responseContextKey) == "derived")
+          }
           push(out, HttpResponse())
           completeStage()
         }
@@ -118,7 +122,11 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
             override def onPush(): Unit = {
               grab(in)
               requestSpan = activeSpan()
-              val requestContext = Context.current()
+              val requestContext = if (derivedContext) {
+                Context.current().`with`(responseContextKey, "derived")
+              } else {
+                Context.current()
+              }
               setKeepGoing(true)
               respond.success(() => {
                 // Send an AsyncInput envelope carrying the request context from the test thread.

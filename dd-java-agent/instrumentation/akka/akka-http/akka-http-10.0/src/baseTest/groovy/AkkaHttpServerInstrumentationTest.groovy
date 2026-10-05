@@ -283,12 +283,15 @@ class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentati
 }
 
 class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstrumentationTest {
-  def "restore context before processing an async response downstream"() {
+  def "restore context before processing an async response downstream (derived context: #derivedContext)"() {
     when:
-    server.checkAsyncResponseContext()
+    server.checkAsyncResponseContext(derivedContext)
 
     then:
     TEST_WRITER.waitForTraces(1)
+
+    where:
+    derivedContext << [false, true]
   }
 
   def "restore context before processing a response downstream"() {
