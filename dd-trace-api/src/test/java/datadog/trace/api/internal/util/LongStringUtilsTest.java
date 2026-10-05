@@ -2,6 +2,7 @@ package datadog.trace.api.internal.util;
 
 import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLong;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.api.DDTraceApiTableTestConverters;
@@ -73,6 +74,27 @@ class LongStringUtilsTest {
   @ParameterizedTest(name = "non-throwing parse of a range [{index}]")
   void nonThrowingParseOfARange(String input, int start, int len, long expected) {
     assertEquals(expected, parseUnsignedLong(input, start, len, SENTINEL));
+  }
+
+  @TableTest({
+    "scenario         | input                   | start | len | expected",
+    "zero             | '0'                     | 0     | 1   | true    ",
+    "20 zeros         | '00000000000000000000'  | 0     | 20  | true    ",
+    "zeros in a range | 'x00y'                  | 1     | 2   | true    ",
+    "21 zeros         | '000000000000000000000' | 0     | 21  | false   ",
+    "non-zero digit   | '01'                    | 0     | 2   | false   ",
+    "not a digit      | 'a'                     | 0     | 1   | false   ",
+    "empty            | ''                      | 0     | 0   | false   ",
+    "past the end     | '0'                     | 0     | 2   | false   "
+  })
+  @ParameterizedTest(name = "isUnsignedLongZero [{index}]")
+  void isUnsignedLongZero(String input, int start, int len, boolean expected) {
+    assertEquals(expected, LongStringUtils.isUnsignedLongZero(input, start, len));
+  }
+
+  @Test
+  void isUnsignedLongZeroOfNull() {
+    assertFalse(LongStringUtils.isUnsignedLongZero(null, 0, 0));
   }
 
   @TableTest({
