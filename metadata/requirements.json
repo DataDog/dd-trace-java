@@ -136,7 +136,7 @@
     },
     {
       "id": "apache_cassandra_sstablescrub",
-      "description": "Exclude Apache Cassandra stablescrub",
+      "description": "Exclude Apache Cassandra sstablescrub",
       "os": null,
       "cmds": [
         "**/java"
@@ -408,7 +408,7 @@
     },
     {
       "id": "apache_lucene8_luke",
-      "description": "Exclude Lucene 8 Luke",
+      "description": "Exclude Apache Lucene 8 Luke",
       "os": null,
       "cmds": [
         "**/java"
@@ -442,7 +442,7 @@
     },
     {
       "id": "apache_netbeans",
-      "description": "Exclude Apache Netbeans",
+      "description": "Exclude Apache NetBeans",
       "os": null,
       "cmds": [
         "**/java"
@@ -510,7 +510,7 @@
     },
     {
       "id": "datadog_jmxfetch",
-      "description": "Exclude DataDog JMXFetch",
+      "description": "Exclude Datadog JMXFetch",
       "os": null,
       "cmds": [
         "**/java"
@@ -527,7 +527,7 @@
     },
     {
       "id": "open_liberty_utility_main",
-      "description": "Exclude UtilityMain that expected single jar in classpath",
+      "description": "Exclude Open Liberty UtilityMain (expects a single-jar classpath)",
       "os": null,
       "cmds": [
         "**/java"
@@ -578,7 +578,7 @@
     },
     {
       "id": "elasticsearch7",
-      "description": "Exclude Elastic Search 7+ commands",
+      "description": "Exclude Elasticsearch 7+ commands",
       "os": null,
       "cmds": [
         "**/java"
@@ -595,7 +595,7 @@
     },
     {
       "id": "intellij_idea",
-      "description": "Exclude Jetbrains IntelliJ IDEA",
+      "description": "Exclude JetBrains IntelliJ IDEA",
       "os": null,
       "cmds": [
         "**/java"

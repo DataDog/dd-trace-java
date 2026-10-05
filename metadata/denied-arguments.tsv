@@ -9,7 +9,7 @@ apache_cassandra                org.apache.cassandra.service.CassandraDaemon    
 apache_cassandra_debugcql       org.apache.cassandra.transport.Client                       Exclude Apache Cassandra debug-cql
 apache_cassandra_nodetool       org.apache.cassandra.tools.NodeTool                         Exclude Apache Cassandra nodetool
 apache_cassandra_sstableloader  org.apache.cassandra.tools.BulkLoader                       Exclude Apache Cassandra sstableloader
-apache_cassandra_sstablescrub   org.apache.cassandra.tools.StandaloneScrubber               Exclude Apache Cassandra stablescrub
+apache_cassandra_sstablescrub   org.apache.cassandra.tools.StandaloneScrubber               Exclude Apache Cassandra sstablescrub
 apache_cassandra_sstableupgrade org.apache.cassandra.tools.StandaloneUpgrader               Exclude Apache Cassandra sstableupgrade
 apache_cassandra_sstableutil    org.apache.cassandra.tools.StandaloneSSTableUtil            Exclude Apache Cassandra sstableutil
 apache_cassandra_sstableverify  org.apache.cassandra.tools.StandaloneVerifier               Exclude Apache Cassandra sstableverify
@@ -29,32 +29,32 @@ oracle_trcasst                  oracle.net.trcasst.Jtrcasst                     
 oracle_trcsess                  oracle.ss.tools.trcsess.TrcSess                             Exclude Oracle Session Tracer
 
 # Apache Lucene
-apache_lucene8_luke             org.apache.lucene.luke.app.desktop.LukeMain                 Exclude Lucene 8 Luke
+apache_lucene8_luke             org.apache.lucene.luke.app.desktop.LukeMain                 Exclude Apache Lucene 8 Luke
 apache_lucene9_luke             org.apache.lucene.luke                                      Exclude Apache Lucene 9 Luke
 
-# Apache Netbeans
-apache_netbeans                 org.netbeans.Main                                           Exclude Apache Netbeans
+# Apache NetBeans
+apache_netbeans                 org.netbeans.Main                                           Exclude Apache NetBeans
 
 # Apache Solr 8
 apache_solr8_start              -Dsolr.solr.home=*                                          Exclude Apache Solr 8 start command using System Properties
 apache_solr8_stop               *solr/server/start.jar                                      Exclude Apache Solr 8 stop using path to jar
 apache_solr8_tools              org.apache.solr.util.SolrCLI                                Exclude Apache Solr 8 CLI tools
 
-# DataDog JMXFetch
-datadog_jmxfetch                org.datadog.jmxfetch.App                                    Exclude DataDog JMXFetch
+# Datadog JMXFetch
+datadog_jmxfetch                org.datadog.jmxfetch.App                                    Exclude Datadog JMXFetch
 
 # Open Liberty
-open_liberty_utility_main       com.ibm.ws.kernel.boot.cmdline.UtilityMain                  Exclude UtilityMain that expected single jar in classpath
+open_liberty_utility_main       com.ibm.ws.kernel.boot.cmdline.UtilityMain                  Exclude Open Liberty UtilityMain (expects a single-jar classpath)
 
 # IBM SDK, Java Technology Edition
 ibm_ikeycmd                     com.ibm.gsk.ikeyman.ikeycmd                                 Exclude IBM ikeycmd utility
 ibm_ikeyman                     com.ibm.gsk.ikeyman.Ikeyman                                 Exclude IBM Ikeyman utility
 
-# Elastic Search 7+
-elasticsearch7                  -Des.path.home=*                                            Exclude Elastic Search 7+ commands
+# Elasticsearch 7+
+elasticsearch7                  -Des.path.home=*                                            Exclude Elasticsearch 7+ commands
 
-# Jetbrains IntelliJ IDEA
-intellij_idea                   com.intellij.idea.Main                                      Exclude Jetbrains IntelliJ IDEA
+# JetBrains IntelliJ IDEA
+intellij_idea                   com.intellij.idea.Main                                      Exclude JetBrains IntelliJ IDEA
 
 # Java CDS archive dump
 java_xshare_dump                -Xshare:dump                                                Exclude Java -Xshare:dump
