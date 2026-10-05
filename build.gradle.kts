@@ -3,6 +3,7 @@ import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
 
+// test
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
 
