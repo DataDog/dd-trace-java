@@ -26,17 +26,19 @@ import org.openjdk.jmh.infra.Blackhole;
  * a full stack trace fill-in every time.
  *
  * <p>It also measures the reusable form of the guard, {@link AdaptiveLatch} (APMLP-1884): an
- * abstract class whose subclass <em>is</em> the strategy (an optimistic parse and a cheap, correct
- * pre-check), held in a {@code static final}. The arms use the production subclass, {@link
- * Functions.GuardedBase64Decode}. {@link AdaptiveLatch#tryApply} converts a failure to {@code null}
- * and never builds an exception at all while engaged.
+ * abstract class whose subclass <em>is</em> the strategy, held in a {@code static final}. The arms
+ * use the production subclass, {@link Functions.GuardedBase64Decode}, whose cautious path is an
+ * exception-free decoder; {@code Base64DecodeBenchmark} compares that decoder with the JDK's
+ * directly. {@link AdaptiveLatch#tryApply} converts a failure to {@code null} and never builds an
+ * exception at all while engaged.
  *
  * <p>The numbers below were measured on an earlier, benchmark-local sketch of the latch, then named
- * {@code DynamicLatch}, with {@code tryGetOrNull} for {@code tryApply}, before {@code fallback} was
- * added and before the pre-check stopped rejecting unpadded input. The sketch also had a
- * flow-through flavor, {@code get}, which threw a stackless stand-in while engaged; it was dropped
- * when the latch moved into production because no caller needs it, and its arms were removed. The
- * hand-written throwing {@link Breaker} still measures that shape. Not re-measured since.
+ * {@code DynamicLatch}, with {@code tryGetOrNull} for {@code tryApply}, while its engaged path was
+ * an alphabet pre-check in front of the JDK decoder, before {@code fallback} was added and before
+ * the pre-check stopped rejecting unpadded input. The sketch also had a flow-through flavor, {@code
+ * get}, which threw a stackless stand-in while engaged; it was dropped when the latch moved into
+ * production because no caller needs it, and its arms were removed. The hand-written throwing
+ * {@link Breaker} still measures that shape. Not re-measured since.
  *
  * <p>The hand-written {@link Breaker} is the specialized baseline the latch is compared against.
  *

@@ -38,6 +38,10 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>Run with {@code ./gradlew :internal-api:jmh -Pjmh.includes=AdaptiveLatchBenchmark
  * -Pjmh.profilers=gc}.
  *
+ * <p>The latch here takes the pre-check form of a cautious path: the digit scan, then {@code
+ * parseInt} only if it passes. The results were recorded when that was the latch's only form; it
+ * does the same work now.
+ *
  * <p>Results, one run: Zulu 17.0.7 (HotSpot), MacBook M1, single thread, 2 forks of 5 one-second
  * iterations, on a laptop with normal background activity. JDK 8 and x86 are not measured. ns/op is
  * derived from ops/s; B/op is from {@code -prof gc}. Good input allocates 16 B for the boxed result
@@ -89,7 +93,7 @@ public class AdaptiveLatchBenchmark {
   @Param({"0", "50"})
   int depth;
 
-  /** Parses an int; the pre-check flags anything that is not all ASCII digits. */
+  /** Parses an int; while engaged, a digit scan turns away anything that is not plain digits. */
   static class Parse extends AdaptiveLatch<String, Integer, NumberFormatException> {
     Parse() {
       super(NumberFormatException.class);
@@ -101,8 +105,14 @@ public class AdaptiveLatchBenchmark {
     }
 
     @Override
-    protected boolean isKnownToFail(String input) {
-      return !isAllDigits(input);
+    protected Integer applySafely(String input) {
+      return isAllDigits(input) ? Integer.parseInt(input) : reject(input);
+    }
+
+    /** The value the recorded results were measured with; not tuned for this operation. */
+    @Override
+    protected int closeAfter() {
+      return 20;
     }
   }
 
