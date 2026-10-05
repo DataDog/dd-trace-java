@@ -42,13 +42,6 @@ public class CassandraClusterInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ContactPointsUtil",
-    };
-  }
-
-  @Override
   public String muzzleDirective() {
     return "cluster";
   }

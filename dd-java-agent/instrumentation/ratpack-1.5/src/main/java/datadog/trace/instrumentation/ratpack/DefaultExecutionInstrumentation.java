@@ -29,13 +29,6 @@ public final class DefaultExecutionInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ActionWrapper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("delimit") // include delimitStream

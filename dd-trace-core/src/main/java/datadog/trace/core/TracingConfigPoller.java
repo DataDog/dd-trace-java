@@ -268,6 +268,7 @@ final class TracingConfigPoller {
   void removeConfigOverrides() {
     dynamicConfig.resetTraceConfig();
     GlobalLogLevelSwitcher.get().restore();
+    DebuggerConfigBridge.resetToInitialConfig();
   }
 
   private <T> void maybeOverride(Consumer<T> setter, T override) {

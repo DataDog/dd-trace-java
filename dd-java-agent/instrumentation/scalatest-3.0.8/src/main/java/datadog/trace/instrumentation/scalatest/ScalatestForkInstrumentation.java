@@ -31,11 +31,6 @@ public class ScalatestForkInstrumentation extends InstrumenterModule.CiVisibilit
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("runner").and(takesArgument(1, String[].class)),

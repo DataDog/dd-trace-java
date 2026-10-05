@@ -14,6 +14,7 @@ import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;

@@ -35,6 +35,7 @@ testing {
     named<JvmTestSuite>("test") {
       useJUnitJupiter(libs.versions.junit5)
       dependencies {
+        implementation(platform(libs.junit.bom))
         implementation(libs.junit.jupiter)
         implementation(libs.junit.jupiter.params)
         implementation(libs.junit.jupiter.engine)
