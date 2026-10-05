@@ -60,6 +60,18 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      // referenced by the inlined advice below to commit the blocking response
+      "datadog.trace.instrumentation.tomcat.BlockFailureReporter",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl$CachedMethods",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseParts")
