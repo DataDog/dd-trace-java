@@ -1,9 +1,7 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-import datadog.environment.OperatingSystem
-import spock.lang.IgnoreIf
-
 import com.redis.testcontainers.RedisContainer
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import io.lettuce.core.ClientOptions
@@ -14,10 +12,9 @@ import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.DockerImageName
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
   OperatingSystem.isWindows()
