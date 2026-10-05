@@ -6,14 +6,22 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Immutable scope and continuation lifecycle snapshot with derived failures. */
 public final class ScopeDiagnosticsReport {
+  private static final EnumSet<ScopeDiagnosticsCheck> ENFORCED_CHECKS =
+      EnumSet.of(
+          ScopeDiagnosticsCheck.LEAKED,
+          ScopeDiagnosticsCheck.DOUBLE_FINISH,
+          ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+          ScopeDiagnosticsCheck.NEVER_CLOSED);
+
   private final List<ContinuationRecord> continuations;
   private final List<ScopeRecord> scopes;
   private final long t0;
-  private final Map<ContinuationRecord, EnumSet<Failure>> continuationFailures;
-  private final Map<ScopeRecord, EnumSet<Failure>> scopeFailures;
+  private final Map<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> continuationFailures;
+  private final Map<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> scopeFailures;
   private final Map<Long, ScopeRecord> scopeBySeq;
 
   ScopeDiagnosticsReport(
@@ -50,11 +58,11 @@ public final class ScopeDiagnosticsReport {
     return min == Long.MAX_VALUE ? 0 : min;
   }
 
-  private static Map<ContinuationRecord, EnumSet<Failure>> classifyContinuations(
+  private static Map<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> classifyContinuations(
       List<ContinuationRecord> records, Map<DDTraceId, Long> rootWrittenNanos) {
-    Map<ContinuationRecord, EnumSet<Failure>> result = new LinkedHashMap<>();
+    Map<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> result = new LinkedHashMap<>();
     for (ContinuationRecord r : records) {
-      EnumSet<Failure> failures = r.failures(rootWrittenNanos.get(r.traceId));
+      EnumSet<ScopeDiagnosticsCheck> failures = r.failures(rootWrittenNanos.get(r.traceId));
       if (!failures.isEmpty()) {
         result.put(r, failures);
       }
@@ -62,10 +70,11 @@ public final class ScopeDiagnosticsReport {
     return result;
   }
 
-  private static Map<ScopeRecord, EnumSet<Failure>> classifyScopes(List<ScopeRecord> scopes) {
-    Map<ScopeRecord, EnumSet<Failure>> result = new LinkedHashMap<>();
+  private static Map<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> classifyScopes(
+      List<ScopeRecord> scopes) {
+    Map<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> result = new LinkedHashMap<>();
     for (ScopeRecord s : scopes) {
-      EnumSet<Failure> failures = s.failures();
+      EnumSet<ScopeDiagnosticsCheck> failures = s.failures();
       if (!failures.isEmpty()) {
         result.put(s, failures);
       }
@@ -81,36 +90,36 @@ public final class ScopeDiagnosticsReport {
     return new ArrayList<>(scopes);
   }
 
-  public Map<ContinuationRecord, EnumSet<Failure>> findings() {
+  public Map<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> findings() {
     return new LinkedHashMap<>(continuationFailures);
   }
 
-  public Map<ScopeRecord, EnumSet<Failure>> scopeFindings() {
+  public Map<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> scopeFindings() {
     return new LinkedHashMap<>(scopeFailures);
   }
 
   public int leakCount() {
-    return countWith(continuationFailures, Failure.LEAKED);
+    return countWith(continuationFailures, ScopeDiagnosticsCheck.LEAKED);
   }
 
   public int lateCount() {
-    return countWith(continuationFailures, Failure.LATE_FINISH);
+    return countWith(continuationFailures, ScopeDiagnosticsCheck.LATE_FINISH);
   }
 
   public int doubleCount() {
-    return countWith(continuationFailures, Failure.DOUBLE_FINISH);
+    return countWith(continuationFailures, ScopeDiagnosticsCheck.DOUBLE_FINISH);
   }
 
   public int activateAfterResolveCount() {
-    return countWith(continuationFailures, Failure.ACTIVATE_AFTER_RESOLVE);
+    return countWith(continuationFailures, ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE);
   }
 
   public int neverClosedScopeCount() {
-    return countWith(scopeFailures, Failure.NEVER_CLOSED);
+    return countWith(scopeFailures, ScopeDiagnosticsCheck.NEVER_CLOSED);
   }
 
   public int closeWrongThreadCount() {
-    return countWith(scopeFailures, Failure.CLOSE_WRONG_THREAD);
+    return countWith(scopeFailures, ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD);
   }
 
   public int deferredCleanupScopeCount() {
@@ -127,22 +136,49 @@ public final class ScopeDiagnosticsReport {
     return leakCount() > 0 || neverClosedScopeCount() > 0;
   }
 
-  private static <K> int countWith(Map<K, EnumSet<Failure>> findings, Failure failure) {
+  private static <K> int countWith(
+      Map<K, EnumSet<ScopeDiagnosticsCheck>> findings, ScopeDiagnosticsCheck check) {
     int n = 0;
-    for (EnumSet<Failure> f : findings.values()) {
-      if (f.contains(failure)) {
+    for (EnumSet<ScopeDiagnosticsCheck> f : findings.values()) {
+      if (f.contains(check)) {
         n++;
       }
     }
     return n;
   }
 
-  /** Returns whether the report contains a failure that should fail the test. */
-  public boolean hasProblems() {
-    return leakCount() > 0
-        || doubleCount() > 0
-        || activateAfterResolveCount() > 0
-        || neverClosedScopeCount() > 0;
+  /** Returns whether the report contains a violation that should fail the test. */
+  public boolean hasViolations() {
+    return hasViolations(EnumSet.allOf(ScopeDiagnosticsCheck.class));
+  }
+
+  /** Returns whether an enabled check contains a finding enforced by the current policy. */
+  boolean hasViolations(Set<ScopeDiagnosticsCheck> enabledChecks) {
+    for (ScopeDiagnosticsCheck check : enabledChecks) {
+      if (ENFORCED_CHECKS.contains(check) && count(check) > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private int count(ScopeDiagnosticsCheck check) {
+    switch (check) {
+      case LEAKED:
+        return leakCount();
+      case LATE_FINISH:
+        return lateCount();
+      case DOUBLE_FINISH:
+        return doubleCount();
+      case ACTIVATE_AFTER_RESOLVE:
+        return activateAfterResolveCount();
+      case CLOSE_WRONG_THREAD:
+        return closeWrongThreadCount();
+      case NEVER_CLOSED:
+        return neverClosedScopeCount();
+      default:
+        throw new IllegalStateException("Unknown scope diagnostic check: " + check);
+    }
   }
 
   /** True when the report contains either a failing problem or an advisory signal. */
@@ -181,7 +217,8 @@ public final class ScopeDiagnosticsReport {
       sb.append("  (none)\n");
       return sb.toString();
     }
-    for (Map.Entry<ContinuationRecord, EnumSet<Failure>> e : continuationFailures.entrySet()) {
+    for (Map.Entry<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> e :
+        continuationFailures.entrySet()) {
       ContinuationRecord r = e.getKey();
       ScopeEvent capture = r.capture();
       sb.append("  ")
@@ -196,7 +233,7 @@ public final class ScopeDiagnosticsReport {
           .append(capture == null || capture.callsite() == null ? "<unknown>" : capture.callsite())
           .append('\n');
     }
-    for (Map.Entry<ScopeRecord, EnumSet<Failure>> e : scopeFailures.entrySet()) {
+    for (Map.Entry<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> e : scopeFailures.entrySet()) {
       ScopeRecord s = e.getKey();
       ScopeEvent open = s.open();
       sb.append("  ")
@@ -226,8 +263,8 @@ public final class ScopeDiagnosticsReport {
     }
 
     for (ContinuationRecord r : continuations) {
-      EnumSet<Failure> failures =
-          continuationFailures.getOrDefault(r, EnumSet.noneOf(Failure.class));
+      EnumSet<ScopeDiagnosticsCheck> failures =
+          continuationFailures.getOrDefault(r, EnumSet.noneOf(ScopeDiagnosticsCheck.class));
       sb.append("\n#")
           .append(r.seq)
           .append(' ')
@@ -308,7 +345,8 @@ public final class ScopeDiagnosticsReport {
   }
 
   private void appendScopeLine(StringBuilder sb, String indent, ScopeRecord scope) {
-    EnumSet<Failure> failures = scopeFailures.getOrDefault(scope, EnumSet.noneOf(Failure.class));
+    EnumSet<ScopeDiagnosticsCheck> failures =
+        scopeFailures.getOrDefault(scope, EnumSet.noneOf(ScopeDiagnosticsCheck.class));
     sb.append(indent).append("scope#").append(scope.seq).append(' ').append(scope.sourceName());
     if (scope.spanName != null) {
       sb.append(" \"").append(scope.spanName).append('"');

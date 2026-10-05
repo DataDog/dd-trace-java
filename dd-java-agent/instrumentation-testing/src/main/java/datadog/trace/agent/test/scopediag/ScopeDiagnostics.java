@@ -4,6 +4,7 @@ import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -102,30 +103,51 @@ public final class ScopeDiagnostics {
 
   /**
    * Fails with an {@link AssertionError} (carrying the problem summary) if the report flags a
-   * genuine bug (see {@link ScopeDiagnosticsReport#hasProblems()}). Report-only signals such as
+   * genuine bug (see {@link ScopeDiagnosticsReport#hasViolations()}). Report-only signals such as
    * late-after-root and close-on-wrong-thread do not fail.
    */
-  public static void assertNoLeaks() {
-    assertNoLeaks(report());
+  public static void assertNoViolations() {
+    assertNoViolations(report());
   }
 
   /** Fails using the supplied snapshot, so rendering and assertion examine the same events. */
-  public static void assertNoLeaks(ScopeDiagnosticsReport report) {
-    if (report.hasProblems()) {
-      throw new AssertionError("Scope continuation problems detected:\n" + report.renderSummary());
+  public static void assertNoViolations(ScopeDiagnosticsReport report) {
+    assertNoViolations(report, null);
+  }
+
+  /** Fails when the supplied configuration selects an enforced violation in the snapshot. */
+  public static void assertNoViolations(
+      ScopeDiagnosticsReport report, TrackScopeContinuations config) {
+    if (report.hasViolations(enabledChecks(config))) {
+      throw new AssertionError(
+          "Scope/continuation lifecycle violations detected:\n" + report.renderSummary());
     }
   }
 
-  /** Resolves the default-on policy and rejects opt-outs without a reason. */
+  /** Returns whether the configuration selects any checks to evaluate. */
   public static boolean isEnabled(TrackScopeContinuations config) {
-    if (config == null || config.enabled()) {
-      return true;
+    return !enabledChecks(config).isEmpty();
+  }
+
+  static EnumSet<ScopeDiagnosticsCheck> enabledChecks(TrackScopeContinuations config) {
+    EnumSet<ScopeDiagnosticsCheck> allChecks = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    if (config == null) {
+      return allChecks;
     }
-    if (config.reason().trim().isEmpty()) {
+
+    EnumSet<ScopeDiagnosticsCheck> configured = EnumSet.noneOf(ScopeDiagnosticsCheck.class);
+    Collections.addAll(configured, config.checks());
+    EnumSet<ScopeDiagnosticsCheck> enabled = configured;
+    if (!config.enabled()) {
+      enabled = allChecks.clone();
+      enabled.removeAll(configured);
+    }
+
+    if (!enabled.equals(allChecks) && config.reason().trim().isEmpty()) {
       throw new IllegalArgumentException(
-          "@TrackScopeContinuations(enabled = false) requires a reason");
+          "@TrackScopeContinuations requires a reason when checks are disabled");
     }
-    return false;
+    return enabled;
   }
 
   private void clear() {

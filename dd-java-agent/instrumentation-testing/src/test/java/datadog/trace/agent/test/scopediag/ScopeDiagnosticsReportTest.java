@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,7 @@ class ScopeDiagnosticsReportTest {
     assertEquals(0, report.doubleCount());
     assertEquals(ContinuationStatus.FINISHED, r.status());
     assertTrue(r.threadHandoff());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -72,7 +73,7 @@ class ScopeDiagnosticsReportTest {
 
     assertEquals(1, report.leakCount());
     assertEquals(ContinuationStatus.LEAKED, r.status());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
     assertTrue(report.renderSummary().contains("LEAKED"));
     assertTrue(report.renderSummary().contains("Worker.java:42"));
   }
@@ -105,7 +106,20 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), rootWritten);
 
     assertEquals(1, report.lateCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
+    assertFalse(report.hasViolations(EnumSet.of(ScopeDiagnosticsCheck.LATE_FINISH)));
+  }
+
+  @Test
+  void enabledChecksSelectEnforcementWithoutChangingFindings() {
+    ContinuationRecord r = record(0, DDTraceId.from(121));
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertTrue(report.hasViolations(EnumSet.of(ScopeDiagnosticsCheck.LEAKED)));
+    assertFalse(report.hasViolations(EnumSet.of(ScopeDiagnosticsCheck.DOUBLE_FINISH)));
+    assertEquals(1, report.leakCount());
+    assertTrue(report.hasFindings());
+    assertTrue(report.renderSummary().contains("LEAKED"));
   }
 
   @Test
@@ -118,7 +132,7 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), map());
 
     assertEquals(1, report.doubleCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
   }
 
   @Test
@@ -134,7 +148,7 @@ class ScopeDiagnosticsReportTest {
     assertEquals(ContinuationStatus.FINISHED, report.records().get(0).status());
     assertEquals(0, report.activateAfterResolveCount());
     assertEquals(0, report.doubleCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -146,7 +160,7 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), map());
 
     assertEquals(1, report.activateAfterResolveCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
   }
 
   @Test
@@ -157,7 +171,7 @@ class ScopeDiagnosticsReportTest {
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
     assertTrue(report.renderSummary().contains("(none)"));
 
     String timeline = report.renderTimeline();

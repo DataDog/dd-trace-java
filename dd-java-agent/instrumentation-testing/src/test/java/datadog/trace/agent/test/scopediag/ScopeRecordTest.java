@@ -49,7 +49,7 @@ class ScopeRecordTest {
     assertEquals(0, s.failures().size());
     assertFalse(s.threadHandoff());
     assertEquals(Long.valueOf(2000), s.activeDurationNanos());
-    assertFalse(report(s).hasProblems());
+    assertFalse(report(s).hasViolations());
   }
 
   @Test
@@ -74,7 +74,7 @@ class ScopeRecordTest {
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 4000));
 
     ScopeDiagnosticsReport report = report(s);
-    assertFalse(report.hasProblems(), "wrong-thread cleanup remains advisory");
+    assertFalse(report.hasViolations(), "wrong-thread cleanup remains advisory");
     String timeline = report.renderTimeline();
     assertTrue(timeline.contains("wrong-thread close"));
     assertTrue(timeline.contains("@ worker-one  at com.app.First.close(First.java:12)"));
@@ -86,11 +86,11 @@ class ScopeRecordTest {
     ScopeRecord s = scope(0, null, "main", 1000);
 
     assertFalse(s.closed());
-    assertTrue(s.failures().contains(Failure.NEVER_CLOSED));
+    assertTrue(s.failures().contains(ScopeDiagnosticsCheck.NEVER_CLOSED));
 
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.neverClosedScopeCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
   }
 
   @Test
@@ -99,10 +99,10 @@ class ScopeRecordTest {
     s.markDeferredCleanup();
 
     ScopeDiagnosticsReport report = report(s);
-    assertFalse(s.failures().contains(Failure.NEVER_CLOSED));
+    assertFalse(s.failures().contains(ScopeDiagnosticsCheck.NEVER_CLOSED));
     assertEquals(1, report.deferredCleanupScopeCount());
     assertEquals(0, report.neverClosedScopeCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -119,10 +119,10 @@ class ScopeRecordTest {
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 2000));
     s.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD, "pool-2", 1500));
 
-    assertTrue(s.failures().contains(Failure.CLOSE_WRONG_THREAD));
+    assertTrue(s.failures().contains(ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD));
 
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.closeWrongThreadCount());
-    assertFalse(report.hasProblems()); // wrong-thread is report-only
+    assertFalse(report.hasViolations()); // wrong-thread is report-only
   }
 }

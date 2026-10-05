@@ -11,9 +11,25 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Inherited
 public @interface TrackScopeContinuations {
-  /** Set to {@code false} only for a proven incompatibility with the diagnostic itself. */
+  /**
+   * Selects whether {@link #checks()} is the complete set of active checks ({@code true}) or the
+   * checks to remove from the default full set ({@code false}).
+   */
   boolean enabled() default true;
 
-  /** Explains why the diagnostic is disabled. Required when {@link #enabled()} is false. */
+  /**
+   * Checks selected by {@link #enabled()}. The default lists every available check; a configuration
+   * test guards that invariant as new checks are added.
+   */
+  ScopeDiagnosticsCheck[] checks() default {
+    ScopeDiagnosticsCheck.LEAKED,
+    ScopeDiagnosticsCheck.LATE_FINISH,
+    ScopeDiagnosticsCheck.DOUBLE_FINISH,
+    ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+    ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD,
+    ScopeDiagnosticsCheck.NEVER_CLOSED
+  };
+
+  /** Explains any reduction from the default full check set. */
   String reason() default "";
 }

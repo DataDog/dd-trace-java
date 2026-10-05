@@ -137,8 +137,26 @@ If a fix cannot be included immediately, quarantine the Spock test with `@Flaky`
 `@Flaky` is not yet supported for JUnit tests.
 Keep continuation tracking enabled so the diagnostic evidence is preserved.
 
-Disable tracking with `@TrackScopeContinuations(enabled = false, reason = "...")` only for a proven incompatibility with the diagnostic itself, never for an unresolved leak.
-Keep the opt-out narrow and document the incompatibility and its removal condition.
+`@TrackScopeContinuations` checks every detected lifecycle condition by default. Its `checks` value
+and `enabled` flag select the active checks:
+
+```java
+// Run every check except the known-incompatible late-finish check.
+@TrackScopeContinuations(
+    enabled = false,
+    checks = ScopeDiagnosticsCheck.LATE_FINISH,
+    reason = "the fixture deliberately writes the root before draining callbacks; remove with ABC-123")
+```
+
+With `enabled = true`, `checks` is a whitelist. With `enabled = false`, `checks` is removed from the
+default full set. Omitting `checks` therefore preserves the existing full enable/disable behavior.
+Any reduction from the full set requires a reason documenting the incompatibility and its removal
+condition.
+
+When at least one check is active, all conditions remain recorded and reported. The diagnostic
+policy independently decides which conditions fail a test and which are advisory, so advisory
+conditions are also valid selectors. Disable tracking or individual checks only for a proven
+incompatibility with the diagnostic itself, never to hide an unresolved lifecycle bug.
 Strict trace writes remain enabled.
 
 ## Running Tests

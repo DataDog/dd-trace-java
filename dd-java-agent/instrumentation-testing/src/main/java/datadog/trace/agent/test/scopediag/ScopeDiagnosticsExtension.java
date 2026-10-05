@@ -34,7 +34,7 @@ public final class ScopeDiagnosticsExtension implements BeforeEachCallback, Afte
       if (report.hasFindings()) {
         log.info("[{}] {}", context.getDisplayName(), report.renderTimeline());
       }
-      ScopeDiagnostics.assertNoLeaks(report);
+      ScopeDiagnostics.assertNoViolations(report, config);
     } finally {
       ScopeDiagnostics.reset();
     }

@@ -49,7 +49,7 @@ class ScopeDiagnosticsIntegrationTest {
 
     assertEquals(2, report.records().size(), "both captures recorded");
     assertEquals(1, report.leakCount(), "exactly the un-resolved continuation leaks");
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
     assertFalse(leaked.toString().isEmpty());
 
     span.finish();
@@ -84,7 +84,7 @@ class ScopeDiagnosticsIntegrationTest {
         report.activateAfterResolveCount(),
         "a same-span re-activation resolved during activate() is not activate-after-resolve");
     assertEquals(0, report.leakCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -114,14 +114,14 @@ class ScopeDiagnosticsIntegrationTest {
     ContextContinuation continuation = tracer.capture(span);
     ContextScope scope = continuation.resume();
     scope.close();
-    assertFalse(ScopeDiagnostics.report().hasProblems());
+    assertFalse(ScopeDiagnostics.report().hasViolations());
     scope.close();
     span.finish();
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(1, report.doubleCount());
     assertEquals(0, report.leakCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
     assertTrue(report.renderTimeline().contains("DOUBLE_FINISH"));
   }
 
@@ -147,7 +147,7 @@ class ScopeDiagnosticsIntegrationTest {
     assertFalse(report.renderTimeline().contains("cancel"));
     assertEquals(0, report.doubleCount());
     assertEquals(0, report.leakCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -163,7 +163,7 @@ class ScopeDiagnosticsIntegrationTest {
     assertEquals(1, report.records().size());
     assertEquals(ContinuationStatus.RELEASED, report.records().get(0).status());
     assertEquals(ScopeEvent.Type.RESOLVE_RELEASE, report.records().get(0).terminal().type);
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -228,7 +228,7 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(1, report.deferredCleanupScopeCount());
     assertEquals(0, report.neverClosedScopeCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
 
     tracer.closePrevious(true);
   }
@@ -263,7 +263,7 @@ class ScopeDiagnosticsIntegrationTest {
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertFalse(report.hasIncompleteLifecycles());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
     span.finish();
   }
 
@@ -281,7 +281,7 @@ class ScopeDiagnosticsIntegrationTest {
 
     assertEquals(1, report.neverClosedScopeCount(), "the open scope never closed");
     assertEquals(1, report.leakCount(), "and the continuation it backs also leaks");
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
 
     scope.close();
     span.finish();

@@ -565,7 +565,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       if (report.hasFindings()) {
         println(report.renderTimeline())
       }
-      ScopeDiagnostics.assertNoLeaks(report)
+      ScopeDiagnostics.assertNoViolations(report, config)
       return null
     } catch (Throwable failure) {
       return failure
