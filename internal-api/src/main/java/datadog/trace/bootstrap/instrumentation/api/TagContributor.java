@@ -16,7 +16,8 @@ package datadog.trace.bootstrap.instrumentation.api;
  * <p>Targets {@link AgentSpan} for now (so it can also drive span-level state — resource name,
  * error, measured — that is not yet expressed as tags). As those span fields migrate into the tag
  * model, this surface narrows toward a future {@code addTo(TagMap)}. See {@link TagExtractor} for
- * the extrinsic counterpart (foreign objects we do not own).
+ * the extrinsic counterpart (foreign objects we do not own). Apply it with {@link
+ * AgentSpan#setTagsFrom(TagContributor)}.
  */
 public interface TagContributor {
   void addTo(AgentSpan span);

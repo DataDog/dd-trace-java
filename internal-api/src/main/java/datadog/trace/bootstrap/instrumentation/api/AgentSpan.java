@@ -111,15 +111,28 @@ public interface AgentSpan
 
   /**
    * Sets tags on this span by applying a {@link TagExtractor} to a foreign source — the span-first,
-   * product-dev-facing form of {@code extractor.extract(source, this)} (matches {@code
-   * setTag}/{@code setAllTags}). The extra indirection inlines away at a monomorphic call site.
-   * This is also the seam where the whole extraction can be coarse-locked (one critical section) —
-   * an implementer may override to do so.
+   * product-dev-facing form of {@code extractor.extract(source, this)}. Named {@code setTagsFrom},
+   * not {@code setTags}, because {@code source} is not itself a tag value: {@code setTag(name,
+   * value)} stores one value, while this derives any number of tags from {@code source}. The extra
+   * indirection inlines away at a monomorphic call site. This is also the seam where the whole
+   * extraction can be coarse-locked (one critical section) — an implementer may override to do so.
    */
   @StrategyConsumer
-  default <T> AgentSpan setTags(final T source, final TagExtractor<T> extractor) {
+  default <T> AgentSpan setTagsFrom(final T source, final TagExtractor<T> extractor) {
     if (source != null) {
       extractor.extract(source, this);
+    }
+    return this;
+  }
+
+  /**
+   * Sets the tags a {@link TagContributor} projects from its own state — the span-first form of
+   * {@code contributor.addTo(this)}. Call it with the contributor's concrete type so {@code addTo}
+   * devirtualizes and inlines.
+   */
+  default AgentSpan setTagsFrom(final TagContributor contributor) {
+    if (contributor != null) {
+      contributor.addTo(this);
     }
     return this;
   }

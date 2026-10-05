@@ -24,6 +24,8 @@ import datadog.trace.api.function.Strategy;
  * AgentSpan} so it can also drive span-level state (resource name, error, status) during the
  * transition; that surface narrows as those fields migrate into the tag model.
  *
+ * <p>Apply it with {@link AgentSpan#setTagsFrom(Object, TagExtractor)}.
+ *
  * @param <T> the foreign source type to extract from
  */
 @Strategy
