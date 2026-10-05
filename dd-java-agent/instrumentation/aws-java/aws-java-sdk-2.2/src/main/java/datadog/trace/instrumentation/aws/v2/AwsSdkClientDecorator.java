@@ -47,6 +47,7 @@ import software.amazon.awssdk.core.SdkField;
 import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkResponse;
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
@@ -426,6 +427,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected URI url(final SdkHttpRequest request) {
     return request.getUri();
+  }
+
+  /** Tags the HTTP status code of a service error, which has no response to read it from. */
+  public void onServiceError(final AgentSpan span, final Throwable error) {
+    if (error instanceof SdkServiceException) {
+      final int status = ((SdkServiceException) error).statusCode();
+      if (status > 0) {
+        span.setHttpStatusCode(status);
+      }
+    }
   }
 
   @Override
