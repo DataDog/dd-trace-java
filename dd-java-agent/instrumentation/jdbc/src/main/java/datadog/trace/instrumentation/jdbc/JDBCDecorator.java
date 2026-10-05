@@ -30,6 +30,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
+import datadog.trace.util.ClassLatch;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.ClientInfoStatus;
@@ -48,6 +49,15 @@ import org.slf4j.LoggerFactory;
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   private static final Logger log = LoggerFactory.getLogger(JDBCDecorator.class);
+
+  /** Old drivers and pool proxies may not implement getClientInfo at all. */
+  private static final ClassLatch<Connection, Properties, SQLException> CLIENT_INFO_LATCH =
+      new ClassLatch<Connection, Properties, SQLException>() {
+        @Override
+        protected Properties apply(Connection connection) throws SQLException {
+          return handleAbstractMethod(connection, "getClientInfo", Connection::getClientInfo);
+        }
+      };
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
@@ -247,9 +257,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (metaData != null && (url = metaData.getURL()) != null) {
         Properties clientInfo = null;
         try {
-          clientInfo = connection.getClientInfo();
+          clientInfo = CLIENT_INFO_LATCH.tryApply(connection);
         } catch (final Throwable ex) {
-          // getClientInfo is likely not allowed, we can still extract info from the url alone
+          // getClientInfo can fail in many ways (old drivers, pool proxies, test doubles), and we
+          // can still extract info from the url alone
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not get client info from DB", ex);
         }
         dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
