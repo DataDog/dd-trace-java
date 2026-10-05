@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.function.Strategy;
+
 /**
  * Extracts tags from a foreign object we do not own (a framework {@code Connection}, request,
  * response, etc.) onto a span — the extrinsic counterpart to {@link TagContributor}. This is the
@@ -24,6 +26,7 @@ package datadog.trace.bootstrap.instrumentation.api;
  *
  * @param <T> the foreign source type to extract from
  */
+@Strategy
 @FunctionalInterface
 public interface TagExtractor<T> {
   void extract(T source, AgentSpan span);

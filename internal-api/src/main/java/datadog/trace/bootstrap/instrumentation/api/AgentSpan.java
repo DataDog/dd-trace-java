@@ -11,6 +11,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -115,6 +116,7 @@ public interface AgentSpan
    * This is also the seam where the whole extraction can be coarse-locked (one critical section) —
    * an implementer may override to do so.
    */
+  @StrategyConsumer
   default <T> AgentSpan setTags(final T source, final TagExtractor<T> extractor) {
     if (source != null) {
       extractor.extract(source, this);
