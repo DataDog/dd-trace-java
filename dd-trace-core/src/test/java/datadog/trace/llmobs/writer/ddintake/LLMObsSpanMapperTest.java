@@ -3,6 +3,7 @@ package datadog.trace.llmobs.writer.ddintake;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -1015,6 +1016,65 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     Map<String, Object> result = objectMapper.readValue(writeTo(payload), Map.class);
     List<Map<String, Object>> spans = (List<Map<String, Object>>) result.get("spans");
     return spans.get(0);
+  }
+
+  /**
+   * An LLMObs trace id adopted from another service belongs in {@code trace_id}, which is what the
+   * backend joins spans and evals on. {@code apm_trace_id} stays the local APM trace, since that is
+   * what links the LLMObs span back to the APM trace it ran inside.
+   */
+  @Test
+  void testAdoptedLlmObsTraceIdDivergesFromTheApmTraceId() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    String adopted = "6d0b1e9c00000000a1b2c3d4e5f60718";
+    AgentSpan span =
+        tracer
+            .buildSpan("datadog", "chat-completion")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .withTag("_ml_obs_tag.trace_id", adopted)
+            .start();
+    span.setSpanType(InternalSpanTypes.LLMOBS);
+    span.finish();
+
+    String apmTraceId = span.getTraceId().toHexString();
+    assertNotEquals(adopted, apmTraceId, "precondition: the two ids should differ");
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, span);
+    Map<String, Object> dd = (Map<String, Object>) spanData.get("_dd");
+    assertEquals(adopted, spanData.get("trace_id"));
+    assertEquals(adopted, dd.get("trace_id"));
+    assertEquals(apmTraceId, dd.get("apm_trace_id"));
+
+    // The id is carried as an internal tag, so it must not also surface in tags[].
+    List<String> tags = (List<String>) spanData.get("tags");
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("trace_id:")));
+
+    tracer.close();
+  }
+
+  /** With no adopted id, the LLMObs trace is the APM trace, and the payload is unchanged. */
+  @Test
+  void testTraceIdFallsBackToTheApmTraceIdWhenNoneWasAdopted() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span =
+        tracer
+            .buildSpan("datadog", "chat-completion")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .start();
+    span.setSpanType(InternalSpanTypes.LLMOBS);
+    span.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, span);
+    Map<String, Object> dd = (Map<String, Object>) spanData.get("_dd");
+    assertEquals(span.getTraceId().toHexString(), spanData.get("trace_id"));
+    assertEquals(spanData.get("trace_id"), dd.get("trace_id"));
+    assertEquals(spanData.get("trace_id"), dd.get("apm_trace_id"));
+
+    tracer.close();
   }
 
   @Test

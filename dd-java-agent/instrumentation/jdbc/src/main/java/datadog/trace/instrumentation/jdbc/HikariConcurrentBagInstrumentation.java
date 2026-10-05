@@ -53,13 +53,6 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HikariBlockedTracker", packageName + ".PoolWaitingDecorator"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     // The contextStore Map is populated by HikariPoolInstrumentation
     return singletonMap("com.zaxxer.hikari.util.ConcurrentBag", String.class.getName());

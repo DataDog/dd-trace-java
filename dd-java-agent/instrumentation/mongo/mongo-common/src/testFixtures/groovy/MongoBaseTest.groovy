@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.slf4j.LoggerFactory
 import org.testcontainers.containers.MongoDBContainer
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 
 @IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
@@ -38,12 +39,10 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
 
   abstract String dbType()
 
-  def mongodbImageName() {
-    return "mongo:4.4.29"
-  }
-
   def setupSpec() throws Exception {
-    mongoDbContainer = new MongoDBContainer(mongodbImageName())
+    mongoDbContainer = new MongoDBContainer(
+      DockerImageName.parse(System.getProperty("test.mongo.image"))
+      .asCompatibleSubstituteFor("mongo"))
     mongoDbContainer.start()
     port = mongoDbContainer.getMappedPort(27017)
     logger.info("MongoDB started on port {}", port)

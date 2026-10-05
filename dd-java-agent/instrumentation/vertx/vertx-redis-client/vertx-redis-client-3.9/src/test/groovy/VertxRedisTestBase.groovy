@@ -42,7 +42,8 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
 
   @AutoCleanup(value = "stop")
   @Shared
-  def redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
+  def redisServer = new RedisContainer(
+  DockerImageName.parse(System.getProperty("test.redis.image")))
   .waitingFor(Wait.forListeningPort())
 
   @Shared
@@ -66,11 +67,6 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
   @Override
   String operation() {
     return "redis.query"
-  }
-
-  @Override
-  boolean useStrictTraceWrites() {
-    false
   }
 
   def setupSpec() {

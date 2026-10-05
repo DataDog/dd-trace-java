@@ -41,11 +41,6 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".MultipartHelper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("readFrom")

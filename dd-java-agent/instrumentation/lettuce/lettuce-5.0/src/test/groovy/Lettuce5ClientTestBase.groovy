@@ -1,3 +1,5 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import datadog.environment.OperatingSystem
 import spock.lang.IgnoreIf
 
@@ -39,7 +41,9 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String dbUriNonExistent
   String embeddedDbUri
 
-  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
+  RedisContainer redisServer = new RedisContainer(
+  DockerImageName.parse(System.getProperty("test.redis.image"))
+  .asCompatibleSubstituteFor("redis"))
   .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient

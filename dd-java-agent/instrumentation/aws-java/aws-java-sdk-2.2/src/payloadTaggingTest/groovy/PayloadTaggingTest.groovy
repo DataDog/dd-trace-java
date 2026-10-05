@@ -32,7 +32,7 @@ abstract class AbstractPayloadTaggingTest extends InstrumentationSpecification {
   static final Object NA = {}
 
   static final int DEFAULT_PORT = 4566
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse(System.getProperty("test.localstack.image")))
   .withExposedPorts(DEFAULT_PORT)
   .withEnv("SERVICES", "apigateway,events,s3,sns,sqs,kinesis")
   .withReuse(true)

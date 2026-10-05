@@ -33,11 +33,6 @@ public class ServerHttpRequestInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".TaintFluxElementsFunction"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getQueryParams")).and(takesArguments(0)),
