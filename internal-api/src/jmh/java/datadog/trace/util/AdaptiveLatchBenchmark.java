@@ -96,7 +96,12 @@ public class AdaptiveLatchBenchmark {
   /** Parses an int; while engaged, a digit scan turns away anything that is not plain digits. */
   static class Parse extends AdaptiveLatch<String, Integer, NumberFormatException> {
     Parse() {
-      super(NumberFormatException.class);
+      // the value the recorded results were measured with; not tuned for this operation
+      this(20);
+    }
+
+    Parse(int closeAfter) {
+      super(NumberFormatException.class, closeAfter);
     }
 
     @Override
@@ -108,19 +113,12 @@ public class AdaptiveLatchBenchmark {
     protected Integer applySafely(String input) {
       return isAllDigits(input) ? Integer.parseInt(input) : reject(input);
     }
-
-    /** The value the recorded results were measured with; not tuned for this operation. */
-    @Override
-    protected int closeAfter() {
-      return 20;
-    }
   }
 
   /** Never disengages, so that the engaged state holds for a whole run of good input. */
   static final class PinnedParse extends Parse {
-    @Override
-    protected int closeAfter() {
-      return Integer.MAX_VALUE;
+    PinnedParse() {
+      super(Integer.MAX_VALUE);
     }
   }
 

@@ -10,9 +10,9 @@ import javax.annotation.Nullable;
  * ClassLatch}, it never skips the operation: a bad input says nothing about the next one.
  *
  * <p>Disengaged, every call takes the optimistic path. A failure there engages the latch, and from
- * then on calls take the cautious path until {@link #closeAfter} consecutive inputs pass it
- * cleanly. The cautious path reports bad input by returning {@link #reject}, which restarts that
- * count; anything else it returns counts as clean.
+ * then on calls take the cautious path until {@code closeAfter} consecutive inputs pass it cleanly.
+ * The cautious path reports bad input by returning {@link #reject}, which restarts that count;
+ * anything else it returns counts as clean.
  *
  * <p>The cautious path can be built in several ways:
  *
@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
  *   <li>a repair that turns common bad input into good input before the optimistic path.
  * </ul>
  *
- * <p>Choosing {@link #closeAfter} is a rent-or-buy decision. Staying engaged costs the cautious
+ * <p>Choosing {@code closeAfter} is a rent-or-buy decision. Staying engaged costs the cautious
  * path's overhead on every good input; disengaging costs one optimistic failure when the next bad
  * input arrives. Disengaging once the accumulated overhead would match one failure, that is after
  * about {@code failureCost / cautiousOverhead} good inputs, is never worse than twice the best
@@ -44,12 +44,22 @@ import javax.annotation.Nullable;
  */
 public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
   private final Class<X> failureType;
+  private final int closeAfter;
 
   /** 0 when disengaged; otherwise the clean calls left before disengaging. */
   private int remaining;
 
-  protected AdaptiveLatch(Class<X> failureType) {
+  /**
+   * @param failureType the failure of {@link #apply} that engages the latch
+   * @param closeAfter how many consecutive clean calls disengage it, at least 1; see the class
+   *     comment for how to choose it
+   */
+  protected AdaptiveLatch(Class<X> failureType, int closeAfter) {
+    if (closeAfter < 1) {
+      throw new IllegalArgumentException("closeAfter must be at least 1: " + closeAfter);
+    }
     this.failureType = failureType;
+    this.closeAfter = closeAfter;
   }
 
   /** The optimistic path: fastest on good input, but may throw {@code X} for bad input. */
@@ -63,8 +73,10 @@ public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
   @Nullable
   protected abstract R applySafely(T input);
 
-  /** How many consecutive clean calls disengage the latch; see the class comment. */
-  protected abstract int closeAfter();
+  /** How many consecutive clean calls disengage the latch. */
+  public final int closeAfter() {
+    return closeAfter;
+  }
 
   /** What a rejected input yields. {@code null} unless overridden. */
   @Nullable
@@ -75,7 +87,7 @@ public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
   /** Reports bad input from {@link #applySafely}: restarts the count, and returns the fallback. */
   @Nullable
   protected final R reject(T input) {
-    remaining = closeAfter();
+    remaining = closeAfter;
     return fallback(input);
   }
 
@@ -98,7 +110,7 @@ public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
       if (!failureType.isInstance(e)) {
         throw e;
       }
-      this.remaining = closeAfter();
+      this.remaining = closeAfter;
       return applySafely(input);
     }
   }

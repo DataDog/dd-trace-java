@@ -200,7 +200,7 @@ public final class Functions {
    *
    * <p>Decodes with {@link Base64#getDecoder()} until it fails, then with {@link
    * #decodeOrNull(byte[])}, an exception-free decoder that accepts exactly what {@link
-   * Base64#getDecoder()} accepts, until {@link #closeAfter} consecutive inputs decode again (see
+   * Base64#getDecoder()} accepts, until {@code CLOSE_AFTER} consecutive inputs decode again (see
    * {@link AdaptiveLatch}).
    *
    * <p>One instance can be shared across threads: its state is advisory, so a stale read costs one
@@ -224,8 +224,18 @@ public final class Functions {
       return table;
     }
 
+    /**
+     * The rent-or-buy break-even (see {@link AdaptiveLatch}), from {@code Base64DecodeBenchmark} on
+     * JDK 17 for header-sized values: a JDK decoder failure costs about 913 ns more than a
+     * rejection here at stack depth 0 and about 2,468 ns at depth 50, and on valid input this
+     * decoder costs about 27 ns more than the JDK's, giving 34 to 91. A consumer's stack is deeper
+     * than a benchmark's. On JDK 8 the two decoders cost about the same on valid input, so the
+     * value barely matters there.
+     */
+    private static final int CLOSE_AFTER = 64;
+
     public GuardedBase64Decode() {
-      super(IllegalArgumentException.class);
+      super(IllegalArgumentException.class, CLOSE_AFTER);
     }
 
     @Override
@@ -238,21 +248,6 @@ public final class Functions {
       String decoded = decodeOrNull(bytes);
       return decoded != null ? decoded : reject(bytes);
     }
-
-    @Override
-    protected int closeAfter() {
-      return CLOSE_AFTER;
-    }
-
-    /**
-     * The rent-or-buy break-even (see {@link AdaptiveLatch}), from {@code Base64DecodeBenchmark} on
-     * JDK 17 for header-sized values: a JDK decoder failure costs about 913 ns more than a
-     * rejection here at stack depth 0 and about 2,468 ns at depth 50, and on valid input this
-     * decoder costs about 27 ns more than the JDK's, giving 34 to 91. A consumer's stack is deeper
-     * than a benchmark's. On JDK 8 the two decoders cost about the same on valid input, so the
-     * value barely matters there.
-     */
-    private static final int CLOSE_AFTER = 64;
 
     /**
      * Decodes {@code src} as {@link Base64#getDecoder()} would, returning {@code null} where it

@@ -21,7 +21,7 @@ class AdaptiveLatchTest {
     final AtomicInteger cautious = new AtomicInteger();
 
     Parsing() {
-      super(NumberFormatException.class);
+      super(NumberFormatException.class, 3);
     }
 
     @Override
@@ -49,11 +49,6 @@ class AdaptiveLatchTest {
         value = value * 10 + (c - '0');
       }
       return value;
-    }
-
-    @Override
-    protected int closeAfter() {
-      return 3;
     }
   }
 
@@ -144,7 +139,7 @@ class AdaptiveLatchTest {
   void rejectYieldsTheFallbackAndARealNullCountsAsClean() {
     AdaptiveLatch<String, String, IllegalArgumentException> latch =
         new AdaptiveLatch<String, String, IllegalArgumentException>(
-            IllegalArgumentException.class) {
+            IllegalArgumentException.class, 1) {
           @Override
           protected String apply(String input) {
             if (input.isEmpty()) {
@@ -162,11 +157,6 @@ class AdaptiveLatchTest {
           }
 
           @Override
-          protected int closeAfter() {
-            return 1;
-          }
-
-          @Override
           protected String fallback(String input) {
             return "fallback";
           }
@@ -179,5 +169,24 @@ class AdaptiveLatchTest {
     // a cautious call that succeeds with null is clean, and with closeAfter 1 disengages
     assertNull(latch.tryApply("null"));
     assertFalse(latch.isEngaged());
+  }
+
+  @Test
+  void closeAfterMustBeAtLeastOne() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new AdaptiveLatch<String, String, IllegalArgumentException>(
+                IllegalArgumentException.class, 0) {
+              @Override
+              protected String apply(String input) {
+                return input;
+              }
+
+              @Override
+              protected String applySafely(String input) {
+                return input;
+              }
+            });
   }
 }
