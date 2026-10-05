@@ -13,6 +13,8 @@ class UndertowDecoratorTest {
   @Test
   void methodIsNullWhenRequestLineNotParsed() {
     HttpServerExchange exchange = new HttpServerExchange(null);
+    // newer Undertow initializes the method to HttpString.EMPTY, so null it explicitly
+    exchange.setRequestMethod(null);
 
     assertNull(DECORATE.method(exchange));
   }
