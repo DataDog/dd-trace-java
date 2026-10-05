@@ -402,7 +402,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .writer(TEST_WRITER)
     .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
     .statsDClient(STATS_D_CLIENT)
-    .strictTraceWrites(useStrictTraceWrites())
+    .strictTraceWrites(true)
     .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
     .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
     .build())
@@ -618,16 +618,12 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }.isEmpty(): "Transformed classes match global libraries ignore matcher"
   }
 
-  boolean useStrictTraceWrites() {
-    return true
-  }
-
   protected AgentSpan trackStartSpan(AgentSpan span, String instrName, boolean enabledFinishTimingChecks) {
     TagsAssert.INSTRUMENTATION_NAMES[span.spanId] = instrName
     if (!enabledFinishTimingChecks) {
       return span
     }
-    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
+    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan)
     originalToTrackingSpan[span] = trackingSpan
     return trackingSpan
   }

@@ -44,6 +44,22 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     waitForReTransformation(appUrl); // wait for retransformation of removed probe
   }
 
+  @Test
+  @DisplayName("testDynamicInstrumentationResetEnablement")
+  void testDynamicInstrumentationResetEnablement() throws Exception {
+    appUrl = startAppAndAndGetUrl();
+    setConfigOverrides(createConfigOverrides(true, false));
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
+    setCurrentConfiguration(createConfig(probe));
+    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+    waitForInstrumentation(appUrl);
+    // disable DI by removing RC record
+    setConfigOverrides(null);
+    waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
+    waitForReTransformation(appUrl); // wait for retransformation of removed probe
+  }
+
   @Flaky
   @Test
   @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")

@@ -35,17 +35,6 @@ public class JUnitLegacySuiteEventsInstrumentation extends InstrumenterModule.Ci
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4TracingListener",
-    };
-  }
-
-  @Override
   public int order() {
     // Should be applied after datadog.trace.instrumentation.junit4.JUnit4Instrumentation,
     // because it relies on JUnit4TracingListener to be registered

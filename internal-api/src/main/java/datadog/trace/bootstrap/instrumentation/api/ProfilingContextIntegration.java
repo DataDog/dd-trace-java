@@ -57,6 +57,14 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
 
   String name();
 
+  /**
+   * Registers a one-shot callback to run once this integration is actually able to label context;
+   * runs inline if already available, or never if a deferred construction fails.
+   */
+  default void whenAvailable(Runnable callback) {
+    callback.run();
+  }
+
   final class NoOp implements ProfilingContextIntegration {
 
     public static final ProfilingContextIntegration INSTANCE =
