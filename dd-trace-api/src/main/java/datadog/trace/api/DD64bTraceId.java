@@ -59,7 +59,7 @@ public class DD64bTraceId extends DDTraceId {
    */
   public static DD64bTraceId fromOrNull(String s) {
     int len = s == null ? 0 : s.length();
-    long id = LongStringUtils.parseUnsignedLong(s, 0, len, 0L);
+    long id = LongStringUtils.parseUnsignedLongOrSentinel(s, 0, len, 0L);
     if (id == 0L && !LongStringUtils.isUnsignedLongZero(s, 0, len)) {
       return null;
     }

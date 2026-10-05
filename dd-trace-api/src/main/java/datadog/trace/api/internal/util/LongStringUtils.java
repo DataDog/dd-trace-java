@@ -81,7 +81,7 @@ public class LongStringUtils {
    * @throws NumberFormatException
    */
   public static long parseUnsignedLong(String s) throws NumberFormatException {
-    long result = parseUnsignedLong(s, 0, s == null ? 0 : s.length(), 0L);
+    long result = parseUnsignedLongOrSentinel(s, 0, s == null ? 0 : s.length(), 0L);
     if (result != 0L) {
       return result;
     }
@@ -106,7 +106,8 @@ public class LongStringUtils {
    * @param ifInvalid the value returned for null, empty, malformed or out of range input
    * @return the parsed long, or {@code ifInvalid}
    */
-  public static long parseUnsignedLong(CharSequence s, int start, int len, long ifInvalid) {
+  public static long parseUnsignedLongOrSentinel(
+      CharSequence s, int start, int len, long ifInvalid) {
     if (s == null || len <= 0 || len > 20 || start < 0 || start + len > s.length()) {
       return ifInvalid;
     }
@@ -137,9 +138,9 @@ public class LongStringUtils {
   }
 
   /**
-   * Whether {@code s[start, start + len)} is a zero that {@link #parseUnsignedLong(CharSequence,
-   * int, int, long)} accepts: 1 to 20 {@code '0'} characters. Callers that use {@code 0} as the
-   * invalid sentinel check this only when the parse returned {@code 0}.
+   * Whether {@code s[start, start + len)} is a zero that {@link #parseUnsignedLongOrSentinel}
+   * accepts: 1 to 20 {@code '0'} characters. Callers that use {@code 0} as the invalid sentinel
+   * check this only when the parse returned {@code 0}.
    *
    * @param s CharSequence containing the decimal digits
    * @param start the start index of the decimal value

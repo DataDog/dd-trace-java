@@ -2,7 +2,7 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.internal.util.LongStringUtils.isUnsignedLongZero;
-import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLong;
+import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLongOrSentinel;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
@@ -188,7 +188,8 @@ class DatadogHttpCodec {
                 {
                   String spanIdValue = firstHeaderValue(value);
                   int len = spanIdValue.length();
-                  long parsedSpanId = parseUnsignedLong(spanIdValue, 0, len, DDSpanId.ZERO);
+                  long parsedSpanId =
+                      parseUnsignedLongOrSentinel(spanIdValue, 0, len, DDSpanId.ZERO);
                   if (parsedSpanId == DDSpanId.ZERO && !isUnsignedLongZero(spanIdValue, 0, len)) {
                     return rejectInvalidId(SPAN_ID_KEY, spanIdValue);
                   }

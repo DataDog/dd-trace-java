@@ -1,6 +1,7 @@
 package datadog.trace.api.internal.util;
 
 import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLong;
+import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLongOrSentinel;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,7 +33,7 @@ class LongStringUtilsTest {
   })
   @ParameterizedTest(name = "parse valid decimal [{index}]")
   void parseValidDecimal(String input, long expected) {
-    assertEquals(expected, parseUnsignedLong(input, 0, input.length(), SENTINEL));
+    assertEquals(expected, parseUnsignedLongOrSentinel(input, 0, input.length(), SENTINEL));
     assertEquals(expected, parseUnsignedLong(input));
   }
 
@@ -54,12 +55,12 @@ class LongStringUtilsTest {
         "000000000000000000001" // 21 digits, even with leading zeros
       })
   void nonThrowingParseReturnsSentinelForInvalidInput(String input) {
-    assertEquals(SENTINEL, parseUnsignedLong(input, 0, input.length(), SENTINEL));
+    assertEquals(SENTINEL, parseUnsignedLongOrSentinel(input, 0, input.length(), SENTINEL));
   }
 
   @Test
   void nonThrowingParseReturnsSentinelForNull() {
-    assertEquals(SENTINEL, parseUnsignedLong(null, 0, 0, SENTINEL));
+    assertEquals(SENTINEL, parseUnsignedLongOrSentinel(null, 0, 0, SENTINEL));
   }
 
   @TableTest({
@@ -73,7 +74,7 @@ class LongStringUtilsTest {
   })
   @ParameterizedTest(name = "non-throwing parse of a range [{index}]")
   void nonThrowingParseOfARange(String input, int start, int len, long expected) {
-    assertEquals(expected, parseUnsignedLong(input, start, len, SENTINEL));
+    assertEquals(expected, parseUnsignedLongOrSentinel(input, start, len, SENTINEL));
   }
 
   @TableTest({
@@ -120,7 +121,7 @@ class LongStringUtilsTest {
     for (int i = 0; i < 10_000; i++) {
       long value = random.nextLong();
       String s = Long.toUnsignedString(value);
-      assertEquals(value, parseUnsignedLong(s, 0, s.length(), SENTINEL), s);
+      assertEquals(value, parseUnsignedLongOrSentinel(s, 0, s.length(), SENTINEL), s);
     }
   }
 
@@ -145,9 +146,9 @@ class LongStringUtilsTest {
         valid = false;
       }
       if (valid) {
-        assertEquals(expected, parseUnsignedLong(s, 0, len, SENTINEL), s);
+        assertEquals(expected, parseUnsignedLongOrSentinel(s, 0, len, SENTINEL), s);
       } else {
-        assertEquals(SENTINEL, parseUnsignedLong(s, 0, len, SENTINEL), s);
+        assertEquals(SENTINEL, parseUnsignedLongOrSentinel(s, 0, len, SENTINEL), s);
       }
     }
   }
