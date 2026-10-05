@@ -36,13 +36,37 @@ import org.slf4j.LoggerFactory;
  * Tracking: a value past the unsigned 64 bit range ({@code numberFormatOutOfLongRange}) and a value
  * that is not decimal at all. Valid values cover both the 18 digit path and the 19 digit path,
  * where most randomly generated 63 bit ids fall.
+ *
+ * <p><b>Results.</b> Invalid ids cost 20-43 ns per extraction instead of 840-880 ns, because no
+ * exception is built. The benchmark's stack is shallow; a real server's is much deeper, so the
+ * saving in production is larger. Overflow (24 ns to parse) is slower than not-decimal (3 ns)
+ * because all 20 digits are read before the overflow shows. Valid ids parse about 9 ns faster than
+ * with {@code Long.parseLong}. Before this change, valid-id extraction varied between forks (the 19
+ * digit case ran 119-598 ns); after, every fork is within a few ns. Numbers are the median of 5
+ * forks, ns/op, with the per-fork range; "before" is the same benchmark on the parent commit,
+ * without the {@code fromOrNull} arm. <code>
+ * Apple M1 Max, 10 CPUs - macOS/aarch64 - JDK 25
+ * arm           trace id header         before                after
+ * extract       18 digits                153  (152-153)        107  (100-109)
+ * extract       19 digits                149  (119-598)        109  (108-110)
+ * extract       unsigned max + 1         840  (821-947)         43   (42-43)
+ * extract       not decimal              882  (760-884)         21   (21-21)
+ * fromThrowing  18 digits                 31   (31-31)          22   (22-23)
+ * fromThrowing  19 digits                 32   (32-33)          24   (23-24)
+ * fromThrowing  unsigned max + 1         875  (771-953)        919  (915-926)
+ * fromThrowing  not decimal              815  (804-836)        804  (792-809)
+ * fromOrNull    18 digits                   -                   22   (22-23)
+ * fromOrNull    19 digits                   -                   24   (24-24)
+ * fromOrNull    unsigned max + 1            -                   24   (23-24)
+ * fromOrNull    not decimal                 -                    3    (3-3)
+ * </code>
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = SECONDS)
 @Measurement(iterations = 5, time = 2, timeUnit = SECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(NANOSECONDS)
-@Fork(2)
+@Fork(5)
 public class DatadogIdParseBenchmark {
   @Param({
     "123456789012345678", // valid, 18 digits
