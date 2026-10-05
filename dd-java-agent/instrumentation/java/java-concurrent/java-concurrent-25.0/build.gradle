@@ -1,4 +1,6 @@
 import static org.gradle.api.JavaVersion.VERSION_25
+import static org.gradle.api.JavaVersion.VERSION_26
+import static org.gradle.api.JavaVersion.VERSION_27
 
 plugins {
   id 'idea'
