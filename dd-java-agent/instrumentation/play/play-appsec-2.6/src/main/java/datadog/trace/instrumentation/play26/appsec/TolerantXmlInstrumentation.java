@@ -41,13 +41,6 @@ public class TolerantXmlInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BodyParserHelpers", packageName + ".BodyParserHelpers$ScalaIteratorAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parse")
@@ -59,7 +52,7 @@ public class TolerantXmlInstrumentation extends InstrumenterModule.AppSec
   }
 
   static class ParseAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return org.w3c.dom.Document ret, @Advice.Thrown(readOnly = false) Throwable t) {
       if (t != null) {

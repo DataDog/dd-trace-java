@@ -9,9 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.URL;
 import java.net.URLStreamHandler;
@@ -55,7 +55,7 @@ public class UrlInstrumentation extends InstrumenterModule.Tracing
 
         final AgentSpan span = startSpan("UrlConnection", DECORATE.operationName(protocol));
 
-        try (final AgentScope scope = activateSpan(span)) {
+        try (final ContextScope scope = activateSpan(span)) {
           DECORATE.afterStart(span);
           DECORATE.onURL(span, url);
           HTTP_RESOURCE_DECORATOR.withClientPath(span, null, url.getPath());

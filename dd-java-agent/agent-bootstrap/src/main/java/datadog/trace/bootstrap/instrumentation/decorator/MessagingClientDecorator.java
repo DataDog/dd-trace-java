@@ -2,7 +2,9 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public abstract class MessagingClientDecorator extends ClientDecorator {
 
   protected final boolean endToEndDurationsEnabled;
@@ -20,10 +22,10 @@ public abstract class MessagingClientDecorator extends ClientDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     if (endToEndDurationsEnabled) {
       span.beginEndToEnd();
     }
-    return super.afterStart(span);
+    super.doAfterStart(span);
   }
 }

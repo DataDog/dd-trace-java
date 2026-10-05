@@ -11,12 +11,12 @@ import com.tibco.pe.core.ActivityGroup;
 import com.tibco.pe.core.ProcessGroup;
 import com.tibco.pe.core.Task;
 import com.tibco.pe.plugin.ProcessContext;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -53,7 +53,7 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
         @Advice.This Task self,
         @Advice.Argument(0) ProcessContext processContext,
         @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
-        @Advice.Local("ddScope") AgentScope ddScope) {
+        @Advice.Local("ddScope") ContextScope ddScope) {
 
       ContextStore<ProcessContext, Map> store =
           InstrumentationContext.get(ProcessContext.class, Map.class);
@@ -86,8 +86,8 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
         @Advice.Return String ret,
         @Advice.Enter boolean traced,
         @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
-        @Advice.Local("ddScope") AgentScope ddScope) {
-      try (AgentScope closeMe = ddScope) {
+        @Advice.Local("ddScope") ContextScope ddScope) {
+      try (ContextScope closeMe = ddScope) {
         if (!traced) {
           return;
         }

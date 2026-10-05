@@ -65,7 +65,7 @@ public class CallbackChainRetryingFutureInstrumentation extends InstrumenterModu
       return previousListener;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void cancelSuperseded(
         @Advice.Enter final Runnable previousListener,
         @Advice.FieldValue("attemptFutureCompletionListener") final Runnable newListener) {

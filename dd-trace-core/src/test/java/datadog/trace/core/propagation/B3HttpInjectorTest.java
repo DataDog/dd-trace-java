@@ -19,7 +19,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.params.converter.ConvertWith;

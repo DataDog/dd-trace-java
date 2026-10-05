@@ -1,6 +1,5 @@
 package executor
 
-import static datadog.environment.OperatingSystem.architecture
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 import datadog.environment.OperatingSystem
@@ -23,7 +22,7 @@ import spock.lang.Shared
 
 // TODO: netty-all 4.1.9 only ships linux-x86_64 epoll native libraries.
 @IgnoreIf({
-  OperatingSystem.isLinux() && architecture().isArm64()
+  OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64()
 })
 class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
 

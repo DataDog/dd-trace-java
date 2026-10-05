@@ -8,10 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import javax.websocket.MessageHandler;
@@ -51,7 +51,7 @@ public class MessageHandlerInstrumentation
 
   public static class OnMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final MessageHandler handler,
         @Advice.Argument(value = 0, typing = Assigner.Typing.DYNAMIC) final Object data,
         @Advice.Argument(value = 1, optional = true) final Boolean last,
@@ -67,13 +67,13 @@ public class MessageHandlerInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onReceiveFrameStart(handlerContext, data, last != null && last);
+          DECORATE.startInboundFrameSpan(handlerContext, data, last != null && last);
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(value = 1, optional = true) final Boolean last) {
@@ -81,18 +81,12 @@ public class MessageHandlerInstrumentation
         return;
       }
       CallDepthThreadLocalMap.reset(MessageHandler.class);
-      try {
-        boolean finishSpan = last == null || last;
-        if (throwable != null) {
-          finishSpan = true;
-          DECORATE.onError(scope, throwable);
-        }
-        if (finishSpan) {
-          DECORATE.onFrameEnd(handlerContext);
-        }
-      } finally {
-        scope.close();
+      DECORATE.onError(scope, throwable);
+      boolean finishSpan = last == null || last || throwable != null;
+      if (finishSpan) {
+        DECORATE.onFrameEnd(handlerContext);
       }
+      scope.close();
     }
   }
 }

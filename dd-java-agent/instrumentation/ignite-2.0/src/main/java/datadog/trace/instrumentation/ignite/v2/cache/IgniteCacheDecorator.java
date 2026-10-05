@@ -71,12 +71,11 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
     return null;
   }
 
-  public AgentSpan onOperation(
-      final AgentSpan span, final String cacheName, final String methodName) {
-    return onOperation(span, cacheName, methodName, null);
+  public void onOperation(final AgentSpan span, final String cacheName, final String methodName) {
+    onOperation(span, cacheName, methodName, null);
   }
 
-  public AgentSpan onQuery(
+  public void onQuery(
       final AgentSpan span, final String cacheName, final String methodName, final Query query) {
     if (methodName != null) {
       span.setTag("ignite.operation", "cache." + methodName);
@@ -112,11 +111,9 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
       resourceName.append(cacheName);
       span.setResourceName(resourceName);
     }
-
-    return span;
   }
 
-  public AgentSpan onOperation(
+  public void onOperation(
       final AgentSpan span, final String cacheName, final String methodName, Object key) {
 
     final StringBuilder resourceName = new StringBuilder("cache.");
@@ -139,25 +136,17 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
     if (includeKeys && key != null) {
       span.setTag("ignite.cache.key", key.toString());
     }
-
-    return span;
   }
 
-  public AgentSpan onIgnite(final AgentSpan span, final Ignite ignite) {
+  public void onIgnite(final AgentSpan span, final Ignite ignite) {
 
     if (ignite == null) {
-      return span;
+      return;
     }
 
     if (ignite.name() != null) {
       span.setTag("ignite.instance", ignite.name());
     }
     span.setTag("ignite.version", ignite.version().toString());
-
-    return span;
-  }
-
-  public AgentSpan onResult(AgentSpan span, Object result) {
-    return span;
   }
 }

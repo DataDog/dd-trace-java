@@ -2,7 +2,7 @@ package opentelemetry14;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;

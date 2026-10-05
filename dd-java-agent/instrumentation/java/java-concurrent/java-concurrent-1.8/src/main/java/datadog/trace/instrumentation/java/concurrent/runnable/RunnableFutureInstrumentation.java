@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.java.concurrent.runnable;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -16,14 +18,15 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Arrays;
@@ -84,7 +87,16 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
                             .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    // Netty 4.1.44+ separates delayed scheduling in run() from execution in runTask().
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("run"))
+            .and(
+                not(
+                    isDeclaredBy(
+                        nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
+                            .and(hasSuperType(declaresMethod(named("runTask"))))))),
+        getClass().getName() + "$Run");
     transformer.applyAdvice(
         isMethod().and(namedOneOf("cancel", "set", "setException")),
         getClass().getName() + "$Cancel");
@@ -138,26 +150,26 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
 
   public static final class Construct {
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
       capture(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
   }
 
   public static final class Run {
-    @Advice.OnMethodEnter
-    public static <T> AgentScope activate(@Advice.This RunnableFuture<T> task) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static <T> ContextScope activate(@Advice.This RunnableFuture<T> task) {
       return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void close(@Advice.Enter AgentScope scope) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void close(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }
 
   public static final class Cancel {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> void cancel(@Advice.This RunnableFuture<T> task) {
       cancelTask(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }

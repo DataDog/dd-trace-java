@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -647,14 +648,23 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public DDSpan setSamplingPriority(
       int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
-    if (context.setSamplingPriority(samplingPriority, samplingMechanism)) {
+    return setSamplingPriority(samplingPriority, rate, sampleRate, samplingMechanism, false);
+  }
+
+  @Override
+  public DDSpan setSamplingPriority(
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism,
+      boolean rateLimiterRejected) {
+    if (context.setSamplingPriority(
+        samplingPriority,
+        samplingMechanism,
+        sampleRate,
+        getTraceId().toLong(),
+        rateLimiterRejected)) {
       setMetric(rate, sampleRate);
-      if (samplingMechanism == SamplingMechanism.AGENT_RATE
-          || samplingMechanism == SamplingMechanism.LOCAL_USER_RULE
-          || samplingMechanism == SamplingMechanism.REMOTE_USER_RULE
-          || samplingMechanism == SamplingMechanism.REMOTE_ADAPTIVE_RULE) {
-        context.getPropagationTags().updateKnuthSamplingRate(sampleRate);
-      }
     }
     return this;
   }
@@ -669,6 +679,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   public final DDSpan setSpanType(final CharSequence type) {
     context.setSpanType(type);
     return this;
+  }
+
+  @Override
+  public void apply(@Nonnull final SpanPrototype prototype) {
+    // Route straight to the context (owner of the tag map + future fast path) rather than through
+    // the interface default's per-setter delegation.
+    context.apply(prototype);
   }
 
   // Getters
@@ -781,10 +798,20 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
-  public void processTagsAndBaggage(
-      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
-    context.processTagsAndBaggage(
-        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
+  public void processTagsAndBaggage(final MetadataConsumer consumer, final boolean firstInChunk) {
+    context.processTagsAndBaggage(consumer, longRunningVersion, this, firstInChunk);
+  }
+
+  @Override
+  public void processTagsAndBaggageWithStructuredLinks(final MetadataConsumer consumer) {
+    context.processTagsAndBaggageWithStructuredLinks(consumer, longRunningVersion, this);
+  }
+
+  @Override
+  public void processTagsAndBaggageWithStructuredLinks(
+      final MetadataConsumer consumer, final boolean firstInChunk) {
+    context.processTagsAndBaggageWithStructuredLinks(
+        consumer, longRunningVersion, this, firstInChunk);
   }
 
   @Override
@@ -964,6 +991,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public boolean isKind(SpanKindFilter filter) {
     return filter.matches(context.getSpanKindOrdinal());
+  }
+
+  @Override
+  public String getSpanKindString() {
+    return context.getSpanKindString();
   }
 
   @Override

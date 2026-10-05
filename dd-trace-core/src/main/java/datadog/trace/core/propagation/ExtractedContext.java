@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
@@ -115,6 +116,11 @@ public class ExtractedContext extends TagContext {
 
   public PropagationTags getPropagationTags() {
     return propagationTags;
+  }
+
+  @Override
+  public LLMObsPropagationValues getExtractedLLMObsValues() {
+    return propagationTags.getExtractedLLMObsValues();
   }
 
   @Override

@@ -2,20 +2,24 @@ pluginManagement {
   repositories {
     mavenLocal()
 
-    if (settings.extra.has("gradlePluginProxy")) {
+    providers.gradleProperty("gradlePluginProxy").orNull?.let { proxy ->
       maven {
-        url = uri(settings.extra["gradlePluginProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
-    if (settings.extra.has("mavenRepositoryProxy")) {
+    val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
+    mavenRepositoryProxy?.let { proxy ->
       maven {
-        url = uri(settings.extra["mavenRepositoryProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
-    mavenCentral()
+    // TODO: temporary fix for Maven Central rate limiting
+    if (mavenRepositoryProxy == null) {
+      mavenCentral()
+    }
     // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
@@ -29,7 +33,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.4.2"
+  id("com.gradle.develocity") version "4.6.0"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -161,6 +165,7 @@ include(
   ":products:feature-flagging:feature-flagging-agent",
   ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
+  ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
 
@@ -169,7 +174,8 @@ include(
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",
-  ":utils:junit-utils",
+  ":utils:test-junit-utils",
+  ":utils:test-junit-converter-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
   ":utils:logging-utils",
@@ -302,7 +308,6 @@ include(
   ":dd-java-agent:instrumentation:apache-httpcore:apache-httpcore-5.0",
   ":dd-java-agent:instrumentation:armeria:armeria-grpc-0.84",
   ":dd-java-agent:instrumentation:armeria:armeria-jetty-1.24",
-  ":dd-java-agent:instrumentation:avro-1.11.3",
   ":dd-java-agent:instrumentation:aws-java:aws-java-common",
   ":dd-java-agent:instrumentation:aws-java:aws-java-dynamodb-2.0",
   ":dd-java-agent:instrumentation:aws-java:aws-java-eventbridge-2.0",
@@ -318,6 +323,7 @@ include(
   ":dd-java-agent:instrumentation:axis2-1.3",
   ":dd-java-agent:instrumentation:axway-api-7.5",
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
+  ":dd-java-agent:instrumentation:beanshell-2.0",
   ":dd-java-agent:instrumentation:caffeine-1.0",
   ":dd-java-agent:instrumentation:cdi-1.2",
   ":dd-java-agent:instrumentation:cics-9.1",
@@ -330,6 +336,7 @@ include(
   ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
+  ":dd-java-agent:instrumentation:couchbase:couchbase-3-common",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.2",
   ":dd-java-agent:instrumentation:cucumber-5.4",
@@ -376,6 +383,7 @@ include(
   ":dd-java-agent:instrumentation:grpc-1.5",
   ":dd-java-agent:instrumentation:gson-1.6",
   ":dd-java-agent:instrumentation:guava-10.0",
+  ":dd-java-agent:instrumentation:guidewire-10.0",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.6",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.9",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-4.0",
@@ -464,7 +472,8 @@ include(
   ":dd-java-agent:instrumentation:kafka:kafka-connect-0.11",
   ":dd-java-agent:instrumentation:kafka:kafka-streams-0.11",
   ":dd-java-agent:instrumentation:kafka:kafka-streams-1.0",
-  ":dd-java-agent:instrumentation:karate-1.0",
+  ":dd-java-agent:instrumentation:karate:karate-1.0",
+  ":dd-java-agent:instrumentation:karate:karate-2.0",
   ":dd-java-agent:instrumentation:kotlin-coroutines-1.3",
   ":dd-java-agent:instrumentation:lettuce:lettuce-4.0",
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",
@@ -532,14 +541,15 @@ include(
   ":dd-java-agent:instrumentation:play:play-appsec-2.6",
   ":dd-java-agent:instrumentation:play:play-appsec-2.7",
   ":dd-java-agent:instrumentation:play:play-appsec-common",
-  ":dd-java-agent:instrumentation:protobuf-3.0",
   ":dd-java-agent:instrumentation:quartz-2.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",
   ":dd-java-agent:instrumentation:ratpack-1.5",
+  ":dd-java-agent:instrumentation:r2dbc:r2dbc-1.0",
   ":dd-java-agent:instrumentation:reactive-streams-1.0",
   ":dd-java-agent:instrumentation:reactor-core-3.1",
   ":dd-java-agent:instrumentation:reactor-netty-1.0",
   ":dd-java-agent:instrumentation:rediscala-1.8",
+  ":dd-java-agent:instrumentation:robolectric-4.13",
   ":dd-java-agent:instrumentation:redisson:redisson-2.0.0",
   ":dd-java-agent:instrumentation:redisson:redisson-2.3.0",
   ":dd-java-agent:instrumentation:redisson:redisson-3.10.3",
@@ -559,6 +569,7 @@ include(
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-client:jax-rs-client-2.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-1.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-2.0",
+  ":dd-java-agent:instrumentation:rxjava:rxjava-3.0",
   ":dd-java-agent:instrumentation:scala:scala-concurrent-2.8",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13",

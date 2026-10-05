@@ -1,6 +1,7 @@
 package datadog.trace.api.gateway;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.internal.TraceSegment;
 import java.util.Map;
 
@@ -43,5 +44,29 @@ public interface BlockResponseFunction {
         action.getBlockingContentType(),
         action.getExtraHeaders(),
         action.getSecurityResponseId());
+  }
+
+  /**
+   * Commits blocking response using a RequestBlockingAction, reporting to {@link
+   * AppSecContext#reportBlockFailure()} if the commit fails.
+   *
+   * <p>It's responsible for calling {@link TraceSegment#effectivelyBlocked()} before the span is
+   * finished.
+   *
+   * @param ctx the request context
+   * @param action the blocking action containing status code, content type, headers, and security
+   *     response ID
+   * @return true unless blocking could not be attempted
+   */
+  default boolean tryCommitBlockingResponse(
+      RequestContext ctx, Flow.Action.RequestBlockingAction action) {
+    boolean committed = tryCommitBlockingResponse(ctx.getTraceSegment(), action);
+    if (!committed) {
+      Object rawAppSecCtx = ctx.getData(RequestContextSlot.APPSEC);
+      if (rawAppSecCtx instanceof AppSecContext) {
+        ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+      }
+    }
+    return committed;
   }
 }

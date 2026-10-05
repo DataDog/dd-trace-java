@@ -6,6 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUME
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyList;
@@ -15,7 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
@@ -28,6 +33,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.common.writer.LoggingWriter;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
@@ -422,6 +428,11 @@ class OtlpTraceProtoTest {
             asList(
                 span("anchor.op", "anchor.op", "web"),
                 linkedSpanWithFlags("flags.linked", 0, (byte) 0x02))),
+        Arguments.of(
+            "span link with high-bit flags — flags written as unsigned byte, not sign-extended",
+            asList(
+                span("anchor.op", "anchor.op", "web"),
+                linkedSpanWithFlags("flags.highbit.linked", 0, (byte) 0x82))),
 
         // ── metadata paths ────────────────────────────────────────────────────
         Arguments.of(
@@ -623,6 +634,66 @@ class OtlpTraceProtoTest {
   }
 
   @Test
+  void traceStateAndFlagsStayPairedAcrossSamplingDecisions() throws IOException {
+    EncodedSamplingState localFallback = exportSamplingState(localProbabilitySpan(1.0, true));
+    assertTrue(localFallback.traceState.matches("ot=rv:[0-9a-f]{14};th:0"));
+    assertEquals(SAMPLED_TRACE_FLAG, localFallback.flags);
+
+    EncodedSamplingState inherited = exportSamplingState(inheritedSamplingSpan());
+    assertEquals("dd=s:1,ot=rv:ef284ace7a91e1;th:8,vendor=state", inherited.traceState);
+    assertEquals(SAMPLED_TRACE_FLAG, inherited.flags);
+
+    EncodedSamplingState probabilityDrop = exportSamplingState(localProbabilitySpan(0.0, false));
+    assertTrue(probabilityDrop.traceState.matches("ot=rv:[0-9a-f]{14};th:ffffffffffffff"));
+    assertEquals(0, probabilityDrop.flags);
+
+    DDSpan limiterDrop = localSamplingSpan();
+    limiterDrop
+        .spanContext()
+        .getPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            PrioritySampling.SAMPLER_DROP,
+            SamplingMechanism.AGENT_RATE,
+            1.0,
+            true,
+            limiterDrop.getTraceId().toLong(),
+            true);
+    EncodedSamplingState limiter = exportSamplingState(limiterDrop);
+    assertNull(limiter.traceState);
+    assertEquals(0, limiter.flags);
+
+    DDSpan nonProbabilityKeep = localProbabilitySpan(0.0, false);
+    nonProbabilityKeep.spanContext().getPropagationTags().forceKeep(SamplingMechanism.MANUAL);
+    EncodedSamplingState nonProbability = exportSamplingState(nonProbabilityKeep);
+    assertNull(nonProbability.traceState);
+    assertEquals(SAMPLED_TRACE_FLAG, nonProbability.flags);
+  }
+
+  @Test
+  void poisonedSpanResetsCollectorForNextTrace() {
+    // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
+    DDSpan realSpan = buildSpans(asList(span("first.span", "op.first", "web"))).get(0);
+
+    CoreSpan<?> poison = mock(CoreSpan.class);
+    when(poison.samplingPriority()).thenReturn(1);
+    when(poison.getTraceId()).thenThrow(new RuntimeException("boom"));
+
+    List<CoreSpan<?>> poisonedTrace = new ArrayList<>();
+    poisonedTrace.add(poison);
+    poisonedTrace.add(realSpan);
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    assertThrows(RuntimeException.class, () -> collector.addTrace(poisonedTrace));
+
+    // a normal trace collected afterwards must not see any leftover state from the poisoned one
+    List<DDSpan> normalTrace = buildSpans(asList(span("normal.op", "op.normal", "web")));
+    collector.addTrace(normalTrace);
+    OtlpPayload payload = collector.collectTraces();
+
+    assertTrue(payload.getContentLength() > 0, "normal trace after reset must still export");
+  }
+
+  @Test
   void testSpanOrderInTracePreserved() throws IOException {
     // Verifies that spans appear in the payload with the same order as the original trace
     List<DDSpan> spans =
@@ -679,6 +750,109 @@ class OtlpTraceProtoTest {
       }
     }
     return names;
+  }
+
+  private static DDSpan localSamplingSpan() {
+    AgentSpan span = TRACER.startSpan("test", "op.sampling");
+    span.setResourceName("op.sampling");
+    return (DDSpan) span;
+  }
+
+  private static DDSpan localProbabilitySpan(double rate, boolean sampled) {
+    DDSpan span = localSamplingSpan();
+    span.spanContext()
+        .getPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP,
+            SamplingMechanism.AGENT_RATE,
+            rate,
+            false,
+            span.getTraceId().toLong(),
+            true);
+    return span;
+  }
+
+  private static DDSpan inheritedSamplingSpan() {
+    PropagationTags propagationTags =
+        PropagationTags.factory()
+            .fromHeaderValue(
+                PropagationTags.HeaderType.W3C, "dd=s:1,vendor=state,ot=rv:ef284ace7a91e1;th:8");
+    ExtractedContext parent =
+        new ExtractedContext(
+            DDTraceId.ONE,
+            0L,
+            PrioritySampling.SAMPLER_KEEP,
+            null,
+            propagationTags,
+            TracePropagationStyle.TRACECONTEXT);
+    AgentSpan span = TRACER.startSpan("test", "op.inherited", parent);
+    span.setResourceName("op.inherited");
+    return (DDSpan) span;
+  }
+
+  private static EncodedSamplingState exportSamplingState(DDSpan span) throws IOException {
+    if (span.getSamplingPriority() <= 0) {
+      span.setTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+    }
+    span.finish();
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((CoreSpan<?>) span));
+    return parseOnlySpanSamplingState(collector.collectTraces());
+  }
+
+  private static EncodedSamplingState parseOnlySpanSamplingState(OtlpPayload payload)
+      throws IOException {
+    CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
+    tracesData.readTag();
+    CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
+    CodedInputStream scopeSpans = null;
+    while (!resourceSpans.isAtEnd()) {
+      int tag = resourceSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        scopeSpans = resourceSpans.readBytes().newCodedInput();
+      } else {
+        resourceSpans.skipField(tag);
+      }
+    }
+    assertNotNull(scopeSpans);
+
+    CodedInputStream spanData = null;
+    while (!scopeSpans.isAtEnd()) {
+      int tag = scopeSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        spanData = scopeSpans.readBytes().newCodedInput();
+        break;
+      }
+      scopeSpans.skipField(tag);
+    }
+    assertNotNull(spanData);
+
+    String traceState = null;
+    int flags = 0;
+    while (!spanData.isAtEnd()) {
+      int tag = spanData.readTag();
+      switch (WireFormat.getTagFieldNumber(tag)) {
+        case 3:
+          traceState = spanData.readString();
+          break;
+        case 16:
+          flags = spanData.readFixed32();
+          break;
+        default:
+          spanData.skipField(tag);
+      }
+    }
+    return new EncodedSamplingState(traceState, flags);
+  }
+
+  private static final class EncodedSamplingState {
+    private final String traceState;
+    private final int flags;
+
+    private EncodedSamplingState(String traceState, int flags) {
+      this.traceState = traceState;
+      this.flags = flags;
+    }
   }
 
   // ── span construction ─────────────────────────────────────────────────────
@@ -966,7 +1140,7 @@ class OtlpTraceProtoTest {
     // absent otherwise because the default sampler may still set a positive priority.
     if (spec.samplingPriority > 0) {
       assertTrue(
-          (parsedFlags & OtlpTraceProto.SAMPLED_TRACE_FLAG) != 0,
+          (parsedFlags & SAMPLED_TRACE_FLAG) != 0,
           "SAMPLED flag must be set in flags [" + caseName + "]");
     }
 
@@ -1082,6 +1256,8 @@ class OtlpTraceProtoTest {
     if (!linkSpec.traceState.isEmpty()) {
       assertEquals(
           linkSpec.traceState, parsedTraceState, "Link.trace_state mismatch [" + caseName + "]");
+    } else {
+      assertNull(parsedTraceState, "empty Link.trace_state should be omitted [" + caseName + "]");
     }
     // SpanLink.from() ORs in the SAMPLED_FLAG (0x01) when the target context has positive
     // sampling priority, which all test anchor spans have via the default tracer sampler.

@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * and replaces it with:
  *
  * <pre>
- * if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), Java8BytecodeBridge.getCurrentContext()) {
+ * if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), Java8BytecodeBridge.currentContext()) {
  *   // nothing
  * } else {
  *   server.handle(this);
@@ -83,7 +83,7 @@ public class HandleRequestVisitor extends MethodVisitor {
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
-          "getCurrentContext",
+          "currentContext",
           "()Ldatadog/context/Context;",
           false);
       // Call JettyBlockingHelper.block(request, response, context)

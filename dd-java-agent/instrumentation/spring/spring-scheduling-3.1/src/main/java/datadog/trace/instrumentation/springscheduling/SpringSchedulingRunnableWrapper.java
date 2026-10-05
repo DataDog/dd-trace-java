@@ -7,8 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.SCHEDULED_CALL;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
@@ -59,8 +59,9 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
             ? startSpan("spring-scheduling", SCHEDULED_CALL)
             : startSpan("spring-scheduling", SCHEDULED_CALL, null);
     DECORATE.afterStart(span);
+    DECORATE.measureIfEnabled(span);
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.onRun(span, runnable);
 
       try {

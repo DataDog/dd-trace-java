@@ -42,12 +42,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOC
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
@@ -570,6 +564,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "$Tags.HTTP_ROUTE" "/success"
             "servlet.context" "/boot-context"
             "servlet.path" "/success"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }

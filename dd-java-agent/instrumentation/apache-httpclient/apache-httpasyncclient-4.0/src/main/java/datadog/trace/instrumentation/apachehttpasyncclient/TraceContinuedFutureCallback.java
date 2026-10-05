@@ -1,21 +1,22 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.protocol.HttpContext;
 
 public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
-  private final AgentScope.Continuation parentContinuation;
+  private final ContextContinuation parentContinuation;
   private final AgentSpan clientSpan;
   private final HttpContext context;
   private final FutureCallback<T> delegate;
 
   public TraceContinuedFutureCallback(
-      final AgentScope.Continuation parentContinuation,
+      final ContextContinuation parentContinuation,
       final AgentSpan clientSpan,
       final HttpContext context,
       final FutureCallback<T> delegate) {
@@ -32,10 +33,10 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation == noopContinuation()) {
+    if (parentContinuation.context() == Context.root()) {
       completeDelegate(result);
     } else {
-      try (final AgentScope scope = parentContinuation.activate()) {
+      try (final ContextScope scope = parentContinuation.resume()) {
         completeDelegate(result);
       }
     }
@@ -48,10 +49,10 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation == noopContinuation()) {
+    if (parentContinuation.context() == Context.root()) {
       failDelegate(ex);
     } else {
-      try (final AgentScope scope = parentContinuation.activate()) {
+      try (final ContextScope scope = parentContinuation.resume()) {
         failDelegate(ex);
       }
     }
@@ -63,10 +64,10 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation == noopContinuation()) {
+    if (parentContinuation.context() == Context.root()) {
       cancelDelegate();
     } else {
-      try (final AgentScope scope = parentContinuation.activate()) {
+      try (final ContextScope scope = parentContinuation.resume()) {
         cancelDelegate();
       }
     }

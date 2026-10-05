@@ -15,10 +15,14 @@ public class TestApplicationHelper {
   // instrumentation is done by main thread
   private static final String INSTRUMENTATION_DONE_MAIN_THREAD =
       "[main] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
-  private static final String INSTRUMENTATION_DONE_BCKG_THREAD =
-      "[dd-remote-config] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
-  private static final String INSTRUMENTATION_DONE_TASK_THREAD =
-      "[dd-task-scheduler] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+  private static final String INSTRUMENTATION_DONE_NO_THREAD =
+      "] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+  private static final String THREAD_MAIN = "main";
+  private static final String THREAD_REMOTE_CONFIG = "dd-remote-config";
+  private static final String THREAD_SCHEDULER = "dd-task-scheduler";
+  private static final String THREAD_STARTUP = "dd-agent-startup-datadog-tracer";
+  private static final String[] THREAD_NAMES =
+      new String[] {THREAD_MAIN, THREAD_REMOTE_CONFIG, THREAD_SCHEDULER, THREAD_STARTUP};
   private static final String RENTRANSFORMATION_CLASS =
       "[dd-remote-config] DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
   private static final String RETRANSFORMATION_DONE =
@@ -46,6 +50,11 @@ public class TestApplicationHelper {
 
   public static String waitForInstrumentation(String logFileName, String className, String fromLine)
       throws IOException {
+    return waitForInstrumentation(logFileName, className, fromLine, Duration.ofSeconds(TIMEOUT_S));
+  }
+
+  public static String waitForInstrumentation(
+      String logFileName, String className, String fromLine, Duration timeout) throws IOException {
     AtomicBoolean generatingByteCode = new AtomicBoolean();
     return waitForSpecificLogLine(
         Paths.get(logFileName),
@@ -58,10 +67,7 @@ public class TestApplicationHelper {
           if (!generatingByteCode.get()) {
             // instrumentation is done by background thread, need to wait for end of
             // re-transformation
-            if (line.contains(String.format(INSTRUMENTATION_DONE_BCKG_THREAD, className))) {
-              generatingByteCode.set(true);
-            }
-            if (line.contains(String.format(INSTRUMENTATION_DONE_TASK_THREAD, className))) {
+            if (line.contains(String.format(INSTRUMENTATION_DONE_NO_THREAD, className))) {
               generatingByteCode.set(true);
             }
           } else {
@@ -71,7 +77,7 @@ public class TestApplicationHelper {
         },
         () -> {},
         Duration.ofMillis(SLEEP_MS),
-        Duration.ofSeconds(TIMEOUT_S));
+        timeout);
   }
 
   public static String waitForReTransformation(

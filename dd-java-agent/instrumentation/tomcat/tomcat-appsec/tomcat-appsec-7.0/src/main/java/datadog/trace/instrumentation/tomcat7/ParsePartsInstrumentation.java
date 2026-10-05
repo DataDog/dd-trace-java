@@ -54,16 +54,6 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector",
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl$CachedMethods",
-    };
-  }
-
-  @Override
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(new ParsePartsVisitorWrapper());
   }
@@ -101,7 +91,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
       collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Local("collector") ParameterCollector collector,
         @Advice.Local("reqCtx") RequestContext reqCtx,

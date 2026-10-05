@@ -27,7 +27,8 @@ public class DatabricksParentContext implements AgentSpanContext {
   private final DDTraceId traceId;
   private final long spanId;
 
-  public DatabricksParentContext(String jobId, String jobRunId, String taskRunId) {
+  public DatabricksParentContext(
+      String jobId, String jobRunId, String taskRunId, int attemptNumber) {
     MessageDigest digest = null;
     try {
       digest = MessageDigest.getInstance("SHA-1");
@@ -36,7 +37,7 @@ public class DatabricksParentContext implements AgentSpanContext {
     }
 
     if (digest != null && jobId != null && taskRunId != null) {
-      traceId = computeTraceId(digest, jobId, jobRunId, taskRunId);
+      traceId = computeTraceId(digest, jobId, jobRunId, taskRunId, attemptNumber);
       spanId = computeSpanId(digest, jobId, taskRunId);
     } else {
       traceId = DDTraceId.ZERO;
@@ -45,11 +46,20 @@ public class DatabricksParentContext implements AgentSpanContext {
   }
 
   private DDTraceId computeTraceId(
-      MessageDigest digest, String jobId, String jobRunId, String taskRunId) {
+      MessageDigest digest, String jobId, String jobRunId, String taskRunId, int attemptNumber) {
     byte[] inputBytes;
 
     if (jobRunId != null) {
-      inputBytes = (jobId + jobRunId).getBytes(StandardCharsets.UTF_8);
+      // Databricks reuses the same jobRunId when a run is repaired, so the original and repaired
+      // attempts would otherwise hash to the same trace id. The crawler side (dogweb) mixes the
+      // repair attempt index into the trace id to give each attempt its own trace; mirror that
+      // exactly so the spark spans land on the matching trace. attempt 0 stays bare for backward
+      // compatibility with runs that were never repaired.
+      String input = jobId + jobRunId;
+      if (attemptNumber > 0) {
+        input += "-" + attemptNumber;
+      }
+      inputBytes = input.getBytes(StandardCharsets.UTF_8);
     } else {
       inputBytes = (jobId + taskRunId).getBytes(StandardCharsets.UTF_8);
     }

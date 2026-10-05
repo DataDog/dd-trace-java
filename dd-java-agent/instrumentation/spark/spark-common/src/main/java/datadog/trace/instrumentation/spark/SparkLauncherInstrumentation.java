@@ -30,15 +30,6 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".EmrUtils",
-      packageName + ".SparkConfAllowList",
-      packageName + ".SparkLauncherListener",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -48,7 +39,7 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class StartApplicationAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.This Object launcher,
         @Advice.Return SparkAppHandle handle,

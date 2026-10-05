@@ -1,13 +1,10 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_WAS_LONG_RUNNING;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
@@ -30,6 +27,10 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentatio
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.NO_TRACE_FLAGS;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
+import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -47,6 +48,7 @@ import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
@@ -55,10 +57,6 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
-
-  public static final int NO_TRACE_FLAGS = 0x00000000;
-  public static final int SAMPLED_TRACE_FLAG = 0x00000001;
-  public static final int REMOTE_TRACE_FLAG = 0x00000300;
 
   private OtlpTraceProto() {}
 
@@ -87,6 +85,7 @@ public final class OtlpTraceProto {
       int nestedSpanLinkBytes,
       OtlpProtoBuffer protobuf) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
+    SamplingState samplingState = propagationTags.samplingState();
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, span.getTraceId());
@@ -94,7 +93,7 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, span.getSpanId());
 
-    String tracestate = propagationTags.getW3CTracestate();
+    String tracestate = propagationTags.getW3CTracestate(samplingState);
     if (tracestate != null) {
       writeTag(buf, 3, LEN_WIRE_TYPE);
       writeString(buf, tracestate);
@@ -106,7 +105,7 @@ public final class OtlpTraceProto {
     }
 
     int traceFlags = NO_TRACE_FLAGS;
-    if (span.samplingPriority() > 0) {
+    if (samplingState.getSamplingPriority() > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
     if (span.spanContext().isRemote()) {
@@ -176,8 +175,10 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, spanLink.spanId());
 
-    writeTag(buf, 3, LEN_WIRE_TYPE);
-    writeString(buf, spanLink.traceState());
+    if (!spanLink.traceState().isEmpty()) {
+      writeTag(buf, 3, LEN_WIRE_TYPE);
+      writeString(buf, spanLink.traceState());
+    }
 
     spanLink
         .attributes()
@@ -189,7 +190,7 @@ public final class OtlpTraceProto {
             });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
-    writeI32(buf, spanLink.traceFlags());
+    writeI32(buf, spanLink.traceFlags() & 0xff);
 
     return protobuf.recordMessage(buf, 13);
   }
@@ -244,22 +245,6 @@ public final class OtlpTraceProto {
     writeAttribute(buf, key, value);
   }
 
-  private static int spanKind(CharSequence spanKind) {
-    if (spanKind == null) {
-      return 0; // UNSPECIFIED
-    } else if (SPAN_KIND_SERVER.contentEquals(spanKind)) {
-      return 2; // SERVER
-    } else if (SPAN_KIND_CLIENT.contentEquals(spanKind)) {
-      return 3; // CLIENT
-    } else if (SPAN_KIND_PRODUCER.contentEquals(spanKind)) {
-      return 4; // PRODUCER
-    } else if (SPAN_KIND_CONSUMER.contentEquals(spanKind)) {
-      return 5; // CONSUMER
-    } else {
-      return 1; // INTERNAL
-    }
-  }
-
   public static class MetaWriter implements MetadataConsumer {
     private final StreamingBuffer buf;
 
@@ -302,8 +287,8 @@ public final class OtlpTraceProto {
 
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
-      if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCode());
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
+        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCodeString());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());

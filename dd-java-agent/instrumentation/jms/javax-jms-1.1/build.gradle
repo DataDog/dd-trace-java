@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     name = "javax.jms"
@@ -12,9 +17,6 @@ muzzle {
     versions = "[,]"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'java-test-fixtures'
 
 repositories {
   maven {

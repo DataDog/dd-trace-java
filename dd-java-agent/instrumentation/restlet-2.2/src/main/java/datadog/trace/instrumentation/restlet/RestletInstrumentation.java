@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.restlet;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.restlet.RestletDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -44,17 +44,6 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
         getClass().getName() + "$RestletHandleAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RestletExtractAdapter",
-      packageName + ".RestletExtractAdapter$Request",
-      packageName + ".RestletExtractAdapter$Response",
-      packageName + ".RestletDecorator",
-      packageName + ".HttpExchangeURIDataAdapter"
-    };
-  }
-
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -63,7 +52,7 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
       return parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
@@ -72,8 +61,7 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   public static class RestletHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
-      Context parentContext =
-          getCurrentContext(); // parent context attached by ContextTrackingAdvice
+      Context parentContext = currentContext(); // parent context attached by ContextTrackingAdvice
       Context context = DECORATE.startSpan(exchange, parentContext);
       AgentSpan span = spanFromContext(context);
       ContextScope scope = context.attach();

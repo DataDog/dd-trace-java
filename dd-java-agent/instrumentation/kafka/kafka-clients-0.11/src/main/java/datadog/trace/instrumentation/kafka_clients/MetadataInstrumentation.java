@@ -54,7 +54,6 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
@@ -90,7 +89,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
         String clusterId = newCluster.clusterResource().clusterId();
         MetadataState state =
             InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, MetadataState::new);
+                .getOrCreate(metadata, MetadataState::new);
         state.clusterId = clusterId;
         KafkaConfigHelper.reportPendingConfig(state, clusterId);
       }
@@ -111,7 +110,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
         String clusterId = response.clusterId();
         MetadataState state =
             InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, MetadataState::new);
+                .getOrCreate(metadata, MetadataState::new);
         state.clusterId = clusterId;
         KafkaConfigHelper.reportPendingConfig(state, clusterId);
       }

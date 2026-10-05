@@ -21,6 +21,7 @@ import datadog.trace.api.function.TriFunction
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.api.gateway.BlockResponseFunction
+import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -33,12 +34,16 @@ import datadog.trace.api.telemetry.LoginEvent
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
+import datadog.trace.lambda.LambdaAppSecHandler
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
+import java.nio.charset.StandardCharsets
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Function
@@ -210,9 +215,47 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.isWafRequestBlockFailure()
     1 * mockAppSecCtx.isWafRateLimited()
     1 * mockAppSecCtx.isWafTruncated()
-    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _) // call waf request metric
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'lambda request end reaches shared waf telemetry with its framework'() {
+    given:
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get()
+    CallbackProvider callbackProvider = Mock {
+      getCallback(EVENTS.requestStarted()) >> requestStartedCB
+      getCallback(EVENTS.requestEnded()) >> requestEndedCB
+    }
+    AgentTracer.TracerAPI tracer = Stub {
+      getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    }
+    AgentTracer.forceRegister(tracer)
+
+    byte[] event = '{"path":"/","requestContext":{"httpMethod":"GET"}}'.getBytes(StandardCharsets.UTF_8)
+    TagContext lambdaContext = LambdaAppSecHandler.processRequestStart(new ByteArrayInputStream(event)) as TagContext
+    AppSecRequestContext lambdaAppSecContext = lambdaContext.requestContextDataAppSec as AppSecRequestContext
+    RequestContext lambdaRequestContext = Stub {
+      getData(RequestContextSlot.APPSEC) >> lambdaAppSecContext
+      getTraceSegment() >> traceSegment
+    }
+    AgentSpan span = Mock {
+      getRequestContext() >> lambdaRequestContext
+      getTags() >> lambdaContext.tags
+    }
+
+    when:
+    LambdaAppSecHandler.processRequestEnd(span)
+
+    then:
+    1 * requestSampler.preSampleRequest(lambdaAppSecContext, 'aws-lambda') >> false
+    1 * span.setMetric('_dd.appsec.enabled', 1)
+    1 * span.setTag('_dd.runtime_family', 'jvm')
+    1 * pp.processTraceSegment(traceSegment, lambdaAppSecContext, [])
+    1 * wafMetricCollector.wafRequest(false, false, false, false, false, false, false, false)
+
+    cleanup:
+    AgentTracer.forceRegister(originalTracer)
   }
 
   void 'actor ip calculated from headers'() {
@@ -1528,8 +1571,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
-    1 * requestSampler.preSampleRequest(_) >> true
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route', 'component': 'spring-web'])
+    1 * requestSampler.preSampleRequest(_, 'spring-web') >> true
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
@@ -1546,8 +1589,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
-    1 * requestSampler.preSampleRequest(_) >> false
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route', 'component': 'spring-web'])
+    1 * requestSampler.preSampleRequest(_, 'spring-web') >> false
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
@@ -1565,8 +1608,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >> TagMap.fromMap(['http.route': 'route'])
-    1 * requestSampler.preSampleRequest(_) >> true
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.route': 'route', 'component': 'spring-web'])
+    1 * requestSampler.preSampleRequest(_, 'spring-web') >> true
     1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }

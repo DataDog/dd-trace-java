@@ -28,7 +28,7 @@ public class HandleMatchAdvice {
       "org.springframework.web.servlet.HandlerMapping.matrixVariables";
 
   @SuppressWarnings("Duplicates")
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   public static void after(
       @Advice.Argument(2) final HttpServletRequest req,

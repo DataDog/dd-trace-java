@@ -65,13 +65,6 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".NettyMultipartHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseBody").and(takesArguments(0)).and(isPrivate()),
@@ -80,7 +73,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParseBodyAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This InterfaceHttpPostRequestDecoder thiz,
         @Advice.FieldValue("currentStatus") Enum currentStatus,

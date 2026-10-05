@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_POLL;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -17,11 +18,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
@@ -37,6 +38,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
+import org.apache.kafka.common.errors.WakeupException;
 
 /**
  * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
@@ -160,7 +162,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       if (Config.get().isDataStreamsEnabled()) {
         MetadataState state =
             InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, MetadataState::new);
+                .getOrCreate(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,
@@ -213,7 +215,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       if (Config.get().isDataStreamsEnabled()) {
         MetadataState state =
             InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, MetadataState::new);
+                .getOrCreate(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,
@@ -235,7 +237,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
    */
   public static class RecordsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This KafkaConsumer consumer) {
+    public static ContextScope onEnter(@Advice.This KafkaConsumer consumer) {
       // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
@@ -258,11 +260,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       return null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void captureGroup(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.This KafkaConsumer consumer,
-        @Advice.Return ConsumerRecords records) {
+        @Advice.Return ConsumerRecords records,
+        @Advice.Thrown Throwable throwable) {
       int recordsCount = 0;
       if (records != null) {
         KafkaConsumerInfo kafkaConsumerInfo =
@@ -279,10 +282,13 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       if (scope == null) {
         return;
       }
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
-      span.finish();
+      if (!(throwable instanceof WakeupException)) {
+        span.addThrowable(throwable);
+      }
       scope.close();
+      span.finish();
     }
   }
 }

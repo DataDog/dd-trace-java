@@ -37,6 +37,16 @@ import java.nio.file.Paths
 class TestJvmSpec(val project: Project) {
   companion object {
     const val TEST_JVM = "testJvm"
+
+    // JDK 27 TODO: remove after GA (tip will move to 27)
+    internal fun resolveTipJavaVersion(javaVersions: List<Int>): String {
+      val tipJavaVersions = javaVersions.filterNot { it == 27 }
+      if (tipJavaVersions.isEmpty()) {
+        throw GradleException("No Java installations found for tip after excluding Java 27.")
+      }
+
+      return tipJavaVersions.max().toString()
+    }
   }
 
   private val currentJavaHomePath = project.providers.systemProperty("java.home").map { it.normalizeToJDKJavaHome() }
@@ -63,7 +73,7 @@ class TestJvmSpec(val project: Project) {
           throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
         }
 
-        javaVersions.max().toString()
+        resolveTipJavaVersion(javaVersions) // JDK 27 TODO: revert back to "javaVersions.max().toString()" after GA
       }
 
       else -> testJvm

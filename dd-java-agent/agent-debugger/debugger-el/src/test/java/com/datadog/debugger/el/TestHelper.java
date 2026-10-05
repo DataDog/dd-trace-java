@@ -8,7 +8,7 @@ public class TestHelper {
     try {
       Field field = config.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);
-      field.set(config, value);
+      field.set(config, value); // TODO: JEP 500 - avoid mutating final fields
     } catch (Throwable e) {
       e.printStackTrace();
     }

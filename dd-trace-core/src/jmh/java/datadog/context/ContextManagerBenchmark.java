@@ -107,9 +107,34 @@ public class ContextManagerBenchmark {
   }
 
   static ContextManager createManager(String type) {
-    return "Continuable".equals(type)
-        ? new ContinuableScopeManager(0, false)
-        : ThreadLocalContextManager.INSTANCE;
+    if ("Continuable".equals(type)) {
+      ContinuableScopeManager csm = new ContinuableScopeManager(0, false);
+      return new ContextManager() {
+        @Override
+        public Context current() {
+          return csm.currentContext();
+        }
+
+        @Override
+        public ContextScope attach(Context ctx) {
+          return csm.attach(ctx);
+        }
+
+        @Override
+        public Context swap(Context ctx) {
+          return csm.swap(ctx);
+        }
+
+        @Override
+        public ContextContinuation capture(Context ctx) {
+          return csm.capture(ctx);
+        }
+
+        @Override
+        public void addListener(ContextListener l) {}
+      };
+    }
+    return ThreadLocalContextManager.INSTANCE;
   }
 
   static Context[] createContexts() {

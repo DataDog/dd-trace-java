@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import rx.DDTracingUtil;
@@ -39,7 +39,7 @@ public class TracedOnSubscribe<T> implements Observable.OnSubscribe<T> {
             instrumentationName(), operationName, parent != null ? parent.spanContext() : null);
     afterStart(span);
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       delegate.call(new TracedSubscriber(span, subscriber, decorator));
     }
   }

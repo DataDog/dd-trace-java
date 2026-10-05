@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY;
@@ -10,7 +11,9 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
-import static datadog.trace.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.otBaggageHeaders;
+import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
+import static datadog.trace.test.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,12 +30,16 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
-import datadog.trace.junit.utils.converter.TraceIdConverter;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
@@ -111,6 +118,35 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
     String expectedHeader = "my-interesting-info";
     assertEquals(expectedHeader, context.getTags().getString(SOME_TAG));
+  }
+
+  @Test
+  void extractHeaderTagMappedOnAwsTraceHeader() {
+    // X-Amzn-Trace-Id is consumed as AWS X-Ray context, but a header tag mapped onto it must still
+    // be honoured. This is the load-balancer header example from the AWS documentation: it carries
+    // a Self field and is not in the padded format this codec extracts ids from, so only the tag
+    // is expected from it.
+    this.extractor.cleanup();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create().setHeaderTags(singletonMap(X_AMZN_TRACE_ID, SOME_TAG)).apply();
+    this.extractor = DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+
+    String awsTraceHeader =
+        "Self=1-67891233-12456789abcdef012345678;Root=1-67891233-abcdef012345678912345678";
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "1",
+        SPAN_ID_KEY, "2",
+        X_AMZN_TRACE_ID, awsTraceHeader
+    );
+    // spotless:on
+
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(awsTraceHeader, context.getTags().getString(SOME_TAG));
+    assertEquals(DDTraceId.from("1"), context.getTraceId());
+    assertEquals(DDSpanId.from("2"), context.getSpanId());
   }
 
   @ParameterizedTest
@@ -322,6 +358,33 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
       assertEquals(expectedBaggage, context.getBaggage());
     } else {
       assertNull(context);
+    }
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "1")
+  void extractMappedBaggageIsSubjectToTheItemLimit() {
+    // mapped baggage shares the item budget with the baggage read off the wire, so the wire item
+    // is dropped once the mapped header has claimed the only slot
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue");
+    headers.put(OT_BAGGAGE_PREFIX + "wireKey", "wireValue");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(singletonMap(SOME_BAGGAGE, "mappedBaggageValue"), context.getBaggage());
+  }
+
+  @Nested
+  class BaggageLimits extends AbstractOTBaggageTest {
+    @Override
+    protected HttpCodec.Extractor extractor() {
+      return DatadogHttpExtractorTest.this.extractor;
+    }
+
+    @Override
+    protected Map<String, String> baggageHeaders(List<Entry<String, String>> items) {
+      return otBaggageHeaders(OT_BAGGAGE_PREFIX, items);
     }
   }
 

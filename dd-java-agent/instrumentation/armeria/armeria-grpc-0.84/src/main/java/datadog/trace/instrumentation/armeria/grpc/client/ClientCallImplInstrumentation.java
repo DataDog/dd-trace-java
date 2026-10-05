@@ -5,6 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
@@ -15,18 +17,18 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 
@@ -60,8 +62,16 @@ public final class ClientCallImplInstrumentation
     transformer.applyAdvice(
         named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
     transformer.applyAdvice(
+        // matches the method signature for versions until 1.40 excluded
         named("close").and(isMethod().and(takesArguments(2))),
         getClass().getName() + "$CloseObserver");
+    transformer.applyAdvice(
+        // matches the signature after v1.40
+        named("close")
+            .and(isMethod())
+            .and(takesArguments(3))
+            .and(takesArgument(2, named("java.lang.Throwable"))),
+        getClass().getName() + "$CloseObserverWithCause");
     if (InstrumenterConfig.get()
         .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
       transformer.applyAdvice(
@@ -93,7 +103,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class Start {
     @Advice.OnMethodEnter
-    public static <T> AgentScope before(
+    public static <T> ContextScope before(
         @Advice.This ClientCall<?, ?> call,
         @Advice.Argument(0) ClientCall.Listener<T> responseListener,
         @Advice.Argument(1) Metadata headers,
@@ -109,16 +119,18 @@ public final class ClientCallImplInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Thrown Throwable error,
         @Advice.Local("$$ddSpan") AgentSpan span)
         throws Throwable {
+      if (null != error && null != span) {
+        DECORATE.onError(span, error);
+        DECORATE.beforeFinish(span);
+      }
       if (null != scope) {
         scope.close();
       }
       if (null != error && null != span) {
-        DECORATE.onError(span, error);
-        DECORATE.beforeFinish(span);
         span.finish();
         throw error;
       }
@@ -129,13 +141,13 @@ public final class ClientCallImplInstrumentation
   public static final class StartContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(@Advice.Argument(1) Metadata headers) {
-      DECORATE.injectContext(Java8BytecodeBridge.getCurrentContext(), headers, SETTER);
+      DECORATE.injectContext(currentContext(), headers, SETTER);
     }
   }
 
   public static final class ActivateSpan {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         return activateSpan(span);
@@ -144,7 +156,7 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }
@@ -153,7 +165,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class SendMessage {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       // could create a message span here for the request
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
@@ -163,7 +175,7 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }
@@ -176,7 +188,9 @@ public final class ClientCallImplInstrumentation
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
-        if (cause instanceof StatusException) {
+        if (cause instanceof StatusRuntimeException) {
+          DECORATE.onClose(span, ((StatusRuntimeException) cause).getStatus());
+        } else if (cause instanceof StatusException) {
           DECORATE.onClose(span, ((StatusException) cause).getStatus());
         }
         span.finish();
@@ -186,8 +200,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class CloseObserver {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
-      // could create a message span here for the request
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (span != null) {
         return activateSpan(span);
@@ -197,18 +210,56 @@ public final class ClientCallImplInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void closeObserver(
-        @Advice.Enter AgentScope scope, @Advice.Argument(0) Status status) {
+        @Advice.Enter ContextScope scope, @Advice.Argument(0) Status status) {
       if (null != scope) {
-        DECORATE.onClose(scope.span(), status);
-        scope.span().finish();
+        AgentSpan span = spanFromScope(scope);
+        DECORATE.onClose(span, status);
         scope.close();
+        span.finish();
+      }
+    }
+  }
+
+  /**
+   * After armeria 1.40 and <a href="https://github.com/line/armeria/pull/6717">this PR</a>, it is
+   * possible that the first call to close would not be the real close. We need to rely on the
+   * internal boolean `closed` to know if we are dealing with the real closing.
+   */
+  public static final class CloseObserverWithCause {
+    @Advice.OnMethodEnter
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
+      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      if (span != null) {
+        return activateSpan(span);
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void closeObserver(
+        @Advice.This ClientCall<?, ?> call,
+        @Advice.Enter ContextScope scope,
+        @Advice.Argument(0) Status status,
+        @Advice.FieldValue("closed") boolean closed) {
+      if (null != scope) {
+        AgentSpan span = null;
+        if (closed) {
+          span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+          if (span != null) {
+            DECORATE.onClose(span, status);
+          }
+        }
+        scope.close();
+        if (span != null) {
+          span.finish();
+        }
       }
     }
   }
 
   public static final class ReceiveMessages {
     @Advice.OnMethodEnter
-    public static AgentScope before() {
+    public static ContextScope before() {
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
         AgentSpan messageSpan =
@@ -221,10 +272,10 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
-        scope.span().finish();
         scope.close();
+        spanFromScope(scope).finish();
       }
     }
   }

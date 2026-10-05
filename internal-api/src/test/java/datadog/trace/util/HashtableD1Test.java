@@ -31,6 +31,12 @@ class HashtableD1Test {
   }
 
   @Test
+  void keyExposesTheConstructionKey() {
+    StringIntEntry e = new StringIntEntry("foo", 1);
+    assertEquals("foo", e.key());
+  }
+
+  @Test
   void multipleInsertsRetrievableSeparately() {
     Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(16);
     StringIntEntry a = new StringIntEntry("alpha", 1);

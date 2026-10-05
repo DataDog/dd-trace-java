@@ -1,4 +1,11 @@
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.appsec.AppSecContext
+import datadog.trace.api.gateway.BlockResponseFunction
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -11,9 +18,15 @@ import org.apache.commons.fileupload.FileItemIterator
 import org.apache.commons.fileupload.disk.DiskFileItemFactory
 import org.apache.commons.fileupload.servlet.ServletFileUpload
 
+import java.util.function.BiFunction
+
+import static datadog.trace.api.gateway.Events.EVENTS
+
 class ServletFileUploadInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
+
+  private final appSecSubscriptionService = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC)
 
   @Override
   protected void configurePreAgent() {
@@ -28,6 +41,7 @@ class ServletFileUploadInstrumentationTest extends InstrumentationSpecification 
   @Override
   void cleanup() {
     InstrumentationBridge.clearIastModules()
+    appSecSubscriptionService.reset()
   }
 
   void 'test commons fileupload ServletFileUpload parseRequest'() {
@@ -91,6 +105,73 @@ class ServletFileUploadInstrumentationTest extends InstrumentationSpecification 
 
     then:
     1 * module.taintObject(iastCtx, _ as FileItemIterator, SourceTypes.REQUEST_MULTIPART_PARAMETER)
+  }
+
+  void 'test appsec commits the filenames blocking response with the request context'() {
+    given:
+    final appSecCtx = Stub(AppSecContext)
+    final brf = Mock(BlockResponseFunction)
+    appSecSubscriptionService.registerCallback(EVENTS.requestFilesFilenames(), { RequestContext reqCtx, List<String> filenames ->
+      blockingFlow()
+    } as BiFunction<RequestContext, List<String>, Flow<Void>>)
+    final servletFileUpload = new ServletFileUpload(new DiskFileItemFactory())
+
+    when:
+    runUnderAppSecTrace(appSecCtx, brf) { servletFileUpload.parseRequest(multipartRequest()) }
+
+    then:
+    thrown(BlockingException)
+    1 * brf.tryCommitBlockingResponse(_ as RequestContext, _ as Flow.Action.RequestBlockingAction) >> true
+  }
+
+  void 'test appsec commits the file content blocking response with the request context'() {
+    given:
+    final appSecCtx = Stub(AppSecContext)
+    final brf = Mock(BlockResponseFunction)
+    appSecSubscriptionService.registerCallback(EVENTS.requestFilesContent(), { RequestContext reqCtx, List<String> contents ->
+      blockingFlow()
+    } as BiFunction<RequestContext, List<String>, Flow<Void>>)
+    final servletFileUpload = new ServletFileUpload(new DiskFileItemFactory())
+
+    when:
+    runUnderAppSecTrace(appSecCtx, brf) { servletFileUpload.parseRequest(multipartRequest()) }
+
+    then:
+    thrown(BlockingException)
+    1 * brf.tryCommitBlockingResponse(_ as RequestContext, _ as Flow.Action.RequestBlockingAction) >> true
+  }
+
+  private static MockHttpServletRequest multipartRequest() {
+    final body = "Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n" +
+      "Content-Type: text/plain\r\n" +
+      "\r\n" +
+      "This is a test file.\r\n"
+    new MockHttpServletRequest('multipart/form-data', body, 'UTF-8')
+  }
+
+  private static Flow<Void> blockingFlow() {
+    new Flow<Void>() {
+        @Override
+        Flow.Action getAction() {
+          new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON)
+        }
+
+        @Override
+        Void getResult() {
+          null
+        }
+      }
+  }
+
+  protected <E> E runUnderAppSecTrace(Object appSecCtx, BlockResponseFunction brf, Closure<E> cl) {
+    final ddctx = new TagContext().withRequestContextDataAppSec(appSecCtx)
+    final span = TEST_TRACER.startSpan("test", "test-appsec-span", ddctx)
+    span.requestContext.blockResponseFunction = brf
+    try {
+      return AgentTracer.activateSpan(span).withCloseable(cl)
+    } finally {
+      span.finish()
+    }
   }
 
   protected <E> E runUnderIastTrace(Closure<E> cl) {

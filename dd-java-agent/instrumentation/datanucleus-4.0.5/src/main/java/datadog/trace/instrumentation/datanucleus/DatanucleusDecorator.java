@@ -46,7 +46,7 @@ public class DatanucleusDecorator extends OrmClientDecorator {
     return className(entity.getClass());
   }
 
-  public AgentSpan setResourceFromIdOrClass(AgentSpan span, Object id, String className) {
+  public void setResourceFromIdOrClass(AgentSpan span, Object id, String className) {
     String targetClass = null;
     if (className != null) {
       targetClass = className;
@@ -59,8 +59,6 @@ public class DatanucleusDecorator extends OrmClientDecorator {
     if (targetClass != null && !targetClass.isEmpty()) {
       span.setResourceName(targetClass.substring(targetClass.lastIndexOf(".") + 1));
     }
-
-    return span;
   }
 
   @Override

@@ -1,32 +1,38 @@
-import groovy.lang.Closure
-import org.gradle.kotlin.dsl.extra
+import datadog.gradle.configureCompiler
 
 plugins {
   `java-library`
   idea
+  id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.jmh-conventions")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 extensions.getByName("tracerJava").withGroovyBuilder {
   invokeMethod("addSourceSetFor", arrayOf(JavaVersion.VERSION_17, mapOf("compileOnly" to true)))
 }
 
 dependencies {
+  add("main_java17CompileOnly", project(":components:annotations"))
   implementation(project(":components:environment"))
   implementation(project(":utils:logging-utils"))
   implementation(libs.slf4j)
   implementation(libs.jnr.unixsocket)
   testImplementation(files(sourceSets["main_java17"].output))
+  jmhImplementation(files(sourceSets["main_java17"].output))
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
-  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  includeTests = false
+  resultFormat = "JSON"
+  failOnError = true
 }
 
-listOf("compileMain_java17Java", "compileTestJava").forEach {
+listOf("compileMain_java17Java", "compileTestJava", "compileJmhJava").forEach {
   tasks.named<JavaCompile>(it) {
-    configureCompiler(17, JavaVersion.VERSION_1_8)
+    // The Java 17 implementation can lift this offset, but compileTestJava must first be split if
+    // the remaining socket tests still need to run on Java 8.
+    configureCompiler(JavaVersion.VERSION_1_8, "Uses java.net.UnixDomainSocketAddress (Java 16+) at Java 8 bytecode")
   }
 }
 

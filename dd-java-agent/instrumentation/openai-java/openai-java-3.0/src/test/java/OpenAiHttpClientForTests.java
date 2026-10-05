@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 // Wraps httpClient calls to dump request/responses records to be used with the mocked backend
 public class OpenAiHttpClientForTests implements HttpClient {
@@ -21,18 +21,18 @@ public class OpenAiHttpClientForTests implements HttpClient {
     this.delegate = delegate;
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public HttpResponse execute(
-      @NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
+      @Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
     HttpResponse response = delegate.execute(request, requestOptions);
     return wrapIfNeeded(request, response);
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public CompletableFuture<HttpResponse> executeAsync(
-      @NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
+      @Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
     return delegate
         .executeAsync(request, requestOptions)
         .thenApply(response -> wrapIfNeeded(request, response));
@@ -70,13 +70,13 @@ public class OpenAiHttpClientForTests implements HttpClient {
       return response.statusCode();
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public Headers headers() {
       return response.headers();
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public InputStream body() {
       InputStream body = response.body();

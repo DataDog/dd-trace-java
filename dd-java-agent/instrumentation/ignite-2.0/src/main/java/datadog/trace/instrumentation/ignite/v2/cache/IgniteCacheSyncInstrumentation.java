@@ -4,14 +4,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.ignite.v2.cache.IgniteCacheDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.ignite.Ignite;
@@ -73,7 +74,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
   public static class IgniteAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final IgniteCache that, @Advice.Origin("#m") final String methodName) {
       // Ensure that we only create a span for the top-level cache method
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
@@ -92,27 +93,25 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
 
       if (scope == null) {
         return;
       }
 
-      try {
-        DECORATE.onError(scope.span(), throwable);
-        DECORATE.beforeFinish(scope.span());
-      } finally {
-        scope.close();
-        scope.span().finish();
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-      }
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 
   public static class KeyedAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final IgniteCache that,
         @Advice.Origin("#m") final String methodName,
         @Advice.Argument(value = 0, optional = true) final Object key) {
@@ -133,26 +132,24 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
 
-      try {
-        DECORATE.onError(scope.span(), throwable);
-        DECORATE.beforeFinish(scope.span());
-      } finally {
-        scope.close();
-        scope.span().finish();
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-      }
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 
   public static class QueryAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final IgniteCache that,
         @Advice.Origin("#m") final String methodName,
         @Advice.Argument(0) final Query query) {
@@ -173,19 +170,17 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
 
-      try {
-        DECORATE.onError(scope.span(), throwable);
-        DECORATE.beforeFinish(scope.span());
-      } finally {
-        scope.close();
-        scope.span().finish();
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-      }
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 }

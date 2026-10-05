@@ -1,16 +1,43 @@
 package com.datadog.debugger.el;
 
+import com.datadog.debugger.el.expressions.BinaryExpression;
+import com.datadog.debugger.el.expressions.BinaryOperator;
+import com.datadog.debugger.el.expressions.BooleanExpression;
+import com.datadog.debugger.el.expressions.ComparisonExpression;
+import com.datadog.debugger.el.expressions.ComparisonOperator;
+import com.datadog.debugger.el.expressions.ContainsExpression;
+import com.datadog.debugger.el.expressions.EndsWithExpression;
+import com.datadog.debugger.el.expressions.FilterCollectionExpression;
 import com.datadog.debugger.el.expressions.GetMemberExpression;
+import com.datadog.debugger.el.expressions.HasAllExpression;
+import com.datadog.debugger.el.expressions.HasAnyExpression;
+import com.datadog.debugger.el.expressions.IfElseExpression;
+import com.datadog.debugger.el.expressions.IfExpression;
 import com.datadog.debugger.el.expressions.IndexExpression;
+import com.datadog.debugger.el.expressions.IsDefinedExpression;
+import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
+import com.datadog.debugger.el.expressions.MatchesExpression;
+import com.datadog.debugger.el.expressions.NotExpression;
+import com.datadog.debugger.el.expressions.StartsWithExpression;
+import com.datadog.debugger.el.expressions.SubStringExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.expressions.ValueRefExpression;
+import com.datadog.debugger.el.expressions.WhenExpression;
+import com.datadog.debugger.el.values.BooleanValue;
+import com.datadog.debugger.el.values.ListValue;
+import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
+import com.datadog.debugger.el.values.NumericValue;
+import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -37,8 +64,8 @@ public class ValueScript implements DebuggerScript<Value<?>> {
   }
 
   @Override
-  public Value<?> execute(ValueReferenceResolver valueRefResolver) {
-    return expr.evaluate(valueRefResolver);
+  public Value<?> execute(ValueReferenceResolver valueRefResolver, TimeoutChecker timeoutChecker) {
+    return expr.evaluate(new EvalContext(valueRefResolver, timeoutChecker));
   }
 
   @Override
@@ -127,46 +154,248 @@ public class ValueScript implements DebuggerScript<Value<?>> {
       jsonWriter.name("dsl");
       jsonWriter.value(value.dsl);
       jsonWriter.name("json");
-      writeValueExpression(jsonWriter, value.expr);
+      ToJsonVisitor toJsonVisitor = new ToJsonVisitor(jsonWriter);
+      value.expr.accept(toJsonVisitor);
       jsonWriter.endObject();
     }
 
-    private void writeValueExpression(JsonWriter jsonWriter, ValueExpression<?> expr)
-        throws IOException {
-      if (expr instanceof Value) {
-        if (expr instanceof StringValue) {
-          jsonWriter.value(((StringValue) expr).getValue());
-        } else {
-          throw new IOException("Unsupported operation: " + expr.getClass().getTypeName());
+    private static class ToJsonVisitor implements Visitor<Void> {
+      private final JsonWriter jsonWriter;
+
+      public ToJsonVisitor(JsonWriter jsonWriter) {
+        this.jsonWriter = jsonWriter;
+      }
+
+      @Override
+      public Void visit(BinaryExpression binaryExpression) {
+        throw new UnsupportedOperationException("BinaryExpression is not supported");
+      }
+
+      @Override
+      public Void visit(BinaryOperator operator) {
+        throw new UnsupportedOperationException("BinaryOperator is not supported");
+      }
+
+      @Override
+      public Void visit(ComparisonExpression comparisonExpression) {
+        try {
+          jsonWriter.beginObject();
+          comparisonExpression.getOperator().accept(this);
+          jsonWriter.beginArray();
+          comparisonExpression.getLeft().accept(this);
+          comparisonExpression.getRight().accept(this);
+          jsonWriter.endArray();
+          jsonWriter.endObject();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
         }
-        return;
+        return null;
       }
-      jsonWriter.beginObject();
-      if (expr instanceof ValueRefExpression) {
-        ValueRefExpression valueRefExpr = (ValueRefExpression) expr;
-        jsonWriter.name("ref");
-        jsonWriter.value(valueRefExpr.getSymbolName());
-      } else if (expr instanceof GetMemberExpression) {
-        GetMemberExpression getMemberExpr = (GetMemberExpression) expr;
-        jsonWriter.name("getmember");
-        jsonWriter.beginArray();
-        writeValueExpression(jsonWriter, getMemberExpr.getTarget());
-        jsonWriter.value(getMemberExpr.getMemberName());
-        jsonWriter.endArray();
-      } else if (expr instanceof LenExpression) {
-        jsonWriter.name("count");
-        writeValueExpression(jsonWriter, ((LenExpression) expr).getSource());
-      } else if (expr instanceof IndexExpression) {
-        IndexExpression idxExpr = (IndexExpression) expr;
-        jsonWriter.name("index");
-        jsonWriter.beginArray();
-        writeValueExpression(jsonWriter, idxExpr.getTarget());
-        writeValueExpression(jsonWriter, idxExpr.getKey());
-        jsonWriter.endArray();
-      } else {
-        throw new IOException("Unsupported operation: " + expr.getClass().getTypeName());
+
+      @Override
+      public Void visit(ComparisonOperator operator) {
+        try {
+          jsonWriter.name(operator.name().toLowerCase());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
       }
-      jsonWriter.endObject();
+
+      @Override
+      public Void visit(ContainsExpression containsExpression) {
+        throw new UnsupportedOperationException("ContainsExpression is not supported");
+      }
+
+      @Override
+      public Void visit(EndsWithExpression endsWithExpression) {
+        throw new UnsupportedOperationException("EndsWithExpression is not supported");
+      }
+
+      @Override
+      public Void visit(FilterCollectionExpression filterCollectionExpression) {
+        try {
+          jsonWriter.beginObject();
+          jsonWriter.name("filter");
+          jsonWriter.beginArray();
+          filterCollectionExpression.getSource().accept(this);
+          filterCollectionExpression.getFilterExpression().accept(this);
+          jsonWriter.endArray();
+          jsonWriter.endObject();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visit(HasAllExpression hasAllExpression) {
+        throw new UnsupportedOperationException("HasAllExpression is not supported");
+      }
+
+      @Override
+      public Void visit(HasAnyExpression hasAnyExpression) {
+        throw new UnsupportedOperationException("HasAnyExpression is not supported");
+      }
+
+      @Override
+      public Void visit(IfElseExpression ifElseExpression) {
+        throw new UnsupportedOperationException("IfElseExpression is not supported");
+      }
+
+      @Override
+      public Void visit(IfExpression ifExpression) {
+        throw new UnsupportedOperationException("IfExpression is not supported");
+      }
+
+      @Override
+      public Void visit(IsEmptyExpression isEmptyExpression) {
+        throw new UnsupportedOperationException("IsEmptyExpression is not supported");
+      }
+
+      @Override
+      public Void visit(IsDefinedExpression isDefinedExpression) {
+        throw new UnsupportedOperationException("IsDefinedExpression is not supported");
+      }
+
+      @Override
+      public Void visit(LenExpression lenExpression) {
+        try {
+          jsonWriter.beginObject();
+          jsonWriter.name("count");
+          lenExpression.getSource().accept(this);
+          jsonWriter.endObject();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visit(MatchesExpression matchesExpression) {
+        throw new UnsupportedOperationException("MatchesExpression is not supported");
+      }
+
+      @Override
+      public Void visit(NotExpression notExpression) {
+        throw new UnsupportedOperationException("NotExpression is not supported");
+      }
+
+      @Override
+      public Void visit(StartsWithExpression startsWithExpression) {
+        throw new UnsupportedOperationException("StartsWithExpression is not supported");
+      }
+
+      @Override
+      public Void visit(SubStringExpression subStringExpression) {
+        throw new UnsupportedOperationException("SubStringExpression is not supported");
+      }
+
+      @Override
+      public Void visit(ValueRefExpression valueRefExpression) {
+        try {
+          jsonWriter.beginObject();
+          jsonWriter.name("ref");
+          jsonWriter.value(valueRefExpression.getSymbolName());
+          jsonWriter.endObject();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visit(GetMemberExpression getMemberExpression) {
+        try {
+          jsonWriter.beginObject();
+          jsonWriter.name("getmember");
+          jsonWriter.beginArray();
+          getMemberExpression.getTarget().accept(this);
+          jsonWriter.value(getMemberExpression.getMemberName());
+          jsonWriter.endArray();
+          jsonWriter.endObject();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visit(IndexExpression indexExpression) {
+        try {
+          jsonWriter.beginObject();
+          jsonWriter.name("index");
+          jsonWriter.beginArray();
+          indexExpression.getTarget().accept(this);
+          indexExpression.getKey().accept(this);
+          jsonWriter.endArray();
+          jsonWriter.endObject();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visit(WhenExpression whenExpression) {
+        throw new UnsupportedOperationException("WhenExpression is not supported");
+      }
+
+      @Override
+      public Void visit(BooleanExpression booleanExpression) {
+        throw new UnsupportedOperationException("BooleanExpression is not supported");
+      }
+
+      @Override
+      public Void visit(ObjectValue objectValue) {
+        throw new UnsupportedOperationException("ObjectValue is not supported");
+      }
+
+      @Override
+      public Void visit(StringValue stringValue) {
+        try {
+          jsonWriter.value(stringValue.getValue());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visit(NumericValue numericValue) {
+        try {
+          // TODO handle double
+          jsonWriter.value(numericValue.getValue().longValue());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visit(BooleanValue booleanValue) {
+        throw new UnsupportedOperationException("BooleanValue is not supported");
+      }
+
+      @Override
+      public Void visit(NullValue nullValue) {
+        throw new UnsupportedOperationException("NullValue is not supported");
+      }
+
+      @Override
+      public Void visit(ListValue listValue) {
+        throw new UnsupportedOperationException("ListValue is not supported");
+      }
+
+      @Override
+      public Void visit(MapValue mapValue) {
+        throw new UnsupportedOperationException("MapValue is not supported");
+      }
+
+      @Override
+      public Void visit(SetValue setValue) {
+        throw new UnsupportedOperationException("SetValue is not supported");
+      }
     }
   }
 }

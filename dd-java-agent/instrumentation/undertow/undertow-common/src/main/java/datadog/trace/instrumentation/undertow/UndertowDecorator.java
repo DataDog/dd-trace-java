@@ -1,17 +1,18 @@
 package datadog.trace.instrumentation.undertow;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
+import java.net.InetSocketAddress;
 
 public class UndertowDecorator
     extends HttpServerDecorator<
@@ -27,13 +28,13 @@ public class UndertowDecorator
       InstanceStore.of(AttachmentKey.class);
 
   @SuppressWarnings("unchecked")
-  public static final AttachmentKey<AgentScope.Continuation> DATADOG_UNDERTOW_CONTINUATION =
-      attachmentStore.putIfAbsent(
-          "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(AgentScope.Continuation.class));
+  public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION =
+      attachmentStore.getOrCreate(
+          "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
 
   @SuppressWarnings("unchecked")
   public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =
-      attachmentStore.putIfAbsent(
+      attachmentStore.getOrCreate(
           "DD_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
 
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
@@ -84,7 +85,11 @@ public class UndertowDecorator
 
   @Override
   protected int peerPort(final HttpServerExchange exchange) {
-    return exchange.getDestinationAddress().getPort();
+    // getDestinationAddress() can be null in the same situations that make
+    // HttpServerExchangeURIDataAdapter#port() NPE internally (e.g. AJP, a Unix domain socket
+    // transport, or a wrapped/detached ServerConnection).
+    InetSocketAddress destination = exchange.getDestinationAddress();
+    return destination == null ? UNSET_PORT : destination.getPort();
   }
 
   @Override

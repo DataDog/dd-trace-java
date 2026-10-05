@@ -33,7 +33,8 @@ public class SpringHelper {
       // scan for getting an already loaded class and get the classloader
       ClassLoader springClassLoader = null;
       for (Class<?> clazz : inst.getAllLoadedClasses()) {
-        if (clazz.getName().startsWith("org.springframework.core")) {
+        // // getAllLoadedClasses can return null classes (Class Unloading)
+        if (clazz != null && clazz.getName().startsWith("org.springframework.core")) {
           springClassLoader = clazz.getClassLoader();
         }
       }
@@ -76,7 +77,7 @@ public class SpringHelper {
     return false;
   }
 
-  private static class ParsedSpringVersion {
+  static class ParsedSpringVersion {
     private static final Pattern VERSION_PATTERN = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)");
 
     final int major;

@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanId;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.trace.Span;
@@ -53,7 +53,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
 
     // After activating DD span: Datadog span must be current span
     AgentSpan ddSpan = tracer.startSpan("dd-api", "other-name");
-    AgentScope ddScope = tracer.activateManualSpan(ddSpan);
+    ContextScope ddScope = tracer.activateManualSpan(ddSpan);
     currentSpan = Span.current();
 
     assertSpanEquals(ddSpan, currentSpan);
@@ -95,7 +95,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
   @Test
   void testContextMakeCurrentWithAnotherActiveSpan() {
     AgentSpan ddSpan = tracer.startSpan("dd-api", "some-name");
-    AgentScope ddScope = tracer.activateManualSpan(ddSpan);
+    ContextScope ddScope = tracer.activateManualSpan(ddSpan);
     Span otelSpan = this.otelTracer.spanBuilder("other-name").startSpan();
 
     // DD span is active: current OTel span reflects DD span
@@ -125,7 +125,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
   @Test
   void testContextMakeCurrentAlreadyActiveSpan() {
     AgentSpan ddSpan = tracer.startSpan("dd-api", "some-name");
-    AgentScope ddScope = tracer.activateManualSpan(ddSpan);
+    ContextScope ddScope = tracer.activateManualSpan(ddSpan);
     Span currentSpan = Span.current();
 
     assertNotNull(currentSpan);
@@ -180,7 +180,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
 
     // Activate DD child span and verify OTel current span
     AgentSpan ddChildSpan = tracer.startSpan("dd-api", "other-name");
-    AgentScope ddChildScope = tracer.activateManualSpan(ddChildSpan);
+    ContextScope ddChildScope = tracer.activateManualSpan(ddChildSpan);
     Span current = Span.current();
 
     assertEquals(

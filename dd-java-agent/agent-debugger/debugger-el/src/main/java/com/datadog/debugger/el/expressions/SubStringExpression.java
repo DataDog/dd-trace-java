@@ -1,11 +1,13 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 public class SubStringExpression implements ValueExpression<Value<String>> {
   private final ValueExpression<?> source;
@@ -19,8 +21,8 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
   }
 
   @Override
-  public Value<String> evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> sourceValue = source != null ? source.evaluate(valueRefResolver) : Value.nullValue();
+  public Value<String> evaluate(EvalContext evalContext) {
+    Value<?> sourceValue = source != null ? source.evaluate(evalContext) : Value.nullValue();
     if (sourceValue.isUndefined()) {
       throw new EvaluationException(
           "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
@@ -31,7 +33,9 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
     }
     if (sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
-      return internalEvaluate(sourceStr);
+      Value<String> result = internalEvaluate(sourceStr);
+      checkTimeout(evalContext.getTimeoutChecker(), this);
+      return result;
     }
     return Value.undefined();
   }

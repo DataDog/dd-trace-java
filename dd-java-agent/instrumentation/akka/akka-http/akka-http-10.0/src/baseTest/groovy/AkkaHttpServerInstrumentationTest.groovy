@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.test.util.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import okhttp3.HttpUrl
@@ -76,6 +77,11 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
 
   @Override
   boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilesContent() {
     true
   }
 
@@ -234,6 +240,11 @@ abstract class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstr
   }
 
   @Override
+  boolean testBodyFilesContent() {
+    false
+  }
+
+  @Override
   boolean testBodyJson() {
     false
   }
@@ -299,8 +310,27 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
   }
 
   @Override
+  boolean testBodyFilesContent() {
+    akkaHttpVersion != '10.0.10'
+  }
+
+  @Override
   boolean testBodyUrlencoded() {
     akkaHttpVersion != '10.0.10'
+  }
+}
+
+class AkkaHttpServerInstrumentationBindAndHandleContextSwapForkedTest extends AkkaHttpServerInstrumentationBindAndHandleTest {
+  @Override
+  boolean recreateServerForEachTest() {
+    // This forked suite changes a process-wide setting; do not let its actor system outlive it.
+    true
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }
 
@@ -326,6 +356,11 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
 
   @Override
   boolean testBodyFilenames() {
+    akkaHttpVersion != '10.0.10'
+  }
+
+  @Override
+  boolean testBodyFilesContent() {
     akkaHttpVersion != '10.0.10'
   }
 

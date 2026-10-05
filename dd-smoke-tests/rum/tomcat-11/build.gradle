@@ -2,9 +2,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
@@ -33,7 +32,7 @@ java {
 }
 
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 17, JavaVersion.VERSION_17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 tasks.withType(Test).configureEach {

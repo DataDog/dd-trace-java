@@ -89,6 +89,11 @@ class PlayServerTest extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyFilesContent() {
+    true
+  }
+
+  @Override
   boolean testBlocking() {
     true
   }

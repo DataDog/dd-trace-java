@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.jetty_client12;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
@@ -24,7 +24,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onBegin(Response response) {
     if (delegate instanceof Response.BeginListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Response.BeginListener) delegate).onBegin(response);
       }
     }
@@ -33,7 +33,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onComplete(Result result) {
     if (delegate instanceof Response.CompleteListener) {
-      try (AgentScope scope = activate(parent)) {
+      try (ContextScope scope = activate(parent)) {
         ((Response.CompleteListener) delegate).onComplete(result);
       }
     }
@@ -42,7 +42,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onFailure(Response response, Throwable failure) {
     if (delegate instanceof Response.FailureListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Response.FailureListener) delegate).onFailure(response, failure);
       }
     }
@@ -51,7 +51,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onHeaders(Response response) {
     if (delegate instanceof Response.HeadersListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Response.HeadersListener) delegate).onHeaders(response);
       }
     }
@@ -60,7 +60,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onSuccess(Response response) {
     if (delegate instanceof Response.SuccessListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Response.SuccessListener) delegate).onSuccess(response);
       }
     }
@@ -69,7 +69,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onBegin(Request request) {
     if (delegate instanceof Request.BeginListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Request.SuccessListener) delegate).onSuccess(request);
       }
     }
@@ -78,7 +78,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onCommit(Request request) {
     if (delegate instanceof Request.CommitListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Request.CommitListener) delegate).onCommit(request);
       }
     }
@@ -87,7 +87,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onFailure(Request request, Throwable failure) {
     if (delegate instanceof Request.FailureListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Request.FailureListener) delegate).onFailure(request, failure);
       }
     }
@@ -96,7 +96,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onHeaders(Request request) {
     if (delegate instanceof Request.HeadersListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Request.HeadersListener) delegate).onHeaders(request);
       }
     }
@@ -105,7 +105,7 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onQueued(Request request) {
     if (delegate instanceof Request.QueuedListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Request.QueuedListener) delegate).onQueued(request);
       }
     }
@@ -114,13 +114,13 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onSuccess(Request request) {
     if (delegate instanceof Request.SuccessListener) {
-      try (AgentScope scope = activate(span)) {
+      try (ContextScope scope = activate(span)) {
         ((Request.SuccessListener) delegate).onSuccess(request);
       }
     }
   }
 
-  private AgentScope activate(AgentSpan span) {
+  private ContextScope activate(AgentSpan span) {
     return null == span ? null : activateSpan(span);
   }
 }

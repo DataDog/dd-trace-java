@@ -131,7 +131,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     return request.getHeaders().get(key);
   }
 
-  public AgentSpan onResponse(AgentSpan span, HttpChannelState channel) {
+  public void onResponse(AgentSpan span, HttpChannelState channel) {
     Request request = channel.getRequest();
     Response response = channel.getResponse();
     if (Config.get().isServletPrincipalEnabled()) {
@@ -155,6 +155,6 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
       }
       onError(span, throwable);
     }
-    return super.onResponse(span, response);
+    super.onResponse(span, response);
   }
 }

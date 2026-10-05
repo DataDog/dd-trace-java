@@ -16,6 +16,10 @@ if [ -n "$TEST_JVM" ]; then
         for var in $(compgen -v JAVA_ | grep -E '^JAVA_[0-9]+_HOME$'); do
             ver="${var#JAVA_}"
             ver="${ver%_HOME}"
+            # JDK 27 TODO: remove after GA (tip will move to 27)
+            if [ "$ver" = "27" ]; then
+                continue
+            fi
             if [ "$ver" -gt "$MAX_VER" ] 2>/dev/null; then
                 MAX_VER="$ver"
             fi
@@ -74,9 +78,16 @@ junit_upload() {
         custom_tags_args+=(--tags "test.configuration.job_name:${job_base_name}")
     fi
 
-    DD_API_KEY=$1 \
+    # The commit message must contain the exact, case-sensitive token [ci: DEBUG_LOGS].
+    if [[ "${CI_COMMIT_MESSAGE:-}" == *"[ci: DEBUG_LOGS]"* ]]; then
+        DD_CIVISIBILITY_LOGS_ENABLED=true
+    fi
+    if [[ "${DD_CIVISIBILITY_LOGS_ENABLED:-false}" == "true" ]]; then
+        echo "Datadog JUnit log forwarding is enabled"
+    fi
+
+    DD_API_KEY=$1 DD_CIVISIBILITY_LOGS_ENABLED=${DD_CIVISIBILITY_LOGS_ENABLED:-false} \
         datadog-ci junit upload --service $SERVICE_NAME \
-        --logs \
         --tags "test.traits:{\"category\":[\"$CACHE_TYPE\"]}" \
         --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
         "${custom_tags_args[@]}" \

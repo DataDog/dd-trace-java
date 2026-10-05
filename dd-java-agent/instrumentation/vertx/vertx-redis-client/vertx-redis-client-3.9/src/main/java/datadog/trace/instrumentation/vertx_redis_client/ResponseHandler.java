@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -11,14 +12,14 @@ import io.vertx.redis.client.Response;
 
 public class ResponseHandler implements Handler<AsyncResult<Response>> {
   public final AgentSpan clientSpan;
-  private final AgentScope.Continuation continuation;
+  private final ContextContinuation continuation;
   private final Promise<Response> promise;
   private boolean handled = false;
 
   public ResponseHandler(
       final Promise<Response> promise,
       final AgentSpan clientSpan,
-      final AgentScope.Continuation continuation) {
+      final ContextContinuation continuation) {
     this.clientSpan = clientSpan;
     this.continuation = continuation;
     this.promise = promise;
@@ -28,7 +29,7 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
   public void handle(final AsyncResult<Response> event) {
     if (!handled && clientSpan != null) {
       handled = true;
-      AgentScope scope = null;
+      ContextScope scope = null;
       try {
         // Close client scope and span
         if (!event.succeeded()) {
@@ -37,7 +38,7 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
         clientSpan.finish();
         // Activate parent continuation and trigger promise completion
         if (continuation != null) {
-          scope = continuation.activate();
+          scope = continuation.resume();
         }
         promise.handle(event);
       } finally {

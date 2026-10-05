@@ -10,9 +10,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import javax.websocket.CloseReason;
 import javax.websocket.MessageHandler;
@@ -147,7 +147,7 @@ public class SessionInstrumentation
 
   public static class SessionCloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final Session session,
         @Advice.Argument(0) final CloseReason reason,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
@@ -157,13 +157,13 @@ public class SessionInstrumentation
         return null;
       }
       return activateSpan(
-          DECORATE.onSessionCloseIssued(
+          DECORATE.startOutboundCloseSpan(
               handlerContext, reason.getReasonPhrase(), reason.getCloseCode().getCode()));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable thrown,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
       if (scope != null) {
@@ -176,7 +176,7 @@ public class SessionInstrumentation
 
   public static class DefaultSessionCloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final Session session,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
 
@@ -185,12 +185,12 @@ public class SessionInstrumentation
       if (handlerContext == null) {
         return null;
       }
-      return activateSpan(DECORATE.onSessionCloseIssued(handlerContext, null, 1000));
+      return activateSpan(DECORATE.startOutboundCloseSpan(handlerContext, null, 1000));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable thrown,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
       if (scope != null) {

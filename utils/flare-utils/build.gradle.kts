@@ -1,11 +1,10 @@
 plugins {
   id("java-library")
+  id("dd-trace-java.module.internal-library")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
 dependencies {
-  api(libs.okhttp)
+  api(libs.datadog.okhttp)
   api(libs.moshi)
 
   compileOnly(project(":communication"))

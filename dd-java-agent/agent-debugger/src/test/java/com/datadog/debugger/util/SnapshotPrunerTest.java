@@ -1,7 +1,7 @@
 package com.datadog.debugger.util;
 
 import static com.datadog.debugger.sink.SnapshotSink.MAX_SNAPSHOT_SIZE;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 

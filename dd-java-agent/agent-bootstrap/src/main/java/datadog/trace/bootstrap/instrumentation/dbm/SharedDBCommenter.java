@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.SubSequence;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -53,39 +54,61 @@ public class SharedDBCommenter {
   private static volatile boolean staticPrefixComputed = false;
   private static volatile String staticPrefix;
 
-  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection.
-  // Note: the contains-chain could still be done "better" (a single scan), but the per-call
-  // "KEY + =" concatenation -- the allocating part -- is now hoisted to the *_EQ constants above.
+  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection. Mongo
+  // passes the already-extracted comment body; SQLCommenter uses the range overload to check it
+  // in place. Both run the same nine "<key>=" needle checks.
   public static boolean containsTraceComment(String commentContent) {
-    return commentContent.contains(PARENT_SERVICE_EQ)
-        || commentContent.contains(DATABASE_SERVICE_EQ)
-        || commentContent.contains(DD_HOSTNAME_EQ)
-        || commentContent.contains(DD_DB_NAME_EQ)
-        || commentContent.contains(DD_PEER_SERVICE_EQ)
-        || commentContent.contains(DD_ENV_EQ)
-        || commentContent.contains(DD_VERSION_EQ)
-        || commentContent.contains(TRACEPARENT_EQ)
-        || commentContent.contains(DD_SERVICE_HASH_EQ);
+    return containsTraceComment(commentContent, 0, commentContent.length());
+  }
+
+  /**
+   * Range overload: true if {@code sql} contains a trace-comment needle fully within {@code [from,
+   * to)} -- checks the comment body in place, with no substring allocation of the region.
+   */
+  public static boolean containsTraceComment(String sql, int from, int to) {
+    // Zero-copy view of the comment body; reads like ordinary String.contains, no substring.
+    SubSequence comment = SubSequence.of(sql, from, to);
+    return comment.contains(PARENT_SERVICE_EQ)
+        || comment.contains(DATABASE_SERVICE_EQ)
+        || comment.contains(DD_HOSTNAME_EQ)
+        || comment.contains(DD_DB_NAME_EQ)
+        || comment.contains(DD_PEER_SERVICE_EQ)
+        || comment.contains(DD_ENV_EQ)
+        || comment.contains(DD_VERSION_EQ)
+        || comment.contains(TRACEPARENT_EQ)
+        || comment.contains(DD_SERVICE_HASH_EQ);
   }
 
   // Build database comment content without comment delimiters such as /* */
   public static String buildComment(
       String dbService, String dbType, String hostname, String dbName, String traceParent) {
     ensureStaticPrefixComputed();
-
-    // we can calculate the precise size - having a rough estimation is perhaps faster
-    StringBuilder sb = new StringBuilder(1024).append(staticPrefix);
-    int initSize = 0; // No initial content for pure comment
-    append(sb, DATABASE_SERVICE, dbService, initSize);
-    append(sb, DD_HOSTNAME, hostname, initSize);
-    append(sb, DD_DB_NAME, dbName, initSize);
-    append(sb, DD_PEER_SERVICE, getPeerService(), initSize);
-    append(sb, TRACEPARENT, traceParent, initSize);
-    final Config config = Config.get();
-    if (config.isDbmInjectSqlBaseHash() && config.isExperimentalPropagateProcessTagsEnabled()) {
-      append(sb, DD_SERVICE_HASH, BaseHash.getBaseHashStr(), initSize);
-    }
-
+    String service = encode(dbService);
+    String host = encode(hostname);
+    String database = encode(dbName);
+    String peerService = encode(getPeerService());
+    String parent = encode(traceParent);
+    Config config = Config.get();
+    String serviceHash =
+        config.isDbmInjectSqlBaseHash() && config.isExperimentalPropagateProcessTagsEnabled()
+            ? encode(BaseHash.getBaseHashStr())
+            : null;
+    long capacity =
+        staticPrefix.length()
+            + fieldSize(DATABASE_SERVICE, service)
+            + fieldSize(DD_HOSTNAME, host)
+            + fieldSize(DD_DB_NAME, database)
+            + fieldSize(DD_PEER_SERVICE, peerService)
+            + fieldSize(TRACEPARENT, parent)
+            + fieldSize(DD_SERVICE_HASH, serviceHash);
+    StringBuilder sb =
+        new StringBuilder((int) Math.min(capacity, Integer.MAX_VALUE)).append(staticPrefix);
+    appendEncoded(sb, DATABASE_SERVICE, service);
+    appendEncoded(sb, DD_HOSTNAME, host);
+    appendEncoded(sb, DD_DB_NAME, database);
+    appendEncoded(sb, DD_PEER_SERVICE, peerService);
+    appendEncoded(sb, TRACEPARENT, parent);
+    appendEncoded(sb, DD_SERVICE_HASH, serviceHash);
     return sb.length() > 0 ? sb.toString() : null;
   }
 
@@ -96,9 +119,9 @@ public class SharedDBCommenter {
     Config config = Config.get();
     final StringBuilder sb = new StringBuilder(512); // big enough not to be resized
 
-    append(sb, PARENT_SERVICE, config.getServiceName(), 0);
-    append(sb, DD_ENV, config.getEnv(), 0);
-    append(sb, DD_VERSION, config.getVersion(), 0);
+    appendEncoded(sb, PARENT_SERVICE, encode(config.getServiceName()));
+    appendEncoded(sb, DD_ENV, encode(config.getEnv()));
+    appendEncoded(sb, DD_VERSION, encode(config.getVersion()));
     staticPrefix = sb.toString();
     staticPrefixComputed = true;
   }
@@ -119,6 +142,9 @@ public class SharedDBCommenter {
   }
 
   private static String encode(String val) {
+    if (val == null || val.isEmpty()) {
+      return null;
+    }
     try {
       return URLEncoder.encode(val, UTF8);
     } catch (UnsupportedEncodingException exe) {
@@ -129,19 +155,18 @@ public class SharedDBCommenter {
     return val;
   }
 
-  private static void append(StringBuilder sb, String key, String value, int initSize) {
-    if (null == value || value.isEmpty()) {
+  /** Includes a possible separator, equals sign and quotes for a nonempty encoded field. */
+  private static long fieldSize(String key, String value) {
+    return value == null ? 0 : (long) key.length() + value.length() + 4;
+  }
+
+  private static void appendEncoded(StringBuilder sb, String key, String value) {
+    if (value == null) {
       return;
     }
-    String encodedValue;
-    try {
-      encodedValue = URLEncoder.encode(value, UTF8);
-    } catch (UnsupportedEncodingException e) {
-      encodedValue = value;
-    }
-    if (sb.length() > initSize) {
+    if (sb.length() > 0) {
       sb.append(COMMA);
     }
-    sb.append(key).append(EQUALS).append(QUOTE).append(encodedValue).append(QUOTE);
+    sb.append(key).append(EQUALS).append(QUOTE).append(value).append(QUOTE);
   }
 }

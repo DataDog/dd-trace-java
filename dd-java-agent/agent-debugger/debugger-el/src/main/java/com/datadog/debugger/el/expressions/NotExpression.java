@@ -1,7 +1,9 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Visitor;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /** Will negate the resolved {@linkplain BooleanExpression} */
 public final class NotExpression implements BooleanExpression {
@@ -12,8 +14,10 @@ public final class NotExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    return !predicate.evaluate(valueRefResolver);
+  public Boolean evaluate(EvalContext evalContext) {
+    boolean result = !predicate.evaluate(evalContext);
+    checkTimeout(evalContext.getTimeoutChecker(), this);
+    return result;
   }
 
   @Override

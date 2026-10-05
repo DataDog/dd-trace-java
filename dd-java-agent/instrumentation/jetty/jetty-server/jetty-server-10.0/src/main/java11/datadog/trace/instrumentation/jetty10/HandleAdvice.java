@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jetty10;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
@@ -34,7 +34,7 @@ public class HandleAdvice {
       parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
       if (parentScope != null) {
         parentScope.close();
@@ -54,7 +54,7 @@ public class HandleAdvice {
 
     final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
     final Context parentContext =
-        (parentContextObj instanceof Context) ? (Context) parentContextObj : getRootContext();
+        (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
     final Context context = DECORATE.startSpan(req, parentContext);
     span = spanFromContext(context);
     DECORATE.afterStart(span);
@@ -67,7 +67,7 @@ public class HandleAdvice {
     return scope;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void closeScope(@Advice.Enter final ContextScope scope) {
     scope.close();
   }

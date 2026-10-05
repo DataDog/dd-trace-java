@@ -5,8 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OF
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.apache.kafka.clients.producer.Callback;
@@ -40,7 +40,7 @@ public class KafkaProducerCallback implements Callback {
     span.finish();
     if (callback != null) {
       if (parent != null) {
-        try (final AgentScope scope = activateSpan(parent)) {
+        try (final ContextScope scope = activateSpan(parent)) {
           callback.onCompletion(metadata, exception);
         }
       } else {

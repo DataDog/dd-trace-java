@@ -59,6 +59,9 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
     return new String[] {
       packageName + ".JUnitPlatformUtils",
       packageName + ".TestDataFactory",
+      packageName + ".execution.RetryDescriptorFactory",
+      packageName + ".execution.RetryDescriptorFactories",
+      packageName + ".SpockRetryDescriptorFactory",
       packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
     };

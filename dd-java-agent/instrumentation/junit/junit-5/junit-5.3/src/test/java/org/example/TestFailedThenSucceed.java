@@ -2,7 +2,7 @@ package org.example;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.junit.jupiter.api.AfterEach;
@@ -17,7 +17,7 @@ public class TestFailedThenSucceed {
   public void setUp() {
     AgentTracer.TracerAPI agentTracer = AgentTracer.get();
     AgentSpan span = agentTracer.buildSpan("junit-manual", "set-up").start();
-    try (AgentScope scope = agentTracer.activateManualSpan(span)) {
+    try (ContextScope scope = agentTracer.activateManualSpan(span)) {
       // tracing setup to verify that it is executed for every retry
     }
     span.finish();
@@ -32,7 +32,7 @@ public class TestFailedThenSucceed {
   public void tearDown() {
     AgentTracer.TracerAPI agentTracer = AgentTracer.get();
     AgentSpan span = agentTracer.buildSpan("junit-manual", "tear-down").start();
-    try (AgentScope scope = agentTracer.activateManualSpan(span)) {
+    try (ContextScope scope = agentTracer.activateManualSpan(span)) {
       // tracing teardown to verify that it is executed for every retry
     }
     span.finish();

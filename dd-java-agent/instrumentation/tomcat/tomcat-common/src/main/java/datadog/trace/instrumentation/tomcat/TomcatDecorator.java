@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.tomcat;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
+
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.Config;
@@ -14,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.util.Map;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
+import org.apache.tomcat.util.http.MimeHeaders;
 
 public class TomcatDecorator
     extends HttpServerDecorator<Request, Request, Response, org.apache.coyote.Request> {
@@ -40,6 +44,33 @@ public class TomcatDecorator
   @Override
   protected AgentPropagation.ContextVisitor<org.apache.coyote.Request> getter() {
     return ExtractAdapter.Request.GETTER;
+  }
+
+  @Override
+  protected void tagSecurityTestingHeaders(AgentSpan span, org.apache.coyote.Request request) {
+    if (request == null) {
+      return;
+    }
+    MimeHeaders headers = request.getMimeHeaders();
+    if (headers == null) {
+      return;
+    }
+    tagSecurityTestingHeader(
+        span, headers, "x-datadog-endpoint-scan", HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN);
+    tagSecurityTestingHeader(
+        span, headers, "x-datadog-security-test", HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST);
+  }
+
+  private static void tagSecurityTestingHeader(
+      AgentSpan span, MimeHeaders headers, String name, String tag) {
+    // Match names without decoding unrelated headers; retain the first non-null value.
+    for (int i = headers.findHeader(name, 0); i >= 0; i = headers.findHeader(name, i + 1)) {
+      String value = ExtractAdapter.messageBytesToString(headers.getValue(i));
+      if (value != null) {
+        span.setTag(tag, value);
+        return;
+      }
+    }
   }
 
   @Override
@@ -95,7 +126,7 @@ public class TomcatDecorator
   }
 
   @Override
-  public AgentSpan onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final Request connection,
       final Request request,
@@ -117,7 +148,7 @@ public class TomcatDecorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request, parentContext);
+    super.doOnRequest(span, connection, request, parentContext);
   }
 
   @Override
@@ -126,7 +157,7 @@ public class TomcatDecorator
   }
 
   @Override
-  public AgentSpan onResponse(AgentSpan span, Response response) {
+  protected void doOnResponse(AgentSpan span, Response response) {
     Request req = response.getRequest();
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
       span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
@@ -139,7 +170,7 @@ public class TomcatDecorator
     if (throwable instanceof Throwable) {
       onError(span, (Throwable) throwable);
     }
-    return super.onResponse(span, response);
+    super.doOnResponse(span, response);
   }
 
   @Override

@@ -2,6 +2,9 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.METRIC_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_DECORATION_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PROBE_PREFIX;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeLogProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanDecorationProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeTriggerProbe;
@@ -48,7 +51,15 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -408,6 +419,54 @@ public class ConfigurationUpdaterTest {
   }
 
   @Test
+  public void acceptMustAppliedAtomically() throws Exception {
+    // Regression test: ConfigurationUpdater::accept must apply the whole read-modify-write
+    // sequence (definitionSources.put + createConfiguration + applyNewConfiguration) under a
+    // single lock, otherwise concurrent accept() calls from different sources can race on the
+    // shared EnumMap and cause one source's definitions to be lost when currentConfiguration is
+    // overwritten with a configuration snapshot that doesn't yet reflect the other source's put.
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    ConfigurationAcceptor.Source[] sources = ConfigurationAcceptor.Source.values();
+    ExecutorService executor = Executors.newFixedThreadPool(sources.length);
+    try {
+      int iterations = 100;
+      for (int i = 0; i < iterations; i++) {
+        CyclicBarrier barrier = new CyclicBarrier(sources.length);
+        List<ProbeId> expectedProbeIds = new ArrayList<>();
+        List<Future<?>> futures = new ArrayList<>();
+        for (ConfigurationAcceptor.Source source : sources) {
+          ProbeId probeId = new ProbeId("probe-" + source + "-" + i, i);
+          expectedProbeIds.add(probeId);
+          LogProbe probe =
+              LogProbe.builder().probeId(probeId).where("java.lang.String", "concat").build();
+          futures.add(
+              executor.submit(
+                  () -> {
+                    barrier.await();
+                    configurationUpdater.accept(source, singletonList(probe));
+                    return null;
+                  }));
+        }
+        for (Future<?> future : futures) {
+          future.get();
+        }
+        Map<String, ProbeDefinition> appliedDefinitions =
+            configurationUpdater.getAppliedDefinitions();
+        assertEquals(
+            sources.length,
+            appliedDefinitions.size(),
+            "Lost definition(s) from a concurrent source update at iteration " + i);
+        for (ProbeId expectedProbeId : expectedProbeIds) {
+          assertTrue(appliedDefinitions.containsKey(expectedProbeId.getEncodedId()));
+        }
+      }
+    } finally {
+      executor.shutdown();
+    }
+  }
+
+  @Test
   public void resolve() {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSink);
@@ -643,7 +702,10 @@ public class ConfigurationUpdaterTest {
     ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
     Exception ex = new Exception("oops");
     configurationUpdater.handleException(LOG_PROBE_PREFIX + PROBE_ID.getId(), ex);
-    verify(probeStatusSink).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
+    configurationUpdater.handleException(METRIC_PROBE_PREFIX + PROBE_ID.getId(), ex);
+    configurationUpdater.handleException(SPAN_PROBE_PREFIX + PROBE_ID.getId(), ex);
+    configurationUpdater.handleException(SPAN_DECORATION_PROBE_PREFIX + PROBE_ID.getId(), ex);
+    verify(probeStatusSink, times(4)).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
   }
 
   @Test
@@ -652,7 +714,7 @@ public class ConfigurationUpdaterTest {
     Map<String, byte[]> buffers =
         compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
-    if (JavaVirtualMachine.isJavaVersion(17)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 introduced Spring6 class
       Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
@@ -663,7 +725,7 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(
         REMOTE_CONFIG,
         singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "main").build()));
-    if (JavaVirtualMachine.isJavaVersion(17)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 with Spring6 class, transformation cannot happen
       verify(inst, times(2)).getAllLoadedClasses();
       verify(inst, times(0)).retransformClasses(any());
@@ -709,9 +771,10 @@ public class ConfigurationUpdaterTest {
   @EnabledForJreRange(min = JRE.JAVA_17)
   public void recordWithTypeAnnotation()
       throws IOException, URISyntaxException, UnmodifiableClassException {
-    // make sure record method are not detected as having methodParameters attribute.
-    // /!\ record canonical constructor has the MethodParameters attribute,
-    // but not returned by Class::getDeclaredMethods()
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4)) {
+      // Fixed since JDK 25.0.4
+      return;
+    }
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
     Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
     Class<?> testClass = loadClass(CLASS_NAME, buffers);

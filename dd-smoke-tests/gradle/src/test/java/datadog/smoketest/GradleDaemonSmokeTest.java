@@ -1,23 +1,34 @@
 package datadog.smoketest;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.BuildTask;
 import org.gradle.testkit.runner.GradleRunner;
@@ -40,6 +51,12 @@ import org.tabletest.junit.TypeConverterSources;
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service";
+  private static final Path GRADLE_DAEMON_DIAGNOSTICS_DIR =
+      Paths.get(
+          System.getProperty("datadog.smoketest.builddir", "build"),
+          "reports",
+          "gradle-daemon-diagnostics");
+  private static final Pattern DAEMON_LOG_PATTERN = Pattern.compile("daemon-(.+)\\.out\\.log");
 
   // Gradle's default timeout is 10s
   private static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000;
@@ -127,11 +144,187 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         expectedCoverages);
   }
 
-  // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0
   @TableTest({
-    "scenario              | gradleVersion | projectName                         | flakyTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
-    "junit4-ordering-7.6.4 | 7.6.4         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
-    "junit4-ordering-9.2.1 | 9.2.1         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          "
+    "scenario       | gradleVersion | emptySelection | disableInstrumentation | failAfterTests | configurationCache | expectedStatus | expectedTests",
+    "empty-8.3      | 8.3           | true           | false                  | false          | false              | skip           | 0            ",
+    "empty-latest   | latest        | true           | false                  | false          | {false, true}      | skip           | 0            ",
+    "nonempty       | latest        | false          | false                  | false          | false              | pass           | 2            ",
+    "uninstrumented | latest        | false          | true                   | false          | false              | pass           | 0            ",
+    "empty-failure  | latest        | true           | false                  | true           | false              | fail           | 0            "
+  })
+  @ParameterizedTest
+  void testEmptyTestExecution(
+      String gradleVersion,
+      boolean emptySelection,
+      boolean disableInstrumentation,
+      boolean failAfterTests,
+      boolean configurationCache,
+      String expectedStatus,
+      int expectedTests)
+      throws IOException {
+    gradleVersion = resolveVersion(gradleVersion);
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
+    givenGradleProjectFiles("test-succeed-junit-5");
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    List<String> arguments =
+        new ArrayList<>(Arrays.asList("test", "--stacktrace", "--rerun-tasks"));
+    if (emptySelection) {
+      arguments.add("-PemptyTestSelection");
+    }
+    if (disableInstrumentation) {
+      arguments.add("-PdisableTestInstrumentation");
+    }
+    if (failAfterTests) {
+      arguments.add("-PfailAfterTests");
+    }
+    if (configurationCache) {
+      arguments.add("--configuration-cache");
+    }
+
+    for (int run = 0; run < (configurationCache ? 2 : 1); run++) {
+      mockBackend.reset();
+      BuildResult result = runGradle(gradleVersion, arguments, !failAfterTests);
+      assertNotNull(result.task(":test"));
+      assertEquals(
+          failAfterTests ? TaskOutcome.FAILED : TaskOutcome.SUCCESS,
+          result.task(":test").getOutcome());
+      List<? extends Map<?, ?>> events = mockBackend.waitForEvents(expectedTests == 0 ? 2 : 5);
+      long actualTests = events.stream().filter(event -> "test".equals(event.get("type"))).count();
+      assertEquals(expectedTests, actualTests);
+      int parents = 0;
+      for (Map<?, ?> event : events) {
+        String type = (String) event.get("type");
+        if ("test_session_end".equals(type) || "test_module_end".equals(type)) {
+          parents++;
+          Map<?, ?> content = (Map<?, ?>) event.get("content");
+          Map<?, ?> meta = (Map<?, ?>) content.get("meta");
+          assertEquals(expectedStatus, meta.get(Tags.TEST_STATUS));
+          if ("skip".equals(expectedStatus) && "test_module_end".equals(type)) {
+            assertEquals("No tests were executed by Gradle", meta.get(Tags.TEST_SKIP_REASON));
+          }
+        }
+      }
+      assertEquals(2, parents);
+      if (configurationCache && run == 1) {
+        assertTrue(result.getOutput().contains("Reusing configuration cache."));
+      }
+    }
+  }
+
+  @TableTest({
+    "scenario           | gradleVersion | robolectricVersion | expectedVersion | projectName              | expectedTraces",
+    "robolectric-4.16   | latest        | 4.16.1             | 4.16.1          | test-succeed-robolectric | 7             ",
+    "robolectric-latest | latest        | +                  | any             | test-succeed-robolectric | 7             "
+  })
+  @ParameterizedTest
+  void testRobolectric(
+      String gradleVersion,
+      String robolectricVersion,
+      String expectedVersion,
+      String projectName,
+      int expectedTraces)
+      throws IOException {
+    Assumptions.assumeTrue(
+        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric supports JDK 17-21");
+    Assumptions.assumeFalse(
+        OperatingSystem.architecture().isArm64(),
+        "Robolectric does not support arm64 (missing native runtime binaries, follow https://github.com/robolectric/robolectric/issues/9166)");
+
+    gradleVersion = resolveVersion(gradleVersion);
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenGradleProjectFiles(projectName);
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    Map<String, String> additionalEnvVars =
+        Collections.singletonMap("SMOKE_TEST_ROBOLECTRIC_VERSION", robolectricVersion);
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false, additionalEnvVars);
+    assertBuildSuccessful(buildResult);
+
+    List<? extends Map<?, ?>> events = mockBackend.waitForEvents(expectedTraces);
+    assertRobolectricVersion(events, expectedVersion);
+    verifyEventsAndCoverages(
+        projectName,
+        "gradle",
+        gradleVersion,
+        events,
+        mockBackend.waitForCoverages(0),
+        Collections.singletonList("content.meta.['test.android.robolectric.version']"));
+  }
+
+  private static void assertRobolectricVersion(
+      List<? extends Map<?, ?>> events, String expectedVersion) {
+    int taggedEvents = 0;
+    for (Map<?, ?> event : events) {
+      Object content = event.get("content");
+      if (!(content instanceof Map)) {
+        continue;
+      }
+      Object meta = ((Map<?, ?>) content).get("meta");
+      if (!(meta instanceof Map)) {
+        continue;
+      }
+      Object version = ((Map<?, ?>) meta).get("test.android.robolectric.version");
+      if (version != null) {
+        if (!"any".equals(expectedVersion)) {
+          assertEquals(expectedVersion, version);
+        }
+        taggedEvents++;
+      }
+    }
+    assertEquals(2, taggedEvents);
+  }
+
+  @TableTest({
+    "scenario       | gradleVersion | verificationEnabled",
+    "legacy-default | 7.6.4         | false              ",
+    "legacy-enabled | 7.6.4         | true               ",
+    "modern-default | 8.3           | false              ",
+    "modern-enabled | 8.3           | true               "
+  })
+  @ParameterizedTest
+  void testInjectedDependencyVerification(String gradleVersion, boolean verificationEnabled)
+      throws IOException {
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenGradleProjectFiles("test-gradle-dependency-verification");
+
+    Map<String, String> additionalArgs = new HashMap<>();
+    if (verificationEnabled) {
+      additionalArgs.put(
+          CiVisibilityConfig.CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED, "true");
+    }
+    givenGradleProjectProperties(additionalArgs);
+    ensureDependenciesDownloaded(gradleVersion);
+
+    BuildResult buildResult =
+        runGradle(
+            gradleVersion, Arrays.asList("compileJava", "--stacktrace"), !verificationEnabled);
+
+    if (verificationEnabled) {
+      assertTrue(buildResult.getOutput().contains("Dependency verification failed"));
+    } else {
+      assertBuildSuccessful(buildResult);
+      String warning =
+          "Datadog Test Optimization disabled Gradle dependency verification for dependencies "
+              + "injected into this build.";
+      int firstWarning = buildResult.getOutput().indexOf(warning);
+      assertTrue(firstWarning >= 0);
+      assertEquals(firstWarning, buildResult.getOutput().lastIndexOf(warning));
+    }
+  }
+
+  @TableTest({
+    "scenario               | gradleVersion | projectName                         | flakyTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
+    "junit4-ordering-7.6.4  | 7.6.4         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
+    "junit4-ordering-9.2.1  | 9.2.1         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
+    "junit4-ordering-9.3.0  | 9.3.0         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
+    "junit4-ordering-latest | latest        | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          "
   })
   @ParameterizedTest
   void testJunit4ClassOrdering(
@@ -141,6 +334,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       List<TestFQN> expectedOrder,
       int eventsNumber)
       throws IOException {
+    gradleVersion = resolveVersion(gradleVersion);
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
@@ -246,14 +440,19 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private void givenGradleProjectProperties() throws IOException {
+    givenGradleProjectProperties(Collections.emptyMap());
+  }
+
+  private void givenGradleProjectProperties(Map<String, String> additionalArgs) throws IOException {
     assertTrue(new java.io.File(AGENT_JAR).isFile());
 
     Path ddApiKeyPath = testKitFolder.resolve(".dd.api.key");
     Files.write(ddApiKeyPath, "dummy".getBytes());
 
-    Map<String, String> additionalArgs = new HashMap<>();
-    additionalArgs.put(GeneralConfig.API_KEY_FILE, ddApiKeyPath.toAbsolutePath().toString());
-    additionalArgs.put(
+    Map<String, String> effectiveAdditionalArgs = new HashMap<>(additionalArgs);
+    effectiveAdditionalArgs.put(
+        GeneralConfig.API_KEY_FILE, ddApiKeyPath.toAbsolutePath().toString());
+    effectiveAdditionalArgs.put(
         CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION, JACOCO_PLUGIN_VERSION);
     /*
      * Some of the smoke tests (in particular the one with the Gradle plugin), are using Gradle Test Kit for their tests.
@@ -264,9 +463,10 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
      * This causes the tests to fail because the number of reported traces is different.
      * To avoid this discrepancy between local and CI runs, we disable tracing instrumentations.
      */
-    additionalArgs.put(TraceInstrumentationConfig.TRACE_ENABLED, "false");
+    effectiveAdditionalArgs.put(TraceInstrumentationConfig.TRACE_ENABLED, "false");
     List<String> arguments =
-        buildJvmArguments(mockBackend.getIntakeUrl(), TEST_SERVICE_NAME, additionalArgs);
+        buildJvmArguments(mockBackend.getIntakeUrl(), TEST_SERVICE_NAME, effectiveAdditionalArgs);
+    addCrashDiagnostics(arguments);
 
     String gradleProperties = "org.gradle.jvmargs=" + String.join(" ", arguments);
     // Write to projectFolder (per-test) instead of testKitFolder (shared), so each
@@ -277,6 +477,16 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private BuildResult runGradleTests(
       String gradleVersion, boolean successExpected, boolean configurationCache)
       throws IOException {
+    return runGradleTests(
+        gradleVersion, successExpected, configurationCache, Collections.emptyMap());
+  }
+
+  private BuildResult runGradleTests(
+      String gradleVersion,
+      boolean successExpected,
+      boolean configurationCache,
+      Map<String, String> additionalEnvVars)
+      throws IOException {
     List<String> arguments = new java.util.ArrayList<>(Arrays.asList("test", "--stacktrace"));
     if (gradleVersion.compareTo("4.5") > 0) {
       // warning mode available starting from Gradle 4.5
@@ -285,7 +495,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     if (configurationCache) {
       arguments.addAll(Arrays.asList("--configuration-cache", "--rerun-tasks"));
     }
-    return runGradle(gradleVersion, arguments, successExpected);
+    return runGradle(gradleVersion, arguments, successExpected, additionalEnvVars);
   }
 
   /**
@@ -323,6 +533,15 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
+    return runGradle(gradleVersion, arguments, successExpected, Collections.emptyMap());
+  }
+
+  private BuildResult runGradle(
+      String gradleVersion,
+      List<String> arguments,
+      boolean successExpected,
+      Map<String, String> additionalEnvVars)
+      throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
     buildEnv.put("GRADLE_ARGS", "");
     buildEnv.put("GRADLE_OPTS", "");
@@ -331,6 +550,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     buildEnv.put(
         GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,
         GradleDistribution.uriFor(gradleVersion).toString());
+    buildEnv.putAll(additionalEnvVars);
 
     String mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY");
     if (mavenRepositoryProxy != null) {
@@ -351,20 +571,168 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     try {
       return successExpected ? gradleRunner.build() : gradleRunner.buildAndFail();
     } catch (Exception e) {
-      Path daemonLogDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion);
-      Path daemonLog =
-          Files.exists(daemonLogDir)
-              ? Files.list(daemonLogDir)
-                  .filter(p -> p.toString().endsWith("log"))
-                  .findAny()
-                  .orElse(null)
-              : null;
-      if (daemonLog != null) {
-        System.out.println("==============================================================");
-        System.out.println("Gradle Daemon log:\n" + new String(Files.readAllBytes(daemonLog)));
-        System.out.println("==============================================================");
+      try {
+        collectDaemonDiagnostics(gradleVersion, e);
+      } catch (Exception diagnosticsError) {
+        System.err.println("Failed to collect Gradle daemon diagnostics: " + diagnosticsError);
       }
       throw new RuntimeException(e);
+    }
+  }
+
+  private static void addCrashDiagnostics(List<String> arguments) {
+    try {
+      Files.createDirectories(GRADLE_DAEMON_DIAGNOSTICS_DIR);
+      if (JavaVirtualMachine.isJ9()) {
+        arguments.add("-Xdump:directory=" + GRADLE_DAEMON_DIAGNOSTICS_DIR.toAbsolutePath());
+      } else {
+        arguments.add(
+            "-XX:ErrorFile="
+                + GRADLE_DAEMON_DIAGNOSTICS_DIR.toAbsolutePath()
+                + "/hs_err_pid%p.log");
+      }
+    } catch (IOException e) {
+      System.err.println("Failed to configure Gradle daemon crash diagnostics: " + e);
+    }
+  }
+
+  private void collectDaemonDiagnostics(String gradleVersion, Exception failure)
+      throws IOException {
+    Path failureDir =
+        GRADLE_DAEMON_DIAGNOSTICS_DIR.resolve(
+            gradleVersion + "-" + projectFolder.getFileName().toString());
+    Files.createDirectories(failureDir);
+
+    List<String> summary = new ArrayList<>();
+    Throwable cause = failure;
+    int causeIndex = 0;
+    while (cause != null) {
+      String message = cause.getMessage();
+      int lineBreak = message != null ? message.indexOf('\n') : -1;
+      if (lineBreak >= 0) {
+        message = message.substring(0, lineBreak);
+      }
+      summary.add("failure[" + causeIndex++ + "]=" + cause.getClass().getName() + ": " + message);
+      cause = cause.getCause();
+    }
+    summary.add("gradleVersion=" + gradleVersion);
+
+    Path cgroupMembership = Paths.get("/proc/self/cgroup");
+    Path daemonLogDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion);
+    Path daemonLog = newestDaemonLog(daemonLogDir);
+    if (daemonLog != null) {
+      copyIfExists(daemonLog, failureDir.resolve(daemonLog.getFileName()), summary);
+      summary.add("daemonLog=" + daemonLog);
+
+      Matcher matcher = DAEMON_LOG_PATTERN.matcher(daemonLog.getFileName().toString());
+      if (matcher.matches()) {
+        String daemonIdentifier = matcher.group(1);
+        summary.add("daemonIdentifier=" + daemonIdentifier);
+        if (daemonIdentifier.matches("\\d+")) {
+          summary.add("daemonPid=" + daemonIdentifier);
+          Path procRoot = Paths.get("/proc");
+          if (Files.isDirectory(procRoot)) {
+            Path processDir = procRoot.resolve(daemonIdentifier);
+            summary.add("daemonProcessPresent=" + Files.isDirectory(processDir));
+            copyIfExists(processDir.resolve("status"), failureDir.resolve("proc-status"), summary);
+            copyIfExists(processDir.resolve("limits"), failureDir.resolve("proc-limits"), summary);
+            Path daemonCgroupMembership = processDir.resolve("cgroup");
+            copyIfExists(daemonCgroupMembership, failureDir.resolve("proc-cgroup"), summary);
+            if (Files.isRegularFile(daemonCgroupMembership)) {
+              cgroupMembership = daemonCgroupMembership;
+            }
+          } else {
+            summary.add("daemonProcessPresent=unknown");
+          }
+        }
+      }
+
+      try {
+        System.out.println("==============================================================");
+        System.out.println(
+            "Gradle Daemon log:\n"
+                + new String(Files.readAllBytes(daemonLog), StandardCharsets.UTF_8));
+        System.out.println("==============================================================");
+      } catch (IOException e) {
+        summary.add("daemonLogReadFailed=" + e);
+      }
+    } else {
+      summary.add("daemonLog=not found");
+    }
+
+    summary.add("cgroupMembership=" + cgroupMembership);
+    Path cgroupDirectory = resolveCgroupV2Directory(cgroupMembership, summary);
+    summary.add("cgroupDirectory=" + cgroupDirectory);
+    copyIfExists(
+        cgroupDirectory.resolve("memory.events"),
+        failureDir.resolve("cgroup-memory.events"),
+        summary);
+    copyIfExists(
+        cgroupDirectory.resolve("memory.current"),
+        failureDir.resolve("cgroup-memory.current"),
+        summary);
+    copyIfExists(
+        cgroupDirectory.resolve("memory.peak"), failureDir.resolve("cgroup-memory.peak"), summary);
+    copyIfExists(
+        cgroupDirectory.resolve("pids.events"), failureDir.resolve("cgroup-pids.events"), summary);
+    copyIfExists(
+        cgroupDirectory.resolve("pids.current"),
+        failureDir.resolve("cgroup-pids.current"),
+        summary);
+    copyIfExists(
+        cgroupDirectory.resolve("pids.max"), failureDir.resolve("cgroup-pids.max"), summary);
+
+    Files.write(failureDir.resolve("summary.txt"), summary, StandardCharsets.UTF_8);
+    System.out.println("Gradle daemon diagnostics written to " + failureDir);
+  }
+
+  private static Path resolveCgroupV2Directory(Path cgroupMembership, List<String> summary) {
+    Path cgroupRoot = Paths.get("/sys/fs/cgroup");
+    if (!Files.isRegularFile(cgroupMembership)) {
+      return cgroupRoot;
+    }
+
+    try {
+      for (String line : Files.readAllLines(cgroupMembership, StandardCharsets.UTF_8)) {
+        if (line.startsWith("0::")) {
+          String relativePath = line.substring(3);
+          if (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+          }
+          Path cgroupDirectory = cgroupRoot.resolve(relativePath);
+          if (Files.isDirectory(cgroupDirectory)) {
+            return cgroupDirectory;
+          }
+          summary.add("cgroupDirectoryNotFound=" + cgroupDirectory);
+          break;
+        }
+      }
+    } catch (IOException e) {
+      summary.add("cgroupMembershipReadFailed[" + cgroupMembership + "]=" + e);
+    }
+    return cgroupRoot;
+  }
+
+  private static Path newestDaemonLog(Path daemonLogDir) throws IOException {
+    if (!Files.isDirectory(daemonLogDir)) {
+      return null;
+    }
+    try (Stream<Path> daemonLogs = Files.list(daemonLogDir)) {
+      return daemonLogs
+          .filter(path -> DAEMON_LOG_PATTERN.matcher(path.getFileName().toString()).matches())
+          .max(Comparator.comparingLong(path -> path.toFile().lastModified()))
+          .orElse(null);
+    }
+  }
+
+  private static void copyIfExists(Path source, Path destination, List<String> summary) {
+    if (!Files.exists(source)) {
+      return;
+    }
+    try {
+      Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException e) {
+      summary.add("copyFailed[" + source + "]=" + e);
     }
   }
 

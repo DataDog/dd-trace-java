@@ -1,12 +1,14 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.StringValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /**
  * Checks whether a {@linkplain Value} is empty.<br>
@@ -20,8 +22,8 @@ public final class IsEmptyExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> value = valueExpression.evaluate(valueRefResolver);
+  public Boolean evaluate(EvalContext evalContext) {
+    Value<?> value = valueExpression.evaluate(evalContext);
     if (value.isUndefined()) {
       throw new EvaluationException(
           "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
@@ -30,12 +32,14 @@ public final class IsEmptyExpression implements BooleanExpression {
       throw new EvaluationException(
           "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
+    boolean result = false;
     if (value instanceof CollectionValue) {
-      return ((CollectionValue<?>) value).isEmpty();
+      result = ((CollectionValue<?>) value).isEmpty();
     } else if (value instanceof StringValue) {
-      return ((StringValue) value).isEmpty();
+      result = ((StringValue) value).isEmpty();
     }
-    return Boolean.FALSE;
+    checkTimeout(evalContext.getTimeoutChecker(), this);
+    return result;
   }
 
   @Override

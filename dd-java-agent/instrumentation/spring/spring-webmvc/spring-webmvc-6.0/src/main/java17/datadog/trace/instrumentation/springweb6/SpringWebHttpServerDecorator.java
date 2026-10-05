@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.springweb6;
 
+import static datadog.trace.api.Pair.of;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.context.Context;
+import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -36,6 +39,18 @@ public class SpringWebHttpServerDecorator
 
   public static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
   public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
+
+  private static final ClassValue<Pair<String, String>> HANDLER_SPAN_KEYS =
+      GenericClassValue.of(
+          type -> {
+            String spanKey = DD_HANDLER_SPAN_PREFIX_KEY + type.getName();
+            return of(spanKey, spanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX);
+          });
+
+  /** Returns the span attribute key on the left and the continuation attribute key on the right. */
+  public static Pair<String, String> handlerSpanKeys(Class<?> handlerClass) {
+    return HANDLER_SPAN_KEYS.get(handlerClass);
+  }
 
   public SpringWebHttpServerDecorator(CharSequence component) {
     this.component = component;
@@ -102,7 +117,7 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  public AgentSpan onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
@@ -118,7 +133,6 @@ public class SpringWebHttpServerDecorator
         HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
       }
     }
-    return span;
   }
 
   public void onHandle(final AgentSpan span, final Object handler) {
@@ -146,7 +160,7 @@ public class SpringWebHttpServerDecorator
     }
   }
 
-  public AgentSpan onRender(final AgentSpan span, final ModelAndView mv) {
+  public void onRender(final AgentSpan span, final ModelAndView mv) {
     final String viewName = mv.getViewName();
     if (viewName != null) {
       span.setTag("view.name", viewName);
@@ -155,6 +169,5 @@ public class SpringWebHttpServerDecorator
     if (mv.getView() != null) {
       span.setTag("view.type", className(mv.getView().getClass()));
     }
-    return span;
   }
 }

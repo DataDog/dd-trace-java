@@ -17,8 +17,8 @@ import com.google.api.gax.retrying.RetryAlgorithm;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.retrying.RetryingFuture;
 import com.google.api.gax.retrying.ScheduledRetryingExecutor;
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -40,7 +40,7 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       RetryingFuture<String> retryingFuture = executor.createFuture(() -> "ok");
 
       AgentSpan span = startSpan("gax", "publish");
-      try (AgentScope scope = activateSpan(span)) {
+      try (ContextScope scope = activateSpan(span)) {
         // reserve the attempt slot with a placeholder that is never completed
         SettableApiFuture<String> placeholder = SettableApiFuture.create();
         retryingFuture.setAttemptFuture(placeholder);
@@ -78,7 +78,7 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
                 }
               });
 
-      try (AgentScope scope = activateSpan(parent)) {
+      try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
         assertEquals("ok", future.get(5, TimeUnit.SECONDS));
       }
@@ -118,7 +118,7 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
                 }
               });
 
-      try (AgentScope scope = activateSpan(parent)) {
+      try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
         assertEquals("ok", future.get(5, TimeUnit.SECONDS));
       }
@@ -156,7 +156,7 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
                 }
               });
 
-      try (AgentScope scope = activateSpan(parent)) {
+      try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
         assertThrows(ExecutionException.class, () -> future.get(5, TimeUnit.SECONDS));
       }

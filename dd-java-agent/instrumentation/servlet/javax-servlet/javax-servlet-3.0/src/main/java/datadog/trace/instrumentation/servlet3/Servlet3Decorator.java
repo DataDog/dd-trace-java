@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
@@ -97,7 +98,7 @@ public class Servlet3Decorator
   }
 
   @Override
-  public AgentSpan onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
@@ -116,17 +117,17 @@ public class Servlet3Decorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request, parentContext);
+    super.doOnRequest(span, connection, request, parentContext);
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
-      super.onError(span, throwable.getCause());
+      super.doOnError(span, throwable.getCause(), errorPriority);
     } else {
-      super.onError(span, throwable);
+      super.doOnError(span, throwable, errorPriority);
     }
-    return span;
   }
 
   /**

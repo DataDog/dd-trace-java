@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     name = 'jetty-websocket-12ee8'
@@ -22,8 +26,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
 }
@@ -32,7 +34,7 @@ addTestSuiteForDir("latestDepTest", "test")
 
 ["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 17)
+    configureCompiler(it, JavaVersion.VERSION_17)
   }
 }
 

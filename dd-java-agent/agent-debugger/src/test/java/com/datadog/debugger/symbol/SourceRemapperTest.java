@@ -1,6 +1,8 @@
 package com.datadog.debugger.symbol;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -29,5 +31,16 @@ class SourceRemapperTest {
     SourceRemapper sourceRemapper = SourceRemapper.getSourceRemapper("foo.kt", sourceMapMock);
     assertTrue(sourceRemapper instanceof SourceRemapper.KotlinSourceRemapper);
     assertEquals(24, sourceRemapper.remapSourceLine(42));
+  }
+
+  @Test
+  public void noKotlinDebug() {
+    SourceMap sourceMapMock = mock(SourceMap.class);
+    when(sourceMapMock.getDefaultStratumName()).thenReturn("Main");
+    StratumExt stratumMainMock = mock(StratumExt.class);
+    when(sourceMapMock.getStratum(eq("Kotlin"))).thenReturn(stratumMainMock);
+    when(sourceMapMock.getStratum(eq("KotlinDebug"))).thenReturn(null);
+    SourceRemapper sourceRemapper = SourceRemapper.getSourceRemapper("foo.kt", sourceMapMock);
+    assertNotNull(sourceRemapper);
   }
 }

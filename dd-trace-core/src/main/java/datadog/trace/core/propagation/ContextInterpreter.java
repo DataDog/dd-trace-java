@@ -31,12 +31,16 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * When adding new context fields to the ContextInterpreter class remember to clear them in the
  * reset() method.
  */
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
+  private static final Logger LOG = LoggerFactory.getLogger(ContextInterpreter.class);
+
   private TraceConfig traceConfig;
 
   protected Map<String, String> headerTags;
@@ -47,6 +51,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected int samplingPriority;
   protected TagMap.Ledger tagLedger;
   protected Map<String, String> baggage;
+
+  private int baggageItemCount;
+  private int baggageBytes;
 
   protected CharSequence lastParentId;
   protected CharSequence origin;
@@ -63,6 +70,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private final boolean aiGuardEnabled;
   private boolean collectIpHeaders;
   private final boolean requestHeaderTagsCommaAllowed;
+  private final int baggageMaxItems;
+  private final int baggageMaxBytes;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -78,6 +87,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.aiGuardEnabled = config.isAiGuardEnabled();
     this.propagationTagsFactory = PropagationTags.factory(config);
     this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
+    this.baggageMaxItems = config.getTraceBaggageMaxItems();
+    this.baggageMaxBytes = config.getTraceBaggageMaxBytes();
   }
 
   final TagMap.Ledger tagLedger() {
@@ -216,13 +227,40 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     final String lowerCaseKey = toLowerCase(key);
     final String mappedKey = baggageMapping.get(lowerCaseKey);
     if (null != mappedKey) {
-      if (baggage.isEmpty()) {
-        baggage = new TreeMap<>();
-      }
-      baggage.put(mappedKey, HttpCodec.decode(value));
+      addBaggageItem(mappedKey, value);
       return true;
     }
     return false;
+  }
+
+  protected final boolean addBaggageItem(String key, String value) {
+    if (key == null || value == null || baggageMaxItems == 0 || baggageMaxBytes == 0) {
+      return false;
+    }
+    final String oldValue = baggage.get(key);
+    if (oldValue == null && baggageItemCount >= baggageMaxItems) {
+      LOG.debug("Dropping baggage item {}: item limit {} reached", key, baggageMaxItems);
+      return false;
+    }
+
+    final long projectedBytes =
+        oldValue == null
+            ? (long) baggageBytes + key.length() + value.length()
+            : (long) baggageBytes + value.length() - oldValue.length();
+
+    if (projectedBytes > baggageMaxBytes) {
+      LOG.debug("Dropping baggage item {}: byte limit {} reached", key, baggageMaxBytes);
+      return false;
+    }
+    if (baggage.isEmpty()) {
+      baggage = new TreeMap<>();
+    }
+    baggage.put(key, HttpCodec.decode(value));
+    if (oldValue == null) {
+      baggageItemCount++;
+    }
+    baggageBytes = (int) projectedBytes;
+    return true;
   }
 
   public ContextInterpreter reset(TraceConfig traceConfig) {
@@ -234,6 +272,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     endToEndStartTime = 0;
     if (tagLedger != null) tagLedger.reset();
     baggage = Collections.emptyMap();
+    baggageItemCount = 0;
+    baggageBytes = 0;
     valid = true;
     fullContext = true;
     httpHeaders = null;

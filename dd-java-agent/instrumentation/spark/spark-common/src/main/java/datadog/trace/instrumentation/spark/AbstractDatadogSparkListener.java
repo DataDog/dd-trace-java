@@ -23,10 +23,12 @@ import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -191,8 +193,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       openLineageSparkConf.set(
           "spark.openlineage.transport.transports.agent.endpoint", AGENT_OL_ENDPOINT);
       openLineageSparkConf.set("spark.openlineage.transport.transports.agent.compression", "gzip");
-      openLineageSparkConf.set(
-          "spark.openlineage.run.tags",
+      String runTags =
           "_dd.trace_id:"
               + traceId.toString()
               + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
@@ -200,7 +201,17 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               + ";_dd.ol_intake.process_tags:"
               + ProcessTags.getTagsForSerialization()
               + ";_dd.ol_app_id:"
-              + appId);
+              + appId;
+      // _dd.ol_env carries the run environment so the lineage-processor can use it
+      // as the Spark application's UGP namespace, letting the OpenLineage-created
+      // node and the tracer-only node (djm-span-processor) resolve to the same
+      // entity_id. Omitted when env is unset so the consumer falls back to the
+      // OpenLineage namespace.
+      String olEnv = Config.get().getEnv();
+      if (!olEnv.isEmpty()) {
+        runTags += ";_dd.ol_env:" + olEnv;
+      }
+      openLineageSparkConf.set("spark.openlineage.run.tags", runTags);
       setupOpenLineageCircuitBreaker();
       return;
     }
@@ -340,12 +351,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
+    // In YARN cluster mode SparkContext can stop before the Python driver exits. Wait for
+    // ApplicationMaster.finish() to report the exit code instead of finishing successfully here.
+    boolean finishOnApplicationEnd =
+        finishTraceOnApplicationEnd
+            && !("yarn".equals(sparkConf.get("spark.master", ""))
+                && "cluster".equals(sparkConf.get("spark.submit.deployMode", "")));
     log.info(
         "Received spark application end event, finish trace on this event: {}",
-        finishTraceOnApplicationEnd);
+        finishOnApplicationEnd);
     notifyOl(x -> openLineageSparkListener.onApplicationEnd(x), applicationEnd);
 
-    if (finishTraceOnApplicationEnd) {
+    if (finishOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
     }
   }
@@ -442,7 +459,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
       AgentSpanContext parentContext =
-          new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+          new DatabricksParentContext(
+              databricksJobId,
+              databricksJobRunId,
+              databricksTaskRunId,
+              getDatabricksJobRunAttempt(properties));
 
       if (parentContext.getTraceId() != DDTraceId.ZERO) {
         if (withParentContext) {
@@ -472,7 +493,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
             .withTag("details", queryStart.details())
-            .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
@@ -926,7 +946,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
-    sqlQueries.remove(sqlEnd.executionId());
+    SparkListenerSQLExecutionStart queryStart = sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
 
     if (span != null) {
@@ -935,6 +955,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
       notifyOl(x -> openLineageSparkListener.onOtherEvent(x), sqlEnd);
 
+      // Set right before finish so long-running heartbeats of the running span don't carry the
+      // plan
+      span.setTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription());
       span.finish(sqlEnd.time() * 1000);
     }
   }
@@ -1220,6 +1243,68 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return null;
   }
 
+  private static final byte[] JOB_RUN_ATTEMPT_NUM_KEY =
+      "jobRunAttemptNum".getBytes(StandardCharsets.UTF_8);
+
+  /**
+   * Returns the Databricks repair attempt index (0 for the original run, 1+ for each repair). It is
+   * not exposed as a first-class Spark property: the only source is the base64 + java-serialized
+   * "unity.scope.data" local property, under the key "jobRunAttemptNum". We extract it best-effort
+   * by looking at the raw serialized bytes right after that key, without a full deserialization of
+   * the stream (e.g. we don't resolve TC_REFERENCE backreferences); on any failure or unexpected
+   * shape we return 0, which reproduces the original (non-repair-aware) trace id so correlation is
+   * never worse than before.
+   */
+  // Package-private for testing.
+  static int getDatabricksJobRunAttempt(Properties properties) {
+    String scopeData = properties.getProperty("unity.scope.data");
+    if (scopeData == null) {
+      return 0;
+    }
+    try {
+      byte[] decoded = Base64.getDecoder().decode(scopeData);
+      int keyIdx = indexOfDatabricksAttemptKey(decoded, JOB_RUN_ATTEMPT_NUM_KEY);
+      if (keyIdx < 0) {
+        return 0;
+      }
+      // The (key, value) tuple is serialized back-to-back with no gap, so the value's type tag sits
+      // immediately after the key's bytes. It's normally TC_STRING (0x74) with a 2-byte big-endian
+      // length prefix, but if this exact attempt string already appeared earlier in the stream
+      // (e.g.
+      // another Databricks tag also has value "1"), Java's serialization writes a TC_REFERENCE
+      // (0x71)
+      // back-pointer instead of repeating the string. We don't resolve backreferences -- rather
+      // than
+      // risk scanning forward and matching an unrelated byte, treat anything other than an
+      // immediate
+      // TC_STRING as unparseable and fall back to attempt 0.
+      int valueStart = keyIdx + JOB_RUN_ATTEMPT_NUM_KEY.length;
+      if (valueStart + 3 > decoded.length || decoded[valueStart] != 0x74) {
+        return 0;
+      }
+      int len = ((decoded[valueStart + 1] & 0xff) << 8) | (decoded[valueStart + 2] & 0xff);
+      if (len > 0 && len <= 9 && valueStart + 3 + len <= decoded.length) {
+        return Integer.parseInt(new String(decoded, valueStart + 3, len, StandardCharsets.UTF_8));
+      }
+    } catch (Exception e) {
+      log.debug("Unable to extract databricks job run attempt from unity.scope.data", e);
+    }
+    return 0;
+  }
+
+  private static int indexOfDatabricksAttemptKey(byte[] haystack, byte[] needle) {
+    outer:
+    for (int i = 0; i <= haystack.length - needle.length; i++) {
+      for (int j = 0; j < needle.length; j++) {
+        if (haystack[i + j] != needle[j]) {
+          continue outer;
+        }
+      }
+      return i;
+    }
+    return -1;
+  }
+
   private String stackTraceToString(Throwable e) {
     StringWriter stringWriter = new StringWriter();
     e.printStackTrace(new PrintWriter(stringWriter));
@@ -1487,6 +1572,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static String getAgentHttpUrl() {
+    // When the Agent is reachable over a Unix Domain Socket, its URL uses the unix:// scheme.
+    // Pass it through so the OpenLineage HTTP transport sends lineage over the socket (requires
+    // OpenLineage 1.54+). Any other configuration keeps the original http://host:port behavior,
+    // so existing http(s) setups are unaffected.
+    String agentUrl = Config.get().getAgentUrl();
+    if (agentUrl != null && agentUrl.startsWith("unix:")) {
+      return agentUrl;
+    }
+
     StringBuilder sb =
         new StringBuilder("http://")
             .append(Config.get().getAgentHost())

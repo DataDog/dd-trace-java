@@ -2,6 +2,7 @@ import aQute.bnd.gradle.Bundle
 
 plugins {
   id 'biz.aQute.bnd.builder' version '7.2.3' apply true
+  id 'dd-trace-java.module.smoke-test'
 }
 
 repositories {
@@ -16,7 +17,6 @@ repositories {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'OSGi Application Smoke Tests.'
 
 configurations {

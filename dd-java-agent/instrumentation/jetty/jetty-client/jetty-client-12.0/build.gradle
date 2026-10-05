@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "org.eclipse.jetty"
@@ -8,8 +12,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_17)
 }
@@ -17,7 +19,7 @@ tracerJava {
 addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileMain_java17Java", JavaCompile) {
-  configureCompiler(it, 17, JavaVersion.VERSION_17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 configurations.matching { it.name.startsWith('test') || it.name.startsWith('latestDepTest') }.configureEach {

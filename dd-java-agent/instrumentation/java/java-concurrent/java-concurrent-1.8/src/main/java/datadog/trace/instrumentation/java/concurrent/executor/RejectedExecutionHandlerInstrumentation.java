@@ -87,7 +87,7 @@ public class RejectedExecutionHandlerInstrumentation
 
     // must execute after in case the handler actually runs the runnable,
     // which is preferable to cancelling the continuation
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void reject(
         @Advice.Enter Wrapper<?> wrapper, @Advice.Argument(value = 0) Runnable runnable) {
       // not handling rejected work (which will often not manifest in an exception being thrown)

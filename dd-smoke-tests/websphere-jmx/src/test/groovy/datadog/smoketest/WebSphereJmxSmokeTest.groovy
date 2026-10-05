@@ -1,7 +1,5 @@
 package datadog.smoketest
 
-import static datadog.environment.OperatingSystem.architecture
-
 import datadog.environment.OperatingSystem
 import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
@@ -27,7 +25,7 @@ import spock.lang.Shared
  */
 //  There is no arm64 docker image for IBM icr.io/appcafe/websphere-traditional.
 @IgnoreIf({
-  OperatingSystem.isLinux() && architecture().isArm64()
+  OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64()
 })
 class WebSphereJmxSmokeTest extends AbstractSmokeTest {
 
@@ -73,7 +71,7 @@ class WebSphereJmxSmokeTest extends AbstractSmokeTest {
       }
     }
 
-    websphere = new GenericContainer("icr.io/appcafe/websphere-traditional:latest")
+    websphere = new GenericContainer(System.getProperty("test.websphere.image"))
       // inject wished jvm props for the server we are running
       .withCopyFileToContainer(MountableFile.forClasspathResource("jvm-config.props"), "/work/config/")
       // copy the agent jar

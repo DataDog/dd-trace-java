@@ -3,6 +3,7 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.Collections.emptyList;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -238,10 +239,11 @@ public class TraceGenerator {
               samplingPriority,
               measured,
               isTopLevel(),
-              statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
+              statusCode,
               origin,
               0,
               ProcessTags.getTagsForSerialization(),
+              UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
               spanLinks);
     }
 
@@ -399,12 +401,6 @@ public class TraceGenerator {
 
     @Override
     public void processTagsAndBaggage(MetadataConsumer consumer) {
-      consumer.accept(metadata);
-    }
-
-    @Override
-    public void processTagsAndBaggage(
-        MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
       consumer.accept(metadata);
     }
 

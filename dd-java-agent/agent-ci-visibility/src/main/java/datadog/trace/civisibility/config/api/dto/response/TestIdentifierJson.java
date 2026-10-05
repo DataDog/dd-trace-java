@@ -19,7 +19,7 @@ public final class TestIdentifierJson {
   private final String parameters;
   private final Configurations configurations;
 
-  @Json(name = "_missing_line_code_coverage")
+  @Json(name = "_is_missing_line_code_coverage")
   private final boolean missingLineCodeCoverage;
 
   public TestIdentifierJson(

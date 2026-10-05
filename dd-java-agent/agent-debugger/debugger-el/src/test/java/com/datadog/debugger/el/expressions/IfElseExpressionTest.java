@@ -1,15 +1,18 @@
 package com.datadog.debugger.el.expressions;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Expression;
-import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.BooleanValue;
 import org.junit.jupiter.api.Test;
 
 class IfElseExpressionTest {
   private boolean guardFlag = false;
+  private EvalContext evalContext = createEvalContext(this);
 
   @Test
   void testIfTrue() {
@@ -26,7 +29,7 @@ class IfElseExpressionTest {
           return null;
         };
     IfElseExpression expression = DSL.doif(test, thenExpression, elseExpression);
-    expression.evaluate(RefResolverHelper.createResolver(this));
+    expression.evaluate(evalContext);
     assertTrue(executed[0]);
     assertFalse(executed[1]);
   }
@@ -45,7 +48,7 @@ class IfElseExpressionTest {
           executed[1] = true;
           return null;
         };
-    DSL.doif(test, thenExpression, elseExpression).evaluate(RefResolverHelper.createResolver(this));
+    DSL.doif(test, thenExpression, elseExpression).evaluate(evalContext);
     assertFalse(executed[0]);
     assertTrue(executed[1]);
   }
@@ -65,14 +68,14 @@ class IfElseExpressionTest {
           return null;
         };
     guardFlag = false;
-    DSL.doif(test, thenExpression, elseExpression).evaluate(RefResolverHelper.createResolver(this));
+    DSL.doif(test, thenExpression, elseExpression).evaluate(evalContext);
     assertFalse(executed[0]);
     assertTrue(executed[1]);
 
     executed[1] = false;
 
     guardFlag = true;
-    DSL.doif(test, thenExpression, elseExpression).evaluate(RefResolverHelper.createResolver(this));
+    DSL.doif(test, thenExpression, elseExpression).evaluate(evalContext);
     assertTrue(executed[0]);
     assertFalse(executed[1]);
   }

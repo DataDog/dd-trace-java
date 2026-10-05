@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.springframework.boot'
@@ -12,8 +16,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir("boot1LatestDepTest", "test")
 addTestSuiteForDir("boot2Test", "test")
 addTestSuiteForDir("boot2LatestDepTest", "test")
@@ -25,7 +27,11 @@ addTestSuiteExtendingForDir("boot2LatestDepForkedTest", "boot2LatestDepTest", "t
 addTestSuiteExtendingForDir("boot3ForkedTest", "boot3Test", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
-configureGroovyCompiler(17, "compileLatestDepTestGroovy", "compileBoot3TestGroovy")
+["compileLatestDepTestGroovy", "compileBoot3TestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, JavaVersion.VERSION_17)
+  }
+}
 
 dependencies {
   implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.play24;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
 
@@ -17,7 +16,7 @@ public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try
   private final ContextScope scope;
 
   public RequestCompleteCallback(final ContextScope scope) {
-    this.span = spanFromContext(scope.context());
+    this.span = AgentSpan.fromContext(scope.context());
     this.scope = scope;
   }
 

@@ -121,7 +121,9 @@ abstract class Netty41ClientTest extends HttpClientTest {
           errored true
           tags {
             "$Tags.COMPONENT" "netty"
-            errorTags AbstractChannel.AnnotatedConnectException, "Connection refused: /127.0.0.1:$UNUSABLE_PORT"
+            errorTags AbstractChannel.AnnotatedConnectException, {
+              it.startsWith("Connection refused") && it.endsWith("/127.0.0.1:$UNUSABLE_PORT")
+            }
             defaultTags()
           }
         }

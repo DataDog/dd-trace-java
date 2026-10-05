@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import org.jboss.netty.channel.Channel;
@@ -28,7 +28,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
   public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg)
       throws Exception {
     final ChannelTraceContext channelTraceContext =
-        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     AgentSpan parent = channelTraceContext.getClientParentSpan();
     if (parent == null) {
@@ -40,7 +40,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
     final boolean finishSpan = msg.getMessage() instanceof HttpResponse;
 
     if (span != null && finishSpan) {
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         DECORATE.onResponse(span, (HttpResponse) msg.getMessage());
         DECORATE.beforeFinish(span);
         span.finish();
@@ -48,7 +48,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
     }
 
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
+    try (final ContextScope scope = activateSpan(parent)) {
       ctx.sendUpstream(msg);
     }
   }
@@ -56,7 +56,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
     final ChannelTraceContext channelTraceContext =
-        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     AgentSpan parent = channelTraceContext.getClientParentSpan();
     if (parent == null) {
@@ -68,7 +68,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
     if (span != null) {
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         DECORATE.onError(span, e.getCause());
         DECORATE.beforeFinish(span);
         span.finish();
@@ -76,7 +76,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
     }
 
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
+    try (final ContextScope scope = activateSpan(parent)) {
       super.exceptionCaught(ctx, e);
     }
   }

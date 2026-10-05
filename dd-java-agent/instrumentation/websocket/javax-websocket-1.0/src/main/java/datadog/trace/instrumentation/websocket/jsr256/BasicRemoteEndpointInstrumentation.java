@@ -12,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.io.OutputStream;
@@ -73,7 +73,7 @@ public class BasicRemoteEndpointInstrumentation
 
   public static class SendTextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) String text,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
@@ -85,16 +85,16 @@ public class BasicRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
               CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(value = 1, optional = true) final Boolean last) {
@@ -103,24 +103,18 @@ public class BasicRemoteEndpointInstrumentation
       if (scope == null) {
         return;
       }
-      try {
-        boolean finishSpan = last == null || last;
-        if (throwable != null) {
-          finishSpan = true;
-          DECORATE.onError(scope, throwable);
-        }
-        if (finishSpan) {
-          DECORATE.onFrameEnd(handlerContext);
-        }
-      } finally {
-        scope.close();
+      DECORATE.onError(scope, throwable);
+      boolean finishSpan = last == null || last || throwable != null;
+      if (finishSpan) {
+        DECORATE.onFrameEnd(handlerContext);
       }
+      scope.close();
     }
   }
 
   public static class SendBinaryAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) ByteBuffer buffer,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
@@ -132,16 +126,16 @@ public class BasicRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
               BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(value = 1, optional = true) final Boolean last) {
@@ -149,24 +143,18 @@ public class BasicRemoteEndpointInstrumentation
       if (scope == null) {
         return;
       }
-      try {
-        boolean finishSpan = last == null || last;
-        if (throwable != null) {
-          finishSpan = true;
-          DECORATE.onError(scope, throwable);
-        }
-        if (finishSpan) {
-          DECORATE.onFrameEnd(handlerContext);
-        }
-      } finally {
-        scope.close();
+      DECORATE.onError(scope, throwable);
+      boolean finishSpan = last == null || last || throwable != null;
+      if (finishSpan) {
+        DECORATE.onFrameEnd(handlerContext);
       }
+      scope.close();
     }
   }
 
   public static class SendObjectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
       handlerContext =
@@ -180,27 +168,22 @@ public class BasicRemoteEndpointInstrumentation
       // encoders/decoders.
       // we can anyway instrument also the Encoders but that would add much more complexity.
       // right now this is not in scope
-      final AgentSpan wsSpan = DECORATE.onSendFrameStart(handlerContext, null, 0);
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(handlerContext, null, 0);
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
       if (scope == null) {
         return;
       }
-      try {
-        if (throwable != null) {
-          DECORATE.onError(scope, throwable);
-        }
-        DECORATE.onFrameEnd(handlerContext);
-      } finally {
-        scope.close();
-      }
+      DECORATE.onError(scope, throwable);
+      DECORATE.onFrameEnd(handlerContext);
+      scope.close();
     }
   }
 

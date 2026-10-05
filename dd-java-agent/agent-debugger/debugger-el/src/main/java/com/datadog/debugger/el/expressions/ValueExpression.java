@@ -1,8 +1,8 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Value;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /**
  * A generic interface for expressions resolving to {@linkplain Value}
@@ -13,7 +13,7 @@ public interface ValueExpression<T extends Value<?>> extends Expression<T> {
   ValueExpression<?> NULL =
       new ValueExpression<Value<?>>() {
         @Override
-        public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
+        public Value<?> evaluate(EvalContext evalContext) {
           return Value.nullValue();
         }
 
@@ -26,7 +26,7 @@ public interface ValueExpression<T extends Value<?>> extends Expression<T> {
   ValueExpression<?> UNDEFINED =
       new ValueExpression<Value<?>>() {
         @Override
-        public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
+        public Value<?> evaluate(EvalContext evalContext) {
           return Value.undefinedValue();
         }
 

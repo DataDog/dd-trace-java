@@ -2,14 +2,15 @@ package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedList;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedMap;
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 
 public class IndexExpression implements ValueExpression<Value<?>> {
@@ -23,8 +24,8 @@ public class IndexExpression implements ValueExpression<Value<?>> {
   }
 
   @Override
-  public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> targetValue = target.evaluate(valueRefResolver);
+  public Value<?> evaluate(EvalContext evalContext) {
+    Value<?> targetValue = target.evaluate(evalContext);
     if (targetValue.isUndefined()) {
       throw new EvaluationException(
           "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
@@ -34,7 +35,7 @@ public class IndexExpression implements ValueExpression<Value<?>> {
           "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
     Value<?> result = Value.undefinedValue();
-    Value<?> keyValue = key.evaluate(valueRefResolver);
+    Value<?> keyValue = key.evaluate(evalContext);
     if (keyValue == Value.undefined()) {
       return result;
     }
@@ -65,6 +66,7 @@ public class IndexExpression implements ValueExpression<Value<?>> {
     if (obj != null && Redaction.isRedactedType(obj.getClass().getTypeName())) {
       ExpressionHelper.throwRedactedException(this);
     }
+    checkTimeout(evalContext.getTimeoutChecker(), this);
     return Value.of(result.getValue(), result.getType());
   }
 

@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.tomcat;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -131,7 +131,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       }
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
       scope.close();
     }
@@ -151,7 +151,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       }
       final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
       final Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
 
       final Context context = DECORATE.startSpan(req, parentContext);
       serverScope = context.attach();
@@ -165,7 +165,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("serverScope") ContextScope serverScope) {
       serverScope.close();
     }
@@ -198,7 +198,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
               CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
           req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
           Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-          Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : getRootContext();
+          Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : rootContext();
           DECORATE.onRequest(span, req, req, parentContext);
           Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
           if (rba != null) {

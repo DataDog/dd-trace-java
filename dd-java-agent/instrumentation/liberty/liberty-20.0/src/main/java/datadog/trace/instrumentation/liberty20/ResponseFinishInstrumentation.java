@@ -35,18 +35,6 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".LibertyDecorator",
-      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
-      packageName + ".RequestURIDataAdapter",
-    };
-  }
-
-  @Override
   public String instrumentedType() {
     return "com.ibm.ws.webcontainer.srt.SRTServletResponse";
   }
@@ -94,7 +82,7 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
           req.setAttribute(DD_CONTEXT_ATTRIBUTE, null);
           AgentSpan span = fromContext(context);
           if (span != null) {
-            DECORATE.onResponse(span, resp);
+            DECORATE.onSRTResponse(span, resp);
           }
         }
       } catch (NullPointerException e) {

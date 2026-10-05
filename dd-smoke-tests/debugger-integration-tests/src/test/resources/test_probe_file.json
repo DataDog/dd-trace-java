@@ -1,0 +1,92 @@
+[
+  {
+    "id": "123356536",
+    "version": 0,
+    "language": "java",
+    "type": "LOG_PROBE",
+    "where": {
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod",
+      "signature": ""
+    },
+    "captureSnapshot": true
+  },
+  {
+    "id": "100c9a5c-45ad-49dc-818b-c570d31e11d1",
+    "version": 0,
+    "type": "LOG_PROBE",
+    "where": {
+      "sourceFile": "index.js",
+      "lines": ["25"]
+    },
+    "template": "Hello World",
+    "segments": [{
+      "str": "Hello World"
+    }],
+    "captureSnapshot": true,
+    "capture": { "maxReferenceDepth": 3 },
+    "sampling": { "snapshotsPerSecond": 100 }
+  },
+  {
+    "id": "123356537",
+    "language": "java",
+    "type": "METRIC_PROBE",
+    "where": {
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod"
+    },
+    "tags": ["version:v123", "env:staging"],
+    "kind": "COUNT",
+    "metricName": "datadog.debugger.fullMethod.calls",
+    "value": {
+      "dsl": "42",
+      "json": 42
+    }
+  },
+  {
+    "id": "ad4cba6f-d476-4554-b5ed-80dd941a40d8",
+    "version": 0,
+    "type": "SPAN_DECORATION_PROBE",
+    "language": "java",
+    "where": {
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod",
+      "signature": ""
+    },
+    "tags": [],
+    "evaluateAt": "EXIT",
+    "targetSpan": "ACTIVE",
+    "decorations": [
+      {
+        "tags": [
+          {
+            "name": "client",
+            "value": {
+              "segments": [
+                {
+                  "dsl": "argStr",
+                  "json": {
+                    "ref": "argStr"
+                  }
+                }
+              ],
+              "template": "{argStr}"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "70b55d06-f9fa-403b-a329-4f2f960aed01",
+    "version": 0,
+    "type": "SPAN_PROBE",
+    "language": "java",
+    "where": {
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod"
+    },
+    "tags": [],
+    "evaluateAt": "EXIT"
+  }
+]

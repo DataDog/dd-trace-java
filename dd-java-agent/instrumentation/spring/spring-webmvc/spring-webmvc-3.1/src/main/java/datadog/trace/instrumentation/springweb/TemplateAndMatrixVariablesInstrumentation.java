@@ -80,13 +80,6 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PairList",
-    };
-  }
-
-  @Override
   public Advice.PostProcessor.Factory postProcessor() {
     return postProcessorFactory;
   }
@@ -98,7 +91,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
         "org.springframework.web.servlet.HandlerMapping.matrixVariables";
 
     @SuppressWarnings("Duplicates")
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MATRIX_PARAMETER)
     public static void after(
         @Advice.Argument(2) final HttpServletRequest req,

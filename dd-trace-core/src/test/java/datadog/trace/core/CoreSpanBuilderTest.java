@@ -12,10 +12,14 @@ import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static datadog.trace.api.sampling.SamplingMechanism.LOCAL_USER_RULE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.common.sampling.RuleBasedTraceSampler.SAMPLING_RULE_RATE;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,6 +27,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -31,7 +36,6 @@ import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -39,7 +43,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +58,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
+
+  private static final String INHERITED_RANDOM_VALUE = "ef284ace7a91e1";
+  private static final String OTEL_TRACE_STATE =
+      "dd=s:0,ot=rv:" + INHERITED_RANDOM_VALUE + ";th:e6666666666668";
+  private static final String OTEL_MEMBER = "ot=";
+  private static final String THRESHOLD_0_5 = ";th:8";
+  private static final double SAMPLE_RATE_0_5 = 0.5;
+  private static final String DATADOG_TRACE_STATE = "_dd.p.dm=934086a686-4,_dd.p.anytag=value";
 
   private ListWriter writer;
   private CoreTracer tracer;
@@ -210,12 +222,13 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   })
   void shouldLinkToParentSpanImplicitly(
       boolean noopParent, String serviceName, boolean expectTopLevel) {
-    try (AgentScope parent =
+    try (ContextScope parent =
         tracer.activateSpan(
             noopParent
                 ? noopSpan()
                 : tracer.buildSpan("test", "parent").withServiceName("service").start())) {
-      long expectedParentId = noopParent ? DDSpanId.ZERO : parent.span().spanContext().getSpanId();
+      long expectedParentId =
+          noopParent ? DDSpanId.ZERO : AgentSpan.fromScope(parent).spanContext().getSpanId();
 
       DDSpan span =
           (DDSpan) tracer.buildSpan("test", "fakeName").withServiceName(serviceName).start();
@@ -375,9 +388,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             Collections.<String, String>emptyMap(),
             Collections.<String, Object>emptyMap(),
             null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
+            propagationTagsWithOtelState(),
             null,
             DATADOG);
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
@@ -394,6 +405,16 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertEquals(
         extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C),
         link.traceState());
+    String initialTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
+
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
+
+    String freshTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
   }
 
   @Test
@@ -409,9 +430,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             Collections.<String, String>emptyMap(),
             Collections.<String, Object>emptyMap(),
             null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
+            propagationTagsWithOtelState(),
             null,
             DATADOG);
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
@@ -420,6 +439,58 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertNotEquals(extractedContext.getSpanId(), span.getParentId());
     assertEquals(PrioritySampling.UNSET, span.samplingPriority());
     assertTrue(span.getLinks().isEmpty());
+    String initialTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
+
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
+
+    String freshTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
+  }
+
+  private static PropagationTags propagationTagsWithOtelState() {
+    PropagationTags propagationTags =
+        PropagationTags.factory()
+            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, DATADOG_TRACE_STATE);
+    propagationTags.updateW3CTracestate(OTEL_TRACE_STATE);
+    return propagationTags;
+  }
+
+  @Test
+  @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
+  void appSecContextPreservedFromTagContextWithIgnoreBehavior() {
+    Object appSecData = new Object();
+    Object iastData = new Object();
+    TagContext tagContext =
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+    span.finish();
+  }
+
+  @Test
+  @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
+  void appSecContextPreservedFromTagContextWithRestartBehavior() {
+    Object appSecData = new Object();
+    Object iastData = new Object();
+    TagContext tagContext =
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+    span.finish();
   }
 
   @TableTest({

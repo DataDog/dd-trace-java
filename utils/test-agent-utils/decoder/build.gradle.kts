@@ -1,17 +1,21 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-extra["excludedClassesCoverage"] = listOf(
-  "datadog.trace.test.agent.decoder.v04.raw.*",
-  "datadog.trace.test.agent.decoder.v05.raw.*",
-  "datadog.trace.test.agent.decoder.v1.raw.*",
+val minimumInstructionCoverage by extra(0.8)
+val excludedClassesCoverage by extra(
+  listOf(
+    "datadog.trace.test.agent.decoder.v04.raw.*",
+    "datadog.trace.test.agent.decoder.v05.raw.*",
+    "datadog.trace.test.agent.decoder.v1.raw.*",
+    "datadog.trace.test.agent.decoder.json.raw.*",
+  )
 )
 
 dependencies {
   implementation(group = "org.msgpack", name = "msgpack-core", version = "0.8.24")
+  implementation(libs.moshi)
 
   testImplementation(libs.bundles.junit5)
   testImplementation(project(":utils:test-utils"))

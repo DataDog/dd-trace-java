@@ -66,9 +66,8 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    *
    * @param span
    * @param connection
-   * @return
    */
-  public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
+  public void onConnection(final AgentSpan span, final CONNECTION connection) {
     if (connection != null) {
       span.setTag(Tags.DB_USER, dbUser(connection));
       onInstance(span, dbInstance(connection));
@@ -81,10 +80,9 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
         }
       }
     }
-    return span;
   }
 
-  protected AgentSpan onInstance(final AgentSpan span, final String dbInstance) {
+  protected void onInstance(final AgentSpan span, final String dbInstance) {
     if (dbInstance != null) {
       span.setTag(Tags.DB_INSTANCE, dbInstance);
       String serviceName = dbClientService(dbInstance);
@@ -92,15 +90,16 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
         span.setServiceName(serviceName, component());
       }
     }
-    return span;
   }
 
   public String dbService(final String dbType, final String instanceName) {
     if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
       return dbClientService(instanceName);
     }
-    final NamingEntry entry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
-    return entry.getService();
+    if (dbType == null) {
+      return null;
+    }
+    return CACHE.computeIfAbsent(dbType, NamingEntry::new).getService();
   }
 
   public String dbClientService(final String instanceName) {
@@ -114,9 +113,8 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     return service;
   }
 
-  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
+  public void onStatement(final AgentSpan span, final CharSequence statement) {
     span.setResourceName(statement);
-    return span;
   }
 
   /**
@@ -148,11 +146,15 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   }
 
   protected void processDatabaseType(AgentSpan span, String dbType) {
+    if (dbType == null) {
+      return;
+    }
+
     final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
     span.setTag(DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
 
-    if (Config.get().isAppSecRaspEnabled() && dbType != null) {
+    if (Config.get().isAppSecRaspEnabled()) {
       BiConsumer<RequestContext, String> connectDbCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)

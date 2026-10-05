@@ -22,6 +22,36 @@ class TestJvmConstraintsPluginTest {
   }
 
   @Test
+  fun `plugin is idempotent when applied more than once`() {
+    val project = ProjectBuilder.builder().build()
+
+    project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+    TestJvmConstraintsPlugin().apply(project)
+
+    val testTask = project.tasks.named("test", GradleTest::class.java).get()
+
+    assertThat(project.extensions.findByName(TEST_JVM_CONSTRAINTS)).isInstanceOf(TestJvmConstraintsExtension::class.java)
+    assertThat(testTask.extensions.findByName(TEST_JVM_CONSTRAINTS)).isInstanceOf(TestJvmConstraintsExtension::class.java)
+  }
+
+  @Test
+  fun `default test launcher is fingerprinted without testJvm`() {
+    val project = ProjectBuilder.builder().build()
+    project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+    val testTask = project.tasks.named("test", GradleTest::class.java).get()
+    val metadata = testTask.javaLauncher.get().metadata
+
+    assertThat(testTask.inputs.properties["jvmIdentity"]).isEqualTo(mapOf(
+      "languageVersion" to metadata.languageVersion.asInt().toString(),
+      "vendor" to metadata.vendor,
+      "runtimeVersion" to metadata.javaRuntimeVersion,
+      "vmVersion" to metadata.jvmVersion,
+      "operatingSystem" to System.getProperty("os.name"),
+      "architecture" to System.getProperty("os.arch"),
+    ))
+  }
+
+  @Test
   fun `jacoco is disabled for additional test jvm when coverage is not checked`() {
     val testTask = testTaskWithJacoco()
 

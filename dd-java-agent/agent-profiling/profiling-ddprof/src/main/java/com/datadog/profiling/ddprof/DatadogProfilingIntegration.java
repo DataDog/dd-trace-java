@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.context.Context;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -32,22 +33,26 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
       new Stateful() {
         @Override
         public void close() {
-          DDPROF.clearSpanContext();
-          DDPROF.clearContextValue(SPAN_NAME_INDEX);
-          DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
+          // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
+          // app-managed context, so no separate clearContextValue calls are needed.
+          DDPROF.clearTraceContext();
         }
 
         @Override
         public void activate(Object context) {
           if (context instanceof ProfilerContext) {
             ProfilerContext profilerContext = (ProfilerContext) context;
-            DDPROF.setSpanContext(
+            // One native call: trace/span context + operation and resource attributes, then
+            // reapply of app-managed context (setTraceContext resets custom slots).
+            DDPROF.setTraceContext(
                 profilerContext.getRootSpanId(),
                 profilerContext.getSpanId(),
                 profilerContext.getTraceIdHigh(),
-                profilerContext.getTraceIdLow());
-            DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getOperationName());
-            DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getResourceName());
+                profilerContext.getTraceIdLow(),
+                SPAN_NAME_INDEX,
+                profilerContext.getOperationName(),
+                RESOURCE_NAME_INDEX,
+                profilerContext.getResourceName());
           }
         }
       };
@@ -76,10 +81,24 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return "ddprof";
   }
 
-  public void clearContext() {
-    DDPROF.clearSpanContext();
-    DDPROF.clearContextValue(SPAN_NAME_INDEX);
-    DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
+  /** Rebinds ddprof's carrier-thread context to the span contained in {@code context}. */
+  @Override
+  public void setContext(Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
+    if (span != null) {
+      contextManager.activate(span.spanContext());
+    } else {
+      clearContext();
+    }
+  }
+
+  @Override
+  public boolean isThreadContextBindingRequired() {
+    return true;
+  }
+
+  private void clearContext() {
+    contextManager.close();
   }
 
   @Override

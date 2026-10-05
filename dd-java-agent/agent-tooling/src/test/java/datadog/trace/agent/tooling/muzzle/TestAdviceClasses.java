@@ -97,11 +97,10 @@ public class TestAdviceClasses {
     }
   }
 
-  // Can't test this until java 7 is dropped.
   public static class InDyAdvice {
-    //    public static MethodBodyAdvice.HasMethod indyMethod(final MethodBodyAdvice.HasMethod a) {
-    //      Runnable aStaticMethod = MethodBodyAdvice.B::aStaticMethod;
-    //      return a::requiredMethod;
-    //    }
+    public static MethodBodyAdvice.HasMethod indyMethod(final MethodBodyAdvice.HasMethod a) {
+      Runnable aStaticMethod = MethodBodyAdvice.B::aStaticMethod;
+      return a::requiredMethod;
+    }
   }
 }

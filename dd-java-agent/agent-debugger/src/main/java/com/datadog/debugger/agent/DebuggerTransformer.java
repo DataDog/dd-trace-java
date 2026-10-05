@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.getLineNumbers;
+import static com.datadog.debugger.util.DebuggerInternalPackages.isDebuggerInternalClass;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
@@ -24,12 +25,12 @@ import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
-import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.SpringHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -94,20 +95,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanDecorationProbe.class,
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
-  private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
+  private static final boolean JAVA_AT_LEAST_25_0_4 =
+      JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4);
+  private static final boolean JAVA_AT_LEAST_17_0_20 =
+      JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20);
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
-  private static final String[] SKIPPED_PACKAGES =
-      new String[] {
-        "com/datadog/debugger/agent/",
-        "com/datadog/debugger/codeorigin/",
-        "com/datadog/debugger/exception/",
-        "com/datadog/debugger/instrumentation/",
-        "com/datadog/debugger/probe/",
-        "com/datadog/debugger/sink/",
-        "com/datadog/debugger/symbol/",
-        "com/datadog/debugger/uploader/",
-        "com/datadog/debugger/util/"
-      };
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -181,6 +173,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
       includeMethods = null;
       probeCreator = null;
     }
+    if (isDebuggerInternalClass(null)) {
+      // Force DebuggerInternalPAckages to be loaded before calling it into the transform method
+      // avoid LinkageError for duplicated class definition
+      throw new IllegalArgumentException("DebuggerInternalClass should be loaded");
+    }
   }
 
   // Used only for tests
@@ -194,7 +191,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         new DebuggerSink(
             config,
             "",
-            DebuggerMetrics.getInstance(config),
+            DebuggerMetricCollector.get(),
             new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
             new SnapshotSink(
                 config,
@@ -309,8 +306,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
    */
   private boolean checkMethodParameters(
       ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
-    if (JAVA_AT_LEAST_19) {
-      // bug is fixed since JDK19, no need to perform check
+    if (JAVA_AT_LEAST_17_0_20) {
+      // bug is fixed since JDK 19 and 17.0.20, no need to perform check
       return true;
     }
     boolean isRecord = ASMHelper.isRecord(classNode);
@@ -353,6 +350,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
    */
   private boolean checkRecordTypeAnnotation(
       ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
+    if (JAVA_AT_LEAST_25_0_4) {
+      return true;
+    }
     if (!ASMHelper.isRecord(classNode)) {
       return true;
     }
@@ -383,17 +383,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // in case of anonymous classes
       return true;
     }
-    if (classFilePath.startsWith("com/datadog/debugger/")) {
-      // skip classes/packages that are part of debugger agent to avoid
-      // LinkageError: attempted duplicate class definition
-      // while retransforming a class used by instrumentation
-      for (int i = 0; i < SKIPPED_PACKAGES.length; i++) {
-        if (classFilePath.startsWith(SKIPPED_PACKAGES[i])) {
-          return true;
-        }
-      }
-    }
-    return false;
+    // skip classes/packages that are part of debugger agent to avoid
+    // LinkageError: attempted duplicate class definition
+    // while retransforming a class used by instrumentation
+    return isDebuggerInternalClass(classFilePath);
   }
 
   private byte[] transformTheWorld(

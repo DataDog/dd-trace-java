@@ -23,10 +23,17 @@ class SymbolExtraction16 {
     return value
   }
 
+  fun f4(value: Int): Int {
+    val set = setOf(Person("john", "doe"), Person("agent", "smith"))
+    return set.groupingBy { it.firstName }.eachCount().toMutableMap().size
+  }
+
   companion object {
     fun main(arg: String): Int {
       val c = SymbolExtraction16()
-      return c.f1(31) + c.f2(17)
+      return c.f1(31) + c.f2(17) + c.f3(23) + c.f4(0)
     }
   }
 }
+
+data class Person(val firstName: String, val lastName: String)

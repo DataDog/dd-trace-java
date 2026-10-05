@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.net.InetAddress;
+import javax.annotation.Nonnull;
 
 public class CicsDecorator extends ClientDecorator {
   public static final CharSequence CICS_CLIENT = UTF8BytesString.create("cics-client");
@@ -36,10 +37,10 @@ public class CicsDecorator extends ClientDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     assert span != null;
     span.setTag("rpc.system", "cics");
-    return super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   /**
@@ -50,7 +51,7 @@ public class CicsDecorator extends ClientDecorator {
    * @param port the port number
    * @param ipGateway the resolved InetAddress (can be null)
    */
-  public AgentSpan onConnection(
+  public void onConnection(
       final AgentSpan span, final String strAddress, final int port, final InetAddress ipGateway) {
     if (strAddress != null) {
       span.setTag(Tags.PEER_HOSTNAME, strAddress);
@@ -63,8 +64,6 @@ public class CicsDecorator extends ClientDecorator {
     if (port > 0) {
       setPeerPort(span, port);
     }
-
-    return span;
   }
 
   /**
@@ -89,7 +88,7 @@ public class CicsDecorator extends ClientDecorator {
     }
   }
 
-  public AgentSpan onECIInteraction(final AgentSpan span, final ECIInteractionSpec spec) {
+  public void onECIInteraction(final AgentSpan span, final ECIInteractionSpec spec) {
     final String interactionVerb = getInteractionVerbString(spec.getInteractionVerb());
     final String functionName = spec.getFunctionName();
     final String tranName = spec.getTranName();
@@ -107,7 +106,5 @@ public class CicsDecorator extends ClientDecorator {
     if (tpnName != null) {
       span.setTag("cics.tpn", tpnName);
     }
-
-    return span;
   }
 }

@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.otel.logs.data.OtelLogRecordProcessor;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogsVisitor;
 import datadog.trace.bootstrap.otlp.logs.OtlpScopedLogsVisitor;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.logs.Logger;
 import io.opentelemetry.api.logs.LoggerProvider;

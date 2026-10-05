@@ -67,7 +67,7 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onPush() throws Exception {
                 final HttpRequest request = grab(requestInlet);
-                final ContextScope scope = DatadogWrapperHelper.createSpan(request);
+                final ContextScope scope = DatadogWrapperHelper.createSpanForFlow(request);
                 final AgentSpan span = fromContext(scope.context());
                 RequestContext requestContext = span.getRequestContext();
                 if (requestContext != null) {
@@ -87,11 +87,8 @@ public class DatadogServerRequestResponseFlowWrapper
 
                 scopes.add(scope);
                 push(requestOutlet, request);
-                // Since we haven't instrumented the akka stream state machine, we can't rely
-                // on spans and scopes being propagated during the push and pull of the
-                // element. Instead we let the scope leak intentionally here and clean it
-                // up when the user response comes back, or in the actor message processing
-                // instrumentation that drives this state machine.
+                // Legacy mode leaves the scope open so the surrounding actor can clean it up.
+                // Context-manager mode swaps the context and the actor restores it on exit.
               }
 
               @Override
@@ -143,9 +140,7 @@ public class DatadogServerRequestResponseFlowWrapper
                     response = newResponse;
                   }
                   DatadogWrapperHelper.finishSpan(scope.context(), response);
-                  // Check if the active span matches the scope from when the request came in,
-                  // and close it. If it's not, then it will be cleaned up actor message
-                  // processing instrumentation that drives this state machine
+                  // Legacy mode may still own the scope when the response arrives.
                   AgentSpan activeSpan = activeSpan();
                   if (activeSpan == span) {
                     scope.close();

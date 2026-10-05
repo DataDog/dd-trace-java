@@ -1,17 +1,18 @@
-import groovy.lang.Closure
-import java.nio.file.Paths
+import datadog.gradle.configureCompiler
 
 plugins {
   `java-library`
-  id("de.thetaphi.forbiddenapis") version "3.10"
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
   idea
+  id("dd-trace-java.module.internal-api")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 extensions.getByName("tracerJava").withGroovyBuilder {
   invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
 }
 
 java {
@@ -24,13 +25,11 @@ tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
-  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
-}
-
 listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTaskType ->
   tasks.withType(compileTaskType).configureEach {
-    configureCompiler(11, JavaVersion.VERSION_1_8)
+    // These implementations are selected only on Java 9+, so they can target Java 9 and restore
+    // --release after confirming no project output must be loaded during Java 8 discovery.
+    configureCompiler(JavaVersion.VERSION_1_8, "Uses Java 9+ APIs (StackWalker, ProcessHandle, Module) at Java 8 bytecode")
   }
 }
 
@@ -53,7 +52,4 @@ idea {
 jmh {
   jmhVersion = libs.versions.jmh
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvm = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(11) }.map {
-    it.executablePath.asFile.toString()
-  }
 }

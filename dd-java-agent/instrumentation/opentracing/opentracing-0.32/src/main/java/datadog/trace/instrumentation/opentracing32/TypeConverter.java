@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.opentracing32;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
@@ -18,13 +17,11 @@ public class TypeConverter {
   private final LogHandler logHandler;
   private final OTSpan noopSpanWrapper;
   private final OTSpanContext noopContextWrapper;
-  private final OTScopeManager.OTScope noopScopeWrapper;
 
   public TypeConverter(final LogHandler logHandler) {
     this.logHandler = logHandler;
     noopSpanWrapper = new OTSpan(noopSpan(), this, logHandler);
     noopContextWrapper = new OTSpanContext(noopSpanContext());
-    noopScopeWrapper = new OTScopeManager.OTScope(noopScope(), false, this);
   }
 
   public AgentSpan toAgentSpan(final Span span) {
@@ -54,12 +51,9 @@ public class TypeConverter {
     return new OTSpan(agentSpan, this, logHandler);
   }
 
-  public Scope toScope(final AgentScope scope, final boolean finishSpanOnClose) {
+  public Scope toScope(final ContextScope scope, final boolean finishSpanOnClose) {
     if (scope == null) {
       return null;
-    }
-    if (scope == noopScope()) {
-      return noopScopeWrapper;
     }
     return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
   }

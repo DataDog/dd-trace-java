@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 // This file includes software developed at SignalFx
 
 muzzle {
@@ -19,8 +23,6 @@ muzzle {
     skipFromReport = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   // TODO Java 17: This version of spring-data doesn't support Java 17

@@ -6,7 +6,7 @@ import static java.util.Collections.singletonMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;

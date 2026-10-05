@@ -65,11 +65,6 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".KafkaIastHelper"};
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     return MUZZLE_CHECK;
   }
@@ -116,7 +111,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
       ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterDeserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Return Object result,
@@ -141,7 +136,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
       ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterDeserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Return Object result,
@@ -166,7 +161,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
       ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterDeserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Return final Object result,

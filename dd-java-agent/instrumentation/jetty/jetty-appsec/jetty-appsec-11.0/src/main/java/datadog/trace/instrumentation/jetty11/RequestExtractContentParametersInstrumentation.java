@@ -44,11 +44,6 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     return "org.eclipse.jetty.server.Request";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".MultipartHelper"};
-  }
-
   // Discriminates Jetty 11.0.x ([11.0, 12.0)):
   //  - _contentParameters: MultiMap field exists in 11.x (excludes Jetty 12 where
   //    org.eclipse.jetty.server.Request was removed)
@@ -89,7 +84,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       return true;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
@@ -151,7 +146,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       return callDepth == 0 && contentParameters == null && multiParts == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
@@ -162,6 +157,9 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
+      }
     }
   }
 
@@ -177,7 +175,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       return CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class) == 0;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
@@ -188,6 +186,9 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
+      }
     }
   }
 }

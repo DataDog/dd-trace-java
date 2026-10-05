@@ -7,10 +7,10 @@ import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_REFERENCE_DEPTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -175,7 +175,7 @@ class StringTokenWriterTest {
     SerializerWithLimits serializer =
         new SerializerWithLimits(
             new StringTokenWriter(sb, new ArrayList<>()),
-            new TimeoutChecker(Duration.of(300, ChronoUnit.SECONDS)));
+            TimeoutChecker.create(Config.get(), Duration.ofSeconds(300)));
     serializer.serialize(
         value, value != null ? value.getClass().getTypeName() : Object.class.getTypeName(), limits);
     return sb.toString();

@@ -1,7 +1,7 @@
 # Add a New Instrumentation
 
 Now we will step through adding a very basic instrumentation to the trace agent. The
-existing [google-http-client instrumentation](../dd-java-agent/instrumentation/google-http-client)
+existing [google-http-client instrumentation](../dd-java-agent/instrumentation/google-http-client-1.19)
 will be used as an example.
 
 ## Clone the dd-trace-java repo
@@ -17,19 +17,42 @@ named `google-http-client`. (see [Naming](./how_instrumentations_work.md#naming)
 
 ## Configuring Gradle
 
-Add the new instrumentation to [`settings.gradle`](../settings.gradle)
+Add the new instrumentation to [`settings.gradle.kts`](../settings.gradle.kts)
 in alpha order with the other instrumentations in this format:
 
-```groovy
-include ':dd-java-agent:instrumentation:$framework?:$framework-$minVersion'
+```kotlin
+include(":dd-java-agent:instrumentation:$framework:$framework-$minVersion")
 ```
 
-In this case
-we [added](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/settings.gradle#L209C3-L209C3):
+For example, the jedis 3.x instrumentation appears as:
+
+```kotlin
+include(":dd-java-agent:instrumentation:jedis:jedis-3.0")
+```
+
+Create the instrumentation `build.gradle` with the instrumentation module convention plugin:
 
 ```groovy
-include ':dd-java-agent:instrumentation:google-http-client'
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = "com.google.http-client"
+    module = "google-http-client"
+    versions = "[1.19.0,)"
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.google.http-client', name: 'google-http-client', version: '1.19.0'
+}
 ```
+
+> [!WARN]
+> Do not apply `gradle/java.gradle` directly in new instrumentation modules. Use the module plugin so shared
+> instrumentation setup stays centralized.
 
 ## Create the Instrumentation class
 
@@ -59,7 +82,8 @@ include ':dd-java-agent:instrumentation:google-http-client'
 ```java
 
 @AutoService(InstrumenterModule.class)
-public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing implements Instrumenter.ForSingleType {
+public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
     public GoogleHttpClientInstrumentation() {
         super("google-http-client");
     }
@@ -102,11 +126,11 @@ public HttpResponse execute() throws IOException {/* */}
 ```
 
 Target the method using [appropriate Method Matchers](./how_instrumentations_work.md#method-matching) and include the
-name String to be used for the Advice class when calling `transformation.applyAdvice()`:
+name String to be used for the Advice class when calling `transformer.applyAdvice()`:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
             isMethod()
                     .and(isPublic())
                     .and(named("execute"))
@@ -121,8 +145,8 @@ public void adviceTransformations(AdviceTransformation transformation) {
 If you need to apply multiple advice classes to the same method (for example, to separate context tracking from tracing logic), you can pass multiple advice class names to `applyAdvices()`:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -137,7 +161,7 @@ When applying multiple advices, consider using the `@AppliesOn` annotation to co
 ## Add the HeadersInjectAdapter
 
 This particular instrumentation uses
-a [HeadersInjectAdapter](../dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java)
+a [HeadersInjectAdapter](../dd-java-agent/instrumentation/google-http-client-1.19/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java)
 class to assist with HTTP header injection. This is not required of all instrumentations. (
 See [InjectorAdapters](./how_instrumentations_work.md#injectadapters--custom-getterssetters)).
 
@@ -234,9 +258,13 @@ public class GoogleHttpClientDecorator
 
 ## Add helper class names
 
-The `GoogleHttpClientDecorator` and `HeadersInjectAdapter` class names must be included in helper classes defined in the
-Instrumentation class, or they will not be available at runtime.  `packageName` is used for convenience but helper
-classes outside the current package could also be included.
+`GoogleHttpClientDecorator` and `HeadersInjectAdapter` are discovered automatically from the advice's bytecode
+dependencies at build time, so this example does not need a `helperClassNames()` override. The generated list
+includes reachable nested helpers and orders required helper dependencies first.
+
+If an instrumentation needs helpers loaded through reflection or class-name strings that may not be automatically
+discovered, declare the complete helper list manually. A non-empty list overrides discovery results for that module;
+manual and discovered lists are not merged. For example, a manual list containing only these two helpers would be:
 
 ```java
 
@@ -249,10 +277,13 @@ public String[] helperClassNames() {
 }
 ```
 
+See [Helper Classes](./how_instrumentations_work.md#helper-classes) for discovery rules, migration guidance,
+and limitations.
+
 ## Add Advice class
 
 1. Add a new static class to the Instrumentation class. The name must match what was passed to
-   the `adviceTransformations()` method earlier, here `GoogleHttpClientAdvice.`
+   the `methodAdvice()` method earlier, here `GoogleHttpClientAdvice.`
 2. Create two static methods named whatever you like.  `methodEnter` and `methodExit` are good choices. These **must**
    be static.
 3. With `methodEnter:`
@@ -262,13 +293,13 @@ public String[] helperClassNames() {
        reference which must be of the same `HttpRequest` type.
     3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This shared local variable will be visible
        to both `OnMethodEnter` and `OnMethodExit` methods.
-    4. Use `activeScope()` __to __see if an `AgentScope` is already active. If so, return that `AgentScope`, but first
+    4. Use `activeScope()` __to __see if a `ContextScope` is already active. If so, return that `ContextScope`, but first
        let the exit method know by setting the shared `inheritedScope` boolean.
-    5. If an `AgentScope` was not active then start a new span, decorate it, activate it and return it.
+    5. If a `ContextScope` was not active then start a new span, decorate it, activate it and return it.
 4. With `methodExit:`
     1. Annotate the method using `@Advice.OnMethodExit(onThrowable=Throwable.class, suppress=Throwable.class). `(
        see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
-    2. Add parameter `@Advice.Enter AgentScope scope. `This is the `AgentScope` object returned earlier
+    2. Add parameter `@Advice.Enter ContextScope scope. `This is the `ContextScope` object returned earlier
        by `methodEnter()`. Note this is not the return value of the target `execute()` method.
     3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This is the shared local variable created
        earlier.
@@ -277,19 +308,19 @@ public String[] helperClassNames() {
        of `methodEnter()`.`  `
     5. Add a parameter `@Advice.Thrown final Throwable throwable`. This makes available any exception thrown by the
        target `execute()` method.
-    6. Use `scope.span() `to obtain the `AgentSpan` and decorate the span as needed.
+    6. Use `Java8BytecodeBridge.spanFromScope(scope) `to obtain the `AgentSpan` and decorate the span as needed.
     7. If the scope was just created (not inherited), close it.
 
 ```java
 public static class GoogleHttpClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
             @Advice.This HttpRequest request,
             @Advice.Local("inherited") boolean inheritedScope
     ) {
-        AgentScope scope = activeScope();
+        ContextScope scope = activeScope();
         if (null != scope) {
-            AgentSpan span = scope.span();
+            AgentSpan span = spanFromScope(scope);
             if (HTTP_REQUEST == span.getOperationName()) {
                 inheritedScope = true;
                 return scope;
@@ -302,21 +333,18 @@ public static class GoogleHttpClientAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-            @Advice.Enter AgentScope scope,
+            @Advice.Enter ContextScope scope,
             @Advice.Local("inherited") boolean inheritedScope,
             @Advice.Return final HttpResponse response,
             @Advice.Thrown final Throwable throwable) {
-        try {
-            AgentSpan span = scope.span();
-            DECORATE.onError(span, throwable);
-            DECORATE.onResponse(span, response);
-            DECORATE.beforeFinish(span);
-            span.finish();
-        } finally {
-            if (!inheritedScope) {
-                scope.close();
-            }
+        AgentSpan span = spanFromScope(scope);
+        DECORATE.onError(span, throwable);
+        DECORATE.onResponse(span, response);
+        DECORATE.beforeFinish(span);
+        if (!inheritedScope) {
+            scope.close();
         }
+        span.finish();
     }
 }
 ```
@@ -342,7 +370,7 @@ public static class ContextTrackingAdvice {
         parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
         scope.close();
     }
@@ -360,8 +388,8 @@ public static class TracingAdvice {
 Then apply both advices:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service"),
             getClass().getName() + "$ContextTrackingAdvice",  // Only for CONTEXT_TRACKING
             getClass().getName() + "$TracingAdvice"           // Only for TRACING
@@ -466,11 +494,11 @@ The `check` task runs `verifyAgentJarIntegrations` automatically, so CI will fai
 is out of date.
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
-a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)
+a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client-1.19/src/test/groovy/GoogleHttpClientTest.groovy)
 and
-an [async HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
+an [async HTTP test class](../dd-java-agent/instrumentation/google-http-client-1.19/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
 Both test classes inherit
-from [HttpClientTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy)
+from [HttpClientTest](../dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy)
 which provides a testing framework used by many HTTP client integrations. (
 see [Testing](./how_instrumentations_work.md#testing))
 

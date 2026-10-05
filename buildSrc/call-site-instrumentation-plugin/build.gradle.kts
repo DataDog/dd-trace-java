@@ -1,7 +1,11 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheLicenseResourceTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
+import org.gradle.api.file.DuplicatesStrategy.INCLUDE
+
 plugins {
   java
-  id("com.diffplug.spotless") version "8.4.0"
-  id("com.gradleup.shadow") version "8.3.9"
+  alias(libs.plugins.spotless)
+  alias(libs.plugins.shadow)
 }
 
 java {
@@ -16,7 +20,9 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    googleJavaFormat("1.35.0")
+    removeUnusedImports()
+    forbidWildcardImports()
+    googleJavaFormat(libs.versions.google.java.format.get())
   }
 }
 
@@ -34,6 +40,7 @@ dependencies {
 
   testCompileOnly(libs.jsr305)
   testImplementation(libs.bytebuddy)
+  testImplementation(platform(libs.junit.bom))
   testImplementation(libs.bundles.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)
@@ -69,7 +76,11 @@ tasks {
   }
 
   shadowJar {
-    mergeServiceFiles()
+    duplicatesStrategy = INCLUDE
+    transform<ApacheLicenseResourceTransformer>()
+    transform<ApacheNoticeResourceTransformer>()
+    failOnDuplicateEntries = true
+
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }

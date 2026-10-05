@@ -22,7 +22,7 @@ public interface SourceRemapper {
         }
         StratumExt stratumDebug = sourceMap.getStratum("KotlinDebug");
         if (stratumDebug == null) {
-          throw new IllegalArgumentException("No stratumDebug found for KotlinDebug");
+          stratumDebug = new StratumExt("KotlinDebug");
         }
         return new KotlinSourceRemapper(stratumMain, stratumDebug);
       default:

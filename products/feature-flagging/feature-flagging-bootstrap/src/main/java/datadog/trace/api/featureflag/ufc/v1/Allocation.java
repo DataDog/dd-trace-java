@@ -1,5 +1,6 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
@@ -11,6 +12,9 @@ public class Allocation {
   public final List<Split> splits;
   public final Boolean doLog;
 
+  private final transient Instant preciseStartAt;
+  private final transient Instant preciseEndAt;
+
   public Allocation(
       final String key,
       final List<Rule> rules,
@@ -18,11 +22,59 @@ public class Allocation {
       final Date endAt,
       final List<Split> splits,
       final Boolean doLog) {
+    this(
+        key,
+        rules,
+        startAt,
+        endAt,
+        splits,
+        doLog,
+        startAt == null ? null : startAt.toInstant(),
+        endAt == null ? null : endAt.toInstant());
+  }
+
+  private Allocation(
+      final String key,
+      final List<Rule> rules,
+      final Date startAt,
+      final Date endAt,
+      final List<Split> splits,
+      final Boolean doLog,
+      final Instant preciseStartAt,
+      final Instant preciseEndAt) {
     this.key = key;
     this.rules = rules;
     this.startAt = startAt;
     this.endAt = endAt;
     this.splits = splits;
     this.doLog = doLog;
+    this.preciseStartAt = preciseStartAt;
+    this.preciseEndAt = preciseEndAt;
+  }
+
+  public static Allocation fromInstants(
+      final String key,
+      final List<Rule> rules,
+      final Instant startAt,
+      final Instant endAt,
+      final List<Split> splits,
+      final Boolean doLog) {
+    return new Allocation(
+        key,
+        rules,
+        startAt == null ? null : Date.from(startAt),
+        endAt == null ? null : Date.from(endAt),
+        splits,
+        doLog,
+        startAt,
+        endAt);
+  }
+
+  public Instant startAtInstant() {
+    return preciseStartAt != null ? preciseStartAt : startAt == null ? null : startAt.toInstant();
+  }
+
+  public Instant endAtInstant() {
+    return preciseEndAt != null ? preciseEndAt : endAt == null ? null : endAt.toInstant();
   }
 }

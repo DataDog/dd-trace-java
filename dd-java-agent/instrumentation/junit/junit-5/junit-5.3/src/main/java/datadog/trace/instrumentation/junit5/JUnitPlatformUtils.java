@@ -99,6 +99,18 @@ public abstract class JUnitPlatformUtils {
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
 
+  /**
+   * Loads a class by name from the default class loader, returning {@code null} if it is absent.
+   */
+  @Nullable
+  public static Class<?> loadClass(String className) {
+    try {
+      return ClassLoaderUtils.getDefaultClassLoader().loadClass(className);
+    } catch (Throwable t) {
+      return null;
+    }
+  }
+
   /*
    * We have to support older versions of JUnit 5 that do not have certain methods that we would
    * like to use. We try to get method handles in runtime, and if we fail to do it there's a

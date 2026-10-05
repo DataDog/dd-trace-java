@@ -8,11 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.core.api.event.CoreEvent;
@@ -43,7 +43,7 @@ public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstru
   @AppliesOn(CONTEXT_TRACKING)
   public static class ProcessAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(@Advice.Argument(0) final CoreEvent event) {
+    public static ContextScope before(@Advice.Argument(0) final CoreEvent event) {
       if (event == null || event.getContext() == null) {
         return null;
       }
@@ -56,7 +56,7 @@ public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstru
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final AgentScope scope) {
+    public static void after(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }

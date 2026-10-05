@@ -31,10 +31,9 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     return URIUtils.safeParse(fixedUrl);
   }
 
-  public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
+  public void prepareSpan(AgentSpan span, HttpRequest request) {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    return span;
   }
 
   @Override

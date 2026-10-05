@@ -1,25 +1,25 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
-import datadog.trace.util.Hashtable.Support;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Consumer-side {@link AggregateEntry} store, keyed on the raw fields of a {@link SpanSnapshot}.
+ * The {@link AggregateEntry} store of the consuming aggregator thread, keyed on the canonical
+ * UTF8-encoded labels of a {@link SpanSnapshot}.
  *
- * <p>Replaces the prior {@code LRUCache<MetricKey, AggregateMetric>}. The win is on the
- * steady-state hit path: a snapshot lookup is a 64-bit hash compute + bucket walk + field-wise
- * {@code matches}, with no per-snapshot {@link AggregateEntry} allocation and no UTF8 cache
- * lookups. The UTF8-encoded forms (formerly held on {@code MetricKey}) and the mutable counters
- * (formerly held on {@code AggregateMetric}) both live on the {@link AggregateEntry} now, built
- * once per unique key at insert time.
+ * <p>{@link #findOrInsert} canonicalizes the snapshot's fields through the cardinality handlers (so
+ * cardinality-blocked values share a sentinel and collapse into one entry) and then computes the
+ * lookup hash from that canonical form. Canonicalization runs into a reusable {@link
+ * AggregateEntry.Canonical} scratch buffer; on a hit nothing is allocated, on a miss the buffer's
+ * references are copied into a fresh entry and the buffer is overwritten on the next call.
  *
  * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer of both this table and its
  * contained {@link AggregateEntry} state. Any cross-thread request that needs to mutate -- e.g.
- * {@link ConflatingMetricsAggregator#disable()} -- must funnel onto the aggregator thread via the
- * inbox (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
+ * {@link ClientStatsAggregator#disable()} -- must funnel onto the aggregator thread via the inbox
+ * (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
  * enforced; nothing here checks the calling thread at runtime, so a wrong-thread call would corrupt
  * bucket chains silently.
  */
@@ -27,6 +27,7 @@ final class AggregateTable {
 
   private final Hashtable.Entry[] buckets;
   private final int maxAggregates;
+  private final AggregateEntry.Canonical canonical;
   private int size;
 
   /**
@@ -37,8 +38,22 @@ final class AggregateTable {
   private int evictCursor;
 
   AggregateTable(int maxAggregates) {
-    this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
+    this(maxAggregates, AdditionalTagsSchema.EMPTY);
+  }
+
+  AggregateTable(int maxAggregates, AdditionalTagsSchema additionalTagsSchema) {
+    this(maxAggregates, new CoreHandlers(), additionalTagsSchema);
+  }
+
+  AggregateTable(
+      int maxAggregates, CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
+    this.buckets = Hashtable.Support.create(maxAggregates, Hashtable.Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
+    this.canonical = new AggregateEntry.Canonical(handlers, additionalTagsSchema);
+  }
+
+  void resetCoreHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    canonical.handlers.reset(healthMetrics, reporter);
   }
 
   int size() {
@@ -55,33 +70,41 @@ final class AggregateTable {
    * caller should drop the data point in that case.
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
-    long keyHash = AggregateEntry.hashOf(snapshot);
-    for (AggregateEntry candidate = Support.bucket(buckets, keyHash);
+    canonical.populateFrom(snapshot);
+    long keyHash = canonical.keyHash;
+    for (AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
         candidate != null;
         candidate = candidate.next()) {
-      if (candidate.matches(keyHash, snapshot)) {
+      if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
         return candidate;
       }
     }
+    // Miss path.
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry = new AggregateEntry(snapshot, keyHash);
-    Support.insertHeadEntry(buckets, keyHash, entry);
+    AggregateEntry entry = canonical.createEntry();
+    Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
     return entry;
   }
 
   /**
    * Unlinks the first entry whose {@code getHitCount() == 0}, resuming the scan from {@link
-   * #evictCursor} so back-to-back evictions amortize to O(1) per call. Worst case for a single call
+   * #evictCursor} so consecutive evictions amortize to O(1) per call. Worst case for a single call
    * is still O(N) when nearly every entry is hot, but a sustained eviction stream never re-scans
    * the hot prefix more than twice across N evictions.
    *
-   * <p>The semantic intent: at cap with all entries live, drop the new key (reported via {@code
-   * onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
-   * steady-state working set, so eviction is rare; this cursor optimization handles the
-   * pathological "persistently at cap" case.
+   * <p>If the table is full and every entry was used in this cycle, drop the new key (reported via
+   * {@code onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
+   * steady-state working set, so eviction is rare in the common case.
+   *
+   * <p>Cardinality limiting (see {@link MetricCardinalityLimits#USE_BLOCKED_SENTINEL}) reduces how
+   * often this fires but doesn't eliminate it. Over-cap values for a single field collapse into the
+   * shared {@code tracer_blocked_value} sentinel, so no one field can fill the table on its own.
+   * But distinct in-budget combinations across fields (resource x service x operation x ...) can
+   * still drive the entry count to {@code maxAggregates}, so this cursor-resumed scan remains the
+   * backstop.
    */
   private boolean evictOneStale() {
     // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The
@@ -93,7 +116,7 @@ final class AggregateTable {
   /** Scans {@code [startBucket, endBucket)} for the first stale entry and unlinks it. */
   private boolean evictOneStaleInRange(int startBucket, int endBucket) {
     MutatingTableIterator<AggregateEntry> iter =
-        Support.mutatingTableIterator(buckets, startBucket, endBucket);
+        Hashtable.Support.mutatingTableIterator(buckets, startBucket, endBucket);
     while (iter.hasNext()) {
       AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
@@ -108,7 +131,7 @@ final class AggregateTable {
   }
 
   void forEach(Consumer<AggregateEntry> consumer) {
-    Support.forEach(buckets, consumer);
+    Hashtable.Support.forEach(buckets, consumer);
   }
 
   /**
@@ -117,12 +140,13 @@ final class AggregateTable {
    * plus whatever side-band state it needs as {@code context}.
    */
   <T> void forEach(T context, BiConsumer<T, AggregateEntry> consumer) {
-    Support.forEach(buckets, context, consumer);
+    Hashtable.Support.forEach(buckets, context, consumer);
   }
 
   /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
-    for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
+    for (MutatingTableIterator<AggregateEntry> iter =
+            Hashtable.Support.mutatingTableIterator(buckets);
         iter.hasNext(); ) {
       AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
@@ -133,7 +157,7 @@ final class AggregateTable {
   }
 
   void clear() {
-    Support.clear(buckets);
+    Hashtable.Support.clear(buckets);
     size = 0;
     evictCursor = 0;
   }

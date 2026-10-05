@@ -20,8 +20,11 @@ import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
+import datadog.trace.api.civisibility.telemetry.tag.HasCustomBuckets;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.IsAndroid;
+import datadog.trace.api.civisibility.telemetry.tag.IsAndroidEmulated;
 import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
 import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
@@ -72,7 +75,8 @@ public enum CiVisibilityCountMetric {
       HasCodeowner.class,
       IsUnsupportedCI.class,
       EarlyFlakeDetectionAbortReason.class,
-      FailedTestReplayEnabled.SessionMetric.class),
+      FailedTestReplayEnabled.SessionMetric.class,
+      IsAndroid.class),
   /** The number of test events finished */
   TEST_EVENT_FINISHED(
       "event_finished",
@@ -88,7 +92,8 @@ public enum CiVisibilityCountMetric {
       RetryReason.class,
       FailedTestReplayEnabled.TestMetric.class,
       IsRum.class,
-      BrowserDriver.class),
+      BrowserDriver.class,
+      IsAndroidEmulated.class),
   /** The number of successfully collected code coverages that are empty */
   CODE_COVERAGE_IS_EMPTY("code_coverage.is_empty"),
   /** The number of errors while processing code coverage */
@@ -176,7 +181,9 @@ public enum CiVisibilityCountMetric {
   COVERAGE_UPLOAD_REQUEST("coverage_upload.request", RequestCompressed.class),
   /** The number of coverage upload requests that errored */
   COVERAGE_UPLOAD_REQUEST_ERRORS(
-      "coverage_upload.request_errors", ErrorType.class, StatusCode.class);
+      "coverage_upload.request_errors", ErrorType.class, StatusCode.class),
+  /** Recorded once per session when dynamic, duration-based ATR retries are enabled */
+  DYNAMIC_ATR_RETRIES_ENABLED("dynamic_atr_retries.enabled", HasCustomBuckets.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {

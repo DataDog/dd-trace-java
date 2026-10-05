@@ -94,7 +94,7 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
               def host = request.headers().get("Host")
               String wsLocation = "ws://" + host + request.uri
               WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(
-                wsLocation, null, false)
+                  wsLocation, null, false)
               this.handshaker = wsFactory.newHandshaker(request)
               if (this.handshaker == null) {
                 wsFactory.sendUnsupportedWebSocketVersionResponse(ctx.getChannel())
@@ -163,10 +163,10 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
                 response.headers().set(CONTENT_LENGTH, responseContent.readableBytes())
               }
               return new DownstreamMessageEvent(
-                ctx.getChannel(),
-                new SucceededChannelFuture(ctx.getChannel()),
-                response,
-                ctx.getChannel().getRemoteAddress())
+                  ctx.getChannel(),
+                  new SucceededChannelFuture(ctx.getChannel()),
+                  response,
+                  ctx.getChannel().getRemoteAddress())
             }
           } else if (msg.getMessage() instanceof WebSocketFrame) {
             def frame = msg.getMessage() as WebSocketFrame
@@ -194,10 +194,10 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
           response.headers().set(CONTENT_TYPE, "text/plain")
           response.headers().set(CONTENT_LENGTH, buffer.readableBytes())
           ctx.sendDownstream(new DownstreamMessageEvent(
-            ctx.getChannel(),
-            new FailedChannelFuture(ctx.getChannel(), ex.getCause()),
-            response,
-            ctx.getChannel().getRemoteAddress()))
+              ctx.getChannel(),
+              new FailedChannelFuture(ctx.getChannel(), ex.getCause()),
+              response,
+              ctx.getChannel().getRemoteAddress()))
         }
 
         @Override
@@ -252,7 +252,7 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     @Override
     void serverSendText(String[] messages) {
       WsEndpoint.activeSession.getChannel().write(new TextWebSocketFrame(messages.length == 1, 0, messages[0]))
-      for (def i = 1; i < messages.length; i++) {
+      for (def i = 1; i <messages.length; i++) {
         WsEndpoint.activeSession.getChannel().write(new ContinuationWebSocketFrame(messages.length - 1 == i, 0, messages[i]))
       }
     }
@@ -260,7 +260,7 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     @Override
     void serverSendBinary(byte[][] binaries) {
       WsEndpoint.activeSession.getChannel().write(new BinaryWebSocketFrame(binaries.length == 1, 0, ChannelBuffers.copiedBuffer(binaries[0])))
-      for (def i = 1; i < binaries.length; i++) {
+      for (def i = 1; i <binaries.length; i++) {
         WsEndpoint.activeSession.getChannel().write(new ContinuationWebSocketFrame(binaries.length - 1 == i, 0, ChannelBuffers.copiedBuffer(binaries[i])))
       }
     }

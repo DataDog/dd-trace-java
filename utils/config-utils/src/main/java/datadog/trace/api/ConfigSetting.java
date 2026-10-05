@@ -1,14 +1,11 @@
 package datadog.trace.api;
 
-import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
-import static datadog.trace.util.ConfigStrings.toEnvVar;
+import static datadog.trace.config.inversion.GeneratedSupportedConfigurations.SENSITIVE_KEYS;
+import static datadog.trace.util.ConfigStrings.toCanonicalEnvVar;
 
-import java.util.Arrays;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 public final class ConfigSetting {
   public static final int DEFAULT_SEQ_ID = 1;
@@ -22,10 +19,6 @@ public final class ConfigSetting {
 
   /** The config ID associated with this setting, or {@code null} if not applicable. */
   public final String configId;
-
-  private static final Set<String> CONFIG_FILTER_LIST =
-      new HashSet<>(
-          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
     return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, null);
@@ -46,19 +39,11 @@ public final class ConfigSetting {
   }
 
   private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
-    this.key = key;
-    this.value = CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
+    this.key = toCanonicalEnvVar(key);
+    this.value = (value != null && SENSITIVE_KEYS.contains(this.key)) ? "<hidden>" : value;
     this.origin = origin;
     this.seqId = seqId;
     this.configId = configId;
-  }
-
-  public String normalizedKey() {
-    // OTel configurations should not be normalized with DD_
-    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
-      return toEnvVar(key);
-    }
-    return propertyNameToEnvironmentVariableName(key);
   }
 
   public String stringValue() {
@@ -146,7 +131,7 @@ public final class ConfigSetting {
   public String toString() {
     return "ConfigSetting{"
         + "key='"
-        + normalizedKey()
+        + key
         + '\''
         + ", value="
         + stringValue()

@@ -1,17 +1,17 @@
 package com.datadog.debugger.sink;
 
+import static datadog.trace.api.debugger.DebuggerMetricCollector.DroppedReason.QUEUE_FULL;
+
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.uploader.BatchUploader;
-import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.api.internal.VisibleForTesting;
-import datadog.trace.bootstrap.debugger.DebuggerContext.SkipCause;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,18 +25,12 @@ public class DebuggerSink {
   private static final long LOW_RATE_INITIAL_FLUSH_INTERVAL = 1000;
   static final long LOW_RATE_STEP_SIZE = 200;
   private static final String PREFIX = "debugger.sink.";
-  private static final String DROPPED_REQ_METRIC = PREFIX + "dropped.requests";
-  private static final String UPLOAD_REMAINING_CAP_METRIC =
-      PREFIX + "upload.queue.remaining.capacity";
-  private static final String CURRENT_FLUSH_INTERVAL_METRIC = PREFIX + "current.flush.interval";
-  private static final String SKIP_METRIC = PREFIX + "skip";
 
   private final ProbeStatusSink probeStatusSink;
   private final SnapshotSink snapshotSink;
   private final SymbolSink symbolSink;
-  private final DebuggerMetrics debuggerMetrics;
+  private final DebuggerMetricCollector metricCollector;
   private final String tags;
-  private final AtomicLong highRateDropped = new AtomicLong();
   private final int uploadFlushInterval;
   private final AgentTaskScheduler lowRateScheduler = AgentTaskScheduler.get();
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> lowRateScheduled;
@@ -47,7 +41,7 @@ public class DebuggerSink {
     this(
         config,
         null,
-        DebuggerMetrics.getInstance(config),
+        DebuggerMetricCollector.get(),
         probeStatusSink,
         new SnapshotSink(
             config,
@@ -65,12 +59,12 @@ public class DebuggerSink {
   public DebuggerSink(
       Config config,
       String tags,
-      DebuggerMetrics debuggerMetrics,
+      DebuggerMetricCollector metricCollector,
       ProbeStatusSink probeStatusSink,
       SnapshotSink snapshotSink,
       SymbolSink symbolSink) {
     this.tags = tags;
-    this.debuggerMetrics = debuggerMetrics;
+    this.metricCollector = metricCollector;
     this.probeStatusSink = probeStatusSink;
     this.snapshotSink = snapshotSink;
     this.symbolSink = symbolSink;
@@ -123,7 +117,7 @@ public class DebuggerSink {
   public void addSnapshot(Snapshot snapshot) {
     boolean added = snapshotSink.addLowRate(snapshot);
     if (!added) {
-      debuggerMetrics.count(DROPPED_REQ_METRIC, 1);
+      metricCollector.recordEventDropped(QUEUE_FULL);
     } else {
       if (!(snapshot.getProbe() instanceof ExceptionProbe)) {
         // do not report emitting for exception probes
@@ -135,10 +129,7 @@ public class DebuggerSink {
   public void addHighRateSnapshot(Snapshot snapshot) {
     boolean added = snapshotSink.addHighRate(snapshot);
     if (!added) {
-      long dropped = highRateDropped.incrementAndGet();
-      if (dropped % 100 == 0) {
-        debuggerMetrics.count(DROPPED_REQ_METRIC, 100);
-      }
+      metricCollector.recordEventDropped(QUEUE_FULL);
     } else {
       probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
     }
@@ -168,8 +159,6 @@ public class DebuggerSink {
   }
 
   private void reconsiderLowRateFlushInterval(DebuggerSink debuggerSink) {
-    debuggerMetrics.histogram(UPLOAD_REMAINING_CAP_METRIC, snapshotSink.remainingCapacity());
-    debuggerMetrics.histogram(CURRENT_FLUSH_INTERVAL_METRIC, currentLowRateFlushInterval);
     doReconsiderLowRateFlushInterval();
   }
 
@@ -242,8 +231,8 @@ public class DebuggerSink {
   }
 
   /** Notifies the snapshot was skipped for one of the SkipCause reason */
-  public void skipSnapshot(String probeId, SkipCause cause) {
-    debuggerMetrics.incrementCounter(SKIP_METRIC, cause.tag(), "probe_id:" + probeId);
+  public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {
+    metricCollector.recordEventSkipped(reason);
   }
 
   long getCurrentLowRateFlushInterval() {

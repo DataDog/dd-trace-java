@@ -38,11 +38,6 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
     return "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".FormDataMap"};
-  }
-
   private static final Reference EXCHANGE_REFERENCE =
       new Reference.Builder(
               "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser")
@@ -65,7 +60,7 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class DoParseAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.FieldValue("exchange") HttpServerExchange exchange,
         @ActiveRequestContext RequestContext reqCtx,

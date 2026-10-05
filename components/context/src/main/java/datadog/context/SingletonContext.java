@@ -29,9 +29,13 @@ final class SingletonContext implements SelfScopedContext {
     requireNonNull(secondKey, "Context key cannot be null");
     int secondIndex = secondKey.index;
     if (this.index == secondIndex) {
-      return secondValue == null
-          ? EmptyContext.INSTANCE
-          : new SingletonContext(this.index, secondValue);
+      if (secondValue == null) {
+        return EmptyContext.INSTANCE;
+      } else if (secondValue != this.value) {
+        return new SingletonContext(this.index, secondValue);
+      } else {
+        return this;
+      }
     } else {
       Object[] store = new Object[max(this.index, secondIndex) + 1];
       store[this.index] = this.value;

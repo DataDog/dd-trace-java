@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.jetty70;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
@@ -159,7 +159,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
       if (parentScope != null) {
         parentScope.close();
@@ -186,7 +186,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
       final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
       final Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : getRootContext();
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
       final Context context = DECORATE.startSpan(req, parentContext);
       final ContextScope scope = context.attach();
       span = spanFromContext(context);
@@ -199,7 +199,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       return scope;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Enter final ContextScope scope) {
       // Span is finished when the connection is reset, so we only need to close the scope here.
       scope.close();

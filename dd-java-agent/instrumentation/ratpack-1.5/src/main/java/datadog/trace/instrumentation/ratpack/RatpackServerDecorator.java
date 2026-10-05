@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import javax.annotation.Nonnull;
 import ratpack.handling.Context;
 import ratpack.http.Request;
 import ratpack.http.Response;
@@ -77,7 +78,7 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
     }
   }
 
-  public AgentSpan onContext(final AgentSpan span, final Context ctx) {
+  public void onContext(final AgentSpan span, final Context ctx) {
 
     String description = ctx.getPathBinding().getDescription();
     if (description == null || description.isEmpty()) {
@@ -87,16 +88,16 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
     }
 
     HTTP_RESOURCE_DECORATOR.withRoute(span, ctx.getRequest().getMethod().getName(), description);
-
-    return span;
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, Throwable throwable) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
     // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
     if (throwable instanceof Error && throwable.getCause() != null) {
-      return super.onError(span, throwable.getCause());
+      super.doOnError(span, throwable.getCause(), errorPriority);
+    } else {
+      super.doOnError(span, throwable, errorPriority);
     }
-    return super.onError(span, throwable);
   }
 }

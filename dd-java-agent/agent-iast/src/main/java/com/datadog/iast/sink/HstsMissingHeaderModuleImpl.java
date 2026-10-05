@@ -9,7 +9,6 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -49,7 +48,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
         if (!isHttps(urlString, iastRequestContext.getxForwardedProto())) {
           return;
         }
-        final AgentSpan span = AgentTracer.activeSpan();
+        final AgentSpan span = (AgentSpan) igSpanInfo;
         report(
             span, new Vulnerability(VulnerabilityType.HSTS_HEADER_MISSING, Location.forSpan(span)));
       } catch (Throwable e) {

@@ -57,6 +57,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] CONFIG_TYPE = "Type".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_CONSUMER_GROUP = "ConsumerGroup".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_MEMBER_ID = "MemberId".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_GENERATION_ID = "GenerationId".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_MEMBER_PROTOCOL = "MemberProtocol".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_ENTRIES = "Config".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
@@ -290,7 +293,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     packer.writeUTF8(CONFIGS);
     packer.startArray(configs.size());
     for (KafkaConfigReport config : configs) {
-      packer.startMap(4); // Type, KafkaClusterId, ConsumerGroup, Config
+      // Type, KafkaClusterId, ConsumerGroup, MemberId, GenerationId, MemberProtocol, Config
+      packer.startMap(7);
 
       packer.writeUTF8(CONFIG_TYPE);
       packer.writeString(config.getType(), null);
@@ -300,6 +304,15 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       packer.writeUTF8(CONFIG_CONSUMER_GROUP);
       packer.writeString(config.getConsumerGroup(), null);
+
+      packer.writeUTF8(CONFIG_MEMBER_ID);
+      packer.writeString(config.getMemberId(), null);
+
+      packer.writeUTF8(CONFIG_GENERATION_ID);
+      packer.writeInt(config.getGenerationId());
+
+      packer.writeUTF8(CONFIG_MEMBER_PROTOCOL);
+      packer.writeString(config.getMemberProtocol(), null);
 
       packer.writeUTF8(CONFIG_ENTRIES);
       Map<String, String> entries = config.getConfig();

@@ -40,11 +40,6 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.liberty20.PartHelper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getParts")).and(isPublic()).and(takesArguments(0)),
@@ -53,7 +48,7 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return Collection<?> parts,
         @ActiveRequestContext RequestContext reqCtx,

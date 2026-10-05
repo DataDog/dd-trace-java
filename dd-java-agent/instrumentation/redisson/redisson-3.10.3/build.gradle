@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
+}
 
 muzzle {
   pass {
@@ -9,8 +13,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
@@ -18,6 +20,7 @@ dependencies {
   compileOnly group: 'org.redisson', name: 'redisson', version: '3.10.3', {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  testContainerImage(image('redis:6.2.6', 'test.redis.image'))
 
   testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
   testImplementation libs.testcontainers

@@ -1,8 +1,13 @@
 package datadog.apt;
 
-import static datadog.apt.AnnoUtils.*;
-import static datadog.apt.LogUtils.*;
-import static datadog.apt.TypeUtils.*;
+import static datadog.apt.AnnoUtils.asType;
+import static datadog.apt.AnnoUtils.findAnnotation;
+import static datadog.apt.AnnoUtils.getValue;
+import static datadog.apt.AnnoUtils.isSuppressed;
+import static datadog.apt.LogUtils.log;
+import static datadog.apt.LogUtils.warning;
+import static datadog.apt.TypeUtils.findType;
+import static datadog.apt.TypeUtils.isClass;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Set;

@@ -15,6 +15,9 @@ public abstract class OtlpTraceCollector {
   /** Collects all spans added since the last collection. */
   public abstract OtlpPayload collectTraces();
 
+  /** Returns the number of bytes buffered since the last collection. */
+  public abstract int sizeInBytes();
+
   protected final boolean shouldExport(CoreSpan<?> span) {
     return span.samplingPriority() > 0 // trace-level sampling priority
         || span.getTag(SPAN_SAMPLING_MECHANISM_TAG) != null; // span-level sampling priority

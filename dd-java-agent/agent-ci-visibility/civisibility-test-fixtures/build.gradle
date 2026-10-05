@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.testing-support'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   api project(':dd-java-agent:agent-ci-visibility')
@@ -22,4 +21,3 @@ dependencies {
 // civisibility-test-fixtures is a test-support module — every consumer pulls it on their test
 // classpath. Production-code-quality gates like forbidden APIs don't apply here.
 tasks.named('forbiddenApisMain').configure { enabled = false }
-

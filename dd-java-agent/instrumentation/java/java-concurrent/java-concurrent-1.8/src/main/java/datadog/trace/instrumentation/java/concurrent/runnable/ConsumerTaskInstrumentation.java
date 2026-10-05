@@ -1,19 +1,20 @@
 package datadog.trace.instrumentation.java.concurrent.runnable;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
@@ -49,25 +50,25 @@ public class ConsumerTaskInstrumentation extends InstrumenterModule.ContextTrack
   }
 
   public static class Construct {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void construct(@Advice.This ForkJoinTask<?> task) {
-      AgentSpan span = activeSpan();
-      if (null != span) {
+      Context context = currentContext();
+      if (shouldCapture(context)) {
         State state = State.FACTORY.create();
-        state.captureAndSetContinuation(span);
+        state.captureAndSetContinuation(context);
         InstrumentationContext.get(ForkJoinTask.class, State.class).put(task, state);
       }
     }
   }
 
   public static final class Run {
-    @Advice.OnMethodEnter
-    public static <T> AgentScope before(@Advice.This ForkJoinTask<T> task) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

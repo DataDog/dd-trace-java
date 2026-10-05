@@ -4,9 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
@@ -30,7 +30,7 @@ public class CircuitBreakerOperatorInstrumentation
 
   public static class ApplyAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Return(readOnly = false) Publisher<?> result,
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
@@ -40,7 +40,8 @@ public class CircuitBreakerOperatorInstrumentation
               result,
               CircuitBreakerDecorator.DECORATE,
               circuitBreaker,
-              InstrumentationContext.get(Publisher.class, Context.class)::put);
+              ReactorHelper.putInto(
+                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
     }
   }
 }

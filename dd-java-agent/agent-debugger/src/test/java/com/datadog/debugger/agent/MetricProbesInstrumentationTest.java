@@ -19,7 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
-import static utils.InstrumentationTestHelper.loadClass;
+import static utils.InstrumentationTestHelper.installTracerInstrumentation;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
@@ -31,10 +31,12 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import java.io.File;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -454,6 +456,33 @@ public class MetricProbesInstrumentationTest {
     assertTrue(listener.doubleGauges.containsKey(METRIC_NAME));
     assertTrue(listener.doubleGauges.get(METRIC_NAME).doubleValue() > 0);
     assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
+  public void methodSyntheticDurationKotlinDist() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    String METRIC_NAME = "syn_dist";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, DISTRIBUTION)
+            .where(CLASS_NAME, "download", null)
+            .valueScript(new ValueScript(DSL.ref("@duration"), "@duration"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "1").get();
+      assertEquals(1, result);
+      assertTrue(listener.doubleDistributions.containsKey(METRIC_NAME));
+      assertTrue(listener.doubleDistributions.get(METRIC_NAME).doubleValue() > 0);
+      assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
   }
 
   @Test
@@ -1262,21 +1291,28 @@ public class MetricProbesInstrumentationTest {
   public void localVarNotInScope() throws IOException, URISyntaxException {
     final String METRIC_NAME = "lenstr";
     final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
-    MetricProbe metricProbe =
-        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
-            .where(CLASS_NAME, "createResource", null)
-            .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
-            .build();
-    MetricForwarderListener listener = installMetricProbes(metricProbe);
-    Class<?> testClass =
-        loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
-    Object result =
-        Reflect.onClass(testClass)
-            .create()
-            .call("createResource", (Object) null, (Object) null, 1)
-            .get();
-    assertNotNull(result);
-    assertFalse(listener.gauges.containsKey(METRIC_NAME));
+    // compile the JAX-RS resource fixture and weave it with the real tracer JAX-RS
+    // instrumentation, so this test exercises the same bytecode shape the tracer produces
+    ClassFileTransformer jaxRsTransformer = installTracerInstrumentation(instr);
+    Class<?> testClass;
+    try {
+      MetricProbe metricProbe =
+          createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+              .where(CLASS_NAME, "createResource", null)
+              .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
+              .build();
+      MetricForwarderListener listener = installMetricProbes(metricProbe);
+      testClass = compileAndLoadClass(CLASS_NAME);
+      Object result =
+          Reflect.onClass(testClass)
+              .create()
+              .call("createResource", (Object) null, (Object) null, 1)
+              .get();
+      assertNotNull(result);
+      assertFalse(listener.gauges.containsKey(METRIC_NAME));
+    } finally {
+      instr.removeTransformer(jaxRsTransformer);
+    }
   }
 
   private MetricForwarderListener installMethodMetric(

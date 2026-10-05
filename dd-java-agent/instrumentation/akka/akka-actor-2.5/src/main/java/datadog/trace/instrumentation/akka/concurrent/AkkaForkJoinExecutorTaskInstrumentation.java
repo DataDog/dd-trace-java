@@ -9,11 +9,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
 import java.util.Map;
@@ -66,12 +66,12 @@ public final class AkkaForkJoinExecutorTaskInstrumentation
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.Argument(0) Runnable wrapped) {
+    public static ContextScope before(@Advice.Argument(0) Runnable wrapped) {
       return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), wrapped);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

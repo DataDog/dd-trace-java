@@ -58,9 +58,12 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
 
   override def stop(): Unit = {
     import materializer.executionContext
-    portBinding
-      .flatMap(_.unbind())
-      .onComplete(_ => system.terminate())
+    Await.ready(
+      portBinding
+        .flatMap(_.unbind())
+        .flatMap(_ => system.terminate()),
+      10 seconds
+    )
   }
 
   override def address(): URI = {
@@ -354,8 +357,8 @@ object AkkaHttpTestWebServer {
                 resp.withEntity(uri.queryString().orNull)
               case REDIRECT =>
                 resp.withHeaders(headers.Location(endpoint.getBody))
-              case ERROR     => resp.withEntity(endpoint.getBody)
-              case EXCEPTION => throw new Exception(endpoint.getBody)
+              case ERROR      => resp.withEntity(endpoint.getBody)
+              case EXCEPTION  => throw new Exception(endpoint.getBody)
               case USER_BLOCK => {
                 Blocking.forUser("user-to-block").blockIfMatch()
                 // should never be output:

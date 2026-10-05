@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -54,7 +55,7 @@ public class OptimizableOperatorInstrumentation
           self,
           arg,
           s,
-          InstrumentationContext.get(Publisher.class, Context.class),
+          InstrumentationContext.get(Publisher.class, HandoffContext.class),
           InstrumentationContext.get(Subscriber.class, Context.class));
     }
   }
