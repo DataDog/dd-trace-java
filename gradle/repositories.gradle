@@ -9,7 +9,10 @@ repositories {
       allowInsecureProtocol = true
     }
   }
-  mavenCentral()
+  // TODO: temporary fix for Maven Central rate limiting
+  else {
+    mavenCentral()
+  }
   // add maven central repository for snapshot dependencies
   maven {
     content {

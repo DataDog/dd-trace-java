@@ -12,6 +12,8 @@ import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriterFactory;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +21,10 @@ public class TracerInstaller {
   private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
 
   /** Register a global tracer if no global tracer is already registered. */
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards one-time tracer install.")
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects,
       ProfilingContextIntegration profilingContextIntegration) {
@@ -69,6 +75,16 @@ public class TracerInstaller {
     try {
       GlobalTracer.registerIfAbsent(tracer);
       AgentTracer.registerIfAbsent(tracer);
+
+      if (Platform.isNativeImage()) {
+        // TagsPostProcessorFactory (dd-trace-core) caches its tag processors, including
+        // InternalTagsAdder which stamps _dd.base_service, in a holder class that GraalVM
+        // native-image initializes at build time by default. At that point Config resolves
+        // to a build-time fallback service name (typically the native-image builder's own
+        // process identity), not the real DD_SERVICE the app is run with. Force the cache to
+        // recompute here, now that Config reflects the actual runtime environment.
+        TagsPostProcessorFactory.reset();
+      }
 
       log.debug("Global tracer installed");
     } catch (final RuntimeException re) {

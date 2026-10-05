@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiServerDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiServerDecorator.RMI_REQUEST;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiServerDecorator.RMI_SERVER;
@@ -14,9 +15,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.lang.reflect.Method;
@@ -52,7 +53,7 @@ public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
 
   public static class ServerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, inline = true)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final Object thiz, @Advice.Origin final Method method) {
       final AgentSpanContext context = THREAD_LOCAL_CONTEXT.getAndResetContext();
 
@@ -71,14 +72,14 @@ public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
     }
   }
 }

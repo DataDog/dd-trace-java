@@ -1,7 +1,8 @@
 package com.datadog.debugger.agent;
 
 import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static utils.TestClassFileHelper.getClassFileBytes;
 
 import com.datadog.debugger.probe.LogProbe;

@@ -3,7 +3,6 @@ package datadog.buildlogic.smoketest
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.create
-import org.gradle.kotlin.dsl.withType
 
 /**
  * Exposes nested build task types plus a `smokeTestApp` extension that wires a smoke-test
@@ -16,10 +15,6 @@ import org.gradle.kotlin.dsl.withType
  */
 class SmokeTestAppPlugin : Plugin<Project> {
   override fun apply(project: Project) {
-    val extension = project.extensions.create<SmokeTestAppExtension>("smokeTestApp")
-    project.tasks.withType<NestedGradleBuild>().configureEach {
-      initScripts.convention(extension.initScripts)
-      gradleProperties.convention(extension.gradleProperties)
-    }
+    project.extensions.create<SmokeTestAppExtension>("smokeTestApp")
   }
 }

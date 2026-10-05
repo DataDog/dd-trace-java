@@ -1,5 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
+}
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11) {
@@ -10,7 +12,6 @@ tracerJava {
 }
 
 testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8']
 }
@@ -23,10 +24,14 @@ dependencies {
   testImplementation libs.bundles.mockito
 }
 
-// Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
 ["compileMain_java11Java", "compileTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
-    configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)")
+    // Do not lift this offset: exception profiling runs on Java 8 distributions that backport JFR.
+    configureCompiler(
+      it,
+      JavaVersion.VERSION_1_8,
+      "Uses public jdk.jfr APIs (Java 11+) at Java 8 bytecode"
+      )
     it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
   }
 }

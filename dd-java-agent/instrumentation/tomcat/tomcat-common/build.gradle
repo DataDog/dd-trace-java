@@ -1,4 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.jmh-conventions'
+}
 
 configurations.configureEach {
   // shut up about broken xml-api pom relocation
@@ -16,4 +19,13 @@ dependencies {
   // Version that corresponds with Tomcat 5.5
   // https://tomcat.apache.org/whichversion.html
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  includeTests = false
+}
+
+dependencies {
+  jmh "org.apache.tomcat.embed:tomcat-embed-core:${findProperty('jmhTomcatVersion') ?: '11.0.26'}"
 }

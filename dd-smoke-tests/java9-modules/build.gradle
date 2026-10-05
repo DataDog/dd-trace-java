@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+}
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11)
@@ -11,7 +13,7 @@ tasks.named("jar", Jar) {
 }
 
 tasks.withType(JavaCompile).configureEach { JavaCompile jc ->
-  configureCompiler(jc, 11, JavaVersion.VERSION_1_9, "Need Java module support")
+  configureCompiler(jc, JavaVersion.VERSION_1_9, "Need Java module support")
   // read up classpath lazily to avoid early locking of gradle settings
   jc.options.compilerArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override

@@ -34,16 +34,6 @@ public final class IgniteModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.ignite.v2.cache.IgniteQueryInfo",
-      "datadog.trace.instrumentation.ignite.v2.cache.IgniteQueryInfo$1",
-      "datadog.trace.instrumentation.ignite.v2.cache.IgniteCacheDecorator",
-      "datadog.trace.instrumentation.ignite.v2.cache.SpanFinishingCallback",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new IgniteInstrumentation(),

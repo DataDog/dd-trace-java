@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.BASE_SERVICE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
+import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Set;
@@ -143,6 +144,7 @@ final class PeerTagSchema {
     // approved Cardinality Limits RFC.
     if (totalCollapsed > 0) {
       healthMetrics.onTagCardinalityBlocked(COLLAPSED_STATSD_TAG, totalCollapsed);
+      StatsMetrics.getInstance().onCollapsedSpans(COLLAPSED_STATSD_TAG[0], totalCollapsed);
     }
   }
 

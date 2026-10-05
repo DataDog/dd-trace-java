@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Arrays;
 import java.util.Collections;
@@ -102,6 +103,34 @@ class AdditionalTagsSchemaTest {
 
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:additional_metric_tags"}, 2L);
     verifyNoMoreInteractions(metrics);
+  }
+
+  @Test
+  void resetHandlersFeedsCollapseCountToTelemetry() {
+    // The reset site also feeds the telemetry counter (independent of the statsd HealthMetrics
+    // sink) under the same "collapsed:additional_metric_tags" reason tag.
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(Collections.singleton("region"), 1, true);
+    int region = indexOf(schema, "region");
+    schema.register(region, "us-east-1"); // within budget
+    schema.register(region, "eu-west-1"); // collapsed (cardinality)
+    schema.register(region, "ap-south-1"); // collapsed (cardinality)
+
+    // Drain any pre-existing delta so the assertion measures only this reset's contribution.
+    drainTelemetryDelta("collapsed:additional_metric_tags");
+    schema.resetHandlers(mock(HealthMetrics.class), new CardinalityLimitReporter());
+
+    assertEquals(2L, drainTelemetryDelta("collapsed:additional_metric_tags"));
+  }
+
+  /** Reads and resets the telemetry delta for {@code reason}; 0 if no counter exists yet. */
+  private static long drainTelemetryDelta(String reason) {
+    for (StatsMetrics.TaggedCounter counter : StatsMetrics.getInstance().getTaggedCounters()) {
+      if (reason.equals(counter.getTag())) {
+        return counter.getValueAndReset();
+      }
+    }
+    return 0L;
   }
 
   @Test

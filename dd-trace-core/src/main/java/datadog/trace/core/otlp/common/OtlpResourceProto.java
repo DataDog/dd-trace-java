@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.common;
 
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
@@ -12,6 +13,7 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /** Provides a canned message for OpenTelemetry's "resource.proto" wire protocol. */
@@ -24,8 +26,7 @@ public final class OtlpResourceProto {
 
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
-   * {@code datadog.}). Used by the default-mode SDK trace-metrics export; omitted in OTel-semantics
-   * mode.
+   * {@code datadog.}). Used by the SDK trace-metrics export.
    */
   public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
       buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
@@ -38,7 +39,7 @@ public final class OtlpResourceProto {
   public static final byte[] TRACE_RESOURCE_MESSAGE =
       buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
 
-  static byte[] buildResourceMessage(Config config, Map<String, String> extraAttributes) {
+  static byte[] buildResourceMessage(Config config, Map<String, Object> extraAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
     visitResourceAttributes(
@@ -52,8 +53,15 @@ public final class OtlpResourceProto {
     return resourceMessage;
   }
 
-  private static void writeResourceAttribute(StreamingBuffer buf, String key, String value) {
+  /**
+   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
+   */
+  private static void writeResourceAttribute(StreamingBuffer buf, String key, Object value) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+    if (value instanceof List) {
+      writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, value);
+    } else {
+      writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+    }
   }
 }

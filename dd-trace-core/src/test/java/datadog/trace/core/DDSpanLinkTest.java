@@ -114,6 +114,24 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void testSpanLinksEncodingPadsSpanId() throws Exception {
+    // A span id below 2^60 has a leading zero nibble. Long.toHexString would drop it and emit a
+    // 15-character id, which consumers expecting fixed-width hex reject.
+    String traceId = "11223344556677889900aabbccddeeff";
+    String spanId = "0a2b3c4d5e6f7a8b";
+    SpanLink link =
+        new DDSpanLink(
+            DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId), DEFAULT_FLAGS, "", EMPTY);
+    this.tracer.buildSpan("test", "operation").withLink(link).start().finish();
+    this.writer.waitForTraces(1);
+
+    assertEquals(1, this.writer.get(0).size());
+    String spanLinksTag = (String) writer.get(0).get(0).getTag(SPAN_LINKS);
+    assertEquals(
+        "[{\"span_id\":\"" + spanId + "\",\"trace_id\":\"" + traceId + "\"}]", spanLinksTag);
+  }
+
+  @Test
   void testSpanLinksEncodingOmittedEmptyKeys() throws Exception {
     SpanLink link =
         new DDSpanLink(
@@ -197,7 +215,7 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
 
   private void assertLink(SpanLink expected, SpanLinkAsTag actual) {
     assertEquals(expected.traceId().toHexString(), actual.trace_id);
-    assertEquals(DDSpanId.toHexString(expected.spanId()), actual.span_id);
+    assertEquals(DDSpanId.toHexStringPadded(expected.spanId()), actual.span_id);
     if (expected.traceFlags() == DEFAULT_FLAGS) {
       assertNull(actual.flags);
     } else {

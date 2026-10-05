@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -28,23 +29,48 @@ class LLMObsTest {
 
   private static Object originalSpanFactory;
   private static Object originalEvalProcessor;
+  private static Object originalSpanProcessor;
 
   @BeforeAll
   static void setupSpec() throws Exception {
     originalSpanFactory = getStaticField("SPAN_FACTORY");
     originalEvalProcessor = getStaticField("EVAL_PROCESSOR");
+    originalSpanProcessor = getStaticField("SPAN_PROCESSOR");
   }
 
   @AfterAll
   static void cleanupSpec() throws Exception {
     setStaticField("SPAN_FACTORY", originalSpanFactory);
     setStaticField("EVAL_PROCESSOR", originalEvalProcessor);
+    setStaticField("SPAN_PROCESSOR", originalSpanProcessor);
   }
 
   @AfterEach
   void cleanup() throws Exception {
     setStaticField("SPAN_FACTORY", NoOpLLMObsSpanFactory.INSTANCE);
     setStaticField("EVAL_PROCESSOR", NoOpLLMObsEvalProcessor.INSTANCE);
+    LLMObs.deregisterProcessor();
+  }
+
+  @Test
+  void testRegisterAndDeregisterProcessor() throws Exception {
+    LLMObsSpanData span = mock(LLMObsSpanData.class);
+    LLMObsSpanProcessor processor = registeredSpan -> registeredSpan;
+
+    LLMObs.registerProcessor(processor);
+
+    assertSame(processor, getStaticField("SPAN_PROCESSOR"));
+    assertSame(span, processor.process(span));
+    assertThrows(IllegalStateException.class, () -> LLMObs.registerProcessor(processor));
+
+    LLMObs.deregisterProcessor();
+
+    assertNull(getStaticField("SPAN_PROCESSOR"));
+  }
+
+  @Test
+  void testRegisterNullProcessor() {
+    assertThrows(NullPointerException.class, () -> LLMObs.registerProcessor(null));
   }
 
   @Test
@@ -127,6 +153,126 @@ class LLMObsTest {
   @Test
   void testSetToolDefinitionsIsCompatibilityPreservingDefaultMethod() throws Exception {
     assertTrue(LLMObsSpan.class.getMethod("setToolDefinitions", List.class).isDefault());
+  }
+
+  @Test
+  void testAnnotatePromptIsCompatibilityPreservingDefaultMethod() throws Exception {
+    assertTrue(LLMObsSpan.class.getMethod("annotatePrompt", LLMObs.Prompt.class).isDefault());
+  }
+
+  @Test
+  void testPromptBuilderWithTextTemplate() {
+    Map<String, String> variables = new HashMap<>();
+    variables.put("city", "Paris");
+    Map<String, String> tags = new HashMap<>();
+    tags.put("team", "weather");
+    List<String> contextVariables = Arrays.asList("forecast", "history");
+    List<String> queryVariables = Collections.singletonList("city");
+
+    LLMObs.Prompt prompt =
+        LLMObs.Prompt.builder()
+            .id("weather-prompt")
+            .version("1.0.0")
+            .template("What is the weather in {{city}}?")
+            .variables(variables)
+            .tags(tags)
+            .contextVariables(contextVariables)
+            .queryVariables(queryVariables)
+            .build();
+
+    assertEquals("weather-prompt", prompt.getId());
+    assertEquals("1.0.0", prompt.getVersion());
+    assertEquals("What is the weather in {{city}}?", prompt.getTemplate());
+    assertNull(prompt.getChatTemplate());
+    assertEquals(variables, prompt.getVariables());
+    assertEquals(tags, prompt.getTags());
+    assertEquals(contextVariables, prompt.getContextVariables());
+    assertEquals(queryVariables, prompt.getQueryVariables());
+    assertNotSame(variables, prompt.getVariables());
+    assertNotSame(tags, prompt.getTags());
+    assertNotSame(contextVariables, prompt.getContextVariables());
+    assertNotSame(queryVariables, prompt.getQueryVariables());
+  }
+
+  @Test
+  void testPromptBuilderWithChatTemplate() {
+    List<LLMObs.LLMMessage> chatTemplate =
+        Arrays.asList(
+            LLMObs.LLMMessage.from("system", "You are a weather assistant."),
+            LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?"));
+
+    LLMObs.Prompt prompt = LLMObs.Prompt.builder().template(chatTemplate).build();
+
+    assertNull(prompt.getTemplate());
+    assertEquals(chatTemplate, prompt.getChatTemplate());
+    assertNotSame(chatTemplate, prompt.getChatTemplate());
+  }
+
+  @Test
+  void testAnnotateAgentManifestIsCompatibilityPreservingDefaultMethod() throws Exception {
+    assertTrue(
+        LLMObsSpan.class
+            .getMethod("annotateAgentManifest", LLMObs.AgentManifest.class)
+            .isDefault());
+  }
+
+  @Test
+  void testAgentManifestBuilderWithAllFields() {
+    Map<String, Object> modelSettings = new HashMap<>();
+    modelSettings.put("temperature", 0.7);
+    modelSettings.put("max_tokens", 1024);
+
+    List<LLMObs.AgentTool> tools =
+        Arrays.asList(
+            LLMObs.AgentTool.from(
+                "get_weather",
+                "Look up the weather",
+                Collections.singletonMap("city", Collections.singletonMap("type", "string"))));
+
+    LLMObs.AgentManifest manifest =
+        LLMObs.AgentManifest.builder()
+            .name("travel_desk")
+            .instructions("Book travel for the user.")
+            .model("gpt-4o")
+            .modelSettings(modelSettings)
+            .tools(tools)
+            .build();
+
+    assertEquals("travel_desk", manifest.getName());
+    assertEquals("Book travel for the user.", manifest.getInstructions());
+    assertEquals("gpt-4o", manifest.getModel());
+    assertEquals(modelSettings, manifest.getModelSettings());
+    assertNotSame(modelSettings, manifest.getModelSettings());
+    assertEquals(1, manifest.getTools().size());
+    assertNotSame(tools, manifest.getTools());
+    assertEquals("get_weather", manifest.getTools().get(0).getName());
+    assertEquals("Look up the weather", manifest.getTools().get(0).getDescription());
+  }
+
+  @Test
+  void testAgentManifestBuilderMinimal() {
+    LLMObs.AgentManifest manifest = LLMObs.AgentManifest.builder().build();
+    assertNull(manifest.getName());
+    assertNull(manifest.getInstructions());
+    assertNull(manifest.getModel());
+    assertNull(manifest.getModelSettings());
+    assertNull(manifest.getTools());
+  }
+
+  @Test
+  void testAgentToolCreation() {
+    LLMObs.AgentTool tool = LLMObs.AgentTool.from("search");
+    assertEquals("search", tool.getName());
+    assertNull(tool.getDescription());
+    assertNull(tool.getParameters());
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("query", Collections.singletonMap("type", "string"));
+    LLMObs.AgentTool fullTool = LLMObs.AgentTool.from("search", "Web search", params);
+    assertEquals("search", fullTool.getName());
+    assertEquals("Web search", fullTool.getDescription());
+    assertEquals(params, fullTool.getParameters());
+    assertNotSame(params, fullTool.getParameters());
   }
 
   @Test

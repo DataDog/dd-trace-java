@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.netty41.server;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
@@ -34,6 +36,14 @@ public class NettyHttpServerDecorator
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
   private static final CharSequence NETTY_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
+  private static final String NETTY_NATIVE_IO_EXCEPTION_CLASS_NAME =
+      "io.netty.channel.unix.Errors$NativeIoException";
+  private static final String NETTY_NATIVE_WRITEV_ADDRESSES_FAILURE_PREFIX =
+      "writevAddresses(..) failed";
+  private static final String NETTY_NATIVE_WRITEV_SYSCALL_FAILURE_PREFIX =
+      "syscall:writev(..) failed";
+  private static final String BROKEN_PIPE_MESSAGE_SUFFIX = ": Broken pipe";
+  private static final String CONNECTION_RESET_MESSAGE_SUFFIX = ": Connection reset by peer";
 
   @Override
   protected String[] instrumentationNames() {
@@ -109,6 +119,37 @@ public class NettyHttpServerDecorator
   }
 
   @Override
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    if (isNettyNativeClientAbort(throwable)) {
+      span.setTag(DDTags.ERROR_MSG, safeMessage(throwable));
+      span.setTag(DDTags.ERROR_TYPE, throwable.getClass().getName());
+      return;
+    }
+    super.doOnError(span, throwable, errorPriority);
+  }
+
+  private static boolean isNettyNativeClientAbort(final Throwable throwable) {
+    if (throwable == null
+        || !NETTY_NATIVE_IO_EXCEPTION_CLASS_NAME.equals(throwable.getClass().getName())) {
+      return false;
+    }
+    final String message = safeMessage(throwable);
+    return message != null
+        && (message.startsWith(NETTY_NATIVE_WRITEV_ADDRESSES_FAILURE_PREFIX)
+            || message.startsWith(NETTY_NATIVE_WRITEV_SYSCALL_FAILURE_PREFIX))
+        && (message.endsWith(BROKEN_PIPE_MESSAGE_SUFFIX)
+            || message.endsWith(CONNECTION_RESET_MESSAGE_SUFFIX));
+  }
+
+  private static String safeMessage(final Throwable throwable) {
+    try {
+      return throwable.getMessage();
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
+  @Override
   protected BlockResponseFunction createBlockResponseFunction(
       HttpRequest httpRequest, Channel channel) {
     return new NettyBlockResponseFunction(
@@ -122,6 +163,7 @@ public class NettyHttpServerDecorator
     private final HttpVersion protocolVersion;
     private final String acceptHeader;
     private final ServerRequestContext serverContext;
+    private volatile boolean blockingResponseInitiated;
 
     public NettyBlockResponseFunction(
         ChannelPipeline pipeline,
@@ -140,9 +182,22 @@ public class NettyHttpServerDecorator
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
         String securityResponseId) {
+      // A single request can trigger multiple blocking evaluations (e.g. one per multipart
+      // chunk). Once a block has already been initiated, the response queue entry backing
+      // isPending() may have already been consumed by that earlier, successful commit — treat
+      // later calls as already handled rather than re-evaluating and reporting a spurious
+      // block_failure for a block that actually succeeded.
+      if (blockingResponseInitiated) {
+        return true;
+      }
       if (pipeline.channel().eventLoop().inEventLoop()) {
-        return commitBlockingResponse(
-            segment, statusCode, templateType, extraHeaders, securityResponseId);
+        boolean committed =
+            commitBlockingResponse(
+                segment, statusCode, templateType, extraHeaders, securityResponseId);
+        if (committed) {
+          blockingResponseInitiated = true;
+        }
+        return committed;
       }
 
       try {
@@ -150,9 +205,12 @@ public class NettyHttpServerDecorator
             .channel()
             .eventLoop()
             .execute(
-                () ->
-                    commitBlockingResponse(
-                        segment, statusCode, templateType, extraHeaders, securityResponseId));
+                () -> {
+                  if (commitBlockingResponse(
+                      segment, statusCode, templateType, extraHeaders, securityResponseId)) {
+                    blockingResponseInitiated = true;
+                  }
+                });
         return true;
       } catch (RuntimeException rte) {
         log.warn("Failed scheduling blocking handler", rte);

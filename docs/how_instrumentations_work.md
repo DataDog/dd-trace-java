@@ -53,6 +53,30 @@ Dependencies specific to a particular instrumentation are added to the `build.gr
 directory.
 Declare necessary dependencies under `compileOnly` configuration so they do not leak into the agent jar.
 
+Instrumentation build files should apply the instrumentation module convention plugin instead of applying
+`gradle/java.gradle` directly:
+
+```groovy
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = "com.example"
+    module = "example-library"
+    versions = "[1.0,)"
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.example', name: 'example-library', version: '1.0.0'
+}
+```
+
+The module plugin is the supported entry point for instrumentation projects. It keeps the project shape consistent while
+the shared build logic continues to evolve behind the plugin.
+
 ## Muzzle
 
 Muzzle directives are applied at build time from the `build.gradle` file.
@@ -192,7 +216,7 @@ For each member instrumentation:
 
 1. Remove `@AutoService(InstrumenterModule.class)`
 2. Remove `extends InstrumenterModule...`
-3. Move the list of helpers to the module, merging as necessary
+3. If helpers are manually declared, move the complete list to the module, merging as necessary
 4. Move the context store map to the module, merging as necessary
 
 ### Type Matching
@@ -312,11 +336,32 @@ Instrumentation class names should end in _Instrumentation._
 
 ## Helper Classes
 
-Classes referenced by Advice that are not provided on the bootclasspath must be defined in Helper Classes otherwise they
-will not be loaded at runtime.
-This includes any decorators, extractors/injectors, or wrapping classes such as tracing listeners that extend or implement
-types provided by the library being instrumented. Also watch out for implicit types such as anonymous/nested classes
-because they must be listed alongside the main helper class.
+Instrumentation-owned classes called from advice must be injected into the application's classloader as helpers.
+These include decorators, extractors/injectors, and wrappers such as tracing listeners. Classes supplied by the
+application's libraries or the agent's bootstrap classloader do not need helper injection.
+
+### Automatic discovery
+
+When `InstrumenterModule.helperClassNames()` returns an empty list (the default), the build-time advice scanner
+discovers helpers and generates this method. It follows dependencies from the module's advice through method
+instructions, field and method declarations, catch types, and class hierarchies.
+Module-owned classes are identified by their compiled output, not their package name. A small set of shared agent
+helper packages is also eligible.
+
+Referenced nested, local, and anonymous classes are included. Not all classes nested inside a helper are injectable:
+classes found only by nested-class enumeration, and their otherwise-unreachable dependencies, are excluded.
+Advice roots, bootstrap classes, and build-time-only Muzzle reference builders are also excluded.
+The generated list places helper superclasses and interfaces before their dependents.
+Muzzle uses the resolved helper list so it does not require the application to supply classes that will be injected.
+
+### Manual lists and limitations
+
+A non-empty `helperClassNames()` list remains authoritative: it is used as declared, without merging inferred helpers.
+Helpers loaded only through reflection or class-name strings may not be discovered. Modules needing such helpers
+must declare the **complete** list, including required nested classes, with dependencies before their dependents.
+
+To migrate an existing instrumentation, remove its override only after checking that all required helpers are
+reachable through bytecode dependencies, then run its instrumentation tests and Muzzle checks.
 
 If an instrumentation is producing no results it may be that a required class is missing. Running muzzle
 
@@ -331,7 +376,8 @@ Messages like this in debug logs also indicate that classes are missing:
 [MSC service thread 1-3] DEBUG datadog.trace.agent.tooling.muzzle.MuzzleCheck - Muzzled mismatch - instrumentation.names=[jakarta-mdb] instrumentation.class=datadog.trace.instrumentation.jakarta.jms.MDBMessageConsumerInstrumentation instrumentation.target.classloader=ModuleClassLoader for Module "deployment.cmt.war" from Service Module Loader muzzle.mismatch="datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter:20 Missing class datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter$1"
 ```
 
-The missing class must be added in the helperClassNames method, for example:
+For a module with a manual list, add the missing class to `helperClassNames()`. If automatic discovery misses a
+reflectively loaded helper, switch to a complete manual list rather than listing only that helper. For example:
 
 ```java
 @Override
@@ -346,9 +392,9 @@ public String[] helperClassNames() {
 
 ## Enums
 
-Use care when deciding to include enums in your Advice and Decorator classes because each element of the enum will need
-to be added to the helper classes individually.
-For example not just `MyDecorator.MyEnum` but also `MyDecorator.MyEnum$1, MyDecorator.MyEnum$2`, etc.
+Enum constants with class bodies generate additional classes, such as `MyDecorator.MyEnum$1` and
+`MyDecorator.MyEnum$2`. Automatic discovery follows their bytecode references. When declaring helpers manually,
+include these classes alongside `MyDecorator.MyEnum`.
 
 ## Decorator Classes
 
@@ -383,8 +429,8 @@ Instrumentations often include their own Decorators which extend those classes, 
 |          RabbitMQ          | [`RabbitDecorator`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/instrumentation/rabbitmq-amqp-2.7/src/main/java/datadog/trace/instrumentation/rabbitmq/amqp/RabbitDecorator.java#L34) | [`MessagingClientDecorator`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/MessagingClientDecorator.java#L6) |
 | All HTTP Server frameworks |                                                                                                                    various                                                                                                                     |     [`HttpServerDecorator`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/HttpServerDecorator.java#L46)      |
 
-Decorator class names must be in the instrumentation's helper classes since Decorators need to be loaded with the
-instrumentation.
+Instrumentation-specific decorators must be discovered as helpers or included in the manual helper list so they
+can be loaded in the application's classloader.
 
 Decorator class names should end in _Decorator._
 
@@ -764,25 +810,25 @@ The basic span lifecycle in an Advice class looks like:
 
 1. Start the span
 2. Decorate the span
-3. Activate the span and get the AgentScope
+3. Activate the span and get the ContextScope
 4. Run the instrumented target method
 5. While the scope is still active: call final decorator methods (`DECORATE.beforeFinish`, etc.) and register any async callbacks
-6. Close the Agent Scope
+6. Close the scope
 7. Finish the span
 
 Step 5 must complete before step 6: `beforeFinish` fires IAST/AppSec request-end callbacks that resolve the current span via `AgentTracer.activeSpan()`, and async callback frameworks (e.g. `CompletableFuture`) capture the active span at registration time — both break if the scope is closed first.
 
 ```java
 @Advice.OnMethodEnter(suppress = Throwable.class)
-public static AgentScope begin() {
+public static ContextScope begin() {
     final AgentSpan span = startSpan(/* */);
     DECORATE.afterStart(span);
     return activateSpan(span);
 }
 
 @Advice.OnMethodExit(suppress = Throwable.class)
-public static void end(@Advice.Enter final AgentScope scope) {
-    AgentSpan span = scope.span();
+public static void end(@Advice.Enter final ContextScope scope) {
+    AgentSpan span = spanFromScope(scope);
     DECORATE.beforeFinish(span);
     scope.close();
     span.finish();
@@ -800,16 +846,50 @@ methods.
 
 ## Continuations
 
-- [`AgentScope.Continuation`](https://github.com/DataDog/dd-trace-java/blob/09ac78ff0b54fbbbee0ab1c89c901d2043fda40b/dd-trace-api/src/main/java/datadog/trace/context/TraceScope.java#L47)
+- [`ContextContinuation`](https://github.com/DataDog/dd-trace-java/blob/b1db32e43c88eeab3c734c1826753bbc6fae9975/components/context/src/main/java/datadog/context/ContextContinuation.java)
   is used to pass context between threads.
-- Continuations must be either activated or canceled.
-- If a Continuation is activated it returns a TraceScope which must eventually be closed.
-- Only after all TraceScopes are closed and any non-activated Continuations are canceled may the Trace finally close.
+- Continuations must be either resumed or released.
+- If a Continuation is resumed it returns a `ContextScope` which must eventually be closed.
+- Resolve every continuation and close its resumed scopes. A held continuation also needs its
+  hold released. Normal reference-count completion requires all spans and continuations to resolve;
+  publication can happen earlier through buffering or partial flush.
 
 Notice
 in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L56)
-how the AgentScope.Continuation is used to obtain the `parentScope` which is
+how the Continuation is used to obtain the `parentScope` which is
 finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L111).
+
+### Continuation effects
+
+An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal
+completion write. It does not by itself prove that a production trace is lost. The default delaying
+buffer can write finished spans despite pending references: it checks for 500 ms since the last
+trace reference or 5 seconds since the oldest finished span. These are worker eligibility thresholds,
+not hard latency bounds or guarantees about UI visibility. Partial flush, explicit flush and buffer
+pressure can publish earlier; long-running and streaming trace collectors have other paths.
+
+Strict writes replace the delaying buffer with a discarding buffer, exposing unresolved ownership
+in tests. Partial flush is still possible, so seeing spans arrive does not establish that all
+continuations were released. See [PendingTrace](../dd-trace-core/src/main/java/datadog/trace/core/PendingTrace.java),
+[PendingTraceBuffer](../dd-trace-core/src/main/java/datadog/trace/core/PendingTraceBuffer.java) and
+[CoreTracer](../dd-trace-core/src/main/java/datadog/trace/core/CoreTracer.java) for the publication paths.
+
+A reachable task or callback can retain its captured context even after finished spans are written.
+This does not establish that the entire trace stays in memory or that retention grows without bound.
+Wrong parentage requires unrelated work to activate that context, or a scope to remain active on the
+thread; an abandoned continuation alone does not contaminate another thread.
+
+### Static initialization
+
+Class initialization (`<clinit>`) runs on the thread triggering first use, which may carry request
+context. If it creates singleton workers, timers or permanent sentinels, generic async instrumentation
+can capture that request for infrastructure that outlives it. Netty's `GlobalEventExecutor`, including
+its Couchbase-shaded variant, is one example: its permanent sentinel does not run or cancel normally.
+
+Reproduce first use under an active span in a fresh JVM; prewarming during test setup can hide the
+capture. Where the task has no request-context consumer, suppress propagation only at the verified
+creation boundary, including the exact type initializer when appropriate. Do not suppress propagation
+for all static initializers or for legitimate request work.
 
 ## Naming
 
@@ -868,6 +948,56 @@ If reflection must be used the reflection usage should be added to
 `dd-java-agent/agent-bootstrap/src/main/resources/META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json`.
 
 See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/native-image/dynamic-features/Reflection/#manual-configuration).
+
+## Structural Changes (Adding Fields, Methods, or Interfaces)
+
+Some instrumentations use `Instrumenter.HasTypeAdvice` to change the *structure* of the type itself — for example adding a marker
+interface or a field via a custom `AsmVisitorWrapper`. Unlike method advice this will fail if the target type is already loaded,
+causing the instrumentation to silently stop working. The JVM does not allow transformations to change the structure once a type
+is loaded, only the method bodies can be changed. Conversely, if we structurally changed a type before it was loaded then we must
+remember to reapply that same change if the type is ever retransformed.
+
+This is hard to get right, so we provide a feature to correctly handle both situations.
+
+Instrumentations whose `typeAdvice()` adds fields, methods, or interfaces should implement `Instrumenter.WithStructuralChange`:
+
+```java
+public interface WithStructuralChange extends HasTypeAdvice {
+  /** The marker interface added by the structural change, used to detect already-loaded types. */
+  Class<?> structuralChangeMarker();
+}
+```
+
+`structuralChangeMarker()` returns the marker interface the type advice adds directly to the type. For example IAST's
+[`TaintableIast`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)
+adds `Taintable` to every type it instruments, so it returns `Taintable.class` as the structural marker.
+
+### How it works
+
+1. When building matchers for a `WithStructuralChange` instrumentation, `CombiningTransformerBuilder` adds a
+   `MatchRecorder.PreserveLoadedStructure` narrowing matcher.
+2. On a *fresh* class load there is no `classBeingRedefined`, so the matcher has no effect and the structural change
+   is applied as usual.
+3. On a *retransform*, the matcher only allows the structural change to re-apply if the loaded class already
+   directly declares the marker interface — i.e. the change was already applied on first load, so it must be
+   re-applied. Otherwise the match is dropped, skipping the change instead of failing `retransformClasses()`.
+   Since the type might already have the marker, the `AsmVisitorWrapper` must guard against adding it twice
+   (see the `arrayContains`/`appendToArray` check in `TaintableVisitor`).
+4. If the instrumentation also implements `HasMethodAdvice`, the structural change is split into its own
+   transformation (see `buildTypeAdvice()` in `CombiningTransformerBuilder`) so the narrowing can't disable the
+   *method* advice when the structural change is skipped.
+
+### When to use it
+
+Implement `WithStructuralChange` whenever `typeAdvice()` adds a field, method, or interface to the instrumented type.
+Pick (or add) a marker interface that's only ever added by that structural change, since it's used to detect that the
+change already happened.
+
+**Examples in the codebase:**
+- [`InstrumenterModule.TaintableIast`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)
+  — instrumentation that adds `Taintable` to IAST-instrumented types.
+- [`TaintableVisitor`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/bytebuddy/iast/TaintableVisitor.java)
+  — the `AsmVisitorWrapper` that actually adds the marker interface during type advice.
 
 ## JPMS Module Opening
 
@@ -941,7 +1071,7 @@ Implement `JavaModuleOpenProvider` when:
 Tests are written in Groovy using the [Spock framework](http://spockframework.org).
 For instrumentations, `InstrumentationSpecification` must be extended.
 For example, HTTP server frameworks use base tests which enforce consistency between different implementations
-(see [HttpServerTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
+(see [HttpServerTest](../dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
 When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project,
 for example:
 

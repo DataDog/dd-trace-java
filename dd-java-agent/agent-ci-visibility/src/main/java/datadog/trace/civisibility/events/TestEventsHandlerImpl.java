@@ -25,6 +25,7 @@ import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.TestImpl;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import java.util.Collection;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.objectweb.asm.Type;
@@ -37,22 +38,42 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
   private final CiVisibilityMetricCollector metricCollector;
-  private final TestFrameworkSession testSession;
-  private final TestFrameworkModule testModule;
+  private final Supplier<TestFrameworkSession> testSessionSupplier;
+  private final String moduleName;
   private final ContextStore<SuiteKey, TestSuiteImpl> inProgressTestSuites;
   private final ContextStore<TestKey, TestImpl> inProgressTests;
+  private TestFrameworkSession testSession;
+  private volatile TestFrameworkModule testModule;
 
   public TestEventsHandlerImpl(
       CiVisibilityMetricCollector metricCollector,
-      TestFrameworkSession testSession,
-      TestFrameworkModule testModule,
+      Supplier<TestFrameworkSession> testSessionSupplier,
+      String moduleName,
+      boolean eagerSessionStart,
       ContextStore<SuiteKey, DDTestSuite> suiteStore,
       ContextStore<TestKey, DDTest> testStore) {
     this.metricCollector = metricCollector;
-    this.testSession = testSession;
-    this.testModule = testModule;
+    this.testSessionSupplier = testSessionSupplier;
+    this.moduleName = moduleName;
     this.inProgressTestSuites = (ContextStore) suiteStore;
     this.inProgressTests = (ContextStore) testStore;
+    if (eagerSessionStart) {
+      getOrCreateTestModule();
+    }
+  }
+
+  private TestFrameworkModule getOrCreateTestModule() {
+    TestFrameworkModule current = testModule;
+    if (current == null) {
+      synchronized (this) {
+        current = testModule;
+        if (current == null) {
+          testSession = testSessionSupplier.get();
+          testModule = current = testSession.testModuleStart(moduleName, null);
+        }
+      }
+    }
+    return current;
   }
 
   private static boolean skipTrace(final Class<?> testClass) {
@@ -70,6 +91,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation,
       @Nullable Long startTime) {
+    TestFrameworkModule testModule = getOrCreateTestModule();
     if (skipTrace(testClass)) {
       return;
     }
@@ -104,6 +126,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   public void onTestSuiteFinish(SuiteKey descriptor, @Nullable Long endTime) {
+    getOrCreateTestModule();
     if (skipTrace(descriptor.getClass())) {
       return;
     }
@@ -114,6 +137,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   public void onTestSuiteSkip(SuiteKey descriptor, @Nullable String reason) {
+    getOrCreateTestModule();
     TestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
       log.debug("Ignoring skip event, could not find test suite {}", descriptor);
@@ -124,6 +148,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   public void onTestSuiteFailure(SuiteKey descriptor, @Nullable Throwable throwable) {
+    getOrCreateTestModule();
     TestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
       log.debug("Ignoring fail event, could not find test suite {}", descriptor);
@@ -144,6 +169,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nonnull TestSourceData testSourceData,
       final @Nullable Long startTime,
       final @Nullable TestExecutionTracker testExecutionTracker) {
+    TestFrameworkModule testModule = getOrCreateTestModule();
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -222,6 +248,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   public void onTestSkip(TestKey descriptor, @Nullable String reason) {
+    getOrCreateTestModule();
     TestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug("Ignoring skip event, could not find test {}}", descriptor);
@@ -232,6 +259,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   public void onTestFailure(TestKey descriptor, @Nullable Throwable throwable) {
+    getOrCreateTestModule();
     TestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug("Ignoring fail event, could not find test {}", descriptor);
@@ -245,6 +273,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       TestKey descriptor,
       @Nullable Long endTime,
       @Nullable TestExecutionTracker testExecutionTracker) {
+    TestFrameworkModule testModule = getOrCreateTestModule();
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug("Ignoring finish event, could not find test {}", descriptor);
@@ -318,23 +347,26 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   @Nonnull
   public TestExecutionPolicy executionPolicy(
       TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
-    return testModule.executionPolicy(test, testSource, testTags);
+    return getOrCreateTestModule().executionPolicy(test, testSource, testTags);
   }
 
   @Override
   public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
-    return testModule.executionPriority(test, testSource);
+    return getOrCreateTestModule().executionPriority(test, testSource);
   }
 
   @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {
-    return testModule.skipReason(test);
+    return getOrCreateTestModule().skipReason(test);
   }
 
   @Override
   public void close() {
-    testModule.end(null);
-    testSession.end(null);
+    TestFrameworkModule current = testModule;
+    if (current != null) {
+      current.end(null);
+      testSession.end(null);
+    }
   }
 }

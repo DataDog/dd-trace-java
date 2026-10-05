@@ -29,17 +29,22 @@ import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+import okio.Buffer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -83,34 +88,7 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsMalformedFlagAllocationsAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"malformed-flag\":{"
-                + "\"key\":\"malformed-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
-                + "\"allocations\":\"this-is-not-a-list\""
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("malformed-allocations.json"));
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("malformed-flag"));
@@ -119,16 +97,87 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  void parsesSplitSerialId() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId("340132"));
+
+    assertNotNull(config);
+    assertEquals(Integer.valueOf(340132), serialIdOf(config));
+  }
+
+  @Test
+  void parsesSplitSerialIdZero() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId("0"));
+
+    assertNotNull(config);
+    assertEquals(Integer.valueOf(0), serialIdOf(config));
+  }
+
+  @Test
+  void parsesAbsentSplitSerialIdAsNull() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId(null));
+
+    assertNotNull(config);
+    assertNull(serialIdOf(config));
+  }
+
+  @Test
+  void parsesNullSplitSerialIdAsNull() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId("null"));
+
+    assertNotNull(config);
+    assertNull(serialIdOf(config));
+  }
+
+  @Test
+  void skipsFlagWithUncoercibleSerialIdAndKeepsSiblingFlag() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSiblingSerialIds("true"));
+
+    assertNotNull(config);
+    assertFalse(config.flags.containsKey("malformed-flag"));
+    assertEquals("invalid_flag", config.invalidFlags.get("malformed-flag"));
+    assertTrue(config.flags.containsKey("valid-flag"));
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  /**
+   * Records how leniently the per-flag value reader coerces a serial id, so a future change to the
+   * parse path is visible here. The values come from the compiler-validated UFC, so the SDK adds no
+   * validation of its own; what matters is that a bad one never rejects the sibling flag.
+   */
+  @ParameterizedTest
+  @CsvSource({"\"340132\", 340132", "1.5, 1", "-1, -1", "2147483648, 2147483647"})
+  void coercesSerialIdWithoutRejectingTheFlag(final String wireValue, final int expected)
+      throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId(wireValue));
+
+    assertNotNull(config);
+    assertEquals(Integer.valueOf(expected), serialIdOf(config));
+  }
+
+  private static Integer serialIdOf(final ServerConfiguration config) {
+    return config.flags.get("valid-flag").allocations.get(0).splits.get(0).serialId;
+  }
+
+  private static String configWithSerialId(final String serialIdJson) throws IOException {
+    return withSerialId(resource("serial-id.json"), serialIdJson);
+  }
+
+  /** A malformed serial id must bind to its own flag and leave the sibling flag intact. */
+  private static String configWithSiblingSerialIds(final String malformedSerialIdJson)
+      throws IOException {
+    return withSerialId(resource("sibling-serial-ids.json"), malformedSerialIdJson);
+  }
+
+  /** Inserts the raw wire value so the parser sees its original JSON type; null omits the key. */
+  private static String withSerialId(final String json, final String serialIdJson) {
+    return serialIdJson == null
+        ? json.replace("\"serialId\": \"${serialId}\",", "")
+        : json.replace("\"${serialId}\"", serialIdJson);
+  }
+
+  @Test
   void ignoresUnknownTopLevelFields() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"segments\":{\"new-schema-key\":{\"ignored\":true}},"
-                + "\"flags\":{}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("unknown-top-level-fields.json"));
 
     assertNotNull(config);
     assertEquals("2024-04-17T19:40:53.716Z", config.createdAt);
@@ -139,49 +188,26 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  void parsesAllocationWindowDatesAsDateFieldsWithInstantAccessors() throws Exception {
+    final ServerConfiguration config = deserialize(resource("allocation-window-dates.json"));
+
+    final Allocation allocation = config.flags.get("dated-flag").allocations.get(0);
+    assertEquals(Date.class, Allocation.class.getField("startAt").getType());
+    assertEquals(Date.class, Allocation.class.getField("endAt").getType());
+    assertEquals(Instant.parse("2023-01-01T00:00:00.123Z"), allocation.startAt.toInstant());
+    assertEquals(Instant.parse("2023-01-02T00:00:00.987Z"), allocation.endAt.toInstant());
+    assertEquals(Instant.parse("2023-01-01T00:00:00.123456Z"), allocation.startAtInstant());
+    assertEquals(Instant.parse("2023-01-02T00:00:00.987654Z"), allocation.endAtInstant());
+  }
+
+  @Test
   void rejectsTrailingJson() {
     assertThrows(IOException.class, () -> deserialize(emptyConfig() + "{}"));
   }
 
   @Test
   void skipsUnknownOperatorFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"operator-grease-flag\":{"
-                + "\"key\":\"operator-grease-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"trap\":{\"key\":\"trap\",\"value\":\"trap\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"grease-allocation\","
-                + "\"rules\":[{\"conditions\":[{"
-                + "\"attribute\":\"country\","
-                + "\"operator\":\"not-a-real-operator\","
-                + "\"value\":\"anything\""
-                + "}]}],"
-                + "\"splits\":[{\"variationKey\":\"trap\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("unknown-operator.json"));
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("operator-grease-flag"));
@@ -207,15 +233,37 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  void lenientBooleanAdapterFactoryOnlyCreatesAdapterForUnannotatedBoxedBoolean() {
+    final Moshi moshi = moshi();
+
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            Boolean.class, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.LenientBooleanAdapter);
+    // Primitive boolean keeps Moshi's strict adapter so mandatory fields still reject bad values.
+    assertNull(
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            boolean.class, emptySet(), moshi));
+    // A qualified Boolean belongs to whichever adapter declared the qualifier, not to this one.
+    assertNull(
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            Boolean.class, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void lenientBooleanAdapterIsReadOnly() {
+    final UniversalFlagConfigParser.LenientBooleanAdapter adapter =
+        new UniversalFlagConfigParser.LenientBooleanAdapter();
+
+    assertThrows(
+        UnsupportedOperationException.class, () -> adapter.toJson(mock(JsonWriter.class), true));
+  }
+
+  @Test
   void allowsNullFlagMap() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":null"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("null-flags.json"));
 
     assertNotNull(config);
     assertNull(config.flags);
@@ -223,28 +271,7 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsNullFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"null-flag\":null,"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("null-flag.json"));
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("null-flag"));
@@ -262,50 +289,88 @@ class RemoteConfigServiceImplTest {
         () -> adapter.toJson(mock(JsonWriter.class), emptyMap()));
   }
 
-  @TableTest({
-    "scenario                                  | value                            | expectedEpochMilli",
-    "utc second                                | '2023-01-01T00:00:00Z'           | 1672531200000     ",
-    "utc end of year                           | '2023-12-31T23:59:59Z'           | 1704067199000     ",
-    "leap day                                  | '2024-02-29T12:00:00Z'           | 1709208000000     ",
-    "millisecond precision                     | '2023-01-01T00:00:00.000Z'       | 1672531200000     ",
-    "three fractional digits                   | '2023-06-15T14:30:45.123Z'       | 1686839445123     ",
-    "six fractional digits truncate to millis  | '2023-06-15T14:30:45.123456Z'    | 1686839445123     ",
-    "six fractional digits preserve millis     | '2023-06-15T14:30:45.235982Z'    | 1686839445235     ",
-    "nine fractional digits truncate to millis | '2023-06-15T14:30:45.123456789Z' | 1686839445123     ",
-    "one fractional digit                      | '2023-06-15T14:30:45.1Z'         | 1686839445100     ",
-    "two fractional digits                     | '2023-06-15T14:30:45.12Z'        | 1686839445120     ",
-    "positive offset                           | '2023-01-01T01:00:00+01:00'      | 1672531200000     ",
-    "negative offset                           | '2023-01-01T00:00:00-05:00'      | 1672549200000     ",
-    "date only                                 | '2023-01-01'                     |                   ",
-    "invalid                                   | 'invalid-date'                   |                   ",
-    "empty string                              | ''                               |                   ",
-    "not a date                                | 'not-a-date'                     |                   ",
-    "slash date                                | '2023/01/01T00:00:00Z'           |                   ",
-    "null                                      |                                  |                   "
-  })
-  void testDateParsing(final String value, final Long expectedEpochMilli) throws Exception {
-    final JsonReader reader = mock(JsonReader.class);
-    when(reader.nextString()).thenReturn(value);
-    final UniversalFlagConfigParser.DateAdapter adapter =
-        new UniversalFlagConfigParser.DateAdapter();
+  @Test
+  void allocationAdapterFactoryOnlyCreatesAllocationAdapterForAllocationType() {
+    final Moshi moshi = moshi();
 
-    final Date parsed = adapter.fromJson(reader);
-    if (expectedEpochMilli == null) {
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            Allocation.class, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.AllocationAdapter);
+    assertNull(
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            String.class, emptySet(), moshi));
+    assertNull(
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            Allocation.class, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void allocationAdapterHandlesNullAndIsReadOnly() throws Exception {
+    final UniversalFlagConfigParser.AllocationAdapter adapter =
+        new UniversalFlagConfigParser.AllocationAdapter(
+            moshi().adapter(UniversalFlagConfigParser.AllocationJson.class));
+
+    assertNull(adapter.fromJson("null"));
+    assertThrows(
+        UnsupportedOperationException.class, () -> adapter.toJson(mock(JsonWriter.class), null));
+  }
+
+  @TableTest({
+    "scenario                       | value                            | expectedInstant                 ",
+    "utc second                     | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",
+    "utc end of year                | '2023-12-31T23:59:59Z'           | '2023-12-31T23:59:59Z'          ",
+    "leap day                       | '2024-02-29T12:00:00Z'           | '2024-02-29T12:00:00Z'          ",
+    "millisecond precision          | '2023-01-01T00:00:00.000Z'       | '2023-01-01T00:00:00Z'          ",
+    "three fractional digits        | '2023-06-15T14:30:45.123Z'       | '2023-06-15T14:30:45.123Z'      ",
+    "six fractional digits          | '2023-06-15T14:30:45.123456Z'    | '2023-06-15T14:30:45.123456Z'   ",
+    "six fractional digits distinct | '2023-06-15T14:30:45.235982Z'    | '2023-06-15T14:30:45.235982Z'   ",
+    "nine fractional digits         | '2023-06-15T14:30:45.123456789Z' | '2023-06-15T14:30:45.123456789Z'",
+    "one fractional digit           | '2023-06-15T14:30:45.1Z'         | '2023-06-15T14:30:45.100Z'      ",
+    "two fractional digits          | '2023-06-15T14:30:45.12Z'        | '2023-06-15T14:30:45.120Z'      ",
+    "positive offset                | '2023-01-01T01:00:00+01:00'      | '2023-01-01T00:00:00Z'          ",
+    "negative offset                | '2023-01-01T00:00:00-05:00'      | '2023-01-01T05:00:00Z'          ",
+    "date only                      | '2023-01-01'                     |                                 ",
+    "invalid                        | 'invalid-date'                   |                                 ",
+    "empty string                   | ''                               |                                 ",
+    "not a date                     | 'not-a-date'                     |                                 ",
+    "slash date                     | '2023/01/01T00:00:00Z'           |                                 ",
+    "null                           |                                  |                                 "
+  })
+  void testInstantParsing(final String value, final String expectedInstant) throws Exception {
+    final JsonReader reader = mock(JsonReader.class);
+    if (value == null) {
+      when(reader.peek()).thenReturn(JsonReader.Token.NULL);
+      when(reader.nextNull()).thenReturn(null);
+    } else {
+      when(reader.peek()).thenReturn(JsonReader.Token.STRING);
+      when(reader.nextString()).thenReturn(value);
+    }
+    final UniversalFlagConfigParser.InstantAdapter adapter =
+        new UniversalFlagConfigParser.InstantAdapter();
+
+    final Instant parsed = adapter.fromJson(reader);
+    if (value == null) {
+      verify(reader).nextNull();
+    }
+    if (expectedInstant == null) {
       assertNull(parsed);
     } else {
       assertNotNull(parsed);
-      assertEquals(Instant.ofEpochMilli(expectedEpochMilli), parsed.toInstant());
+      assertEquals(expectedInstant, parsed.toString());
     }
   }
 
   @Test
   void testParsingOnlyAdapter() {
-    final UniversalFlagConfigParser.DateAdapter adapter =
-        new UniversalFlagConfigParser.DateAdapter();
+    final UniversalFlagConfigParser.InstantAdapter adapter =
+        new UniversalFlagConfigParser.InstantAdapter();
 
     assertThrows(
         UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), new Date()));
+        () -> adapter.toJson(mock(JsonWriter.class), Instant.EPOCH));
   }
 
   @SuppressWarnings("unchecked")
@@ -318,15 +383,21 @@ class RemoteConfigServiceImplTest {
   }
 
   private static Moshi moshi() {
-    return new Moshi.Builder().add(Date.class, new UniversalFlagConfigParser.DateAdapter()).build();
+    return new Moshi.Builder()
+        .add(Instant.class, new UniversalFlagConfigParser.InstantAdapter())
+        .add(UniversalFlagConfigParser.AllocationAdapter.FACTORY)
+        .build();
   }
 
-  private static String emptyConfig() {
-    return "{"
-        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-        + "\"format\":\"SERVER\","
-        + "\"environment\":{\"name\":\"Test\"},"
-        + "\"flags\":{}"
-        + "}";
+  private static String emptyConfig() throws IOException {
+    return resource("empty-config.json");
+  }
+
+  private static String resource(final String name) throws IOException {
+    try (final InputStream stream =
+        RemoteConfigServiceImplTest.class.getResourceAsStream("/remote-config/" + name)) {
+      assertNotNull(stream, "Missing remote-config fixture: " + name);
+      return new Buffer().readFrom(stream).readUtf8();
+    }
   }
 }

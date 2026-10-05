@@ -31,6 +31,7 @@ import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -284,6 +285,26 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void reportKafkaConsumerGroupMember(
+      String kafkaClusterId,
+      String consumerGroup,
+      String memberId,
+      int generationId,
+      String memberProtocol) {
+    inbox.offer(
+        new KafkaConfigReport(
+            "kafka_consumer",
+            kafkaClusterId,
+            consumerGroup,
+            memberId,
+            generationId,
+            memberProtocol,
+            Collections.<String, String>emptyMap(),
+            timeSource.getCurrentTimeNanos(),
+            getThreadServiceName()));
+  }
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
@@ -502,7 +523,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     timeToBucket.clear();
   }
 
-  void report() {
+  @VisibleForTesting
+  public void report() {
     inbox.offer(REPORT);
   }
 

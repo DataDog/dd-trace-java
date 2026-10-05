@@ -1,11 +1,37 @@
 package datadog.trace.test.junit.utils.tabletest;
 
+import datadog.trace.api.ProtocolVersion;
+import datadog.trace.api.intake.TrackType;
 import org.tabletest.junit.TypeConverter;
 
 /** Shared converters for JUnit 5 TableTest tests that use unparsable constants. */
 public final class TableTestTypeConverters {
 
   private TableTestTypeConverters() {}
+
+  @TypeConverter
+  public static TrackType toTrackType(String value) {
+    if (value == null) {
+      return null;
+    }
+    String token = value.trim();
+    if (token.startsWith("TrackType.")) {
+      token = token.substring("TrackType.".length());
+    }
+    return TrackType.valueOf(token);
+  }
+
+  @TypeConverter
+  public static ProtocolVersion toProtocolVersion(String value) {
+    if (value == null) {
+      return null;
+    }
+    String token = value.trim();
+    if (token.startsWith("ProtocolVersion.")) {
+      token = token.substring("ProtocolVersion.".length());
+    }
+    return ProtocolVersion.valueOf(token);
+  }
 
   @TypeConverter
   public static long toLong(String value) {
@@ -65,7 +91,7 @@ public final class TableTestTypeConverters {
         if (value.endsWith("f")) {
           return Float.parseFloat(value);
         }
-        if (value.endsWith("d")) {
+        if (value.endsWith("d") || value.contains(".")) {
           return Double.parseDouble(value);
         }
         return Integer.decode(value);

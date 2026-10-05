@@ -35,11 +35,6 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".FinatraDecorator", packageName + ".Listener"};
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return "com.twitter.finatra.http.internal.routing.Route";
   }

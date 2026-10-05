@@ -34,12 +34,14 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
   protected final L delegate;
   private final String queueUrl;
+  private final String queueName;
   private final String requestId;
   private AgentSpanContext batchContext;
 
   public TracingIterator(L delegate, String queueUrl, String requestId) {
     this.delegate = delegate;
     this.queueUrl = queueUrl;
+    this.queueName = queueUrl == null ? "" : urlFileName(queueUrl);
     this.requestId = requestId;
   }
 
@@ -96,7 +98,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
                       spanContext,
                       MILLISECONDS.toMicros(timeInQueueStart));
               BROKER_DECORATE.afterStart(queueSpan);
-              BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, requestId);
+              BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, queueName, requestId);
               spanContext = queueSpan.spanContext();
               // The queueSpan will be finished after inner span has been activated to ensure that
               // spans are written out together by TraceStructureWriter when running in strict mode
@@ -107,11 +109,11 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         }
         AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
 
-        DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
+        DataStreamsTags tags = create("sqs", INBOUND, queueName);
         AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
 
         CONSUMER_DECORATE.afterStart(span);
-        CONSUMER_DECORATE.onConsume(span, queueUrl, requestId);
+        CONSUMER_DECORATE.onConsume(span, queueUrl, queueName, requestId);
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           activateNext(span);
         } else {

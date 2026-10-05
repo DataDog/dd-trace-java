@@ -3,19 +3,13 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.version-file'
-}
-
-apply from: "$rootDir/gradle/java.gradle"
-
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  id 'dd-trace-java.module.product-subsystem'
 }
 
 dependencies {
   api libs.slf4j
   implementation libs.moshi
-  implementation libs.okhttp
+  implementation libs.datadog.okhttp
 
   api project(':dd-trace-api')
   api project(':utils:version-utils')
@@ -23,6 +17,8 @@ dependencies {
   implementation project(':communication')
 
   testImplementation project(':utils:test-utils')
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
   testImplementation('org.skyscreamer:jsonassert:1.5.3')
   testImplementation('com.fasterxml.jackson.core:jackson-databind:2.20.0')
 }

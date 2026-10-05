@@ -1,3 +1,5 @@
-apply(from = "$rootDir/gradle/java.gradle")
+plugins {
+  id("dd-trace-java.module.internal-api")
+}
 
 extra["excludedClassesBranchCoverage"] = listOf("datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop")

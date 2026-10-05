@@ -1,14 +1,14 @@
 plugins {
   id 'dd-trace-java.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.module.instrumentation'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
     group = 'io.cucumber'
     module = 'cucumber-core'
     versions = '[5.4.0,)'
+    excludeDependency 'io.cucumber:query'
   }
 }
 

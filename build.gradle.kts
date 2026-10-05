@@ -1,3 +1,4 @@
+import com.diffplug.gradle.spotless.GroovyExtension
 import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
@@ -5,19 +6,19 @@ import datadog.gradle.plugin.ci.testAggregate
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
 
-  id("dd-trace-java.gradle-debug")
-  id("dd-trace-java.dependency-locking")
-  id("dd-trace-java.tracer-version")
-  id("dd-trace-java.dump-hanged-test")
-  id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
+  id("dd-trace-java.config-inversion-linter")
+  id("dd-trace-java.dependency-locking")
+  id("dd-trace-java.dump-hanged-test")
+  id("dd-trace-java.gradle-debug")
+  id("dd-trace-java.tracer-version")
 
-  id("com.diffplug.spotless") version "8.4.0"
-  id("me.champeau.gradle.japicmp") version "0.4.3"
-  id("com.github.spotbugs") version "6.5.5"
-  id("de.thetaphi.forbiddenapis") version "3.10"
-  id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   alias(libs.plugins.shadow) apply false
+  alias(libs.plugins.spotless)
+  id("com.github.spotbugs") version "6.5.11"
+  id("de.thetaphi.forbiddenapis") version "3.11"
+  id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
+  id("me.champeau.gradle.japicmp") version "0.4.3"
   id("me.champeau.jmh") version "0.7.3" apply false
   id("org.gradle.playframework") version "0.16.0" apply false
 }
@@ -38,25 +39,32 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
     removeUnusedImports()
+    forbidWildcardImports()
 
-    googleJavaFormat("1.35.0")
-    tableTestFormatter("1.1.1")
+    googleJavaFormat(libs.versions.google.java.format.get())
+    tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
-    greclipse()
+    greclipse(libs.versions.greclipse.get())
   }
   groovy {
+    greclipse(libs.versions.greclipse.get())
+  }
+  // Predeclare the latest GrEclipse dependencies used by netty-3.8 because version 4.27
+  // cannot format one of its tests.
+  // TODO: Remove when the repository-wide 4.27 pin can be lifted:
+  // https://github.com/diffplug/spotless/issues/3013
+  format("groovyNetty38", GroovyExtension::class.java) {
     greclipse()
   }
   kotlinGradle {
-    ktlint("1.8.0")
+    ktlint(libs.versions.ktlint.get())
   }
   kotlin {
-    ktlint("1.8.0")
+    ktlint(libs.versions.ktlint.get())
   }
   scala {
-    // TODO: For some reason Scala format is working correctly with this version only.
-    scalafmt("3.8.6")
+    scalafmt(libs.versions.scalafmt.get())
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))

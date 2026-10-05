@@ -1,10 +1,8 @@
 plugins {
   id 'idea'
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'iast-smoke-tests-utils-java-11'
 
@@ -25,5 +23,5 @@ dependencies {
 }
 
 tasks.named("compileJava", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }

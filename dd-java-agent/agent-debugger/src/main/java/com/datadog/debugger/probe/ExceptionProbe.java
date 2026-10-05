@@ -69,6 +69,13 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   }
 
   @Override
+  protected boolean useCoordinatedSampling() {
+    // exception probes have their own independent exception sampling flow and must not share a
+    // trace-wide sampling decision with ordinary snapshot probes on the same local root span.
+    return false;
+  }
+
+  @Override
   public CapturedContext.Status createStatus() {
     return new ExceptionProbeStatus(this);
   }
@@ -100,6 +107,10 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
     Throwable innerMostThrowable = getInnerMostThrowable(throwable);
     if (innerMostThrowable == null) {
       LOGGER.debug("Cannot get inner most throwable (cycle?)");
+      return;
+    }
+    if (innerMostThrowable.getStackTrace().length == 0) {
+      LOGGER.debug("Exception with no stacktrace, FastThrow?");
       return;
     }
     String fingerprint =

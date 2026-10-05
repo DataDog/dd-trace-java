@@ -46,7 +46,7 @@ object WeaverIntegrationTestRunner {
     val framework = new CatsEffect(new PrintStream(System.out))
     val runner    = framework.runner(Array.empty, Array.empty, getClass.getClassLoader)
     val scalaTestNames: List[String] = testNames.asScala.toList
-    val taskDefs: Array[TaskDef] = scalaTestNames.map { name =>
+    val taskDefs: Array[TaskDef]     = scalaTestNames.map { name =>
       new TaskDef(name, SuiteFingerprint, false, Array(new SuiteSelector()))
     }.toArray
     val tasks        = runner.tasks(taskDefs)

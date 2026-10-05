@@ -126,6 +126,13 @@ class SpanEnrichmentWriterTest {
   }
 
   @Test
+  void agentSingletonUsesProductionDependencies() {
+    final SpanEnrichmentWriter writer = SpanEnrichmentWriter.getInstance();
+    assertNotNull(writer.rootSpanResolver());
+    assertNotNull(writer.registrar());
+  }
+
+  @Test
   void resolveLocalRootLogic() {
     assertNull(SpanEnrichmentWriter.resolveLocalRoot(null));
 

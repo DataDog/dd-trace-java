@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.hazelcast4;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.SPAN_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastDecorator.DECORATE;
@@ -13,9 +14,9 @@ import com.hazelcast.client.ClientListener;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.proxy.ClientMapProxy;
 import com.hazelcast.client.impl.spi.ClientListenerService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -41,7 +42,7 @@ public final class ClientListenerInstrumentation
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.This final ClientListenerService that,
         @Advice.Argument(0) final ClientMessage clientMessage) {
 
@@ -70,13 +71,13 @@ public final class ClientListenerInstrumentation
     /** Method exit instrumentation. */
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();

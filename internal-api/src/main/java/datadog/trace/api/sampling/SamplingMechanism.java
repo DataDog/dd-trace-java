@@ -1,6 +1,9 @@
 package datadog.trace.api.sampling;
 
-import static datadog.trace.api.sampling.PrioritySampling.*;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 
 import datadog.trace.api.Config;
 

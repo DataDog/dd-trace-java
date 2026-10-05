@@ -111,7 +111,7 @@ public final class ServerRequestContext {
       }
       final ServerRequestContext currentContext = contexts.peekLast();
       if (currentContext == null) {
-        attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
+        attributes.attr(CONTEXT_ATTRIBUTE_KEY).set(null);
       } else {
         if (removed && contexts.size() == 1) {
           // An expanded pipeline must drain through one pending request. Replace its potentially

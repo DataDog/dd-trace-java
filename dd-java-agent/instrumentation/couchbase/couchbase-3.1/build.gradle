@@ -1,3 +1,9 @@
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
+}
 
 muzzle {
   pass {
@@ -10,15 +16,19 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.couchbase.client', name: 'java-client', version: '3.1.0'
+  testContainerImage(image(
+    DefaultNativePlatform.getCurrentArchitecture().isArm64()
+    ? 'couchbase/server:7.1.0-aarch64'
+    : 'couchbase/server:7.1.0',
+    'test.couchbase.image'))
 
   testImplementation group: 'com.couchbase.client', name: 'java-client', version: '3.1.0'
   testImplementation group: 'org.testcontainers', name: 'couchbase', version: libs.versions.testcontainers.get()
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:couchbase:couchbase-3-common'))
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
 

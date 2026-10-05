@@ -24,7 +24,7 @@ class SpanPointersProcessorTest extends DDJavaSpecification {
   @TableTest({
     "scenario       | objectKey     | eTag       | expectedHash                    ",
     "basic values   | some-key.data | ab12ef34   | e721375466d4116ab551213fdea08413",
-    "non-ascii key  | some-key.你好 | ab12ef34   | d1333a04b9928ab462b5c6cadfa401f4  ",
+    "non-ascii key  | some-key.你好 | ab12ef34   | d1333a04b9928ab462b5c6cadfa401f4",
     "multipart etag | some-key.data | ab12ef34-5 | 2b90dffc37ebc7bc610152c3dc72af9f"
   })
   void spanPointersProcessorAddsCorrectLink(String objectKey, String eTag, String expectedHash) {

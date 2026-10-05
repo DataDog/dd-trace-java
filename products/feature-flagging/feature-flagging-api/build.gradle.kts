@@ -1,14 +1,12 @@
+import datadog.gradle.configureCompiler
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import groovy.lang.Closure
 
 plugins {
   `java-library`
   idea
-  `maven-publish`
+  id("dd-trace-java.module.distributable.api")
+  id("me.champeau.jmh")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/publish.gradle")
 
 configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
@@ -49,29 +47,36 @@ dependencies {
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  // SpanEnrichmentGate resolves FeatureFlaggingConfig at runtime. Without it on the test
+  // classpath the gate swallows a NoClassDefFoundError and reads as off, so the enrichment
+  // branch cannot be driven.
+  testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
-  testImplementation("org.awaitility:awaitility:4.3.0")
+
+  // The main source set gets the bootstrap/config types as compileOnly, so the JMH source set
+  // needs them on its own compile and runtime classpath to drive the hook end to end.
+  jmhImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  jmhImplementation(project(":products:feature-flagging:feature-flagging-config"))
+  jmhImplementation(project(":utils:config-utils"))
 }
 
-fun AbstractCompile.configureCompiler(
-  javaVersionInteger: Int,
-  compatibilityVersion: JavaVersion? = null,
-  unsetReleaseFlagReason: String? = null
-) {
-  (project.extra["configureCompiler"] as Closure<*>).call(
-    this,
-    javaVersionInteger,
-    compatibilityVersion,
-    unsetReleaseFlagReason
-  )
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  if (project.hasProperty("jmhIncludes")) {
+    includes = listOf(project.property("jmhIncludes").toString())
+  }
+  if (project.hasProperty("jmhProf")) {
+    profilers = listOf(project.property("jmhProf").toString())
+  }
 }
 
 tasks.withType<JavaCompile>().configureEach {
-  configureCompiler(11, JavaVersion.VERSION_11)
+  configureCompiler(JavaVersion.VERSION_11)
 }
 
 tasks.withType<Javadoc>().configureEach {

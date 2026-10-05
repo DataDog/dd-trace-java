@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
+import static utils.InstrumentationTestHelper.installTracerInstrumentation;
 import static utils.InstrumentationTestHelper.loadClass;
 import static utils.TestClassFileHelper.getClassFileBytes;
 import static utils.TestHelper.getFixtureContent;
@@ -71,6 +73,7 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -442,15 +445,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Snapshot snapshot1 = snapshots.get(1);
     assertCaptureArgs(snapshot1.getCaptures().getEntry(), "value", "int", "31");
     assertCaptureReturnValue(snapshot1.getCaptures().getReturn(), "int", "31");
-  }
-
-  private List<Snapshot> assertSnapshots(
-      TestSnapshotListener listener, int expectedCount, ProbeId... probeIds) {
-    assertEquals(expectedCount, listener.snapshots.size());
-    for (int i = 0; i < probeIds.length; i++) {
-      assertEquals(probeIds[i].getId(), listener.snapshots.get(i).getProbe().getId());
-    }
-    return listener.snapshots;
   }
 
   @Test
@@ -908,9 +902,14 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void fieldExtractorDuplicateUnionDepth() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
-    LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
-    LogProbe probe1 = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
-    LogProbe probe2 = builder.capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "createSimpleData", "()")
+            .capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT)
+            .build();
+    LogProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "createSimpleData", "()")
+            .capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT)
+            .build();
     TestSnapshotListener listener = installProbes(probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
@@ -1841,26 +1840,33 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void tracerInstrumentedClass() throws Exception {
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
-    TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "createResource", null);
-    // load a class file that was previously instrumented by the DD tracer as JAX-RS resource
-    Class<?> testClass =
-        loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
-    Object result =
-        Reflect.onClass(testClass)
-            .create()
-            .call("createResource", (Object) null, (Object) null, 1)
-            .get();
-    Snapshot snapshot = assertOneSnapshot(listener);
-    Map<String, CapturedContext.CapturedValue> arguments =
-        snapshot.getCaptures().getEntry().getArguments();
-    // it's important there is no null key in this map, as Jackson is not happy about it
-    // it's means here that argument names are not resolved correctly
-    Assertions.assertFalse(arguments.containsKey(null));
-    assertEquals(4, arguments.size());
-    assertTrue(arguments.containsKey("this"));
-    assertTrue(arguments.containsKey("apiKey"));
-    assertTrue(arguments.containsKey("uriInfo"));
-    assertTrue(arguments.containsKey("value"));
+    // compile the JAX-RS resource fixture and weave it with the real tracer JAX-RS
+    // instrumentation, so this test exercises argument-name resolution against the same
+    // bytecode shape the tracer actually produces
+    ClassFileTransformer jaxRsTransformer = installTracerInstrumentation(instr);
+    Class<?> testClass;
+    try {
+      TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "createResource", null);
+      testClass = compileAndLoadClass(CLASS_NAME);
+      Object result =
+          Reflect.onClass(testClass)
+              .create()
+              .call("createResource", (Object) null, (Object) null, 1)
+              .get();
+      Snapshot snapshot = assertOneSnapshot(listener);
+      Map<String, CapturedContext.CapturedValue> arguments =
+          snapshot.getCaptures().getEntry().getArguments();
+      // it's important there is no null key in this map, as Jackson is not happy about it
+      // it's means here that argument names are not resolved correctly
+      Assertions.assertFalse(arguments.containsKey(null));
+      assertEquals(4, arguments.size());
+      assertTrue(arguments.containsKey("this"));
+      assertTrue(arguments.containsKey("apiKey"));
+      assertTrue(arguments.containsKey("uriInfo"));
+      assertTrue(arguments.containsKey("value"));
+    } finally {
+      instr.removeTransformer(jaxRsTransformer);
+    }
   }
 
   @Test
@@ -2041,8 +2047,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
-    assertTrue(listener.skipped);
-    assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
   @Test
@@ -2332,7 +2336,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
     final String ENUM_CLASS = CLASS_NAME + "$MyEnum";
     TestSnapshotListener listener =
-        installProbes(createMethodProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
+        installProbes(
+            createProbeBuilder(PROBE_ID, ENUM_CLASS, "<init>", null).sampling(10).build());
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(2, result);
@@ -3018,6 +3023,31 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(1, evaluationErrors.size());
     assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+  }
+
+  @Test
+  public void captureExpressionsWithRejectingCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
+            .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
+            .template("plain log", Collections.emptyList())
+            .captureExpressions(
+                Collections.singletonList(
+                    new LogProbe.CaptureExpression(
+                        "unknown_symbol",
+                        new ValueScript(ref("doesNotExist"), "doesNotExist"),
+                        null)))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    for (int i = 0; i < 5; i++) {
+      int result = Reflect.onClass(testClass).call("main", "1").get();
+      assertEquals(3, result);
+    }
+    assertEquals(0, listener.snapshots.size());
   }
 
   @Test

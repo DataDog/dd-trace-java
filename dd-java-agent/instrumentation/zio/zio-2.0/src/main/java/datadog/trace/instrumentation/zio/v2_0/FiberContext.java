@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.zio.v2_0;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 
@@ -15,7 +13,7 @@ public class FiberContext {
     // record context to use for this coroutine
     this.context = Context.current();
     // stop enclosing trace from finishing early
-    this.continuation = captureActiveSpan();
+    this.continuation = this.context.capture();
   }
 
   public void onResume() {

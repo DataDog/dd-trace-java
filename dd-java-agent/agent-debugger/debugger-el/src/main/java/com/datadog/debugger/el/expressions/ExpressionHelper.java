@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.RedactedException;
@@ -20,7 +21,7 @@ public class ExpressionHelper {
 
   public static void checkTimeout(TimeoutChecker checker, Expression<?> expr) {
     if (checker.isTimedOut()) {
-      throw new EvaluationException(
+      throw new EvaluationTimeOutException(
           "timeout (" + checker.getTimeOut().toMillis() + "ms)", PrettyPrintVisitor.print(expr));
     }
   }

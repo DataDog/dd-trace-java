@@ -39,6 +39,8 @@ class FeatureFlaggingGatewayTest {
     FeatureFlaggingGateway.removeActivationListener(activationListener);
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
     FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
+    FeatureFlaggingGateway.setFlagEvalWriter(null);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
   }
 
   @Test

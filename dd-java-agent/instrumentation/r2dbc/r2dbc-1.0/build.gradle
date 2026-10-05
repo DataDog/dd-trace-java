@@ -1,0 +1,100 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
+
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = "io.r2dbc"
+    module = "r2dbc-spi"
+    versions = "[1.0.0.RELEASE,)"
+    // The bundled r2dbc-proxy is written against Reactor (Flux/Mono and, since 3.4,
+    // ContextView), which r2dbc-spi itself doesn't depend on. Muzzle checks those
+    // references against the application, so it needs a compatible Reactor here.
+    extraDependency "io.projectreactor:reactor-core:3.5.0"
+  }
+  // Reactor < 3.4 lacks ContextView: muzzle must reject the module rather than let the
+  // proxy fail at runtime.
+  fail {
+    name = "reactor-3.3"
+    group = "io.r2dbc"
+    module = "r2dbc-spi"
+    versions = "[1.0.0.RELEASE,)"
+    extraDependency "io.projectreactor:reactor-core:3.3.22.RELEASE"
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+addForkedTestTask('latestDepTest')
+
+// The latest io.r2dbc:r2dbc-h2 pulls in an H2 build compiled for Java 11
+// (class file version 55), so latestDepTest cannot run on the JVM 8 CI slot.
+['latestDepTest', 'latestDepTestForkedTest'].each { taskName ->
+  tasks.named(taskName, Test) {
+    testJvmConstraints {
+      minJavaVersion = JavaVersion.VERSION_11
+    }
+  }
+}
+
+configurations {
+  r2dbcProxyToShade
+}
+
+def relocatedR2dbcProxyJar = tasks.register('relocatedR2dbcProxyJar', ShadowJar) {
+  relocate 'io.r2dbc.proxy', 'datadog.trace.instrumentation.r2dbc.shaded.proxy'
+
+  archiveClassifier.set('relocated-r2dbc-proxy')
+
+  configurations.add(project.configurations.named('r2dbcProxyToShade'))
+
+  include '**/*.class'
+
+  exclude '**/package-info.class'
+  exclude 'io/r2dbc/proxy/observation/**'
+  exclude 'io/r2dbc/proxy/test/**'
+
+  includeEmptyDirs = false
+}
+def relocatedR2dbcProxyJarFile = relocatedR2dbcProxyJar.flatMap { it.archiveFile }
+
+dependencies {
+  compileOnly group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
+
+  // Wire the relocated r2dbc-proxy classes into this project without publishing
+  // the relocated jar as runtime output:
+  //
+  // - keep the relocated jar visible to main compilation through `compileOnly`
+  // - keep the relocated jar visible to tests through `testImplementation`
+  // - include the relocated classes into this project's jar (jar task config)
+  compileOnly files(relocatedR2dbcProxyJarFile)
+  testImplementation files(relocatedR2dbcProxyJarFile)
+
+  // embed proxy that's compatible with all R2DBC versions we support
+  r2dbcProxyToShade group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.6.RELEASE', {
+    transitive = false
+  }
+
+  testImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.0.0.RELEASE'
+  testImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.0.0.RELEASE'
+
+  // r2dbc-proxy runs on Reactor, so exercise it alongside our Reactor instrumentation
+  testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
+
+  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.+'
+  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.+'
+}
+
+tasks.named("jar", Jar) {
+  from zipTree(relocatedR2dbcProxyJarFile)
+}
+
+// Make the relocated jar visible to muzzle through `extraAgentClasspath`.
+// Muzzle uses the runtime classpath of a project, and this jar is produced
+// outside of it.
+tasks.withType(MuzzleTask).configureEach {
+  extraAgentClasspath.from(relocatedR2dbcProxyJarFile)
+}

@@ -1,7 +1,10 @@
 package com.datadog.debugger.el.values;
 
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.ValueType;
 import java.math.BigDecimal;

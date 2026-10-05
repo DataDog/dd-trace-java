@@ -91,7 +91,7 @@ public class MsgPackWriter implements WritableFormatter {
       if (buffer.flush()) {
         try {
           mapper.reset();
-          mapper.map(message, this);
+          mapper.map(message, this, true);
           buffer.mark();
           return true;
         } catch (BufferOverflowException fatal) {
@@ -101,6 +101,8 @@ public class MsgPackWriter implements WritableFormatter {
         }
       }
       buffer.reset();
+      // the buffer is now empty, so drop any mapper state from the rejected message
+      mapper.reset();
       return false;
     }
   }
