@@ -86,9 +86,17 @@ public class DatadogWrapperHelper {
       return;
     }
     if (LEGACY_CONTEXT_MANAGER_ENABLED) {
-      // Close request scopes left active for stream propagation, then restore the actor checkpoint.
+      // Close scopes above the actor checkpoint, including synchronous request scopes. Deferring
+      // them all to actor exit would let a batch of responses exhaust the scope depth limit.
       rollbackActiveToCheckpoint();
+      // Rollback consumes the checkpoint marker; restore it for the actor's eventual cleanup.
       checkpointActiveForRollback();
+      if (context == Context.current()) {
+        // An async response can resume the request context as the checkpointed scope itself.
+        // Leave that actor-owned scope open, but mask it before pushing the response downstream.
+        // Do not checkpoint the root scope: actor rollback must close it on exit.
+        Context.root().attach();
+      }
     } else {
       // There is one current context; detach it now and let actor exit restore its saved context.
       Context.root().swap();

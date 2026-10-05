@@ -85,6 +85,85 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
     Await.result(result, 10 seconds)
   }
 
+  def checkAsyncResponseContext(): Unit = {
+    import akka.stream.scaladsl.{BidiFlow, Flow, Sink, Source}
+    import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+    import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
+    import datadog.context.Context
+    import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+    import datadog.trace.core.DDSpan
+    import datadog.trace.instrumentation.akkahttp.DatadogServerRequestResponseFlowWrapper
+    import scala.concurrent.Promise
+
+    val respond                  = Promise[() => Unit]()
+    var previousContext: Context = null
+    var requestSpan: AgentSpan   = null
+    val handler                  = new GraphStage[FlowShape[HttpRequest, HttpResponse]] {
+      val in             = Inlet[HttpRequest]("async-response.in")
+      val out            = Outlet[HttpResponse]("async-response.out")
+      override val shape = FlowShape(in, out)
+
+      override def createLogic(attributes: Attributes): GraphStageLogic = new GraphStageLogic(
+        shape
+      ) {
+        private val response = getAsyncCallback[Unit] { _ =>
+          assert(activeSpan() eq requestSpan, "async callback did not resume the request context")
+          assert(!requestSpan.asInstanceOf[DDSpan].isFinished)
+          push(out, HttpResponse())
+          completeStage()
+        }
+        setHandler(
+          in,
+          new InHandler {
+            override def onPush(): Unit = {
+              grab(in)
+              requestSpan = activeSpan()
+              val requestContext = Context.current()
+              setKeepGoing(true)
+              respond.success(() => {
+                // Send an AsyncInput envelope carrying the request context from the test thread.
+                // The stream actor handles it in a later invocation, after request-scope cleanup.
+                val scope = requestContext.attach()
+                try response.invoke(())
+                finally scope.close()
+              })
+            }
+            override def onUpstreamFinish(): Unit = ()
+          }
+        )
+        setHandler(
+          out,
+          new OutHandler {
+            override def onPull(): Unit = pull(in)
+          }
+        )
+      }
+    }
+    val flow = BidiFlow
+      .fromGraph(new DatadogServerRequestResponseFlowWrapper(ServerSettings(system)))
+      .reversed
+      .join(Flow.fromGraph(handler))
+    val result = Source
+      .single(HttpRequest(uri = "/async-response-context"))
+      .map { request =>
+        previousContext = Context.current()
+        request
+      }
+      .via(flow)
+      .map { response =>
+        assert(requestSpan.asInstanceOf[DDSpan].isFinished)
+        assert(
+          Context.current() eq previousContext,
+          "finished request context is still active downstream"
+        )
+        response
+      }
+      .runWith(Sink.ignore)
+
+    Await.result(respond.future, 10 seconds)()
+    Await.result(result, 10 seconds)
+  }
+
   override def start(): Unit = {
     portBinding = Await.ready(binder.bind(0), 10 seconds)
     port = portBinding.value.get.get.localAddress.getPort
