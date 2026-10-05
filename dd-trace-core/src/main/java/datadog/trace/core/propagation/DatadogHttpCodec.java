@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.internal.util.LongStringUtils.isUnsignedLongZero;
 import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLong;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
@@ -188,9 +189,7 @@ class DatadogHttpCodec {
                   String spanIdValue = firstHeaderValue(value);
                   int len = spanIdValue.length();
                   long parsedSpanId = parseUnsignedLong(spanIdValue, 0, len, DDSpanId.ZERO);
-                  // ZERO is both a valid value and the invalid sentinel, so re-parse to tell
-                  if (parsedSpanId == DDSpanId.ZERO
-                      && parseUnsignedLong(spanIdValue, 0, len, DDSpanId.MAX) != DDSpanId.ZERO) {
+                  if (parsedSpanId == DDSpanId.ZERO && !isUnsignedLongZero(spanIdValue, 0, len)) {
                     return rejectInvalidId(SPAN_ID_KEY, spanIdValue);
                   }
                   spanId = parsedSpanId;

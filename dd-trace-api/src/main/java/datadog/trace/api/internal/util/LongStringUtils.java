@@ -97,8 +97,8 @@ public class LongStringUtils {
    * <p>Accepts 1 to 20 ASCII digits only: no sign, no whitespace, no non-ASCII digits. An unsigned
    * 64 bit value uses every bit, so no return value can mean "invalid" on its own. Callers pick an
    * {@code ifInvalid} that is impossible or harmless for their use, e.g. {@code 0} for trace and
-   * span ids. When a parsed value can equal {@code ifInvalid}, parsing again with a different
-   * {@code ifInvalid} tells the two apart.
+   * span ids. With {@code 0} as {@code ifInvalid}, {@link #isUnsignedLongZero} tells a real zero
+   * apart from invalid input.
    *
    * @param s CharSequence containing the decimal digits
    * @param start the start index of the decimal value
@@ -134,6 +134,28 @@ public class LongStringUtils {
       }
     }
     return result;
+  }
+
+  /**
+   * Whether {@code s[start, start + len)} is a zero that {@link #parseUnsignedLong(CharSequence,
+   * int, int, long)} accepts: 1 to 20 {@code '0'} characters. Callers that use {@code 0} as the
+   * invalid sentinel check this only when the parse returned {@code 0}.
+   *
+   * @param s CharSequence containing the decimal digits
+   * @param start the start index of the decimal value
+   * @param len the length of the decimal value
+   * @return true if the range parses to zero, false if it is zero-valued only as the sentinel
+   */
+  public static boolean isUnsignedLongZero(CharSequence s, int start, int len) {
+    if (s == null || len <= 0 || len > 20 || start < 0 || start + len > s.length()) {
+      return false;
+    }
+    for (int i = start, end = start + len; i < end; i++) {
+      if (s.charAt(i) != '0') {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static long parseUnsignedLongStrict(String s) throws NumberFormatException {

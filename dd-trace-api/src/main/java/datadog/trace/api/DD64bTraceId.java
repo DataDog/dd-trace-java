@@ -60,8 +60,7 @@ public class DD64bTraceId extends DDTraceId {
   public static DD64bTraceId fromOrNull(String s) {
     int len = s == null ? 0 : s.length();
     long id = LongStringUtils.parseUnsignedLong(s, 0, len, 0L);
-    // 0 is both a valid id and the invalid sentinel, so re-parse with another sentinel to tell
-    if (id == 0L && LongStringUtils.parseUnsignedLong(s, 0, len, -1L) != 0L) {
+    if (id == 0L && !LongStringUtils.isUnsignedLongZero(s, 0, len)) {
       return null;
     }
     return DD64bTraceId.create(id, s);
