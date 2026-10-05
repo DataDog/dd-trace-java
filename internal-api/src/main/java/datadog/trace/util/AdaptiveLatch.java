@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * A self-resetting switch between two ways of performing an operation whose failure depends on the
@@ -42,6 +43,7 @@ import javax.annotation.Nullable;
  * @param <R> the type of the result
  * @param <X> the failure that engages the latch; anything else propagates unchanged
  */
+@ThreadSafe
 public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
   private final Class<X> failureType;
   private final int closeAfter;
