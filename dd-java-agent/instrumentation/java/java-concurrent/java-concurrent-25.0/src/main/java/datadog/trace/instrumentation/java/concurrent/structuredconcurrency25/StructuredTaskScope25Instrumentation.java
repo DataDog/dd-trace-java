@@ -32,9 +32,6 @@ public class StructuredTaskScope25Instrumentation
   }
 
   public static final class CloseAdvice {
-    /** The {@code StructuredTaskScopeImpl.ST_CLOSED} state value (same from JDK 25 to 27). */
-    static final int ST_CLOSED = 4;
-
     /**
      * Cleans up the scope's {@link TaskScopeStateRegistry} when it closes, releasing the
      * continuation of every subtask whose thread never ran.
@@ -50,10 +47,14 @@ public class StructuredTaskScope25Instrumentation
      * @param scope The StructuredTaskScopeImpl object (using {@link Object} as the advice is
      *     compiled against Java 8, meaning the type from JDK 25 can't be referred directly).
      * @param state The StructuredTaskScopeImpl state.
+     * @param closedState The StructuredTaskScopeImpl closed state value.
      */
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterClose(@This Object scope, @FieldValue("state") int state) {
-      if (state != ST_CLOSED) {
+    public static void afterClose(
+        @This Object scope,
+        @FieldValue("state") int state,
+        @FieldValue("ST_CLOSED") int closedState) {
+      if (state != closedState) {
         return;
       }
       ContextStore<Object, TaskScopeStateRegistry> registryStore =
