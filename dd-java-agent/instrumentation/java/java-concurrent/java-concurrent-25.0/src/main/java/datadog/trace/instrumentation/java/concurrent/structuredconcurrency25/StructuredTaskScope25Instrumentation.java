@@ -60,7 +60,7 @@ public class StructuredTaskScope25Instrumentation
       ContextStore<Object, TaskScopeStateRegistry> registryStore =
           get(
               "java.util.concurrent.StructuredTaskScopeImpl",
-              "datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry");
+              TaskScopeStateRegistry.class.getName());
       TaskScopeStateRegistry registry = registryStore.remove(scope);
       if (registry != null) {
         registry.cancelAll();
