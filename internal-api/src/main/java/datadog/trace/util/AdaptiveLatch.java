@@ -8,7 +8,11 @@ import javax.annotation.Nullable;
  * it never skips the operation outright: a bad input says nothing about the next one. Instead, a
  * failure engages a cheap pre-check, {@link #isKnownToFail}, so that further bad input is turned
  * away before the operation pays for throwing, and {@link #closeAfter} consecutive successes
- * disengage it again. Disengaged, the only cost is one plain field read.
+ * disengage it again. Disengaged, it adds one plain field read to the operation's own work; {@code
+ * AdaptiveLatchBenchmark} measures what that costs.
+ *
+ * <p>It only helps while bad input arrives more often than once per {@link #closeAfter} calls.
+ * Spaced further apart, the latch disengages between them and every bad input still throws.
  *
  * <p>Intended as a {@code static final} field of a named final subclass, one per call site: the
  * receiver is then a constant of a known exact type, so the JIT can inline the hooks. The subclass
