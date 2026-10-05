@@ -8,8 +8,9 @@
       "cmds": [
         "**/java-1.5*/**/java",
         "**/java-1.6*/**/java",
+        "**/java-1.7*/**/java",
         "**/java-6*/**/java",
-        "**/java-7/**/java"
+        "**/java-7*/**/java"
       ],
       "args": [],
       "envars": null
@@ -101,7 +102,7 @@
     },
     {
       "id": "apache_cassandra_nodetool",
-      "description": "Instrumentation rule excludes Apache Cassandra nodetool",
+      "description": "Exclude Apache Cassandra nodetool",
       "os": null,
       "cmds": [
         "**/java"
@@ -169,7 +170,7 @@
     },
     {
       "id": "apache_cassandra_sstableutil",
-      "description": "ExcludeApache Cassandra sstableutil",
+      "description": "Exclude Apache Cassandra sstableutil",
       "os": null,
       "cmds": [
         "**/java"
@@ -424,7 +425,7 @@
     },
     {
       "id": "apache_lucene9_luke",
-      "description": "Exclude Apache Netbeans",
+      "description": "Exclude Apache Lucene 9 Luke",
       "os": null,
       "cmds": [
         "**/java"
@@ -610,18 +611,6 @@
       "envars": null
     },
     {
-      "id": "apache_solr9",
-      "description": "Exclude Apache Solr 9",
-      "os": null,
-      "cmds": [
-        "**/java"
-      ],
-      "args": [],
-      "envars": {
-        "SOLR_PORT": null
-      }
-    },
-    {
       "id": "java_xshare_dump",
       "description": "Exclude Java -Xshare:dump",
       "os": null,
@@ -654,6 +643,18 @@
         }
       ],
       "envars": null
+    },
+    {
+      "id": "apache_solr9",
+      "description": "Exclude Apache Solr 9",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [],
+      "envars": {
+        "SOLR_PORT": null
+      }
     }
   ],
   "native_deps": {
