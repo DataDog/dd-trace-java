@@ -528,7 +528,10 @@ public static class ContextTrackingAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
-        scope.close();
+        // null if the enter advice threw before attaching; see the design guidelines
+        if (scope != null) {
+            scope.close();
+        }
     }
 }
 ```

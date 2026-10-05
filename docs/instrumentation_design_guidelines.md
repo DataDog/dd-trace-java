@@ -81,3 +81,63 @@ Context ctx = Context.current();
 // GOOD - use the bytecode bridge, static-imported
 Context ctx = currentContext();
 ```
+
+### 4. Values bound into advice
+
+**Why not to assume they are set:**
+
+In advice, treat every bound value except `@Advice.This` as possibly `null`, including in exit advice:
+
+- `@Advice.Enter` and `@Advice.Local`: the enter advice may have returned `null` on purpose (a call-depth guard on a
+  nested call, a trace that isn't sampled, a disabled feature), or it may have thrown, in which case
+  `suppress = Throwable.class` swallowed the exception and the value kept its default, `null`
+- `@Advice.Return`: `null` (or `0`) when the instrumented method threw
+- `@Advice.Thrown`: `null` when the method returned normally
+- `@Advice.Argument` and `@Advice.FieldValue`: the application can pass or store `null`, whatever the library's
+  contract says
+
+`@Advice.This` is the exception, and even it is only partially initialized in a constructor (see
+[how instrumentations work](how_instrumentations_work.md)).
+
+Suppression hides the resulting `NullPointerException`, but not its effect: everything after it in the advice is
+skipped. A span that is never finished, a scope that is never closed (leaking context into whatever the thread does
+next), or a call depth that is never reset (which can silently turn the instrumentation off for that thread) all
+follow from one unexpected `null` or one throwing decorator.
+
+**What to do instead:**
+
+- Check `@Advice.Enter` and `@Advice.Local` values for `null` before using them, and return early.
+- Keep the order from rule 2, but put the bookkeeping (`scope.close()`, `span.finish()`, resetting a call depth) in a
+  `finally`, so a failure in a decorator can't skip it.
+- If the enter advice increments a call depth before work that can fail, make sure the exit advice still resets it
+  when the enter advice failed, not only when it produced a scope.
+
+```java
+// BAD - assumes the enter advice ran and produced a scope, and lets a decorator failure skip the cleanup
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void onExit(
+    @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+  final AgentSpan span = spanFromScope(scope);
+  DECORATE.onError(span, throwable);
+  DECORATE.beforeFinish(scope.context());
+  scope.close();
+  span.finish();
+}
+
+// GOOD - returns early when there's nothing to close, and always closes and finishes what was opened
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void onExit(
+    @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+  if (scope == null) {
+    return;
+  }
+  final AgentSpan span = spanFromScope(scope);
+  try {
+    DECORATE.onError(span, throwable);
+    DECORATE.beforeFinish(scope.context());
+  } finally {
+    scope.close();
+    span.finish();
+  }
+}
+```
