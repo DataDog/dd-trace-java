@@ -148,7 +148,7 @@ and `enabled` flag select the active checks:
     reason = "the fixture deliberately writes the root before draining callbacks; remove with ABC-123")
 ```
 
-With `enabled = true`, `checks` is a whitelist. With `enabled = false`, `checks` is removed from the
+With `enabled = true`, `checks` is an allow-list. With `enabled = false`, `checks` is removed from the
 default full set. Omitting `checks` therefore preserves the existing full enable/disable behavior.
 Any reduction from the full set requires a reason documenting the incompatibility and its removal
 condition.
