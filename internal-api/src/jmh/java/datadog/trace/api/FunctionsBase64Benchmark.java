@@ -2,6 +2,8 @@ package datadog.trace.api;
 
 import static datadog.trace.api.Functions.BASE64_DECODE;
 
+import datadog.trace.api.Functions.GuardedBase64Decode;
+import datadog.trace.util.AdaptiveLatch;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.function.Function;
@@ -23,14 +25,18 @@ import org.openjdk.jmh.infra.Blackhole;
  * kicks in for this call site under sustained repeated throws, or whether the caught path pays for
  * a full stack trace fill-in every time.
  *
- * <p>It also measures a reusable form of the guard. {@link AdaptiveLatch} is a local sketch of the
- * shape discussed in APMLP-1884: an abstract class whose subclass <em>is</em> the strategy (an
- * optimistic parse, a cheap correct pre-check, and a stackless failure), held in a {@code static
- * final}. It replaces an earlier pair of generic variants that stored the strategy in a field or
- * took it at call time, which are not needed once the subclass carries the hooks. It has two public
- * flavors: {@link AdaptiveLatch#get} lets the failure flow to the caller (throwing a stackless
- * stand-in while engaged), and {@link AdaptiveLatch#tryApply} converts it to {@code null} and never
- * builds an exception at all while engaged.
+ * <p>It also measures the reusable form of the guard, {@link AdaptiveLatch} (APMLP-1884): an
+ * abstract class whose subclass <em>is</em> the strategy (an optimistic parse and a cheap, correct
+ * pre-check), held in a {@code static final}. The arms use the production subclass, {@link
+ * Functions.GuardedBase64Decode}. {@link AdaptiveLatch#tryApply} converts a failure to {@code null}
+ * and never builds an exception at all while engaged.
+ *
+ * <p>The numbers below were measured on an earlier, benchmark-local sketch of the latch, then named
+ * {@code DynamicLatch}, with {@code tryGetOrNull} for {@code tryApply}, before {@code fallback} was
+ * added and before the pre-check stopped rejecting unpadded input. The sketch also had a
+ * flow-through flavor, {@code get}, which threw a stackless stand-in while engaged; it was dropped
+ * when the latch moved into production because no caller needs it, and its arms were removed. The
+ * hand-written throwing {@link Breaker} still measures that shape. Not re-measured since.
  *
  * <p>The hand-written {@link Breaker} is the specialized baseline the latch is compared against.
  *
@@ -44,8 +50,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * always pre-check                            71.3           2.75
  * hand-written Breaker, converting            31.2           2.73
  * hand-written Breaker, throwing              31.4           11.6
- * AdaptiveLatch.tryApply                      31.1           2.78
- * AdaptiveLatch.get                           31.2           11.5
+ * sketch, converting (tryApply)               31.1           2.78
+ * sketch, flow-through (get)                  31.2           11.5
  *
  * Mix, ns/op, one invalid input in every N
  *      N  unguarded  pre-check  Breaker  throwing  latch.get      tryApply
@@ -61,9 +67,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * 35.3 ns). While engaged, the converting flavor costs about 2.8 ns where the status quo costs
  * about 906 ns; the flow-through flavor costs about 11.5 ns, the price of building a stackless
  * exception. Always pre-checking more than doubles the cost of valid input (71 ns against 30 ns),
- * which is what the adaptive form avoids. (Measured before {@code fallback} was added, while the
- * sketch was {@code DynamicLatch} and {@code tryApply} was {@code tryGetOrNull}; the default {@code
- * null} fallback is expected to inline away, but has not been re-measured.)
+ * which is what the adaptive form avoids.
  *
  * <p>It is a tradeoff, not a free win. With one invalid input in 100 or rarer, the guard costs 1 to
  * 4 ns over doing nothing and is about 24 to 34 ns cheaper than always pre-checking. With a high
@@ -176,151 +180,28 @@ public class FunctionsBase64Benchmark {
     }
   }
 
-  /**
-   * Local sketch of a {@code AdaptiveLatch}: the subclass supplies the strategy, so there is no
-   * separate handler object and no question of storing it in a field versus passing it per call.
-   *
-   * <p>Two states with hysteresis: closed (optimistic path) and engaged (guarded path). A failure
-   * of the declared type engages it, and {@link #closeAfter()} consecutive successes disengage it.
-   * It counts calls, not time, never rejects a call, and keeps plain racy state: a stale read costs
-   * one more pre-check or one more exception, never a wrong result.
-   *
-   * <p>Three hooks, all cheap to state: {@link #apply}, {@link #isKnownToFail} and {@link
-   * #stacklessFailure}. The last is needed only by {@link #get}; {@link #tryApply} converts the
-   * failure to {@link #fallback} and never builds an exception while engaged. {@link #fallback} is
-   * {@code null} unless overridden, as on {@code Latch} and {@code ClassLatch}.
-   *
-   * @param <I> input type
-   * @param <O> result type
-   * @param <X> the failure this latch reacts to (unchecked here, to keep the sketch small)
-   */
-  abstract static class AdaptiveLatch<I, O, X extends RuntimeException> {
-    private final Class<X> failureType;
-    private int state;
-
-    AdaptiveLatch(Class<X> failureType) {
-      this.failureType = failureType;
-    }
-
-    /**
-     * The operation, optimistically (for a parser, the parse). May throw {@code X} for bad input.
-     */
-    abstract O apply(I input);
-
-    /**
-     * A cheap, correct pre-check: true only if {@link #apply} would definitely fail. Never throws.
-     */
-    abstract boolean isKnownToFail(I input);
-
-    /** A failure to throw while engaged. Must carry no stack trace, and must not be shared. */
-    abstract X stacklessFailure(I input);
-
-    /** What a failed or known-to-fail input yields from {@link #tryApply}. */
-    O fallback(I input) {
-      return null;
-    }
-
-    /** How many consecutive successes disengage the latch. */
-    int closeAfter() {
-      return CLOSE_THRESHOLD;
-    }
-
-    /** Flow-through: the caller sees the failure, but while engaged it costs no stack trace. */
-    final O get(I input) {
-      if (state > 0 && isKnownToFail(input)) {
-        throw stacklessFailure(input);
-      }
-      try {
-        O result = apply(input);
-        if (state > 0) {
-          state--;
-        }
-        return result;
-      } catch (RuntimeException e) {
-        if (failureType.isInstance(e)) {
-          state = closeAfter();
-        }
-        throw e;
-      }
-    }
-
-    /** Converting: {@link #fallback} for bad input. While engaged, no exception is built at all. */
-    final O tryApply(I input) {
-      if (state > 0 && isKnownToFail(input)) {
-        return fallback(input);
-      }
-      try {
-        O result = apply(input);
-        if (state > 0) {
-          state--;
-        }
-        return result;
-      } catch (RuntimeException e) {
-        if (!failureType.isInstance(e)) {
-          throw e;
-        }
-        state = closeAfter();
-        return fallback(input);
-      }
-    }
-  }
-
-  /** The Base64 strategy. A named final class, so a field of this type has an exact type. */
-  static final class Base64Latch extends AdaptiveLatch<byte[], String, IllegalArgumentException> {
-    Base64Latch() {
-      super(IllegalArgumentException.class);
-    }
-
-    @Override
-    String apply(byte[] input) {
-      return new String(Base64.getDecoder().decode(input), StandardCharsets.UTF_8);
-    }
-
-    @Override
-    boolean isKnownToFail(byte[] input) {
-      return !looksLikeBase64(input);
-    }
-
-    @Override
-    IllegalArgumentException stacklessFailure(byte[] input) {
-      return new FastFailBase64Exception();
-    }
-  }
-
   final Breaker breakerForValid = new Breaker();
   final Breaker breakerForInvalid = new Breaker();
   final Breaker breakerThrowingForValid = new Breaker();
   final Breaker breakerThrowingForInvalid = new Breaker();
 
   // One latch per arm, each a static final of the exact type, as a call site would hold it.
-  static final Base64Latch LATCH_FLOW_VALID = new Base64Latch();
-  static final Base64Latch LATCH_FLOW_INVALID = new Base64Latch();
-  static final Base64Latch LATCH_CONVERT_VALID = new Base64Latch();
-  static final Base64Latch LATCH_CONVERT_INVALID = new Base64Latch();
-  static final Base64Latch LATCH_FLOW_MIX = new Base64Latch();
-  static final Base64Latch LATCH_CONVERT_MIX = new Base64Latch();
+  static final GuardedBase64Decode LATCH_CONVERT_VALID = new GuardedBase64Decode();
+  static final GuardedBase64Decode LATCH_CONVERT_INVALID = new GuardedBase64Decode();
+  static final GuardedBase64Decode LATCH_CONVERT_MIX = new GuardedBase64Decode();
 
-  /** Fails fast if the sketch does not behave as the benchmark assumes. */
+  /** Fails fast if the latch does not behave as the benchmark assumes. */
   @Setup
-  public void checkTheSketchBehaves() {
-    Base64Latch latch = new Base64Latch();
+  public void checkTheLatchBehaves() {
+    GuardedBase64Decode latch = new GuardedBase64Decode();
     String expected = new String(Base64.getDecoder().decode(VALID), StandardCharsets.UTF_8);
-    if (!expected.equals(latch.get(VALID)) || !expected.equals(latch.tryApply(VALID))) {
+    if (!expected.equals(latch.tryApply(VALID))) {
       throw new IllegalStateException("a valid value must decode");
     }
-    if (latch.tryApply(INVALID) != null) {
-      throw new IllegalStateException("bad input must convert to null");
+    if (latch.tryApply(INVALID) != null || !latch.isEngaged()) {
+      throw new IllegalStateException("bad input must convert to null and engage the latch");
     }
-    // the failure above engaged it: the flow-through flavor must now fail without a stack trace
-    try {
-      latch.get(INVALID);
-      throw new IllegalStateException("bad input must throw");
-    } catch (FastFailBase64Exception e) {
-      if (e.getStackTrace().length != 0) {
-        throw new IllegalStateException("the stand-in must carry no stack trace");
-      }
-    }
-    if (!expected.equals(latch.get(VALID))) {
+    if (!expected.equals(latch.tryApply(VALID))) {
       throw new IllegalStateException("good input must still decode while engaged");
     }
   }
@@ -344,20 +225,6 @@ public class FunctionsBase64Benchmark {
   public void breakerThrowingInvalid(Blackhole bh) {
     try {
       bh.consume(breakerThrowingForInvalid.decodeOrThrow(INVALID));
-    } catch (IllegalArgumentException e) {
-      bh.consume(e);
-    }
-  }
-
-  @Benchmark
-  public void latchFlowValid(Blackhole bh) {
-    bh.consume(LATCH_FLOW_VALID.get(VALID));
-  }
-
-  @Benchmark
-  public void latchFlowInvalid(Blackhole bh) {
-    try {
-      bh.consume(LATCH_FLOW_INVALID.get(INVALID));
     } catch (IllegalArgumentException e) {
       bh.consume(e);
     }
@@ -434,16 +301,6 @@ public class FunctionsBase64Benchmark {
     byte[] bytes = mix.next();
     try {
       bh.consume(mix.throwingBreaker.decodeOrThrow(bytes));
-    } catch (IllegalArgumentException e) {
-      bh.consume(e);
-    }
-  }
-
-  @Benchmark
-  public void mixLatchFlow(Mix mix, Blackhole bh) {
-    byte[] bytes = mix.next();
-    try {
-      bh.consume(LATCH_FLOW_MIX.get(bytes));
     } catch (IllegalArgumentException e) {
       bh.consume(e);
     }

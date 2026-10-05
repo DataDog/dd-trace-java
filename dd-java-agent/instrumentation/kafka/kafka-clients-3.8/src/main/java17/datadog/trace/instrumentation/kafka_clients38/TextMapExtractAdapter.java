@@ -34,7 +34,7 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
   public TextMapExtractAdapter(boolean decodeBase64Headers, boolean guardEnabled) {
     if (decodeBase64Headers) {
       this.headerValueTransformer =
-          guardEnabled ? new Functions.GuardedBase64Decode()::decodeOrNull : BASE64_DECODE;
+          guardEnabled ? new Functions.GuardedBase64Decode()::tryApply : BASE64_DECODE;
       this.decoder = Base64.getDecoder();
     } else {
       this.headerValueTransformer = UTF8_BYTES_TO_STRING;

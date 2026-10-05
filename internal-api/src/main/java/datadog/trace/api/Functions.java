@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.function.Function.identity;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.util.AdaptiveLatch;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -190,26 +191,23 @@ public final class Functions {
       };
 
   /**
-   * Base64-decodes bytes that occasionally aren't valid Base64 at all (e.g. a misconfigured
-   * upstream producer sending mixed encodings), without paying for {@link Base64}'s decoder
-   * throwing and filling in a stack trace on every one of those failures.
+   * Base64-decodes bytes that are occasionally not Base64 at all, for example header values from a
+   * misconfigured producer that mixes encodings, without paying for {@link Base64}'s decoder to
+   * throw, and fill in a stack trace, on every one of them. Returns {@code null} for input that
+   * does not decode, like {@link #BASE64_DECODE}.
    *
-   * <p>Tracks a simple hysteresis "breaker": after a real decode failure it switches into a guarded
-   * state and cheaply pre-checks the Base64 alphabet before calling into {@link Base64}'s decoder,
-   * until enough consecutive inputs look valid again to close the guard. A precheck-detected
-   * failure throws {@link DefinitelyNotBase64Exception}, a stack-trace-free stand-in, so the {@link
-   * #decode} contract still matches {@link Base64}'s own (throws {@link IllegalArgumentException}
-   * on failure); a failure the precheck misses still throws the JDK's own exception, unmodified,
-   * with its real message and stack trace.
+   * <p>After a real decode failure, input is pre-checked until {@link #closeAfter} consecutive
+   * inputs decode again (see {@link AdaptiveLatch}). The pre-check turns away only input the
+   * decoder would definitely reject: a byte outside the Base64 alphabet, or a length that leaves a
+   * single character in the final unit. Padding is optional for {@link Base64#getDecoder()}, so
+   * unpadded and empty input are never turned away.
    *
-   * <p>Not safe for concurrent use by multiple threads expecting independent guard state — the
-   * guard state is a plain (non-volatile, non-atomic) field on purpose: it's advisory hysteresis,
-   * not correctness-critical, so a stale read across threads just costs one extra precheck or one
-   * extra real exception.
+   * <p>One instance can be shared across threads: its state is advisory, so a stale read costs one
+   * extra pre-check or one extra real failure, never a wrong result.
    */
-  public static final class GuardedBase64Decode {
-
-    private static final int CLOSE_THRESHOLD = 20;
+  public static final class GuardedBase64Decode
+      extends AdaptiveLatch<byte[], String, IllegalArgumentException> {
+    /** The basic Base64 alphabet, plus the padding character. */
     private static final boolean[] BASE64_ALPHABET = buildAlphabetTable();
 
     private static boolean[] buildAlphabetTable() {
@@ -221,62 +219,36 @@ public final class Functions {
       return table;
     }
 
-    // Branch-free per byte on purpose: a data-dependent early exit helps the rare "bad byte
-    // early" case but hurts the common valid case, which always scans the whole buffer anyway.
-    private static boolean looksLikeBase64(byte[] bytes) {
-      if (bytes.length == 0 || (bytes.length & 3) != 0) {
-        return false;
+    public GuardedBase64Decode() {
+      super(IllegalArgumentException.class);
+    }
+
+    @Override
+    protected String apply(byte[] bytes) {
+      return new String(Base64.getDecoder().decode(bytes), UTF_8);
+    }
+
+    @Override
+    protected boolean isKnownToFail(byte[] bytes) {
+      return isDefinitelyNotBase64(bytes);
+    }
+
+    /**
+     * Whether {@link Base64#getDecoder()} would definitely reject {@code bytes}. Lenient on
+     * purpose: misplaced padding, for example, is left for the decoder to reject.
+     */
+    static boolean isDefinitelyNotBase64(byte[] bytes) {
+      // a final unit of one character can never be decoded, however it is padded
+      if ((bytes.length & 3) == 1) {
+        return true;
       }
+      // branch-free per byte on purpose: an early exit helps only the rare bad-byte-early case,
+      // and good input always scans the whole buffer anyway
       boolean valid = true;
       for (byte b : bytes) {
         valid &= BASE64_ALPHABET[b & 0xFF];
       }
-      return valid;
-    }
-
-    /** Thrown only when the alphabet precheck already knows decoding would fail. */
-    public static final class DefinitelyNotBase64Exception extends IllegalArgumentException {
-      private static final String MESSAGE = "Input is not valid Base64";
-
-      DefinitelyNotBase64Exception() {
-        super(MESSAGE);
-      }
-
-      // No caller needs a stack trace for a failure we already knew about before calling into
-      // Base64's decoder, so skip the walk that gives java.util.Base64's own exception its cost.
-      @Override
-      public synchronized Throwable fillInStackTrace() {
-        return this;
-      }
-    }
-
-    // Single-word countdown: 0 == closed (no precheck), >0 == guarded, counting down to close.
-    private int state;
-
-    /** Decodes {@code bytes}, throwing {@link IllegalArgumentException} on failure. */
-    public String decode(byte[] bytes) {
-      if (state > 0 && !looksLikeBase64(bytes)) {
-        throw new DefinitelyNotBase64Exception();
-      }
-      try {
-        String result = new String(Base64.getDecoder().decode(bytes), UTF_8);
-        if (state > 0) {
-          state--;
-        }
-        return result;
-      } catch (IllegalArgumentException e) {
-        state = CLOSE_THRESHOLD;
-        throw e;
-      }
-    }
-
-    /** Decodes {@code bytes}, returning {@code null} on failure instead of throwing. */
-    public String decodeOrNull(byte[] bytes) {
-      try {
-        return decode(bytes);
-      } catch (IllegalArgumentException e) {
-        return null;
-      }
+      return !valid;
     }
   }
 }
