@@ -168,7 +168,8 @@ class JMSDecoratorGetDestinationTest {
 
   @Test
   void aDifferentClassIsUnaffectedByAnotherClassesLatch() throws Exception {
-    // latch one QueueSender class
+    // latch one QueueSender class -- Cloneable keeps it distinct from the proxy class latched in
+    // fallsBackToGetQueueAndLatchesTheClass, so the two tests don't depend on run order
     AtomicInteger latchedCalls = new AtomicInteger();
     Queue queue =
         (Queue)
@@ -179,7 +180,7 @@ class JMSDecoratorGetDestinationTest {
     AtomicReference<MessageProducer> latched = new AtomicReference<>();
     MessageProducer latchedProducer =
         producer(
-            new Class<?>[] {QueueSender.class},
+            new Class<?>[] {QueueSender.class, Cloneable.class},
             latchedCalls,
             () -> {
               throw unimplemented(latched.get());
