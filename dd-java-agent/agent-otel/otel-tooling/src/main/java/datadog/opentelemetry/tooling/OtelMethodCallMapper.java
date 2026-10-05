@@ -1,10 +1,9 @@
 package datadog.opentelemetry.tooling;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.FAST_STORE_ID_LIMIT;
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.FAST_STORE_ID_LIMIT;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 
-import datadog.trace.bootstrap.FieldBackedContextStore;
-import datadog.trace.bootstrap.FieldBackedContextStores;
+import datadog.trace.bootstrap.ContextStores;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
@@ -17,15 +16,12 @@ public final class OtelMethodCallMapper extends MethodRemapper {
   private static final String VIRTUAL_FIELD_CLASS =
       "io/opentelemetry/javaagent/shaded/instrumentation/api/util/VirtualField";
 
-  private static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
-      Type.getInternalName(FieldBackedContextStores.class);
+  private static final String CONTEXT_STORES_FACTORY_CLASS =
+      Type.getType(ContextStores.STORES_DESCRIPTOR).getInternalName();
 
   private static final String GET_CONTENT_STORE_METHOD = "getContextStore";
   private static final String GET_CONTENT_STORE_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(Type.getType(FieldBackedContextStore.class), Type.INT_TYPE);
-
-  private static final String FIELD_BACKED_CONTENT_STORE_DESCRIPTOR =
-      Type.getDescriptor(FieldBackedContextStore.class);
+      Type.getMethodDescriptor(Type.getType(ContextStores.STORE_DESCRIPTOR), Type.INT_TYPE);
 
   private static final String FAST_CONTENT_STORE_PREFIX = "contextStore";
 
@@ -98,14 +94,14 @@ public final class OtelMethodCallMapper extends MethodRemapper {
     if (storeId < FAST_STORE_ID_LIMIT) {
       mv.visitFieldInsn(
           Opcodes.GETSTATIC,
-          FIELD_BACKED_CONTEXT_STORES_CLASS,
+          CONTEXT_STORES_FACTORY_CLASS,
           FAST_CONTENT_STORE_PREFIX + storeId,
-          FIELD_BACKED_CONTENT_STORE_DESCRIPTOR);
+          ContextStores.STORE_DESCRIPTOR);
     } else {
       mv.visitLdcInsn(storeId);
       mv.visitMethodInsn(
           Opcodes.INVOKESTATIC,
-          FIELD_BACKED_CONTEXT_STORES_CLASS,
+          CONTEXT_STORES_FACTORY_CLASS,
           GET_CONTENT_STORE_METHOD,
           GET_CONTENT_STORE_METHOD_DESCRIPTOR,
           false);
