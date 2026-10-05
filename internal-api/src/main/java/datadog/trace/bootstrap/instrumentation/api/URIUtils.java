@@ -9,6 +9,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,7 +125,15 @@ public class URIUtils {
     return urlNoParams.toString();
   }
 
-  public static URI safeParse(final String unparsed) {
+  /**
+   * Parses the given string as a {@link URI} without throwing.
+   *
+   * @param unparsed The string to parse
+   * @return The parsed {@code URI}, or {@code null} if {@code unparsed} is {@code null} or is not a
+   *     valid URI
+   */
+  @Nullable
+  public static URI safeParse(@Nullable final String unparsed) {
     if (unparsed == null) {
       return null;
     }

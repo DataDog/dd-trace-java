@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.agent.test.assertions.TraceAssertions;
 import datadog.trace.agent.test.assertions.TraceMatcher;
-import datadog.trace.agent.test.scopediag.ScopeDiagnosticsExtension;
+import datadog.trace.agent.test.scopediag.TrackScopeContinuations;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.TracerInstaller;
@@ -56,11 +56,11 @@ import org.opentest4j.AssertionFailedError;
  * </ul>
  */
 @WithConfig(key = "detailed.instrumentation.errors", value = "true")
+@TrackScopeContinuations
 @ExtendWith({
   TestClassShadowingExtension.class,
   AllowContextTestingExtension.class,
-  LegacyContextTestingExtension.class,
-  ScopeDiagnosticsExtension.class
+  LegacyContextTestingExtension.class
 })
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
@@ -88,7 +88,7 @@ public abstract class AbstractInstrumentationTest {
         CoreTracer.builder()
             .writer(writer)
             .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
-            .strictTraceWrites(testConfig.strictTraceWrites)
+            .strictTraceWrites(true)
             .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
@@ -230,15 +230,9 @@ public abstract class AbstractInstrumentationTest {
   /** Configuration for {@link AbstractInstrumentationTest}. */
   protected static class InstrumentationTestConfig {
     private String idGenerationStrategy = "SEQUENTIAL";
-    private boolean strictTraceWrites = true;
 
     public InstrumentationTestConfig idGenerationStrategy(String strategy) {
       this.idGenerationStrategy = strategy;
-      return this;
-    }
-
-    public InstrumentationTestConfig strictTraceWrites(boolean strict) {
-      this.strictTraceWrites = strict;
       return this;
     }
   }

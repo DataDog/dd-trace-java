@@ -18,6 +18,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.internal.util.LongStringUtils;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -92,7 +93,10 @@ class W3CHttpCodec {
       // shared state, so concurrent sibling injects can't race on it.
       String tracestate =
           propagationTags.headerValue(
-              W3C, DDSpanId.toHexStringPadded(context.getSpanId()), samplingState);
+              W3C,
+              DDSpanId.toHexStringPadded(context.getSpanId()),
+              LLMObsInternal.propagationValuesFor(context),
+              samplingState);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
