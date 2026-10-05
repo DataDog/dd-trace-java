@@ -17,12 +17,15 @@ import datadog.trace.api.function.Strategy;
  *       outlives the span (e.g. {@code Connection -> DbInfo}, extracted once and cached).
  * </ul>
  *
- * <p>This is an authoring aid meant to compile to ~zero — the opposite of a Decorator. Intended as
- * a {@code static final}, non-capturing lambda invoked from the integration's own advice: a
- * monomorphic call site the JIT devirtualizes and inlines (strictly better than dispatching through
- * the decorator hierarchy). Never route many extractors through one shared site. Targets {@link
- * AgentSpan} so it can also drive span-level state (resource name, error, status) during the
- * transition; that surface narrows as those fields migrate into the tag model.
+ * <p>This is an authoring aid meant to compile to ~zero — the opposite of a Decorator. It is a
+ * {@link datadog.trace.api.function.Strategy}: bind it at the call site, preferably as a named
+ * class held in a {@code static final} field of that concrete class ({@code XExtractor.INSTANCE});
+ * a non-capturing lambda constant is accepted but is the weaker, speculative shape. The consumer,
+ * {@link AgentSpan#setTagsFrom(Object, TagExtractor)}, is small so it inlines and each call site
+ * sees the exact extractor type. Don't hold extractors in a field or collection of the abstract
+ * type and dispatch from there. Targets {@link AgentSpan} so it can also drive span-level state
+ * (resource name, error, status) during the transition; that surface narrows as those fields
+ * migrate into the tag model.
  *
  * <p>Apply it with {@link AgentSpan#setTagsFrom(Object, TagExtractor)}.
  *

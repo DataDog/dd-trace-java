@@ -113,9 +113,10 @@ public interface AgentSpan
    * Sets tags on this span by applying a {@link TagExtractor} to a foreign source — the span-first,
    * product-dev-facing form of {@code extractor.extract(source, this)}. Named {@code setTagsFrom},
    * not {@code setTags}, because {@code source} is not itself a tag value: {@code setTag(name,
-   * value)} stores one value, while this derives any number of tags from {@code source}. The extra
-   * indirection inlines away at a monomorphic call site. This is also the seam where the whole
-   * extraction can be coarse-locked (one critical section) — an implementer may override to do so.
+   * value)} stores one value, while this derives any number of tags from {@code source}. Kept small
+   * so it inlines: each call site then sees the exact extractor type (see {@link
+   * datadog.trace.api.function.Strategy}). This is also the seam where the whole extraction can be
+   * coarse-locked (one critical section) — an implementer may override to do so.
    */
   @StrategyConsumer
   default <T> AgentSpan setTagsFrom(final T source, final TagExtractor<T> extractor) {

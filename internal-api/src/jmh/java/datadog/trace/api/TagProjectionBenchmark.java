@@ -29,17 +29,21 @@ import org.openjdk.jmh.annotations.Warmup;
  *       → they should ~tie (the abstraction is free at the decorator's BEST case — charitable,
  *       since a real program loads many decorators).
  *   <li><b>mega</b> — {@link #TYPES} equivalent loaded types, exercised so the call site (and, for
- *       the decorator, the shared base's template-method calls) go megamorphic. The decorator is
- *       FORCED here in reality (its template dispatch is structural). Extractor/contributor are
- *       shown in mega too to prove they are not magic: routed through a shared megamorphic site
- *       they degrade identically. The real win is that they CAN stay mono (per-integration site)
- *       and the decorator cannot.
+ *       the decorator, the shared base's template-method calls) go megamorphic. This models the
+ *       failure mode where the binding isn't visible to the JIT, so devirtualization falls back to
+ *       receiver profiles. All three degrade; the decorator degrades most because it makes one
+ *       dynamic dispatch per hook, where an extractor or contributor makes one in total.
  * </ul>
+ *
+ * <p>Receivers here come from arrays at a private call site, so every arm measures profile-driven
+ * dispatch. Production instead binds a {@code static final} constant at the call site through a
+ * small shared consumer ({@code setTagsFrom}), which devirtualizes on the exact type when the
+ * consumer inlines (see {@link datadog.trace.api.function.Strategy}); the decorator gets the same
+ * benefit only when its larger template method inlines. These arms don't model that shape.
  *
  * <p>Run with {@code -prof gc} (captures should stay flat) and {@code -XX:+PrintInlining} to
  * confirm the mechanism: decorator template calls megamorphic/not-inlined under mega;
- * extractor/contributor inlined under mono. Throughput is the headline; per your methodology,
- * multi-thread reveals alloc pressure and 3+ forks expose bimodal JIT/devirt behavior.
+ * extractor/contributor inlined under mono. 3+ forks expose bimodal JIT/devirtualization behavior.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.Throughput)
@@ -53,6 +57,8 @@ public class TagProjectionBenchmark {
 
   @Param({"mono", "mega"})
   String mode;
+
+  private boolean mono;
 
   /** Light DCE-safe stand-in for the span — identical trivial work per set across all arms. */
   static final class Sink {
@@ -118,6 +124,7 @@ public class TagProjectionBenchmark {
 
   @Setup(Level.Trial)
   public void setup() {
+    this.mono = "mono".equals(this.mode);
     this.sink = new Sink();
     this.pojos = new DbPojo[TYPES];
     this.decorators = new TemplateDecorator[TYPES];
@@ -132,7 +139,9 @@ public class TagProjectionBenchmark {
     }
   }
 
-  // distinct concrete types per index so 'mega' has TYPES loaded implementations to megamorphize
+  // distinct concrete types per index so 'mega' has TYPES loaded implementations to megamorphize.
+  // Keep these bodies separate even though they repeat: a shared base class or a shared lambda
+  // would give the JIT a single implementation to inline, and 'mega' would quietly measure 'mono'.
   private static TemplateDecorator newDecorator(int i) {
     switch (i) {
       case 0:
@@ -343,7 +352,7 @@ public class TagProjectionBenchmark {
 
   // mono: always index 0 (one type at the site). mega: rotate -> the site sees all TYPES.
   private int next() {
-    if ("mono".equals(this.mode)) return 0;
+    if (this.mono) return 0;
     int i = this.idx + 1;
     if (i >= TYPES) i = 0;
     this.idx = i;
