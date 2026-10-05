@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.version.Version
+import kotlin.random.Random
 
 class VersionSet(
   versions: Collection<Version>,
@@ -8,6 +9,7 @@ class VersionSet(
 ) {
   private val orderedVersions = versions.sorted()
   private val sortedVersions = versions.map { ParsedVersion(it) }.sorted()
+  private val groups by lazy { sortedVersions.groupBy { it.majorMinor } }
   private val eligibility = mutableMapOf<Version, Boolean>()
 
   val lowestEligibleVersion: Version?
@@ -20,24 +22,52 @@ class VersionSet(
   val lowAndHighForMajorMinor: List<Version>
     get() {
       val resultSet = sortedSetOf<ParsedVersion>()
-      for (group in sortedVersions.groupBy { it.majorMinor }.values) {
+      for (group in groups.values) {
         val lowIndex = group.indexOfFirst { eligible(it.version) }
         if (lowIndex < 0) continue
         resultSet.add(group[lowIndex])
 
-        var high: ParsedVersion? = null
-        for (index in group.lastIndex downTo lowIndex + 1) {
-          val candidate = group[index]
-          if (high != null && candidate.compareTo(high) != 0) break
-          if (eligible(candidate.version)) {
-            // Preserve the first eligible spelling of equivalent parsed versions.
-            high = candidate
-          }
-        }
-        high?.let { resultSet.add(it) }
+        highestInGroup(group, lowIndex)?.let { resultSet.add(it) }
       }
       return resultSet.map { it.version }
     }
+
+  /** Sample before looking up ages; only deferred candidates require extra backfill probes. */
+  internal fun sampleEligibleBoundaries(limit: Int, random: Random): Set<Version> {
+    val lowest = lowestEligibleVersion ?: return emptySet()
+    val highest = highestEligibleVersion!!
+    val candidates = sortedSetOf<ParsedVersion>()
+    groups.values.forEach { group ->
+      candidates.add(group.first())
+      candidates.add(group.first { it.compareTo(group.last()) == 0 })
+    }
+    val selected = linkedSetOf(lowest, highest)
+    // The original sampler discards from the front of a shuffled boundary list, protecting extrema.
+    for (candidate in candidates.shuffled(random).asReversed()) {
+      if (selected.size >= limit) break
+      val group = groups.getValue(candidate.majorMinor)
+      val replacement = if (candidate == group.first()) {
+        group.firstOrNull { eligible(it.version) }
+      } else {
+        highestInGroup(group)
+      }
+      replacement?.let { selected.add(it.version) }
+    }
+    return selected
+  }
+
+  private fun highestInGroup(group: List<ParsedVersion>, lowIndex: Int = -1): ParsedVersion? {
+    var high: ParsedVersion? = null
+    for (index in group.lastIndex downTo lowIndex + 1) {
+      val candidate = group[index]
+      if (high != null && candidate.compareTo(high) != 0) break
+      if (eligible(candidate.version)) {
+        // Preserve the first eligible spelling of equivalent parsed versions.
+        high = candidate
+      }
+    }
+    return high
+  }
 
   private fun eligible(version: Version): Boolean = eligibility.getOrPut(version) { isEligible(version) }
 

@@ -1,11 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.repository.RemoteRepository
-import org.gradle.api.GradleException
 import org.gradle.api.logging.Logging
-import org.gradle.api.provider.Property
-import org.gradle.api.services.BuildService
-import org.gradle.api.services.BuildServiceParameters
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -13,6 +9,7 @@ import java.net.URLConnection
 import java.time.Instant
 import java.time.temporal.ChronoUnit.HOURS
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Publication timestamps and a fixed cutoff shared by muzzle checks in one build. */
 internal class MuzzleDependencyAge(
@@ -26,6 +23,10 @@ internal class MuzzleDependencyAge(
   private val cutoff = buildStartedAt.minus(minimumAgeHours.toLong(), HOURS)
   private val timestamps = ConcurrentHashMap<String, Timestamp>()
   private val unavailableRepositories = ConcurrentHashMap<String, Timestamp>()
+  private val lookups = AtomicInteger()
+
+  val timestampLookupCount: Int
+    get() = lookups.get()
 
   init {
     require(minimumAgeHours >= 0) { "Muzzle minimum dependency age must be non-negative" }
@@ -52,6 +53,7 @@ internal class MuzzleDependencyAge(
       val url = "$repositoryUrl/$pomPath"
       val timestamp = timestamps[url] ?: unavailableRepositories[repositoryUrl] ?: timestamps.computeIfAbsent(url) {
         try {
+          lookups.incrementAndGet()
           lookup(it)
         } catch (e: IOException) {
           if (repositoryUrl.startsWith("https://") || repositoryUrl.startsWith("http://")) {
@@ -88,14 +90,6 @@ internal class MuzzleDependencyAge(
       "https://repo1.maven.org/maven2/"
     ).build()
 
-    fun minimumAgeHours(property: String?, environment: String?): Int {
-      val raw = property ?: environment ?: "48"
-      return raw.toIntOrNull()?.takeIf { it >= 0 }
-        ?: throw GradleException(
-          "muzzleMinDependencyAgeHours / MIN_DEPENDENCY_AGE_HOURS must be a non-negative integer"
-        )
-    }
-
     /** Read the POM's Last-Modified header with short best-effort timeouts and no retries. */
     private fun readTimestamp(url: String): Timestamp {
       var connection: URLConnection? = null
@@ -124,16 +118,5 @@ internal class MuzzleDependencyAge(
         if (connection is HttpURLConnection) connection.disconnect()
       }
     }
-  }
-}
-
-/** Keeps timestamp caching scoped to a build, including when a Gradle daemon is reused. */
-internal abstract class MuzzleDependencyAgeService : BuildService<MuzzleDependencyAgeService.Parameters> {
-  interface Parameters : BuildServiceParameters {
-    val minimumAgeHours: Property<Int>
-  }
-
-  val age: MuzzleDependencyAge by lazy {
-    MuzzleDependencyAge(parameters.minimumAgeHours.get(), Instant.now())
   }
 }

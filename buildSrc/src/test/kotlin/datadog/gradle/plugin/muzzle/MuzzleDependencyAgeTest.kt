@@ -135,6 +135,7 @@ class MuzzleDependencyAgeTest {
       "https://proxy.example/maven2/com/example/lib/1.0/lib-1.0.pom",
       centralPom
     )
+    assertThat(policy.timestampLookupCount).isEqualTo(2)
     assertThat(warnings).isEmpty()
   }
 
@@ -386,23 +387,21 @@ class MuzzleDependencyAgeTest {
 
     assertThat(policy.isEligible("com.example", "lib", "1.0", emptyList())).isTrue()
     assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy))).isTrue()
+    assertThat(policy.timestampLookupCount).isZero()
     assertThat(warnings).isEmpty()
   }
 
-  @Test
-  fun `property overrides environment and the default is 48 hours`() {
-    assertThat(MuzzleDependencyAge.minimumAgeHours(null, null)).isEqualTo(48)
-    assertThat(MuzzleDependencyAge.minimumAgeHours(null, "72")).isEqualTo(72)
-    assertThat(MuzzleDependencyAge.minimumAgeHours("0", "invalid")).isZero()
+  @ParameterizedTest
+  @ValueSource(ints = [0, 48, 72])
+  fun `parses valid cooldown configuration`(hours: Int) {
+    assertThat(parseMinimumDependencyAgeHours(hours.toString())).isEqualTo(hours)
   }
 
   @ParameterizedTest
   @ValueSource(strings = ["", "-1", "abc", "1.5", "2147483648"])
   fun `rejects invalid configuration`(raw: String) {
-    assertThatThrownBy { MuzzleDependencyAge.minimumAgeHours(raw, "48") }
+    assertThatThrownBy { parseMinimumDependencyAgeHours(raw) }
       .isInstanceOf(GradleException::class.java).hasMessageContaining("non-negative integer")
-    assertThatThrownBy { MuzzleDependencyAge.minimumAgeHours(null, raw) }
-      .isInstanceOf(GradleException::class.java)
   }
 
   @Test

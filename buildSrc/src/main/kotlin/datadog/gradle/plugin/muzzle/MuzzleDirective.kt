@@ -64,22 +64,33 @@ open class MuzzleDirective : Serializable {
     excludedDependencies.add(excludeString)
   }
 
+  internal fun inverse(version: String) = MuzzleDirective().also {
+    it.name = name
+    it.group = group
+    it.module = module
+    it.additionalRepositories = additionalRepositories
+    it.versions = version
+    it.assertPass = !assertPass
+    it.excludedDependencies = excludedDependencies
+    it.includeSnapshots = includeSnapshots
+  }
+
   /**
    * Get the list of repositories to use for this muzzle directive.
    *
    * @param defaults the default repositories
    * @return a list of the default repositories followed by any additional repositories
    */
-  internal fun getRepositories(defaults: List<RemoteRepository>): List<RemoteRepository> {
-    return if (additionalRepositories.isEmpty()) {
-      defaults
-    } else {
-      ArrayList<RemoteRepository>(defaults.size + additionalRepositories.size).apply {
-        addAll(defaults)
-        addAll(additionalRepositories.map { (id, type, url) ->
+  internal fun getRepositories(defaults: List<RemoteRepository>): List<RemoteRepository> = if (additionalRepositories.isEmpty()) {
+    defaults
+  } else {
+    ArrayList<RemoteRepository>(defaults.size + additionalRepositories.size).apply {
+      addAll(defaults)
+      addAll(
+        additionalRepositories.map { (id, type, url) ->
           RemoteRepository.Builder(id, type, url).build()
-        })
-      }
+        }
+      )
     }
   }
 

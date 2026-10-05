@@ -21,6 +21,7 @@ import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
 import org.gradle.api.logging.Logging
 import java.nio.file.Files
+import kotlin.random.Random
 
 internal object MuzzleMavenRepoUtils {
   private val log = Logging.getLogger(MuzzleMavenRepoUtils::class.java)
@@ -82,7 +83,8 @@ internal object MuzzleMavenRepoUtils {
     system: RepositorySystem,
     session: RepositorySystemSession,
     defaultRepos: List<RemoteRepository> = defaultMuzzleRepos(),
-    isEligible: (Version) -> Boolean = { true }
+    isEligible: (Version) -> Boolean = { true },
+    random: Random = Random.Default
   ): Set<MuzzleDirective> {
     val allVersionsArtifact = DefaultArtifact(
       muzzleDirective.group,
@@ -115,18 +117,10 @@ internal object MuzzleMavenRepoUtils {
       allRangeResult,
       muzzleDirective.skipVersions,
       muzzleDirective.includeSnapshots,
-      isEligible
+      random = random,
+      isEligible = isEligible
     ).map { version ->
-      MuzzleDirective().apply {
-        name = muzzleDirective.name
-        group = muzzleDirective.group
-        module = muzzleDirective.module
-        additionalRepositories = muzzleDirective.additionalRepositories
-        versions = version.toString()
-        assertPass = !muzzleDirective.assertPass
-        excludedDependencies = muzzleDirective.excludedDependencies
-        includeSnapshots = muzzleDirective.includeSnapshots
-      }
+      muzzleDirective.inverse(version.toString())
     }.toSet()
   }
 
@@ -372,13 +366,15 @@ internal object MuzzleMavenRepoUtils {
   fun muzzleDirectiveToArtifacts(
     muzzleDirective: MuzzleDirective,
     rangeResult: VersionRangeResult,
-    isEligible: (Version) -> Boolean = { true }
+    isEligible: (Version) -> Boolean = { true },
+    random: Random = Random.Default
   ): Set<Artifact> {
     val versions = MuzzleVersionUtils.filterAndLimitVersions(
       rangeResult,
       muzzleDirective.skipVersions,
       muzzleDirective.includeSnapshots,
-      isEligible
+      random = random,
+      isEligible = isEligible
     )
     return versions.map { version ->
       DefaultArtifact(

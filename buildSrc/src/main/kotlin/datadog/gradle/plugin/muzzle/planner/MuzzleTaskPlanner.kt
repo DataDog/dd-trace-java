@@ -1,9 +1,6 @@
 package datadog.gradle.plugin.muzzle.planner
 
-import datadog.gradle.plugin.muzzle.MuzzleDependencyAge
 import datadog.gradle.plugin.muzzle.MuzzleDirective
-import org.eclipse.aether.RepositorySystem
-import org.eclipse.aether.RepositorySystemSession
 
 /**
  * Expands configured directives into ordered task plans.
@@ -11,11 +8,6 @@ import org.eclipse.aether.RepositorySystemSession
 internal class MuzzleTaskPlanner(
   private val resolutionService: MuzzleResolutionService,
 ) {
-  companion object {
-    fun from(system: RepositorySystem, session: RepositorySystemSession, dependencyAge: MuzzleDependencyAge): MuzzleTaskPlanner =
-      MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session, dependencyAge))
-  }
-
   /**
    * Expands declared muzzle directives into executable task plans.
    *

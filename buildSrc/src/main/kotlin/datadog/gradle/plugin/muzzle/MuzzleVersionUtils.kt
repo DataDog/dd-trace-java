@@ -3,6 +3,7 @@ package datadog.gradle.plugin.muzzle
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.version.Version
 import java.util.Locale
+import kotlin.random.Random
 
 internal object MuzzleVersionUtils {
   private val END_NMN_PATTERN = Regex("^.*\\.[0-9]+[mM][0-9]+$")
@@ -14,17 +15,18 @@ internal object MuzzleVersionUtils {
    * @param result The resolved version range result.
    * @param skipVersions Set of versions to skip.
    * @param includeSnapshots Whether to include snapshot versions.
-   * @param isEligible Publication-age eligibility checked before sampling.
+   * @param isEligible Publication-age eligibility of sampled boundaries and their backfills.
    * @return A limited set of filtered versions for testing.
    */
   fun filterAndLimitVersions(
     result: VersionRangeResult,
     skipVersions: Set<String>,
     includeSnapshots: Boolean,
+    random: Random = Random.Default,
     isEligible: (Version) -> Boolean = { true }
   ): Set<Version> {
     val filtered = filterVersion(result.versions.toSet(), skipVersions, includeSnapshots)
-    return limitLargeRanges(filtered, isEligible)
+    return limitLargeRanges(filtered, isEligible, random)
   }
 
   /**
@@ -83,27 +85,18 @@ internal object MuzzleVersionUtils {
    */
   private fun limitLargeRanges(
     versions: Set<Version>,
-    isEligible: (Version) -> Boolean
+    isEligible: (Version) -> Boolean,
+    random: Random
   ): Set<Version> {
     val beforeSize = versions.size
     val versionSet = VersionSet(versions, isEligible)
-    val lowestVersion = versionSet.lowestEligibleVersion ?: return emptySet()
-    val highestVersion = versionSet.highestEligibleVersion
-    val shuffled = versionSet.lowAndHighForMajorMinor.shuffled().toMutableList()
-    var afterSize = shuffled.size
-    while (RANGE_COUNT_LIMIT <= afterSize) {
-      val version = shuffled.removeAt(0)
-      if (version == lowestVersion || version == highestVersion) {
-        shuffled.add(version)
-      } else {
-        afterSize -= 1
-      }
-    }
+    val selected = versionSet.sampleEligibleBoundaries(RANGE_COUNT_LIMIT - 1, random)
+    val afterSize = selected.size
 
     if (beforeSize - afterSize > 0) {
       println("Muzzle skipping ${beforeSize - afterSize} versions")
     }
 
-    return shuffled.toSet()
+    return selected
   }
 }

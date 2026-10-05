@@ -114,23 +114,29 @@ To run muzzle on your instrumentation, run:
 ```
 
 Muzzle defers library versions whose POM `Last-Modified` timestamp is less than 48 hours old.
-The cooldown applies locally and in CI to pass, fail, and inverse checks, before version sampling.
-Muzzle checks major/minor version boundaries and searches inward when a boundary is too new,
-instead of checking timestamps for every intervening patch release. With `runMuzzle -Pslot=x/y`,
+The cooldown applies locally and in CI to pass, fail, and inverse checks.
+Muzzle samples major/minor version boundaries before checking their ages and searches inward
+when a sampled boundary is too new. It always includes the lowest and highest eligible versions;
+backfilling deferred boundaries may require additional timestamp lookups. With `runMuzzle -Pslot=x/y`,
 only modules in the selected CI slot are planned; explicitly requested module checks still run.
 Versions with missing or unverifiable timestamps remain eligible with a warning. If a declared library
 directive has no eligible versions, the build fails; an empty inverse selection adds no checks.
 
 Set `-PmuzzleMinDependencyAgeHours=<hours>` to change the cooldown, or
 `MIN_DEPENDENCY_AGE_HOURS` when the Gradle property is unset. Values must be non-negative integers;
-the default is 48. To investigate a fresh release, use:
+the default is 48. A module can override this default with `muzzle { minimumDependencyAgeHours.set(...) }`.
+These settings are evaluated only when planning requested Muzzle checks, not compilation or reports.
+To investigate a fresh release, use:
 
 ```shell
 ./gradlew :dd-java-agent:instrumentation:rediscala-1.8:muzzle -PmuzzleMinDependencyAgeHours=0
 ```
 
-Zero bypasses timestamp lookups. Each build uses one cutoff and shares timestamp lookups across
-modules. Muzzle disables configuration caching so versions are reconsidered on subsequent builds.
+Zero bypasses timestamp lookups. Each planning pass uses one reference time and shares timestamp
+lookups across modules using the same cooldown. Eligible coordinates are tracked configuration-cache
+inputs: subsequent builds reconsider eligibility, reuse an unchanged graph, and invalidate the cache
+when the selected checks change. The sampling seed is retained for cache validation.
+Use `--info` to see the number of planned checks, timestamp lookups, and planning duration.
 If the configured HTTP(S) Central proxy and any extra repositories cannot provide a usable timestamp,
 Muzzle falls back to a timestamp-only HEAD request to Maven Central. Version discovery and dependency
 downloads keep using their configured repositories; local and custom repositories do not trigger this

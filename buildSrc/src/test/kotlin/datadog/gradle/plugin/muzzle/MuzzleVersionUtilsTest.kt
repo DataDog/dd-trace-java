@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.time.Instant
+import kotlin.random.Random
 
 class MuzzleVersionUtilsTest {
 
@@ -209,8 +210,39 @@ class MuzzleVersionUtilsTest {
 
     assertThat(filtered).hasSize(24)
     assertThat(filtered.map { it.toString() }).contains("1.0.0", "1.49.19")
-    assertThat(requests).hasSize(200).doesNotHaveDuplicates()
-    assertThat(warnings).hasSize(if (timestampAvailable) 0 else 100)
+    assertThat(requests).hasSize(48).doesNotHaveDuplicates()
+    assertThat(warnings).hasSize(if (timestampAvailable) 0 else 24)
+  }
+
+  @Test
+  fun `eligible ranges preserve the master sample for the same random seed`() {
+    val result = createVersionRangeResult(*(0..49).flatMap { minor -> (0..19).map { patch -> "1.$minor.$patch" } }.toTypedArray())
+    repeat(100) { seed ->
+      val expected = VersionSet(result.versions).lowAndHighForMajorMinor.shuffled(Random(seed)).toMutableList()
+      while (expected.size >= RANGE_COUNT_LIMIT) {
+        val removed = expected.removeAt(0)
+        if (removed == result.lowestVersion || removed == result.highestVersion) expected.add(removed)
+      }
+
+      val actual = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false, random = Random(seed))
+
+      assertThat(actual).containsExactlyInAnyOrderElementsOf(expected)
+    }
+  }
+
+  @Test
+  fun `sampled fresh boundaries are backfilled and still produce 24 checks`() {
+    val result = createVersionRangeResult(*(0..49).flatMap { minor -> (0..19).map { patch -> "1.$minor.$patch" } }.toTypedArray())
+    val checked = mutableListOf<String>()
+
+    val actual = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false, random = Random(17)) {
+      checked.add(it.toString())
+      !it.toString().endsWith(".19")
+    }
+
+    assertThat(actual).hasSize(24)
+    assertThat(actual.map { it.toString() }).contains("1.0.0", "1.49.18").noneMatch { it.endsWith(".19") }
+    assertThat(checked).doesNotHaveDuplicates().hasSizeLessThanOrEqualTo(48)
   }
 
   @Test
