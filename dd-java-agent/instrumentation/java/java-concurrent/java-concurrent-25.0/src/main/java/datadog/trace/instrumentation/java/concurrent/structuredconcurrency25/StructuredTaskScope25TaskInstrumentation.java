@@ -49,17 +49,17 @@ public class StructuredTaskScope25TaskInstrumentation
      * TaskScopeStateRegistry} to release the continuation at scope close if the subtask never runs.
      *
      * @param subTaskImpl The StructuredTaskScopeImpl.SubtaskImpl object (the advice is compiled
-     *     against Java 8 so the type from JDK25 can't be referred, using {@link Object} instead).
+     *     against Java 8 so the type from JDK25 can't be referred, using its {@link Runnable}
+     *     interface instead).
      * @param scope The StructuredTaskScopeImpl object owning the subtask (the advice is compiled
      *     against Java 8 so the type from JDK25 can't be referred, using {@link Object} instead).
      */
     @OnMethodExit(suppress = Throwable.class)
-    public static void captureScope(@This Object subTaskImpl, @Argument(0) Object scope) {
+    public static void captureScope(@This Runnable subTaskImpl, @Argument(0) Object scope) {
       ContextStore<Runnable, State> stateStore = get(Runnable.class, State.class);
-      Runnable subtask = (Runnable) subTaskImpl;
-      capture(stateStore, subtask);
+      capture(stateStore, subTaskImpl);
       // Ensure state was captured to before recording for cancellation on scope close
-      State state = stateStore.get(subtask);
+      State state = stateStore.get(subTaskImpl);
       if (state != null) {
         ContextStore<Object, TaskScopeStateRegistry> registryStore =
             get(
@@ -76,15 +76,16 @@ public class StructuredTaskScope25TaskInstrumentation
      * subtask ran, as its continuation was consumed by the {@link Runnable} instrumentation.
      *
      * @param subTaskImpl The StructuredTaskScopeImpl.SubtaskImpl object (the advice is compiled
-     *     against Java 8 so the type from JDK25 can't be referred, using {@link Object} instead).
+     *     against Java 8 so the type from JDK25 can't be referred, using its {@link Runnable}
+     *     interface instead).
      * @param scope The StructuredTaskScopeImpl object owning the subtask (the advice is compiled
      *     against Java 8 so the type from JDK25 can't be referred, using {@link Object} instead).
      */
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void unregisterState(
-        @This Object subTaskImpl, @FieldValue("scope") Object scope) {
+        @This Runnable subTaskImpl, @FieldValue("scope") Object scope) {
       ContextStore<Runnable, State> stateStore = get(Runnable.class, State.class);
-      State state = stateStore.get((Runnable) subTaskImpl);
+      State state = stateStore.get(subTaskImpl);
       if (state != null) {
         ContextStore<Object, TaskScopeStateRegistry> registryStore =
             get(
