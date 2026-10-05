@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 /** Forked to isolate the static context-store registry from other tests. */
-class FieldBackedContextStoresForkedTest {
+class BoxedContextStoresForkedTest {
 
   private static final int THREAD_COUNT = 8;
 
@@ -28,20 +28,19 @@ class FieldBackedContextStoresForkedTest {
 
   @Test
   void sameNameReturnsSameStore() {
-    int storeId = FieldBackedContextStores.getContextStoreId("sameKey", "sameContext");
-    assertEquals(storeId, FieldBackedContextStores.getContextStoreId("sameKey", "sameContext"));
-    assertNotEquals(storeId, FieldBackedContextStores.getContextStoreId("sameKey", "otherContext"));
-    assertNotEquals(storeId, FieldBackedContextStores.getContextStoreId("otherKey", "sameContext"));
-    assertEquals(storeId, FieldBackedContextStores.getContextStore(storeId).storeId);
+    int storeId = BoxedContextStores.getContextStoreId("sameKey", "sameContext");
+    assertEquals(storeId, BoxedContextStores.getContextStoreId("sameKey", "sameContext"));
+    assertNotEquals(storeId, BoxedContextStores.getContextStoreId("sameKey", "otherContext"));
+    assertNotEquals(storeId, BoxedContextStores.getContextStoreId("otherKey", "sameContext"));
+    assertEquals(storeId, BoxedContextStores.getContextStore(storeId).storeId);
   }
 
   @Test
   void concurrentAllocationAssignsDistinctIdsForDistinctNames() throws Throwable {
     int testAllocations = 128;
     int firstStoreId =
-        FieldBackedContextStores.getContextStoreId("allocationStartKey", "allocationStartContext")
-            + 1;
-    FieldBackedContextStore[] allocatedStores = new FieldBackedContextStore[testAllocations];
+        BoxedContextStores.getContextStoreId("allocationStartKey", "allocationStartContext") + 1;
+    BoxedContextStore[] allocatedStores = new BoxedContextStore[testAllocations];
     AtomicInteger keyIds = new AtomicInteger();
 
     runConcurrently(
@@ -49,10 +48,10 @@ class FieldBackedContextStoresForkedTest {
         testAllocations,
         () -> {
           int keyId = keyIds.getAndIncrement();
-          int storeId = FieldBackedContextStores.getContextStoreId("key" + keyId, "value" + keyId);
+          int storeId = BoxedContextStores.getContextStoreId("key" + keyId, "value" + keyId);
           int index = storeId - firstStoreId;
           assertNull(allocatedStores[index]);
-          allocatedStores[index] = FieldBackedContextStores.getContextStore(storeId);
+          allocatedStores[index] = BoxedContextStores.getContextStore(storeId);
         });
 
     assertEquals(testAllocations, keyIds.get());
@@ -82,11 +81,9 @@ class FieldBackedContextStoresForkedTest {
                   start.await();
                   int[] storeIds = new int[STORE_COUNT];
                   for (int i = 0; i < STORE_COUNT; i++) {
-                    int storeId =
-                        FieldBackedContextStores.getContextStoreId(keys.get(i), "context");
+                    int storeId = BoxedContextStores.getContextStoreId(keys.get(i), "context");
                     // store must be visible as soon as its id is returned
-                    FieldBackedContextStore store =
-                        FieldBackedContextStores.getContextStore(storeId);
+                    BoxedContextStore store = BoxedContextStores.getContextStore(storeId);
                     assertNotNull(store, "Missing store for id " + storeId);
                     assertEquals(storeId, store.storeId);
                     storeIds[i] = storeId;
@@ -107,7 +104,7 @@ class FieldBackedContextStoresForkedTest {
       TreeSet<Integer> distinctIds = new TreeSet<>();
       for (int storeId : expectedIds) {
         assertTrue(distinctIds.add(storeId), "Store id " + storeId + " allocated twice");
-        FieldBackedContextStore store = FieldBackedContextStores.getContextStore(storeId);
+        BoxedContextStore store = BoxedContextStores.getContextStore(storeId);
         assertNotNull(store, "Missing store for id " + storeId);
         assertEquals(storeId, store.storeId);
       }

@@ -10,9 +10,6 @@ public final class FieldBackedContextStores {
 
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextStores.class);
 
-  // provide fast lookup for a fixed number of stores
-  public static final int FAST_STORE_ID_LIMIT = 32;
-
   // these fields will be accessed directly from field-injected instrumentation
   public static final FieldBackedContextStore contextStore0 = new FieldBackedContextStore(0);
   public static final FieldBackedContextStore contextStore1 = new FieldBackedContextStore(1);
