@@ -114,12 +114,39 @@ import org.openjdk.jmh.infra.Blackhole;
  * (update_hashMap itself got ~5x faster; update_hashtable only ~1.5x faster). {@code
  * iterate_hashtable} also now clearly wins (~4.0x), flipping from JDK 8's "wash" — HashMap's {@code
  * entrySet()} iterator does more per-entry work than a modern JIT's allocation improvements erase.
- * {@code add} is the one case that flips the other way: {@code add_hashMap} leads on the means
- * (1658.6 vs 1358.0), though both error bars are wide enough to overlap, so treat that one as
- * undecided rather than a HashMap win. Net takeaway: {@code Hashtable} is a strong substitute for
- * {@code HashMap} particularly for simple counter/tally use cases with a primitive value, where
- * avoiding the per-update boxing allocation pays off even on a JVM with much better allocation
- * handling than JDK 8 had.
+ * {@code add} is the one case that flips the other way: {@code add_hashMap} edges out {@code
+ * add_hashtable} slightly (1502.6 vs 1377.3). Net takeaway: {@code Hashtable} is a strong
+ * substitute for {@code HashMap} particularly for simple counter/tally use cases with a primitive
+ * value, where avoiding the per-update boxing allocation pays off even on a JVM with much better
+ * allocation handling than JDK 8 had.
+ *
+ * <p>Rerun on the capped/{@code State}-backed table (5 forks, 15 datapoints/method, Zulu 17.0.7
+ * AArch64, 8 threads). <b>Not comparable to the table above:</b> JMH auto-detected the {@code full
+ * + dont-inline} Blackhole here rather than the cheap {@code compiler} one, on the same JVM build
+ * and JMH 1.37 -- the mode is auto-detected per run and is not stable across runs, so every
+ * absolute number in this file is conditional on a mode that JMH does not record beside it. Compare
+ * within a table, never across. M ops/us:
+ *
+ * <pre>{@code
+ * add_hashMap        1204.8   add_hashtable       974.4
+ * update_hashMap      577.2   update_hashtable   1862.6
+ * iterate_hashMap      15.9   iterate_hashtable    21.5
+ * }</pre>
+ *
+ * <p>Within this run: {@code update_hashtable} wins by ~3.2x and {@code iterate_hashtable} by
+ * ~1.35x, while {@code add_hashtable} now <em>loses</em> by ~19% -- no longer the "roughly
+ * comparable" of the JDK 8 table, and a wider gap than the slight edge HashMap held in the previous
+ * Java 17 run. {@code add} is where the capped table's bookkeeping is least amortized: both sides
+ * allocate one entry per insert, so there is no boxing win to offset it, and the loop does nothing
+ * else. The counter/tally path -- the case {@code Hashtable} exists for -- is unaffected.
+ *
+ * <p>That is the right side of the trade for this family. {@code Hashtable} and {@link
+ * ConcurrentHashtable} are designed for workloads where <b>updates dominate</b>: the table is
+ * populated once and then hit repeatedly, so per-insert cost amortizes away and in-place mutation
+ * of a primitive field is the operation that runs hot. Paying on {@code add} to make {@code update}
+ * faster is the trade those workloads want. {@code FlatHashtable} and {@code TagMap} sit at the
+ * other end -- built up and read, not updated in a loop -- so this result does not transfer to
+ * them, and neither does the reasoning that justifies it.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -175,9 +202,11 @@ public class HashtableD1Benchmark {
       BenchmarkUtils.warmUpHashDispatch(bh);
     }
 
+    // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
+    // start from a fresh, identically-sized state rather than inheriting mutated counters.
     @Setup(Level.Iteration)
     public void setUp() {
-      table = new Hashtable.D1<>(CAPACITY);
+      table = Hashtable.D1.createBounded(D1Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       keys = SOURCE_KEYS;
       for (int i = 0; i < N_KEYS; ++i) {
