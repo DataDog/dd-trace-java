@@ -12,6 +12,8 @@ import datadog.trace.bootstrap.ExceptionLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import datadog.trace.util.MethodHandles;
+import java.io.InputStream;
+import java.io.Reader;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
@@ -55,6 +57,13 @@ public class NativeMethodHandleWrappers {
           Session.class,
           int.class,
           String.class);
+  private static final MethodHandle STREAM =
+      LOOKUP.method(
+          NativeMethodHandleWrappers.class,
+          "onStream",
+          MethodHandle.class,
+          ReceiveContexts.class,
+          Object.class);
 
   private static HandlerContext.Receiver context(AgentSpan span, CoreSession session) {
     if (Config.get().isWebsocketMessagesInheritSampling()) {
@@ -71,16 +80,22 @@ public class NativeMethodHandleWrappers {
       ContextStore<CoreSession, ReceiveContexts> contextStore) {
     MethodType type = delegate.type();
     Class<?> payload = type.parameterType(0);
-    if (payload != String.class && payload != ByteBuffer.class) {
+    boolean streaming = payload == Reader.class || payload == InputStream.class;
+    if (payload != String.class && payload != ByteBuffer.class && !streaming) {
       return delegate;
     }
-    boolean partial = type.parameterCount() > 1 && type.parameterType(1) == boolean.class;
     delegate = delegate.asType(type.changeReturnType(void.class));
-    MethodHandle normalized = partial ? delegate : dropArguments(delegate, 1, boolean.class);
     ReceiveContexts contexts = contextStore.get(session);
     if (contexts == null) {
       contexts = contextStore.getOrPut(session, new ReceiveContexts(span, session));
     }
+    if (streaming) {
+      return insertArguments(
+              STREAM, 0, delegate.asType(MethodType.methodType(void.class, Object.class)), contexts)
+          .asType(delegate.type());
+    }
+    boolean partial = type.parameterCount() > 1 && type.parameterType(1) == boolean.class;
+    MethodHandle normalized = partial ? delegate : dropArguments(delegate, 1, boolean.class);
     MethodHandle wrapper =
         payload == String.class
             ? contexts.wrapText(normalized, partial)
@@ -135,6 +150,23 @@ public class NativeMethodHandleWrappers {
           DECORATE.onFrameEnd(context);
         }
       }
+    }
+  }
+
+  public static void onStream(MethodHandle delegate, ReceiveContexts contexts, Object payload)
+      throws Throwable {
+    // Jetty dispatches streams to a worker and requires consumption before the handler returns.
+    HandlerContext.Receiver context =
+        new HandlerContext.Receiver(contexts.handshakeSpan, contexts.sessionId);
+    try (ContextScope ignored = startMessage(context, payload, false)) {
+      try {
+        delegate.invokeExact(payload);
+      } catch (Throwable t) {
+        DECORATE.onError(context.getWebsocketSpan(), t);
+        throw t;
+      }
+    } finally {
+      DECORATE.onFrameEnd(context);
     }
   }
 

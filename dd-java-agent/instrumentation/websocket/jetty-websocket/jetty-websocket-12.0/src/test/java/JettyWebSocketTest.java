@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
+import static datadog.trace.agent.test.assertions.TagsMatcher.error;
 import static datadog.trace.agent.test.assertions.TagsMatcher.includes;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
@@ -20,6 +21,7 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.isNull;
 import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.regex.Pattern.compile;
 import static java.util.regex.Pattern.quote;
@@ -49,6 +51,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.websocket.api.UpgradeRequest;
 import org.eclipse.jetty.websocket.api.WebSocketContainer;
@@ -67,6 +70,56 @@ import org.tabletest.junit.TypeConverterSources;
 @TypeConverterSources(JettyEndpoints.class)
 public class JettyWebSocketTest extends AbstractInstrumentationTest {
   private static final String URL = "ws://inmemory/test/param";
+
+  @TableTest({
+    "scenario                  | msgType | fragmented | fail ",
+    "reader                    | text    | false      | false",
+    "input stream              | binary  | false      | false",
+    "fragmented reader         | text    | true       | false",
+    "fragmented input stream   | binary  | true       | false",
+    "reader failure            | text    | false      | true ",
+    "input stream failure      | binary  | false      | true ",
+    "fragmented reader failure | text    | true       | true ",
+    "fragmented stream failure | binary  | true       | true "
+  })
+  void streamingMessagesHaveReceiveSpan(String msgType, boolean fragmented, boolean fail)
+      throws Exception {
+    ExecutorService executor = newSingleThreadExecutor();
+    try {
+      WebSocketComponents components =
+          new WebSocketComponents(null, null, null, null, null, executor);
+      JettyEndpoints.StreamingEndpoint endpoint = new JettyEndpoints.StreamingEndpoint();
+      endpoint.failMessages = fail;
+      JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
+      openFrameHandler(frameHandler, Behavior.SERVER, true, components);
+
+      if (fragmented) {
+        deliver(frameHandler, new Frame(opcode(msgType), "hello ").setFin(false));
+        deliver(frameHandler, new Frame(OpCode.CONTINUATION, "world"));
+      } else {
+        deliver(frameHandler, new Frame(opcode(msgType), "hello world"));
+      }
+      // Queue behind Jetty's handler to check cleanup on the dispatch thread as well.
+      executor.submit(() -> assertNull(activeSpan())).get(5, SECONDS);
+
+      assertEquals(singletonList("hello world"), endpoint.messages);
+      assertEquals(1, endpoint.messageSpans.size());
+      assertNotNull(endpoint.messageSpans.get(0));
+      assertEquals("websocket.receive", endpoint.messageSpans.get(0).getOperationName().toString());
+      assertNull(activeSpan());
+      TagsMatcher[] errorTags =
+          fail
+              ? new TagsMatcher[] {error(IllegalStateException.class, "handler failed")}
+              : new TagsMatcher[0];
+      assertTraces(
+          trace(handshakeSpan()),
+          trace(receiveSpan(handshake(), msgType, 0, 1, errorTags).error(fail)));
+      assertSame(endpoint.messageSpans.get(0), writer.get(1).get(0));
+    } finally {
+      executor.shutdownNow();
+      assertTrue(executor.awaitTermination(5, SECONDS));
+    }
+  }
 
   @TableTest({
     "scenario             | endpoint     | msgType",
@@ -504,11 +557,25 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
   private static void openFrameHandler(
       JettyWebSocketFrameHandler frameHandler, Behavior connectionBehavior, boolean traced)
       throws Exception {
+    openFrameHandler(frameHandler, connectionBehavior, traced, null);
+  }
+
+  private static void openFrameHandler(
+      JettyWebSocketFrameHandler frameHandler,
+      Behavior connectionBehavior,
+      boolean traced,
+      WebSocketComponents components)
+      throws Exception {
     CoreSession session =
         new CoreSession.Empty() {
           @Override
           public Behavior getBehavior() {
             return connectionBehavior;
+          }
+
+          @Override
+          public WebSocketComponents getWebSocketComponents() {
+            return components;
           }
         };
     Callback.Completable openCallback = new Callback.Completable();
@@ -548,15 +615,14 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
   }
 
   private static SpanMatcher receiveSpan(
-      DDSpan handshake, String msgType, long length, long frames) {
-    return websocketSpan(
-        handshake,
-        "websocket.receive",
-        tag(WEBSOCKET_MESSAGE_TYPE, matches(quote(msgType))),
-        tag(WEBSOCKET_MESSAGE_LENGTH, is(length)),
-        tag(WEBSOCKET_MESSAGE_FRAMES, is(frames)),
-        // Full-message callbacks do not record a receive-time tag.
-        includes(WEBSOCKET_MESSAGE_RECEIVE_TIME));
+      DDSpan handshake, String msgType, long length, long frames, TagsMatcher... extraTags) {
+    List<TagsMatcher> tags = new ArrayList<>(asList(extraTags));
+    tags.add(tag(WEBSOCKET_MESSAGE_TYPE, matches(quote(msgType))));
+    tags.add(tag(WEBSOCKET_MESSAGE_LENGTH, is(length)));
+    tags.add(tag(WEBSOCKET_MESSAGE_FRAMES, is(frames)));
+    // Full-message callbacks do not record a receive-time tag.
+    tags.add(includes(WEBSOCKET_MESSAGE_RECEIVE_TIME));
+    return websocketSpan(handshake, "websocket.receive", tags.toArray(new TagsMatcher[0]));
   }
 
   private static SpanMatcher closeSpan(DDSpan handshake) {

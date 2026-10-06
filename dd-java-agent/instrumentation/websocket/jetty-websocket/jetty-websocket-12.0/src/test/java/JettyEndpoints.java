@@ -3,6 +3,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -148,6 +152,22 @@ public class JettyEndpoints {
     public void onBinary(ByteBuffer payload, Callback callback) {
       recordMessage(UTF_8.decode(payload).toString());
       completeBinary(callback);
+    }
+  }
+
+  @WebSocket
+  public static class StreamingEndpoint extends PojoEndpoint {
+    @OnWebSocketMessage
+    public void onText(Session session, Reader payload) throws IOException {
+      assertSame(this.session, session);
+      StringWriter message = new StringWriter();
+      payload.transferTo(message);
+      recordMessage(message.toString());
+    }
+
+    @OnWebSocketMessage
+    public void onBinary(InputStream payload) throws IOException {
+      recordMessage(new String(payload.readAllBytes(), UTF_8));
     }
   }
 
