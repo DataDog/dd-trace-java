@@ -44,9 +44,17 @@ class OtlpCanonicalResourceAttributesTest {
 
   @Test
   void skipsEmptyHostName() {
-    Config config = config("", "", true, "");
+    Config config = config("env", "1.0", true, "");
 
-    assertEquals(4, visit(config).size());
+    assertEquals(
+        asList(
+            "service.name=svc",
+            "deployment.environment.name=env",
+            "service.version=1.0",
+            "telemetry.sdk.name=datadog",
+            "telemetry.sdk.version=" + TRACER_VERSION,
+            "telemetry.sdk.language=java"),
+        visit(config));
   }
 
   private static Config config(String env, String version, boolean reportHost, String host) {

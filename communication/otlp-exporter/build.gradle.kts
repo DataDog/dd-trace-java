@@ -17,7 +17,7 @@ extra["excludedClassesCoverage"] = listOf(
 dependencies {
   api(project(":dd-trace-api"))
   api(project(":communication"))
-  implementation(project(":internal-api"))
+  api(project(":internal-api"))
   implementation(project(":utils:logging-utils"))
   implementation(libs.slf4j)
 
