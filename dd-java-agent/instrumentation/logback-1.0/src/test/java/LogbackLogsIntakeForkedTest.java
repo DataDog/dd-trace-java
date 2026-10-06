@@ -86,8 +86,12 @@ abstract class AbstractLogbackLogsIntakeForkedTest extends AbstractInstrumentati
     return InstrumenterConfig.get().isIntegrationEnabled(singletonList("logback"), true);
   }
 
+  static boolean fatalLevel() {
+    return "FATAL".equals(Config.get().getAgentlessLogSubmissionLevel());
+  }
+
   static boolean collected() {
-    return integration() && (agentless() || appLogs());
+    return integration() && (appLogs() || (agentless() && !fatalLevel()));
   }
 
   @Test
@@ -226,6 +230,9 @@ class LogbackAppLogsForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
 
 @WithConfig(key = APP_LOGS_COLLECTION_ENABLED, value = "true")
 class LogbackBothFlagsForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
+
+@WithConfig(key = AGENTLESS_LOG_SUBMISSION_LEVEL, value = "FATAL")
+class LogbackFatalLevelForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
 
 @WithConfig(key = LOGS_INJECTION_ENABLED, value = "false")
 class LogbackNoInjectionForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
