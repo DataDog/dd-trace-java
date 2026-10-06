@@ -987,8 +987,9 @@ test_inst:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
+    GRADLE_PARAMS: "-PskipFlakyTests -PdurationWeightedInstrumentationTests"
   parallel:
-    matrix: *test_matrix_8
+    matrix: *test_matrix_12
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
