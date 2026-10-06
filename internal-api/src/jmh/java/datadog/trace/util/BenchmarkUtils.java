@@ -120,13 +120,16 @@ public final class BenchmarkUtils {
    * Comparator}-based call sites.
    *
    * <p>The benchmark's own collection call sites are not invoked here and remain free to specialize
-   * for their receiver types. A call site's recorded type profile isn't threatened by which key
-   * type happens to dominate traffic during or after warmup -- once HotSpot has recorded multiple
-   * receiver types there, it stays megamorphic regardless of later call frequency. The risk this
-   * class guards against is a statically deducible receiver type bypassing the profile entirely:
-   * loading extra classes here defeats class-hierarchy analysis (optimization based on which
-   * implementations are actually loaded), and {@link #distinctEqualCopy}'s {@code DONT_INLINE}
-   * stops the JIT from tracing a decoy key's type back to its origin through static inference.
+   * for their receiver types. This broadens the shared internal profiles; it does not guarantee
+   * that C2 treats them as megamorphic. Receiver counts still matter: C2 can inline both receivers
+   * of a bimorphic profile, or a dominant receiver behind a type guard, and the benchmark's own
+   * warmup traffic keeps adding to those counts until the compile happens -- so a single key type
+   * can come to dominate an internal site this method touched. Only call sites confirmed in the
+   * compiled benchmark (e.g. via {@code -XX:+PrintInlining} or {@code LogCompilation}) should be
+   * described as megamorphic. Loading extra classes here also defeats class-hierarchy analysis
+   * (optimization based on which implementations are actually loaded), and {@link
+   * #distinctEqualCopy}'s {@code DONT_INLINE} stops the JIT from tracing a decoy key's type back to
+   * its origin through static inference.
    */
   public static void warmUpHashDispatch(Blackhole bh) {
     if (!WARMED_UP.compareAndSet(false, true)) {

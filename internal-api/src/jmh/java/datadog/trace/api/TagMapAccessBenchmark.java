@@ -78,13 +78,13 @@ import org.openjdk.jmh.infra.Blackhole;
  * so it has no {@code Object}-typed dispatch site to pollute — it is insulated by construction,
  * whatever the JIT decides. {@code HashMap} does have such sites: {@code getNode} calls {@code
  * hashCode()}/{@code equals()} on an {@code Object}-declared key. Erasure makes that one bytecode
- * index serve every map in the application, so in production it sees many receiver types and is
- * genuinely megamorphic — which is the condition {@code warmUpHashDispatch} reproduces here. Even
- * so, {@code get}/{@code put} inline into a caller holding a statically exact {@code String}, so C2
+ * index serve every map in the application, so in production it sees many receiver types — the
+ * condition {@code warmUpHashDispatch} approximates here by broadening that profile. Even so,
+ * {@code get}/{@code put} inline into a caller holding a statically exact {@code String}, so C2
  * sharpens the argument and devirtualizes without consulting that profile. That is a realistic
  * condition rather than an artifact — plenty of production call sites do hand HashMap a statically
  * known key type, and it legitimately gets that benefit. Where the key type is not deducible, the
- * megamorphic profile governs HashMap and still does not reach TagMap.
+ * broadened profile governs HashMap and still does not reach TagMap.
  *
  * <p>Consistent with that, most entries move by a couple of percent with overlapping intervals, and
  * the larger moves go up, which pollution cannot cause.
