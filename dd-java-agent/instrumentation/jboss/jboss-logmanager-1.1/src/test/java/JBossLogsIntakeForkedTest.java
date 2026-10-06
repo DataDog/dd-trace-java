@@ -1,10 +1,12 @@
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
+import static datadog.trace.api.config.GeneralConfig.ENV;
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
+import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,6 +22,7 @@ import datadog.trace.api.logging.intake.LogsIntake;
 import datadog.trace.api.logging.intake.LogsWriter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +49,9 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "true")
 @WithConfig(key = LOGS_INJECTION_ENABLED, value = "true")
 @WithConfig(key = AGENTLESS_LOG_SUBMISSION_LEVEL, value = "WARN")
+@WithConfig(key = SERVICE_NAME, value = "jboss-service")
+@WithConfig(key = ENV, value = "jboss-env")
+@WithConfig(key = VERSION, value = "1.0")
 abstract class AbstractJBossLogsIntakeForkedTest extends AbstractInstrumentationTest {
   static final String LOGGER_NAME = "test.jboss.intake";
   static final List<Map<String, Object>> MESSAGES = new CopyOnWriteArrayList<>();
@@ -89,6 +95,16 @@ abstract class AbstractJBossLogsIntakeForkedTest extends AbstractInstrumentation
 
   static boolean injection() {
     return Config.get().isLogsInjectionEnabled();
+  }
+
+  static Map<String, String> serviceTags() {
+    Map<String, String> tags = new HashMap<>();
+    if (injection()) {
+      tags.put(Tags.DD_SERVICE, "jboss-service");
+      tags.put(Tags.DD_ENV, "jboss-env");
+      tags.put(Tags.DD_VERSION, "1.0");
+    }
+    return tags;
   }
 
   @Test
@@ -155,7 +171,7 @@ abstract class AbstractJBossLogsIntakeForkedTest extends AbstractInstrumentation
       return;
     }
     assertEquals(asList("active", "child", "collision", "outside"), values("message"));
-    Map<String, String> expected = new HashMap<>();
+    Map<String, String> expected = serviceTags();
     if (injection()) {
       expected.put("dd.trace_id", traceId);
       expected.put("dd.span_id", spanId);
@@ -165,7 +181,7 @@ abstract class AbstractJBossLogsIntakeForkedTest extends AbstractInstrumentation
     assertEquals(injection() ? traceId : null, contextMap(1).get("dd.trace_id"));
     assertEquals(injection() ? childSpanId : null, contextMap(1).get("dd.span_id"));
     assertEquals("user-trace", contextMap(2).get("dd.trace_id"));
-    assertEquals(emptyMap(), contextMap(3));
+    assertEquals(serviceTags(), contextMap(3));
   }
 
   @Test
