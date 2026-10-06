@@ -1,5 +1,6 @@
 package datadog.trace.agent.jmxfetch;
 
+import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
@@ -8,8 +9,11 @@ import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_CO
 import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.OperatingSystemMXBean;
 import com.sun.management.UnixOperatingSystemMXBean;
+import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.otel.api.common.AttributeKey;
 import datadog.trace.bootstrap.otel.api.common.Attributes;
+import datadog.trace.bootstrap.otel.api.common.AttributesBuilder;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -27,10 +31,12 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
+import java.lang.management.PlatformManagedObject;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,13 +48,15 @@ import javax.management.Notification;
 import javax.management.NotificationEmitter;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
+import javax.management.ObjectName;
 import javax.management.openmbean.CompositeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Registers JVM runtime metrics with OTel-native names against the agent's bootstrap-level metric
- * registry.
+ * registry. Each point also carries the identity, process, and source-MBean tags used by the
+ * JMXFetch runtime metrics it replaces.
  */
 public final class JvmOtlpRuntimeMetrics {
   private static final Logger log = LoggerFactory.getLogger(JvmOtlpRuntimeMetrics.class);
@@ -68,23 +76,53 @@ public final class JvmOtlpRuntimeMetrics {
       AttributeKey.booleanKey("jvm.thread.daemon");
   private static final AttributeKey<String> THREAD_STATE =
       AttributeKey.stringKey("jvm.thread.state");
-  private static final Attributes HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "heap");
-  private static final Attributes NON_HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "non_heap");
+  private static final AttributeKey<String> JMX_DOMAIN = AttributeKey.stringKey("jmx_domain");
 
-  /**
-   * Precomputed Attributes for each (daemon, Thread.State) pair, used by jvm.thread.count. There
-   * are only 12 combinations, so caching avoids per-poll allocation of identical Attribute objects.
-   */
-  private static final Attributes[] DAEMON_THREAD_STATE_ATTRS = buildThreadStateAttrs(true);
+  // Keep the identity of the default config whose runtime metrics this OTLP path replaces, rather
+  // than the no-JVM-defaults config that remains active alongside it.
+  private static final String LEGACY_JMX_INSTANCE = "dd-java-agent default";
+  private static final String LEGACY_JMX_CHECK_NAME = "jmxfetch-config";
+  private static final String ENTRYPOINT_NAME = "entrypoint.name";
+  private static final String ENTRYPOINT_TYPE = "entrypoint.type";
+  private static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
+  private static final String INJECTION_MODE = "_dd.injection.mode";
 
-  private static final Attributes[] NON_DAEMON_THREAD_STATE_ATTRS = buildThreadStateAttrs(false);
+  private static Attributes buildLegacyJmxAttributes() {
+    AttributesBuilder builder =
+        Attributes.builder()
+            .put("instance", LEGACY_JMX_INSTANCE)
+            .put("dd.internal.jmx_check_name", LEGACY_JMX_CHECK_NAME);
+    Map<String, String> jmxTags = Config.get().getMergedJmxTags();
+    putIfNotEmpty(builder, RUNTIME_ID_TAG, jmxTags.get(RUNTIME_ID_TAG));
+    putIfNotEmpty(builder, INJECTION_MODE, jmxTags.get(INJECTION_MODE));
+    List<String> processTags = ProcessTags.getTagsAsStringList();
+    if (processTags != null) {
+      for (String processTag : processTags) {
+        int separator = processTag.indexOf(':');
+        if (separator > 0) {
+          String key = processTag.substring(0, separator);
+          if (ENTRYPOINT_NAME.equals(key)
+              || ENTRYPOINT_TYPE.equals(key)
+              || ENTRYPOINT_WORKDIR.equals(key)) {
+            builder.put(key, processTag.substring(separator + 1));
+          }
+        }
+      }
+    }
+    return builder.build();
+  }
 
-  private static Attributes[] buildThreadStateAttrs(boolean daemon) {
+  private static Attributes[] buildThreadStateAttrs(
+      Attributes legacyJmxAttributes, ThreadMXBean threadBean, boolean daemon) {
     Thread.State[] states = Thread.State.values();
     Attributes[] result = new Attributes[states.length];
     for (Thread.State state : states) {
       result[state.ordinal()] =
-          Attributes.of(THREAD_DAEMON, daemon, THREAD_STATE, state.name().toLowerCase(Locale.ROOT));
+          withJmxTags(
+              Attributes.of(
+                  THREAD_DAEMON, daemon, THREAD_STATE, state.name().toLowerCase(Locale.ROOT)),
+              threadBean,
+              legacyJmxAttributes);
     }
     return result;
   }
@@ -96,18 +134,6 @@ public final class JvmOtlpRuntimeMetrics {
    */
   private static final MethodHandle THREAD_INFO_IS_DAEMON = resolveThreadInfoIsDaemon();
 
-  private static final ThreadMXBean THREAD_BEAN = ManagementFactory.getThreadMXBean();
-
-  /**
-   * jvm.thread.count collector, chosen once at class load. Java 9+ uses {@link
-   * ThreadMXBean#getThreadInfo(long[])} (the single-arg overload omits stack-trace capture); Java 8
-   * (and GraalVM native image, where ThreadMXBean is unsupported) walks the root {@link
-   * ThreadGroup}. Avoids {@link Thread#getAllStackTraces()}, which forces a safepoint and allocates
-   * a {@code StackTraceElement[]} per thread on every poll.
-   */
-  private static final Consumer<OtelMetricStorage> THREAD_COUNT_COLLECTOR =
-      chooseThreadCountCollector();
-
   private static MethodHandle resolveThreadInfoIsDaemon() {
     try {
       return MethodHandles.publicLookup()
@@ -117,13 +143,17 @@ public final class JvmOtlpRuntimeMetrics {
     }
   }
 
-  private static Consumer<OtelMetricStorage> chooseThreadCountCollector() {
+  private static Consumer<OtelMetricStorage> chooseThreadCountCollector(
+      ThreadMXBean threadBean, Attributes[] daemonStateAttrs, Attributes[] nonDaemonStateAttrs) {
     boolean isJava9OrNewer = THREAD_INFO_IS_DAEMON != null;
     boolean isNativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
     if (isJava9OrNewer && !isNativeImage) {
-      return JvmOtlpRuntimeMetrics::collectThreadCountsViaThreadMXBean;
+      return storage ->
+          collectThreadCountsViaThreadMXBean(
+              storage, threadBean, daemonStateAttrs, nonDaemonStateAttrs);
     }
-    return JvmOtlpRuntimeMetrics::collectThreadCountsViaThreadGroup;
+    return storage ->
+        collectThreadCountsViaThreadGroup(storage, daemonStateAttrs, nonDaemonStateAttrs);
   }
 
   /** Explicit bucket advice for jvm.gc.duration in seconds (matches OTel runtime-telemetry). */
@@ -155,19 +185,32 @@ public final class JvmOtlpRuntimeMetrics {
               ((Attributes) attributes)
                   .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
 
+      Attributes legacyJmxAttributes = buildLegacyJmxAttributes();
+      MemoryAttributes memoryAttributes = new MemoryAttributes(legacyJmxAttributes);
+      ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+      Consumer<OtelMetricStorage> threadCountCollector =
+          chooseThreadCountCollector(
+              threadBean,
+              buildThreadStateAttrs(legacyJmxAttributes, threadBean, true),
+              buildThreadStateAttrs(legacyJmxAttributes, threadBean, false));
+      java.lang.management.OperatingSystemMXBean operatingSystemBean =
+          ManagementFactory.getOperatingSystemMXBean();
+      Attributes operatingSystemAttributes =
+          withJmxTags(Attributes.empty(), operatingSystemBean, legacyJmxAttributes);
+
       // Stable metrics — always registered.
-      registerMemoryMetrics();
-      registerThreadMetrics();
-      registerClassLoadingMetrics();
-      registerCpuMetrics();
-      registerGcDurationMetric(emitExperimentalMetrics);
+      registerMemoryMetrics(memoryAttributes);
+      registerThreadMetrics(threadCountCollector);
+      registerClassLoadingMetrics(legacyJmxAttributes);
+      registerCpuMetrics(operatingSystemBean, operatingSystemAttributes);
+      registerGcDurationMetric(legacyJmxAttributes, emitExperimentalMetrics);
 
       // Development-status metrics — gated by the experimental flag.
       if (emitExperimentalMetrics) {
-        registerMemoryInitMetric();
-        registerBufferMetrics();
-        registerSystemCpuMetrics();
-        registerFileDescriptorMetrics();
+        registerMemoryInitMetric(memoryAttributes);
+        registerBufferMetrics(legacyJmxAttributes);
+        registerSystemCpuMetrics(operatingSystemBean, operatingSystemAttributes);
+        registerFileDescriptorMetrics(operatingSystemBean, operatingSystemAttributes);
       }
       log.debug(
           "Started OTLP runtime metrics with OTel-native naming (jvm.*), experimental={}",
@@ -181,9 +224,12 @@ public final class JvmOtlpRuntimeMetrics {
    * jvm.memory.used, jvm.memory.committed, jvm.memory.limit, jvm.memory.used_after_last_gc — all
    * Stable per spec. All UpDownCounter.
    */
-  private static void registerMemoryMetrics() {
-    MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
-    List<MemoryPoolMXBean> pools = ManagementFactory.getMemoryPoolMXBeans();
+  private static void registerMemoryMetrics(MemoryAttributes memory) {
+    MemoryMXBean memoryBean = memory.memoryBean;
+    List<MemoryPoolMXBean> pools = memory.pools;
+    Attributes heapAttrs = memory.heap;
+    Attributes nonHeapAttrs = memory.nonHeap;
+    Map<MemoryPoolMXBean, Attributes> poolAttrs = memory.poolAttrs;
 
     registerLongObservable(
         "jvm.memory.used",
@@ -191,10 +237,10 @@ public final class JvmOtlpRuntimeMetrics {
         "By",
         UP_DOWN_COUNTER,
         storage -> {
-          storage.recordLong(memoryBean.getHeapMemoryUsage().getUsed(), HEAP_ATTRS);
-          storage.recordLong(memoryBean.getNonHeapMemoryUsage().getUsed(), NON_HEAP_ATTRS);
+          storage.recordLong(memoryBean.getHeapMemoryUsage().getUsed(), heapAttrs);
+          storage.recordLong(memoryBean.getNonHeapMemoryUsage().getUsed(), nonHeapAttrs);
           for (MemoryPoolMXBean pool : pools) {
-            storage.recordLong(pool.getUsage().getUsed(), poolAttributes(pool));
+            storage.recordLong(pool.getUsage().getUsed(), poolAttrs.get(pool));
           }
         });
 
@@ -204,10 +250,10 @@ public final class JvmOtlpRuntimeMetrics {
         "By",
         UP_DOWN_COUNTER,
         storage -> {
-          storage.recordLong(memoryBean.getHeapMemoryUsage().getCommitted(), HEAP_ATTRS);
-          storage.recordLong(memoryBean.getNonHeapMemoryUsage().getCommitted(), NON_HEAP_ATTRS);
+          storage.recordLong(memoryBean.getHeapMemoryUsage().getCommitted(), heapAttrs);
+          storage.recordLong(memoryBean.getNonHeapMemoryUsage().getCommitted(), nonHeapAttrs);
           for (MemoryPoolMXBean pool : pools) {
-            storage.recordLong(pool.getUsage().getCommitted(), poolAttributes(pool));
+            storage.recordLong(pool.getUsage().getCommitted(), poolAttrs.get(pool));
           }
         });
 
@@ -219,16 +265,16 @@ public final class JvmOtlpRuntimeMetrics {
         storage -> {
           long heapMax = memoryBean.getHeapMemoryUsage().getMax();
           if (heapMax != -1) {
-            storage.recordLong(heapMax, HEAP_ATTRS);
+            storage.recordLong(heapMax, heapAttrs);
           }
           long nonHeapMax = memoryBean.getNonHeapMemoryUsage().getMax();
           if (nonHeapMax != -1) {
-            storage.recordLong(nonHeapMax, NON_HEAP_ATTRS);
+            storage.recordLong(nonHeapMax, nonHeapAttrs);
           }
           for (MemoryPoolMXBean pool : pools) {
             long max = pool.getUsage().getMax();
             if (max != -1) {
-              storage.recordLong(max, poolAttributes(pool));
+              storage.recordLong(max, poolAttrs.get(pool));
             }
           }
         });
@@ -242,16 +288,19 @@ public final class JvmOtlpRuntimeMetrics {
           for (MemoryPoolMXBean pool : pools) {
             MemoryUsage collectionUsage = pool.getCollectionUsage();
             if (collectionUsage != null && collectionUsage.getUsed() >= 0) {
-              storage.recordLong(collectionUsage.getUsed(), poolAttributes(pool));
+              storage.recordLong(collectionUsage.getUsed(), poolAttrs.get(pool));
             }
           }
         });
   }
 
   /** jvm.memory.init (UpDownCounter, Development). */
-  private static void registerMemoryInitMetric() {
-    MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
-    List<MemoryPoolMXBean> pools = ManagementFactory.getMemoryPoolMXBeans();
+  private static void registerMemoryInitMetric(MemoryAttributes memory) {
+    MemoryMXBean memoryBean = memory.memoryBean;
+    List<MemoryPoolMXBean> pools = memory.pools;
+    Attributes heapAttrs = memory.heap;
+    Attributes nonHeapAttrs = memory.nonHeap;
+    Map<MemoryPoolMXBean, Attributes> poolAttrs = memory.poolAttrs;
     registerLongObservable(
         "jvm.memory.init",
         "Measure of initial memory requested.",
@@ -260,42 +309,48 @@ public final class JvmOtlpRuntimeMetrics {
         storage -> {
           long heapInit = memoryBean.getHeapMemoryUsage().getInit();
           if (heapInit != -1) {
-            storage.recordLong(heapInit, HEAP_ATTRS);
+            storage.recordLong(heapInit, heapAttrs);
           }
           long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
           if (nonHeapInit != -1) {
-            storage.recordLong(nonHeapInit, NON_HEAP_ATTRS);
+            storage.recordLong(nonHeapInit, nonHeapAttrs);
           }
           for (MemoryPoolMXBean pool : pools) {
             long init = pool.getUsage().getInit();
             if (init != -1) {
-              storage.recordLong(init, poolAttributes(pool));
+              storage.recordLong(init, poolAttrs.get(pool));
             }
           }
         });
   }
 
   /** jvm.buffer.* (UpDownCounter, Development) — direct + mapped pool metrics. */
-  private static void registerBufferMetrics() {
+  private static void registerBufferMetrics(Attributes legacyJmxAttributes) {
     List<BufferPoolMXBean> bufferPools =
         ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+    Map<BufferPoolMXBean, Attributes> bufferPoolAttrs =
+        buildBeanAttributes(
+            bufferPools, pool -> Attributes.of(BUFFER_POOL, pool.getName()), legacyJmxAttributes);
     bufferPoolMetric(
         "jvm.buffer.memory.used",
         "Measure of memory used by buffers.",
         "By",
         bufferPools,
+        bufferPoolAttrs,
         BufferPoolMXBean::getMemoryUsed);
     bufferPoolMetric(
         "jvm.buffer.memory.limit",
         "Measure of total memory capacity of buffers.",
         "By",
         bufferPools,
+        bufferPoolAttrs,
         BufferPoolMXBean::getTotalCapacity);
     bufferPoolMetric(
         "jvm.buffer.count",
         "Number of buffers in the pool.",
         "{buffer}",
         bufferPools,
+        bufferPoolAttrs,
         BufferPoolMXBean::getCount);
   }
 
@@ -303,13 +358,13 @@ public final class JvmOtlpRuntimeMetrics {
    * jvm.thread.count (UpDownCounter, Stable). Bucketed by {@code jvm.thread.daemon} and {@code
    * jvm.thread.state} per the OTel JVM semantic conventions.
    */
-  private static void registerThreadMetrics() {
+  private static void registerThreadMetrics(Consumer<OtelMetricStorage> threadCountCollector) {
     registerLongObservable(
         "jvm.thread.count",
         "Number of executing platform threads.",
         "{thread}",
         UP_DOWN_COUNTER,
-        THREAD_COUNT_COLLECTOR);
+        threadCountCollector);
   }
 
   /**
@@ -317,19 +372,23 @@ public final class JvmOtlpRuntimeMetrics {
    * overload omits stack-trace capture, avoiding the safepoint and per-frame allocation incurred by
    * {@link Thread#getAllStackTraces()}.
    */
-  private static void collectThreadCountsViaThreadMXBean(OtelMetricStorage storage) {
+  private static void collectThreadCountsViaThreadMXBean(
+      OtelMetricStorage storage,
+      ThreadMXBean threadBean,
+      Attributes[] daemonStateAttrs,
+      Attributes[] nonDaemonStateAttrs) {
     Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
     Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
-    long[] ids = THREAD_BEAN.getAllThreadIds();
-    for (ThreadInfo info : THREAD_BEAN.getThreadInfo(ids)) {
+    long[] ids = threadBean.getAllThreadIds();
+    for (ThreadInfo info : threadBean.getThreadInfo(ids)) {
       if (info == null) {
         continue; // thread terminated between getAllThreadIds and getThreadInfo
       }
       Map<Thread.State, long[]> bucket = threadInfoIsDaemon(info) ? daemonCounts : nonDaemonCounts;
       bucket.computeIfAbsent(info.getThreadState(), k -> new long[1])[0]++;
     }
-    recordThreadStateCounts(storage, daemonCounts, DAEMON_THREAD_STATE_ATTRS);
-    recordThreadStateCounts(storage, nonDaemonCounts, NON_DAEMON_THREAD_STATE_ATTRS);
+    recordThreadStateCounts(storage, daemonCounts, daemonStateAttrs);
+    recordThreadStateCounts(storage, nonDaemonCounts, nonDaemonStateAttrs);
   }
 
   /**
@@ -337,15 +396,16 @@ public final class JvmOtlpRuntimeMetrics {
    * ThreadInfo.isDaemon()} was added in Java 9 and {@link ThreadMXBean} is not supported on GraalVM
    * native images.
    */
-  private static void collectThreadCountsViaThreadGroup(OtelMetricStorage storage) {
+  private static void collectThreadCountsViaThreadGroup(
+      OtelMetricStorage storage, Attributes[] daemonStateAttrs, Attributes[] nonDaemonStateAttrs) {
     Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
     Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
     for (Thread thread : enumerateAllThreads()) {
       Map<Thread.State, long[]> bucket = thread.isDaemon() ? daemonCounts : nonDaemonCounts;
       bucket.computeIfAbsent(thread.getState(), k -> new long[1])[0]++;
     }
-    recordThreadStateCounts(storage, daemonCounts, DAEMON_THREAD_STATE_ATTRS);
-    recordThreadStateCounts(storage, nonDaemonCounts, NON_DAEMON_THREAD_STATE_ATTRS);
+    recordThreadStateCounts(storage, daemonCounts, daemonStateAttrs);
+    recordThreadStateCounts(storage, nonDaemonCounts, nonDaemonStateAttrs);
   }
 
   /** Invokes {@code ThreadInfo#isDaemon()} via {@link #THREAD_INFO_IS_DAEMON} (Java 9+ only). */
@@ -390,39 +450,37 @@ public final class JvmOtlpRuntimeMetrics {
    * jvm.class.loaded (Counter), jvm.class.unloaded (Counter), jvm.class.count (UpDownCounter) — all
    * Stable per spec.
    */
-  private static void registerClassLoadingMetrics() {
+  private static void registerClassLoadingMetrics(Attributes legacyJmxAttributes) {
     ClassLoadingMXBean classLoadingBean = ManagementFactory.getClassLoadingMXBean();
+    Attributes attrs = withJmxTags(Attributes.empty(), classLoadingBean, legacyJmxAttributes);
     registerLongObservable(
         "jvm.class.loaded",
         "Number of classes loaded since JVM start.",
         "{class}",
         COUNTER,
-        storage ->
-            storage.recordLong(classLoadingBean.getTotalLoadedClassCount(), Attributes.empty()));
+        storage -> storage.recordLong(classLoadingBean.getTotalLoadedClassCount(), attrs));
 
     registerLongObservable(
         "jvm.class.count",
         "Number of classes currently loaded.",
         "{class}",
         UP_DOWN_COUNTER,
-        storage -> storage.recordLong(classLoadingBean.getLoadedClassCount(), Attributes.empty()));
+        storage -> storage.recordLong(classLoadingBean.getLoadedClassCount(), attrs));
 
     registerLongObservable(
         "jvm.class.unloaded",
         "Number of classes unloaded since JVM start.",
         "{class}",
         COUNTER,
-        storage ->
-            storage.recordLong(classLoadingBean.getUnloadedClassCount(), Attributes.empty()));
+        storage -> storage.recordLong(classLoadingBean.getUnloadedClassCount(), attrs));
   }
 
   /**
    * jvm.cpu.time (Counter), jvm.cpu.count (UpDownCounter), jvm.cpu.recent_utilization (Gauge) — all
    * Stable per spec.
    */
-  private static void registerCpuMetrics() {
-    java.lang.management.OperatingSystemMXBean rawOsBean =
-        ManagementFactory.getOperatingSystemMXBean();
+  private static void registerCpuMetrics(
+      java.lang.management.OperatingSystemMXBean rawOsBean, Attributes osAttrs) {
     if (rawOsBean instanceof OperatingSystemMXBean) {
       OperatingSystemMXBean sunOsBean = (OperatingSystemMXBean) rawOsBean;
       registerDoubleObservable(
@@ -433,7 +491,7 @@ public final class JvmOtlpRuntimeMetrics {
           storage -> {
             long nanos = sunOsBean.getProcessCpuTime();
             if (nanos >= 0) {
-              storage.recordDouble(nanos / 1e9, Attributes.empty());
+              storage.recordDouble(nanos / 1e9, osAttrs);
             }
           });
 
@@ -445,7 +503,7 @@ public final class JvmOtlpRuntimeMetrics {
           storage -> {
             double cpuLoad = sunOsBean.getProcessCpuLoad();
             if (cpuLoad >= 0) {
-              storage.recordDouble(cpuLoad, Attributes.empty());
+              storage.recordDouble(cpuLoad, osAttrs);
             }
           });
     } else {
@@ -458,8 +516,7 @@ public final class JvmOtlpRuntimeMetrics {
         "Number of processors available to the JVM.",
         "{cpu}",
         UP_DOWN_COUNTER,
-        storage ->
-            storage.recordLong(Runtime.getRuntime().availableProcessors(), Attributes.empty()));
+        storage -> storage.recordLong(Runtime.getRuntime().availableProcessors(), osAttrs));
   }
 
   /**
@@ -469,7 +526,8 @@ public final class JvmOtlpRuntimeMetrics {
    * <p>The {@code jvm.gc.cause} attribute is gated on {@code captureGcCause} because cause is not
    * part of the stable attribute set in the OTel semantic conventions.
    */
-  private static void registerGcDurationMetric(boolean captureGcCause) {
+  private static void registerGcDurationMetric(
+      Attributes legacyJmxAttributes, boolean captureGcCause) {
     if (!isGcNotificationInfoAvailable()) {
       log.debug(
           "com.sun.management.GarbageCollectionNotificationInfo not available; skipping jvm.gc.duration");
@@ -482,9 +540,13 @@ public final class JvmOtlpRuntimeMetrics {
             "s",
             GC_DURATION_BUCKETS);
     NotificationFilter filter = n -> GC_NOTIFICATION_TYPE.equals(n.getType());
-    GcNotificationListener listener = new GcNotificationListener(storage, captureGcCause);
     for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
       if (bean instanceof NotificationEmitter) {
+        GcNotificationListener listener =
+            new GcNotificationListener(
+                storage,
+                captureGcCause,
+                withJmxTags(Attributes.empty(), bean, legacyJmxAttributes));
         ((NotificationEmitter) bean).addNotificationListener(listener, filter, null);
       }
     }
@@ -503,28 +565,31 @@ public final class JvmOtlpRuntimeMetrics {
   }
 
   private static void recordGcDuration(
-      OtelMetricStorage storage, GarbageCollectionNotificationInfo info, boolean captureGcCause) {
+      OtelMetricStorage storage,
+      GarbageCollectionNotificationInfo info,
+      boolean captureGcCause,
+      Attributes jmxAttributes) {
     double durationSeconds = info.getGcInfo().getDuration() / 1000d;
-    Attributes attrs =
-        captureGcCause
-            ? Attributes.of(
-                GC_NAME, info.getGcName(),
-                GC_ACTION, info.getGcAction(),
-                GC_CAUSE, info.getGcCause())
-            : Attributes.of(
-                GC_NAME, info.getGcName(),
-                GC_ACTION, info.getGcAction());
-    storage.recordDouble(durationSeconds, attrs);
+    AttributesBuilder builder = jmxAttributes.toBuilder();
+    builder.put(GC_NAME, info.getGcName());
+    builder.put(GC_ACTION, info.getGcAction());
+    if (captureGcCause) {
+      builder.put(GC_CAUSE, info.getGcCause());
+    }
+    storage.recordDouble(durationSeconds, builder.build());
   }
 
   /** Listener fired by the JVM on the JMX notification thread when a GC completes. */
   static final class GcNotificationListener implements NotificationListener {
     private final OtelMetricStorage storage;
     private final boolean captureGcCause;
+    private final Attributes jmxAttributes;
 
-    GcNotificationListener(OtelMetricStorage storage, boolean captureGcCause) {
+    GcNotificationListener(
+        OtelMetricStorage storage, boolean captureGcCause, Attributes jmxAttributes) {
       this.storage = storage;
       this.captureGcCause = captureGcCause;
+      this.jmxAttributes = jmxAttributes;
     }
 
     @Override
@@ -535,7 +600,7 @@ public final class JvmOtlpRuntimeMetrics {
         log.debug("Skipping jvm.gc.duration record: GC notification carried no info payload");
         return;
       }
-      recordGcDuration(storage, info, captureGcCause);
+      recordGcDuration(storage, info, captureGcCause, jmxAttributes);
     }
   }
 
@@ -543,9 +608,8 @@ public final class JvmOtlpRuntimeMetrics {
    * jvm.system.cpu.utilization (Gauge) and jvm.system.cpu.load_1m (Gauge) — both Development per
    * spec.
    */
-  private static void registerSystemCpuMetrics() {
-    java.lang.management.OperatingSystemMXBean rawOsBean =
-        ManagementFactory.getOperatingSystemMXBean();
+  private static void registerSystemCpuMetrics(
+      java.lang.management.OperatingSystemMXBean rawOsBean, Attributes osAttrs) {
     if (rawOsBean instanceof OperatingSystemMXBean) {
       OperatingSystemMXBean sunOsBean = (OperatingSystemMXBean) rawOsBean;
       registerDoubleObservable(
@@ -556,7 +620,7 @@ public final class JvmOtlpRuntimeMetrics {
           storage -> {
             double load = sunOsBean.getSystemCpuLoad();
             if (load >= 0) {
-              storage.recordDouble(load, Attributes.empty());
+              storage.recordDouble(load, osAttrs);
             }
           });
     } else {
@@ -572,7 +636,7 @@ public final class JvmOtlpRuntimeMetrics {
         storage -> {
           double load = rawOsBean.getSystemLoadAverage();
           if (load >= 0) {
-            storage.recordDouble(load, Attributes.empty());
+            storage.recordDouble(load, osAttrs);
           }
         });
   }
@@ -582,9 +646,8 @@ public final class JvmOtlpRuntimeMetrics {
    * Development per spec. Only registered when the underlying JVM exposes {@link
    * UnixOperatingSystemMXBean} (Unix-like platforms).
    */
-  private static void registerFileDescriptorMetrics() {
-    java.lang.management.OperatingSystemMXBean rawOsBean =
-        ManagementFactory.getOperatingSystemMXBean();
+  private static void registerFileDescriptorMetrics(
+      java.lang.management.OperatingSystemMXBean rawOsBean, Attributes osAttrs) {
     if (!(rawOsBean instanceof UnixOperatingSystemMXBean)) {
       log.debug(
           "com.sun.management.UnixOperatingSystemMXBean not available (non-Unix JVM); skipping jvm.file_descriptor.count and jvm.file_descriptor.limit");
@@ -600,7 +663,7 @@ public final class JvmOtlpRuntimeMetrics {
         storage -> {
           long count = unixOsBean.getOpenFileDescriptorCount();
           if (count >= 0) {
-            storage.recordLong(count, Attributes.empty());
+            storage.recordLong(count, osAttrs);
           }
         });
 
@@ -612,7 +675,7 @@ public final class JvmOtlpRuntimeMetrics {
         storage -> {
           long limit = unixOsBean.getMaxFileDescriptorCount();
           if (limit >= 0) {
-            storage.recordLong(limit, Attributes.empty());
+            storage.recordLong(limit, osAttrs);
           }
         });
   }
@@ -626,6 +689,7 @@ public final class JvmOtlpRuntimeMetrics {
       String description,
       String unit,
       List<BufferPoolMXBean> bufferPools,
+      Map<BufferPoolMXBean, Attributes> bufferPoolAttrs,
       ToLongFunction<BufferPoolMXBean> getter) {
     registerLongObservable(
         name,
@@ -636,7 +700,7 @@ public final class JvmOtlpRuntimeMetrics {
           for (BufferPoolMXBean pool : bufferPools) {
             long value = getter.applyAsLong(pool);
             if (value >= 0) {
-              storage.recordLong(value, Attributes.of(BUFFER_POOL, pool.getName()));
+              storage.recordLong(value, bufferPoolAttrs.get(pool));
             }
           }
         });
@@ -715,11 +779,58 @@ public final class JvmOtlpRuntimeMetrics {
     return OtelMetricRegistry.INSTANCE.registerStorage(JVM_SCOPE, descriptor, storageFactory);
   }
 
-  /** Returns Attributes carrying jvm.memory.type and jvm.memory.pool.name for the given pool. */
-  private static Attributes poolAttributes(MemoryPoolMXBean pool) {
+  /** Memory beans and their attributes, shared by all jvm.memory.* registrations. */
+  private static final class MemoryAttributes {
+    private final MemoryMXBean memoryBean;
+    private final List<MemoryPoolMXBean> pools;
+    private final Attributes heap;
+    private final Attributes nonHeap;
+    private final Map<MemoryPoolMXBean, Attributes> poolAttrs;
+
+    private MemoryAttributes(Attributes legacyJmxAttributes) {
+      memoryBean = ManagementFactory.getMemoryMXBean();
+      pools = ManagementFactory.getMemoryPoolMXBeans();
+      heap = withJmxTags(Attributes.of(MEMORY_TYPE, "heap"), memoryBean, legacyJmxAttributes);
+      nonHeap =
+          withJmxTags(Attributes.of(MEMORY_TYPE, "non_heap"), memoryBean, legacyJmxAttributes);
+      poolAttrs =
+          buildBeanAttributes(
+              pools, JvmOtlpRuntimeMetrics::memoryPoolAttributes, legacyJmxAttributes);
+    }
+  }
+
+  private static <T extends PlatformManagedObject> Map<T, Attributes> buildBeanAttributes(
+      List<T> beans, Function<T, Attributes> metricAttributes, Attributes legacyJmxAttributes) {
+    Map<T, Attributes> result = new IdentityHashMap<>(beans.size());
+    for (T bean : beans) {
+      result.put(bean, withJmxTags(metricAttributes.apply(bean), bean, legacyJmxAttributes));
+    }
+    return result;
+  }
+
+  private static Attributes memoryPoolAttributes(MemoryPoolMXBean pool) {
     return Attributes.of(
         MEMORY_TYPE, pool.getType().name().toLowerCase(Locale.ROOT),
         MEMORY_POOL, pool.getName());
+  }
+
+  /** Adds the requested legacy identity and ObjectName tags for the source platform MXBean. */
+  private static Attributes withJmxTags(
+      Attributes metricAttributes, PlatformManagedObject bean, Attributes legacyJmxAttributes) {
+    ObjectName objectName = bean.getObjectName();
+    AttributesBuilder builder = legacyJmxAttributes.toBuilder();
+    builder.put(JMX_DOMAIN, objectName.getDomain());
+    for (Map.Entry<String, String> property : objectName.getKeyPropertyList().entrySet()) {
+      builder.put(AttributeKey.stringKey(property.getKey()), property.getValue());
+    }
+    builder.putAll(metricAttributes);
+    return builder.build();
+  }
+
+  private static void putIfNotEmpty(AttributesBuilder builder, String key, String value) {
+    if (value != null && !value.isEmpty()) {
+      builder.put(key, value);
+    }
   }
 
   private JvmOtlpRuntimeMetrics() {}

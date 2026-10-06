@@ -26,6 +26,9 @@ dependencies {
   testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   // JvmOtlpRuntimeMetrics lives in agent-jmxfetch; the test exercises it directly.
   testImplementation project(':dd-java-agent:agent-jmxfetch')
+  // Payload parity test: serialize OTel metrics and capture JMXFetch's DogStatsD output.
+  testImplementation project(':dd-trace-core')
+  testImplementation project(':products:metrics:metrics-lib')
 
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1+'

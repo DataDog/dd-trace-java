@@ -1,5 +1,8 @@
 package opentelemetry147.metrics;
 
+import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.assertJavaLangJmxFetchTags;
+import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.assertMemoryJmxFetchTags;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,8 +26,39 @@ class JvmOtlpRuntimeMetricsForkedTest {
 
   @BeforeAll
   static void setUp() {
+    System.setProperty("dd.tags", "_dd.injection.mode:test-injection");
     System.setProperty("dd.metrics.otel.enabled", "true");
     JvmOtlpRuntimeMetrics.start(false);
+  }
+
+  @Test
+  void allDataPointsHaveInjectionMode() {
+    JvmOtlpRuntimeMetricsTest.MetricCollector collector =
+        new JvmOtlpRuntimeMetricsTest.MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+
+    int dataPointCount = 0;
+    for (List<JvmOtlpRuntimeMetricsTest.DataPointEntry> points : collector.points.values()) {
+      for (JvmOtlpRuntimeMetricsTest.DataPointEntry point : points) {
+        dataPointCount++;
+        assertEquals("test-injection", point.attrs.get("_dd.injection.mode"));
+      }
+    }
+    assertTrue(dataPointCount > 0, "Expected at least one JVM runtime metric data point");
+  }
+
+  @Test
+  void stableMetricsHaveJmxFetchTagsWhenExperimentalMetricsAreDisabled() {
+    JvmOtlpRuntimeMetricsTest.MetricCollector collector =
+        new JvmOtlpRuntimeMetricsTest.MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+
+    for (JvmOtlpRuntimeMetricsTest.DataPointEntry point : collector.points.get("jvm.memory.used")) {
+      assertMemoryJmxFetchTags("jvm.memory.used", point);
+    }
+    assertJavaLangJmxFetchTags(collector, "jvm.thread.count", "Threading");
+    assertJavaLangJmxFetchTags(collector, "jvm.class.count", "ClassLoading");
+    assertJavaLangJmxFetchTags(collector, "jvm.cpu.count", "OperatingSystem");
   }
 
   @Test
