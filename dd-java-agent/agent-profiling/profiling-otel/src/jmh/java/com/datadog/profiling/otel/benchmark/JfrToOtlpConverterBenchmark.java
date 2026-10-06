@@ -1,5 +1,6 @@
 package com.datadog.profiling.otel.benchmark;
 
+import static com.datadog.profiling.otel.JfrTools.epochNanos;
 import static com.datadog.profiling.otel.JfrTools.putStackTrace;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.openjdk.jmh.annotations.Mode.Throughput;
@@ -123,7 +124,7 @@ public class JfrToOtlpConverterBenchmark {
         recording.writeEvent(
             executionSampleType.asValue(
                 valueBuilder -> {
-                  valueBuilder.putField("startTime", System.nanoTime());
+                  valueBuilder.putField("startTime", epochNanos());
                   valueBuilder.putField("spanId", spanId);
                   valueBuilder.putField("localRootSpanId", rootSpanId);
                   valueBuilder.putField(

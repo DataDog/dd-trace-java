@@ -31,7 +31,11 @@ public final class JfrTools {
             }));
   }
 
-  private static long epochNanos() {
+  /**
+   * Current time as epoch nanos, the event tick value matching the chunk start written by JMC
+   * writer 8.1.0.
+   */
+  public static long epochNanos() {
     Instant now = Instant.now();
     return now.getEpochSecond() * 1_000_000_000L + now.getNano();
   }

@@ -33,6 +33,11 @@ class OtlpProtoFieldsTest {
   // top-level messages only: the closing brace of a message is at column 0
   private static final Pattern MESSAGE =
       Pattern.compile("^message (\\w+) \\{(.*?)^\\}", Pattern.MULTILINE | Pattern.DOTALL);
+  // nested message/enum blocks, matched up to the closing brace at the same indentation, so their
+  // fields are not attributed to the enclosing message
+  private static final Pattern NESTED =
+      Pattern.compile(
+          "^([ \\t]+)(?:message|enum) \\w+ \\{.*?^\\1\\}", Pattern.MULTILINE | Pattern.DOTALL);
   private static final Pattern FIELD = Pattern.compile("(\\w+)\\s*=\\s*(\\d+)\\s*;");
   private static final Pattern COMMENT = Pattern.compile("//.*");
 
@@ -70,7 +75,8 @@ class OtlpProtoFieldsTest {
       while (message.find()) {
         Map<String, Integer> fields =
             messages.computeIfAbsent(message.group(1), k -> new HashMap<>());
-        Matcher field = FIELD.matcher(COMMENT.matcher(message.group(2)).replaceAll(""));
+        String body = COMMENT.matcher(message.group(2)).replaceAll("");
+        Matcher field = FIELD.matcher(NESTED.matcher(body).replaceAll(""));
         while (field.find()) {
           fields.put(field.group(1).toUpperCase(Locale.ROOT), Integer.parseInt(field.group(2)));
         }

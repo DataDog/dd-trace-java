@@ -1,5 +1,6 @@
 package com.datadog.profiling.otel;
 
+import static com.datadog.profiling.otel.JfrTools.epochNanos;
 import static com.datadog.profiling.otel.JfrTools.putStackTrace;
 import static com.datadog.profiling.otel.JfrTools.writeEvent;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -713,7 +714,7 @@ class JfrToOtlpConverterSmokeTest {
         recording.writeEvent(
             executionSampleType.asValue(
                 valueBuilder -> {
-                  valueBuilder.putField("startTime", System.nanoTime());
+                  valueBuilder.putField("startTime", epochNanos());
                   valueBuilder.putField("spanId", spanId);
                   valueBuilder.putField("localRootSpanId", rootSpanId);
                   valueBuilder.putField(
