@@ -2,8 +2,12 @@ package datadog.trace.instrumentation.axway;
 
 import static java.lang.invoke.MethodType.methodType;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
@@ -22,6 +26,7 @@ import org.slf4j.LoggerFactory;
 // request = is com.vordel.circuit.net.State,  connection = com.vordel.dwe.http.ServerTransaction
 public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object, Void> {
   private static final Logger log = LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
 
   public static final CharSequence AXWAY_TRY_TRANSACTION =
       UTF8BytesString.create("axway.trytransaction");
@@ -198,11 +203,46 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
    */
   public void onTransaction(AgentSpan span, Object stateInstance) {
     if (span != null) {
-      setStringTagFromStateField(span, Tags.PEER_HOSTNAME, stateInstance, hostField_mh);
-      setStringTagFromStateField(span, Tags.PEER_PORT, stateInstance, portField_mh);
-      setStringTagFromStateField(span, Tags.HTTP_METHOD, stateInstance, methodField_mh);
-      setURLTagFromUriStateField(span, stateInstance);
+      if (OTEL_SEMANTICS) {
+        setOtelTransactionTags(span, stateInstance);
+      } else {
+        setStringTagFromStateField(span, Tags.PEER_HOSTNAME, stateInstance, hostField_mh);
+        setStringTagFromStateField(span, Tags.PEER_PORT, stateInstance, portField_mh);
+        setStringTagFromStateField(span, Tags.HTTP_METHOD, stateInstance, methodField_mh);
+        setURLTagFromUriStateField(span, stateInstance);
+      }
     }
+  }
+
+  private static void setOtelTransactionTags(AgentSpan span, Object stateInstance) {
+    String method = getStringFromStateField(stateInstance, methodField_mh);
+    OtelHttpSemantics.setRequestMethod(span, method);
+    span.setResourceName(
+        OtelHttpSemantics.spanNameMethod(method), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+
+    URI uri = getUriFromStateField(stateInstance);
+    String scheme = null;
+    String host = getStringFromStateField(stateInstance, hostField_mh);
+    int port = OtelHttpSemantics.parsePort(getStringFromStateField(stateInstance, portField_mh));
+    if (uri != null) {
+      scheme = uri.getScheme();
+      if (uri.getPath() != null) {
+        span.setTag(KnownTags.URL_PATH_NAME, uri.getPath());
+      }
+      if (uri.getRawQuery() != null && !uri.getRawQuery().isEmpty()) {
+        span.setTag(KnownTags.URL_QUERY_NAME, uri.getRawQuery());
+      }
+      if (host == null || host.isEmpty()) {
+        host = uri.getHost();
+      }
+      if (port <= 0) {
+        port = uri.getPort();
+      }
+    }
+    if (scheme != null) {
+      span.setTag(KnownTags.URL_SCHEME_NAME, scheme);
+    }
+    OtelHttpSemantics.setServerAddressAndPort(span, null, null, scheme, host, port);
   }
 
   /**
@@ -245,6 +285,16 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
     span.setTag(tag, v);
   }
 
+  private static String getStringFromStateField(Object stateInstance, MethodHandle mh) {
+    try {
+      Object value = mh.invoke(stateInstance);
+      return value == null ? null : value.toString();
+    } catch (Throwable e) {
+      log.debug("Can't invoke '{}' on instance '{}'; value not read.", mh, stateInstance, e);
+      return null;
+    }
+  }
+
   private static void setURLTagFromUriStateField(AgentSpan span, Object stateInstance) {
     try {
       span.setTag(Tags.HTTP_URL, uriField_mh.invoke(stateInstance).toString());
@@ -255,6 +305,16 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
           stateInstance,
           Tags.HTTP_URL,
           e);
+    }
+  }
+
+  private static URI getUriFromStateField(Object stateInstance) {
+    try {
+      Object value = uriField_mh.invoke(stateInstance);
+      return value == null ? null : URI.create(value.toString());
+    } catch (Throwable e) {
+      log.debug("Can't invoke '{}' on instance '{}'; URL not read.", uriField_mh, stateInstance, e);
+      return null;
     }
   }
 }

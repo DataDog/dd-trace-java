@@ -86,4 +86,72 @@ public final class OtelHttpSemantics {
     }
     return -1;
   }
+
+  public static String forwardedValue(final String value) {
+    if (value == null) {
+      return null;
+    }
+    final int comma = value.indexOf(',');
+    final String first = (comma >= 0 ? value.substring(0, comma) : value).trim();
+    return first.isEmpty() ? null : first;
+  }
+
+  public static void setServerAddressAndPort(
+      final AgentSpan span,
+      final String forwardedHostHeader,
+      final String forwardedPortHeader,
+      final String scheme,
+      final String requestHost,
+      final int requestPort) {
+    final String forwardedHost = forwardedValue(forwardedHostHeader);
+    String serverAddress = requestHost;
+    int hostPort = -1;
+
+    if (forwardedHost != null) {
+      serverAddress = forwardedHost;
+      if (forwardedHost.charAt(0) == '[') {
+        final int closingBracket = forwardedHost.indexOf(']');
+        if (closingBracket > 0) {
+          serverAddress = forwardedHost.substring(1, closingBracket);
+          if (closingBracket + 1 < forwardedHost.length()
+              && forwardedHost.charAt(closingBracket + 1) == ':') {
+            hostPort = parsePort(forwardedHost.substring(closingBracket + 2));
+          }
+        }
+      } else {
+        final int colon = forwardedHost.lastIndexOf(':');
+        if (colon > 0 && colon == forwardedHost.indexOf(':')) {
+          serverAddress = forwardedHost.substring(0, colon);
+          hostPort = parsePort(forwardedHost.substring(colon + 1));
+        }
+      }
+    }
+
+    if (serverAddress != null && !serverAddress.isEmpty()) {
+      span.setTag(KnownTags.SERVER_ADDRESS_NAME, serverAddress);
+    }
+
+    int serverPort = parsePort(forwardedValue(forwardedPortHeader));
+    if (serverPort <= 0) {
+      serverPort = hostPort;
+    }
+    if (serverPort <= 0) {
+      serverPort = forwardedHost == null && requestPort > 0 ? requestPort : serverPort(scheme, -1);
+    }
+    if (serverPort > 0) {
+      span.setTag(KnownTags.SERVER_PORT_NAME, serverPort);
+    }
+  }
+
+  public static int parsePort(final String value) {
+    if (value == null || value.isEmpty()) {
+      return -1;
+    }
+    try {
+      final int port = Integer.parseInt(value);
+      return port > 0 && port <= 65535 ? port : -1;
+    } catch (NumberFormatException ignored) {
+      return -1;
+    }
+  }
 }
