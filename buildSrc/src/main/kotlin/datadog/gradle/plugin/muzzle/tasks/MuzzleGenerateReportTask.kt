@@ -31,6 +31,9 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
   init {
     description = "Generate this instrumentation's dependency version report"
 
+    // Repository metadata can change without any local task input changing.
+    outputs.upToDateWhen { false }
+
     val extension = project.extensions.getByType<MuzzleExtension>()
     val runtimeClasspath = project.mainSourceSet.runtimeClasspath
     val directives = project.providers.provider {
@@ -49,8 +52,9 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
     reportDirectives.get().forEach { directive ->
       val range = MuzzleMavenRepoUtils.resolveVersionRange(directive, system, session)
       val cp = instrumentationClasspath.map { it.toURI().toURL() }.toTypedArray<URL>()
-      val cl = URLClassLoader(cp, null)
-      val partials = resolveInstrumentationAndJarVersions(directive, cl, range.lowestVersion, range.highestVersion)
+      val partials = URLClassLoader(cp, null).use { cl ->
+        resolveInstrumentationAndJarVersions(directive, cl, range.lowestVersion, range.highestVersion)
+      }
       partials.forEach { (key, value) ->
         versions.merge(key, value, BiFunction { x, y ->
           TestedArtifact(

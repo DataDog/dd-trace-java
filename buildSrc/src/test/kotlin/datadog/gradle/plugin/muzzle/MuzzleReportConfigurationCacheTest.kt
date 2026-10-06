@@ -2,11 +2,14 @@ package datadog.gradle.plugin.muzzle
 
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
+import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
   @Test
-  fun `dependency report executes with configuration cache reuse`() {
+  fun `dependency report refreshes version ranges with configuration cache reuse`() {
     val mavenRepo = createMavenRepoFixture()
     mavenRepo.publishVersions("com.example", "demo", listOf("1.0.0"))
 
@@ -25,7 +28,7 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         pass {
           group = "com.example"
           module = "demo"
-          versions = "1.0.0"
+          versions = "[1.0.0,)"
         }
       }
       """
@@ -37,7 +40,6 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
       ":dd-java-agent:instrumentation:demo:generateMuzzleReport",
       "--configuration-cache",
       "--configuration-cache-problems=fail",
-      "--rerun-tasks",
       "--stacktrace"
     )
     val env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepo.repoUrl)
@@ -46,19 +48,28 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     assertThat(first.task(args[0])?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
     assertThat(first.output).contains("Configuration cache entry stored")
 
+    val report = file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_demo.csv")
+    assertThat(report.readText()).isEqualTo(
+      "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
+        "test-instrumentation,com.example,demo,1.0.0,1.0.0\n"
+    )
+
+    mavenRepo.publishVersions("com.example", "demo", listOf("2.0.0"))
+
     val reused = run(*args, env = env)
     assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(SUCCESS)
     assertThat(reused.output).contains("Reusing configuration cache")
 
-    assertThat(file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_demo.csv").readText())
+    assertThat(report.readText())
       .isEqualTo(
         "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
-          "test-instrumentation,com.example,demo,1.0.0,1.0.0\n"
+          "test-instrumentation,com.example,demo,1.0.0,2.0.0\n"
       )
   }
 
-  @Test
-  fun `merge combines generated version ranges with configuration cache reuse`() {
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `merge reflects changed reports with configuration cache reuse`(rerunTasks: Boolean) {
     writeProject(
       """
       plugins {
@@ -94,7 +105,6 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
       ":dd-java-agent:instrumentation:mergeMuzzleReports",
       "--configuration-cache",
       "--configuration-cache-problems=fail",
-      "--rerun-tasks",
       "--stacktrace"
     )
 
@@ -105,15 +115,57 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     assertThat(first.output).contains("Configuration cache entry stored")
 
     val reused = run(*args)
-    assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(SUCCESS)
+    assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(UP_TO_DATE)
     assertThat(reused.output).contains("Reusing configuration cache")
 
-    assertThat(file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation.csv").readText())
+    val report = file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation.csv")
+    assertThat(report.readText())
       .isEqualTo(
         "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
           "first-instrumentation,com.example,demo,1.0.0,3.0.0\n" +
           "second-instrumentation,com.example,other,3.0.0,4.0.0\n"
       )
+
+    writeFile("relocated/build/muzzle-deps-results/second.csv",
+      """
+      instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
+      first-instrumentation,com.example,demo,1.5.0,2.0.0
+      """
+    )
+
+    val refreshArgs = if (rerunTasks) args + "--rerun-tasks" else args
+    val changed = run(*refreshArgs)
+    assertThat(changed.task(args[0])?.outcome).describedAs(changed.output).isEqualTo(SUCCESS)
+    assertThat(changed.output).contains("Reusing configuration cache")
+    assertThat(report.readText()).isEqualTo(
+      "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
+        "first-instrumentation,com.example,demo,1.0.0,2.0.0\n"
+    )
+
+    writeFile("relocated/build/muzzle-deps-results/third.csv",
+      """
+      instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
+      third-instrumentation,com.example,new,4.0.0,5.0.0
+      """
+    )
+    val added = run(*refreshArgs)
+    assertThat(added.task(args[0])?.outcome).describedAs(added.output).isEqualTo(SUCCESS)
+    assertThat(added.output).contains("Reusing configuration cache")
+    assertThat(report.readText()).isEqualTo(
+      "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
+        "first-instrumentation,com.example,demo,1.0.0,2.0.0\n" +
+        "third-instrumentation,com.example,new,4.0.0,5.0.0\n"
+    )
+
+    assertThat(file("relocated/build/muzzle-deps-results/first.csv").delete()).isTrue()
+    assertThat(file("relocated/build/muzzle-deps-results/second.csv").delete()).isTrue()
+    val removed = run(*refreshArgs)
+    assertThat(removed.task(args[0])?.outcome).describedAs(removed.output).isEqualTo(SUCCESS)
+    assertThat(removed.output).contains("Reusing configuration cache")
+    assertThat(report.readText()).isEqualTo(
+      "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
+        "third-instrumentation,com.example,new,4.0.0,5.0.0\n"
+    )
   }
 
   @Test
