@@ -77,14 +77,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * explain a drop on either side. The JDK and machine were held constant, so what remains is
  * uncontrolled run-to-run variation.
  *
- * <p>The other candidate — that {@code warmUpHashDispatch}'s own heavy pre-measurement allocation
- * shifts GC state for the trial — has since been <b>tested and ruled out</b>. Pollution used to run
- * once per thread, so at {@code @Threads(8)} it did eight times the work; it now runs once per JVM.
- * Re-measuring across that 8x reduction moved nothing: {@code update_hashMap} 686.0 to 689.6,
- * {@code update_hashtable} 2770.7 to 2796.3, {@code iterate_hashMap} 19.83 to 19.84, all well
- * inside their intervals. Setup allocation is therefore not what moved these numbers. The
- * <b>relative</b> conclusion (D1 dominates {@code update}, is roughly comparable on {@code add},
- * ties on {@code iterate}) is unchanged throughout.
+ * <p>The other candidate is that {@code warmUpHashDispatch}'s own heavy pre-measurement allocation
+ * shifts GC state for the trial. Pollution used to run once per thread, so at {@code @Threads(8)}
+ * it did eight times the work; it now runs once per JVM. Re-measuring across that 8x reduction
+ * moved nothing: {@code update_hashMap} 686.0 to 689.6, {@code update_hashtable} 2770.7 to 2796.3,
+ * {@code iterate_hashMap} 19.83 to 19.84, all well inside their intervals. So the <i>amount</i> of
+ * setup allocation isn't a factor at this scale; whether a single pass affects the trial at all was
+ * not tested, since both runs include one. The <b>relative</b> conclusion (D1 dominates {@code
+ * update}, is roughly comparable on {@code add}, ties on {@code iterate}) is unchanged throughout.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged; JMH
  * auto-detected the cheap "compiler" Blackhole mode here, unlike JDK 8, so absolute numbers below
