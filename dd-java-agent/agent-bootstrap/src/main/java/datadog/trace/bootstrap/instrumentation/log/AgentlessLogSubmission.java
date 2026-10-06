@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.logging.intake.LogsIntake;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
@@ -80,7 +81,7 @@ public final class AgentlessLogSubmission {
     }
     Map<String, String> contextMap = new HashMap<>();
     if (traceConfig().isLogsInjectionEnabled()) {
-      addCorrelationIds(contextMap);
+      addCorrelationValues(contextMap);
     }
     if (context != null) {
       contextMap.putAll(context);
@@ -102,7 +103,11 @@ public final class AgentlessLogSubmission {
     return thrownLog;
   }
 
-  private static void addCorrelationIds(Map<String, String> context) {
+  private static void addCorrelationValues(Map<String, String> context) {
+    Config config = Config.get();
+    putIfNotEmpty(context, Tags.DD_SERVICE, config.getServiceName());
+    putIfNotEmpty(context, Tags.DD_ENV, config.getEnv());
+    putIfNotEmpty(context, Tags.DD_VERSION, config.getVersion());
     String traceId = CorrelationIdentifier.getTraceId();
     if (traceId != null && !traceId.equals("0")) {
       context.put(CorrelationIdentifier.getTraceIdKey(), traceId);
@@ -110,6 +115,12 @@ public final class AgentlessLogSubmission {
     String spanId = CorrelationIdentifier.getSpanId();
     if (spanId != null && !spanId.equals("0")) {
       context.put(CorrelationIdentifier.getSpanIdKey(), spanId);
+    }
+  }
+
+  private static void putIfNotEmpty(Map<String, String> context, String key, String value) {
+    if (value != null && !value.isEmpty()) {
+      context.put(key, value);
     }
   }
 
