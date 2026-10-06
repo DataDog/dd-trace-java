@@ -48,3 +48,10 @@ configurations.matching({ it.name.startsWith('test') || it.name.startsWith('cucu
     force group: 'org.junit.platform', name: 'junit-platform-suite', version: libs.versions.junit.platform.get()
   }
 })
+
+// cucumber 8.0.0+ requires Java 17
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
