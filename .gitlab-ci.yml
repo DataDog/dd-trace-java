@@ -650,7 +650,7 @@ check_build_src:
   extends: .check_job
   needs: []
   variables:
-    GRADLE_TARGET: ":buildSrc:build :build-logic:conventions:check :build-logic:smoke-test:check :build-logic:testcontainers:check"
+    GRADLE_TARGET: ":buildSrc:build :build-logic:check"
 
 check_base:
   extends: .check_job
