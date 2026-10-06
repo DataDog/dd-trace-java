@@ -17,7 +17,7 @@ public final class ScopeDiagnosticsExtension implements BeforeEachCallback, Afte
   public void beforeEach(ExtensionContext context) {
     TrackScopeContinuations config = resolve(context);
     if (ScopeDiagnostics.isEnabled(config)) {
-      ScopeDiagnostics.startRecording();
+      ScopeDiagnostics.startRecording(config);
     }
   }
 

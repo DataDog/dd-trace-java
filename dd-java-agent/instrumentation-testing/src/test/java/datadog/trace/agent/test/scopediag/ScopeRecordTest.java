@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,27 @@ class ScopeRecordTest {
       list.add(s);
     }
     return new ScopeDiagnosticsReport(new ArrayList<>(), list, new HashMap<>());
+  }
+
+  @Test
+  void summarySeparatesScopeFindingsOnTheSameRecord() {
+    ScopeRecord scope = scope(0, null, "main", 1000);
+    scope.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD, "worker", 2000));
+    EnumSet<ScopeDiagnosticsCheck> checks = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    checks.remove(ScopeDiagnosticsCheck.NEVER_CLOSED);
+
+    String summary = report(scope).renderSummary(checks);
+    assertTrue(summary.contains("[CLOSE_WRONG_THREAD] scope#0"));
+    assertTrue(summary.contains("[NEVER_CLOSED] scope#0"));
+    assertTrue(
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
+            > summary.indexOf("Advisory findings (not enforced)"));
+    assertTrue(
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
+            < summary.indexOf("Excluded findings (not enforced)"));
+    assertTrue(
+        summary.indexOf("[NEVER_CLOSED] scope#0")
+            > summary.indexOf("Excluded findings (not enforced)"));
   }
 
   @Test

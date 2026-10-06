@@ -137,26 +137,34 @@ If a fix cannot be included immediately, quarantine the Spock test with `@Flaky`
 `@Flaky` is not yet supported for JUnit tests.
 Keep continuation tracking enabled so the diagnostic evidence is preserved.
 
-`@TrackScopeContinuations` checks every detected lifecycle condition by default. Its `checks` value
-and `enabled` flag select the active checks:
+`@TrackScopeContinuations` records every detected lifecycle condition by default. Use `disabledChecks`
+to exclude checks from enforcement:
 
 ```java
-// Run every check except the known-incompatible late-finish check.
+// Exclude an enforced check only for a proven diagnostic incompatibility.
 @TrackScopeContinuations(
-    enabled = false,
-    checks = ScopeDiagnosticsCheck.LATE_FINISH,
-    reason = "the fixture deliberately writes the root before draining callbacks; remove with ABC-123")
+    disabledChecks = ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+    reason = "the synthetic fixture models failed activation without a real continuation; remove with ABC-123")
 ```
 
-With `enabled = true`, `checks` is an allow-list. With `enabled = false`, `checks` is removed from the
-default full set. Omitting `checks` therefore preserves the existing full enable/disable behavior.
-Any reduction from the full set requires a reason documenting the incompatibility and its removal
-condition.
+An empty `disabledChecks` list keeps all checks active, including checks added in the future. A
+nonempty list excludes only the listed checks and includes future checks automatically. A method
+annotation replaces the class configuration; exclusion lists are not merged.
 
-When at least one check is active, all conditions remain recorded and reported. The diagnostic
-policy independently decides which conditions fail a test and which are advisory, so advisory
-conditions are also valid selectors. Disable tracking or individual checks only for a proven
-incompatibility with the diagnostic itself, never to hide an unresolved lifecycle bug.
+`enabled = false` stops recording entirely and requires an empty `disabledChecks` list. A reason is
+required whenever `enabled = false` or `disabledChecks` is nonempty. Document the incompatibility
+and its removal condition.
+
+With recording enabled, all conditions remain recorded and reported even when every check is
+excluded. Excluding checks changes enforcement only; it does not disable recording, classification,
+or the bounded wait for asynchronous cleanup.
+
+The diagnostic policy determines which findings fail a test and which are advisory. Excluding a
+check affects enforcement without removing its diagnostic evidence. Reports distinguish findings
+that caused a failure from those retained for context.
+
+Disable recording or individual checks only for a proven incompatibility with the diagnostic itself,
+never to hide an unresolved lifecycle bug.
 Strict trace writes remain enabled.
 
 ## Running Tests

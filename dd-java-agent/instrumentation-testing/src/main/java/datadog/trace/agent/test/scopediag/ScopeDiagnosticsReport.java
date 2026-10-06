@@ -152,10 +152,16 @@ public final class ScopeDiagnosticsReport {
     return hasViolations(EnumSet.allOf(ScopeDiagnosticsCheck.class));
   }
 
+  static EnumSet<ScopeDiagnosticsCheck> enforcedChecks(Set<ScopeDiagnosticsCheck> checks) {
+    EnumSet<ScopeDiagnosticsCheck> enforced = ENFORCED_CHECKS.clone();
+    enforced.retainAll(checks);
+    return enforced;
+  }
+
   /** Returns whether an enabled check contains a finding enforced by the current policy. */
   boolean hasViolations(Set<ScopeDiagnosticsCheck> enabledChecks) {
-    for (ScopeDiagnosticsCheck check : enabledChecks) {
-      if (ENFORCED_CHECKS.contains(check) && count(check) > 0) {
+    for (ScopeDiagnosticsCheck check : enforcedChecks(enabledChecks)) {
+      if (count(check) > 0) {
         return true;
       }
     }
@@ -211,18 +217,38 @@ public final class ScopeDiagnosticsReport {
 
   /** Renders flagged continuations and scopes with their call sites. */
   public String renderSummary() {
-    StringBuilder sb = new StringBuilder();
-    appendHeader(sb, "Scope/continuation problems");
-    if (continuationFailures.isEmpty() && scopeFailures.isEmpty()) {
-      sb.append("  (none)\n");
-      return sb.toString();
-    }
+    return renderSummary(EnumSet.allOf(ScopeDiagnosticsCheck.class));
+  }
+
+  /** Renders enforced violations first, followed by advisory and excluded findings. */
+  String renderSummary(Set<ScopeDiagnosticsCheck> checks) {
+    StringBuilder sb = new StringBuilder("Scope/continuation findings\n");
+    EnumSet<ScopeDiagnosticsCheck> enforced = enforcedChecks(checks);
+    EnumSet<ScopeDiagnosticsCheck> advisory = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    advisory.retainAll(checks);
+    advisory.removeAll(ENFORCED_CHECKS);
+    EnumSet<ScopeDiagnosticsCheck> excluded = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    excluded.removeAll(checks);
+    appendFindings(sb, "Enforced violations", enforced);
+    appendFindings(sb, "Advisory findings (not enforced)", advisory);
+    appendFindings(sb, "Excluded findings (not enforced)", excluded);
+    return sb.toString();
+  }
+
+  private void appendFindings(StringBuilder sb, String title, Set<ScopeDiagnosticsCheck> checks) {
+    sb.append(title).append(":\n");
+    int start = sb.length();
     for (Map.Entry<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> e :
         continuationFailures.entrySet()) {
+      EnumSet<ScopeDiagnosticsCheck> findings = e.getValue().clone();
+      findings.retainAll(checks);
+      if (findings.isEmpty()) {
+        continue;
+      }
       ContinuationRecord r = e.getKey();
       ScopeEvent capture = r.capture();
       sb.append("  ")
-          .append(e.getValue())
+          .append(findings)
           .append(" #")
           .append(r.seq)
           .append(" trace=")
@@ -234,10 +260,15 @@ public final class ScopeDiagnosticsReport {
           .append('\n');
     }
     for (Map.Entry<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> e : scopeFailures.entrySet()) {
+      EnumSet<ScopeDiagnosticsCheck> findings = e.getValue().clone();
+      findings.retainAll(checks);
+      if (findings.isEmpty()) {
+        continue;
+      }
       ScopeRecord s = e.getKey();
       ScopeEvent open = s.open();
       sb.append("  ")
-          .append(e.getValue())
+          .append(findings)
           .append(" scope#")
           .append(s.seq)
           .append(" trace=")
@@ -248,7 +279,9 @@ public final class ScopeDiagnosticsReport {
           .append(open == null || open.callsite() == null ? "<unknown>" : open.callsite())
           .append('\n');
     }
-    return sb.toString();
+    if (sb.length() == start) {
+      sb.append("  (none)\n");
+    }
   }
 
   private static final int TIMELINE_FRAMES = 3;

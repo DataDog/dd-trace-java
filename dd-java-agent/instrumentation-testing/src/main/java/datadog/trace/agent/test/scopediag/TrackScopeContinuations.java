@@ -12,24 +12,14 @@ import java.lang.annotation.Target;
 @Inherited
 public @interface TrackScopeContinuations {
   /**
-   * Selects whether {@link #checks()} is the complete set of active checks ({@code true}) or the
-   * checks to remove from the default full set ({@code false}).
+   * Enables recording and diagnostics. Disabling requires a reason and an empty {@link
+   * #disabledChecks()} list.
    */
   boolean enabled() default true;
 
-  /**
-   * Checks selected by {@link #enabled()}. The default lists every available check; a configuration
-   * test guards that invariant as new checks are added.
-   */
-  ScopeDiagnosticsCheck[] checks() default {
-    ScopeDiagnosticsCheck.LEAKED,
-    ScopeDiagnosticsCheck.LATE_FINISH,
-    ScopeDiagnosticsCheck.DOUBLE_FINISH,
-    ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
-    ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD,
-    ScopeDiagnosticsCheck.NEVER_CLOSED
-  };
+  /** Checks excluded from enforcement while recording remains enabled. Requires a reason. */
+  ScopeDiagnosticsCheck[] disabledChecks() default {};
 
-  /** Explains any reduction from the default full check set. */
+  /** Required when recording is disabled or {@link #disabledChecks()} is nonempty. */
   String reason() default "";
 }

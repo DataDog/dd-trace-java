@@ -470,7 +470,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     TEST_WRITER.start()
     if (scopeDiagnosticsEnabled()) {
-      ScopeDiagnostics.startRecording()
+      ScopeDiagnostics.startRecording(scopeDiagConfig())
     }
     TEST_DATA_STREAMS_WRITER.clear()
     TEST_DATA_STREAMS_MONITORING.clear()

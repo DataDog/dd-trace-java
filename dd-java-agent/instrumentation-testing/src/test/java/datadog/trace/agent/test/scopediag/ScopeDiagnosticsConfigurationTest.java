@@ -1,6 +1,5 @@
 package datadog.trace.agent.test.scopediag;
 
-import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,26 +17,49 @@ class ScopeDiagnosticsConfigurationTest {
   private static class DocumentedOptOut {}
 
   @TrackScopeContinuations(
-      checks = {ScopeDiagnosticsCheck.LEAKED, ScopeDiagnosticsCheck.LATE_FINISH},
-      reason = "only these checks apply")
-  private static class CheckWhitelist {}
-
-  @TrackScopeContinuations(
-      enabled = false,
-      checks = {ScopeDiagnosticsCheck.LEAKED, ScopeDiagnosticsCheck.LATE_FINISH},
+      disabledChecks = {ScopeDiagnosticsCheck.LEAKED, ScopeDiagnosticsCheck.LATE_FINISH},
       reason = "these checks do not apply")
-  private static class CheckBlacklist {}
+  private static class ExcludedChecks {}
 
-  @TrackScopeContinuations(
-      enabled = false,
-      checks = {})
-  private static class EmptyBlacklist {}
-
-  @TrackScopeContinuations(checks = ScopeDiagnosticsCheck.LEAKED)
-  private static class UndocumentedWhitelist {}
+  @TrackScopeContinuations(disabledChecks = {})
+  private static class EmptyExclusions {}
 
   @TrackScopeContinuations
   private static class Defaults {}
+
+  @TrackScopeContinuations(
+      enabled = false,
+      disabledChecks = ScopeDiagnosticsCheck.LEAKED,
+      reason = "incompatible fixture")
+  private static class DisabledWithExclusions {}
+
+  @TrackScopeContinuations(disabledChecks = ScopeDiagnosticsCheck.LEAKED, reason = "  ")
+  private static class UndocumentedExclusion {}
+
+  @TrackScopeContinuations(disabledChecks = ScopeDiagnosticsCheck.LATE_FINISH)
+  private static class UndocumentedAdvisoryExclusion {}
+
+  @TrackScopeContinuations(
+      disabledChecks = {
+        ScopeDiagnosticsCheck.LEAKED,
+        ScopeDiagnosticsCheck.DOUBLE_FINISH,
+        ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+        ScopeDiagnosticsCheck.NEVER_CLOSED
+      },
+      reason = "diagnostic investigation only")
+  private static class AdvisoryOnly {}
+
+  @TrackScopeContinuations(
+      disabledChecks = {
+        ScopeDiagnosticsCheck.LEAKED,
+        ScopeDiagnosticsCheck.LATE_FINISH,
+        ScopeDiagnosticsCheck.DOUBLE_FINISH,
+        ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+        ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD,
+        ScopeDiagnosticsCheck.NEVER_CLOSED
+      },
+      reason = "diagnostic investigation only")
+  private static class AllExcluded {}
 
   @Test
   void diagnosticsAreEnabledByDefault() {
@@ -45,27 +67,17 @@ class ScopeDiagnosticsConfigurationTest {
   }
 
   @Test
-  void defaultChecksIncludeEveryEnumValue() {
+  void defaultSelectionIncludesEveryEnumValue() {
     TrackScopeContinuations config = Defaults.class.getAnnotation(TrackScopeContinuations.class);
 
     assertEquals(
-        EnumSet.allOf(ScopeDiagnosticsCheck.class), EnumSet.copyOf(asList(config.checks())));
+        EnumSet.allOf(ScopeDiagnosticsCheck.class), ScopeDiagnostics.enabledChecks(config));
   }
 
   @Test
-  void enabledChecksAreAWhitelist() {
+  void excludedChecksAreRemovedFromDefaults() {
     TrackScopeContinuations config =
-        CheckWhitelist.class.getAnnotation(TrackScopeContinuations.class);
-
-    assertEquals(
-        EnumSet.of(ScopeDiagnosticsCheck.LEAKED, ScopeDiagnosticsCheck.LATE_FINISH),
-        ScopeDiagnostics.enabledChecks(config));
-  }
-
-  @Test
-  void disabledChecksAreABlacklist() {
-    TrackScopeContinuations config =
-        CheckBlacklist.class.getAnnotation(TrackScopeContinuations.class);
+        ExcludedChecks.class.getAnnotation(TrackScopeContinuations.class);
     EnumSet<ScopeDiagnosticsCheck> expected = EnumSet.allOf(ScopeDiagnosticsCheck.class);
     expected.remove(ScopeDiagnosticsCheck.LEAKED);
     expected.remove(ScopeDiagnosticsCheck.LATE_FINISH);
@@ -74,9 +86,9 @@ class ScopeDiagnosticsConfigurationTest {
   }
 
   @Test
-  void emptyBlacklistKeepsEveryCheckEnabled() {
+  void emptyExclusionsKeepEveryCheckEnabled() {
     TrackScopeContinuations config =
-        EmptyBlacklist.class.getAnnotation(TrackScopeContinuations.class);
+        EmptyExclusions.class.getAnnotation(TrackScopeContinuations.class);
 
     assertEquals(
         EnumSet.allOf(ScopeDiagnosticsCheck.class), ScopeDiagnostics.enabledChecks(config));
@@ -98,10 +110,40 @@ class ScopeDiagnosticsConfigurationTest {
   }
 
   @Test
-  void undocumentedWhitelistIsRejected() {
-    TrackScopeContinuations config =
-        UndocumentedWhitelist.class.getAnnotation(TrackScopeContinuations.class);
+  void fullOptOutCannotSupplyDisabledChecks() {
+    assertInvalid(DisabledWithExclusions.class);
+  }
 
+  @Test
+  void undocumentedExclusionIsRejected() {
+    assertInvalid(UndocumentedExclusion.class);
+  }
+
+  @Test
+  void excludingAnAdvisoryCheckStillRequiresAReason() {
+    assertInvalid(UndocumentedAdvisoryExclusion.class);
+  }
+
+  @Test
+  void excludingAllEnforcedChecksKeepsRecordingEnabled() {
+    TrackScopeContinuations config =
+        AdvisoryOnly.class.getAnnotation(TrackScopeContinuations.class);
+
+    assertTrue(ScopeDiagnostics.isEnabled(config));
+    assertTrue(
+        ScopeDiagnosticsReport.enforcedChecks(ScopeDiagnostics.enabledChecks(config)).isEmpty());
+  }
+
+  @Test
+  void excludingEveryCheckKeepsRecordingEnabled() {
+    TrackScopeContinuations config = AllExcluded.class.getAnnotation(TrackScopeContinuations.class);
+
+    assertTrue(ScopeDiagnostics.isEnabled(config));
+    assertTrue(ScopeDiagnostics.enabledChecks(config).isEmpty());
+  }
+
+  private static void assertInvalid(Class<?> fixture) {
+    TrackScopeContinuations config = fixture.getAnnotation(TrackScopeContinuations.class);
     assertThrows(IllegalArgumentException.class, () -> ScopeDiagnostics.isEnabled(config));
   }
 }
