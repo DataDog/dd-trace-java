@@ -86,14 +86,24 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
       }
       """
     )
+    listOf("first", "second", "third").forEach { producer ->
+      addSubproject("dd-java-agent:instrumentation:$producer",
+        """
+        plugins {
+          id("java")
+          id("dd-trace-java.muzzle")
+        }
+        """
+      )
+    }
     writeRootProject("""layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))""")
-    writeFile("relocated/build/muzzle-deps-results/first.csv",
+    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_first.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.0.0,2.0.0
       """
     )
-    writeFile("relocated/build/muzzle-deps-results/second.csv",
+    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_second.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.5.0,3.0.0
@@ -126,7 +136,7 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
           "second-instrumentation,com.example,other,3.0.0,4.0.0\n"
       )
 
-    writeFile("relocated/build/muzzle-deps-results/second.csv",
+    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_second.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.5.0,2.0.0
@@ -142,7 +152,7 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         "first-instrumentation,com.example,demo,1.0.0,2.0.0\n"
     )
 
-    writeFile("relocated/build/muzzle-deps-results/third.csv",
+    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_third.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       third-instrumentation,com.example,new,4.0.0,5.0.0
@@ -157,8 +167,8 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         "third-instrumentation,com.example,new,4.0.0,5.0.0\n"
     )
 
-    assertThat(file("relocated/build/muzzle-deps-results/first.csv").delete()).isTrue()
-    assertThat(file("relocated/build/muzzle-deps-results/second.csv").delete()).isTrue()
+    assertThat(file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_first.csv").delete()).isTrue()
+    assertThat(file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_second.csv").delete()).isTrue()
     val removed = run(*refreshArgs)
     assertThat(removed.task(args[0])?.outcome).describedAs(removed.output).isEqualTo(SUCCESS)
     assertThat(removed.output).contains("Reusing configuration cache")
@@ -166,6 +176,74 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
       "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
         "third-instrumentation,com.example,new,4.0.0,5.0.0\n"
     )
+  }
+
+  @Test
+  fun `merge ignores reports from removed and renamed producers`() {
+    val producerScript = """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+    """
+    writeProject(producerScript)
+    addSubproject("dd-java-agent:instrumentation", producerScript)
+    val currentSettings = file("settings.gradle.kts").readText()
+    addSubproject("dd-java-agent:instrumentation:deleted", producerScript)
+    writeRootProject("""layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))""")
+
+    val active = writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_demo.csv",
+      """
+      instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
+      active-instrumentation,com.example,demo,1.0.0,2.0.0
+      """
+    )
+    val orphan = writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_deleted.csv",
+      """
+      instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
+      deleted-instrumentation,com.example,deleted,3.0.0,4.0.0
+      """
+    )
+    val args = arrayOf(
+      ":dd-java-agent:instrumentation:mergeMuzzleReports",
+      "--configuration-cache",
+      "--configuration-cache-problems=fail",
+      "--stacktrace"
+    )
+    val report = file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation.csv")
+
+    val first = run(*args)
+    assertThat(first.task(args[0])?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
+    assertThat(report.readText()).isEqualTo(
+      "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
+        "active-instrumentation,com.example,demo,1.0.0,2.0.0\n" +
+        "deleted-instrumentation,com.example,deleted,3.0.0,4.0.0\n"
+    )
+
+    writeSettings(currentSettings)
+    val removed = run(*args)
+    assertThat(removed.task(args[0])?.outcome).describedAs(removed.output).isEqualTo(SUCCESS)
+    assertThat(report.readText()).isEqualTo(active.readText())
+    assertThat(orphan).exists()
+
+    writeSettings(currentSettings.replace(":instrumentation:demo", ":instrumentation:renamed"))
+    writeFile("dd-java-agent/instrumentation/renamed/build.gradle.kts", producerScript)
+    val renamed = writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_renamed.csv",
+      """
+      instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
+      renamed-instrumentation,com.example,demo,1.5.0,1.5.0
+      """
+    )
+    val refreshed = run(*args)
+    assertThat(refreshed.task(args[0])?.outcome).describedAs(refreshed.output).isEqualTo(SUCCESS)
+    assertThat(report.readText()).isEqualTo(renamed.readText())
+    assertThat(active).exists()
+    assertThat(orphan).exists()
+
+    val reused = run(*args)
+    assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(UP_TO_DATE)
+    assertThat(reused.output).contains("Reusing configuration cache")
+    assertThat(report.readText()).isEqualTo(renamed.readText())
   }
 
   @Test

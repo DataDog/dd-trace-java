@@ -16,12 +16,14 @@ abstract class MuzzleMergeReportsTask : AbstractMuzzleReportTask() {
 
   @get:InputFiles
   @get:PathSensitive(PathSensitivity.RELATIVE)
-  val versionReports = project.fileTree(project.rootProject.layout.buildDirectory.dir(MUZZLE_DEPS_RESULTS)) {
-    include("*.csv")
-  }.minus(project.files(versionsFile))
+  val versionReports = project.files(
+    project.rootProject.allprojects.flatMap { producer ->
+      producer.tasks.withType(MuzzleGenerateReportTask::class.java).map { it.versionsFile }
+    }
+  ).minus(project.files(versionsFile)).asFileTree
 
   /**
-   * Merges all muzzle report CSVs in the build directory into a single map and writes the merged results to a CSV.
+   * Merges existing CSVs from current report generators and writes the merged results to a CSV.
    */
   @TaskAction
   fun mergeReports() {
