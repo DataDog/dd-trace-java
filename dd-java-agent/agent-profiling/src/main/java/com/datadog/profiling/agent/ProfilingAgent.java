@@ -168,25 +168,8 @@ public class ProfilingAgent {
         }
         if (otlpUploader != null) {
           OtlpProfileUploader otlp = otlpUploader;
-          RecordingDataListener downstream = listener;
           listener =
-              (type, data, sync) -> {
-                // downstream owns the base reference and must always run, otherwise the
-                // recording leaks; the extra OTLP reference is released only when retain() failed
-                boolean retained = false;
-                try {
-                  data.retain(); // OTLP uploader gets an extra reference
-                  retained = true;
-                  otlp.upload(type, data, sync, null);
-                } catch (Exception e) {
-                  log.warn(SEND_TELEMETRY, "OTLP upload failed, JFR upload will continue", e);
-                  if (retained) {
-                    data.release(); // undo retain; downstream releases the base reference
-                  }
-                } finally {
-                  downstream.onNewData(type, data, sync);
-                }
-              };
+              withOtlpUpload(listener, (type, data, sync) -> otlp.upload(type, data, sync, null));
         }
         // the scrubber must wrap the OTLP listener so OTLP receives the scrubbed copy, not the
         // raw recording; it also wraps the combined dumper+uploader so debug dumps stay scrubbed
@@ -239,6 +222,32 @@ public class ProfilingAgent {
       }
     }
     return false;
+  }
+
+  /**
+   * Runs {@code downstream} first and then {@code otlp}, so OTLP export never delays the classic
+   * upload. The OTLP reference is taken before downstream runs, since downstream may release the
+   * base reference and free the recording; {@code otlp} must release that reference. If the
+   * reference cannot be taken, only {@code downstream} runs.
+   */
+  static RecordingDataListener withOtlpUpload(
+      RecordingDataListener downstream, RecordingDataListener otlp) {
+    return (type, data, sync) -> {
+      boolean retained = false;
+      try {
+        data.retain();
+        retained = true;
+      } catch (IllegalStateException e) {
+        log.warn(SEND_TELEMETRY, "OTLP upload skipped, JFR upload will continue", e);
+      }
+      try {
+        downstream.onNewData(type, data, sync);
+      } finally {
+        if (retained) {
+          otlp.onNewData(type, data, sync);
+        }
+      }
+    };
   }
 
   private static RecordingDataListener wrapWithScrubber(

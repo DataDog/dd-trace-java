@@ -291,7 +291,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_OTLP_ENABLED = "profiling.otlp.enabled";
   public static final boolean PROFILING_OTLP_ENABLED_DEFAULT = false;
 
-  // LIGHT = raw JFR as the original_payload blob, no conversion;
+  // LIGHT = raw JFR as the original_payload blob, no conversion — the profile carries no samples,
+  // so only a backend that parses the embedded JFR can use it;
   // FULL = converted samples + raw JFR blob; CONVERTED = converted samples only
   public static final String PROFILING_OTLP_MODE = "profiling.otlp.mode";
 

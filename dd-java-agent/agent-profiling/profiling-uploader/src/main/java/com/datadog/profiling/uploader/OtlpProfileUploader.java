@@ -59,7 +59,6 @@ public final class OtlpProfileUploader implements RecordingDataListener {
 
   private static final Logger log = LoggerFactory.getLogger(OtlpProfileUploader.class);
   private static final int TERMINATION_TIMEOUT_SEC = 5;
-  private static final int MAX_RUNNING_REQUESTS = 10;
   // cap on the raw JFR recording embedded as original_payload in FULL mode — beyond this the
   // converted profile is sent without the payload instead of materializing an unbounded blob
   private static final long MAX_ORIGINAL_PAYLOAD_BYTES = 64L * 1024 * 1024;
@@ -87,6 +86,11 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   private final int terminationTimeout;
   private final ProfilingConfig.OtlpMode mode;
   private final Map<String, String> resourceAttributes;
+  // null unless mode is LIGHT; its reusable buffer is guarded by exportLock
+  private final LightweightOtlpEncoder lightweightEncoder;
+  // serializes conversion and send: at most one recording is converted and held in memory at a
+  // time, and the LIGHT encoder buffer is not overwritten while a send is still reading it
+  private final Object exportLock = new Object();
 
   public OtlpProfileUploader(final Config config, final ConfigProvider configProvider) {
     this(config, configProvider, TERMINATION_TIMEOUT_SEC);
@@ -114,10 +118,16 @@ public final class OtlpProfileUploader implements RecordingDataListener {
         configProvider.getEnum(
             PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, PROFILING_OTLP_MODE_DEFAULT);
     this.resourceAttributes = buildResourceAttributes(config);
+    this.lightweightEncoder =
+        mode == ProfilingConfig.OtlpMode.LIGHT
+            ? new LightweightOtlpEncoder(resourceAttributes)
+            : null;
+    // a single worker with no queue: a recording that arrives while the previous export is still
+    // running is dropped instead of being converted and buffered alongside it
     this.executor =
         new ThreadPoolExecutor(
             0,
-            MAX_RUNNING_REQUESTS,
+            1,
             60L,
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
@@ -151,49 +161,18 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       }
       return;
     }
+    if (sync) {
+      export(data, onCompletion);
+      return;
+    }
     try {
-      // Note: conversion runs synchronously on the profiling scheduler thread; only the network
-      // send is offloaded to the executor. This keeps at most one full JFR parse in flight at
-      // a time (bounding heap amplification) at the cost of blocking the profiling pipeline.
-      long conversionStartNanos = System.nanoTime();
-      OtlpPayload payload = convertToOtlp(data);
-      long conversionNanos = System.nanoTime() - conversionStartNanos;
-      OtlpTelemetry.getInstance().onProfilesConversion(conversionNanos);
-      if (payload == null) {
-        // skipped by the LIGHT-mode size cap — nothing to export
-        data.release();
-        if (onCompletion != null) {
-          onCompletion.run();
-        }
-        return;
-      }
-      log.debug(
-          "JFR to OTLP conversion took {} ms (mode={}, bytes={})",
-          TimeUnit.NANOSECONDS.toMillis(conversionNanos),
-          mode,
-          payload.getContentLength());
-
-      if (sync) {
-        sendAndRelease(payload, data, onCompletion);
-      } else {
-        try {
-          executor.execute(() -> sendAndRelease(payload, data, onCompletion));
-        } catch (RejectedExecutionException e) {
-          log.warn("OTLP profile upload rejected: too many concurrent requests");
-          // the send never started, but the export attempt happened — count it so failures
-          // cannot exceed attempts under backpressure
-          OtlpTelemetry.getInstance().onProfilesExportAttempt();
-          OtlpTelemetry.getInstance().onProfilesExportComplete(false);
-          data.release();
-          if (onCompletion != null) {
-            onCompletion.run();
-          }
-        }
-      }
-    } catch (Exception | LinkageError e) {
-      // not rethrown so that the classic JFR upload continues independently;
-      // LinkageError covers JVMs where the jafar parser classes cannot link
-      log.error("Failed to upload OTLP profile", e);
+      executor.execute(() -> export(data, onCompletion));
+    } catch (RejectedExecutionException e) {
+      log.warn("OTLP profile export skipped: the previous export is still in progress");
+      // the export never started, but the attempt happened — count it so failures cannot exceed
+      // attempts under backpressure
+      OtlpTelemetry.getInstance().onProfilesExportAttempt();
+      OtlpTelemetry.getInstance().onProfilesExportComplete(false);
       data.release();
       if (onCompletion != null) {
         onCompletion.run();
@@ -201,7 +180,47 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     }
   }
 
-  private void sendAndRelease(OtlpPayload payload, RecordingData data, Runnable onCompletion) {
+  private void export(RecordingData data, Runnable onCompletion) {
+    synchronized (exportLock) {
+      try {
+        OtlpPayload payload;
+        long conversionNanos;
+        try {
+          long conversionStartNanos = System.nanoTime();
+          payload = convertToOtlp(data);
+          conversionNanos = System.nanoTime() - conversionStartNanos;
+        } finally {
+          // the payload is fully materialized in memory, so the recording is no longer needed
+          data.release();
+        }
+        // LIGHT mode does not convert the recording (it exports the raw JFR); recording its
+        // encoding time would skew the conversion timing telemetry
+        if (mode != ProfilingConfig.OtlpMode.LIGHT) {
+          OtlpTelemetry.getInstance().onProfilesConversion(conversionNanos);
+        }
+        if (payload == null) {
+          // skipped by the LIGHT-mode size cap — nothing to export
+          return;
+        }
+        log.debug(
+            "JFR to OTLP conversion took {} ms (mode={}, bytes={})",
+            TimeUnit.NANOSECONDS.toMillis(conversionNanos),
+            mode,
+            payload.getContentLength());
+        send(payload);
+      } catch (Exception | LinkageError e) {
+        // not rethrown so that the classic JFR upload continues independently;
+        // LinkageError covers JVMs where the jafar parser classes cannot link
+        log.error("Failed to upload OTLP profile", e);
+      } finally {
+        if (onCompletion != null) {
+          onCompletion.run();
+        }
+      }
+    }
+  }
+
+  private void send(OtlpPayload payload) {
     try {
       OtlpTelemetry.getInstance().onProfilesExportAttempt();
       OtlpResponse response = sender.send(payload);
@@ -214,11 +233,6 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     } catch (Exception e) {
       log.error("OTLP profile upload failed", e);
       OtlpTelemetry.getInstance().onProfilesExportComplete(false);
-    } finally {
-      data.release();
-      if (onCompletion != null) {
-        onCompletion.run();
-      }
     }
   }
 
@@ -354,7 +368,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
           MAX_ORIGINAL_PAYLOAD_BYTES);
       return null;
     }
-    ByteBuffer encoded = LightweightOtlpEncoder.encode(jfrFile, start, end, resourceAttributes);
+    ByteBuffer encoded = lightweightEncoder.encode(jfrFile, start, end);
     return new OtlpPayload(encoded, OtlpPayload.PROTOBUF_CONTENT_TYPE);
   }
 
