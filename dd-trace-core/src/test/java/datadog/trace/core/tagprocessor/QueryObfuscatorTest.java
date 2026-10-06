@@ -3,11 +3,16 @@ package datadog.trace.core.tagprocessor;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.re2j.Pattern;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.DDSpanContext;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -65,9 +70,13 @@ class QueryObfuscatorTest extends DDJavaSpecification {
   }
 
   private static TagMap process(QueryObfuscator obfuscator, Object query) {
+    return process(obfuscator, query, DDTags.HTTP_QUERY);
+  }
+
+  private static TagMap process(QueryObfuscator obfuscator, Object query, String queryTag) {
     Map<String, Object> tags = new LinkedHashMap<>();
     tags.put(Tags.HTTP_URL, "http://site.com/index");
-    tags.put(DDTags.HTTP_QUERY, query);
+    tags.put(queryTag, query);
 
     TagMap unsafeTags = TagMap.fromMap(tags);
     obfuscator.processTags(unsafeTags, null, link -> {});
@@ -130,16 +139,26 @@ class QueryObfuscatorTest extends DDJavaSpecification {
     assertEquals("a=1<redacted>&b=2", unsafeTags.getObject(DDTags.HTTP_QUERY));
   }
 
-  @Test
-  void invalidRegexDropsQueryString() {
-    TagMap unsafeTags = process(new QueryObfuscator("(?<=a)b"), "pwd=secret");
+  @TableTest({
+    "Scenario      | OTel semantics",
+    "Datadog       | false         ",
+    "OpenTelemetry | true          "
+  })
+  void invalidRegexDropsQueryString(boolean otelSemantics) {
+    String queryTag = otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY;
+    TagMap unsafeTags =
+        process(new QueryObfuscator("(?<=a)b", otelSemantics), "pwd=secret", queryTag);
 
-    assertFalse(unsafeTags.containsKey(DDTags.HTTP_QUERY));
+    assertFalse(unsafeTags.containsKey(queryTag));
     assertEquals("http://site.com/index", unsafeTags.getObject(Tags.HTTP_URL));
   }
 
-  @Test
-  void obfuscationFailureDropsQueryString() {
+  @TableTest({
+    "Scenario      | OTel semantics",
+    "Datadog       | false         ",
+    "OpenTelemetry | true          "
+  })
+  void obfuscationFailureDropsQueryString(boolean otelSemantics) {
     CharSequence failing =
         new CharSequence() {
           @Override
@@ -163,9 +182,12 @@ class QueryObfuscatorTest extends DDJavaSpecification {
           }
         };
 
-    TagMap unsafeTags = assertDoesNotThrow(() -> process(new QueryObfuscator(null), failing));
+    String queryTag = otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY;
+    TagMap unsafeTags =
+        assertDoesNotThrow(
+            () -> process(new QueryObfuscator(null, otelSemantics), failing, queryTag));
 
-    assertFalse(unsafeTags.containsKey(DDTags.HTTP_QUERY));
+    assertFalse(unsafeTags.containsKey(queryTag));
     assertEquals("http://site.com/index", unsafeTags.getObject(Tags.HTTP_URL));
   }
 
@@ -177,5 +199,29 @@ class QueryObfuscatorTest extends DDJavaSpecification {
 
     assertEquals(query, unsafeTags.getObject(DDTags.HTTP_QUERY));
     assertEquals("http://site.com/index?" + query, unsafeTags.getObject(Tags.HTTP_URL));
+  }
+
+  @TableTest({
+    "spanType | retainQuery",
+    "http     | false      ",
+    "web      | true       "
+  })
+  void otelClientQueryIsOnlyUsedToBuildUrlFull(String spanType, boolean retainQuery) {
+    QueryObfuscator obfuscator = new QueryObfuscator(null, true);
+    DDSpanContext spanContext = mock(DDSpanContext.class);
+    when(spanContext.getSpanType()).thenReturn(spanType);
+
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, "http://site.com/index#fragment");
+    tags.put(KnownTags.URL_QUERY_NAME, "token=secret");
+
+    obfuscator.processTags(tags, spanContext, link -> {});
+
+    assertEquals("http://site.com/index?<redacted>#fragment", tags.get(Tags.HTTP_URL));
+    if (retainQuery) {
+      assertEquals("<redacted>", tags.get(KnownTags.URL_QUERY_NAME));
+      return;
+    }
+    assertNull(tags.get(KnownTags.URL_QUERY_NAME));
   }
 }
