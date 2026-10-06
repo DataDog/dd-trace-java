@@ -17,7 +17,7 @@ public class LogsIntakeHelper {
 
   private static final boolean APP_LOGS_COLLECTION = Config.get().isAppLogsCollectionEnabled();
   private static final Level SUBMISSION_LEVEL =
-      Level.toLevel(Config.get().getAgentlessLogSubmissionLevel(), Level.INFO);
+      submissionLevel(Config.get().getAgentlessLogSubmissionLevel());
 
   public static void log(ILoggingEvent event) {
     // App-log collection keeps its existing payload and framework-level filtering, even when
@@ -61,6 +61,11 @@ public class LogsIntakeHelper {
       addCorrelationIds(log);
     }
     return log;
+  }
+
+  /** Logback has no FATAL level, and ERROR is below a FATAL threshold. */
+  private static Level submissionLevel(String level) {
+    return "FATAL".equalsIgnoreCase(level) ? Level.OFF : Level.toLevel(level, Level.INFO);
   }
 
   private static void addCorrelationIds(Map<String, Object> log) {
