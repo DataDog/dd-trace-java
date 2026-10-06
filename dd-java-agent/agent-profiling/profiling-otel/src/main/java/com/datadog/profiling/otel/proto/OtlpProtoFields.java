@@ -2,7 +2,8 @@ package com.datadog.profiling.otel.proto;
 
 /**
  * OTLP Profiles protobuf field numbers. Based on
- * https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/profiles/v1development/profiles.proto
+ * https://github.com/open-telemetry/opentelemetry-proto/blob/v1.10.0/opentelemetry/proto/profiles/v1development/profiles.proto
+ * (keep in sync with {@code OTLP_PROTO_COMMIT} in {@code docker/Dockerfile.profcheck}).
  */
 public final class OtlpProtoFields {
 
@@ -67,9 +68,9 @@ public final class OtlpProtoFields {
   // Sample fields
   public static final class Sample {
     public static final int STACK_INDEX = 1;
-    public static final int VALUES = 2;
-    public static final int ATTRIBUTE_INDICES = 3;
-    public static final int LINK_INDEX = 4;
+    public static final int ATTRIBUTE_INDICES = 2;
+    public static final int LINK_INDEX = 3;
+    public static final int VALUES = 4;
     public static final int TIMESTAMPS_UNIX_NANO = 5;
 
     private Sample() {}
