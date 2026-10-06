@@ -1,7 +1,9 @@
 # Pharos instrumentation quality workflow
 
-Start with [WORKFLOW.md](WORKFLOW.md) for the LLM-driven KB → collection → assertion assessment →
-test improvement loop. See [ARCHITECTURE.md](ARCHITECTURE.md) for the current architecture and
+Start with [WORKFLOW.md](WORKFLOW.md) for catalog → upstream recording → local collection →
+automatic fingerprint classification → report. Manual assertion review is optional, not a gate.
+The current reference classifier/report command is `reference/report.py`.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the architecture and
 [PHAROS.md](PHAROS.md) for the report and replay interface.
 See [the Guava validation](experiments/guava-listeners.md) for a complete onboarding and test-improvement run.
 
@@ -17,11 +19,12 @@ own only their versioned functional knowledge. Ordinary tests remain opt-out.
 Python 3 (standard library only) and the repository Gradle/JDK environment are required. Use JDK 21
 for the supported Spring collection run.
 
-## Complete workflow
+## Existing module collection and legacy static KB commands
 
 Use `.agents/skills/instrumentation-quality/SKILL.md` for the end-to-end workflow. It generates the
-graph, invokes functional-knowledge authoring, validates the result, collects observations,
-interprets findings, and verifies test or instrumentation recovery. The commands below are the
+graph, invokes functional-knowledge authoring, collects both executions and classifies our tests.
+The commands below are the existing collection and legacy static KB interface; follow WORKFLOW
+for the upstream-reference classification step. They are the
 deterministic automation and CI interface.
 
 Initialize a new module after inspecting its build and instrumentation matchers:

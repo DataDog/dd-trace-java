@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import subprocess
 from collections import defaultdict
 from pathlib import Path
 import sys
@@ -35,7 +36,9 @@ class KnowledgeToolsTest(unittest.TestCase):
         self.observation = {'schemaVersion': 1, 'classes': ['A'], 'requiredTransformed': ['A']}
         self.flow = {'id': 'scenario', 'feature': 'Feature', 'variant': 'Variant',
                      'outcome': 'Outcome', 'status': 'draft', 'sourceIds': ['source'],
-                     'steps': [{'id': name, 'anchor': name} for name in ('A', 'B', 'C')],
+                     'steps': [{'id': name, 'anchor': name, 'label': 'Invoke callback ' + name,
+                                'rationale': 'The fixture source defines this callback checkpoint.',
+                                'sourceIds': ['source']} for name in ('A', 'B', 'C')],
                      'identification': {'allOf': ['A']},
                      'completion': {'allOf': ['B'], 'optional': ['C']}}
         self.catalog = {'schemaVersion': 2, 'library': 'g:lib', 'version': '1',
@@ -44,8 +47,10 @@ class KnowledgeToolsTest(unittest.TestCase):
     def family_catalog(self):
         return {'schemaVersion': 1, 'library': 'g:lib', 'version': '1',
                 'status': 'draft', 'scope': 'Test scope', 'families': [{
-                    'id': 'family', 'name': 'Family', 'classification': 'mapped',
+                    'id': 'family', 'name': 'Callback lifecycle', 'classification': 'mapped',
                     'entryMethods': ['A'], 'flowIds': ['scenario'],
+                    'navigation': {'description': 'Fixture callback behavior.', 'dimensions': [],
+                                   'scenarios': {'scenario': {'label': 'Callback outcome', 'values': {}}}},
                     'sourceIds': ['source'], 'rationale': 'Declared scenario'}]}
 
     def test_missing_catalog_is_an_error(self):
@@ -77,6 +82,57 @@ class KnowledgeToolsTest(unittest.TestCase):
         self.assertTrue(result['valid'])
         self.assertEqual('NOT_PERFORMED', result['semanticReview'])
 
+    def test_semantic_stages_reject_missing_and_placeholder_labels(self):
+        for label in (None, '', ' ', 'Step 0', 'stage-1', 'Checkpoint 2', 'TBD'):
+            with self.subTest(label=label):
+                self.flow['steps'][0]['label'] = label
+                with self.assertRaisesRegex(ValueError, 'meaningful stage label'):
+                    validator.validate(self.raw, self.library, self.catalog, self.observation)
+
+    def test_semantic_stages_require_rationale_and_known_sources(self):
+        step = self.flow['steps'][0]
+        for field, value in [('rationale', ''), ('sourceIds', []), ('sourceIds', ['unknown'])]:
+            with self.subTest(field=field, value=value):
+                original = step[field]
+                step[field] = value
+                with self.assertRaisesRegex(ValueError, 'stage needs'):
+                    validator.validate(self.raw, self.library, self.catalog, self.observation)
+                step[field] = original
+
+    def test_explicit_ungrouped_view_requires_a_reason(self):
+        self.flow['stagePresentation'] = {'mode': 'ungrouped', 'reason': 'No defensible lifecycle grouping in this fixture.'}
+        for step in self.flow['steps']:
+            step.pop('label')
+        result = validator.validate(self.raw, self.library, self.catalog, self.observation, catalog=self.family_catalog())
+        self.assertTrue(result['valid'])
+        self.flow['stagePresentation']['reason'] = ''
+        with self.assertRaisesRegex(ValueError, 'explicit reason'):
+            validator.validate(self.raw, self.library, self.catalog, self.observation)
+
+    def test_unresolved_inventory_cli_preserves_declared_scope_scoring(self):
+        from catalog_reconciliation import prepare
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            upstream = root / 'upstream'
+            upstream.mkdir()
+            (upstream / 'ExampleTest.java').write_text('// inventory fixture\n')
+            inputs, review = prepare(self.catalog, upstream, [], [])
+            artifacts = {'library.json': self.library, 'flows.json': self.catalog,
+                         'observation.json': self.observation, 'catalog.json': self.family_catalog(),
+                         'catalog-inputs.json': inputs, 'catalog-reconciliation.json': review,
+                         'graph.json': self.raw}
+            for name, value in artifacts.items():
+                (root / name).write_text(json.dumps(value))
+            result = subprocess.run([sys.executable, str(TOOLS / 'validate-knowledge.py'),
+                                     '--graph', str(root / 'graph.json'), '--knowledge', str(root)],
+                                    check=True, capture_output=True, text=True)
+            data = json.loads(result.stdout)
+            self.assertTrue(data['valid'])
+            self.assertEqual('unresolved', data['catalogAssessment']['reconciliation']['status'])
+            self.assertEqual(1, data['catalogAssessment']['summary']['mapped'])
+            warning = next(w for w in data['warnings'] if w.startswith('Catalog scope unresolved:'))
+            self.assertIn('percentage describes declared mapped behaviors only', warning)
+
     def test_catalog_assessment_exposes_unmapped_candidate_without_making_it_a_flow(self):
         catalog = {
             'schemaVersion': 1,
@@ -89,11 +145,15 @@ class KnowledgeToolsTest(unittest.TestCase):
                     'id': 'mapped', 'name': 'Mapped behavior', 'classification': 'mapped',
                     'entryMethods': ['A'], 'flowIds': ['scenario'],
                     'sourceIds': ['source'], 'rationale': 'Represented by the declared flow.',
+                    'navigation': {'description': 'Mapped callback behavior.', 'dimensions': [],
+                                   'scenarios': {'scenario': {'label': 'Callback outcome', 'values': {}}}},
                 },
                 {
                     'id': 'candidate', 'name': 'Potential missing behavior',
                     'classification': 'candidate', 'entryMethods': ['C'], 'flowIds': [],
                     'sourceIds': ['source'], 'rationale': 'Public behavior needs semantic review.',
+                    'navigation': {'description': 'Potential callback behavior.', 'dimensions': [],
+                                   'scenarios': {'candidate.candidate': {'label': 'Review callback behavior', 'values': {}}}},
                 },
             ],
         }

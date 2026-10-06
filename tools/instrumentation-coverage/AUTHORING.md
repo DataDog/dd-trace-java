@@ -1,11 +1,19 @@
 # Authoring library knowledge
 
+This file describes the legacy static KB format. The default execution-fingerprint workflow is
+in [WORKFLOW.md](WORKFLOW.md); it does not require local assertion review or catalog reconciliation
+as a report-generation gate. Use these details only when maintaining a legacy module KB.
+
 Before reusing or collecting knowledge, follow [catalog reconciliation](CATALOG_RECONCILIATION.md).
 Missing catalogs/reconciliation fail validation. Catalog review does not gate the coverage percentage; candidate families stay outside the declared-behavior denominator.
 
 The semantic mapping is reviewed knowledge. A human or LLM can draft it; deterministic tools bind
 and validate it. A graph alone cannot identify all important features, and existing tests alone
 cannot reveal all missing scenarios.
+For upstream-reference quality assessment, the sequence is static graph, upstream test/contract
+review, flows/families, upstream recording, then finalized stages/reference coverage. Follow
+[REFERENCE_CARTOGRAPHY.md](REFERENCE_CARTOGRAPHY.md); source-only authoring is an explicitly static
+draft. The generic async recorder is a required capability still to implement, not an existing CLI.
 
 ## Add an instrumentation module
 
@@ -23,18 +31,30 @@ cannot reveal all missing scenarios.
    large parameterized suite. A row is a distinct method, scenario, Context state, attribution and
    handoff combination. Exceeding the budget fails the run, so use a reviewed module-specific value
    instead of accepting partial evidence.
-4. Draft `catalog.json` from documentation, public API families, version-matched source, and explicit
+4. Run `graph` against those artifacts. Draft `catalog.json` from documentation, public API families, version-matched source, and explicit
    scope decisions. Classify families as mapped, candidate, or excluded. Then draft `flows.json`
    using documentation, source, and tests.
-5. Run `graph`, author knowledge against the printed graph, then run `validate-knowledge`; inspect
-   `catalogAssessment`, graph/binding artifacts, and each flow definition.
-6. Run `run`, check collection health and test attribution, and inspect per-flow evidence.
+5. Record upstream examples using the reference protocol, combine observations with the static
+   graph/source review, and finalize semantic stages. Run `validate-knowledge`; inspect
+   `catalogAssessment`, graph/binding artifacts and reference acceptance separately.
+6. Run our tests with `run`, check collection health and test attribution, and compare with the
+   pinned upstream reference. Without an accepted reference this remains a local diagnostic.
 
 Set `adapter` to `spock` for `InstrumentationSpecification`, or `junit` for
 `AbstractInstrumentationTest`. Both use the same collector and report format. See
 [JUNIT.md](JUNIT.md) for the Jupiter lifecycle and validation command.
 
 ## Draft a flow
+
+First define its owning functionality family and useful navigation dimensions in catalog.json.
+Author family description, dimension labels/values and scenario labels/values following
+KNOWLEDGE_FORMAT. Do not reconstruct grouping later from flow names. Use no dimensions when the
+family's scenarios can be browsed directly. Split scenarios for materially different preconditions,
+outcomes or assertion obligations; equivalent overloads remain reference examples. Check that
+labels distinguish scenarios after filtering and cancellation timing is explicit where relevant.
+Review semantics separately from validation of exact, unambiguous membership. The same metadata
+must drive visualization and survive binding, assertion assessment and replay without changing
+the score or hiding unsupported outcomes.
 
 Use stable flow IDs and identify the user-visible behavior first. For example, a Callable-returning
 controller starts asynchronous processing, completes it, and redispatches the servlet request.
@@ -47,6 +67,14 @@ repeating `Client stub`. A reader should not need JVM method IDs to understand t
 Record sources and distinguish documented behavior from a test fixture or investigation hypothesis.
 Choose a corridor containing recognizable checkpoints. Method anchors use JVM owners, names and
 descriptors; prefix anchors can bind multiple overloads. Inspect those bindings before accepting them.
+
+Define each stage's lifecycle role before choosing its methods. Author a meaningful `label`, a
+source-grounded `rationale`, and `sourceIds` following KNOWLEDGE_FORMAT. Do not display internal IDs
+or number methods as stages. Review the label against every bound method: entering an emitter or
+scheduled task does not by itself prove accepted delivery, task completion or causal ordering.
+If no useful grouping is supported, explicitly justify an ungrouped method view. Verify stage
+labels survive binding, assessment and report replay; browser acceptance must check their content,
+not just that the cards are clickable.
 
 Use `identification.allOf` for required steps, `anyOf` for alternatives and `noneOf` for exclusions.
 A step with multiple bound methods is satisfied when any one of its methods is observed. Shared

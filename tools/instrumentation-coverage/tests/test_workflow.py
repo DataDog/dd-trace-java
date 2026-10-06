@@ -74,6 +74,7 @@ class WorkflowTest(unittest.TestCase):
         observation = {'schemaVersion': 1, 'classes': ['A'], 'requiredTransformed': ['A']}
         flows = {'schemaVersion': 2, 'library': 'g:a', 'version': '1', 'flows': [
             {'id': 'flow', 'feature': 'Feature', 'variant': 'Variant', 'outcome': 'Outcome',
+             'stagePresentation': {'mode': 'ungrouped', 'reason': 'Predicate-only validation fixture.'},
              'steps': [{'id': 'a'}], 'identification': {'allOf': ['missing']}}]}
         with self.assertRaisesRegex(ValueError, 'absent steps'):
             workflow.validate_knowledge(library, flows, observation)

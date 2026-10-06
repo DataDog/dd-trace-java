@@ -7,6 +7,7 @@ from pathlib import Path
 
 from workflow import validate_knowledge
 from catalog_reconciliation import reconcile
+from catalog_navigation import project
 
 
 def validate_catalog(raw, flows, catalog):
@@ -64,12 +65,17 @@ def validate_catalog(raw, flows, catalog):
             ],
             'rationale': family.get('rationale', ''),
             'sourceIds': family.get('sourceIds', []),
+            'navigation': family.get('navigation'),
         })
     if not families:
         errors.append('Catalog must have a nonempty functionality inventory')
     unclassified = sorted(flow_ids - classified_flows)
     if unclassified:
         errors.append('Flows absent from catalog assessment: ' + ', '.join(unclassified))
+    try:
+        project(families, flow_ids | {'candidate.' + f['id'] for f in families if f['classification'] == 'candidate'})
+    except ValueError as error:
+        errors.append(str(error))
     counts = {classification: sum(
         item['classification'] == classification for item in families)
         for classification in ('mapped', 'candidate', 'excluded')}
@@ -83,6 +89,7 @@ def validate_catalog(raw, flows, catalog):
         'families': families,
         'unclassifiedFlowIds': unclassified,
         'semanticReview': 'NOT_PERFORMED',
+        'navigationSchemaVersion': 1,
     }, errors, warnings
 
 
@@ -179,7 +186,7 @@ def main():
                               optional('catalog-inputs.json'), optional('catalog-reconciliation.json'))
             result['catalogAssessment']['reconciliation'] = scope
             if scope['status'] != 'reconciled':
-                result['warnings'].append(f"Catalog scope unresolved: {len(scope['unresolvedSignals'])} signals and {len(scope['candidateFamilies'])} candidate families; overall percentage unavailable")
+                result['warnings'].append(f"Catalog scope unresolved: {len(scope['unresolvedSignals'])} signals and {len(scope['candidateFamilies'])} candidate families; percentage describes declared mapped behaviors only")
     except (ValueError, KeyError, TypeError) as error:
         result = {'valid': False, 'semanticReview': 'NOT_PERFORMED', 'errors': [str(error)]}
     output = json.dumps(result, indent=2, sort_keys=True) + '\n'

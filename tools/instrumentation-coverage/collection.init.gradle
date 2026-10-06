@@ -11,6 +11,8 @@ gradle.projectsEvaluated {
   def knowledge = new File(run, 'knowledge')
   def library = new JsonSlurper().parse(new File(knowledge, 'library.json'))
   def observation = new JsonSlurper().parse(new File(knowledge, 'observation.json'))
+  def scopeFile = new File(run, 'collection-scope.json')
+  def excludedTests = scopeFile.isFile() ? new JsonSlurper().parse(scopeFile).excludedTests : []
   def observer = root.file('tools/instrumentation-coverage/build/libs/instrumentation-coverage-observer.jar')
   def bootstrapBridge = root.file('tools/instrumentation-coverage/build/libs/instrumentation-coverage-bootstrap.jar')
   def sha = { File file ->
@@ -87,6 +89,7 @@ gradle.projectsEvaluated {
   }
   selectedTests.each { selectedTest ->
     selectedTest.configure {
+      excludedTests.each { excluded -> filter.excludeTestsMatching(excluded.pattern.toString()) }
       dependsOn export
       classpath += root.files(observer)
       systemProperty 'test.context.coverage.classes', observation.classes.join(',')

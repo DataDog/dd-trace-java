@@ -10,6 +10,9 @@ from pathlib import Path
 import subprocess
 import sys
 
+from stage_contract import meaningful_label, validate_stages
+from catalog_navigation import project as project_navigation, validate_report as validate_navigation
+
 TOOL = Path(__file__).resolve().parent
 ROOT = TOOL.parents[1]
 SUPPORTED = {'BEHAVIOR_SUPPORTED', 'PARTIALLY_SUPPORTED'}
@@ -33,6 +36,18 @@ def from_joined(report):
     inventory = {m['id']: m for m in report['methodInventory']}
     variants = []
     for flow in report['flows']:
+        presentation = flow.get('stagePresentation', {'mode': 'semantic'})
+        # Old sealed runs have no stage contract. Keep their methods readable without
+        # manufacturing lifecycle names from internal IDs.
+        if 'stagePresentation' not in flow and any(not meaningful_label(s.get('label')) or
+                not s.get('rationale') or not s.get('sourceIds') for s in flow['steps']):
+            presentation = dict(mode='ungrouped', reason='Legacy mapping has no authored semantic stage labels.')
+        if not isinstance(presentation, dict):
+            raise ValueError('Invalid stage presentation')
+        if presentation.get('mode') == 'semantic':
+            validate_stages(flow, {s['id'] for s in report.get('sources', [])})
+        else:
+            validate_stages(dict(flow, stagePresentation=presentation), set())
         methods = sorted({m['methodId'] for m in flow['expectedMethods'] if m.get('methodId')})
         tests = [dict(testId=t['id'], name=t['name'], suite=t['suite'],
                       target=t['id'].split('::')[0], evidenceStatus='EXECUTION_ANCHORS_ONLY',
@@ -52,14 +67,15 @@ def from_joined(report):
                              scope='Static catalog; not an upstream runtime reference.',
                              body=json.dumps({k: v for k, v in flow.items() if k in (
                                  'identification', 'expectations', 'completion', 'contextContract', 'exercise')}, indent=2))],
-            stages=[dict(id=s['id'], name=s['id'].replace('-', ' ').capitalize(),
+            stagePresentation=presentation,
+            stages=[dict(id=s['id'], name=s['label'], rationale=s['rationale'], sourceIds=s['sourceIds'],
                          methods=[m for m in s.get('matches', []) if m in methods])
-                    for s in flow['steps']],
+                    for s in flow['steps'] if presentation['mode'] == 'semantic'],
             methods={m: dict(observable=m in inventory, tests={tid: counts for tid, counts in
                      inventory.get(m, {}).get('tests', {}).items() if tid in test_ids}) for m in methods}))
     observed = sum(any(t.get('context', 0) + t.get('root', 0) for t in m.get('tests', {}).values())
                    for m in inventory.values())
-    return dict(schemaVersion=1, library=report['library'], version=report['version'],
+    data = dict(schemaVersion=1, library=report['library'], version=report['version'],
                 evidenceBasis='execution-anchors', variants=variants,
                 catalogAssessment=report.get('catalogAssessment'),
                 runCoverage=dict(inventory=len(inventory), observed=observed),
@@ -68,6 +84,10 @@ def from_joined(report):
                 limitations=['Execution matches do not establish assertion support or correctness.',
                              'Worker attribution uses serialized test windows, not causal request identity.',
                              'The declared catalog is bounded; outside scope is not measured.'])
+    catalog = report.get('catalogAssessment') or {}
+    if catalog.get('navigationSchemaVersion') == 1:
+        data['catalogNavigation'] = project_navigation(catalog['families'], {v['id'] for v in variants})
+    return data
 
 
 def validate(data):
@@ -76,8 +96,20 @@ def validate(data):
     variants = data.get('variants', [])
     if not variants or len({v['id'] for v in variants}) != len(variants):
         raise ValueError('Report needs nonempty, unique behavior IDs')
+    if 'catalogNavigation' in data:
+        validate_navigation(data['catalogNavigation'], {v['id'] for v in variants})
+    elif (data.get('catalogAssessment') or {}).get('navigationSchemaVersion') == 1:
+        raise ValueError('Authored catalog navigation lost from report')
     if data.get('testExecution', {}).get('failures', 0) or data.get('testExecution', {}).get('errors', 0):
         raise ValueError('Failed test runs cannot produce a successful evidence report')
+    scope = data.get('collectionScope')
+    if scope is not None:
+        if not isinstance(scope, dict) or scope.get('schemaVersion') != 1 or not isinstance(scope.get('excludedTests'), list):
+            raise ValueError('Invalid collection scope')
+        for excluded in scope['excludedTests']:
+            if not isinstance(excluded, dict) or any(not isinstance(excluded.get(k), str) or
+                    not excluded[k].strip() for k in ('pattern', 'reason', 'authorization')):
+                raise ValueError('Test exclusions need pattern, reason and authorization')
     for v in variants:
         if not v.get('references'):
             raise ValueError('Behavior needs a reference: ' + v['id'])
@@ -93,7 +125,22 @@ def validate(data):
         for ref in v['references']:
             if set(ref['methods']) - set(v['methods']):
                 raise ValueError('Reference methods missing observation eligibility')
-        for stage in v.get('stages', []):
+        stages = v.get('stages', [])
+        if len({s['id'] for s in stages}) != len(stages):
+            raise ValueError('Duplicate stage IDs in ' + v['id'])
+        presentation = v.get('stagePresentation')
+        if presentation is not None:
+            if not isinstance(presentation, dict) or presentation.get('mode') not in ('semantic', 'ungrouped'):
+                raise ValueError('Invalid stage presentation')
+            if presentation['mode'] == 'ungrouped' and (stages or not presentation.get('reason', '').strip()):
+                raise ValueError('Ungrouped presentation needs a reason and no stages')
+            if presentation['mode'] == 'semantic':
+                source_ids = {s['id'] for s in data.get('sources', [])}
+                source_ids.update(s['id'] for s in v.get('knowledgeEvidence', {}).get('sources', []))
+                validate_stages(dict(id=v['id'], steps=[dict(s, label=s.get('name')) for s in stages]), source_ids)
+        for stage in stages:
+            if not meaningful_label(stage.get('name')):
+                raise ValueError('Meaningful stage label required (not a placeholder)')
             if set(stage['methods']) - set(v['methods']):
                 raise ValueError('Stage contains an unknown method')
         for method in v['methods'].values():
@@ -123,19 +170,44 @@ def normalize(report, run=None):
         data['commands'] = dict(
             collect=['python3', 'tools/instrumentation-coverage/workflow.py', 'run', '--module', manifest['module']],
             replay=['python3', 'tools/instrumentation-coverage/pharos.py', 'report', '--run-directory', str(run)])
+        scope = run / 'collection-scope.json'
+        if scope.is_file():
+            data['collectionScope'] = read(scope)
+        exclusions = data.get('collectionScope', {}).get('excludedTests', [])
+        if exclusions:
+            for excluded in exclusions:
+                data['commands']['collect'].extend(['--exclude-test', excluded['pattern']])
+            for field, flag in [('reason', '--exclusion-reason'), ('authorization', '--exclusion-authorization')]:
+                values = list(dict.fromkeys(excluded[field] for excluded in exclusions))
+                data['commands']['collect'].extend([flag, '; '.join(values)])
     data.setdefault('run', {})
     data.setdefault('commands', {})
     data['catalogScope'] = (data.get('catalogAssessment') or {}).get('reconciliation') or {
         'status': 'unknown', 'unresolvedSignals': [], 'candidateFamilies': [], 'exclusions': [],
         'limitation': 'This saved report has no catalog reconciliation. Its scope is unknown.'}
     validate(data)
+    data['deliveryState'] = delivery_state(data)
     data['reportIdentity'] = digest(data)
     return data
+
+
+def delivery_state(data):
+    """Describe evidence stage/scope, never infer user-task completion or semantic truth."""
+    declared = [v for v in data['variants'] if not v['id'].startswith('candidate.')]
+    stage = ('COLLECTED_NOT_ASSESSED' if data.get('evidenceBasis') == 'execution-anchors' else
+             'ASSERTIONS_ASSESSED' if data.get('assertionAssessment') else 'ASSESSMENT_UNRECORDED')
+    return dict(assessmentStage=stage, declaredBehaviors=len(declared),
+                supportedBehaviors=sum(any(t['evidenceStatus'] == 'BEHAVIOR_SUPPORTED'
+                                          for t in v['associations']) for v in declared),
+                candidateFamilies=sum(v['id'].startswith('candidate.') for v in data['variants']),
+                excludedTests=len(data.get('collectionScope', {}).get('excludedTests', [])))
 
 
 def render(report, output, run=None):
     data = normalize(report, run)
     template = (TOOL / 'portal/index.html').read_text()
+    template = template.replace('<script src="catalog-navigation.js"></script>',
+                                '<script>' + (TOOL / 'portal/catalog-navigation.js').read_text() + '</script>')
     template = template.replace('<img src="../brand/pharos-mark.svg" alt="Pharos lighthouse">', (TOOL / 'brand/pharos-mark.svg').read_text())
     encoded = base64.b64encode(json.dumps(data, sort_keys=True).encode()).decode()
     output.mkdir(parents=True, exist_ok=True)

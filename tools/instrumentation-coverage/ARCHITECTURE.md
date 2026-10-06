@@ -4,16 +4,20 @@ Architecture snapshot: **2026-10-01**. This describes the implemented Java proto
 boundaries. Cross-language adapters, portal integration and profiling are directions, not shipped
 parts of this architecture. For commands, see [WORKFLOW.md](WORKFLOW.md); for report usage, see
 [PHAROS.md](PHAROS.md).
+The current execution-based pipeline adds `reference/`: upstream collection, per-test fingerprint
+classification and the quality report. It reuses the existing local observer and static graph.
+Its recorder harness currently targets RxJava 3.0.0; classification consumes library choices as
+catalog data. Legacy static/optional assertion-review details below retain their original semantics.
 
 ## Purpose and operating model
 
-Pharos reuses instrumentation tests to discover what library behavior is exercised, what assertions
-support it, and where further investigation or stronger tests would help. Passing tests, observed
-execution, Context state and verified behavioral expectations are separate evidence dimensions.
+Pharos compares instrumentation-test execution with named upstream scenarios. Documentation and
+source interpretation build the catalog; deterministic fingerprint matching classifies local tests.
+Test outcomes and root/non-root context observations remain available alongside scenario similarity.
 
 The LLM follows the `instrumentation-quality` skill through:
 
-**Discover → build/update KB → collect → assess assertions → improve tests → recollect → reassess.**
+**Catalog → upstream recording → local collection → classification → quality report.**
 
 The LLM authors semantic knowledge and test changes. Deterministic tools resolve artifacts, analyze
 bytecode, collect observations, validate evidence and render reports. The skill orchestrates an
@@ -26,18 +30,15 @@ flowchart TD
     L[Versioned library source, upstream tests and documentation] --> K
     G[Resolved-artifact reachability graph] --> K
     K --> KB[Module-owned library KB]
+    KB --> U[Record upstream scenario fingerprints]
     KB --> C[Agent-enabled test collection]
     T[Local instrumentation tests] --> C
     C --> R[Sealed run and execution report]
-    R --> P[Prepare dossier and assessment draft]
-    TS[Current test sources and helpers] --> P
-    OLD[Previous assessment: hints only] --> P
-    P --> A[LLM inspects assertions and authors bindings]
-    A --> V[Validate identities, sources and citations]
-    V --> UI[Generic report and investigation task]
-    UI --> I[LLM investigates and improves tests]
+    R --> M[Automatic fingerprint classification]
+    U --> M
+    M --> UI[Family / scenario / stage report]
+    UI --> I[Improve tests when requested]
     I --> T
-    V --> OLD
 ```
 
 Arrows describe artifact handoffs, not recorded runtime call edges. The report UI is optional to the
@@ -55,13 +56,20 @@ LLM loop: agents can inspect JSON directly.
 | `scripts/join.py` | Deterministically join a saved KB/graph with the selected run's observations |
 | `pharos.py` | Shared report interface: prepare, assess, resume, render, validate, replay and compare; compatibility build for the upstream pilot |
 | `assessment.py` | Prepare run-specific dossiers and validate LLM-authored assertion bindings |
+| `reference/fingerprint.py` | Weighted per-test similarity against separate upstream alternatives |
+| `reference/report.py`, `reference/view.html` | Automatic execution-based quality report; no assertion-review gate |
 | `portal/index.html` | Generic compact viewer; loads report JSON or is rendered with embedded data |
 | `cartography/` | Optional Spring upstream-runtime recording, classification and richer source-assessment experiment |
 
 The skill was renamed from `instrumentation-coverage` to `instrumentation-quality`; the existing
 `tools/instrumentation-coverage/` directory and collection command names are retained.
 
-## Artifact ownership and lifetime
+## Legacy static KB and optional assertion-review details
+
+The remaining snapshot describes the legacy tools. Manual source-cited assertion assessment is
+optional and only used when requested; it is not a required quality-report phase.
+
+### Artifact ownership and lifetime
 
 **Library knowledge is reusable; assertion assessments are run-specific.** A change to a local test
 normally requires new collection and reassessment, not regeneration of unchanged library knowledge.

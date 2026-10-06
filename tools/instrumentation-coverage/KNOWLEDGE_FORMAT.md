@@ -1,10 +1,17 @@
 # Functional knowledge authoring contract
 
+This is the legacy static KB schema, not the default fingerprint-report pipeline. See
+[WORKFLOW.md](WORKFLOW.md) for automatic classification; assertion-supported states below apply
+only to legacy reports or explicitly requested assertion review.
+
 Before reusing or collecting knowledge, follow [catalog reconciliation](CATALOG_RECONCILIATION.md).
 Missing catalogs/reconciliation fail validation. Catalog review does not gate the coverage percentage; candidate families stay outside the declared-behavior denominator.
 
 Use the existing module `library.json` and `observation.json` formats from README. The authoring
 workflow adds the following files. A valid draft is not necessarily a correct semantic mapping.
+For completed upstream-reference cartography, also follow
+[REFERENCE_CARTOGRAPHY.md](REFERENCE_CARTOGRAPHY.md). These existing schemas validate static/semantic
+knowledge; they do not yet enforce the new pinned-runtime/async reference acceptance contract.
 
 ## catalog.json (schemaVersion 1)
 
@@ -23,6 +30,35 @@ Validation binds entry methods and flow/source references. It cannot decide whet
 important or whether the inventory is complete. Promote a candidate only after semantic review;
 do not turn all public methods into test obligations.
 
+Every non-excluded family requires `navigation` in this same catalog, not a separate UI catalog:
+
+```json
+{"description":"Schedule subscription or downstream delivery.",
+ "dimensions":[{"id":"operation","label":"Scheduling boundary",
+   "values":[{"id":"subscribe","label":"Scheduled subscription"},
+             {"id":"delivery","label":"Scheduled delivery"}]}],
+ "scenarios":{"stable-flow-id":{"label":"Success","values":{"operation":"subscribe"}}}}
+```
+
+`scenarios` keys must equal the family's `flowIds`; candidate families use the existing synthetic
+`candidate.FAMILY_ID` entry instead. Each scenario has a meaningful label and exactly one known
+value per declared dimension. All declared flows belong to exactly one mapped family. Orphan,
+duplicate/ambiguous membership, missing grouping and unknown values fail new-knowledge validation.
+Dimension IDs/values are stable internal keys; their labels are authored display names. Dimension
+order defines progressive filters. Do not invent Cartesian combinations: only declared scenarios
+are displayed. Use `dimensions: []` when direct scenario browsing is appropriate; every family
+still needs its description and scenario labels. Excluded families have no report navigation.
+
+Families/dimensions are defined before scenarios and grounded in their existing source/rationale.
+Split behaviors for different preconditions, outcomes or assertion obligations, not just methods
+or overloads. Each label must distinguish the scenarios remaining after its filters. The rendered
+report carries a validated projection as `catalogNavigation` and consumes it without library-name
+parsing or an Other fallback. The current renderer counts assertion-supported/partial/unverified
+scenarios; this legacy presentation is not upstream-reference execution coverage. The required
+comparison distinguishes Covered / Partially covered / Not covered execution from assertion gaps
+as described in REFERENCE_CARTOGRAPHY. Legacy saved reports without this contract remain
+readable flat, but new/refreshed knowledge must supply it.
+
 ## flows.json (schemaVersion 2)
 
 Retain the existing report-compatible fields: `library`, `version`, `flowCatalog` (scope, exclusions,
@@ -34,6 +70,25 @@ Each flow has stable `id`, `feature`, `variant`, `outcome`, `status`, `sourceIds
 Each step has an `id`, `kind: library-method`, and `anchor`: preferably an exact JVM method ID from
 the graph query. Existing prefix anchors are supported; a step is satisfied by any matching method.
 Multiple bindings are surfaced for review rather than silently treated as equivalent behavior.
+
+Stages default to semantic presentation. Every step then requires `label` (human-readable lifecycle
+role), `rationale` (why its bound methods represent that role), and nonempty `sourceIds` referencing
+the catalog's versioned sources. Labels such as `Step 0`, `Stage 1`, `TBD` or empty strings are
+rejected before collection. Stable IDs remain internal and are never converted into display names.
+For example, a source-backed subscription checkpoint might have:
+
+```json
+{"id":"subscribe","kind":"library-method","anchor":"EXACT_JVM_METHOD_ID",
+ "label":"Subscribe to source","rationale":"This implementation registers the observer and invokes the custom source callback.",
+ "sourceIds":["versioned-create-source"]}
+```
+
+If useful lifecycle groups cannot be supported by the evidence, set the flow's
+`stagePresentation` to `{"mode":"ungrouped","reason":"Explain the specific mapping limitation"}`.
+Its method anchors still identify the scenario, but the report shows no stage cards. Do not use this
+as a shortcut for omitted authoring. Label/rationale/reference validation proves structure, not the
+truth of a lifecycle claim. Old sealed runs without labels render ungrouped without inventing names;
+new or refreshed knowledge must satisfy this contract.
 
 The following fragment illustrates checkpoint roles. Its step IDs must refer to the flow's actual
 method steps; it is not a verified RxJava mapping:

@@ -10,6 +10,8 @@ import subprocess
 import sys
 import uuid
 
+from stage_contract import validate_stages
+
 TOOL = Path(__file__).resolve().parent
 ROOT = TOOL.parents[1]
 ENGINE = TOOL  # Compatibility for helper scripts importing the earlier name.
@@ -56,6 +58,7 @@ def validate_knowledge(library, flows, observation):
         raise ValueError("Duplicate human-facing flow labels: " + repr(duplicates))
     source_ids = {source["id"] for source in flows.get("sources", [])}
     for flow in flows["flows"]:
+        validate_stages(flow, source_ids)
         steps = [step["id"] for step in flow["steps"]]
         if len(steps) != len(set(steps)):
             raise ValueError("Duplicate step IDs: " + flow["id"])
@@ -205,7 +208,9 @@ def seal_evidence(run, manifest):
         str(path.relative_to(run)): digest(path)
         for area in ("knowledge", "graph", "observations", "test-results")
         for path in sorted((run / area).rglob("*")) if path.is_file()}
-    for name in ("resolved.json", "graph-identity.json"):
+    for name in ("resolved.json", "graph-identity.json", "collection-scope.json"):
+        if name == "collection-scope.json" and not (run / name).is_file():
+            continue
         manifest["evidenceHashes"][name] = digest(run / name)
 
 
@@ -241,6 +246,8 @@ def report(run):
               for area in ("knowledge", "graph", "observations", "test-results")
               for path in (run / area).rglob("*") if path.is_file()}
     actual.update(("resolved.json", "graph-identity.json"))
+    if (run / "collection-scope.json").is_file():
+        actual.add("collection-scope.json")
     if actual != set(manifest["evidenceHashes"]):
         raise ValueError("Run evidence file inventory changed")
     for relative, expected in manifest["evidenceHashes"].items():
@@ -312,11 +319,26 @@ def initialize(args):
     print("Initialized:", coverage)
 
 
-def prepare(command, module, test_jvm):
+def collection_scope(patterns=(), reason=None, authorization=None):
+    if patterns and (not reason or not reason.strip() or not authorization or not authorization.strip()):
+        raise ValueError("Exclusions require a reason and explicit user authorization record")
+    if not patterns and (reason or authorization):
+        raise ValueError("Exclusion metadata requires at least one --exclude-test")
+    if any(not pattern.strip() for pattern in patterns):
+        raise ValueError("Exclusion patterns must be nonempty")
+    return {"schemaVersion": 1, "excludedTests": [
+        {"pattern": pattern, "reason": reason, "authorization": authorization}
+        for pattern in dict.fromkeys(patterns)]}
+
+
+def prepare(command, module, test_jvm, exclusions=(), exclusion_reason=None, exclusion_authorization=None):
+    scope = collection_scope(exclusions, exclusion_reason, exclusion_authorization)
     required = ("library.json", "observation.json")
     if command in ("validate-knowledge", "knowledge", "run"):
         required += ("flows.json",)
     run = create_run(module, required)
+    if command == "run":
+        write(run / "collection-scope.json", scope)
     library = read(run / "knowledge/library.json")
     observation = read(run / "knowledge/observation.json")
     if observation.get("adapter") not in ("spock", "junit"):
@@ -375,6 +397,10 @@ def make_parser():
         command = commands.add_parser(name)
         command.add_argument("--module", required=True)
         command.add_argument("--test-jvm", default="21")
+        if name == "run":
+            command.add_argument("--exclude-test", action="append", default=[], help="User-authorized Gradle test filter pattern; repeatable")
+            command.add_argument("--exclusion-reason")
+            command.add_argument("--exclusion-authorization", help="Record the explicit user approval; never infer approval")
     regenerate = commands.add_parser("report")
     regenerate.add_argument("--run-directory", type=Path, required=True)
     compare = commands.add_parser("compare")
@@ -397,7 +423,9 @@ def main():
         else:
             print(json.dumps(comparison, indent=2, sort_keys=True))
     else:
-        prepare(args.command, module_path(args.module), args.test_jvm)
+        prepare(args.command, module_path(args.module), args.test_jvm,
+                getattr(args, "exclude_test", []), getattr(args, "exclusion_reason", None),
+                getattr(args, "exclusion_authorization", None))
 
 
 if __name__ == "__main__":

@@ -887,7 +887,7 @@ def analyze(
         flow_result["expectations"] = flow.get("expectations", [])
         if flow.get("contextContract"):
             flow_result["contextContract"] = flow["contextContract"]
-        for field in ("completion", "prerequisiteSteps"):
+        for field in ("completion", "prerequisiteSteps", "stagePresentation"):
             if field in flow:
                 flow_result[field] = flow[field]
         if flow.get("exercise"):
