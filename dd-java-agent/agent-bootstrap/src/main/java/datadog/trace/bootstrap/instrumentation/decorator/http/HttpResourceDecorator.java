@@ -30,6 +30,10 @@ public class HttpResourceDecorator {
 
   public final void withServerPath(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+    if (OTEL_SEMANTICS) {
+      OtelHttpSemantics.setMethodResourceName(span, method);
+      return;
+    }
     if (!shouldSetUrlResourceName) {
       span.setResourceName(DEFAULT_RESOURCE_NAME);
       return;
@@ -50,7 +54,11 @@ public class HttpResourceDecorator {
       routeTag = URIUtils.decode(route.toString());
     }
     span.setTag(Tags.HTTP_ROUTE, routeTag);
-    if (Config.get().isHttpServerRouteBasedNaming()) {
+    if (OTEL_SEMANTICS) {
+      final CharSequence resourceName =
+          HttpResourceNames.join(OtelHttpSemantics.spanNameMethod(method), routeTag);
+      span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+    } else if (Config.get().isHttpServerRouteBasedNaming()) {
       final CharSequence resourceName = HttpResourceNames.join(method, route);
       span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
