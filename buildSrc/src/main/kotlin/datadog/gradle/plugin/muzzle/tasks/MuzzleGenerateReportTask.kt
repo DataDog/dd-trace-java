@@ -23,7 +23,7 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
     val map = TreeMap<String, TestedArtifact>()
     val versionScheme = GenericVersionScheme()
     versionReports.forEach {
-      project.logger.info("Processing muzzle report: $it")
+      logger.info("Processing muzzle report: $it")
       it.useLines { lines ->
         lines.forEachIndexed { idx, line ->
           if (idx == 0) return@forEachIndexed // skip header

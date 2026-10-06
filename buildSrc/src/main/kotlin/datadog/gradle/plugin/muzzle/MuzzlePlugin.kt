@@ -69,7 +69,7 @@ class MuzzlePlugin : Plugin<Project> {
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     val compileMuzzle = project.tasks.register("compileMuzzle") {
-      inputs.files(project.providers.provider { project.allMainSourceSet })
+      inputs.files(project.allMainSourceSet.map { it.output })
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
       dependsOn(toolingProject.tasks.named("compileJava"))
