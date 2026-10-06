@@ -20,6 +20,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Measures steady-state composite-key lookups in a shared, pre-populated table.
@@ -39,37 +40,62 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>Lookups reuse the key-part instances installed during setup, taking the identity fast path for
  * their object comparisons. See {@link ThreadSafeMapD1Benchmark} for single-key lookups.
  *
- * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
+ * <p>Java 17 results with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch} pollution
+ * design ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys; ops/us):
  *
  * <pre>{@code
- * Benchmark                              Score   Units
- * get_concurrentHashtable                1452   ops/us
- * get_support                            1450   ops/us
- * get_concurrentHashMap                   777   ops/us
- * get_concurrentSkipListMap               146   ops/us
- * get_synchronizedHashMap                  27   ops/us
+ * Benchmark                               ops/us          B/op
+ * get_support                         2731.5 ±  48.2        ~0
+ * get_concurrentHashtable             2545.5 ± 322.8        ~0
+ * get_concurrentHashMap               1668.2 ±  34.2        ~0
+ * get_concurrentSkipListMap            182.2 ±  43.8        ~0
+ * get_synchronizedHashMap                9.4 ±   0.5        ~0
  *
- * getOrCreate_support                    1379   ops/us
- * getOrCreate_concurrentHashtable        1119   ops/us
- * getOrCreate_concurrentHashMap           769   ops/us
- * getOrCreate_concurrentSkipListMap       151   ops/us
- * getOrCreate_synchronizedHashMap          28   ops/us
+ * getOrCreate_support                 2497.8 ±  73.0        ~0
+ * getOrCreate_concurrentHashMap       1655.5 ±  62.4        ~0
+ * getOrCreate_concurrentHashtable     1397.3 ±  72.7        ~0
+ * getOrCreate_concurrentSkipListMap    178.2 ±  31.7        ~0
+ * getOrCreate_synchronizedHashMap        8.7 ±   2.4      12.0
  * }</pre>
+ *
+ * <p><b>The {@link Key2} wrapper is not allocated in the measured code.</b> Every map arm reports
+ * ≈0 B/op under {@code -prof gc}, despite the source constructing a {@code Key2} per lookup. The
+ * lone exception is {@code getOrCreate_synchronizedHashMap} at 12 B/op, whose throughput interval
+ * (±2.4 on an 8.7 mean) is too wide to read anything into; not investigated. LogCompilation
+ * confirms the mechanism: C2 emits {@code eliminate_allocation} for {@code Key2}, because the
+ * never-taken {@code computeIfAbsent} branch is pruned as {@code unstable_if}, which removes the
+ * only store of the key and leaves it provably non-escaping.
+ *
+ * <p>That is a property of this workload, not of the code, and it would not survive in production.
+ * Pruning is possible only because {@code @Setup} installs every key before warmup, so the absent
+ * branch is never recorded. A real cache records its population-phase misses in the same branch
+ * profile — MDO counters accumulate from interpretation onward and are never reset — giving a
+ * two-sided profile, no pruning, and a {@code Key2} allocated on every lookup. Treat the {@code
+ * ConcurrentHashMap} and {@code ConcurrentSkipListMap} numbers here as an upper bound that a
+ * production miss rate would erode. See {@code HashtableD2Benchmark}, where the same wrapper is
+ * <i>not</i> eliminated because {@code merge} keeps the present/absent decision inside the callee,
+ * leaving no caller-visible branch to prune.
  *
  * <p>Key findings:
  *
  * <ul>
- *   <li>{@code ConcurrentHashtable} and {@code Support} are neck-and-neck on {@code get} (1452 vs
- *       1450 ops/us); both avoid the {@link Key2} wrapper allocation that {@code ConcurrentHashMap}
- *       requires on every lookup.
- *   <li>{@code ConcurrentHashMap} is ~2× slower than {@code ConcurrentHashtable} on {@code get}
- *       (777 vs 1452 ops/us) — the {@link Key2} allocation plus two-level hash lookup adds up.
- *   <li>{@code Support} shows slightly higher {@code getOrCreate} throughput than {@code D2} (1379
- *       vs 1119 ops/us) because its primitive {@code int} K2 field avoids boxing inside the entry
- *       match on the write-path re-check.
- *   <li>{@code ConcurrentSkipListMap} is ~5× slower than {@code ConcurrentHashMap} due to tree
- *       traversal; the two-traversal {@code getOrCreate} pattern adds further overhead on misses.
- *   <li>Synchronized {@code HashMap} is ~50× slower than {@code ConcurrentHashtable}.
+ *   <li>{@code Support} and {@code ConcurrentHashtable} are the two fastest on {@code get} (2731.5
+ *       and 2545.5 ops/us), 53-64% ahead of {@code ConcurrentHashMap} (1668.2). Since the {@code
+ *       Key2} allocation is eliminated in all three (see above), that lead is the two-level hash
+ *       lookup rather than allocation.
+ *   <li>On {@code getOrCreate} the ordering inverts: {@code ConcurrentHashMap} (1655.5) overtakes
+ *       {@code ConcurrentHashtable} (1397.3), whose own {@code getOrCreate} is roughly half its
+ *       {@code get}. {@code Support} holds up (2497.8). Not root-caused here — the write-path
+ *       re-check is the obvious suspect, but it is not measured.
+ *   <li>{@code Support} edges {@code D2} on both paths, consistent with its primitive {@code int}
+ *       K2 field avoiding boxing inside the entry match on the write-path re-check.
+ *   <li>{@code ConcurrentSkipListMap} is ~9× slower than {@code ConcurrentHashMap} due to tree
+ *       traversal, though its error bar is wide (±43.8 on a 182.2 mean).
+ *   <li>Synchronized {@code HashMap} is roughly 290× slower than the fastest options (9.4 vs 2731.5
+ *       ops/us) — lock contention across eight threads on a single monitor, the same magnitude seen
+ *       in {@link ThreadSafeMapD1Benchmark}. Type-profile pollution is not a factor: {@code Key2}
+ *       is a final class built at the call site, so C2 has an exact type and devirtualizes without
+ *       consulting the polluted profile.
  * </ul>
  */
 @Fork(2)
@@ -209,6 +235,14 @@ public class ThreadSafeMapD2Benchmark {
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;
+
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
 
     int next() {
       int i = cursor;
