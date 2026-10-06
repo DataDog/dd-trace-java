@@ -59,14 +59,6 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
   }
 
   /** Return the helper classes which will be available for use in instrumentation. */
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TwilioClientDecorator",
-      packageName + ".TwilioClientDecorator$1",
-      packageName + ".SpanFinishingCallback",
-    };
-  }
 
   /** Return bytebuddy transformers for instrumenting the Twilio SDK. */
   @Override

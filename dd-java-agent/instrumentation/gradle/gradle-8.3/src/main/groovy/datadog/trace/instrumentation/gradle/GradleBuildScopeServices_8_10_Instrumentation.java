@@ -35,13 +35,6 @@ public class GradleBuildScopeServices_8_10_Instrumentation extends InstrumenterM
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CiVisibilityGradleListenerInjector_8_10",
-    };
-  }
-
-  @Override
   public boolean isEnabled() {
     return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }

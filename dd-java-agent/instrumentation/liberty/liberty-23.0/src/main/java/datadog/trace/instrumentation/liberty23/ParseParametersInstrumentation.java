@@ -49,15 +49,6 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ParameterCollector",
-      packageName + ".ParameterCollector$ParameterCollectorNoop",
-      packageName + ".ParameterCollector$ParameterCollectorImpl",
-    };
-  }
-
-  @Override
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(new ParseParametersVisitorWrapper());
   }
