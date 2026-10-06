@@ -1,4 +1,6 @@
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
@@ -8,18 +10,25 @@ import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.resources.ConnectionProvider;
+import reactor.netty.resources.LoopResources;
 
 /**
  * Regression test for the W3C baggage header not propagating on outgoing Reactor Netty requests.
@@ -73,6 +82,81 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
     if (serverExecutor != null) {
       serverExecutor.shutdown();
       serverExecutor = null;
+    }
+  }
+
+  @Test
+  void idlePooledChannelDoesNotReactivateRequestContext() throws Exception {
+    ConnectionProvider connections = ConnectionProvider.create("idle-context-test", 1);
+    LoopResources eventLoops = LoopResources.create("idle-context-test");
+    AtomicReference<Channel> channel = new AtomicReference<>();
+    AtomicReference<AgentSpan> eventSpan = new AtomicReference<>();
+    Object idleEvent = new Object();
+    HttpClient client =
+        HttpClient.create(connections)
+            .runOn(eventLoops)
+            .doOnConnected(
+                connection -> {
+                  channel.set(connection.channel());
+                  connection
+                      .channel()
+                      .pipeline()
+                      .addLast(
+                          new ChannelInboundHandlerAdapter() {
+                            @Override
+                            public void userEventTriggered(ChannelHandlerContext ctx, Object event)
+                                throws Exception {
+                              if (event == idleEvent) {
+                                eventSpan.set(AgentTracer.activeSpan());
+                              }
+                              super.userEventTriggered(ctx, event);
+                            }
+                          });
+                });
+    Channel firstChannel = null;
+    try {
+      for (int request = 0; request < 2; request++) {
+        CountDownLatch released = new CountDownLatch(1);
+        AtomicReference<AgentSpan> responseSpan = new AtomicReference<>();
+        AgentSpan parent = AgentTracer.startSpan("test", "parent-" + request);
+        try (ContextScope scope = AgentTracer.activateSpan(parent)) {
+          client
+              .doOnResponse((response, connection) -> responseSpan.set(AgentTracer.activeSpan()))
+              .doOnDisconnected(connection -> released.countDown())
+              .get()
+              .uri(baseUrl + "/capture")
+              .responseContent()
+              .aggregate()
+              .asString()
+              .block(Duration.ofSeconds(10));
+        } finally {
+          parent.finish();
+        }
+        assertSame(parent, responseSpan.get());
+        assertTrue(released.await(10, TimeUnit.SECONDS));
+        Channel currentChannel = channel.get();
+        if (firstChannel == null) {
+          firstChannel = currentChannel;
+        } else {
+          assertSame(
+              firstChannel, currentChannel, "the second request must reuse the pooled channel");
+        }
+        currentChannel
+            .eventLoop()
+            .submit(
+                () -> {
+                  assertNull(AgentTracer.activeSpan());
+                  currentChannel.pipeline().fireUserEventTriggered(idleEvent);
+                })
+            .get(10, TimeUnit.SECONDS);
+        assertNull(eventSpan.get(), "an idle channel event must not activate the previous request");
+      }
+    } finally {
+      try {
+        connections.disposeLater().block(Duration.ofSeconds(10));
+      } finally {
+        eventLoops.disposeLater(Duration.ZERO, Duration.ofSeconds(5)).block(Duration.ofSeconds(10));
+      }
     }
   }
 
