@@ -24,41 +24,43 @@ import org.openjdk.jmh.infra.Blackhole;
  *       allocation-free (case folded inside hash/matches), value stored unboxed
  * </ul>
  *
- * <p><b>Takeaways.</b> FlatHashtable is ~2.7x the (previously recommended) TreeMap at the same zero
- * allocation, and matches HashMap's look-up throughput while avoiding HashMap's per-look-up folded
- * String. The case-insensitive hash is the consistent-for-all-inputs two-way fold ({@link
+ * <p><b>Takeaways.</b> FlatHashtable is ~1.8-2x the (previously recommended) TreeMap at the same
+ * zero allocation, but trails HashMap's look-up throughput by ~20-30%; its case is the allocation
+ * win (no per-look-up folded String), not a throughput win. The case-insensitive hash is the
+ * consistent-for-all-inputs two-way fold ({@link
  * datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a cheaper ASCII-only fold
  * would recover a few percent for header-name-only hot paths, deliberately not the default. {@code
- * LOW_LOAD_FACTOR} makes no measurable difference here, so the default 0.5 is used.
+ * LOW_LOAD_FACTOR} makes no consistent difference here, so the default 0.5 is used.
  *
  * <p>Java 17 results (Zulu 17.0.7, MacBook M1, {@code @Fork(5)}, {@code @Threads(8)}, {@code -prof
- * gc}) with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch} pollution design:
+ * gc}) with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch} pollution design and the
+ * {@code CHA_DEFEAT} decoys:
  *
  * <pre>{@code
  * Benchmark                      M ops/s           B/op
- * create_baseline                  25.5 ±   1.9    1152
- * create_flatHashtable             14.8 ±   0.7    1693
- * create_hashMap                    7.5 ±   0.2    2320
- * create_treeMap                    8.1 ±   0.8    1840
+ * create_baseline                  25.5 ±   0.4    1152
+ * create_flatHashtable             14.4 ±   0.7    1693
+ * create_hashMap                    7.5 ±   0.3    2320
+ * create_treeMap                    7.9 ±   1.0    1840
  *
- * lookup_baseline                2630.3 ± 128.8      ~0
- * lookup_flatHashtable            402.6 ±  11.9      ~0
- * lookup_flatHashtable_lowLoad    411.6 ±  13.8      ~0
- * lookup_hashMap                  384.7 ±  81.0    22.5
- * lookup_treeMap                  148.9 ±  42.0      ~0
+ * lookup_baseline                2772.0 ±  23.5      ~0
+ * lookup_flatHashtable            385.1 ±  51.5      ~0
+ * lookup_flatHashtable_lowLoad    425.5 ±   6.0      ~0
+ * lookup_hashMap                  502.4 ±   7.9    22.5
+ * lookup_treeMap                  214.6 ±  11.8      ~0
  * }</pre>
  *
  * <p>Every arm cycles through the same fixed-seed {@code LOOKUP_KEYS} sequence, so all of them see
- * the same upper/lower-case and hit/miss mix. An earlier run drew the keys unseeded per fork and
- * showed {@code hashMap} ~28% ahead of {@code flatHashtable}; with the workload held constant that
- * lead disappears, and {@code hashMap}'s interval (±21% of its mean) comfortably overlaps {@code
- * flatHashtable}'s (±3%). Throughput is a tie; {@code flatHashtable} is the steadier of the two.
+ * the same upper/lower-case and hit/miss mix. {@code lookup_hashMap} is steady across all five
+ * forks (483-509 per iteration). {@code lookup_flatHashtable}'s wide interval comes from one fork
+ * that compiled slow (~295 throughout, against ~380-420 for the other four); excluding it, the gap
+ * to {@code hashMap} is ~20%, and including it ~30%. Either way HashMap leads on throughput.
  *
  * <p>{@code lookup_hashMap} is the <i>only</i> lookup arm that allocates: 22.5 B/op for the folded
  * {@code String}, which is the allocation win claimed above. {@code toLowerCase()} returns {@code
  * this} when a string is already lower-case, so the figure reflects this key set's upper-case share
- * rather than a fixed per-lookup cost; with the seeded keys it is deterministic (±0.001), where the
- * unseeded run varied ±4.6. {@code TreeMap} remains the slowest look-up.
+ * rather than a fixed per-lookup cost; with the seeded keys it is deterministic (±0.001), where an
+ * earlier unseeded run varied ±4.6. {@code TreeMap} remains the slowest look-up.
  */
 @Fork(5)
 @Warmup(iterations = 2)
