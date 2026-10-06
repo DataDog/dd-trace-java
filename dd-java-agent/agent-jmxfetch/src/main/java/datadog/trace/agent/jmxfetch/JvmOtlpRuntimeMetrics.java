@@ -82,6 +82,7 @@ public final class JvmOtlpRuntimeMetrics {
   // than the no-JVM-defaults config that remains active alongside it.
   private static final String LEGACY_JMX_INSTANCE = "dd-java-agent default";
   private static final String LEGACY_JMX_CHECK_NAME = "jmxfetch-config";
+  private static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
   private static final String ENTRYPOINT_NAME = "entrypoint.name";
   private static final String ENTRYPOINT_TYPE = "entrypoint.type";
   private static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
@@ -101,7 +102,8 @@ public final class JvmOtlpRuntimeMetrics {
         int separator = processTag.indexOf(':');
         if (separator > 0) {
           String key = processTag.substring(0, separator);
-          if (ENTRYPOINT_NAME.equals(key)
+          if (ENTRYPOINT_BASEDIR.equals(key)
+              || ENTRYPOINT_NAME.equals(key)
               || ENTRYPOINT_TYPE.equals(key)
               || ENTRYPOINT_WORKDIR.equals(key)) {
             builder.put(key, processTag.substring(separator + 1));

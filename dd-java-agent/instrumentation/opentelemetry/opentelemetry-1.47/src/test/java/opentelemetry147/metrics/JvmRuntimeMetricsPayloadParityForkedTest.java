@@ -13,6 +13,7 @@ import datadog.trace.agent.jmxfetch.AgentConnectionFactory;
 import datadog.trace.agent.jmxfetch.AgentStatsdReporter;
 import datadog.trace.agent.jmxfetch.JvmOtlpRuntimeMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.metrics.OtlpMetricsJsonCollector;
@@ -48,6 +49,7 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
               "instance",
               "dd.internal.jmx_check_name",
               "runtime-id",
+              "entrypoint.basedir",
               "entrypoint.name",
               "entrypoint.type",
               "entrypoint.workdir",
@@ -64,6 +66,7 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
     System.setProperty("dd.dogstatsd.start-delay", "0");
     System.setProperty("dd.tags", "_dd.injection.mode:test-injection");
     System.setProperty("dd.metrics.otel.enabled", "true");
+    ProcessTags.addTag("entrypoint.basedir", "test-basedir");
 
     JvmOtlpRuntimeMetrics.start(true);
     jmxFetchPoints = parseDogStatsdPayload(collectJmxFetchPayload());
@@ -266,6 +269,7 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
             "instance",
             "dd.internal.jmx_check_name",
             "runtime-id",
+            "entrypoint.basedir",
             "entrypoint.name",
             "entrypoint.type",
             "entrypoint.workdir",

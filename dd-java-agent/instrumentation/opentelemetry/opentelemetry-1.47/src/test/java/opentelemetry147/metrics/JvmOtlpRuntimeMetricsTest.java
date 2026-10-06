@@ -113,6 +113,7 @@ public class JvmOtlpRuntimeMetricsTest {
   void allDataPointsHaveLegacyJmxTags() {
     MetricCollector collector = new MetricCollector();
     OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    String entrypointBasedir = expectedProcessTags().get("entrypoint.basedir");
     String entrypointName = processTagValue("entrypoint.name");
     String entrypointType = processTagValue("entrypoint.type");
     String entrypointWorkdir = processTagValue("entrypoint.workdir");
@@ -136,6 +137,10 @@ public class JvmOtlpRuntimeMetricsTest {
         assertNotNull(
             point.attrs.get("jmx_domain"), metric.getKey() + " should carry the JMX domain");
         assertNotNull(point.attrs.get("type"), metric.getKey() + " should carry the MBean type");
+        assertEquals(
+            entrypointBasedir,
+            point.attrs.get("entrypoint.basedir"),
+            metric.getKey() + " should carry the process entrypoint base directory when present");
         assertEquals(
             entrypointName,
             point.attrs.get("entrypoint.name"),
@@ -384,7 +389,8 @@ public class JvmOtlpRuntimeMetricsTest {
   }
 
   static final List<String> ENTRYPOINT_TAGS =
-      Arrays.asList("entrypoint.name", "entrypoint.type", "entrypoint.workdir");
+      Arrays.asList(
+          "entrypoint.basedir", "entrypoint.name", "entrypoint.type", "entrypoint.workdir");
 
   static Map<String, String> expectedProcessTags() {
     Map<String, String> result = new HashMap<>();
