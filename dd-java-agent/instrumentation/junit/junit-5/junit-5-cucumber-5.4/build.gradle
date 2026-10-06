@@ -14,6 +14,7 @@ muzzle {
 
 addTestSuiteForDir('cucumber723Test', 'test')
 addTestSuiteForDir('cucumber76Test', 'test')
+addTestSuiteForDir('latest7Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -34,6 +35,9 @@ dependencies {
 
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '+'
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '+'
+
+  latest7TestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '7.+'
+  latest7TestImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '7.+'
 
   cucumber76TestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '7.6.0'
   cucumber76TestImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '7.6.0'
