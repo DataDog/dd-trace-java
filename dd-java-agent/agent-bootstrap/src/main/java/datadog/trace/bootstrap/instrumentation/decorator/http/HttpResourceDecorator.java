@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator.http;
 import datadog.trace.api.Config;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
@@ -12,6 +13,7 @@ public class HttpResourceDecorator {
   public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
 
   private final boolean shouldSetUrlResourceName =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
@@ -19,7 +21,12 @@ public class HttpResourceDecorator {
   private HttpResourceDecorator() {}
 
   public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
-    HttpResourceNames.setForClient(span, method, path, false);
+    if (OTEL_SEMANTICS) {
+      span.setResourceName(
+          OtelHttpSemantics.spanNameMethod(method), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+    } else {
+      HttpResourceNames.setForClient(span, method, path, false);
+    }
   }
 
   public final void withServerPath(

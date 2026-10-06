@@ -1,10 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
@@ -16,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UrlConnectionDecorator extends UriBasedClientDecorator {
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
   private static final DDCache<String, CharSequence> CACHE = DDCaches.newFixedSizeCache(16);
 
   private static final Function<String, CharSequence> ADDER =
@@ -51,7 +55,16 @@ public class UrlConnectionDecorator extends UriBasedClientDecorator {
   @Override
   public void onURI(@Nonnull AgentSpan span, @Nonnull URI uri) {
     super.onURI(span, uri);
-    span.setTag(Tags.HTTP_URL, uri.toString());
+    if (OTEL_SEMANTICS) {
+      span.setTag(
+          KnownTags.HTTP_URL_OTEL_NAME,
+          OtelHttpSemantics.withoutQuery(OtelHttpSemantics.redactedUrl(uri)));
+      if (uri.getRawQuery() != null) {
+        span.setTag(KnownTags.URL_QUERY_NAME, uri.getRawQuery());
+      }
+    } else {
+      span.setTag(Tags.HTTP_URL, uri.toString());
+    }
   }
 
   public void onURL(@Nonnull final AgentSpan span, @Nonnull final URL url) {
