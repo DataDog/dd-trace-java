@@ -17,6 +17,7 @@ public class KotlinCoroutinesModule extends InstrumenterModule.ContextTracking {
     return Arrays.asList(
         new CoroutineContextInstrumentation(),
         new CoroutineInstrumentation(),
-        new LazyCoroutineInstrumentation());
+        new LazyCoroutineInstrumentation(),
+        new SuspensionInstrumentation());
   }
 }

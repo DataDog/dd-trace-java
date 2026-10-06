@@ -5,13 +5,15 @@ import datadog.context.ContextContinuation;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import kotlin.coroutines.Continuation;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.AbstractCoroutine;
 import kotlinx.coroutines.ThreadContextElement;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
-public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
+public final class DatadogThreadContextElement
+    implements ThreadContextElement<DatadogThreadContextElement.State> {
   private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation>
       CONTINUATION =
           AtomicReferenceFieldUpdater.newUpdater(
@@ -27,7 +29,11 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
     return coroutineContext.plus(new DatadogThreadContextElement());
   }
 
-  private Context context;
+  private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, Context> CONTEXT =
+      AtomicReferenceFieldUpdater.newUpdater(
+          DatadogThreadContextElement.class, Context.class, "context");
+
+  private volatile Context context;
   private volatile ContextContinuation continuation;
 
   @Nonnull
@@ -57,20 +63,44 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   }
 
   @Override
-  public Context updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
+  public State updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
     if (context == null) {
       // record context to use for this coroutine
       context = Context.current();
       // stop enclosing trace from finishing early
       continuation = context.capture();
     }
-    return context.swap();
+    Context resumed = context;
+    return new State(resumed.swap(), resumed);
   }
 
   @Override
-  public void restoreThreadContext(
-      @Nonnull CoroutineContext coroutineContext, Context originalContext) {
-    context = originalContext.swap();
+  public void restoreThreadContext(@Nonnull CoroutineContext coroutineContext, State state) {
+    Context suspended = state.originalContext.swap();
+    // An early suspension snapshot or a newer restore takes precedence over this worker.
+    CONTEXT.compareAndSet(this, state.resumedContext, suspended);
+  }
+
+  /** Publishes scope changes before suspension can resume the coroutine on another worker. */
+  public static void beforeSuspension(Continuation<?> continuation) {
+    DatadogThreadContextElement element = continuation.getContext().get(DATADOG_KEY);
+    if (element != null) {
+      // A swap captures the complete scope stack; Context.current() only exposes the active
+      // context.
+      Context currentStack = Context.root().swap();
+      currentStack.swap();
+      element.context = currentStack;
+    }
+  }
+
+  static final class State {
+    final Context originalContext;
+    final Context resumedContext;
+
+    State(Context originalContext, Context resumedContext) {
+      this.originalContext = originalContext;
+      this.resumedContext = resumedContext;
+    }
   }
 
   @Nonnull
