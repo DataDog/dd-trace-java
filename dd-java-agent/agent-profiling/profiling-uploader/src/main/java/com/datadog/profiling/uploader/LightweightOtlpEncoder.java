@@ -20,9 +20,10 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * <p>All nested message lengths are computed up front from the recording size, so the message is
  * written in one pass into a single buffer and the JFR bytes are read from the file directly into
- * it. The buffer is reused across calls and only grows; it holds the whole message, so its size
- * tracks the largest recording encoded so far. Not thread-safe: the buffer returned by {@link
- * #encode} is only valid until the next call.
+ * it. The buffer is reused across calls; it holds the whole message, so it grows to fit the largest
+ * recording, and once larger than {@code MAX_RETAINED_BUFFER} it is shrunk on the next smaller
+ * encode. Not thread-safe: the buffer returned by {@link #encode} is only valid until the next
+ * call.
  */
 final class LightweightOtlpEncoder {
 
@@ -33,6 +34,9 @@ final class LightweightOtlpEncoder {
   // buffer growth granularity — bounds the over-allocation while avoiding a reallocation for
   // every slightly larger recording
   private static final int BUFFER_GROWTH_ALIGNMENT = 1024 * 1024;
+  // a buffer above this size is reallocated to fit a smaller message, so a single large recording
+  // does not pin its buffer for the rest of the agent's lifetime
+  private static final int MAX_RETAINED_BUFFER = 8 * BUFFER_GROWTH_ALIGNMENT;
 
   private static final byte[] DICTIONARY_FIELD = encodeDictionaryField();
 
@@ -124,9 +128,9 @@ final class LightweightOtlpEncoder {
     if (size > Integer.MAX_VALUE - BUFFER_GROWTH_ALIGNMENT) {
       throw new IOException("OTLP profile message too large: " + size + " bytes");
     }
-    if (size > buffer.length) {
-      long aligned =
-          (size + BUFFER_GROWTH_ALIGNMENT - 1) / BUFFER_GROWTH_ALIGNMENT * BUFFER_GROWTH_ALIGNMENT;
+    long aligned =
+        (size + BUFFER_GROWTH_ALIGNMENT - 1) / BUFFER_GROWTH_ALIGNMENT * BUFFER_GROWTH_ALIGNMENT;
+    if (size > buffer.length || (buffer.length > MAX_RETAINED_BUFFER && aligned < buffer.length)) {
       // every encode rewrites the whole message, so the old content is not copied over
       buffer = new byte[(int) aligned];
     }
@@ -165,13 +169,17 @@ final class LightweightOtlpEncoder {
     encoder.writeVarintField(OtlpProtoFields.ValueType.UNIT_STRINDEX, unitIndex);
   }
 
-  // minimal dictionary: string_table with the index-0 sentinel plus the type/unit labels
-  // referenced by sample_type/period_type
+  // minimal dictionary: the zero-value index-0 entry the OTLP spec requires in every table, plus
+  // the type/unit labels referenced by sample_type/period_type in string_table
   private static byte[] encodeDictionaryField() {
     ProtobufEncoder encoder = new ProtobufEncoder(64);
     encoder.writeNestedMessage(
         OtlpProtoFields.ProfilesData.DICTIONARY,
         dictionaryEncoder -> {
+          writeEmptyEntry(dictionaryEncoder, OtlpProtoFields.ProfilesDictionary.MAPPING_TABLE);
+          writeEmptyEntry(dictionaryEncoder, OtlpProtoFields.ProfilesDictionary.LOCATION_TABLE);
+          writeEmptyEntry(dictionaryEncoder, OtlpProtoFields.ProfilesDictionary.FUNCTION_TABLE);
+          writeEmptyEntry(dictionaryEncoder, OtlpProtoFields.ProfilesDictionary.LINK_TABLE);
           dictionaryEncoder.writeTag(
               OtlpProtoFields.ProfilesDictionary.STRING_TABLE,
               ProtobufEncoder.WIRETYPE_LENGTH_DELIMITED);
@@ -184,8 +192,15 @@ final class LightweightOtlpEncoder {
               OtlpProtoFields.ProfilesDictionary.STRING_TABLE,
               ProtobufEncoder.WIRETYPE_LENGTH_DELIMITED);
           dictionaryEncoder.writeString("count");
+          writeEmptyEntry(dictionaryEncoder, OtlpProtoFields.ProfilesDictionary.ATTRIBUTE_TABLE);
+          writeEmptyEntry(dictionaryEncoder, OtlpProtoFields.ProfilesDictionary.STACK_TABLE);
         });
     return encoder.toByteArray();
+  }
+
+  private static void writeEmptyEntry(ProtobufEncoder encoder, int tableField) {
+    encoder.writeTag(tableField, ProtobufEncoder.WIRETYPE_LENGTH_DELIMITED);
+    encoder.writeVarint(0);
   }
 
   private void fillProfileId() {

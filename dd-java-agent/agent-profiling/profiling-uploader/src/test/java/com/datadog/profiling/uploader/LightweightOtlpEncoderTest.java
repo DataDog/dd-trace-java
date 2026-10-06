@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.otel.proto.OtlpProtoFields;
 import java.io.IOException;
@@ -64,6 +65,40 @@ class LightweightOtlpEncoderTest {
     assertPayload(second, large);
   }
 
+  @Test
+  void shrinksBufferAboveRetentionCap() throws IOException {
+    byte[] large = randomBytes(9 * 1024 * 1024);
+    byte[] small = randomBytes(1_000);
+
+    ByteBuffer first = encoder.encode(write("large.jfr", large), START, END);
+    int largeCapacity = first.array().length;
+    ByteBuffer second = encoder.encode(write("small.jfr", small), START, END);
+
+    assertTrue(second.array().length < largeCapacity);
+    assertPayload(second, small);
+  }
+
+  @Test
+  void writesZeroValueEntryInEveryDictionaryTable() throws IOException {
+    ByteBuffer encoded = encoder.encode(write("a.jfr", randomBytes(100)), START, END);
+    byte[] message = new byte[encoded.remaining()];
+    encoded.duplicate().get(message);
+
+    Map<Integer, byte[]> dictionary =
+        parse(parse(message).get(OtlpProtoFields.ProfilesData.DICTIONARY));
+    int[] tables = {
+      OtlpProtoFields.ProfilesDictionary.MAPPING_TABLE,
+      OtlpProtoFields.ProfilesDictionary.LOCATION_TABLE,
+      OtlpProtoFields.ProfilesDictionary.FUNCTION_TABLE,
+      OtlpProtoFields.ProfilesDictionary.LINK_TABLE,
+      OtlpProtoFields.ProfilesDictionary.ATTRIBUTE_TABLE,
+      OtlpProtoFields.ProfilesDictionary.STACK_TABLE
+    };
+    for (int table : tables) {
+      assertArrayEquals(new byte[0], dictionary.get(table), "table field " + table);
+    }
+  }
+
   private static void assertPayload(ByteBuffer encoded, byte[] expectedJfr) {
     byte[] message = new byte[encoded.remaining()];
     encoded.duplicate().get(message);
@@ -76,7 +111,7 @@ class LightweightOtlpEncoderTest {
         new String(
             resourceProfiles.get(OtlpProtoFields.ResourceProfiles.RESOURCE),
             StandardCharsets.ISO_8859_1);
-    assertEquals(true, resource.contains("test-service"));
+    assertTrue(resource.contains("test-service"));
     Map<Integer, byte[]> scopeProfiles =
         parse(resourceProfiles.get(OtlpProtoFields.ResourceProfiles.SCOPE_PROFILES));
     Map<Integer, byte[]> profile = parse(scopeProfiles.get(OtlpProtoFields.ScopeProfiles.PROFILES));

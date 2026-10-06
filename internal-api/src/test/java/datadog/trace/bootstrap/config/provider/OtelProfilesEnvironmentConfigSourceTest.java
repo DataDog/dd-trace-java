@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
+import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_HEADERS;
@@ -65,6 +67,40 @@ class OtelProfilesEnvironmentConfigSourceTest {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
     assertEquals("http://collector:4317", source.get(OTLP_PROFILES_ENDPOINT));
+  }
+
+  @Test
+  void generalEndpointIsKeptAsIsForDatadogGrpcProtocol() {
+    injectEnvConfig("DD_PROFILING_OTLP_ENABLED", "true", false);
+    injectEnvConfig("DD_OTLP_PROFILES_PROTOCOL", "grpc", false);
+    injectEnvConfig("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4317", false);
+
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertEquals("http://collector:4317", source.get(OTLP_PROFILES_ENDPOINT));
+  }
+
+  @Test
+  void otlpProfilingDoesNotMapGeneralOtelEnvironment() {
+    injectEnvConfig("DD_PROFILING_OTLP_ENABLED", "true", false);
+    injectEnvConfig("OTEL_SERVICE_NAME", "otel-service", false);
+    injectEnvConfig("OTEL_METRICS_EXPORTER", "none", false);
+
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertNull(source.get(SERVICE_NAME));
+    assertNull(source.get(RUNTIME_METRICS_ENABLED));
+  }
+
+  @Test
+  void profilesKeysAreMappedWhenOtelSdkIsDisabled() {
+    injectEnvConfig("DD_PROFILING_OTLP_ENABLED", "true", false);
+    injectEnvConfig("OTEL_SDK_DISABLED", "true", false);
+    injectEnvConfig("OTEL_EXPORTER_OTLP_PROFILES_ENDPOINT", "http://collector:4318/p", false);
+
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertEquals("http://collector:4318/p", source.get(OTLP_PROFILES_ENDPOINT));
   }
 
   @Test

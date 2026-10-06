@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -39,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
@@ -159,6 +161,35 @@ public class OtlpProfileUploaderTest {
     assertTrue(new String(body, StandardCharsets.ISO_8859_1).contains("test-service"));
     assertTrue(new String(body, StandardCharsets.ISO_8859_1).contains("telemetry.sdk.name"));
     verify(data).release();
+  }
+
+  @Test
+  public void syncUploadSkipsWhenAsyncExportDoesNotFinishInTime() throws Exception {
+    CountDownLatch requestReceived = new CountDownLatch(1);
+    CountDownLatch unblock = new CountDownLatch(1);
+    server.setDispatcher(
+        new Dispatcher() {
+          @Override
+          public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+            requestReceived.countDown();
+            unblock.await();
+            return new MockResponse();
+          }
+        });
+    OtlpProfileUploader shortWaitUploader = new OtlpProfileUploader(config, configProvider, 1);
+    try {
+      shortWaitUploader.onNewData(RECORDING_TYPE, mockRecordingData(), false);
+      assertTrue(requestReceived.await(REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
+
+      RecordingData syncData = mockRecordingData();
+      shortWaitUploader.onNewData(RECORDING_TYPE, syncData, true);
+
+      verify(syncData, never()).getStream();
+      verify(syncData).release();
+    } finally {
+      unblock.countDown();
+      shortWaitUploader.shutdown();
+    }
   }
 
   private RecordingData mockRecordingData() throws IOException {

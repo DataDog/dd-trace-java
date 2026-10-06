@@ -112,11 +112,16 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   OtelEnvironmentConfigSource(Properties datadogConfigFile) {
     this.datadogConfigFile = datadogConfigFile;
-    this.enabled =
-        traceOtelEnabled() || metricsOtelEnabled() || logsOtelEnabled() || profilingOtlpEnabled();
+    boolean otelEnabled = traceOtelEnabled() || metricsOtelEnabled() || logsOtelEnabled();
+    boolean profilesEnabled = profilingOtlpEnabled();
+    this.enabled = otelEnabled || profilesEnabled;
 
-    if (enabled) {
+    if (otelEnabled) {
       setupOtelEnvironment();
+    }
+    // OTLP profiling only maps the profiles exporter keys, not the general OTel environment
+    if (profilesEnabled) {
+      setupProfilesOtelEnvironment();
     }
   }
 
@@ -159,10 +164,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       setupLogsOtelEnvironment();
     } else {
       mapDataCollection("logs");
-    }
-
-    if (profilingOtlpEnabled()) {
-      setupProfilesOtelEnvironment();
     }
   }
 
@@ -396,8 +397,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_TRACES_PROTOCOL))) {
           otelValue = otelValue + (otelValue.endsWith("/") ? "v1/traces" : "/v1/traces");
         }
-        if ("profiles".equals(signal)
-            && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_PROFILES_PROTOCOL))) {
+        if ("profiles".equals(signal) && !"grpc".equalsIgnoreCase(profilesProtocol())) {
           otelValue =
               otelValue
                   + (otelValue.endsWith("/") ? "" : "/")
@@ -417,6 +417,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       return null;
     }
     return otelValue;
+  }
+
+  /** The profiles protocol from the OTel environment, else from the Datadog setting that won. */
+  private String profilesProtocol() {
+    String protocol = otelEnvironment.get(OTLP_PROFILES_PROTOCOL);
+    return protocol != null ? protocol : getDatadogProperty("dd." + OTLP_PROFILES_PROTOCOL);
   }
 
   /**

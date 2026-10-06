@@ -52,6 +52,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +91,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   private final LightweightOtlpEncoder lightweightEncoder;
   // serializes conversion and send: at most one recording is converted and held in memory at a
   // time, and the LIGHT encoder buffer is not overwritten while a send is still reading it
-  private final Object exportLock = new Object();
+  private final ReentrantLock exportLock = new ReentrantLock();
 
   public OtlpProfileUploader(final Config config, final ConfigProvider configProvider) {
     this(config, configProvider, TERMINATION_TIMEOUT_SEC);
@@ -162,26 +163,48 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       return;
     }
     if (sync) {
-      export(data, onCompletion);
+      // the sync path runs on shutdown/snapshot; bound the wait behind an in-flight async export
+      // (which may be retrying) instead of blocking for its full duration
+      boolean locked = false;
+      try {
+        locked = exportLock.tryLock(terminationTimeout, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      if (!locked) {
+        skipExport(data, onCompletion);
+        return;
+      }
+      try {
+        // reentrant: export acquires exportLock again
+        export(data, onCompletion);
+      } finally {
+        exportLock.unlock();
+      }
       return;
     }
     try {
       executor.execute(() -> export(data, onCompletion));
     } catch (RejectedExecutionException e) {
-      log.warn("OTLP profile export skipped: the previous export is still in progress");
-      // the export never started, but the attempt happened — count it so failures cannot exceed
-      // attempts under backpressure
-      OtlpTelemetry.getInstance().onProfilesExportAttempt();
-      OtlpTelemetry.getInstance().onProfilesExportComplete(false);
-      data.release();
-      if (onCompletion != null) {
-        onCompletion.run();
-      }
+      skipExport(data, onCompletion);
+    }
+  }
+
+  private static void skipExport(RecordingData data, Runnable onCompletion) {
+    log.warn("OTLP profile export skipped: the previous export is still in progress");
+    // the export never started, but the attempt happened — count it so failures cannot exceed
+    // attempts under backpressure
+    OtlpTelemetry.getInstance().onProfilesExportAttempt();
+    OtlpTelemetry.getInstance().onProfilesExportComplete(false);
+    data.release();
+    if (onCompletion != null) {
+      onCompletion.run();
     }
   }
 
   private void export(RecordingData data, Runnable onCompletion) {
-    synchronized (exportLock) {
+    exportLock.lock();
+    try {
       try {
         OtlpPayload payload;
         long conversionNanos;
@@ -217,6 +240,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
           onCompletion.run();
         }
       }
+    } finally {
+      exportLock.unlock();
     }
   }
 
