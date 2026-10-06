@@ -37,8 +37,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * another way, JMH forks to eliminate cross-benchmark profile pollution, but profile pollution
  * <i>is</i> the production condition.
  *
- * <p>That surfaces three ways. This class addresses the first two partially and the third not at
- * all:
+ * <p>That surfaces three ways. This class addresses the first two partially, via {@link
+ * #warmUpHashDispatch}, and the third via {@link #warmUp}:
  *
  * <ul>
  *   <li><b>Receiver-type profiles</b> collapse toward a single key type, so shared JDK dispatch
@@ -47,8 +47,9 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li><b>Class-hierarchy analysis</b> sees only the implementations one arm happens to load, so
  *       C2 can devirtualize calls a real application leaves polymorphic. Loading the decoy
  *       collections widens the hierarchy.
- *   <li><b>Branch profiles</b> go one-sided, because only one arm's outcomes ever occur. Nothing
- *       here addresses that.
+ *   <li><b>Branch profiles</b> go one-sided, because only one arm's outcomes ever occur. {@link
+ *       #warmUp} drives every registered arm, and each outcome registered for it, before
+ *       measurement.
  * </ul>
  *
  * <p>{@link Blackhole} is orthogonal to all of this. It stops the JIT proving a result is dead, and
@@ -69,29 +70,26 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD2Benchmark} for the contrasting shape, where {@code merge} keeps the present/absent
  * decision inside the callee and leaves no caller-visible branch to prune.
  *
- * <p>The more complete approach is to exercise every benchmark arm during setup, across each of its
- * outcomes, so that each fork's profiles reflect the whole class rather than the one arm it is
- * about to measure. That is what restores the mix the fork removed.
+ * <p>{@link #warmUp} exercises every benchmark arm during setup, across each of its outcomes, so
+ * that each fork's profiles reflect the whole class rather than the one arm it is about to measure.
+ * It drives the arms in a shuffled order rather than a fixed round-robin, since compilation can
+ * trigger part-way through a warmup and would otherwise see whichever arm dominates that point in
+ * the sequence; a regular pattern also gives the hardware branch predictor an unrealistically easy
+ * time. The shuffle is seeded, so it is irregular but reproducible.
  *
- * <p>Such a helper should drive the arms in a shuffled order rather than a fixed round-robin, since
- * compilation can trigger part-way through a warmup and would otherwise see whichever arm dominates
- * that point in the sequence; a regular pattern also gives the hardware branch predictor an
- * unrealistically easy time. Seeding the shuffle keeps it irregular but reproducible.
- *
- * <p>{@link #warmUp} is that helper, for the third gap above. A "bench" is one path through a
- * benchmark class -- ordinarily one {@code @Benchmark} method, or one outcome of a method that has
- * several (e.g. {@code getOrCreate}'s hit and miss paths). Rather than ask the author to wrap each
- * one in a bespoke adapter, {@code bench(...)} is overloaded on a small, deliberately
- * boxing-tolerant set of {@code java.util.function} shapes that real benchmark methods already
- * have, mirroring how {@code TagMapFuzzTest.MapAction}'s {@code BasicAction}/{@code
- * BasicReturningAction} adapters bridge differently-shaped map operations onto one common interface
- * -- so a state-capturing lambda like {@code () -> update_hashMap(state)} or an unbound method
- * reference like {@code Foo::create_hashMap} coerces directly into one of the overloads. The
- * wrapper always takes the {@link Blackhole} and consumes whatever the wrapped method returns,
- * boxing a primitive result if there is one; that box is warmup-only overhead, off the measured
- * path, so there is nothing to gain by avoiding it. For classes where one arm per
- * {@code @Benchmark} method is enough, {@link #warmUp(Class, Blackhole)} skips registration
- * entirely and discovers everything reflectively.
+ * <p>A "bench" is one path through a benchmark class -- ordinarily one {@code @Benchmark} method,
+ * or one outcome of a method that has several (e.g. {@code getOrCreate}'s hit and miss paths).
+ * Rather than ask the author to wrap each one in a bespoke adapter, {@code bench(...)} is
+ * overloaded on a small, deliberately boxing-tolerant set of {@code java.util.function} shapes that
+ * real benchmark methods already have, mirroring how {@code TagMapFuzzTest.MapAction}'s {@code
+ * BasicAction}/{@code BasicReturningAction} adapters bridge differently-shaped map operations onto
+ * one common interface -- so an unbound method reference like {@code Foo::update_hashMap} or a
+ * state-capturing lambda like {@code (Foo b) -> b.update_hashMap(state)} coerces directly into one
+ * of the overloads. The wrapper always takes the {@link Blackhole} and consumes whatever the
+ * wrapped method returns, boxing a primitive result if there is one; that box is warmup-only
+ * overhead, off the measured path, so there is nothing to gain by avoiding it. For classes where
+ * one arm per {@code @Benchmark} method is enough, {@link #warmUp(Class, Blackhole)} skips
+ * registration entirely and discovers everything reflectively.
  */
 public final class BenchmarkUtils {
   private BenchmarkUtils() {}
@@ -339,7 +337,8 @@ public final class BenchmarkUtils {
   }
 
   /**
-   * Two-{@code @State}-parameter function, for benches shaped like {@code R method(S1 s1, S2 s2)}.
+   * Three-argument function: the receiver of an unbound reference to a two-{@code @State} benchmark
+   * method {@code R method(S1 s1, S2 s2)}, plus its two states.
    */
   @FunctionalInterface
   public interface TriFunction<A, B, C, R> {
@@ -357,8 +356,8 @@ public final class BenchmarkUtils {
   }
 
   // Bench0 adapters -- an unbound reference to a no-arg @Benchmark method, or a state-capturing
-  // lambda like `() -> update_hashMap(state)`, coerces directly into one of these. A primitive
-  // return boxes here, but that box is warmup-only overhead, off the measured path.
+  // lambda like `(Foo b) -> b.update_hashMap(state)`, coerces directly into one of these. A
+  // primitive return boxes here, but only during warmup, never on the measured path.
 
   public static <B> Bench0<B> bench(Function<B, ?> fn) {
     return new Bench0<B>() {
@@ -379,8 +378,8 @@ public final class BenchmarkUtils {
   }
 
   // Bench1 adapters -- an unbound reference to a single-@State-parameter @Benchmark method coerces
-  // directly into one of these (a trailing Blackhole parameter on the real method is unaffected,
-  // since JMH passes that in separately from the bench's own signature).
+  // directly into one of these. A method that also takes a trailing Blackhole needs the
+  // TriConsumer adapter below.
 
   public static <B, S> Bench1<B, S> bench(BiFunction<B, S, ?> fn) {
     return new Bench1<B, S>() {
@@ -433,9 +432,9 @@ public final class BenchmarkUtils {
    * <p>Coverage is declared, not inferred: register one bench per {@code @Benchmark} method, and
    * one per interesting outcome of a method that has several (e.g. {@code getOrCreate}'s hit and
    * miss paths) -- registering only the hit path is worse than not calling this at all, since it
-   * turns a known gap into a silent one. {@link #warmUp(Object, Blackhole, Bench0[])} can only
-   * check that at least as many benches were registered as there are matching {@code @Benchmark}
-   * methods; it cannot tell that every outcome of a multi-outcome method was covered.
+   * turns a known gap into a silent one. This method can only check that at least as many benches
+   * were registered as there are matching {@code @Benchmark} methods; it cannot tell that every
+   * outcome of a multi-outcome method was covered.
    */
   @SafeVarargs
   public static <B> void warmUp(B bench, Blackhole bh, Bench0<B>... benches) {
@@ -489,16 +488,17 @@ public final class BenchmarkUtils {
    * Fully automatic variant of {@link #warmUp(Object, Blackhole, Bench0[])}: reflectively discovers
    * every {@code @Benchmark} method on {@code benchClass}, builds {@code benchClass} and any
    * {@code @State} parameter types via their public no-arg constructor (as JMH itself requires of
-   * every {@code @State} class), runs any no-arg {@code @Setup} methods it finds on those state
+   * every {@code @State} class), runs the no-arg {@code @Setup} methods declared on those state
    * instances, then drives every discovered method the same shuffled way as the explicit overloads.
    *
    * <p>This trades precision for zero effort: coverage is exactly "every {@code @Benchmark} method
    * on the class", so a method with several outcomes (e.g. {@code getOrCreate}'s hit and miss) only
-   * gets whichever outcome its one reflectively-built state happens to produce, and a
-   * {@code @Setup} that takes a {@link Blackhole} or {@code Control} parameter is skipped rather
-   * than guessed at. Reach for the explicit {@code warmUp} overloads above when a benchmark needs
-   * more than one outcome driven or a state built some other way; use this one when a single arm
-   * per method, reflectively constructed, is enough.
+   * gets whichever outcome its one reflectively-built state happens to produce. A {@code @Setup}
+   * method that takes parameters (such as a {@link Blackhole} or {@code Control}) is skipped rather
+   * than guessed at, and {@code @Param} fields are never set, so they keep their Java default
+   * values. Reach for the explicit {@code warmUp} overloads above when a benchmark needs more than
+   * one outcome driven or a state built some other way; use this one when a single arm per method,
+   * reflectively constructed, is enough.
    */
   public static void warmUp(Class<?> benchClass, Blackhole bh) {
     Object bench = newInstance(benchClass);
@@ -559,7 +559,7 @@ public final class BenchmarkUtils {
     }
   }
 
-  /** Builds a {@code @State} instance via its public no-arg constructor and runs its setup. */
+  /** Builds a {@code @State} instance via its no-arg constructor and runs its no-arg setups. */
   private static Object newStateInstance(Class<?> type) {
     Object state = newInstance(type);
     runSetups(state);
@@ -583,8 +583,8 @@ public final class BenchmarkUtils {
   }
 
   /**
-   * Runs every no-arg {@code @Setup} method declared on {@code state}. A {@code @Setup} method
-   * taking a {@link Blackhole} or {@code Control} parameter is skipped silently -- {@link
+   * Runs every no-arg {@code @Setup} method declared on {@code state}, regardless of its {@code
+   * Level}. A {@code @Setup} method that takes parameters is skipped silently, because {@link
    * #warmUp(Class, Blackhole)} is the best-effort, zero-configuration path; a benchmark that needs
    * one should use the explicit {@code warmUp} overloads instead.
    */
@@ -628,8 +628,7 @@ public final class BenchmarkUtils {
    *
    * <p>This is deliberately weak: it can't tell which method is missing, and it can't tell whether
    * a multi-outcome method had every outcome driven, only that <i>some</i> bench exists for its
-   * shape. Widening this to per-method, per-outcome tracking is a real follow-on once this coarse
-   * form proves insufficient in practice, not before.
+   * shape.
    */
   private static void checkCoverage(
       Class<?> benchClass, int expectedStateArity, int registeredBenches) {

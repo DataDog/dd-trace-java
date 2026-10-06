@@ -26,12 +26,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * unstable_if} and scalar-replaces the {@link Key2} allocation that a real, two-sided profile would
  * force onto the heap.
  *
- * <p>Both {@code @Benchmark} methods call the exact same {@link #getOrCreate} bytecode on an
- * always-hit lookup; the only difference is whether {@link ThreadState}'s
- * {@code @Setup(Level.Trial)} drives that same method through a genuine miss arm first, via {@link
- * BenchmarkUtils#warmUp}, on a scratch map before measurement starts. The branch's
- * method-data-object lives per call site (bci), not per map instance, so priming it on scratch data
- * pollutes the profile the measured call sees without touching the measured map's contents.
+ * <p>The single {@code @Benchmark} method runs the same {@link #getOrCreate} bytecode on an
+ * always-hit lookup under both values of {@code pollute}. The only difference is whether {@link
+ * ThreadState}'s {@code @Setup(Level.Trial)} first drives that method through a genuine miss, via
+ * {@link BenchmarkUtils#warmUp}, on a scratch map. HotSpot records branch counts per bytecode index
+ * in the method's profile, not per map instance, so priming on scratch data changes the profile the
+ * measured call sees without touching the measured map.
  *
  * <p>Java 8 results ({@code -prof gc}), {@code pollute} is the only thing that differs between the
  * two rows -- same call site, same always-hit measured lookup:
@@ -42,10 +42,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * true       600.5     24.0      763     <- two-sided profile, Key2 allocated on every lookup
  * }</pre>
  *
- * <p>{@code false} reproduces the artificially flattering result {@link ThreadSafeMapD2Benchmark}'s
- * javadoc documents. {@code true} shows a single {@link BenchmarkUtils#warmUp} call, priming one
- * real miss arm before measurement, is enough to restore the allocation and the ~20% slower,
- * production-realistic throughput -- with no change to the measured method or the measured map.
+ * <p>{@code false} reproduces the artificially flattering result that {@link
+ * ThreadSafeMapD2Benchmark}'s javadoc documents. {@code true} shows that one {@link
+ * BenchmarkUtils#warmUp} call, priming a real miss before measurement, restores the allocation and
+ * its ~20% throughput cost, with no change to the measured method or map.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -94,8 +94,9 @@ public class WarmUpEscapeAnalysisDemoBenchmark {
   @State(Scope.Thread)
   public static class ThreadState {
     /**
-     * Off arm: reproduces the one-sided profile documented in ThreadSafeMapD2Benchmark. On arm:
-     * primes the real getOrCreate branch with a genuine miss before measurement.
+     * {@code false} reproduces the one-sided profile documented in {@link
+     * ThreadSafeMapD2Benchmark}; {@code true} primes {@link
+     * WarmUpEscapeAnalysisDemoBenchmark#getOrCreate}'s miss branch first.
      */
     @Param({"false", "true"})
     boolean pollute;
