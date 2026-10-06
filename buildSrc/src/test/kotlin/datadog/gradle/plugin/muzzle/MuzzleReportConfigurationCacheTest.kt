@@ -20,6 +20,8 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         id("dd-trace-java.muzzle")
       }
 
+      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
+
       dependencies {
         runtimeOnly(project(":dd-java-agent:agent-tooling"))
       }
@@ -47,8 +49,9 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     val first = run(*args, env = env)
     assertThat(first.task(args[0])?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
     assertThat(first.output).contains("Configuration cache entry stored")
+    assertThat(first.tasks).noneMatch { it.path.endsWith(":aggregateMuzzleReports") || it.path.endsWith(":mergeMuzzleReports") }
 
-    val report = file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_demo.csv")
+    val report = file("dd-java-agent/instrumentation/demo/relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_demo.csv")
     assertThat(report.readText()).isEqualTo(
       "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
         "test-instrumentation,com.example,demo,1.0.0,1.0.0\n"
@@ -70,40 +73,18 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
   @ParameterizedTest
   @ValueSource(booleans = [false, true])
   fun `merge reflects changed reports with configuration cache reuse`(rerunTasks: Boolean) {
-    writeProject(
-      """
-      plugins {
-        id("java")
-        id("dd-trace-java.muzzle")
-      }
-      """
-    )
-    addSubproject("dd-java-agent:instrumentation",
-      """
-      plugins {
-        id("java")
-        id("dd-trace-java.muzzle")
-      }
-      """
-    )
+    writeProject("""plugins { id("java") }""")
     listOf("first", "second", "third").forEach { producer ->
-      addSubproject("dd-java-agent:instrumentation:$producer",
-        """
-        plugins {
-          id("java")
-          id("dd-trace-java.muzzle")
-        }
-        """
-      )
+      addSubproject("dd-java-agent:instrumentation:$producer", reportProducerScript)
     }
-    writeRootProject("""layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))""")
-    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_first.csv",
+    writeAggregationProject("first", "second", "third")
+    writeFile("dd-java-agent/instrumentation/first/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.0.0,2.0.0
       """
     )
-    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_second.csv",
+    writeFile("dd-java-agent/instrumentation/second/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.5.0,3.0.0
@@ -125,10 +106,12 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     assertThat(first.output).contains("Configuration cache entry stored")
 
     val reused = run(*args)
-    assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(UP_TO_DATE)
+    assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(SUCCESS)
     assertThat(reused.output).contains("Reusing configuration cache")
 
-    val report = file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation.csv")
+    assertThat(reused.task(":dd-java-agent:instrumentation:first:publishReport")?.outcome).isEqualTo(UP_TO_DATE)
+
+    val report = file("dd-java-agent/instrumentation/relocated/build/muzzle-deps-results/dd-java-agent_instrumentation.csv")
     assertThat(report.readText())
       .isEqualTo(
         "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n" +
@@ -136,7 +119,7 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
           "second-instrumentation,com.example,other,3.0.0,4.0.0\n"
       )
 
-    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_second.csv",
+    writeFile("dd-java-agent/instrumentation/second/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       first-instrumentation,com.example,demo,1.5.0,2.0.0
@@ -152,7 +135,7 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         "first-instrumentation,com.example,demo,1.0.0,2.0.0\n"
     )
 
-    writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_third.csv",
+    writeFile("dd-java-agent/instrumentation/third/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       third-instrumentation,com.example,new,4.0.0,5.0.0
@@ -167,8 +150,8 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         "third-instrumentation,com.example,new,4.0.0,5.0.0\n"
     )
 
-    assertThat(file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_first.csv").delete()).isTrue()
-    assertThat(file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_second.csv").delete()).isTrue()
+    assertThat(file("dd-java-agent/instrumentation/first/versions.csv").delete()).isTrue()
+    assertThat(file("dd-java-agent/instrumentation/second/versions.csv").delete()).isTrue()
     val removed = run(*refreshArgs)
     assertThat(removed.task(args[0])?.outcome).describedAs(removed.output).isEqualTo(SUCCESS)
     assertThat(removed.output).contains("Reusing configuration cache")
@@ -180,25 +163,19 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
 
   @Test
   fun `merge ignores reports from removed and renamed producers`() {
-    val producerScript = """
-      plugins {
-        id("java")
-        id("dd-trace-java.muzzle")
-      }
-    """
-    writeProject(producerScript)
-    addSubproject("dd-java-agent:instrumentation", producerScript)
+    writeProject(reportProducerScript)
+    writeAggregationProject("demo")
     val currentSettings = file("settings.gradle.kts").readText()
-    addSubproject("dd-java-agent:instrumentation:deleted", producerScript)
-    writeRootProject("""layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))""")
+    addSubproject("dd-java-agent:instrumentation:deleted", reportProducerScript)
+    writeAggregationProject("demo", "deleted")
 
-    val active = writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_demo.csv",
+    val active = writeFile("dd-java-agent/instrumentation/demo/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       active-instrumentation,com.example,demo,1.0.0,2.0.0
       """
     )
-    val orphan = writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_deleted.csv",
+    val orphan = writeFile("dd-java-agent/instrumentation/deleted/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       deleted-instrumentation,com.example,deleted,3.0.0,4.0.0
@@ -210,7 +187,7 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
       "--configuration-cache-problems=fail",
       "--stacktrace"
     )
-    val report = file("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation.csv")
+    val report = file("dd-java-agent/instrumentation/relocated/build/muzzle-deps-results/dd-java-agent_instrumentation.csv")
 
     val first = run(*args)
     assertThat(first.task(args[0])?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
@@ -221,14 +198,17 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     )
 
     writeSettings(currentSettings)
+    writeAggregationProject("demo")
     val removed = run(*args)
     assertThat(removed.task(args[0])?.outcome).describedAs(removed.output).isEqualTo(SUCCESS)
     assertThat(report.readText()).isEqualTo(active.readText())
     assertThat(orphan).exists()
+    assertThat(file("dd-java-agent/instrumentation/deleted/build/muzzle-deps-results/report.csv")).exists()
 
     writeSettings(currentSettings.replace(":instrumentation:demo", ":instrumentation:renamed"))
-    writeFile("dd-java-agent/instrumentation/renamed/build.gradle.kts", producerScript)
-    val renamed = writeFile("relocated/build/muzzle-deps-results/dd-java-agent_instrumentation_renamed.csv",
+    writeFile("dd-java-agent/instrumentation/renamed/build.gradle.kts", reportProducerScript)
+    writeAggregationProject("renamed")
+    val renamed = writeFile("dd-java-agent/instrumentation/renamed/versions.csv",
       """
       instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
       renamed-instrumentation,com.example,demo,1.5.0,1.5.0
@@ -239,9 +219,10 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     assertThat(report.readText()).isEqualTo(renamed.readText())
     assertThat(active).exists()
     assertThat(orphan).exists()
+    assertThat(file("dd-java-agent/instrumentation/demo/build/muzzle-deps-results/report.csv")).exists()
 
     val reused = run(*args)
-    assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(UP_TO_DATE)
+    assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(SUCCESS)
     assertThat(reused.output).contains("Reusing configuration cache")
     assertThat(report.readText()).isEqualTo(renamed.readText())
   }
@@ -289,4 +270,48 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
       .describedAs(reused.output).isEqualTo(SUCCESS)
     assertThat(reused.output).contains("Reusing configuration cache")
   }
+
+  private fun writeAggregationProject(vararg producers: String) {
+    writeFile("dd-java-agent/instrumentation/build.gradle.kts",
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle-report-aggregation")
+      }
+      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
+      muzzleReports.reportFile.set(layout.buildDirectory.file("muzzle-deps-results/dd-java-agent_instrumentation.csv"))
+      dependencies {
+        ${producers.joinToString("\n") { "implementation(project(\":dd-java-agent:instrumentation:$it\"))" }}
+      }
+      """
+    )
+  }
+
+  // Model local report producers without Maven so mutations test the aggregation pipeline alone.
+  private val reportProducerScript = """
+    import org.gradle.api.attributes.Category
+    import org.gradle.api.attributes.VerificationType
+
+    plugins { id("java") }
+    val output = layout.buildDirectory.file("muzzle-deps-results/report.csv")
+    val report = tasks.register("publishReport") {
+      val source = layout.projectDirectory.file("versions.csv")
+      val reportOutput = output
+      inputs.files(files(source).asFileTree)
+      outputs.file(reportOutput)
+      doLast {
+        val target = reportOutput.get().asFile
+        target.parentFile.mkdirs()
+        target.writeText(if (source.asFile.exists()) source.asFile.readText()
+          else "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n")
+      }
+    }
+    configurations.consumable("muzzleReportElements") {
+      attributes {
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.VERIFICATION))
+        attribute(VerificationType.VERIFICATION_TYPE_ATTRIBUTE, objects.named(VerificationType::class.java, "muzzle-dependency-report"))
+      }
+      outgoing.artifact(output) { builtBy(report) }
+    }
+  """
 }

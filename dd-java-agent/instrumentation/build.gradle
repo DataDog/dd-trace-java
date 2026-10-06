@@ -4,6 +4,7 @@ plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.module.product-subsystem'
   id("dd-trace-java.instrumentation-naming")
+  id("dd-trace-java.muzzle-report-aggregation")
 }
 
 tasks.register("latestDepTest", Test)
@@ -22,16 +23,14 @@ dependencies {
   implementation project(':dd-java-agent:agent-installer')
 }
 
-if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
-  apply plugin: 'dd-trace-java.muzzle'
-  tasks.register('muzzleInstrumentationReport') {
-    dependsOn(subprojects.collect { p ->
-      p.tasks.matching {
-        it.name == "generateMuzzleReport"
-      }
-    })
-    finalizedBy(tasks.named('mergeMuzzleReports'))
-  }
+muzzleReports {
+  reportFile = layout.buildDirectory.file('muzzle-deps-results/dd-java-agent_instrumentation.csv')
+}
+
+tasks.register('muzzleInstrumentationReport') {
+  group = 'Muzzle'
+  description = 'Generate the aggregate instrumentation dependency version report'
+  dependsOn(tasks.named('aggregateMuzzleReports'))
 }
 
 tasks.named('shadowJar', ShadowJar) {
