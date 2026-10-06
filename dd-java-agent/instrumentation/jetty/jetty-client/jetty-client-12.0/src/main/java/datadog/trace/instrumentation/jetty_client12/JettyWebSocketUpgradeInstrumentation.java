@@ -14,6 +14,9 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
@@ -68,14 +71,23 @@ public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tra
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterUpgrade(
         @Advice.Argument(0) Response response,
+        @Advice.FieldValue("futureCoreSession") CompletableFuture<?> futureCoreSession,
         @Advice.Enter ContextScope scope,
         @Advice.Thrown Throwable failure) {
       AgentSpan span =
           InstrumentationContext.get(Request.class, AgentSpan.class).get(response.getRequest());
       try {
         if (span != null && failure == null) {
-          // Successful upgrades bypass the request's response completion listeners.
+          // Upgrades bypass response completion listeners even when endpoint failures are
+          // swallowed.
           DECORATE.onResponse(span, response);
+          try {
+            futureCoreSession.getNow(null);
+          } catch (CompletionException e) {
+            DECORATE.onError(span, e.getCause());
+          } catch (CancellationException e) {
+            DECORATE.onError(span, e);
+          }
           DECORATE.beforeFinish(span);
         }
       } finally {

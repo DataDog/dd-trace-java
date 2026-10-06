@@ -45,6 +45,7 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.0.0'
   testImplementation 'org.eclipse.jetty.websocket:jetty-websocket-jetty-client:12.0.0'
   testImplementation 'org.eclipse.jetty.websocket:jetty-websocket-jetty-server:12.0.0'
+  testImplementation libs.bundles.mockito
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-12.0')
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.+'
   latestDepTestImplementation 'org.eclipse.jetty.websocket:jetty-websocket-jetty-client:12.+'
