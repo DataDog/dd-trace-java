@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -165,5 +167,133 @@ class OtelHttpSemanticsTest {
     OtelHttpSemantics.setErrorType(span, 500);
 
     verify(span, never()).setTag(eq(DDTags.ERROR_TYPE), any(String.class));
+  }
+
+  @TableTest({
+    "Scenario             | Header                             | Expected",
+    "Single host          | {host, '  host  '}                 | host    ",
+    "First forwarded host | {'host, proxy', '  host  , proxy'} | host    "
+  })
+  void forwardedValueUsesFirstTrimmedEntry(String header, String expected) {
+    assertEquals(expected, OtelHttpSemantics.forwardedValue(header));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "   ", ", proxy"})
+  void forwardedValueReturnsNullForBlankFirstEntry(String header) {
+    assertNull(OtelHttpSemantics.forwardedValue(header));
+  }
+
+  @Test
+  void forwardedValueReturnsNullForNullHeader() {
+    assertNull(OtelHttpSemantics.forwardedValue(null));
+  }
+
+  @TableTest({
+    "Scenario     | Value               | Expected",
+    "Valid port   | 8080                | 8080    ",
+    "Minimum port | 1                   | 1       ",
+    "Maximum port | 65535               | 65535   ",
+    "Invalid port | {0, 65536, -1, abc} | -1      "
+  })
+  void parsePortRejectsOutOfRangeAndMalformedValues(String value, int expected) {
+    assertEquals(expected, OtelHttpSemantics.parsePort(value));
+  }
+
+  @Test
+  void parsePortReturnsUnsetForEmptyValue() {
+    assertEquals(-1, OtelHttpSemantics.parsePort(""));
+  }
+
+  @Test
+  void parsePortReturnsUnsetForNullValue() {
+    assertEquals(-1, OtelHttpSemantics.parsePort(null));
+  }
+
+  @TableTest({
+    "Scenario       | Scheme         | Port | Expected",
+    "HTTPS default  | {https, HTTPS} | -1   | 443     ",
+    "HTTP default   | {http, HTTP}   | -1   | 80      ",
+    "Unknown scheme | ftp            | -1   | -1      "
+  })
+  void serverPortUsesSchemeDefaultWhenPortUnset(String scheme, int port, int expected) {
+    assertEquals(expected, OtelHttpSemantics.serverPort(scheme, port));
+  }
+
+  @Test
+  void serverPortReturnsUnsetForNullScheme() {
+    assertEquals(-1, OtelHttpSemantics.serverPort(null, -1));
+  }
+
+  @Test
+  void setServerAddressAndPortUsesRequestHostAndPort() {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setServerAddressAndPort(span, null, null, "http", "host", 8080);
+
+    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, "host");
+    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 8080);
+  }
+
+  @Test
+  void setServerAddressAndPortFallsBackToSchemeDefaultPort() {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setServerAddressAndPort(span, null, null, "https", "host", -1);
+
+    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, "host");
+    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 443);
+  }
+
+  @Test
+  void setServerAddressAndPortOmitsTagsWhenNothingResolvable() {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setServerAddressAndPort(span, null, null, "ftp", null, -1);
+
+    verify(span, never()).setTag(eq(KnownTags.SERVER_ADDRESS_NAME), anyString());
+    verify(span, never()).setTag(eq(KnownTags.SERVER_PORT_NAME), anyInt());
+  }
+
+  @Test
+  void setServerAddressAndPortOmitsAddressWhenRequestHostIsEmpty() {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setServerAddressAndPort(span, null, null, "http", "", -1);
+
+    verify(span, never()).setTag(eq(KnownTags.SERVER_ADDRESS_NAME), anyString());
+    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 80);
+  }
+
+  @Test
+  void setServerAddressAndPortPrefersForwardedPortHeader() {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setServerAddressAndPort(span, "proxy:8443", "9443", "http", "host", 8080);
+
+    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, "proxy");
+    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 9443);
+  }
+
+  @TableTest({
+    "Scenario                 | Forwarded Host | Expected Address | Expected Port",
+    "Host only                | proxy          | proxy            | 80           ",
+    "Host with port           | proxy:8443     | proxy            | 8443         ",
+    "Host with invalid port   | proxy:bogus    | proxy            | 80           ",
+    "IPv6 host                | '[::1]'        | ::1              | 80           ",
+    "IPv6 with port           | '[::1]:8443'   | ::1              | 8443         ",
+    "IPv6 with invalid suffix | '[::1]bogus'   | ::1              | 80           ",
+    "Unbracketed IPv6         | ::1            | ::1              | 80           ",
+    "Unclosed IPv6 bracket    | '[::1'         | '[::1'           | 80           "
+  })
+  void setServerAddressAndPortParsesForwardedHost(
+      String forwardedHost, String expectedAddress, int expectedPort) {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setServerAddressAndPort(span, forwardedHost, null, "http", "host", 8080);
+
+    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, expectedAddress);
+    // A forwarded host suppresses the request port, so the scheme default applies instead.
+    verify(span).setTag(KnownTags.SERVER_PORT_NAME, expectedPort);
   }
 }
