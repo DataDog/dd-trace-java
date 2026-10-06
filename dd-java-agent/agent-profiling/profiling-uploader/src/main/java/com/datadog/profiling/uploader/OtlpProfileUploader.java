@@ -15,13 +15,13 @@
  */
 package com.datadog.profiling.uploader;
 
-import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE_DEFAULT;
 
 import com.datadog.profiling.otel.JfrToOtlpConverter;
+import datadog.communication.otlp.OtlpCanonicalResourceAttributes;
 import datadog.communication.otlp.OtlpPayload;
 import datadog.communication.otlp.OtlpResponse;
 import datadog.communication.otlp.OtlpSender;
@@ -222,27 +222,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     }
   }
 
-  // mirrors the tracer's OTLP traces export resource attributes (OtlpResourceAttributes)
+  // canonical attributes are shared with the tracer's OTLP traces export
   private static Map<String, String> buildResourceAttributes(Config config) {
     Map<String, String> attributes = new LinkedHashMap<>();
-    attributes.put("service.name", config.getServiceName());
-    String env = config.getEnv();
-    if (!env.isEmpty()) {
-      attributes.put("deployment.environment.name", env);
-    }
-    String version = config.getVersion();
-    if (!version.isEmpty()) {
-      attributes.put("service.version", version);
-    }
-    if (config.isReportHostName()) {
-      String hostName = config.getHostName();
-      if (hostName != null && !hostName.isEmpty()) {
-        attributes.put("host.name", hostName);
-      }
-    }
-    attributes.put("telemetry.sdk.name", "datadog");
-    attributes.put("telemetry.sdk.version", TRACER_VERSION);
-    attributes.put("telemetry.sdk.language", "java");
+    OtlpCanonicalResourceAttributes.visit(config, attributes::put);
 
     // merge the user-configured tags (getMergedProfilingTags: global + profiling + runtime +
     // host tags, the same set the classic uploader sends); keys already emitted as canonical
