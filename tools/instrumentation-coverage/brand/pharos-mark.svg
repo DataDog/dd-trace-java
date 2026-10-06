@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="Pharos lighthouse">
+<title>Pharos — Instrumentation Quality</title>
+<rect x="2" y="2" width="76" height="76" rx="20" fill="#632ca6"/>
+<path d="M31 26 12 18v16zm18 0 19-8v16z" fill="#8fe3c4"/>
+<path d="m33 34-5 28h24l-5-28z" fill="#ffffff"/>
+<path d="M30 58h22l-5 4H28z" fill="#d9c5f1"/>
+<rect x="33" y="20" width="14" height="11" rx="3" fill="#ffffff"/>
+<path d="m30 19 10-8 10 8z" fill="#ffffff"/>
+<path d="M29 34h22M23 65h34" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+<rect x="37" y="46" width="6" height="10" rx="3" fill="#632ca6"/>
+</svg>

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://datadoghq.dev/instrumentation-coverage/joined-report.schema.json",
+  "title": "Instrumentation coverage joined report",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "library",
+    "version",
+    "contextEvidenceReports",
+    "flows",
+    "methodInventory",
+    "actions",
+    "taskBundles"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "library": { "type": "string" },
+    "version": { "type": "string" },
+    "contextEvidenceReports": { "type": "array" },
+    "methodInventory": { "type": "array" },
+    "methodCallDags": { "type": "object" },
+    "catalogAssessment": {
+      "type": "object",
+      "required": ["schemaVersion", "status", "scope", "summary", "families"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "status": { "enum": ["draft", "needs-review", "reviewed"] },
+        "scope": { "type": "string" },
+        "summary": { "type": "object" },
+        "families": { "type": "array" },
+        "unclassifiedFlowIds": { "type": "array" }
+      }
+    },
+    "flows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "feature",
+          "variant",
+          "outcome",
+          "identification",
+          "expectedMethods",
+          "tests",
+          "actions"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "feature": { "type": "string" },
+          "variant": { "type": "string" },
+          "outcome": { "type": "string" },
+          "identification": { "type": "object" },
+          "contextContract": {
+            "type": "object",
+            "required": ["status", "precondition", "expectations"],
+            "properties": {
+              "status": { "enum": ["draft", "needs-review", "reviewed"] },
+              "precondition": { "type": "string", "minLength": 1 },
+              "expectations": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["id", "stepIds", "expected", "sourceIds", "rationale"],
+                  "properties": {
+                    "expected": {
+                      "enum": ["PRESENT", "ABSENT", "EITHER", "UNRESOLVED"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expectedMethods": { "type": "array" },
+          "tests": { "type": "array" },
+          "actions": { "type": "array" }
+        }
+      }
+    },
+    "actions": { "type": "array" },
+    "taskBundles": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "instrumentation-task.schema.json"
+      }
+    }
+  }
+}

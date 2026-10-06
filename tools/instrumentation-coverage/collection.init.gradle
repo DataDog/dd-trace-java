@@ -1,0 +1,110 @@
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+
+// Applied only by the coverage workflow. Ordinary test invocations are unaffected.
+gradle.projectsEvaluated {
+  def root = gradle.rootProject
+  if (!root.file('tools/instrumentation-coverage').isDirectory()) return
+  def target = root.project(root.property('coverageModule').toString())
+  def run = root.file(root.property('coverageRun').toString())
+  def knowledge = new File(run, 'knowledge')
+  def library = new JsonSlurper().parse(new File(knowledge, 'library.json'))
+  def observation = new JsonSlurper().parse(new File(knowledge, 'observation.json'))
+  def observer = root.file('tools/instrumentation-coverage/build/libs/instrumentation-coverage-observer.jar')
+  def bootstrapBridge = root.file('tools/instrumentation-coverage/build/libs/instrumentation-coverage-bootstrap.jar')
+  def sha = { File file ->
+    def digest = MessageDigest.getInstance('SHA-256')
+    file.withInputStream { input ->
+      byte[] buffer = new byte[65536]
+      int count
+      while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+    }
+    digest.digest().encodeHex().toString()
+  }
+  def testTaskNames = library.testTasks ?: [library.testTask]
+  def testTasks = new LinkedHashSet()
+  def visited = new HashSet()
+  def discover
+  discover = { task ->
+    if (!visited.add(task.path)) return
+    if (task instanceof Test) {
+      if (task.project == target) testTasks.add(task)
+    } else {
+      task.taskDependencies.getDependencies(task).each { discover(it) }
+    }
+  }
+  testTaskNames.each { discover(target.tasks.named(it.toString()).get()) }
+  if (testTasks.isEmpty()) throw new GradleException('Coverage selection contains no Test tasks')
+  def selectedTests = testTasks.sort { it.name }.collect { target.tasks.named(it.name, Test) }
+  def export = target.tasks.register('exportCoverageArtifacts') {
+    doLast {
+      def artifacts
+      if (library.graphSource?.kind == 'jdk-module') {
+        def launchers = selectedTests.collect { it.get().javaLauncher.get() }
+        def launcher = launchers.first()
+        if (launchers.any { it.metadata.installationPath != launcher.metadata.installationPath }) {
+          throw new GradleException('Coverage test tasks must use the same JDK installation')
+        }
+        def module = library.graphSource.module.toString()
+        def moduleFile = launcher.metadata.installationPath.file("jmods/${module}.jmod").asFile
+        if (!moduleFile.isFile()) {
+          throw new GradleException("Selected test JDK has no jmod for ${module}: ${moduleFile}")
+        }
+        artifacts = [[
+          coordinate: "jdk:${module}:${launcher.metadata.javaRuntimeVersion}",
+          path: moduleFile.absolutePath,
+          sha256: sha(moduleFile),
+          kind: 'jdk-module',
+          module: module,
+          runtimeVersion: launcher.metadata.javaRuntimeVersion.toString()
+        ]]
+      } else {
+        def runtime = selectedTests.collectMany { it.get().classpath.files }.toSet()
+        artifacts = target.configurations.getByName(library.runtimeConfiguration).resolvedConfiguration.resolvedArtifacts
+          .findAll { library.artifactGroups.contains(it.moduleVersion.id.group) && runtime.contains(it.file) }
+          .collect { [coordinate: it.moduleVersion.id.toString(), path: it.file.absolutePath, sha256: sha(it.file)] }
+          .sort { it.coordinate }
+      }
+      if (artifacts.isEmpty()) throw new GradleException('No selected library artifacts on test runtime classpath')
+      run.mkdirs()
+      def resolvedFile = new File(run, 'resolved.json')
+      def targets = selectedTests.collect { provider ->
+        def task = provider.get()
+        def files = task.classpath.files
+        def targetArtifacts = artifacts.findAll { files.contains(new File(it.path)) }
+        if (library.graphSource?.kind != 'jdk-module' && targetArtifacts.size() != artifacts.size()) {
+          throw new GradleException("Test target ${task.path} uses different library artifacts; collect it with its own graph")
+        }
+        [task: task.name, path: task.path, artifacts: targetArtifacts.collect { it.coordinate }]
+      }
+      def payload = [schemaVersion: 1, artifacts: artifacts, testTargets: targets, requestedTasks: testTaskNames]
+      if (resolvedFile.exists() && new JsonSlurper().parse(resolvedFile) != payload) {
+        throw new GradleException('Resolved artifacts changed after graph generation; start a fresh coverage run')
+      }
+      resolvedFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(payload))
+    }
+  }
+  selectedTests.each { selectedTest ->
+    selectedTest.configure {
+      dependsOn export
+      classpath += root.files(observer)
+      systemProperty 'test.context.coverage.classes', observation.classes.join(',')
+      systemProperty 'test.context.coverage.require-transformed', observation.requiredTransformed.join(',')
+      systemProperty 'test.context.coverage.output', new File(run, "observations/${name}").absolutePath
+      systemProperty 'test.context.coverage.run-id', run.name
+      systemProperty 'test.context.coverage.bootstrap-jar', bootstrapBridge.absolutePath
+      if (observation.maxDistinctObservations) {
+        systemProperty 'test.context.coverage.max-rows', observation.maxDistinctObservations.toString()
+      }
+      if (observation.adapter == 'junit') {
+        systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+        systemProperty 'junit.jupiter.execution.parallel.enabled', 'false'
+      }
+      reports.junitXml.outputLocation.set(new File(run, "test-results/${name}"))
+      maxParallelForks = 1
+      outputs.upToDateWhen { false }
+      outputs.cacheIf { false }
+    }
+  }
+}

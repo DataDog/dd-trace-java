@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Context coverage · Library map</title>
+<style>
+:root { color-scheme: light; --ink:#152b35; --muted:#5a6b74; --line:#d7e0e2; --green:#188060; --green-light:#d3eee2; --gray:#84929d; --gray-light:#dfe4e8; --profile:#bd5b18; --profile-light:#fff0df; --paper:#f5f7f7; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+header { padding:32px 40px 24px; background:#fff; border-bottom:1px solid var(--line); }
+.eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:11px; font-weight:750; color:var(--green); }
+h1 { margin:6px 0; font-size:34px; letter-spacing:-.035em; }
+.intro { color:var(--muted); max-width:900px; margin:8px 0 0; }
+main { max-width:1600px; margin:auto; padding:24px 40px 40px; }
+.opportunity { background:white; border:1px solid var(--line); border-left:4px solid var(--green); border-radius:12px; padding:22px; margin-bottom:18px; }
+.opportunity h2 { font-size:19px; margin:5px 0; }
+.opportunity p { font-size:12px; color:var(--muted); margin:7px 0; }
+.opportunity .gain { font-size:26px; font-weight:750; letter-spacing:-.03em; margin:10px 0; }
+.comparison { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:16px 0; }
+.comparison strong { display:block; font-size:12px; }
+.comparison .bar { height:12px; border-radius:4px; margin:6px 0; }
+.comparison small { color:var(--muted); font-size:11px; }
+.opportunity-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.opportunity-actions button { font:12px system-ui; border:1px solid #bac8cd; border-radius:6px; background:white; color:var(--ink); padding:8px 12px; cursor:pointer; }
+.opportunity-actions button:hover { background:var(--paper); }
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+.stat { padding:18px 22px; background:white; border:1px solid var(--line); border-radius:12px; }
+.stat strong { font-size:29px; letter-spacing:-.04em; display:block; }
+.stat small,.muted { color:var(--muted); }
+.stat.context { border-top:4px solid var(--green); }
+.stat.root { border-top:4px solid var(--gray); }
+.controls { display:flex; gap:14px; align-items:end; flex-wrap:wrap; margin-bottom:16px; }
+label { display:block; color:var(--muted); font-size:12px; font-weight:650; }
+select,input { display:block; margin-top:5px; padding:10px 12px; background:white; color:var(--ink); border:1px solid #bac8cd; border-radius:7px; font:14px system-ui; max-width:100%; }
+input { min-width:250px; }
+.legend { display:flex; gap:18px; flex-wrap:wrap; padding:10px 0 16px; font-size:12px; color:var(--muted); }
+.key { display:inline-block; width:13px; height:13px; border-radius:3px; margin-right:6px; vertical-align:-2px; }
+.present { background:var(--green-light); border:1px solid var(--green); }
+.root-only { background:var(--gray-light); border:1px solid var(--gray); }
+.mixed { background:linear-gradient(90deg,var(--green-light) 50%,var(--gray-light) 50%); border:1px solid var(--gray); }
+.unseen { background:repeating-linear-gradient(135deg,#fff,#fff 5px,#eef1f2 5px,#eef1f2 7px); border:1px dashed #a6b4bc; }
+.layout { display:grid; grid-template-columns:minmax(0,1fr) 365px; gap:24px; align-items:start; }
+.layout.no-selection { grid-template-columns:1fr; }
+.layout.no-selection .detail { display:none; }
+.compact #map { display:flex; flex-wrap:wrap; gap:16px; }
+.compact .class-group { flex:1 1 230px; min-width:200px; margin:0; }
+.compact .class-heading { display:block; }
+.compact .tiles { grid-template-columns:repeat(auto-fill,minmax(36px,1fr)); gap:7px; margin-top:18px; }
+.compact .tile { aspect-ratio:1; min-height:36px; padding:0; border-radius:5px; }
+.compact .tile .method-name,.compact .tile .method-note { display:none; }
+.compact .tile:hover { transform:scale(1.08); }
+.surface { margin:12px 0 24px; padding:22px; border-radius:12px; border:1px solid var(--line); background:white; }
+.surface h2 { margin:0 0 4px; font-size:18px; }
+.surface p { margin:0 0 14px; font-size:12px; color:var(--muted); }
+.surface-bar { display:flex; height:40px; overflow:hidden; border-radius:6px; gap:3px; }
+.surface-bar > div { min-width:0; display:grid; place-items:center; font-size:12px; font-weight:700; }
+.surface-caption { display:flex; gap:20px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--muted); }
+.label-toggle { display:flex; align-items:center; gap:7px; padding-bottom:10px; cursor:pointer; }
+.label-toggle input { min-width:0; width:16px; height:16px; margin:0; }
+.class-group { background:white; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
+.class-heading { display:flex; justify-content:space-between; gap:12px; align-items:baseline; margin-bottom:14px; }
+.class-heading h2 { font-size:16px; margin:0; overflow-wrap:anywhere; }
+.class-heading small { color:var(--muted); white-space:nowrap; font-size:11px; }
+.package { font-size:11px; color:var(--muted); }
+.tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:9px; }
+.tile { position:relative; text-align:left; min-height:94px; padding:13px 12px 15px; border-radius:7px; cursor:pointer; color:var(--ink); overflow:hidden; font-family:inherit; }
+.tile:hover { box-shadow:0 2px 8px #142c3322; }
+.tile.profiled { box-shadow:inset 0 6px 0 rgb(189 91 24 / var(--profile-alpha)),inset 0 0 0 2px rgb(189 91 24 / .55); }
+.tile.profiled::after { content:''; position:absolute; top:10px; right:7px; width:8px; height:8px; border-radius:50%; background:var(--profile); opacity:var(--profile-alpha); }
+.tile[aria-pressed="true"] { outline:3px solid #233f52; outline-offset:2px; }
+.tile:focus-visible,select:focus-visible,input:focus-visible { outline:3px solid #2c5bb9; outline-offset:3px; }
+.method-name { display:block; font-size:12px; font-weight:700; overflow-wrap:anywhere; line-height:1.3; }
+.method-note { display:block; font-size:10px; color:#425761; margin-top:8px; }
+.bar { display:flex; height:5px; background:var(--gray); }
+.tile .bar { position:absolute; bottom:0; left:0; right:0; }
+.bar span { background:var(--green); }
+.detail { background:white; border:1px solid var(--line); border-radius:12px; padding:22px; position:sticky; top:18px; max-height:calc(100vh - 36px); overflow:auto; }
+.detail h2 { font-size:20px; margin:6px 0 12px; overflow-wrap:anywhere; }
+.detail h3 { font-size:13px; margin:20px 0 10px; }
+.detail .bar { border-radius:4px; margin:12px 0 6px; height:9px; }
+.descriptor { font:11px/1.6 ui-monospace,monospace; color:var(--muted); overflow-wrap:anywhere; }
+.counts { display:flex; justify-content:space-between; gap:12px; font-size:12px; }
+.observation { border-top:1px solid var(--line); padding:12px 0; }
+.observation strong { font-size:12px; overflow-wrap:anywhere; }
+.badge { display:inline-block; font-size:10px; border-radius:4px; padding:2px 6px; margin-bottom:4px; }
+details { font-size:11px; margin-top:7px; }
+summary { cursor:pointer; color:#315e74; }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; font:10px/1.65 ui-monospace,monospace; }
+.note { padding:14px 17px; background:#edf1f3; border-radius:8px; color:#475d69; font-size:12px; margin:18px 0; }
+.warning { background:#fff2d9; color:#744f10; }
+.empty { padding:35px; text-align:center; color:var(--muted); }
+footer { margin-top:24px; font-size:12px; color:var(--muted); }
+#visible-count { margin-left:auto; font-size:12px; color:var(--muted); padding:12px 0; }
+@media(max-width:1000px) { .layout { grid-template-columns:minmax(0,1fr) 310px; } main,header { padding-left:22px; padding-right:22px; } }
+@media(max-width:760px) { .layout { grid-template-columns:1fr; } .detail { position:static; max-height:none; } .stats { gap:8px; } .stat { padding:12px; } .stat strong { font-size:23px; } .stat small { font-size:11px; } h1 { font-size:29px; } main,header { padding-left:16px; padding-right:16px; } .class-heading { display:block; } }
+
+.capabilities { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.capability { border:1px solid var(--line); border-radius:10px; padding:18px; background:white; text-align:left; color:var(--ink); font:inherit; cursor:pointer; }
+.capability[aria-pressed="true"] { outline:3px solid #233f52; }
+.capability strong,.capability small { display:block; }
+.capability small { color:var(--muted); margin-top:8px; }
+.capability .surface-bar { height:14px; margin-top:12px; }
+.capability:focus-visible { outline:3px solid #2c5bb9; }
+.simulation { border:2px solid #8273b5; background:#faf8ff; }
+.profiling { border-top:4px solid var(--profile); }
+.profile-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:16px 0; }
+.profile-stat { padding:14px; border-radius:8px; background:var(--profile-light); }
+.profile-stat strong,.profile-stat small { display:block; }
+.profile-stat strong { font-size:24px; }
+.profile-controls { display:flex; align-items:end; gap:18px; flex-wrap:wrap; margin:12px 0 18px; }
+.profile-controls .label-toggle { padding-bottom:9px; }
+.evidence-matrix { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:16px 0; }
+.evidence-card { border:1px solid var(--line); border-radius:8px; padding:14px; min-height:150px; }
+.evidence-card strong,.evidence-card small { display:block; }
+.evidence-card strong { font-size:22px; }
+.evidence-card small { color:var(--muted); margin:6px 0; }
+.evidence-card code { display:block; font:10px/1.45 ui-monospace,monospace; overflow-wrap:anywhere; margin-top:7px; }
+.evidence-card.priority { border-top:4px solid var(--gray); }
+.evidence-card.discovery { border-top:4px solid var(--profile); }
+.evidence-card.corroborated { border-top:4px solid var(--green); }
+.evidence-card.unsampled { border-top:4px dashed #a6b4bc; }
+.profile-path { display:grid; grid-template-columns:55px 1fr; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+.profile-path strong { color:var(--profile); }
+.profile-path code { overflow-wrap:anywhere; font:11px/1.5 ui-monospace,monospace; }
+.heat-scale { height:8px; width:150px; background:linear-gradient(90deg,#fff0df,#bd5b18); border-radius:4px; display:inline-block; vertical-align:1px; margin:0 6px; }
+.profile-methods { columns:2; padding-left:22px; }
+.profile-methods li { break-inside:avoid; margin-bottom:6px; overflow-wrap:anywhere; }
+.profile-key { background:var(--profile-light); border:3px solid var(--profile); }
+.projected { background:#e7dff8; border:1px dashed #8273b5; }
+.projection-tiles { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0; }
+.projection-tile { padding:8px; border-radius:5px; font:12px system-ui; overflow-wrap:anywhere; }
+#simulation button { padding:9px 14px; cursor:pointer; }
+#capability-evidence { margin-top:16px; }
+@media(max-width:1000px) { .evidence-matrix { grid-template-columns:1fr 1fr; } }
+@media(max-width:760px) { .capabilities { grid-template-columns:1fr; } .profile-grid,.evidence-matrix { grid-template-columns:1fr; } .profile-methods { columns:1; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Instrumentation lab / Context coverage</div>
+  <h1>Where does context reach?</h1>
+  <p class="intro">Each tile is one method in the selected library classes. Green shows entries with a non-root Context; gray shows entries at root. Select a scenario to see where its context reaches.</p>
+</header>
+<main>
+  <div id="execution" role="status"></div>
+  <div id="health" role="status"></div>
+  <section id="profiling" class="surface profiling" hidden aria-label="Task-wide profiling evidence">
+    <div class="eyebrow">Task-wide JFR · sampled discovery</div>
+    <h2>What appeared in runtime stacks?</h2>
+    <p>The profile covers the whole Spring WebMVC test worker, including both instrumentation specifications and setup. It expands the map and ranks activity; it does not attribute every sample to this specification or turn unsampled code into unexecuted code.</p>
+    <div id="profile-summary" class="profile-grid"></div>
+    <div class="profile-controls">
+      <label>Profile signal<select id="profile-signal"><option value="all">CPU + allocation</option><option value="cpu">CPU/native samples</option><option value="allocation">Allocation samples</option></select></label>
+      <label class="label-toggle"><input id="profile-heat" type="checkbox" checked>Show relative activity heat on the method map</label>
+    </div>
+    <div class="muted">Lighter <i class="heat-scale"></i> darker means fewer → more stack appearances within the selected signal. Heat is relative and is not an invocation count.</div>
+    <h3>How profile activity changes the next action</h3>
+    <div id="profile-matrix" class="evidence-matrix"></div>
+    <details open><summary>Representative sampled execution paths</summary><div id="profile-paths"></div></details>
+    <div id="profile-discovery"></div>
+  </section>
+  <section id="functionality" class="surface" hidden aria-label="Spring MVC functionality">
+    <div class="eyebrow">Spring MVC · capability evidence</div>
+    <h2>Which parts of request handling did we observe?</h2>
+    <p>Choose an area to inspect its evidence. Green means observed entries had Context; gray means some ran at root; hatching means no execution evidence. Each card summarizes an explicit method mapping, not complete behavioral coverage.</p>
+    <div id="capabilities" class="capabilities"></div>
+    <div id="capability-evidence" aria-live="polite"></div>
+    <details><summary>How this map is defined</summary><p>Curated prototype map based on Spring class and method responsibilities. Categories can overlap. Bar widths count selected methods, not time or completed scenarios. Setup/configuration methods are included where mapped; collection excludes test setup/cleanup. Suggested scenarios are inspection prompts, not assertions that tests are missing. Worker observations cannot currently be attributed to test iterations.</p><pre id="capability-rules"></pre></details>
+  </section>
+  <section id="simulation" class="surface simulation" hidden aria-label="Recovery simulation">
+    <div class="eyebrow">What if · hypothesis, not a measured gain</div>
+    <h2>How could we improve the evidence?</h2>
+    <p>Select a proposed test or instrumentation investigation. This preview keeps the actual recording unchanged. Purple tiles show conditional targets, not recovered coverage.</p>
+    <label>Proposed action<select id="recovery-plan"><option value="">Choose an action</option></select></label>
+    <div id="recovery-preview" aria-live="polite"></div>
+  </section>
+  <section id="opportunities" aria-label="Propagation opportunities"></section>
+  <div class="stats" aria-live="polite">
+    <div class="stat"><small>Methods exercised</small><strong id="exercised"></strong><small id="unobserved"></small></div>
+    <div class="stat context"><small>Entries with context</small><strong id="context-count"></strong><small>Non-root Context at method entry</small></div>
+    <div class="stat root"><small>Entries at root</small><strong id="root-count"></strong><small>Empty context or deliberate suppression</small></div>
+  </div>
+  <section class="surface" aria-label="Library surface overview">
+    <h2>The library at a glance</h2>
+    <p>Each square below is one selected method, grouped by class. Click a square for evidence. Area represents method count, not time.</p>
+    <div id="surface-bar" class="surface-bar"></div>
+    <div id="surface-caption" class="surface-caption" aria-live="polite"></div>
+  </section>
+  <div class="controls">
+    <label id="capability-control" hidden>Functionality<select id="capability"><option value="">All selected methods</option></select></label>
+    <label>Scenario<select id="scenario"><option value="">All scenarios</option></select></label>
+    <label>Show<select id="status"><option value="all">All methods</option><option value="gray">Gray areas · any root entries</option><option value="present">Context present only</option><option value="unseen">Not exercised</option><option id="profile-status" value="sampled" hidden>Sampled by profiler</option></select></label>
+    <label>Find a method<input id="search" type="search" placeholder="Class or method name"></label>
+    <label class="label-toggle"><input id="labels" type="checkbox">Show method names</label>
+    <span id="visible-count" aria-live="polite"></span>
+  </div>
+  <div class="legend" aria-label="Map legend">
+    <span><i class="key present"></i>Context present only</span>
+    <span><i class="key root-only"></i>Root only</span>
+    <span><i class="key mixed"></i>Both · split by entry count</span>
+    <span><i class="key unseen"></i>Not exercised</span>
+    <span id="profile-legend" hidden><i class="key profile-key"></i>Appeared in task-wide profile stack</span>
+  </div>
+  <div id="layout" class="layout compact no-selection">
+    <div id="map"></div>
+    <aside id="detail" class="detail" aria-label="Selected method evidence" aria-live="polite"></aside>
+  </div>
+  <div class="note">Gray is a place to investigate, not a confirmed bug. Root can be intentional. Green means a Context was present at entry; it does not establish the right context or coverage throughout the method. Hatched tiles have no execution evidence in the selected scenario.</div>
+  <footer id="provenance"></footer>
+</main>
+<noscript><p>This interactive report needs JavaScript. The adjacent report.md contains a readable static table.</p></noscript>
+<script id="coverage-data" type="application/octet-stream">__COVERAGE_DATA__</script>
+<script>
+'use strict';
+const report = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(document.getElementById('coverage-data').textContent.trim()), c => c.charCodeAt(0))));
+const $ = id => document.getElementById(id);
+const number = value => value.toLocaleString('en');
+const profiling = report.profiling || null;
+const profiledMethods = new Map((profiling?.sampledLibraryMethods || []).map(m => [m.method,m.stackOccurrences]));
+const profiledSignals = new Map();
+for (const [signal,data] of Object.entries(profiling?.signals || {})) {
+  for (const method of data.selectedMethods || []) {
+    if (!profiledSignals.has(method.method)) profiledSignals.set(method.method,{});
+    profiledSignals.get(method.method)[signal]=method.stackOccurrences;
+  }
+}
+const element = (tag, text, className) => {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+};
+const execution = report.execution || {};
+if (execution.mode === 'instrumentation-test' && execution.agentInstalled) {
+  $('execution').append(element('div','Agent-enabled instrumentation test: '+execution.specName+' · Context loaded by '+execution.contextClassLoader+'. Recorded during original test execution; setup/cleanup excluded. No synthetic propagation intervention.','note'));
+} else {
+  $('execution').append(element('div',execution.mode === 'instrumentation-test' ? 'Agent verification did not complete. This report must not be treated as verified agent-enabled coverage.' : 'Synthetic collector validation without the Datadog agent. Deliberately omitted propagation is not a missing-instrumentation finding.','note warning'));
+}
+const scenarios = [...new Set(report.methods.flatMap(m => m.observations.map(o => o.scenario)))].sort();
+scenarios.forEach((name, index) => {
+  const option = element('option', name);
+  option.value = String(index);
+  $('scenario').append(option);
+});
+const rawMethods = report.methods.map(m => {
+  const open = m.method.indexOf('(');
+  const separator = m.method.lastIndexOf('.', open);
+  return {...m, owner:m.method.slice(0,separator), name:m.method.slice(separator+1,open), descriptor:m.method.slice(open), profileOccurrences:profiledMethods.get(m.method)||0, profileSignals:profiledSignals.get(m.method)||{}};
+});
+// Explicit, reviewable mapping; observations do not infer behavioral scenario coverage.
+const springCapabilities = [
+  {id:'routing', title:'Request routing', rules:[['DispatcherServlet','^(doDispatch|getHandler|getHandlerAdapter|noHandlerFound|checkMultipart|cleanupMultipart)$'],['AbstractHandlerMapping','.*'],['AbstractUrlHandlerMapping','.*']], scenarios:'Route match, no match, path variables, and multipart requests.', question:'Inspect root entries around dispatch and handler selection; compare normal and error dispatch.'},
+  {id:'controller', title:'Controller execution', rules:[['AbstractHandlerMethodAdapter','.*'],['RequestMappingHandlerAdapter','.*']], scenarios:'Controller success, argument binding failure, and controller failure.', question:'Check whether Context is present before controller invocation. Invocation and argument-resolver classes are only partially represented by this inventory.'},
+  {id:'async', title:'Async requests & redispatch', rules:[['WebAsyncManager','.*'],['DeferredResult','.*'],['DeferredResultMethodReturnValueHandler','.*']], scenarios:'Callable and deferred-result success, failure, timeout, and cancellation.', question:'Inspect getConcurrentResult, clearConcurrentResult and getConcurrentResultContext, then trace the redispatch boundary. Root alone does not prove context loss.'},
+  {id:'errors', title:'Error handling', rules:[['DispatcherServlet','^(processHandlerException|processDispatchResult|triggerAfterCompletion|noHandlerFound)$'],['HandlerExecutionChain','^triggerAfterCompletion$']], scenarios:'Handled controller exception, unhandled exception, and error dispatch.', question:'Compare exceptional and normal paths. Exception resolver implementations are outside the selected inventory.'},
+  {id:'response', title:'Response rendering', rules:[['DispatcherServlet','^(render|resolveViewName|applyDefaultViewName|processDispatchResult)$']], scenarios:'Response body, view rendering, redirect, and rendering failure.', question:'Inspect the observed rendering path. Message converters and return-value handlers beyond deferred results are outside the selected inventory.'},
+  {id:'lifecycle', title:'Request lifecycle & interceptors', rules:[['FrameworkServlet','.*'],['HandlerExecutionChain','.*']], scenarios:'Normal completion, interceptor short circuit, and asynchronous completion.', question:'Inspect request entry, completion, and interceptor callbacks; configuration methods may remain unobserved because setup is excluded.'}
+];
+const springMap = report.targets.some(t => t.class === 'org.springframework.web.servlet.DispatcherServlet');
+if (profiling && springMap) {
+  $('profiling').hidden=false;
+  $('profile-legend').hidden=false;
+  $('profile-status').hidden=false;
+}
+const quartzMap = report.targets.some(t => t.class === 'org.quartz.core.QuartzScheduler');
+const quartzCapabilities = [
+ {id:'job',title:'Job execution · test fixture',rules:[['QuartzTestJob','^execute$'],['org.quartz.impl.JobExecutionContextImpl','.*']],scenarios:'Successful job, thrown JobExecutionException, immediate refire, and restoration after job exit.',question:'The fixture execute method is an instrumentation control, not part of the library denominator. Each job intentionally starts a new Context; verify error paths and restoration before changing propagation.'},
+ {id:'triggers',title:'Simple & cron triggers',rules:[['org.quartz.impl.triggers.SimpleTriggerImpl','.*'],['org.quartz.impl.triggers.CronTriggerImpl','.*']],scenarios:'Immediate, repeated, cron, exhausted, and misfired triggers.',question:'Trigger bookkeeping can legitimately run without job Context. Unobserved trigger behavior suggests tests to inspect, not automatic propagation changes.'},
+ {id:'pause',title:'Pause, resume & cancellation',rules:[['org.quartz.impl.StdScheduler','^(pause|resume|interrupt|delete|unschedule|reschedule).*'],['org.quartz.core.QuartzScheduler','^(pause|resume|interrupt|delete|unschedule|reschedule).*']],scenarios:'Pause/resume a trigger, unschedule before firing, and interrupt a running job.',question:'Check that lifecycle operations preserve job isolation and do not leave an active job Context after completion. These operations need not inherit a request Context.'},
+ {id:'store',title:'In-memory job storage',rules:[['org.quartz.simpl.RAMJobStore','.*']],scenarios:'Store, acquire, release, remove, and misfire recovery.',question:'Only the in-memory store is selected. JDBC persistence and clustered recovery are outside this inventory.'},
+ {id:'shell',title:'Job dispatch & completion',rules:[['org.quartz.core.JobRunShell','.*']],scenarios:'Successful dispatch, job failure, immediate refire, and listener notification.',question:'The shell surrounds the instrumented job body. Root at shell entry is expected to be possible; it does not imply job execution lacks Context.'},
+ {id:'scheduler',title:'Scheduler lifecycle',rules:[['org.quartz.impl.StdScheduler','^(start|standby|shutdown|is|schedule|get|set).*'],['org.quartz.core.QuartzScheduler','^(start|standby|shutdown|is|schedule|get|set).*']],scenarios:'Startup, standby, restart, shutdown, and scheduling from an active trace.',question:'The existing suite explicitly expects a new independent job trace even when scheduling occurs inside a parent trace. Do not interpret that separation as propagation loss.'}
+];
+const capabilityMap = quartzMap ? quartzCapabilities : springCapabilities;
+const hasCapabilityMap = springMap || quartzMap;
+if(quartzMap) $('execution').append(element('div','Quartz intentionally starts a new Context per job. Root scheduler bookkeeping is not automatically missing propagation. Inventory includes one test-fixture execute method as an instrumentation control; separate it from the library denominator.','note')); 
+
+function matchesCapability(m, capability) {
+  return capability.rules.some(([owner,pattern]) => m.owner === (quartzMap ? owner : 'org.springframework.web.'+(owner === 'WebAsyncManager' || owner === 'DeferredResult' ? 'context.request.async.' : owner === 'AbstractHandlerMapping' || owner === 'AbstractUrlHandlerMapping' ? 'servlet.handler.' : owner === 'AbstractHandlerMethodAdapter' ? 'servlet.mvc.method.' : owner === 'RequestMappingHandlerAdapter' || owner === 'DeferredResultMethodReturnValueHandler' ? 'servlet.mvc.method.annotation.' : 'servlet.')+owner) && new RegExp(pattern).test(m.name));
+}
+if (hasCapabilityMap) {
+  if(quartzMap){$('functionality').setAttribute('aria-label','Quartz functionality');$('functionality').querySelector('.eyebrow').textContent='Quartz · capability evidence';$('functionality').querySelector('h2').textContent='Which parts of scheduling did we observe?';}
+  $('functionality').hidden=false; $('capability-control').hidden=false;
+  for (const capability of capabilityMap) {
+    const option=element('option',capability.title); option.value=capability.id; $('capability').append(option);
+  }
+  const other=element('option','Outside the capability map'); other.value='unmapped'; $('capability').append(other);
+  $('capability-rules').textContent=JSON.stringify(capabilityMap,null,2);
+}
+const recoveryPlans = [
+  {id:'callable', capability:'async', kind:'Test', title:'Exercise a Callable controller', owner:'org.springframework.web.context.request.async.WebAsyncManager', names:['startCallableProcessing'], mode:'exercise', evidence:'Both startCallableProcessing overloads are unobserved in the Spring Boot recording. The existing /forwarded controller returns CompletableFuture, which takes a different path.', steps:['Add a controller returning Callable<String>; send a real HTTP request with the agent active.', 'Use a latch to ensure the callable executes asynchronously; release it from the test and assert the response.', 'Collect Context at callable execution and resumed dispatch. Exercise WebAsyncTask separately if its overload remains unseen.'], assumption:'The proposed request reaches these entry points. Context state on newly observed execution is unknown until the test runs.', validation:'Compare reports from the same inventory. Require successful response assertions and new method observations; inspect Context state and correct parentage separately.'},
+  {id:'deferred', capability:'async', kind:'Test', title:'Exercise deferred-result failure and lifecycle callbacks', owner:'org.springframework.web.context.request.async.DeferredResult', names:['setErrorResult','onTimeout','onError','onCompletion'], mode:'exercise', evidence:'These methods have no observations in the Spring Boot recording, while setResult is exercised.', steps:['Add a DeferredResult endpoint registering timeout, error, and completion callbacks.', 'Complete it exceptionally from a worker using setErrorResult and assert the resolved error response.', 'Run a separate bounded timeout case and assert callback completion; distinguish callback registration from callback execution.'], assumption:'These methods are candidate entry points, not proof that all error or timeout behavior will run. Callback bodies are outside this inventory.', validation:'Check new entry evidence, bounded completion, response/error assertions, and Context state. Expand the inventory to callback bodies before claiming callback coverage.'},
+  {id:'view', capability:'response', kind:'Test', title:'Exercise named-view rendering', owner:'org.springframework.web.servlet.DispatcherServlet', names:['resolveViewName','render'], mode:'exercise', evidence:'render and resolveViewName are unobserved in this recording. Existing controller source includes a RedirectView endpoint; do not assume that existing scenario exercised named-view resolution.', steps:['Add a controller returning a named ModelAndView and a deterministic ViewResolver/View fixture.', 'Send a real HTTP request; assert the rendered body and that the resolver and view executed.', 'Optionally add a view that throws to inspect the rendering-failure path.'], assumption:'A named view should reach these methods; actual dispatch behavior must be verified.', validation:'Require the expected response plus observed render/resolveViewName entries. Inspect Context; do not equate invoking a renderer with testing every response conversion path.'},
+  {id:'redispatch', capability:'async', kind:'Instrumentation investigation', title:'Verify Context restoration on async redispatch', owner:'org.springframework.web.context.request.async.WebAsyncManager', names:['getConcurrentResult','getConcurrentResultContext','clearConcurrentResult'], mode:'restore', evidence:'These three methods are root-only in the Spring Boot recording. This is a boundary-investigation hypothesis, not evidence that executor propagation is missing.', steps:['Isolate the existing /forwarded CompletableFuture scenario and repeat the recording.', 'Observe Context at async start, completion, servlet ASYNC dispatch entry, and these result-consumption methods; correlate the same request.', 'If Context is unintentionally lost at redispatch, inspect the existing servlet async instrumentation and restore the captured request Context at that boundary, with scope closed on every exit.', 'Re-run unchanged assertions and compare root observations; also verify request isolation and intentional suppression.'], assumption:'Only if root was unintended and a boundary correction restores Context for all targeted observations would these methods become context-only. No confirmed defect, implementation, or gain yet.', validation:'A matched before/after run must demonstrate the change with the real agent. No direct activation inside getters and no blanket executor patch.'}
+];
+if(springMap){
+  $('simulation').hidden=false;
+  recoveryPlans.forEach(plan=>{const option=element('option',plan.kind+' · '+plan.title);option.value=plan.id;$('recovery-plan').append(option);});
+}
+function profileSignal() {
+  return profiling ? $('profile-signal').value : 'all';
+}
+function profileActivity(method) {
+  const signal=profileSignal();
+  return signal==='all' ? method.profileOccurrences : (method.profileSignals[signal]||0);
+}
+function profileLibraryMethods(signal) {
+  return signal==='all' ? (profiling.sampledLibraryMethods||[]) : (profiling.signals[signal].libraryMethods||[]);
+}
+function profilePaths(signal) {
+  if(signal!=='all') return profiling.signals[signal].representativePaths||[];
+  const merged=new Map();
+  for(const source of ['cpu','allocation']) for(const item of profiling.signals[source].representativePaths||[]) merged.set(item.path,(merged.get(item.path)||0)+item.samples);
+  return [...merged].map(([path,samples])=>({path,samples})).sort((a,b)=>b.samples-a.samples||a.path.localeCompare(b.path)).slice(0,12);
+}
+function profileExample(methods) {
+  return [...methods].sort((a,b)=>profileActivity(b)-profileActivity(a)||a.method.localeCompare(b.method)).slice(0,2);
+}
+function renderProfilePanel() {
+  if(!profiling || !springMap) return;
+  const signal=profileSignal();
+  const selectedSet=new Set(rawMethods.map(m=>m.method));
+  const libraryMethods=profileLibraryMethods(signal);
+  const sampledSelected=rawMethods.filter(m=>profileActivity(m)>0);
+  const outside=libraryMethods.filter(m=>!selectedSet.has(m.method));
+  const signalData=signal==='all' ? null : profiling.signals[signal];
+  const eventCount=signal==='all' ? profiling.signals.cpu.eventsWithLibraryStack+profiling.signals.allocation.eventsWithLibraryStack : signalData.eventsWithLibraryStack;
+  $('profile-summary').replaceChildren();
+  for (const [value,label] of [[sampledSelected.length+' / '+rawMethods.length,'selected methods sampled'],[libraryMethods.length,'Spring Web methods sampled'],[outside.length,'methods outside inventory'],[eventCount,(signal==='all'?'CPU/allocation':'profile')+' events with Spring Web stacks']]) {
+    const card=element('div',undefined,'profile-stat');card.append(element('strong',String(value)),element('small',label));$('profile-summary').append(card);
+  }
+  const withEntry=rawMethods.map(m=>{const context=m.observations.filter(o=>o.state==='NON_ROOT_CONTEXT').reduce((sum,o)=>sum+o.count,0);const root=m.observations.filter(o=>o.state==='ROOT_CONTEXT').reduce((sum,o)=>sum+o.count,0);return {...m,context,root,total:context+root};});
+  const groups=[
+    {className:'priority',title:'Sampled + gray entries',methods:withEntry.filter(m=>profileActivity(m)&&m.root),action:'Prioritize Context investigation. Correlate the same request before concluding there is loss.'},
+    {className:'discovery',title:'Sampled + no entry evidence',methods:withEntry.filter(m=>profileActivity(m)&&!m.total),action:'Check test ownership, collection windows, and whether this method belongs in the selected inventory.'},
+    {className:'corroborated',title:'Sampled + Context entries only',methods:withEntry.filter(m=>profileActivity(m)&&m.context&&!m.root),action:'Runtime activity and entry Context agree. Inspect lineage only when the scenario requires it.'},
+    {className:'unsampled',title:'Entry evidence + not sampled',methods:withEntry.filter(m=>m.total&&!profileActivity(m)),action:'Do not call this uncovered. The exact observer saw it; the sampler simply missed it.'}
+  ];
+  $('profile-matrix').replaceChildren();
+  for(const group of groups){
+    const card=element('div',undefined,'evidence-card '+group.className);card.append(element('strong',String(group.methods.length)),element('b',group.title),element('small',group.action));
+    for(const method of profileExample(group.methods)) card.append(element('code',method.name+'(…) · '+number(profileActivity(method))+' stack appearances'));
+    $('profile-matrix').append(card);
+  }
+  $('profile-paths').replaceChildren();
+  for(const item of profilePaths(signal).slice(0,6)){
+    const row=element('div',undefined,'profile-path');row.append(element('strong',number(item.samples)+'×'),element('code',item.path));$('profile-paths').append(row);
+  }
+  $('profile-discovery').replaceChildren();
+  const discovery=element('details');discovery.append(element('summary','Top discoveries outside the selected inventory'));
+  const list=element('ol',undefined,'profile-methods');
+  outside.slice(0,12).forEach(item=>list.append(element('li',item.method+' · '+number(item.stackOccurrences)+' stack appearances')));
+  discovery.append(element('p','These methods suggest classes and functionality to review for the inventory. Stack appearances are sampled activity, not invocation counts.','muted'),list);
+  $('profile-discovery').append(discovery,element('div',profiling.contextNote,'note warning'));
+}
+function renderRecovery(methods) {
+  const pane=$('recovery-preview'); pane.replaceChildren();
+  const plan=recoveryPlans.find(p=>p.id===$('recovery-plan').value); if(!plan)return;
+  const targets=methods.filter(m=>m.owner===plan.owner && plan.names.includes(m.name));
+  const candidates=targets.filter(m=>plan.mode==='exercise' ? !m.total : m.root>0);
+  pane.append(element('h3',plan.title),element('p','Source rationale (original Spring Boot run): '+plan.evidence));
+  pane.append(element('p',plan.mode==='exercise' ? 'Conditional preview: '+candidates.length+' currently unobserved target methods → observed, Context state still unknown.' : 'Conditional preview: '+candidates.length+' methods with root entries → Context present, only if the restoration hypothesis is confirmed for every targeted root entry.'));
+  pane.append(element('p','Counts below follow the current scenario filter. No predicted entry counts, percentage gain, or effects on other downstream methods are inferred.'));
+  const tiles=element('div',undefined,'projection-tiles');
+  for(const m of targets){const tile=element('div',m.name+m.descriptor+' · '+m.state+' → '+(candidates.includes(m) ? (plan.mode==='exercise' ? 'would be observed; Context unknown' : 'would have Context') : 'no projected change'),'projection-tile '+(candidates.includes(m)?'projected':m.state));tiles.append(tile);}
+  pane.append(tiles,element('p','Assumption: '+plan.assumption));
+  const steps=element('ol');plan.steps.forEach(step=>steps.append(element('li',step)));pane.append(steps,element('p','Validation: '+plan.validation));
+  const inspect=element('button','Inspect measured evidence');inspect.type='button';inspect.addEventListener('click',()=>{$('capability').value=plan.capability;$('status').value='all';$('search').value='';render();$('map').scrollIntoView({behavior:'smooth'});});
+  const download=element('button','Download experiment plan (JSON)');download.type='button';
+  download.addEventListener('click',()=>{
+    const data={status:'HYPOTHETICAL_NOT_EXECUTED',spec:execution.specName,scenario:$('scenario').value===''?null:scenarios[Number($('scenario').value)],plan,targets:targets.map(m=>({method:m.method,measuredState:m.state,contextEntries:m.context,rootEntries:m.root,conditionalTarget:candidates.includes(m)}))};
+    const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=element('a');a.href=url;a.download=plan.id+'-experiment.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+  pane.append(inspect,document.createTextNode(' '),download);
+}
+function renderCapabilities(methods) {
+  if (!hasCapabilityMap) return;
+  $('capabilities').replaceChildren(); $('capability-evidence').replaceChildren();
+  for (const capability of capabilityMap) {
+    const group=methods.filter(m=>matchesCapability(m,capability));
+    const exercised=group.filter(m=>m.total).length;
+    const gray=group.filter(m=>m.root).length;
+    const sampled=group.filter(m=>profileActivity(m)).length;
+    const button=element('button',undefined,'capability'); button.type='button'; button.dataset.capability=capability.id;
+    button.setAttribute('aria-pressed',String($('capability').value===capability.id));
+    button.append(element('strong',capability.title),element('span',gray ? 'Gray observations' : exercised ? 'Observed with Context' : 'Unknown · not exercised','badge '+(gray ? 'root-only' : exercised ? 'present' : 'unseen')));
+    const bar=element('div',undefined,'surface-bar');
+    for (const state of ['present','mixed','root-only','unseen']) {
+      const count=group.filter(m=>m.state===state).length;
+      if(count){const region=element('div',undefined,state);region.style.flex=String(count);region.title=count+' '+state;bar.append(region);}
+    }
+    button.append(bar,element('small',exercised+' / '+group.length+' mapped methods observed · '+gray+' with gray entries'+(profiling?' · '+sampled+' sampled':'')));
+    button.addEventListener('click',()=>{ $('capability').value=capability.id; $('status').value='all'; $('search').value=''; selected=null; render(); });
+    $('capabilities').append(button);
+  }
+  const capability=capabilityMap.find(c=>c.id===$('capability').value);
+  const outside=methods.filter(m=>!capabilityMap.some(c=>matchesCapability(m,c))).length;
+  $('capability-evidence').append(element('p',outside+' selected methods are outside this capability map. Areas overlap; their counts must not be added.'));
+  if(capability){
+    $('capability-evidence').append(element('h3',capability.title),element('p',capability.question),element('p','Scenarios to check in existing tests: '+capability.scenarios),element('p','Scenario coverage: not established. The method map below is filtered to this area; click a method for stacks and Context counts.'));
+  }
+}
+function chooseScenario(name) {
+  const index = scenarios.indexOf(name);
+  $('scenario').value = index < 0 ? '' : String(index);
+  $('status').value = 'all'; $('search').value = '';
+  render();
+}
+for (const candidate of report.opportunities || []) {
+  const card = element('article',undefined,'opportunity');
+  const verified = candidate.status === 'VERIFIED_GAIN';
+  card.append(element('div',verified ? 'Propagation opportunity · measured in paired test' : 'Propagation opportunity · '+candidate.status.toLowerCase().replaceAll('_',' '),'eyebrow'));
+  card.append(element('h2',candidate.name),element('div',candidate.boundary,'descriptor'));
+  card.append(element('div',verified ? (candidate.recoveredMethodCount ? '+'+number(candidate.recoveredMethodCount)+' methods gain context' : number(candidate.recoveredEntries)+' entries gain context · partial recovery') : number(candidate.affectedMethodCount)+' methods downstream of context loss','gain'));
+  card.append(element('p',verified ? number(candidate.recoveredEntries)+' previously root entries gained context in this paired workload. This is not a gain across the entire library or all scenarios.' : 'Potential reach only. A matched propagation intervention is required to measure the gain.'));
+  if (verified) {
+    const comparison = element('div',undefined,'comparison');
+    for (const [title,context,root] of [['Before',candidate.baselineContextEntries,candidate.baselineRootEntries],['With propagation',candidate.interventionContextEntries,candidate.interventionRootEntries]]) {
+      const side = element('div'); const bar = element('div',undefined,'bar'); const green = element('span');
+      green.style.width = (context+root ? context/(context+root)*100 : 0)+'%'; bar.append(green);
+      side.append(element('strong',title),bar,element('small',number(context)+' entries with context / '+number(root)+' at root')); comparison.append(side);
+    }
+    card.append(comparison);
+  }
+  const actions = element('div',undefined,'opportunity-actions');
+  for (const [label,scenario] of [['Show before',candidate.baselineScenario],['Show with propagation',candidate.interventionScenario]]) {
+    if (!scenario) continue;
+    const button = element('button',label); button.type='button'; button.addEventListener('click',()=>chooseScenario(scenario)); actions.append(button);
+  }
+  card.append(actions);
+  const evidence = element('details'); evidence.append(element('summary','Why this is a candidate / submission site'));
+  evidence.append(element('p',candidate.reason));
+  evidence.append(element('p','The test labels this task independently of Context. Context was present at submission and absent at baseline task entry. Restoring it in the fixture tests the reach of one handoff; it does not prove missing production executor instrumentation.'));
+  evidence.append(element('pre',candidate.submissionStack.join('\n')));
+  card.append(evidence); $('opportunities').append(card);
+}
+let selected = null;
+let visible = [];
+function render() {
+  const scenario = $('scenario').value === '' ? null : scenarios[Number($('scenario').value)];
+  const search = $('search').value.toLowerCase();
+  const status = $('status').value;
+  const profileHeat = profiling && $('profile-heat').checked;
+  const methods = rawMethods.map(m => {
+    const observations = m.observations.filter(o => scenario === null || o.scenario === scenario);
+    const context = observations.filter(o => o.state === 'NON_ROOT_CONTEXT').reduce((sum,o) => sum+o.count,0);
+    const root = observations.filter(o => o.state === 'ROOT_CONTEXT').reduce((sum,o) => sum+o.count,0);
+    return {...m, observations, context, root, total:context+root, state:context ? (root ? 'mixed' : 'present') : (root ? 'root-only' : 'unseen')};
+  });
+  renderProfilePanel();
+  renderCapabilities(methods);
+  renderRecovery(methods);
+  const capability=capabilityMap.find(c=>c.id===$('capability').value);
+  const exercised = methods.filter(m => m.total).length;
+  $('surface-bar').replaceChildren(); $('surface-caption').replaceChildren();
+  for (const [state,label] of [['present','context only'],['mixed','mixed'],['root-only','root only'],['unseen','not exercised']]) {
+    const count = methods.filter(m => m.state === state).length;
+    if (count) {
+      const region = element('div',String(count),state); region.style.flex = String(count);
+      region.title = count+' methods: '+label; region.setAttribute('aria-label',region.title); $('surface-bar').append(region);
+    }
+    const caption = element('span'); caption.append(element('i',undefined,'key '+state),document.createTextNode(count+' '+label)); $('surface-caption').append(caption);
+  }
+  $('exercised').textContent = number(exercised)+' / '+number(methods.length);
+  $('unobserved').textContent = number(methods.length-exercised)+' not exercised in this selection';
+  $('context-count').textContent = number(methods.reduce((sum,m) => sum+m.context,0));
+  $('root-count').textContent = number(methods.reduce((sum,m) => sum+m.root,0));
+  visible = methods.filter(m => (!hasCapabilityMap || !$('capability').value || (capability ? matchesCapability(m,capability) : !capabilityMap.some(c=>matchesCapability(m,c)))) && m.method.toLowerCase().includes(search) && (status === 'all' || (status === 'gray' && m.root) || (status === 'present' && m.state === 'present') || (status === 'unseen' && !m.total) || (status === 'sampled' && profileActivity(m))));
+  $('visible-count').textContent = number(visible.length)+' methods shown';
+  $('map').replaceChildren();
+  const groups = new Map();
+  visible.forEach(m => {if (!groups.has(m.owner)) groups.set(m.owner,[]); groups.get(m.owner).push(m);});
+  if (!visible.some(m => m.method === selected)) selected = null;
+  $('layout').classList.toggle('no-selection',selected === null);
+  const maxProfileActivity=Math.max(1,...methods.map(profileActivity));
+  for (const [owner,group] of [...groups].sort((a,b) => a[0].localeCompare(b[0]))) {
+    const section = element('section',undefined,'class-group');
+    const heading = element('div',undefined,'class-heading');
+    const title = element('div');
+    const dot = owner.lastIndexOf('.');
+    title.append(element('div',owner.slice(0,dot),'package'),element('h2',owner.slice(dot+1)));
+    heading.append(title,element('small',group.filter(m => m.total).length+' / '+group.length+' shown methods exercised'));
+    const tiles = element('div',undefined,'tiles');
+    for (const m of group.sort((a,b) => a.name.localeCompare(b.name) || a.descriptor.localeCompare(b.descriptor))) {
+      const activity=profileActivity(m);
+      const tile = element('button',undefined,'tile '+m.state+(profileHeat&&activity?' profiled':''));
+      if(activity) tile.style.setProperty('--profile-alpha',String(.2+.8*Math.log1p(activity)/Math.log1p(maxProfileActivity)));
+      tile.type = 'button'; tile.dataset.method = m.method;
+      tile.setAttribute('aria-pressed',String(m.method === selected));
+      tile.title = m.method+'\n'+m.context+' context entries; '+m.root+' root entries'+(activity?'\n'+activity+' task-wide '+profileSignal()+' stack appearances':'');
+      tile.setAttribute('aria-label',m.name+m.descriptor+': '+(m.total ? m.context+' context, '+m.root+' root entries' : 'not exercised')+(activity?', sampled by profiler':''));
+      const label = m.total ? (m.state === 'mixed' ? m.context+' context · '+m.root+' root' : m.total+(m.context ? ' context entries' : ' root entries')) : 'Not exercised';
+      tile.append(element('span',m.name+'(…)','method-name'),element('span',label,'method-note'));
+      if (m.total) {
+        const ratio = (m.context/m.total*100)+'%';
+        if (m.state === 'mixed') tile.style.background = 'linear-gradient(90deg,var(--green-light) '+ratio+',var(--gray-light) '+ratio+')';
+        const bar = element('div',undefined,'bar');
+        const green = element('span'); green.style.width = ratio; bar.append(green); tile.append(bar);
+      }
+      tile.addEventListener('click',() => {
+        selected = m.method;
+        $('layout').classList.remove('no-selection');
+        document.querySelectorAll('.tile').forEach(t => t.setAttribute('aria-pressed',String(t.dataset.method === selected)));
+        detail(m);
+        if (window.innerWidth <= 760) $('detail').scrollIntoView({behavior:'smooth',block:'start'});
+      });
+      tiles.append(tile);
+    }
+    section.append(heading,tiles); $('map').append(section);
+  }
+  if (!visible.length) $('map').append(element('div','No methods match these filters.','empty'));
+  detail(visible.find(m => m.method === selected));
+}
+function detail(m) {
+  const pane = $('detail'); pane.replaceChildren();
+  if (!m) {pane.append(element('p','Select a method to inspect its evidence.','muted')); return;}
+  pane.append(element('div','Selected method','eyebrow'),element('h2',m.name+'(…)'),element('div',m.method,'descriptor'));
+  const status = m.state === 'present' ? 'Context present at every observed entry.' : m.state === 'root-only' ? 'All observed entries ran at root.' : m.state === 'mixed' ? 'Context reaches this method in some executions, but not others.' : 'No observed entries in this selection. Add or extend a test to exercise this method.';
+  pane.append(element('p',status));
+  const activity=profileActivity(m);
+  if (activity) {
+    const signals=profileSignal()==='all' ? Object.entries(m.profileSignals).map(([name,count])=>name+' '+number(count)).join(' · ') : profileSignal()+' '+number(activity);
+    pane.append(element('h3','Task-wide profiling evidence'),element('div',number(activity)+' stack appearances'+(signals?' · '+signals:''),'note'));
+    pane.append(element('p','This sample covers the complete module test worker and is not attributed to this specification. It shows runtime activity, not method invocation count or Context state.','muted'));
+  }
+  if (m.total) {
+    const bar = element('div',undefined,'bar'); const green = element('span'); green.style.width = (m.context/m.total*100)+'%'; bar.append(green);
+    const counts = element('div',undefined,'counts'); counts.append(element('span',number(m.context)+' with context'),element('span',number(m.root)+' at root'));
+    pane.append(bar,counts);
+    if (m.root) pane.append(element('div','Inspect the root scenarios below. Follow their example stacks to the caller or async handoff; check whether root was intentional before adding activation.','note'));
+    pane.append(element('h3','Evidence by scenario'));
+    for (const o of [...m.observations].sort((a,b) => a.scenario.localeCompare(b.scenario))) {
+      const row = element('div',undefined,'observation');
+      row.append(element('span',o.state === 'NON_ROOT_CONTEXT' ? 'CONTEXT' : 'ROOT','badge '+(o.state === 'NON_ROOT_CONTEXT' ? 'present' : 'root-only')),element('div',o.scenario));
+      row.append(element('small',number(o.count)+' entries · example thread '+o.threadId+' / '+o.threadName,'muted'));
+      const stack = element('details'); stack.append(element('summary','Show example stack'),element('pre',o.stack.join('\n'))); row.append(stack); pane.append(row);
+    }
+  }
+  const target = report.targets.find(t => t.class === m.owner);
+  if (target) { const origin = element('details'); origin.append(element('summary','Library artifact'),element('pre',target.artifact)); pane.append(origin); }
+}
+if (report.health.droppedObservations || report.health.errors.length) {
+  $('health').append(element('div','Incomplete evidence: '+report.health.droppedObservations+' observations dropped; '+report.health.errors.length+' errors. This map uses retained details only; absent tiles do not establish non-execution.','note warning'));
+}
+$('provenance').textContent = 'Selected inventory: '+report.targets.length+' classes · Java '+report.javaVersion+'. Equal-size tiles represent methods, not execution time. '+(profiling?'Orange outlines are task-wide sampled profile evidence and do not follow the scenario filter. ':'')+'Summary cards follow the scenario; functionality, search and status filters only change the method map. Capability cards follow the scenario. Local report · no external resources.';
+['scenario','status','capability','recovery-plan'].forEach(id => $(id).addEventListener('change',render));
+$('search').addEventListener('input',render);
+$('labels').addEventListener('change',() => $('layout').classList.toggle('compact',!$('labels').checked));
+if (profiling) $('profile-heat').addEventListener('change',render);
+if (profiling) $('profile-signal').addEventListener('change',render);
+render();
+</script>
+</body>
+</html>

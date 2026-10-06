@@ -1,0 +1,56 @@
+plugins { id 'java' }
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+dependencies {
+  implementation 'net.bytebuddy:byte-buddy:1.18.13'
+  implementation 'com.google.code.gson:gson:2.13.2'
+  implementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
+  implementation 'org.junit.platform:junit-platform-launcher:1.10.2'
+  runtimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+  implementation 'org.springframework:spring-webmvc:6.0.2'
+  implementation 'org.springframework:spring-test:6.0.2'
+  implementation 'org.assertj:assertj-core:3.23.1'
+  implementation 'org.mockito:mockito-junit-jupiter:4.8.1'
+  implementation 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+  implementation 'jakarta.servlet.jsp:jakarta.servlet.jsp-api:3.1.0'
+  implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+  implementation 'org.hibernate.validator:hibernate-validator:8.0.0.Final'
+  implementation 'org.glassfish:jakarta.el:4.0.2'
+  implementation 'com.fasterxml.jackson.core:jackson-databind:2.14.1'
+  implementation 'io.projectreactor:reactor-core:3.5.0'
+}
+sourceSets {
+  upstream {
+    java.srcDir 'build/upstream-src'
+    compileClasspath += sourceSets.main.output + configurations.runtimeClasspath
+    runtimeClasspath += sourceSets.main.output + configurations.runtimeClasspath
+  }
+}
+tasks.register('miniAgent', Jar) {
+  dependsOn classes
+  archiveFileName = 'cartography-agent.jar'
+  manifest { attributes 'Premain-Class': 'cartography.Recorder', 'Can-Retransform-Classes': 'true' }
+  from(sourceSets.main.output) { include 'cartography/Recorder*' }
+  from({configurations.runtimeClasspath.findAll {it.name.startsWith('byte-buddy-') || it.name.startsWith('gson-')}.collect {zipTree(it)}})
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+}
+tasks.register('referenceRun', JavaExec) {
+  dependsOn upstreamClasses, miniAgent
+  classpath = sourceSets.upstream.runtimeClasspath
+  mainClass = 'cartography.ReferenceRunner'
+  javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+  if (!project.hasProperty('baseline')) jvmArgs "-javaagent:${tasks.miniAgent.archiveFile.get().asFile}"
+  doFirst {
+    def jars = configurations.runtimeClasspath.files.findAll { it.name.startsWith('spring-') }.sort { it.name }.collect { jar ->
+      [file: jar.name, sha256: java.security.MessageDigest.getInstance('SHA-256').digest(jar.bytes).encodeHex().toString()]
+    }
+    file('build/runtime-manifest.json').text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(jars))
+  }
+  systemProperty 'cartography.runtime-manifest', file('build/runtime-manifest.json').absolutePath
+  systemProperty 'cartography.classes', file('build/observe-classes.txt').absolutePath
+  systemProperty 'cartography.output', file(project.findProperty('output') ?: 'build/reference.json').absolutePath
+  systemProperty 'cartography.tests', file('build/test-classes.txt').absolutePath
+  systemProperty 'cartography.repeats', project.findProperty('repeats') ?: '3'
+  systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+  systemProperty 'junit.jupiter.execution.parallel.enabled', 'false'
+}

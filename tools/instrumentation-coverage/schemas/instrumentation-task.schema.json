@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://datadoghq.dev/instrumentation-coverage/instrumentation-task.schema.json",
+  "title": "Instrumentation coverage agent task",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "taskId",
+    "kind",
+    "status",
+    "target",
+    "objective",
+    "exercise",
+    "flowContract",
+    "currentEvidence",
+    "acceptanceCriteria",
+    "constraints",
+    "claims"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "kind": {
+      "enum": [
+        "ADD_FLOW_TEST",
+        "INVESTIGATE_REACHABILITY",
+        "INVESTIGATE_CONTEXT_GAP",
+        "EXPAND_ENTRY_INVENTORY",
+        "UPDATE_KNOWLEDGE",
+        "CHANGE_INSTRUMENTATION",
+        "VERIFY_INSTRUMENTATION_CHANGE"
+      ]
+    },
+    "status": { "enum": ["proposed", "reviewed", "verified"] },
+    "downloadFilename": { "type": "string" },
+    "target": {
+      "type": "object",
+      "required": ["repository", "module", "library", "libraryVersion", "flowId"]
+    },
+    "objective": { "type": "string", "minLength": 1 },
+    "exercise": {
+      "type": "object",
+      "required": ["summary", "steps", "basis"]
+    },
+    "flowContract": {
+      "type": "object",
+      "required": [
+        "sharedPrerequisites",
+        "requiredAnchors",
+        "alternativeAnchors",
+        "exclusionAnchors",
+        "completionCheckpoints",
+        "basis"
+      ],
+      "properties": {
+        "contextContract": {
+          "type": ["object", "null"],
+          "properties": {
+            "status": { "enum": ["draft", "needs-review", "reviewed"] },
+            "precondition": { "type": "string" },
+            "expectations": { "type": "array" }
+          }
+        }
+      }
+    },
+    "currentEvidence": {
+      "type": "object",
+      "required": ["matchingTests", "collectionHealthy", "basis"]
+    },
+    "staticReachability": { "type": "object" },
+    "implementationContext": { "type": "object" },
+    "investigationTargets": { "type": "array" },
+    "acceptanceCriteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["basis", "claim"],
+        "properties": {
+          "basis": {
+            "enum": ["observed", "static", "curated", "hypothesis"]
+          },
+          "claim": { "type": "string" }
+        }
+      }
+    },
+    "sources": { "type": "array" }
+  }
+}

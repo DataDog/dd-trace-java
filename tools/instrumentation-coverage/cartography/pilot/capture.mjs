@@ -1,0 +1,55 @@
+import {spawn} from 'node:child_process';
+import {mkdtemp,writeFile,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import assert from 'node:assert/strict';
+const output=resolve(process.argv[2] || 'tools/instrumentation-coverage/cartography/build/behavior-pilot');
+const expected=JSON.parse(await readFile(join(output,'report.json'),'utf8'));
+const profile=await mkdtemp(join(tmpdir(),'cartography-browser-'));
+const browser=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--disable-gpu','--disable-background-networking','--disable-component-update','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:['ignore','ignore','pipe']});
+let socket;
+try {
+ const endpoint=await new Promise((resolve,reject)=>{let stderr='';const timer=setTimeout(()=>reject(Error('Startup timeout')),20000);browser.stderr.on('data',chunk=>{stderr+=chunk;const match=stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(match){clearTimeout(timer);resolve(match[1]);}});browser.on('error',reject);});
+ const pages=await (await fetch(endpoint.replace('ws:','http:').replace(/\/devtools\/browser\/.*/,'/json/list'))).json();
+ socket=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await new Promise(r=>socket.addEventListener('open',r,{once:true}));
+ let serial=0;const pending=new Map();socket.addEventListener('message',e=>{const d=JSON.parse(e.data);if(d.id){const p=pending.get(d.id);pending.delete(d.id);d.error?p.reject(d.error):p.resolve(d.result);}});
+ const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++serial;const timer=setTimeout(()=>{pending.delete(id);reject(Error('Browser command timed out: '+method));},45000);pending.set(id,{resolve:r=>{clearTimeout(timer);resolve(r);},reject:e=>{clearTimeout(timer);reject(e);}});socket.send(JSON.stringify({id,method,params}));});
+ const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
+ await send('Emulation.setDeviceMetricsOverride',{width:1600,height:1000,deviceScaleFactor:1,mobile:false});
+ await send('Page.navigate',{url:pathToFileURL(join(output,'index.html')).href});
+ for(let i=0;i<150;i++){if(await evaluate("document.querySelectorAll('.variant').length>0"))break;await new Promise(r=>setTimeout(r,100));}
+ assert.equal(await evaluate("document.querySelectorAll('.variant').length"),expected.variants.length);
+ assert.equal(await evaluate("document.getElementById('error').textContent"),'');
+ assert.ok(await evaluate("document.getElementById('summary').textContent.includes('collection inventory')"));
+ assert.equal(await evaluate("document.querySelectorAll('.method:not(.unselected)').length"),0);
+ await evaluate("document.querySelector('.test-row').click()");
+ assert.ok(await evaluate("document.getElementById('detail').textContent.includes('Behavior supported')"));
+ assert.ok(await evaluate("Array.from(document.querySelectorAll('.method strong')).every(e=>!/[;()]/.test(e.textContent))"));
+ assert.equal(await evaluate("document.querySelectorAll('.methods').length"),1);
+ assert.equal(await evaluate("document.querySelector('.evidence').open"),false);
+ const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'overview.png'),Buffer.from(shot.data,'base64'));
+ const unassessedIndex=expected.variants.findIndex(v=>!v.associations.length&&v.similarityCandidates.length);assert.ok(unassessedIndex>=0);
+ await evaluate(`document.querySelectorAll('.variant')[${unassessedIndex}].click()`);
+ assert.equal(await evaluate("document.querySelectorAll('.method:not(.unselected)').length"),0);
+ assert.ok(await evaluate("document.getElementById('detail').textContent.includes('No local test has been assessed')"));
+ await evaluate("window.blob=null;const original=URL.createObjectURL;URL.createObjectURL=b=>{window.blob=b;return original(b);};document.addEventListener('click',e=>{if(e.target.matches('a[download]'))e.preventDefault();});document.getElementById('download-task').click()");
+ const task=await evaluate("window.blob.text().then(JSON.parse)");assert.equal(task.kind,'INVESTIGATE_TEST_EVIDENCE');assert.equal(task.selectedTest,null);assert.equal(task.variant.id,expected.variants[unassessedIndex].id);assert.ok(task.methodEvidence.every(m=>m.state==='unselected'));
+ await evaluate("const s=document.getElementById('test-select');s.selectedIndex=1;s.dispatchEvent(new Event('change'))");
+ assert.ok(await evaluate("document.getElementById('detail').textContent.includes('Similar execution only')"));
+ assert.ok(await evaluate("document.querySelectorAll('.method:not(.unselected)').length>0"));
+ await evaluate("document.getElementById('download-task').click()");
+ const candidate=await evaluate("window.blob.text().then(JSON.parse)");assert.equal(candidate.selectedTest.evidenceStatus,'SIMILAR_EXECUTION_ONLY');
+ assert.equal(candidate.investigationScope,'selected-test');assert.ok(candidate.evidenceSummary);
+ assert.deepEqual(candidate.evidenceSummary.notObserved,candidate.methodEvidence.filter(m=>m.state==='unobserved').map(m=>m.method));
+ assert.equal(await evaluate("document.getElementById('landmark-picker')"),null);
+ await evaluate("document.querySelectorAll('.variant')[0].click();document.getElementById('download-task').click()");
+ const reset=await evaluate("window.blob.text().then(JSON.parse)");assert.equal(reset.selectedTest,null);assert.equal(reset.investigationScope,'behavior');assert.equal(reset.evidenceSummary,null);
+ for(let i=0;i<expected.variants.length;i++){await evaluate(`document.querySelectorAll('.variant')[${i}].click()`);assert.equal(await evaluate("document.getElementById('error').textContent"),'');}
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ assert.ok(await evaluate("document.documentElement.scrollWidth<=window.innerWidth"));
+ await send('Emulation.setDeviceMetricsOverride',{width:1600,height:1000,deviceScaleFactor:1,mobile:false});
+ await evaluate("document.getElementById('detail').scrollIntoView({behavior:'instant',block:'start'});new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
+ const detail=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'investigation.png'),Buffer.from(detail.data,'base64'));
+ console.log(`Pilot browser passed: ${expected.capability.name}, ${expected.variants.length} variants, scoped evidence and investigation downloads.`);
+} finally {socket?.close();browser.kill();}

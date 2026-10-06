@@ -1,0 +1,99 @@
+plugins {
+  id 'java'
+  alias(libs.plugins.spotless)
+}
+
+// Compile the real context implementation without configuring the whole tracer build.
+sourceSets.main.java.srcDir '../../components/context/src/main/java'
+
+configurations {
+  observerAgent
+}
+
+dependencies {
+  implementation libs.instrument.java
+  implementation libs.jsr305
+  implementation libs.bytebuddy
+  implementation libs.bytebuddyagent
+  implementation 'com.google.code.gson:gson:2.13.2'
+  compileOnly libs.spock.core
+  compileOnly libs.groovy
+  compileOnly libs.junit.jupiter
+  observerAgent libs.bytebuddyagent
+
+  testImplementation libs.guava
+  testImplementation libs.junit.jupiter
+  testRuntimeOnly libs.junit.jupiter.engine
+  testRuntimeOnly libs.junit.platform.launcher
+}
+
+// Runtime add-on for existing instrumentation tests. In particular, do NOT package Context:
+// those tests must use the very same bootstrap Context classes as the real tracer.
+tasks.register('observerJar', Jar) {
+  archiveFileName = 'instrumentation-coverage-observer.jar'
+  from(sourceSets.main.output) {
+    include 'datadog/trace/agent/test/coverage/**'
+    exclude 'datadog/trace/agent/test/coverage/BootstrapContextCoverageBridge*'
+    include 'method-observation.html'
+    include 'META-INF/services/org.spockframework.runtime.extension.IGlobalExtension'
+    include 'META-INF/services/org.junit.jupiter.api.extension.Extension'
+  }
+  from({
+    configurations.runtimeClasspath.findAll { it.name.startsWith('gson-') }.collect { zipTree(it) }
+  }) {
+    include 'com/google/gson/**'
+  }
+}
+
+tasks.register('bootstrapBridgeJar', Jar) {
+  archiveFileName = 'instrumentation-coverage-bootstrap.jar'
+  from(sourceSets.main.output) {
+    include 'datadog/trace/agent/test/coverage/BootstrapContextCoverageBridge*'
+  }
+}
+
+tasks.register('analyzeProfile', JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'datadog.trace.agent.test.coverage.ProfileCoverageAnalyzer'
+  if (project.hasProperty('profileArgs')) {
+    args project.property('profileArgs').toString().split(' ') as List
+  }
+}
+
+tasks.register('enrichProfileReport', JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'datadog.trace.agent.test.coverage.ProfileReportEnricher'
+  if (project.hasProperty('profileReportArgs')) {
+    args project.property('profileReportArgs').toString().split(' ') as List
+  }
+}
+
+tasks.withType(JavaCompile).configureEach {
+  options.release = 17
+}
+
+spotless {
+  java {
+    target 'src/**/*.java', 'cartography/src/**/*.java'
+    googleJavaFormat(libs.versions.google.java.format.get())
+  }
+}
+
+test {
+  dependsOn tasks.named('bootstrapBridgeJar')
+  useJUnitPlatform()
+  jvmArgs "-javaagent:${configurations.observerAgent.singleFile}"
+  systemProperty 'coverage.output', layout.buildDirectory.dir('reports/context-coverage').get().asFile
+  systemProperty 'test.context.coverage.bootstrap-jar', tasks.named('bootstrapBridgeJar').get().archiveFile.get().asFile
+  testLogging { events 'passed', 'skipped', 'failed' }
+}
+
+// Generic graph entry point: inputs are exported from the actual instrumentation test classpath.
+tasks.register('analyzeResolvedLibrary', JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'datadog.trace.agent.test.coverage.LibraryGraphAnalyzer'
+  doFirst {
+    def manifest = new groovy.json.JsonSlurper().parse(file(project.property('coverageManifest')))
+    args = [project.property('coverageGraphOutput').toString()] + manifest.artifacts.collect { it.path }
+  }
+}
