@@ -85,9 +85,8 @@ public final class DatadogThreadContextElement
   @Override
   public void restoreThreadContext(@Nonnull CoroutineContext coroutineContext, Exchange restored) {
     restored.active = false;
-    Context original = restored.originalContext;
-    restored.originalContext = null;
-    restored.context = original.swap();
+    // UndispatchedCoroutine can restore the same token again when no dispatcher owns restoration.
+    restored.context = restored.originalContext.swap();
     Exchange parent = restored.parent;
     restored.parent = null;
     if (parent != null) {
@@ -99,9 +98,29 @@ public final class DatadogThreadContextElement
 
   /** Publishes scope changes before suspension can resume the coroutine on another worker. */
   public static void beforeSuspension(Continuation<?> continuation) {
+    captureContext(continuation);
+  }
+
+  public static Object beforeContextChange(Continuation<?> continuation) {
+    return captureContext(continuation);
+  }
+
+  public static void afterContextChange(Continuation<?> continuation, Object original) {
+    if (original == null) {
+      return;
+    }
+    Exchange source = (Exchange) original;
+    if (source.thread == Thread.currentThread() && source.active) {
+      // A synchronous return leaves the caller running, even if destination cleanup is still
+      // pending.
+      continuation.getContext().get(DATADOG_KEY).exchange = source;
+    }
+  }
+
+  private static Exchange captureContext(Continuation<?> continuation) {
     DatadogThreadContextElement element = continuation.getContext().get(DATADOG_KEY);
     if (element == null) {
-      return;
+      return null;
     }
     Exchange current = element.exchange;
     if (current != null && current.thread == Thread.currentThread() && current.active) {
@@ -110,7 +129,9 @@ public final class DatadogThreadContextElement
       Context currentStack = Context.root().swap();
       currentStack.swap();
       current.context = currentStack;
+      return current;
     }
+    return null;
   }
 
   static final class Exchange {
