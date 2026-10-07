@@ -90,6 +90,7 @@ open class MuzzleDirective : Serializable {
     versions = version
     assertPass = !this@MuzzleDirective.assertPass
     excludedDependencies = this@MuzzleDirective.excludedDependencies
+    additionalRepositories.addAll(this@MuzzleDirective.additionalRepositories)
     includeSnapshots = this@MuzzleDirective.includeSnapshots
   }
 

@@ -84,7 +84,8 @@ internal object MuzzleMavenRepoUtils {
     system: RepositorySystem,
     session: RepositorySystemSession,
     defaultRepos: List<RemoteRepository> = defaultMuzzleRepos(),
-    random: Random = Random.Default
+    random: Random = Random.Default,
+    isEligible: ((Version) -> Boolean)? = null
   ): Set<MuzzleDirective> {
     val allVersionsArtifact = DefaultArtifact(
       muzzleDirective.group,
@@ -117,7 +118,8 @@ internal object MuzzleMavenRepoUtils {
       allRangeResult,
       muzzleDirective.skipVersions,
       muzzleDirective.includeSnapshots,
-      random
+      random,
+      isEligible
     ).map { version ->
       muzzleDirective.inverse(version.toString())
     }.toSet()
@@ -364,18 +366,20 @@ internal object MuzzleMavenRepoUtils {
 
   /**
    * Convert a muzzle directive to a set of artifacts for all filtered versions.
-   * Throws GradleException if no artifacts are found.
+   * Without an eligibility filter, throws GradleException if no artifacts are found.
    */
   fun muzzleDirectiveToArtifacts(
     muzzleDirective: MuzzleDirective,
     rangeResult: VersionRangeResult,
-    random: Random = Random.Default
+    random: Random = Random.Default,
+    isEligible: ((Version) -> Boolean)? = null
   ): Set<Artifact> {
     val versions = MuzzleVersionUtils.filterAndLimitVersions(
       rangeResult,
       muzzleDirective.skipVersions,
       muzzleDirective.includeSnapshots,
-      random
+      random,
+      isEligible
     )
     val allVersionArtifacts = versions.map { version ->
       DefaultArtifact(
@@ -386,7 +390,7 @@ internal object MuzzleMavenRepoUtils {
         version.toString()
       )
     }.toSet()
-    if (allVersionArtifacts.isEmpty()) {
+    if (allVersionArtifacts.isEmpty() && isEligible == null) {
       throw GradleException("No muzzle artifacts found for ${muzzleDirective.group}:${muzzleDirective.module} ${muzzleDirective.versions} ${muzzleDirective.classifier}")
     }
     return allVersionArtifacts

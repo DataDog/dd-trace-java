@@ -10,6 +10,7 @@ import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import kotlin.random.Random
+import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.gradle.api.NamedDomainObjectProvider
@@ -26,6 +27,7 @@ import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.project
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
+import java.time.Instant
 import javax.inject.Inject
 
 /**
@@ -43,7 +45,7 @@ class MuzzlePlugin @Inject constructor(private val buildFeatures: BuildFeatures)
    */
   override fun apply(project: Project) {
     // create extension first, if java plugin is applied after muzzle
-    project.extensions.create<MuzzleExtension>("muzzle", project.objects)
+    project.extensions.create<MuzzleExtension>("muzzle", project.objects, project.providers)
 
     // Configure muzzle only when java plugin is applied, because this plugin requires
     // the project's SourceSetContainer, which created by the java plugin (via the JvmEcosystemPlugin)
@@ -159,14 +161,15 @@ class MuzzlePlugin @Inject constructor(private val buildFeatures: BuildFeatures)
   }
 
   private fun muzzlePlans(project: Project, directives: List<MuzzleDirective>): List<MuzzlePlannedVersion> {
+    val minimumAgeHours = project.extensions.getByType<MuzzleExtension>().minimumDependencyAgeHours.get()
     if (buildFeatures.configurationCache.active.get()) {
       // Only selected modules become cache inputs; revalidate their coordinates on cache reuse.
       return project.providers.of(MuzzlePlansValueSource::class.java) {
-        parameters.requests.set(listOf(MuzzlePlanningRequest(project.path, directives)))
+        parameters.requests.set(listOf(MuzzlePlanningRequest(project.path, minimumAgeHours, directives)))
         parameters.samplingSeed.set(Random.nextLong())
       }.get()
     }
-    val planner = sharedTaskPlanner(project)
+    val planner = sharedTaskPlanner(project, minimumAgeHours)
     return directives.flatMapIndexed { index, directive ->
       planner.plan(listOf(directive)).map { plan ->
         MuzzlePlannedVersion(project.path, index, plan.artifact?.version, plan.directive.assertPass)
@@ -174,22 +177,33 @@ class MuzzlePlugin @Inject constructor(private val buildFeatures: BuildFeatures)
     }
   }
 
-  private fun sharedTaskPlanner(project: Project): MuzzleTaskPlanner {
+  private fun sharedTaskPlanner(project: Project, minimumAgeHours: Int): MuzzleTaskPlanner {
     val properties = project.rootProject.extensions.extraProperties
-    val key = "datadogMuzzleTaskPlanners"
+    val key = "datadogMuzzlePlanning"
     if (!properties.has(key)) {
-      properties.set(key, mutableMapOf<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>())
+      properties.set(key, SharedMuzzlePlanning())
     }
-    @Suppress("UNCHECKED_CAST")
-    val planners = properties.get(key) as MutableMap<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>
+    val planning = properties.get(key) as SharedMuzzlePlanning
     // Repository IDs can be reused for different URLs, so keep their local metadata separate.
     val repositories = project.extensions.getByType<MuzzleExtension>().directives
       .map { it.additionalRepositories.toList() }.distinct()
-    return planners.getOrPut(repositories) {
-      val system = MuzzleMavenRepoUtils.newRepositorySystem()
-      val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-      MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session))
-    }
+    return planning.planner(repositories, minimumAgeHours)
+  }
+
+  /** Shares repository sessions and a fixed cutoff while respecting each module's cooldown. */
+  private class SharedMuzzlePlanning {
+    private val system = MuzzleMavenRepoUtils.newRepositorySystem()
+    private val startedAt = Instant.now()
+    private val sessions = mutableMapOf<List<List<Triple<String, String, String>>>, RepositorySystemSession>()
+    private val ages = mutableMapOf<Int, MuzzleDependencyAge>()
+    private val planners = mutableMapOf<Pair<List<List<Triple<String, String, String>>>, Int>, MuzzleTaskPlanner>()
+
+    fun planner(repositories: List<List<Triple<String, String, String>>>, minimumAgeHours: Int): MuzzleTaskPlanner =
+      planners.getOrPut(repositories to minimumAgeHours) {
+        val session = sessions.getOrPut(repositories) { MuzzleMavenRepoUtils.newRepositorySystemSession(system) }
+        val age = ages.getOrPut(minimumAgeHours) { MuzzleDependencyAge(minimumAgeHours, startedAt) }
+        MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session, age))
+      }
   }
 
   companion object {

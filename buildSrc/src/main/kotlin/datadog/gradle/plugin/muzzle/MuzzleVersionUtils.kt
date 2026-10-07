@@ -21,10 +21,15 @@ internal object MuzzleVersionUtils {
     result: VersionRangeResult,
     skipVersions: Set<String>,
     includeSnapshots: Boolean,
-    random: Random = Random.Default
+    random: Random = Random.Default,
+    isEligible: ((Version) -> Boolean)? = null
   ): Set<Version> {
     val filtered = filterVersion(result.versions.toSet(), skipVersions, includeSnapshots)
-    return limitLargeRanges(result, filtered, skipVersions, random)
+    if (isEligible == null) return limitLargeRanges(result, filtered, skipVersions, random)
+    val candidates = filtered.filterNot { skipVersions.contains(it.toString()) }
+    val selected = VersionSet(candidates).sampleEligibleBoundaries(RANGE_COUNT_LIMIT - 1, random, isEligible)
+    if (filtered.size > selected.size) println("Muzzle skipping ${filtered.size - selected.size} versions")
+    return selected
   }
 
   /**

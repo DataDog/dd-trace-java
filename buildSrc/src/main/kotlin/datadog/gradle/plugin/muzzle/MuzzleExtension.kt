@@ -1,15 +1,29 @@
 package datadog.gradle.plugin.muzzle
 
 import org.gradle.api.Action
+import org.gradle.api.GradleException
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.property
 import java.util.Locale
 import javax.inject.Inject
 
 /**
  * Muzzle extension containing all pass and fail directives.
  */
-abstract class MuzzleExtension @Inject constructor(private val objectFactory: ObjectFactory) {
+abstract class MuzzleExtension @Inject constructor(
+    private val objectFactory: ObjectFactory,
+    providers: ProviderFactory
+) {
+    /** Publication cooldown; explicit DSL configuration overrides property and environment defaults. */
+    val minimumDependencyAgeHours = objectFactory.property<Int>().convention(
+        providers.gradleProperty("muzzleMinDependencyAgeHours")
+            .orElse(providers.environmentVariable("MIN_DEPENDENCY_AGE_HOURS"))
+            .map(::parseMinimumDependencyAgeHours)
+            .orElse(48)
+    )
+
     val directives: MutableList<MuzzleDirective> = ArrayList()
     private val additionalRepositories: MutableList<Triple<String, String, String>> = ArrayList()
 
@@ -49,3 +63,8 @@ abstract class MuzzleExtension @Inject constructor(private val objectFactory: Ob
         directive.additionalRepositories.addAll(additionalRepositories)
     }
 }
+
+internal fun parseMinimumDependencyAgeHours(raw: String): Int = raw.toIntOrNull()?.takeIf { it >= 0 }
+    ?: throw GradleException(
+        "muzzleMinDependencyAgeHours / MIN_DEPENDENCY_AGE_HOURS must be a non-negative integer"
+    )
