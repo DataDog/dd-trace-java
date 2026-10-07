@@ -415,7 +415,6 @@ class OtelEnvironmentConfigSourceTest {
     assertEquals("DEV_SERVICE", source.get(SERVICE_NAME));
     assertEquals("staging", source.get(ENV));
     assertEquals("42", source.get(VERSION));
-    // only the first 10 custom attributes are mapped to tags
     assertEquals(TAGS_VALUE, source.get(TAGS));
   }
 
@@ -447,7 +446,6 @@ class OtelEnvironmentConfigSourceTest {
     assertEquals("DEV_SERVICE", source.get(SERVICE_NAME));
     assertEquals("staging", source.get(ENV));
     assertEquals("42", source.get(VERSION));
-    // only the first 10 custom attributes are mapped to tags
     assertEquals(TAGS_VALUE, source.get(TAGS));
   }
 
