@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -12,8 +13,9 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * <p>Disengaged, every call takes the optimistic path. A failure there engages the latch, and from
  * then on calls take the cautious path until {@code closeAfter} consecutive inputs pass it cleanly.
- * The cautious path reports bad input by returning {@link #reject}, which restarts that count;
- * anything else it returns counts as clean.
+ * The cautious path reports bad input by returning {@link #reject}, or {@link #repaired} when it
+ * still produced a result, either of which restarts that count; anything else it returns counts as
+ * clean.
  *
  * <p>The cautious path can be built in several ways:
  *
@@ -21,7 +23,8 @@ import javax.annotation.concurrent.ThreadSafe;
  *   <li>an exception-free implementation of the same operation;
  *   <li>a cheap, correct pre-check in front of the optimistic path: {@code return isKnownBad(input)
  *       ? reject(input) : apply(input);}
- *   <li>a repair that turns common bad input into good input before the optimistic path.
+ *   <li>a repair that turns common bad input into good input before the optimistic path, reporting
+ *       each input it had to repair through {@link #repaired}.
  * </ul>
  *
  * <p>Choosing {@code closeAfter} is a rent-or-buy decision. Staying engaged costs the cautious
@@ -41,10 +44,10 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * @param <T> the type of the value the operation is applied to
  * @param <R> the type of the result
- * @param <X> the failure that engages the latch; anything else propagates unchanged
+ * @param <X> the failure that engages the latch, checked or not; anything else propagates unchanged
  */
 @ThreadSafe
-public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
+public abstract class AdaptiveLatch<T, R, X extends Exception> {
   private final Class<X> failureType;
   private final int closeAfter;
 
@@ -66,7 +69,7 @@ public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
 
   /** The optimistic path: fastest on good input, but may throw {@code X} for bad input. */
   @Nullable
-  protected abstract R apply(T input);
+  protected abstract R apply(T input) throws X;
 
   /**
    * The cautious path: must not throw {@code X}. Returns {@link #reject} for bad input; any other
@@ -94,6 +97,17 @@ public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
   }
 
   /**
+   * Reports bad input that {@link #applySafely} repaired: restarts the count, like {@link #reject},
+   * but returns the repaired result. Without it, a steady stream of repairable input would count as
+   * clean, disengage the latch, and pay one optimistic failure every {@code closeAfter} calls.
+   */
+  @Nullable
+  protected final R repaired(@Nullable R result) {
+    remaining = closeAfter;
+    return result;
+  }
+
+  /**
    * Performs the operation: optimistically while disengaged, cautiously while engaged. An
    * optimistic failure engages the latch, and the same input is then retried cautiously, so a
    * cautious path that can repair it still gets the chance.
@@ -112,9 +126,19 @@ public abstract class AdaptiveLatch<T, R, X extends RuntimeException> {
       if (!failureType.isInstance(e)) {
         throw e;
       }
-      this.remaining = closeAfter;
-      return applySafely(input);
+      return engage(input);
+    } catch (Exception e) {
+      // apply declares only X, so any checked exception here is X unless it was thrown sneakily
+      if (!failureType.isInstance(e)) {
+        throw new UndeclaredThrowableException(e);
+      }
+      return engage(input);
     }
+  }
+
+  private R engage(T input) {
+    this.remaining = closeAfter;
+    return applySafely(input);
   }
 
   /** Returns whether calls currently take the cautious path. */

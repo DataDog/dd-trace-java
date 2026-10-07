@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -188,5 +190,66 @@ class AdaptiveLatchTest {
                 return input;
               }
             });
+  }
+
+  /**
+   * Parses a URI, a checked failure. The cautious path repairs spaces and reports each repair, so
+   * repairable input keeps the latch engaged.
+   */
+  private static final class UriParsing extends AdaptiveLatch<String, URI, URISyntaxException> {
+    final AtomicInteger optimistic = new AtomicInteger();
+
+    UriParsing() {
+      super(URISyntaxException.class, 2);
+    }
+
+    @Override
+    protected URI apply(String input) throws URISyntaxException {
+      optimistic.incrementAndGet();
+      return new URI(input);
+    }
+
+    @Override
+    protected URI applySafely(String input) {
+      String escaped = input.replace(" ", "%20");
+      try {
+        URI uri = new URI(escaped);
+        return escaped.equals(input) ? uri : repaired(uri);
+      } catch (URISyntaxException e) {
+        return reject(input);
+      }
+    }
+  }
+
+  @Test
+  void aCheckedFailureEngagesTheLatch() {
+    UriParsing latch = new UriParsing();
+
+    assertEquals(URI.create("/a%20b"), latch.tryApply("/a b"));
+    assertTrue(latch.isEngaged());
+  }
+
+  @Test
+  void repairedInputKeepsTheLatchEngaged() {
+    UriParsing latch = new UriParsing();
+    latch.tryApply("/a b");
+
+    for (int i = 0; i < 5; i++) {
+      assertEquals(URI.create("/c%20d"), latch.tryApply("/c d"));
+    }
+
+    assertTrue(latch.isEngaged(), "each repair restarts the count");
+    assertEquals(1, latch.optimistic.get(), "only the first bad input reached the optimistic path");
+  }
+
+  @Test
+  void cleanInputAfterRepairsStillDisengages() {
+    UriParsing latch = new UriParsing();
+    latch.tryApply("/a b");
+
+    latch.tryApply("/clean");
+    latch.tryApply("/clean");
+
+    assertFalse(latch.isEngaged());
   }
 }
