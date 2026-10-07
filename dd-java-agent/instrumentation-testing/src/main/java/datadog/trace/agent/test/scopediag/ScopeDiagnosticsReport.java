@@ -113,6 +113,10 @@ public final class ScopeDiagnosticsReport {
     return countWith(scopeFailures, Failure.CLOSE_WRONG_THREAD);
   }
 
+  public int closeOutOfOrderCount() {
+    return countWith(scopeFailures, Failure.CLOSE_OUT_OF_ORDER);
+  }
+
   public int deferredCleanupScopeCount() {
     int count = 0;
     for (ScopeRecord scope : scopes) {
@@ -141,7 +145,8 @@ public final class ScopeDiagnosticsReport {
   public boolean hasProblems() {
     return leakCount() > 0
         || doubleCount() > 0
-        || activateAfterResolveCount() > 0
+        || closeWrongThreadCount() > 0
+        || closeOutOfOrderCount() > 0
         || neverClosedScopeCount() > 0;
   }
 
@@ -170,7 +175,9 @@ public final class ScopeDiagnosticsReport {
         .append(deferredCleanupScopeCount())
         .append(" deferred, ")
         .append(closeWrongThreadCount())
-        .append(" wrong-thread)\n");
+        .append(" wrong-thread, ")
+        .append(closeOutOfOrderCount())
+        .append(" out-of-order)\n");
   }
 
   /** Renders flagged continuations and scopes with their call sites. */
@@ -340,6 +347,9 @@ public final class ScopeDiagnosticsReport {
     sb.append('\n');
     for (ScopeEvent event : scope.wrongThreadCloses()) {
       appendEvent(sb, indent + "wrong-thread close", event);
+    }
+    for (ScopeEvent event : scope.outOfOrderCloses()) {
+      appendEvent(sb, indent + "out-of-order close", event);
     }
   }
 

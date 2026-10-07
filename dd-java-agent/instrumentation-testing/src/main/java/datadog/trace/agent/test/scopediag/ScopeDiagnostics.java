@@ -103,7 +103,7 @@ public final class ScopeDiagnostics {
   /**
    * Fails with an {@link AssertionError} (carrying the problem summary) if the report flags a
    * genuine bug (see {@link ScopeDiagnosticsReport#hasProblems()}). Report-only signals such as
-   * late-after-root and close-on-wrong-thread do not fail.
+   * late-after-root and rejected activation do not fail.
    */
   public static void assertNoLeaks() {
     assertNoLeaks(report());
@@ -249,10 +249,10 @@ public final class ScopeDiagnostics {
     }
   }
 
-  static void recordScopeCloseWrongThread(Object window, Object scope) {
+  static void recordScopeClosing(Object window, Object scope, boolean notOnTop) {
     synchronized (INSTANCE.lifecycleLock) {
       if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onScopeCloseWrongThread(scope);
+        INSTANCE.listener.onScopeClosing(scope, notOnTop);
       }
     }
   }
@@ -363,11 +363,15 @@ public final class ScopeDiagnostics {
       }
     }
 
-    void onScopeCloseWrongThread(Object scope) {
+    void onScopeClosing(Object scope, boolean notOnTop) {
       try {
         ScopeRecord record = scopeRecords.get(scope);
         if (record != null) {
-          record.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD));
+          if (record.open().threadId != Thread.currentThread().getId()) {
+            record.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD));
+          } else if (notOnTop) {
+            record.addOutOfOrderClose(event(ScopeEvent.Type.SCOPE_CLOSE_OUT_OF_ORDER));
+          }
         }
       } catch (Throwable ignored) {
       }

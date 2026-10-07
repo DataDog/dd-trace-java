@@ -11,16 +11,24 @@ public final class ScopeEvent {
     RESOLVE_RELEASE,
     SCOPE_OPEN,
     SCOPE_CLOSE,
-    /** A scope was closed while not on top of its thread's stack. */
-    SCOPE_CLOSE_WRONG_THREAD
+    /** A scope close was attempted from a thread other than its owner. */
+    SCOPE_CLOSE_WRONG_THREAD,
+    /** The owner attempted to close a scope that was not on top of its stack. */
+    SCOPE_CLOSE_OUT_OF_ORDER
   }
 
   public final Type type;
   public final String threadName;
+  public final long threadId;
   public final long nanos;
   public final StackTraceElement[] stack;
 
   ScopeEvent(Type type, String threadName, long nanos, StackTraceElement[] stack) {
+    this(type, threadName, Thread.currentThread().getId(), nanos, stack);
+  }
+
+  ScopeEvent(Type type, String threadName, long threadId, long nanos, StackTraceElement[] stack) {
+    this.threadId = threadId;
     this.type = type;
     this.threadName = threadName;
     this.nanos = nanos;
@@ -28,7 +36,7 @@ public final class ScopeEvent {
   }
 
   ScopeEvent snapshot() {
-    return new ScopeEvent(type, threadName, nanos, stack == null ? null : stack.clone());
+    return new ScopeEvent(type, threadName, threadId, nanos, stack == null ? null : stack.clone());
   }
 
   /** The most relevant (top, post-filter) frame, or {@code null} if none survived filtering. */

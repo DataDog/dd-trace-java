@@ -1,8 +1,10 @@
 package datadog.trace.agent.test.scopediag;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
@@ -338,18 +340,20 @@ class ScopeDiagnosticsIntegrationTest {
       assertTrue(report.records().get(0).resumes().isEmpty());
       assertEquals(1, report.activateAfterResolveCount());
       assertEquals(0, report.leakCount());
+      assertTrue(report.hasFindings());
+      assertDoesNotThrow(() -> ScopeDiagnostics.assertNoLeaks(report));
     } finally {
       span.finish();
     }
   }
 
   @Test
-  void outOfOrderScopeCloseIsRecorded() throws Exception {
+  void outOfOrderScopeCloseFailsEvenAfterCleanup() throws Exception {
     assertMisplacedClose(false);
   }
 
   @Test
-  void wrongThreadScopeCloseIsRecorded() throws Exception {
+  void wrongThreadScopeCloseFailsEvenWhenThreadNamesMatch() throws Exception {
     assertMisplacedClose(true);
   }
 
@@ -365,7 +369,7 @@ class ScopeDiagnosticsIntegrationTest {
       String closingThread = Thread.currentThread().getName();
       if (anotherThread) {
         FutureTask<Void> close = new FutureTask<>(outer::close, null);
-        Thread worker = new Thread(close, "scope-diagnostics-wrong-thread");
+        Thread worker = new Thread(close, Thread.currentThread().getName());
         worker.setDaemon(true);
         worker.start();
         close.get(5, TimeUnit.SECONDS);
@@ -374,14 +378,17 @@ class ScopeDiagnosticsIntegrationTest {
         outer.close();
       }
       ScopeDiagnosticsReport report = ScopeDiagnostics.report();
-      assertEquals(1, report.closeWrongThreadCount());
+      assertEquals(anotherThread ? 1 : 0, report.closeWrongThreadCount());
+      assertEquals(anotherThread ? 0 : 1, report.closeOutOfOrderCount());
       ScopeRecord record =
           report.scopeRecords().stream()
               .filter(scope -> scope.spanId == outerSpan.getSpanId())
               .findFirst()
               .orElseThrow(() -> new AssertionError("outer scope was not recorded"));
-      assertEquals(1, record.wrongThreadCloses().size());
-      assertEquals(closingThread, record.wrongThreadCloses().get(0).threadName);
+      List<ScopeEvent> attempts =
+          anotherThread ? record.wrongThreadCloses() : record.outOfOrderCloses();
+      assertEquals(1, attempts.size());
+      assertEquals(closingThread, attempts.get(0).threadName);
       assertFalse(record.closed(), "owner stack has not unwound yet");
     } finally {
       inner.close();
@@ -389,7 +396,10 @@ class ScopeDiagnosticsIntegrationTest {
       outerSpan.finish();
     }
     assertEquals(0, ScopeDiagnostics.report().neverClosedScopeCount());
-    assertEquals(1, ScopeDiagnostics.report().closeWrongThreadCount());
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(anotherThread ? 1 : 0, report.closeWrongThreadCount());
+    assertEquals(anotherThread ? 0 : 1, report.closeOutOfOrderCount());
+    assertThrows(AssertionError.class, () -> ScopeDiagnostics.assertNoLeaks(report));
   }
 
   private static ScopeRecord continuationScope(ScopeDiagnosticsReport report) {

@@ -138,7 +138,7 @@ class ScopeDiagnosticsReportTest {
   }
 
   @Test
-  void failedActivationIsActivateAfterResolve() {
+  void failedActivationAfterResolutionIsAdvisory() {
     ContinuationRecord r = record(0, DDTraceId.from(141));
     r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_RELEASE, "pool-1", 2000));
     r.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED, "pool-2", 3000));
@@ -146,7 +146,9 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), map());
 
     assertEquals(1, report.activateAfterResolveCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasFindings());
+    assertFalse(report.hasProblems());
+    assertTrue(report.renderTimeline().contains("act-fail"));
   }
 
   @Test

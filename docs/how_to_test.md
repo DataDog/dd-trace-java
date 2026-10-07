@@ -45,6 +45,27 @@ This mechanism exists to make sure either java agent state or static data are re
 > Forked tests are not run as part of the gradle `test` task.
 > In order to run them, you need to use the `forkedTest` task instead.
 
+### Scope and continuation diagnostics
+
+Instrumentation tests record scope and continuation lifecycles automatically. The diagnostic policy
+separates ownership and cleanup failures from events that the runtime can safely tolerate:
+
+| Finding | Test policy |
+| --- | --- |
+| Captured continuation never resolved (`LEAKED`) | Fail |
+| Scope never closed (`NEVER_CLOSED`) | Fail, except registered deferred cleanup |
+| Duplicate continuation resolution (`DOUBLE_FINISH`) | Fail |
+| Scope close attempted by a different thread (`CLOSE_WRONG_THREAD`) | Fail, even if later cleanup succeeds |
+| Same-thread close below the stack top (`CLOSE_OUT_OF_ORDER`) | Fail, even if later cleanup succeeds |
+| Rejected activation after resolution (`ACTIVATE_AFTER_RESOLVE`) | Advisory; the returned scope is a no-op |
+| Resume or resolution after root-trace publication (`LATE_FINISH`) | Advisory |
+
+Advisories remain in the diagnostic summary and timeline. A rejected activation alone does not prove
+that application work ran without context: cancellation or another completion may have won and
+prevented that work from running. Tests must still assert parentage and context propagation for work
+that does execute. Scope ownership is checked by thread ID, not thread name; thread renaming and
+identically named worker threads do not change the policy.
+
 ### Flaky Tests
 
 Mark unreliable test methods or classes with `@Flaky` in both JUnit and Spock.

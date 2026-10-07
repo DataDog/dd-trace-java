@@ -17,7 +17,7 @@ class ScopeRecordTest {
   };
 
   private static ScopeEvent event(ScopeEvent.Type type, String thread, long nanos) {
-    return new ScopeEvent(type, thread, nanos, STACK);
+    return new ScopeEvent(type, thread, "main".equals(thread) ? 1 : 2, nanos, STACK);
   }
 
   private static ScopeRecord scope(long seq, Long continuationSeq, String openThread, long nanos) {
@@ -74,11 +74,26 @@ class ScopeRecordTest {
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 4000));
 
     ScopeDiagnosticsReport report = report(s);
-    assertFalse(report.hasProblems(), "wrong-thread cleanup remains advisory");
+    assertTrue(report.hasProblems(), "later cleanup does not excuse wrong-thread closing");
     String timeline = report.renderTimeline();
     assertTrue(timeline.contains("wrong-thread close"));
     assertTrue(timeline.contains("@ worker-one  at com.app.First.close(First.java:12)"));
     assertTrue(timeline.contains("@ worker-two  at com.app.Second.close(Second.java:34)"));
+  }
+
+  @Test
+  void outOfOrderCloseFailsEvenAfterCleanup() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.addOutOfOrderClose(event(ScopeEvent.Type.SCOPE_CLOSE_OUT_OF_ORDER, "main", 1500));
+    assertTrue(report(s).hasProblems(), "an outstanding scope must still fail");
+    s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 2000));
+
+    ScopeDiagnosticsReport report = report(s);
+    assertEquals(1, report.closeOutOfOrderCount());
+    assertEquals(0, report.closeWrongThreadCount());
+    assertTrue(report.hasFindings());
+    assertTrue(report.hasProblems(), "later cleanup does not excuse out-of-order closing");
+    assertTrue(report.renderTimeline().contains("out-of-order close"));
   }
 
   @Test
@@ -114,7 +129,7 @@ class ScopeRecordTest {
   }
 
   @Test
-  void wrongThreadCloseIsReportedButDoesNotFail() {
+  void wrongThreadCloseFailsEvenAfterProperCleanup() {
     ScopeRecord s = scope(0, null, "main", 1000);
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 2000));
     s.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD, "pool-2", 1500));
@@ -123,6 +138,6 @@ class ScopeRecordTest {
 
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.closeWrongThreadCount());
-    assertFalse(report.hasProblems()); // wrong-thread is report-only
+    assertTrue(report.hasProblems());
   }
 }
