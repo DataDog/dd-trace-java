@@ -21,9 +21,8 @@ import java.lang.annotation.Target;
  * <p><b>Checker contract.</b> For a contract annotation carrying {@code @ImpliedFor}:
  *
  * <ul>
- *   <li><b>Field contracts:</b> a field whose declared type is a listed type, or a subtype of one,
- *       is checked as if it carried the contract.
- *   <li><b>Type contracts:</b> a listed type is treated as if it carried the contract.
+ *   <li><b>Implied fields:</b> a field whose declared type is a listed type, or a subtype of one,
+ *       is checked as if it carried the contract. Only field contracts use this so far.
  *   <li><b>Suppression:</b> {@link SuppressPerfContract} exempts an implied finding exactly as it
  *       exempts an explicit one.
  *   <li><b>Invalid:</b> {@code @ImpliedFor} on an annotation that is not itself annotated {@link

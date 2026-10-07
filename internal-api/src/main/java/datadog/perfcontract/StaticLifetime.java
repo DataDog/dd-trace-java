@@ -17,9 +17,8 @@ import java.lang.annotation.Target;
  * <p>This marker changes no runtime behavior. The declaration rules below guide AI review; no
  * static checker currently enforces them.
  *
- * <p><b>Checker contract.</b> Inspect fields annotated {@code @StaticLifetime}, and fields whose
- * declared type is one listed in this annotation's {@link ImpliedFor} (or a subtype of one), as if
- * they were annotated:
+ * <p><b>Checker contract.</b> Inspect fields annotated {@code @StaticLifetime}, and the fields its
+ * {@link ImpliedFor} implies it for:
  *
  * <ul>
  *   <li><b>Accepted:</b> a {@code static final} field, or a {@code final} instance field declared
@@ -27,20 +26,18 @@ import java.lang.annotation.Target;
  *   <li><b>Violation:</b> any other annotated field. This includes fields without {@code final} and
  *       instance fields on classes without {@code @Singleton}, even if a class is constructed only
  *       once per session.
- *   <li><b>Out of scope:</b> unannotated fields of types not listed in {@link ImpliedFor}, how
- *       often a value is reused, and replacement of state inside the referenced object. The check
- *       does not follow references through the object graph.
+ *   <li><b>Out of scope:</b> unannotated fields that {@link ImpliedFor} does not cover, how often a
+ *       value is reused, and replacement of state inside the referenced object. The check does not
+ *       follow references through the object graph.
  * </ul>
  *
  * <p>Requiring {@code final} prevents reassignment from discarding cached state and repeating
  * setup. It does not prevent the referenced object from changing its own state.
  *
- * <p>{@link ClassValue} and {@link ThreadLocal} fields are checked without annotation: a
- * per-instance one discards its per-class or per-thread values with each instance. A {@code
- * ClassValue}'s values are cached per class; computation may be repeated under races or after
- * {@link ClassValue#remove(Class) remove}. This contract covers the shared holder, not the lifetime
- * of each cached value. A deliberate per-instance holder needs {@link SuppressPerfContract} with a
- * reason.
+ * <p>The implied types are holders whose per-instance form discards its cached values with each
+ * instance. A {@link ClassValue}'s values are cached per class; computation may be repeated under
+ * races or after {@link ClassValue#remove(Class) remove}. This contract covers the shared holder,
+ * not the lifetime of each cached value.
  *
  * <p>Violation examples: an instance cache on a class without {@code @Singleton}, or a static cache
  * without {@code final}.
