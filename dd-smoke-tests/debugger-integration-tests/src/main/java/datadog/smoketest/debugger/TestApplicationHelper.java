@@ -13,8 +13,10 @@ import java.util.function.Predicate;
 
 public class TestApplicationHelper {
   // instrumentation is done by main thread
-  private static final String INSTRUMENTATION_DONE =
-      "[%s] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+  private static final String INSTRUMENTATION_DONE_MAIN_THREAD =
+      "[main] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+  private static final String INSTRUMENTATION_DONE_NO_THREAD =
+      "] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
   private static final String THREAD_MAIN = "main";
   private static final String THREAD_REMOTE_CONFIG = "dd-remote-config";
   private static final String THREAD_SCHEDULER = "dd-task-scheduler";
@@ -48,22 +50,25 @@ public class TestApplicationHelper {
 
   public static String waitForInstrumentation(String logFileName, String className, String fromLine)
       throws IOException {
+    return waitForInstrumentation(logFileName, className, fromLine, Duration.ofSeconds(TIMEOUT_S));
+  }
+
+  public static String waitForInstrumentation(
+      String logFileName, String className, String fromLine, Duration timeout) throws IOException {
     AtomicBoolean generatingByteCode = new AtomicBoolean();
     return waitForSpecificLogLine(
         Paths.get(logFileName),
         fromLine != null ? line -> line.contains(fromLine) : null,
         line -> {
           // when instrumentation is done by main thread, we are good to go
-          if (line.contains(String.format(INSTRUMENTATION_DONE, THREAD_MAIN, className))) {
+          if (line.contains(String.format(INSTRUMENTATION_DONE_MAIN_THREAD, className))) {
             return true;
           }
           if (!generatingByteCode.get()) {
             // instrumentation is done by background thread, need to wait for end of
             // re-transformation
-            for (String threadName : THREAD_NAMES) {
-              if (line.contains(String.format(INSTRUMENTATION_DONE, threadName, className))) {
-                generatingByteCode.set(true);
-              }
+            if (line.contains(String.format(INSTRUMENTATION_DONE_NO_THREAD, className))) {
+              generatingByteCode.set(true);
             }
           } else {
             return line.contains(RETRANSFORMATION_DONE);
@@ -72,7 +77,7 @@ public class TestApplicationHelper {
         },
         () -> {},
         Duration.ofMillis(SLEEP_MS),
-        Duration.ofSeconds(TIMEOUT_S));
+        timeout);
   }
 
   public static String waitForReTransformation(

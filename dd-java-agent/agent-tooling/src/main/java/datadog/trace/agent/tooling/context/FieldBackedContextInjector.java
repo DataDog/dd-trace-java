@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.context;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
+import datadog.instrument.fieldinject.ObjectStoreDispatch;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
@@ -48,7 +49,12 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   static final String PUTTER_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.VOID_TYPE, Type.INT_TYPE, Type.getType(Object.class));
 
-  static final String WEAK_REDIRECT_CLASS = getInternalName(WeakMapPerStore.class.getName());
+  static final String WEAK_REDIRECT_CLASS =
+      getInternalName(
+          (InstrumenterConfig.get().isRuntimeContextMapPerStore()
+                  ? WeakMapPerStore.class
+                  : ObjectStoreDispatch.class)
+              .getName());
 
   static final String WEAK_GET_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(
@@ -441,7 +447,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ALOAD, 0);
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, WEAK_REDIRECT_CLASS, "get", WEAK_GET_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESTATIC,
+            WEAK_REDIRECT_CLASS,
+            "weakGet",
+            WEAK_GET_METHOD_DESCRIPTOR,
+            false);
         mv.visitInsn(Opcodes.ARETURN);
       }
 
@@ -450,7 +460,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitIntInsn(Opcodes.ALOAD, 2);
         mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, WEAK_REDIRECT_CLASS, "put", WEAK_PUT_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESTATIC,
+            WEAK_REDIRECT_CLASS,
+            "weakPut",
+            WEAK_PUT_METHOD_DESCRIPTOR,
+            false);
         mv.visitInsn(Opcodes.RETURN);
       }
 

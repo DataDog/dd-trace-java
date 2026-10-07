@@ -32,11 +32,6 @@ public class ZuulProxyRequestHelperInstrumentation extends InstrumenterModule.Tr
         ZuulProxyRequestHelperInstrumentation.class.getName() + "$ProxyRequestHelperAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".HeaderUtils"};
-  }
-
   /**
    * The purpose of this instrumentation is to prevent the overwriting of instrumented headers when
    * a request is passed through a Zuul proxy. This instrumentation will ensure that the proxy's

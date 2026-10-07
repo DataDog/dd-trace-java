@@ -1,2 +1,8 @@
-// Keep gradle/java.gradle as the source of truth while consumers move to plugins {}.
-apply(from = rootDir.resolve("gradle/java.gradle"))
+plugins {
+  id("dd-trace-java.dependency-locking")
+  // Expose Java accessors while the convention still delegates to script plugins.
+  java
+}
+
+apply(from = rootDir.resolve("gradle/java_deps.gradle"))
+apply(from = rootDir.resolve("gradle/java_no_deps.gradle"))

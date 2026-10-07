@@ -88,7 +88,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       GatewayContext gwCtx = new GatewayContext(false);
       producerService.publishDataEvent(sub, ctx, bundle, gwCtx);
       // NOTE: must be checked before committing derivatives, as that clears the derivatives map
-      if (hasSchemaDerivative(ctx)) {
+      if (ctx.hasDerivativeKeyStartingWith(SCHEMA_DERIVATIVE_PREFIX)) {
         WafMetricCollector.get().apiSecurityRequestSchema(framework);
       } else {
         WafMetricCollector.get().apiSecurityRequestNoSchema(framework);
@@ -97,14 +97,5 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     } catch (ExpiredSubscriberInfoException e) {
       log.debug("Subscriber info expired", e);
     }
-  }
-
-  private static boolean hasSchemaDerivative(final AppSecRequestContext ctx) {
-    for (String key : ctx.getDerivativeKeys()) {
-      if (key != null && key.startsWith(SCHEMA_DERIVATIVE_PREFIX)) {
-        return true;
-      }
-    }
-    return false;
   }
 }

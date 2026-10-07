@@ -8,7 +8,7 @@ plugins {
 // we put the test classes in the baseTest test set so that the scala
 // version is not inherited
 addTestSuite('baseTest')
-addTestSuiteExtendingForDir('baseForkedTest', 'baseTest', 'baseTest')
+addForkedTestTask('baseTest')
 addTestSuiteForDir('version101Test', 'baseTest')
 addTestSuiteExtendingForDir('version101ForkedTest', 'version101Test', 'baseTest')
 addTestSuiteForDir('version102Scala213Test', 'latestDepTest')
@@ -23,16 +23,6 @@ tasks.named("lagomTest", Test) {
   testJvmConstraints {
     maxJavaVersion = JavaVersion.VERSION_1_8
   }
-}
-
-tasks.named("compileLagomTestJava", JavaCompile) {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-tasks.named("compileLagomTestGroovy", GroovyCompile) {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 muzzle {
@@ -175,10 +165,6 @@ dependencies {
 }
 
 tasks.named("compileBaseTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
-}
-
-tasks.named("compileBaseForkedTestGroovy", GroovyCompile) {
   classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 

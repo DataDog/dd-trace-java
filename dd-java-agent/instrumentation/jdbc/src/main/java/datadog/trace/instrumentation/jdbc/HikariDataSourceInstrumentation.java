@@ -8,7 +8,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -32,7 +32,7 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.sql.Connection", DBInfo.class.getName());
+    return singletonMap("java.sql.Connection", JDBCConnectionContext.class.getName());
   }
 
   @Override
@@ -66,11 +66,12 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
       if (unwrapped == null) {
         return;
       }
-      DBInfo dbInfo = InstrumentationContext.get(Connection.class, DBInfo.class).get(unwrapped);
-      if (dbInfo == null) {
+      JDBCConnectionContext connectionContext =
+          InstrumentationContext.get(Connection.class, JDBCConnectionContext.class).get(unwrapped);
+      if (connectionContext == null) {
         return;
       }
-      dbInfo.setPoolName(hikariPoolname);
+      connectionContext.setPoolName(hikariPoolname);
     }
   }
 }

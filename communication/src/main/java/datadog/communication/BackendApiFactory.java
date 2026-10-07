@@ -8,6 +8,7 @@ import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +49,13 @@ public class BackendApiFactory {
 
   /** Creates an authenticated API client that sends data directly to a Datadog intake. */
   public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
-    HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
+    return createDirectIntakeApi(intake, responseCompression, true);
+  }
+
+  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  public BackendApi createDirectIntakeApi(
+      Intake intake, boolean responseCompression, boolean followRedirects) {
+    HttpUrl agentlessUrl = buildDirectIntakeUrl(intake, config);
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
       throw new FatalAgentMisconfigurationError(
@@ -60,8 +67,43 @@ public class BackendApiFactory {
         apiKey,
         traceId,
         retryPolicyFactory(),
-        sharedCommunicationObjects.getIntakeHttpClient(),
+        directIntakeHttpClient(sharedCommunicationObjects.getIntakeHttpClient(), followRedirects),
         responseCompression);
+  }
+
+  static OkHttpClient directIntakeHttpClient(
+      final OkHttpClient intakeHttpClient, final boolean followRedirects) {
+    if (followRedirects) {
+      return intakeHttpClient;
+    }
+    return intakeHttpClient.newBuilder().followRedirects(false).build();
+  }
+
+  private static HttpUrl buildDirectIntakeUrl(Intake intake, Config config) {
+    if (intake != Intake.EVENT_PLATFORM) {
+      return HttpUrl.get(intake.getAgentlessUrl(config));
+    }
+    return buildEventPlatformIntakeUrl(config.getSite());
+  }
+
+  static HttpUrl buildEventPlatformIntakeUrl(String site) {
+    if (site == null || site.isEmpty()) {
+      throw new IllegalArgumentException("Invalid Datadog site");
+    }
+
+    String expectedHost = Intake.EVENT_PLATFORM.getUrlPrefix() + "." + site;
+    HttpUrl url =
+        new HttpUrl.Builder()
+            .scheme("https")
+            .host(expectedHost)
+            .addPathSegment("api")
+            .addPathSegment(Intake.EVENT_PLATFORM.getVersion())
+            .addPathSegment("")
+            .build();
+    if (!url.host().equalsIgnoreCase(expectedHost)) {
+      throw new IllegalArgumentException("Invalid Datadog site");
+    }
+    return url;
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */

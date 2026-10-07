@@ -14,6 +14,7 @@ import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.MessageFormatter;
 import datadog.communication.serialization.StreamingBuffer;
+import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
@@ -63,6 +64,38 @@ public class MsgPackWriterTest {
         packer.format("abcdefghijklmnopqrstuvwxyz", mapper), "data doesn't fit in finite buffer");
     assertTrue(
         packer.format("abcdefghijklmnopqrstuvwxy", mapper), "data fits in buffer after overflow");
+  }
+
+  @Test
+  public void testMapperResetWhenOversizedMessageRejectedFromEmptyBuffer() {
+    CountingResetMapper mapper = new CountingResetMapper();
+    MessageFormatter packer = new MsgPackWriter(newBuffer(2 + 25, (messageCount, buffer) -> {}));
+    assertFalse(packer.format("abcdefghijklmnopqrstuvwxyz", mapper));
+    assertEquals(1, mapper.resets);
+  }
+
+  @Test
+  public void testMapperResetWhenOversizedMessageRejectedAfterFlush() {
+    CountingResetMapper mapper = new CountingResetMapper();
+    MessageFormatter packer = new MsgPackWriter(newBuffer(2 + 25, (messageCount, buffer) -> {}));
+    assertTrue(packer.format("abc", mapper));
+    assertFalse(packer.format("abcdefghijklmnopqrstuvwxyz", mapper));
+    // once before the retry, once after the retry is rejected
+    assertEquals(2, mapper.resets);
+  }
+
+  private static final class CountingResetMapper implements Mapper<String> {
+    int resets;
+
+    @Override
+    public void map(String data, Writable writable) {
+      writable.writeString(data, null);
+    }
+
+    @Override
+    public void reset() {
+      resets++;
+    }
   }
 
   @Test

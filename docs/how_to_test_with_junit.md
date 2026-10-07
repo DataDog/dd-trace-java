@@ -308,7 +308,7 @@ Call it from a static initializer (runs before `@BeforeAll`):
 ```java
 class MyTest extends AbstractInstrumentationTest {
     static {
-        testConfig.idGenerationStrategy("RANDOM").strictTraceWrites(false);
+        testConfig.idGenerationStrategy("RANDOM");
     }
 }
 ```
@@ -318,7 +318,6 @@ Available settings:
 | Method                         | Default        | Description                          |
 |--------------------------------|----------------|--------------------------------------|
 | `idGenerationStrategy(String)` | `"SEQUENTIAL"` | Span ID generation strategy          |
-| `strictTraceWrites(boolean)`   | `true`         | Enable strict trace write validation |
 
 ### Basic test
 

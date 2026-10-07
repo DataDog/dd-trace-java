@@ -11,16 +11,17 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AM
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -196,7 +197,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
     return new TracedDelegatingConsumer(queue, consumer);
   }
 
-  public static AgentScope startReceivingSpan(
+  public static ContextScope startReceivingSpan(
       boolean propagate,
       long spanStartMillis,
       AMQP.BasicProperties properties,
@@ -259,15 +260,15 @@ public class RabbitDecorator extends MessagingClientDecorator {
     }
 
     CONSUMER_DECORATE.afterStart(span);
-    AgentScope scope = activateSpan(span);
+    ContextScope scope = activateSpan(span);
     if (null != queueSpan) {
       queueSpan.finish(spanStartMicros);
     }
     return scope;
   }
 
-  public static void finishReceivingSpan(AgentScope scope) {
-    AgentSpan span = scope.span();
+  public static void finishReceivingSpan(ContextScope scope) {
+    AgentSpan span = spanFromScope(scope);
     scope.close();
     if (CONSUMER_DECORATE.endToEndDurationsEnabled) {
       span.finishWithEndToEnd();

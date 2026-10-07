@@ -12,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.io.OutputStream;
@@ -73,7 +73,7 @@ public class BasicRemoteEndpointInstrumentation
 
   public static class SendTextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) String text,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
@@ -94,7 +94,7 @@ public class BasicRemoteEndpointInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(value = 1, optional = true) final Boolean last) {
@@ -114,7 +114,7 @@ public class BasicRemoteEndpointInstrumentation
 
   public static class SendBinaryAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) ByteBuffer buffer,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
@@ -135,7 +135,7 @@ public class BasicRemoteEndpointInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(value = 1, optional = true) final Boolean last) {
@@ -154,7 +154,7 @@ public class BasicRemoteEndpointInstrumentation
 
   public static class SendObjectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
       handlerContext =
@@ -174,7 +174,7 @@ public class BasicRemoteEndpointInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);

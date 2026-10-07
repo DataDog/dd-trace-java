@@ -1,0 +1,59 @@
+{
+  "createdAt": "2024-04-17T19:40:53.716Z",
+  "format": "SERVER",
+  "environment": {
+    "name": "Test"
+  },
+  "flags": {
+    "malformed-flag": {
+      "key": "malformed-flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "on": {
+          "key": "on",
+          "value": "on"
+        }
+      },
+      "allocations": [
+        {
+          "key": "default-allocation",
+          "rules": [],
+          "splits": [
+            {
+              "serialId": "${serialId}",
+              "variationKey": "on",
+              "shards": []
+            }
+          ],
+          "doLog": true
+        }
+      ]
+    },
+    "valid-flag": {
+      "key": "valid-flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "expected": {
+          "key": "expected",
+          "value": "expected"
+        }
+      },
+      "allocations": [
+        {
+          "key": "default-allocation",
+          "rules": [],
+          "splits": [
+            {
+              "serialId": 7,
+              "variationKey": "expected",
+              "shards": []
+            }
+          ],
+          "doLog": true
+        }
+      ]
+    }
+  }
+}

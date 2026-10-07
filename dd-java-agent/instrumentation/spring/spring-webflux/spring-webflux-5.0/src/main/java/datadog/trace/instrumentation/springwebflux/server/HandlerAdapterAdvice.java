@@ -1,12 +1,13 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.springwebflux.server.AdviceUtils.constructOperationName;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import net.bytebuddy.asm.Advice;
@@ -22,11 +23,11 @@ import reactor.core.publisher.Mono;
 public class HandlerAdapterAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(
+  public static ContextScope methodEnter(
       @Advice.Argument(0) final ServerWebExchange exchange,
       @Advice.Argument(1) final Object handler) {
 
-    AgentScope scope = null;
+    ContextScope scope = null;
     final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
     if (handler != null && span != null) {
       final String handlerType;
@@ -66,14 +67,14 @@ public class HandlerAdapterAdvice {
   public static void methodExit(
       @Advice.Return(readOnly = false) Mono<HandlerResult> mono,
       @Advice.Argument(0) final ServerWebExchange exchange,
-      @Advice.Enter final AgentScope scope,
+      @Advice.Enter final ContextScope scope,
       @Advice.Thrown final Throwable throwable) {
     if (scope != null) {
       if (throwable != null) {
         DECORATE.onError(scope, throwable);
       } else if (mono != null) {
         InstrumentationContext.get(Publisher.class, HandoffContext.class)
-            .put(mono, HandoffContext.anyThread(scope.span()));
+            .put(mono, HandoffContext.anyThread(spanFromScope(scope)));
       }
       scope.close();
       // span finished in SpanFinishingSubscriber

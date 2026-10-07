@@ -57,7 +57,6 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
       packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
-      packageName + ".CucumberTracingListener",
     };
   }
 

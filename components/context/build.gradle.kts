@@ -2,6 +2,10 @@ plugins {
   id("dd-trace-java.module.platform-component")
 }
 
+dependencies {
+  implementation(libs.instrument.java)
+}
+
 extra["excludedClassesInstructionCoverage"] =
   listOf("datadog.context.ContextProviders") // covered by forked test
 

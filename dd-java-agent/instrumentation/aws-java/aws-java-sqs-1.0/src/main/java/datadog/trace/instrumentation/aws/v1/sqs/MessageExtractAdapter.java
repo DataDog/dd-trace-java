@@ -4,6 +4,8 @@ import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE6
 
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
@@ -66,11 +68,25 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
 
   public void forEachKeyInBody(String body, AgentPropagation.KeyClassifier classifier)
       throws IOException {
-    // Parse the JSON string into a JsonNode
-    JsonNode rootNode = MAPPER.readTree(body);
-
-    // Navigate to MessageAttributes._datadog
-    JsonNode messageAttributes = rootNode.path("MessageAttributes").path("_datadog");
+    JsonNode messageAttributes = null;
+    try (JsonParser parser = MAPPER.getFactory().createParser(body)) {
+      if (parser.nextToken() == JsonToken.START_OBJECT) {
+        while (parser.nextToken() == JsonToken.FIELD_NAME) {
+          String name = parser.getCurrentName();
+          parser.nextToken();
+          if ("MessageAttributes".equals(name)) {
+            messageAttributes = readDatadogAttribute(parser);
+          } else {
+            parser.skipChildren();
+          }
+        }
+      } else {
+        MAPPER.readTree(parser);
+      }
+    }
+    if (messageAttributes == null) {
+      return;
+    }
 
     // Extract Value and Type
     String value = messageAttributes.path("Value").asText();
@@ -81,6 +97,24 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       ByteBuffer decodedValue = ByteBuffer.wrap(Base64.getDecoder().decode(value));
       DatadogAttributeParser.forEachProperty(classifier, decodedValue);
     }
+  }
+
+  private static JsonNode readDatadogAttribute(JsonParser parser) throws IOException {
+    JsonNode attribute = null;
+    if (parser.getCurrentToken() == JsonToken.START_OBJECT) {
+      while (parser.nextToken() == JsonToken.FIELD_NAME) {
+        String name = parser.getCurrentName();
+        parser.nextToken();
+        if ("_datadog".equals(name)) {
+          attribute = MAPPER.readTree(parser);
+        } else {
+          parser.skipChildren();
+        }
+      }
+    } else {
+      parser.skipChildren();
+    }
+    return attribute;
   }
 
   public long extractTimeInQueueStart(final Message carrier) {
