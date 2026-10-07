@@ -31,6 +31,7 @@ import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -522,7 +523,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     timeToBucket.clear();
   }
 
-  void report() {
+  @VisibleForTesting
+  public void report() {
     inbox.offer(REPORT);
   }
 

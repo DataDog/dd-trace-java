@@ -56,6 +56,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
       packageName + ".TomcatBlockingHelper",
+      packageName + ".BlockFailureReporter",
     };
   }
 
@@ -196,9 +197,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterParse(
-        @Advice.Argument(1) Request req,
-        @Advice.Argument(3) Response resp,
-        @Advice.Return(readOnly = false) Boolean ret) {
+        @Advice.Argument(1) Request req, @Advice.Return(readOnly = false) Boolean ret) {
       Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
       if (contextObj instanceof Context) {
         Context context = (Context) contextObj;
@@ -212,8 +211,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
           DECORATE.onRequest(span, req, req, parentContext);
           Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
           if (rba != null) {
-            TomcatBlockingHelper.commitBlockingResponse(
-                span.getRequestContext().getTraceSegment(), req, resp, rba);
+            BlockFailureReporter.tryCommitAndReport(span.getRequestContext(), rba);
             ret = false; // skip pipeline
           }
         }

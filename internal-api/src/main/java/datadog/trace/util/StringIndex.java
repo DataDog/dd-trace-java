@@ -74,7 +74,7 @@ public final class StringIndex {
   }
 
   public boolean contains(String name) {
-    return indexOf(name) >= 0;
+    return EmbeddingSupport.indexOf(this.hashes, this.names, name) >= 0;
   }
 
   /** Table size — allocate parallel payload arrays of this length. */
@@ -288,8 +288,8 @@ public final class StringIndex {
      */
     static int put(int[] hashes, String[] names, String name, int h) {
       final int mask = hashes.length - 1;
-      int i = h & mask;
-      for (int probes = 0; probes <= mask; probes++, i = (i + 1) & mask) {
+      for (int probes = 0; probes <= mask; probes++) {
+        int i = (h + probes) & mask;
         if (hashes[i] == 0) {
           hashes[i] = h;
           names[i] = name;
@@ -313,8 +313,8 @@ public final class StringIndex {
      */
     public static int indexOf(int[] hashes, String[] names, String name, int h) {
       final int mask = hashes.length - 1;
-      int i = h & mask;
-      for (int probes = 0; probes <= mask; probes++, i = (i + 1) & mask) {
+      for (int probes = 0; probes <= mask; probes++) {
+        int i = (h + probes) & mask;
         int sh = hashes[i];
         if (sh == 0) {
           return -1;
@@ -332,6 +332,15 @@ public final class StringIndex {
      */
     public static int indexOf(int[] hashes, String[] names, String name) {
       return indexOf(hashes, names, name, hash(name));
+    }
+
+    /**
+     * Mirrors {@link StringIndex#contains}.
+     *
+     * @return {@code true} when {@code name} is present in the index
+     */
+    public static boolean contains(int[] hashes, String[] names, String name) {
+      return indexOf(hashes, names, name) >= 0;
     }
 
     /** Number of slots — the length to size parallel payload arrays to. */

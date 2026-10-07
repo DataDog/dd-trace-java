@@ -15,14 +15,14 @@ jobs:
     steps:
       - name: Get token for apm-sdks-benchmarks
         id: benchmarks-token
-        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
         with:
           scope: DataDog/apm-sdks-benchmarks
           policy: dd-trace-java.update-apm-sdks-benchmarks-reference.read
 
       - name: Get token for dd-trace-java
         id: dd-trace-java-token
-        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
         with:
           scope: DataDog/dd-trace-java
           policy: self.update-apm-sdks-benchmarks-reference.create-pr
@@ -73,7 +73,7 @@ jobs:
 
       - name: Push changes
         if: steps.check-changes.outputs.has_changes == 'true'
-        uses: DataDog/commit-headless@2801f6e08acb3a69b6c4d7b0d5deef27c1a15bc7 # action/v3.3.1
+        uses: DataDog/commit-headless@79367f840e221d63cb28a359de97833cdfde81dd # action/v3.4.0
         with:
           token: "${{ steps.dd-trace-java-token.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"

@@ -760,8 +760,9 @@ public enum JDBCConnectionUrlParser {
 
       if (portLoc > 0) {
         hostEndLoc = portLoc;
+        final int portEndLoc = dbLoc > 0 ? dbLoc : (paramLoc > 0 ? paramLoc : details.length());
         try {
-          builder.port(Integer.parseInt(details.substring(portLoc + 1, dbLoc)));
+          builder.port(Integer.parseInt(details.substring(portLoc + 1, portEndLoc)));
         } catch (final NumberFormatException ignored) {
         }
       } else if (dbLoc > 0) {

@@ -233,6 +233,41 @@ static final TestAgentBackend agent = AgentBackend.testAgentBuilder().retainAcro
 static final SmokeServerApp sender = /* ... */;
 ```
 
+## Container images
+
+For application containers or dependencies such as RabbitMQ, apply
+`dd-trace-java.testcontainers` and declare the image in the smoke-test module:
+
+```kotlin
+import datadog.buildlogic.testcontainers.image
+
+plugins {
+  id("dd-trace-java.module.smoke-test")
+  id("dd-trace-java.testcontainers")
+}
+
+dependencies {
+  testImplementation("org.testcontainers:rabbitmq:${libs.versions.testcontainers.get()}")
+  testImplementation("org.testcontainers:junit-jupiter:${libs.versions.testcontainers.get()}")
+  testContainerImage(image("rabbitmq:3.12-management-alpine", "test.rabbitmq.image"))
+}
+```
+
+Read the property when creating the container. Annotate the test class with
+`@Testcontainers` so its `@Container` fields are started and stopped automatically:
+
+```java
+@Container
+private static final RabbitMQContainer RABBIT_MQ_CONTAINER =
+    new RabbitMQContainer(
+        DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
+            .asCompatibleSubstituteFor("rabbitmq"));
+```
+
+With this plugin Gradle can now fingerprint the resolved image digest and passes 
+the immutable image to the test. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
+for inheritance and shared configuration examples.
+
 ## Choosing a backend
 
 The backend is the agent stand-in the app reports to.
@@ -316,6 +351,32 @@ Build spans with `span()`, then chain any of:
 | `tag(name, String \| Matcher<String>)`                       | A `meta` tag                                            |
 | `metric(name, Matcher<Number>)`                              | A `metrics` entry                                       |
 | `metaStruct(name, Matcher<?>)`                               | A meta-struct entry                                     |
+| `links(SpanLinkMatcher...)`                                  | Span links, positional and count-exact                  |
+
+### Span link matchers
+
+Build link matchers with `SpanLinkMatcher`, one per expected link.
+Calling `links()` with no argument asserts the span carries no link; not calling it asserts nothing about links.
+
+| Method                                           | Matches                                                   |
+|--------------------------------------------------|-----------------------------------------------------------|
+| `to(DDTraceId traceId, long spanId)`             | A link to those identifiers, for a span outside the trace |
+| `toIndex(int spanIndex)`                         | A link to the span at that position in the same trace     |
+| `any()`                                          | Any link, e.g. to assert a count                          |
+| `traceFlags(byte \| Matcher<Byte>)`              | W3C trace flags, `0` by default                           |
+| `traceState(String \| Matcher<String>)`          | W3C trace state, empty by default                         |
+| `attributes(Map \| Matcher<Map<String,String>>)` | Link attributes, empty by default                         |
+
+```java
+app.traces()
+    .waitForTraces(
+        trace(
+            SORT_BY_RESOURCE_NAME,
+            span().root().resourceName("batch-job"),
+            span().resourceName("batch-merge").childOfIndex(0).links(toIndex(2), toIndex(3)),
+            span().resourceName("shard-0").childOfIndex(0),
+            span().resourceName("shard-1").childOfIndex(0)));
+```
 
 ### Matching options
 

@@ -5,6 +5,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.config.TestSourceData
 import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
+import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageStore
@@ -24,6 +25,7 @@ class ProxyTestModuleTest extends DDSpecification {
   def "test total retries limit is applied across test cases"() {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
+    executionSettings.getDynamicAutoTestRetrySettings() >> DynamicAutoTestRetrySettings.DEFAULT
     executionSettings.isFlakyTestRetriesEnabled() >> true
 
     def config = Stub(Config)

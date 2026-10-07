@@ -1,20 +1,24 @@
 pluginManagement {
   repositories {
     mavenLocal()
-    if (settings.extra.has("gradlePluginProxy")) {
+    providers.gradleProperty("gradlePluginProxy").orNull?.let { proxy ->
       maven {
-        url = uri(settings.extra["gradlePluginProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
-    if (settings.extra.has("mavenRepositoryProxy")) {
+    val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
+    mavenRepositoryProxy?.let { proxy ->
       maven {
-        url = uri(settings.extra["mavenRepositoryProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
-    mavenCentral()
+    // TODO: temporary fix for Maven Central rate limiting
+    if (mavenRepositoryProxy == null) {
+      mavenCentral()
+    }
   }
 }
 
@@ -26,14 +30,18 @@ dependencyResolutionManagement {
   }
   repositories {
     mavenLocal()
-    if (settings.extra.has("mavenRepositoryProxy")) {
+    val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
+    mavenRepositoryProxy?.let { proxy ->
       maven {
-        url = uri(settings.extra["mavenRepositoryProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
-    mavenCentral()
+    // TODO: temporary fix for Maven Central rate limiting
+    if (mavenRepositoryProxy == null) {
+      mavenCentral()
+    }
     // Hosts gradle-tooling-api; used by the smoke-test plugin to run nested Gradle builds
     // pinned to older Gradle versions.
     maven {
@@ -49,3 +57,4 @@ rootProject.name = "build-logic"
 
 include(":conventions")
 include(":smoke-test")
+include(":testcontainers")

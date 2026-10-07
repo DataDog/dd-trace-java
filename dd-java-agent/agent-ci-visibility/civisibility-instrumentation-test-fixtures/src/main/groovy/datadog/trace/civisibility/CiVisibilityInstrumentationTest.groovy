@@ -81,6 +81,14 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     Files.deleteIfExists(AGENT_KEY_FILE)
   }
 
+  protected boolean flakyRetryOnlyKnownFlakes() {
+    true
+  }
+
+  protected String testOrder() {
+    CIConstants.FAIL_FAST_TEST_ORDER
+  }
+
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -92,10 +100,14 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, flakyRetryOnlyKnownFlakes().toString())
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)
+    def testOrder = testOrder()
+    if (testOrder != null) {
+      injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, testOrder)
+    }
   }
 
   @SuppressWarnings('UnusedPrivateField')
@@ -238,6 +250,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       false,
       settings.failedTestReplayEnabled,
       earlyFlakinessDetectionSettings,
+      DynamicAutoTestRetrySettings.DEFAULT,
       testManagementSettings,
       settings.itrEnabled ? "itrCorrelationId" : null,
       skippableTestsWithMetadata,
