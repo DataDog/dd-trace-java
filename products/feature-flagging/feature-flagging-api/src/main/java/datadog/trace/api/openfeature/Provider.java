@@ -105,7 +105,7 @@ public class Provider extends EventProvider implements Metadata {
       hooks.add(spanEnrichmentHook);
     }
     try {
-      hooks.add(ExposureLoggingHook.INSTANCE);
+      hooks.add(buildExposureLoggingHook());
     } catch (LinkageError e) {
       log.warn("Feature flag exposure reporting is unavailable with the installed agent", e);
     }
@@ -233,6 +233,10 @@ public class Provider extends EventProvider implements Metadata {
 
   Hook buildFlagEvalLoggingHook() {
     return FlagEvalLoggingHook.INSTANCE;
+  }
+
+  Hook buildExposureLoggingHook() {
+    return ExposureLoggingHook.INSTANCE;
   }
 
   @Override
