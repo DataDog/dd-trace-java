@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.trace.api.iast.util.PropagationUtils;
+import datadog.trace.util.AdaptiveLatch;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -10,6 +11,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,12 +148,54 @@ public class URIUtils {
    * {@code ]} in the path, a {@code %} that is not followed by two hex digits, and a second {@code
    * #}. Well-formed URLs are converted exactly as {@code url.toURI()} would, with no extra
    * allocation. Other problems, such as an invalid scheme, still throw {@link URISyntaxException}.
+   *
+   * <p>Bad URLs tend to come from the same application code again and again, so the repair runs
+   * only while they are arriving (see {@link ToURI}); otherwise this is just {@code url.toURI()}.
    */
   public static URI toURI(final URL url) throws URISyntaxException {
-    return new URI(escapeIllegalURIChars(url.toString()));
+    final URI uri = TO_URI.tryApply(url);
+    // null only when the repair could not help: let URI report why
+    return uri != null ? uri : url.toURI();
   }
 
-  /** Percent-encodes the characters {@link URI} rejects; returns the same string if none. */
+  private static final ToURI TO_URI = new ToURI();
+
+  /**
+   * Chooses between {@code url.toURI()} and the repairing conversion: strict while URLs are
+   * well-formed, so they skip the scan; repairing once a bad one arrives, until {@link
+   * #CLOSE_AFTER} well-formed ones in a row.
+   */
+  static final class ToURI extends AdaptiveLatch<URL, URI, URISyntaxException> {
+    /**
+     * The rent-or-buy break-even (see {@link AdaptiveLatch}): a thrown and caught {@link
+     * URISyntaxException} under an HTTP client's stack, against one extra scan of a well-formed
+     * URL. An estimate, not yet measured.
+     */
+    static final int CLOSE_AFTER = 64;
+
+    ToURI() {
+      super(URISyntaxException.class, CLOSE_AFTER);
+    }
+
+    @Override
+    protected URI apply(final URL url) throws URISyntaxException {
+      return url.toURI();
+    }
+
+    @Override
+    protected URI applySafely(final URL url) {
+      final String s = url.toString();
+      final String escaped = escapeIllegalURIChars(s);
+      try {
+        return escaped == null ? new URI(s) : repaired(new URI(escaped));
+      } catch (URISyntaxException e) {
+        return reject(url);
+      }
+    }
+  }
+
+  /** Percent-encodes the characters {@link URI} rejects; returns {@code null} if there are none. */
+  @Nullable
   private static String escapeIllegalURIChars(final String s) {
     final int length = s.length();
     final int pathStart = pathStart(s);
@@ -188,7 +232,7 @@ public class URIUtils {
         escaped.append(c);
       }
     }
-    return escaped == null ? s : escaped.toString();
+    return escaped == null ? null : escaped.toString();
   }
 
   /** Index where the path starts: after the authority of {@code scheme://authority}, or 0. */

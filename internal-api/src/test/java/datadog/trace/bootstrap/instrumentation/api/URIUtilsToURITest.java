@@ -1,7 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -65,5 +68,48 @@ class URIUtilsToURITest {
     URL url = new URL("http", "[::1", -1, "/x");
 
     assertThrows(URISyntaxException.class, () -> URIUtils.toURI(url));
+  }
+
+  @Test
+  void wellFormedUrlsTakeTheStrictPath() throws Exception {
+    URIUtils.ToURI latch = new URIUtils.ToURI();
+
+    assertEquals(
+        "http://example.com/a", latch.tryApply(new URL("http://example.com/a")).toString());
+    assertFalse(latch.isEngaged());
+  }
+
+  @Test
+  void aBadUrlEngagesTheRepairAndRepairsKeepItEngaged() throws Exception {
+    URIUtils.ToURI latch = new URIUtils.ToURI();
+
+    assertEquals(
+        "http://example.com/a%20b", latch.tryApply(new URL("http://example.com/a b")).toString());
+    assertTrue(latch.isEngaged());
+
+    for (int i = 0; i < URIUtils.ToURI.CLOSE_AFTER; i++) {
+      latch.tryApply(new URL("http://example.com/c d"));
+    }
+    assertTrue(latch.isEngaged(), "repaired URLs restart the count");
+  }
+
+  @Test
+  void wellFormedUrlsDisengageTheRepair() throws Exception {
+    URIUtils.ToURI latch = new URIUtils.ToURI();
+    latch.tryApply(new URL("http://example.com/a b"));
+
+    for (int i = 0; i < URIUtils.ToURI.CLOSE_AFTER; i++) {
+      assertEquals(
+          "http://example.com/ok", latch.tryApply(new URL("http://example.com/ok")).toString());
+    }
+    assertFalse(latch.isEngaged());
+  }
+
+  @Test
+  void anUnrepairableUrlYieldsNullFromTheLatch() throws Exception {
+    URIUtils.ToURI latch = new URIUtils.ToURI();
+
+    assertNull(latch.tryApply(new URL("http", "[::1", -1, "/x")));
+    assertTrue(latch.isEngaged());
   }
 }
