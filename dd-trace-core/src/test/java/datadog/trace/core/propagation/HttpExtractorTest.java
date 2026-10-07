@@ -136,7 +136,9 @@ class HttpExtractorTest extends DDJavaSpecification {
     "TRACECONTEXT only with traceState p            | [TRACECONTEXT]                   |                |               |           |          | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' |                   ",
     "B3MULTI,TRACECONTEXT with traceState p         | [B3MULTI, TRACECONTEXT]          |                |               | '1'       | '2'      | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'   ",
     "B3MULTI,DATADOG,TRACECONTEXT no traceState     | [B3MULTI, DATADOG, TRACECONTEXT] | '1'            | '2'           | '1'       | '4'      |                          | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'",
-    "DATADOG,TRACECONTEXT no p traceState           | [DATADOG, TRACECONTEXT]          | '1'            | '2'           |           |          | 'W3C_TRACE_STATE_NO_P'   | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'"
+    "DATADOG,TRACECONTEXT no p traceState           | [DATADOG, TRACECONTEXT]          | '1'            | '2'           |           |          | 'W3C_TRACE_STATE_NO_P'   | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'",
+    "DATADOG,TRACECONTEXT malformed span id         | [DATADOG, TRACECONTEXT]          | '1'            | 'abc'         |           |          | 'W3C_TRACE_STATE_NO_P'   | '1'             | 'W3C_SPAN_ID_LSTR' |                   ",
+    "DATADOG,TRACECONTEXT signed span id            | [DATADOG, TRACECONTEXT]          | '1'            | '+2'          |           |          | 'W3C_TRACE_STATE_NO_P'   | '1'             | 'W3C_SPAN_ID_LSTR' |                   "
   })
   void checkW3CTraceContextOverride(
       List<TracePropagationStyle> styles,
