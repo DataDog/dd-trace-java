@@ -30,8 +30,8 @@ import org.eclipse.jetty.websocket.server.WebSocketUpgradeHandler;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverterSources;
 
-@TypeConverterSources(JettyEndpoints.class)
-class JettyWebSocketHandshakeTest extends AbstractInstrumentationTest {
+@TypeConverterSources(NativeEndpoints.class)
+class NativeWebSocketHandshakeTest extends AbstractInstrumentationTest {
   @TableTest({
     "scenario        | endpoint  | messageType",
     "listener text   | full      | text       ",
@@ -40,7 +40,7 @@ class JettyWebSocketHandshakeTest extends AbstractInstrumentationTest {
     "boxed binary    | boxedFull | binary     "
   })
   void messagesLinkToHandshakesInBothDirections(
-      JettyEndpoints.EndpointEvents endpoint, String messageType) throws Exception {
+      NativeEndpoints.EndpointEvents endpoint, String messageType) throws Exception {
     endpoint.echoMessages = true;
     Server server = new Server(0);
     WebSocketClient client = new WebSocketClient();

@@ -49,7 +49,7 @@ import org.eclipse.jetty.websocket.server.internal.ServerFrameHandlerFactory;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-class JettyWebSocketSendTest extends AbstractInstrumentationTest {
+class NativeWebSocketSendTest extends AbstractInstrumentationTest {
   @TableTest({
     "scenario       | binary | partial | synchronous",
     "text async     | false  | false   | false      ",

@@ -9,6 +9,7 @@ muzzle {
     module = 'jetty-websocket-jetty-server'
     versions = "[12,12.1)"
     javaVersion = "17"
+    assertInverse = true
   }
   pass {
     name = 'jetty-websocket-12ee8'

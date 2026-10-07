@@ -66,8 +66,8 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverterSources;
 
-@TypeConverterSources(JettyEndpoints.class)
-public class JettyWebSocketTest extends AbstractInstrumentationTest {
+@TypeConverterSources(NativeEndpoints.class)
+public class NativeWebSocketTest extends AbstractInstrumentationTest {
   private static final String URL = "ws://inmemory/test/param";
 
   @TableTest({
@@ -87,7 +87,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     try {
       WebSocketComponents components =
           new WebSocketComponents(null, null, null, null, null, executor);
-      JettyEndpoints.StreamingEndpoint endpoint = new JettyEndpoints.StreamingEndpoint();
+      NativeEndpoints.StreamingEndpoint endpoint = new NativeEndpoints.StreamingEndpoint();
       endpoint.failMessages = fail;
       JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
       openFrameHandler(frameHandler, Behavior.SERVER, true, components);
@@ -135,7 +135,8 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "boxed partial text   | boxedPartial | text   ",
     "boxed partial binary | boxedPartial | binary "
   })
-  void nativeJettyAdvices(JettyEndpoints.EndpointEvents endpoint, String msgType) throws Exception {
+  void nativeJettyAdvices(NativeEndpoints.EndpointEvents endpoint, String msgType)
+      throws Exception {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     Callback.Completable messageCallback = new Callback.Completable();
     Callback.Completable closeCallback = new Callback.Completable();
@@ -169,7 +170,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "boxed partial text   | boxedPartial | text   ",
     "boxed partial binary | boxedPartial | binary "
   })
-  void fragmentedMessagesShareSpan(JettyEndpoints.EndpointEvents endpoint, String msgType)
+  void fragmentedMessagesShareSpan(NativeEndpoints.EndpointEvents endpoint, String msgType)
       throws Exception {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -204,7 +205,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "POJO close   | pojoFull |         | true  | websocket.close  "
   })
   void handlerFailureMarksSpanAndClosesScope(
-      JettyEndpoints.EndpointEvents endpoint, String msgType, boolean last, String operation)
+      NativeEndpoints.EndpointEvents endpoint, String msgType, boolean last, String operation)
       throws Exception {
     endpoint.failClose = msgType == null;
     endpoint.failMessages = msgType != null;
@@ -240,7 +241,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "traced client   | CLIENT   | true  "
   })
   void doesNotTraceNativeMessages(Behavior behavior, boolean traced) throws Exception {
-    JettyEndpoints.FullListener endpoint = new JettyEndpoints.FullListener();
+    NativeEndpoints.FullListener endpoint = new NativeEndpoints.FullListener();
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
 
     openFrameHandler(frameHandler, behavior, traced);
@@ -266,7 +267,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "POJO full             | pojoFull    | true ",
     "POJO partial nonfinal | pojoPartial | false"
   })
-  void binaryCallbackFailureMarksReceiveSpan(JettyEndpoints.EndpointEvents endpoint, boolean last)
+  void binaryCallbackFailureMarksReceiveSpan(NativeEndpoints.EndpointEvents endpoint, boolean last)
       throws Exception {
     endpoint.failCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
@@ -290,7 +291,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "failure  | true "
   })
   void deferredBinaryCallbackCompletesReceiveSpan(boolean fail) throws Exception {
-    JettyEndpoints.FullListener endpoint = new JettyEndpoints.FullListener();
+    NativeEndpoints.FullListener endpoint = new NativeEndpoints.FullListener();
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     Callback.Completable callback = new Callback.Completable();
@@ -334,7 +335,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "POJO partial reverse | pojoPartial | true   "
   })
   void pendingBinaryMessagesHaveIndependentSpans(
-      JettyEndpoints.EndpointEvents endpoint, boolean reverse) throws Exception {
+      NativeEndpoints.EndpointEvents endpoint, boolean reverse) throws Exception {
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -384,7 +385,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "failure  | true "
   })
   void partialBinaryMessageWaitsForEarlierFragmentCallbacks(boolean fail) throws Exception {
-    JettyEndpoints.PartialListener endpoint = new JettyEndpoints.PartialListener();
+    NativeEndpoints.PartialListener endpoint = new NativeEndpoints.PartialListener();
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -421,7 +422,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
 
   @Test
   void handlerFailureAfterCallbackSuccessStillMarksReceiveSpan() throws Exception {
-    JettyEndpoints.FullListener endpoint = new JettyEndpoints.FullListener();
+    NativeEndpoints.FullListener endpoint = new NativeEndpoints.FullListener();
     endpoint.failAfterCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -447,8 +448,10 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
   })
   void terminationFinishesFragmentedReceiveSpan(
       String msgType, boolean closeFrame, boolean closeHandler) throws Exception {
-    JettyEndpoints.EndpointEvents endpoint =
-        closeHandler ? new JettyEndpoints.PartialListener() : new JettyEndpoints.NoCloseEndpoint();
+    NativeEndpoints.EndpointEvents endpoint =
+        closeHandler
+            ? new NativeEndpoints.PartialListener()
+            : new NativeEndpoints.NoCloseEndpoint();
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
     deliver(frameHandler, new Frame(opcode(msgType), "hello").setFin(false));
@@ -476,7 +479,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
 
   @Test
   void deferredPartialBinarySuccessKeepsSpanOpenUntilFinalCallback() throws Exception {
-    JettyEndpoints.PartialListener endpoint = new JettyEndpoints.PartialListener();
+    NativeEndpoints.PartialListener endpoint = new NativeEndpoints.PartialListener();
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -515,7 +518,7 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     "partial closed failure            | partial  | false | false      | true "
   })
   void terminationWaitsForPendingBinaryCallbacks(
-      JettyEndpoints.EndpointEvents endpoint, boolean last, boolean closeFrame, boolean fail)
+      NativeEndpoints.EndpointEvents endpoint, boolean last, boolean closeFrame, boolean fail)
       throws Exception {
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);

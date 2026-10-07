@@ -18,7 +18,7 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.tabletest.junit.TypeConverter;
 
-public class JettyEndpoints {
+public class NativeEndpoints {
   @TypeConverter
   public static EndpointEvents endpoint(String name) {
     switch (name) {

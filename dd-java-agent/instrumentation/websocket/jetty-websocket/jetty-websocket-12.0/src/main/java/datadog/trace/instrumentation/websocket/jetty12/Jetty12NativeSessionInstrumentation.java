@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.common.WebSocketSession;
 
-public class NativeSessionInstrumentation
+public class Jetty12NativeSessionInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
