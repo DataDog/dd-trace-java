@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
-import static datadog.trace.util.Numbers.parseNonNegativeInt;
+import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
 import static java.lang.Math.max;
 
 import datadog.trace.api.Pair;
