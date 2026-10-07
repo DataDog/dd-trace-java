@@ -132,21 +132,21 @@ public final class ContinuationRecord {
   }
 
   /** Derives failures, including events after {@code rootWrittenNanos} when provided. */
-  public synchronized EnumSet<Failure> failures(Long rootWrittenNanos) {
-    EnumSet<Failure> failures = EnumSet.noneOf(Failure.class);
+  public synchronized EnumSet<ScopeDiagnosticsCheck> failures(Long rootWrittenNanos) {
+    EnumSet<ScopeDiagnosticsCheck> failures = EnumSet.noneOf(ScopeDiagnosticsCheck.class);
     if (terminal == null) {
-      failures.add(Failure.LEAKED);
+      failures.add(ScopeDiagnosticsCheck.LEAKED);
     }
     if (duplicateTerminalAttempt || !extraTerminals.isEmpty()) {
-      failures.add(Failure.DOUBLE_FINISH);
+      failures.add(ScopeDiagnosticsCheck.DOUBLE_FINISH);
     }
     // Cleanup entry timestamps do not order resolution against concurrent successful resumes.
     if (terminal != null && !failedActivations.isEmpty()) {
-      failures.add(Failure.ACTIVATE_AFTER_RESOLVE);
+      failures.add(ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE);
     }
     if (rootWrittenNanos != null
         && (laterThan(terminal, rootWrittenNanos) || laterThan(resumes, rootWrittenNanos))) {
-      failures.add(Failure.LATE_FINISH);
+      failures.add(ScopeDiagnosticsCheck.LATE_FINISH);
     }
     return failures;
   }

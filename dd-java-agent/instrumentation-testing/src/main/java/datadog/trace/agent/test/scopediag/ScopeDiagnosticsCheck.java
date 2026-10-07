@@ -1,7 +1,10 @@
 package datadog.trace.agent.test.scopediag;
 
-/** A derived scope or continuation lifecycle finding. */
-public enum Failure {
+/**
+ * A scope or continuation lifecycle condition evaluated by the test diagnostic. Enforcement or
+ * advisory treatment is defined independently by the diagnostic policy.
+ */
+public enum ScopeDiagnosticsCheck {
   /** Continuation captured but never resolved within the window. */
   LEAKED,
   /** Continuation resolved/resumed after the root span of its trace was already written. */
