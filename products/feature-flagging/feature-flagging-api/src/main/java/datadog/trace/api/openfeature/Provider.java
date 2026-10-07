@@ -87,7 +87,7 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(3);
+    final List<Hook> hooks = new ArrayList<>(4);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
@@ -103,6 +103,11 @@ public class Provider extends EventProvider implements Metadata {
     }
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
+    }
+    try {
+      hooks.add(ExposureLoggingHook.INSTANCE);
+    } catch (LinkageError e) {
+      log.warn("Feature flag exposure reporting is unavailable with the installed agent", e);
     }
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);

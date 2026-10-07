@@ -44,6 +44,9 @@ import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.FlagValueType;
+import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -485,24 +488,48 @@ public class DDEvaluatorTest {
   }
 
   /**
-   * Evaluates a logging allocation whose split carries the given serial id and returns the single
-   * dispatched exposure. Span enrichment is off here, as it is by default, so this also pins that
-   * the serial id does not travel via the enrichment-gated evaluation metadata.
+   * Evaluates a logging allocation whose split carries the given serial id, then runs the exposure
+   * hook as OpenFeature would after a successful evaluation, and returns the single dispatched
+   * exposure. Span enrichment is off here, as it is by default, so this also pins that the serial
+   * id reaches the hook without span enrichment.
    */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   private static ExposureEvent exposureFor(final Integer serialId) {
+    ExposureDeduplicationCache.INSTANCE.clear();
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.TRUE);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "target",
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", true, null, flags));
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
+
     final List<ExposureEvent> dispatched = new ArrayList<>();
     final FeatureFlaggingGateway.ExposureListener listener = dispatched::add;
     FeatureFlaggingGateway.addExposureListener(listener);
     try {
-      final Map<String, Variant> variations = new HashMap<>();
-      variations.put("on", new Variant("on", 1));
-      final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
-      final Allocation allocation =
-          new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.TRUE);
-      evaluateFlag(
-          new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)), true);
+      final ProviderEvaluation<Integer> evaluation =
+          evaluator.evaluate(Integer.class, "target", 23, ctx);
+      assertTrue(dispatched.isEmpty(), "resolving a flag must not send an exposure by itself");
+      final HookContext<Object> hookContext =
+          HookContext.<Object>builder()
+              .flagKey("target")
+              .type(FlagValueType.INTEGER)
+              .defaultValue(23)
+              .ctx(ctx)
+              .build();
+      ExposureLoggingHook.INSTANCE.finallyAfter(
+          hookContext,
+          (FlagEvaluationDetails) FlagEvaluationDetails.from(evaluation, "target"),
+          emptyMap());
     } finally {
       FeatureFlaggingGateway.removeExposureListener(listener);
+      ExposureDeduplicationCache.INSTANCE.clear();
     }
     assertEquals(1, dispatched.size());
     return dispatched.get(0);
