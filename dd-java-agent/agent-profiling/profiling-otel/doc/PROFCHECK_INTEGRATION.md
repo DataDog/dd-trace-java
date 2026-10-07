@@ -4,7 +4,7 @@ This document analyzes the feasibility of integrating OpenTelemetry's `profcheck
 
 ## What is Profcheck?
 
-**Profcheck** is an OpenTelemetry conformance checker for the OTLP Profiles format, currently in PR review at: https://github.com/open-telemetry/sig-profiling/pull/12
+**Profcheck** is an OpenTelemetry conformance checker for the OTLP Profiles format, maintained in https://github.com/open-telemetry/sig-profiling under `profcheck/`. `docker/Dockerfile.profcheck` builds it from a pinned `main` commit (`SIG_PROFILING_COMMIT`).
 
 ### Key Features
 
@@ -50,8 +50,8 @@ profcheck <protobuf-file>
 4. **Easy to Adopt**
    ```bash
    # Build profcheck
-   cd tools/profcheck
-   go build -o profcheck profcheck.go check.go
+   cd profcheck
+   go build -o profcheck ./cmd/profcheck
 
    # Use with our converter
    ./gradlew convertJfr --args="input.jfr output.pb"
@@ -60,9 +60,9 @@ profcheck <protobuf-file>
 
 ### Cons
 
-1. **Not Yet Merged**
-   - Still in PR review (https://github.com/open-telemetry/sig-profiling/pull/12)
-   - May undergo API changes before merge
+1. **Unstable Upstream**
+   - Tracks the `v1development` OTLP profiles protos, which still change incompatibly
+   - The pinned profcheck commit must match the proto version `OtlpProtoFields` targets
    - Need to track upstream changes
 
 2. **Go Dependency**
@@ -111,7 +111,7 @@ docker run --rm -v $(pwd):/data:ro profcheck:latest /data/output.pb
 - ✅ Easy to integrate into CI/CD
 - ✅ Automatically fetches latest profcheck from PR branch
 
-### Phase 2: CI/CD Integration (After PR Merge)
+### Phase 2: CI/CD Integration
 
 Once profcheck is merged upstream, integrate into CI:
 
@@ -130,13 +130,13 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25'
 
       - name: Install profcheck
         run: |
           git clone https://github.com/open-telemetry/sig-profiling.git
-          cd sig-profiling/tools/profcheck
-          go build -o $HOME/bin/profcheck .
+          cd sig-profiling/profcheck
+          go build -o $HOME/bin/profcheck ./cmd/profcheck
           echo "$HOME/bin" >> $GITHUB_PATH
 
       - name: Generate test profile
@@ -209,9 +209,9 @@ output.pb: conformance checks failed: profile 0: sample[5]:
 
 1. **Manual Testing**: Use profcheck locally to validate converter output
 2. **Document Usage**: Add profcheck instructions to CLI.md
-3. **Track Upstream**: Monitor PR #12 for merge status
+3. **Track Upstream**: Bump `SIG_PROFILING_COMMIT` together with the pinned proto version
 
-### After PR Merge
+### Next Steps
 
 1. **CI Integration**: Add profcheck validation to GitHub Actions
 2. **Test Data**: Create test JFR files with known-good OTLP output

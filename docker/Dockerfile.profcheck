@@ -3,36 +3,35 @@
 #   docker build -f Dockerfile.profcheck -t profcheck .
 #   docker run --rm -v $(pwd):/data profcheck /data/output.pb
 
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Install git
 RUN apk add --no-cache git
 
-# Clone the sig-profiling repo and checkout profcheck branch
+# Clone the sig-profiling repo and checkout a pinned main commit
+ARG SIG_PROFILING_COMMIT=0dd094852c0b8145a3cdc625066d68315336a16b
 WORKDIR /build
 RUN git clone https://github.com/open-telemetry/sig-profiling.git && \
     cd sig-profiling && \
-    git fetch origin pull/12/head:profcheck && \
-    git checkout profcheck
-
-# Fix go.mod to use available Go version (1.24.4 doesn't exist yet)
-WORKDIR /build/sig-profiling/tools/profcheck
-RUN sed -i 's/go 1.24.4/go 1.23/' go.mod && \
-    go mod tidy
+    git checkout ${SIG_PROFILING_COMMIT}
 
 # Build profcheck
-RUN go build -o /profcheck .
+WORKDIR /build/sig-profiling/profcheck
+RUN go build -o /profcheck ./cmd/profcheck
 
 # Create runtime image with protoc for validation
-FROM alpine:latest
+FROM alpine:3.24.1
 
 # Install protoc and required dependencies
 RUN apk add --no-cache protobuf protobuf-dev git
 
-# Clone OTLP proto definitions for protoc validation
+# Clone OTLP proto definitions (v1.10.0) for protoc validation; keep in sync with OtlpProtoFields
+ARG OTLP_PROTO_COMMIT=ca839c51f706f5d53bfb46f06c3e90c3af3a52c6
 WORKDIR /proto
-RUN git clone --depth=1 https://github.com/open-telemetry/opentelemetry-proto.git && \
+RUN git init opentelemetry-proto && \
     cd opentelemetry-proto && \
+    git fetch --depth=1 https://github.com/open-telemetry/opentelemetry-proto.git ${OTLP_PROTO_COMMIT} && \
+    git checkout FETCH_HEAD && \
     # Get the commit hash for reference
     git rev-parse HEAD > /proto/commit-hash.txt
 

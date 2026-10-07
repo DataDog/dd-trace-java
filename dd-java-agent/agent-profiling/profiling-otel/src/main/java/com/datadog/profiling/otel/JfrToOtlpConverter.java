@@ -864,17 +864,17 @@ public final class JfrToOtlpConverter {
     // Field 1: stack_index
     encoder.writeVarintField(OtlpProtoFields.Sample.STACK_INDEX, sample.stackIndex);
 
-    // Field 2: values (packed)
-    encoder.writePackedVarintField(OtlpProtoFields.Sample.VALUES, sample.value);
-
-    // Field 3: attribute_indices (packed repeated int32 - proto3 default)
+    // Field 2: attribute_indices (packed repeated int32 - proto3 default)
     if (sample.attributeIndices.length > 0) {
       encoder.writePackedVarintField(
           OtlpProtoFields.Sample.ATTRIBUTE_INDICES, sample.attributeIndices);
     }
 
-    // Field 4: link_index
+    // Field 3: link_index
     encoder.writeVarintField(OtlpProtoFields.Sample.LINK_INDEX, sample.linkIndex);
+
+    // Field 4: values (packed)
+    encoder.writePackedVarintField(OtlpProtoFields.Sample.VALUES, sample.value);
 
     // Field 5: timestamps_unix_nano (packed)
     if (sample.timestampNanos > 0) {
@@ -886,6 +886,13 @@ public final class JfrToOtlpConverter {
   private void encodeDictionary(ProtobufEncoder encoder) {
     // ProfilesDictionary message
     // every table must carry at least its index-0 (null/unset sentinel) entry per the OTLP spec
+
+    // Field 1: mapping_table — locations never reference a mapping, so only the zero-value
+    // entry at index 0 is written
+    encoder.writeTag(
+        OtlpProtoFields.ProfilesDictionary.MAPPING_TABLE,
+        ProtobufEncoder.WIRETYPE_LENGTH_DELIMITED);
+    encoder.writeVarint(0);
 
     // Field 2: location_table
     for (int i = 0; i < locationTable.size(); i++) {
@@ -965,6 +972,9 @@ public final class JfrToOtlpConverter {
   }
 
   private void encodeLink(ProtobufEncoder encoder, int index) {
+    if (index == 0) {
+      return; // the index-0 sentinel must be the zero value (empty trace and span ids)
+    }
     LinkTable.LinkEntry entry = linkTable.get(index);
 
     encoder.writeBytesField(OtlpProtoFields.Link.TRACE_ID, entry.traceId);
@@ -981,6 +991,9 @@ public final class JfrToOtlpConverter {
   }
 
   private void encodeAttribute(ProtobufEncoder encoder, int index) {
+    if (index == 0) {
+      return; // the index-0 sentinel must be the zero value (no key, no value)
+    }
     AttributeTable.AttributeEntry entry = attributeTable.get(index);
 
     // Field 1: key_strindex
@@ -1277,6 +1290,12 @@ public final class JfrToOtlpConverter {
 
     // every table must carry at least its index-0 (null/unset sentinel) entry per the OTLP spec
 
+    // mapping_table array (zero-value entry only, see encodeDictionary)
+    json.name("mapping_table").beginArray();
+    json.beginObject();
+    json.endObject();
+    json.endArray();
+
     // location_table array
     json.name("location_table").beginArray();
     for (int i = 0; i < locationTable.size(); i++) {
@@ -1367,8 +1386,12 @@ public final class JfrToOtlpConverter {
   }
 
   private void encodeLinkJson(JsonWriter json, int index) {
-    LinkTable.LinkEntry entry = linkTable.get(index);
     json.beginObject();
+    if (index == 0) {
+      json.endObject();
+      return;
+    }
+    LinkTable.LinkEntry entry = linkTable.get(index);
 
     // Encode trace_id and span_id as hex strings for readability
     StringBuilder traceIdHex = new StringBuilder(32);
@@ -1387,8 +1410,12 @@ public final class JfrToOtlpConverter {
   }
 
   private void encodeAttributeJson(JsonWriter json, int index) {
-    AttributeTable.AttributeEntry entry = attributeTable.get(index);
     json.beginObject();
+    if (index == 0) {
+      json.endObject();
+      return;
+    }
+    AttributeTable.AttributeEntry entry = attributeTable.get(index);
 
     // key_strindex
     json.name("key_strindex").value(entry.keyIndex);

@@ -1,5 +1,6 @@
 package com.datadog.profiling.otel;
 
+import java.time.Instant;
 import java.util.function.Consumer;
 import org.openjdk.jmc.flightrecorder.writer.api.Recording;
 import org.openjdk.jmc.flightrecorder.writer.api.Type;
@@ -23,9 +24,20 @@ public final class JfrTools {
     recording.writeEvent(
         eventType.asValue(
             valueBuilder -> {
-              valueBuilder.putField("startTime", System.nanoTime());
+              // JMC writer 8.1.0 stores the chunk start epoch nanos as the chunk start ticks (at 1
+              // tick/ns), so event ticks must be epoch nanos to convert to wall-clock time
+              valueBuilder.putField("startTime", epochNanos());
               fieldSetter.accept(valueBuilder);
             }));
+  }
+
+  /**
+   * Current time as epoch nanos, the event tick value matching the chunk start written by JMC
+   * writer 8.1.0.
+   */
+  public static long epochNanos() {
+    Instant now = Instant.now();
+    return now.getEpochSecond() * 1_000_000_000L + now.getNano();
   }
 
   /**
