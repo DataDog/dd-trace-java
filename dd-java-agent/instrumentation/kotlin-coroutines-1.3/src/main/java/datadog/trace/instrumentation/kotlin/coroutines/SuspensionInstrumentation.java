@@ -39,7 +39,10 @@ public class SuspensionInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("getResult").or(named("getOrThrow")).and(takesNoArguments()),
+        named("getResult")
+            .or(named("getResult$kotlinx_coroutines_core"))
+            .or(named("getOrThrow"))
+            .and(takesNoArguments()),
         SuspensionInstrumentation.class.getName() + "$SuspensionAdvice");
     transformer.applyAdvice(
         nameStartsWith("dispatchYield"),

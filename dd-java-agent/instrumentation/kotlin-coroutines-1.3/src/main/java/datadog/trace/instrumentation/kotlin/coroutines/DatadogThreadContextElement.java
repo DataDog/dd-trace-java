@@ -29,11 +29,11 @@ public final class DatadogThreadContextElement
     return coroutineContext.plus(new DatadogThreadContextElement());
   }
 
-  private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, Context> CONTEXT =
+  private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, Exchange> EXCHANGE =
       AtomicReferenceFieldUpdater.newUpdater(
-          DatadogThreadContextElement.class, Context.class, "context");
+          DatadogThreadContextElement.class, Exchange.class, "exchange");
 
-  private volatile Context context;
+  private volatile Exchange exchange;
   private volatile ContextContinuation continuation;
 
   @Nonnull
@@ -44,11 +44,12 @@ public final class DatadogThreadContextElement
 
   public static void captureDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
-    if (datadog != null && datadog.context == null) {
+    if (datadog != null && datadog.exchange == null) {
       // record context to use for this coroutine
-      datadog.context = Context.current();
+      Context captured = Context.current();
+      datadog.exchange = new Exchange(captured);
       // stop enclosing trace from finishing early
-      datadog.continuation = datadog.context.capture();
+      datadog.continuation = captured.capture();
     }
   }
 
@@ -64,42 +65,70 @@ public final class DatadogThreadContextElement
 
   @Override
   public Exchange updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
-    if (context == null) {
-      // record context to use for this coroutine
-      context = Context.current();
-      // stop enclosing trace from finishing early
-      continuation = context.capture();
+    if (exchange == null) {
+      Context captured = Context.current();
+      continuation = captured.capture();
+      exchange = new Exchange(captured);
     }
-    Context resumed = context;
-    return new Exchange(resumed.swap(), resumed);
+    Exchange current = new Exchange(Thread.currentThread(), exchange.context);
+    Exchange previous = EXCHANGE.getAndSet(this, current);
+    // Read the actual predecessor after claiming ownership, including any completed restoration.
+    current.context = previous.context;
+    if (previous.thread == current.thread && previous.active) {
+      current.parent = previous;
+    }
+    current.active = true;
+    current.originalContext = current.context.swap();
+    return current;
   }
 
   @Override
-  public void restoreThreadContext(@Nonnull CoroutineContext coroutineContext, Exchange exchange) {
-    Context suspended = exchange.originalContext.swap();
-    // An early suspension snapshot or a newer restore takes precedence over this worker.
-    CONTEXT.compareAndSet(this, exchange.resumedContext, suspended);
+  public void restoreThreadContext(@Nonnull CoroutineContext coroutineContext, Exchange restored) {
+    restored.active = false;
+    Context original = restored.originalContext;
+    restored.originalContext = null;
+    restored.context = original.swap();
+    Exchange parent = restored.parent;
+    restored.parent = null;
+    if (parent != null) {
+      parent.context = restored.context;
+      // Unwind same-thread nesting only if a newer worker has not taken ownership.
+      EXCHANGE.compareAndSet(this, restored, parent);
+    }
   }
 
   /** Publishes scope changes before suspension can resume the coroutine on another worker. */
   public static void beforeSuspension(Continuation<?> continuation) {
     DatadogThreadContextElement element = continuation.getContext().get(DATADOG_KEY);
-    if (element != null) {
+    if (element == null) {
+      return;
+    }
+    Exchange current = element.exchange;
+    if (current != null && current.thread == Thread.currentThread() && current.active) {
       // A swap captures the complete scope stack; Context.current() only exposes the active
       // context.
       Context currentStack = Context.root().swap();
       currentStack.swap();
-      element.context = currentStack;
+      current.context = currentStack;
     }
   }
 
   static final class Exchange {
-    final Context originalContext;
-    final Context resumedContext;
+    final Thread thread;
+    volatile Context context;
+    // The activating thread owns the remaining fields.
+    Context originalContext;
+    Exchange parent;
+    boolean active;
 
-    Exchange(Context originalContext, Context resumedContext) {
-      this.originalContext = originalContext;
-      this.resumedContext = resumedContext;
+    Exchange(Context context) {
+      this.thread = null;
+      this.context = context;
+    }
+
+    Exchange(Thread thread, Context context) {
+      this.thread = thread;
+      this.context = context;
     }
   }
 

@@ -3,9 +3,25 @@ package datadog.trace.instrumentation.kotlin.coroutines
 import datadog.trace.agent.test.InstrumentationSpecification
 
 abstract class AbstractStandardSuspensionHandoffTest extends InstrumentationSpecification {
-  def "standard #kind suspension preserves manual scope with cancellation #cancelled"() {
+  def "manual scope survives child completion after nested withContext"() {
+    when:
+    new StandardSuspensionHandoffTests().runNestedContextChange()
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "dispatcher switch publishes manual scope before source restoration"() {
+    when:
+    new StandardSuspensionHandoffTests().runDispatcherChange()
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "standard #kind suspension preserves manual scope with cancellation #cancelled and nesting #nested"() {
     setup:
-    new StandardSuspensionHandoffTests().run(kind, cancelled, {
+    new StandardSuspensionHandoffTests().run(kind, cancelled, nested, {
       assert TEST_WRITER.empty : "The finished trace must remain held until coroutine completion"
     } as Runnable)
     TEST_WRITER.waitForTraces(1)
@@ -19,12 +35,13 @@ abstract class AbstractStandardSuspensionHandoffTest extends InstrumentationSpec
     cancelled || spans.child.parentId == spans.manual.spanId
 
     where:
-    kind          | cancelled
-    'cancellable' | false
-    'cancellable' | true
-    'safe'        | false
-    'yield'       | false
-    'delay'       | false
-    'select'      | false
+    kind          | cancelled | nested
+    'cancellable' | false     | false
+    'cancellable' | true      | false
+    'safe'        | false     | false
+    'yield'       | false     | false
+    'delay'       | false     | false
+    'select'      | false     | false
+    'cancellable' | false     | true
   }
 }
