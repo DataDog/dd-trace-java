@@ -3553,7 +3553,9 @@ public class Config {
    * my/package/,my/other/package/})
    */
   public static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
+    // An empty entry, such as the propagated value of an empty include list, matches nothing.
     return packages.stream()
+        .filter(s -> !s.isEmpty())
         .map(s -> (s.endsWith("*") ? s.substring(0, s.length() - 1) : s).replace('.', '/'))
         .toArray(String[]::new);
   }

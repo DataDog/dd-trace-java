@@ -5,6 +5,7 @@ import static datadog.trace.civisibility.utils.FileUtils.findParentPathBackwards
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -19,7 +20,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>However, we would like to provide git information if the user is using git, so we infer the
  * workspace path leveraging the `.git` folder, which is usually kept in the root path of the
- * repository.
+ * repository. In linked worktrees and submodules, `.git` is a file pointing to the git directory.
  *
  * <p>The workspace path will be used in the CIProviderInfo constructor to access the `.git` folder
  * and calculate the git information properly.
@@ -47,7 +48,11 @@ class UnknownCIInfo implements CIProviderInfo {
 
   @Override
   public CIInfo buildCIInfo() {
-    Path workspace = findParentPathBackwards(getCurrentPath(), getTargetFolder(), true);
+    Path workspace =
+        findParentPathBackwards(
+            getCurrentPath(),
+            getTargetFolder(),
+            git -> Files.isDirectory(git) || Files.isRegularFile(git));
     if (workspace == null) {
       return CIInfo.NOOP;
     }

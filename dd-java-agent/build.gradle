@@ -699,5 +699,5 @@ tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
 }
 
 tasks.named('check') {
-  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations'
+  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations', ':dd-java-agent:observer:test'
 }

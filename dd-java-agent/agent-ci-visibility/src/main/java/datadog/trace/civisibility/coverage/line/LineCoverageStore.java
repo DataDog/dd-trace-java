@@ -255,7 +255,11 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     public Factory(CiVisibilityMetricCollector metrics, SourcePathResolver sourcePathResolver) {
       this.metrics = metrics;
       this.sourcePathResolver = sourcePathResolver;
+      // Recording must not load classes: a covered defineClass hook would record again and recurse.
+      loadRecordingClasses(LineCoverageStore.class, LineProbes.class, ExecutionDataAdapter.class);
     }
+
+    private static void loadRecordingClasses(Class<?>... classes) {}
 
     @Override
     public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
