@@ -460,6 +460,24 @@ class JakartaHttpServletRequestInstrumentationTest extends InstrumentationSpecif
     suite << testSuite()
   }
 
+  void 'getSession tolerates a null servlet context'() {
+    setup:
+    final module = Mock(ApplicationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final session = Mock(HttpSession)
+    final delegate = Mock(HttpServletRequest)
+    final request = new CustomRequest(request: delegate)
+
+    when:
+    final result = request.getSession()
+
+    then:
+    result.is(session)
+    1 * delegate.getSession() >> session
+    1 * delegate.getServletContext() >> null
+    0 * module._
+  }
+
   protected <E> E runUnderIastTrace(Closure<E> cl) {
     final ddctx = new TagContext().withRequestContextDataIast(iastCtx)
     final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)

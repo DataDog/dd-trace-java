@@ -199,10 +199,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   /** Maintains dynamic configuration associated with the tracer */
   private final DynamicConfig<ConfigSnapshot> dynamicConfig;
 
-  /** A set of tags that are added only to the application's root span */
-  private final TagMap localRootSpanTags;
+  /**
+   * Tags added only to the application's root span, paired with whether they need interception;
+   * replaced as one immutable holder so a concurrent root span creation never sees a torn read.
+   */
+  private static final class LocalRootSpanTags {
+    final TagMap tags;
+    final boolean needsIntercept;
 
-  private final boolean localRootSpanTagsNeedIntercept;
+    LocalRootSpanTags(final TagMap tags, final boolean needsIntercept) {
+      this.tags = tags;
+      this.needsIntercept = needsIntercept;
+    }
+  }
+
+  private volatile LocalRootSpanTags localRootSpanTags;
 
   /**
    * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
@@ -930,16 +941,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.injectLinksAsTags = injectLinksAsTags;
     this.flushOnClose = flushOnClose;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
+    final TagMap frozenLocalRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
+    this.localRootSpanTags =
+        new LocalRootSpanTags(
+            frozenLocalRootSpanTags, this.tagInterceptor.needsIntercept(frozenLocalRootSpanTags));
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
-      TagMap tmp = TagMap.fromMap(localRootSpanTags);
-      tmp.set(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
-      this.localRootSpanTags = tmp.freeze();
-    } else {
-      this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
+      // Deferred integrations run this later (or never, if construction fails).
+      profilingContextIntegration.whenAvailable(this::stampProfilingContextEngine);
     }
-
-    this.localRootSpanTagsNeedIntercept =
-        this.tagInterceptor.needsIntercept(this.localRootSpanTags);
     if (serviceDiscoveryFactory != null) {
       AgentTaskScheduler.get()
           .schedule(
@@ -955,6 +964,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               1,
               SECONDS);
     }
+  }
+
+  /**
+   * Adds the profiling context engine tag to {@link #localRootSpanTags}; runs at most once per
+   * tracer.
+   */
+  private void stampProfilingContextEngine() {
+    TagMap tags = TagMap.fromMap(this.localRootSpanTags.tags);
+    tags.set(PROFILING_CONTEXT_ENGINE, this.profilingContextIntegration.name());
+    TagMap frozenTags = tags.freeze();
+    this.localRootSpanTags =
+        new LocalRootSpanTags(frozenTags, this.tagInterceptor.needsIntercept(frozenTags));
   }
 
   private void startMetricsAggregation(Config config, SharedCommunicationObjects sco) {
@@ -2211,8 +2232,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           ciVisibilityContextData = null;
         }
 
-        rootSpanTags = tracer.localRootSpanTags;
-        rootSpanTagsNeedsIntercept = tracer.localRootSpanTagsNeedIntercept;
+        LocalRootSpanTags localRootSpanTags = tracer.localRootSpanTags;
+        rootSpanTags = localRootSpanTags.tags;
+        rootSpanTagsNeedsIntercept = localRootSpanTags.needsIntercept;
 
         parentTraceCollector = tracer.createTraceCollector(traceId, traceConfig);
 

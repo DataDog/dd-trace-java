@@ -52,19 +52,6 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AsyncDispatcherDecorator",
-      packageName + ".FinishAsyncDispatchListener",
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".Servlet3Decorator",
-      packageName + ".ServletRequestURIAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("dispatch")),

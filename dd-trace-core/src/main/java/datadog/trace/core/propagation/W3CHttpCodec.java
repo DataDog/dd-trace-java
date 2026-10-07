@@ -18,6 +18,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.internal.util.LongStringUtils;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -92,7 +93,10 @@ class W3CHttpCodec {
       // shared state, so concurrent sibling injects can't race on it.
       String tracestate =
           propagationTags.headerValue(
-              W3C, DDSpanId.toHexStringPadded(context.getSpanId()), samplingState);
+              W3C,
+              DDSpanId.toHexStringPadded(context.getSpanId()),
+              LLMObsInternal.propagationValuesFor(context),
+              samplingState);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
@@ -158,9 +162,7 @@ class W3CHttpCodec {
       char first = Character.toLowerCase(key.charAt(0));
       switch (first) {
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'o':
           lowerCaseKey = toLowerCase(key);
@@ -178,14 +180,10 @@ class W3CHttpCodec {
           }
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         case 'x':
-          if (handledXForwarding(key, value)) {
-            return true;
-          }
+          handledXForwarding(key, value);
           break;
         default:
       }
@@ -213,9 +211,7 @@ class W3CHttpCodec {
           return false;
         }
       } else {
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
+        handledIpHeaders(key, value);
         if (handleTags(key, value)) {
           return true;
         }
