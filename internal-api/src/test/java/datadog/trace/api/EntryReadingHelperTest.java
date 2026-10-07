@@ -136,4 +136,34 @@ class EntryReadingHelperTest {
     assertEquals("k", entry.tag());
     assertEquals(99, entry.objectValue());
   }
+
+  @Test
+  void tagIdResolvesLazilyAndCaches() {
+    EntryReadingHelper helper = new EntryReadingHelper();
+    helper.set("http.method", "GET");
+
+    long expectedId = KnownTagCodec.keyOf("http.method");
+    assertEquals(expectedId, helper.tagId());
+    // second call hits the already-resolved cache rather than re-resolving
+    assertEquals(expectedId, helper.tagId());
+  }
+
+  @Test
+  void tagIdOfUnknownTagResolvesToZeroAndCaches() {
+    EntryReadingHelper helper = new EntryReadingHelper();
+    helper.set("my.custom.tag", "value");
+
+    assertEquals(0L, helper.tagId());
+    assertEquals(0L, helper.tagId());
+  }
+
+  @Test
+  void tagIdIsRecomputedAfterSet() {
+    EntryReadingHelper helper = new EntryReadingHelper();
+    helper.set("http.method", "GET");
+    assertEquals(KnownTagCodec.keyOf("http.method"), helper.tagId());
+
+    helper.set(new AbstractMap.SimpleEntry<>("db.type", "mysql"));
+    assertEquals(KnownTagCodec.keyOf("db.type"), helper.tagId());
+  }
 }

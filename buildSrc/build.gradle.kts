@@ -104,6 +104,7 @@ dependencies {
   implementation(libs.asm)
   implementation(libs.asm.tree)
 
+  // Keep aligned with build-logic/tag-registry, which shares these Jackson classes.
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
