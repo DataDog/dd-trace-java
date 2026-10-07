@@ -454,14 +454,6 @@ public enum JDBCConnectionUrlParser {
       return builder.instance(instance);
     }
 
-    private Integer parsePort(final String port) {
-      try {
-        return Integer.parseInt(port);
-      } catch (final NumberFormatException ignored) {
-        return null;
-      }
-    }
-
     /** Drops the optional {@code :server_type} and {@code /instance_name} EZConnect suffixes. */
     private String serviceName(final String service) {
       int end = service.length();
@@ -797,9 +789,9 @@ public enum JDBCConnectionUrlParser {
 
       final int portLoc = hostAndPort.indexOf(':');
       if (portLoc >= 0) {
-        try {
-          builder.port(Integer.parseInt(hostAndPort.substring(portLoc + 1)));
-        } catch (final NumberFormatException ignored) {
+        final Integer port = parsePort(hostAndPort.substring(portLoc + 1));
+        if (port != null) {
+          builder.port(port);
         }
         builder.host(hostAndPort.substring(0, portLoc));
       } else {
@@ -931,6 +923,14 @@ public enum JDBCConnectionUrlParser {
 
   // Source: https://stackoverflow.com/a/13592567
   @SuppressForbidden
+  private static Integer parsePort(final String port) {
+    try {
+      return Integer.parseInt(port);
+    } catch (final NumberFormatException ignored) {
+      return null;
+    }
+  }
+
   private static Map<String, String> splitQuery(final String query, final char separator) {
     if (query == null || query.isEmpty()) {
       return Collections.emptyMap();
