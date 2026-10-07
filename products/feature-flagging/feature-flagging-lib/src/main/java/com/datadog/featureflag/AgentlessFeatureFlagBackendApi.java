@@ -7,7 +7,7 @@ import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
-import java.util.function.LongSupplier;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.RequestBody;
@@ -21,60 +21,29 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
 
   private final FeatureFlagRouteSelector routeSelector;
-  private final Supplier<BackendApi> proxyApiSupplier;
+  private final Supplier<String> proxyEndpointSupplier;
+  private final Function<String, BackendApi> proxyApiFactory;
   private final Supplier<BackendApi> directApiSupplier;
   private final String eventType;
-  private volatile BackendApi proxyApi;
+  private BackendApi proxyApi;
+  private FeatureFlagRouteSelector.LocalRoute proxyRoute;
   private volatile BackendApi directApi;
   private volatile boolean directApiCreationAttempted;
 
   AgentlessFeatureFlagBackendApi(
-      @Nullable final BackendApi proxyApi,
       @Nullable final BackendApi directApi,
-      final Supplier<BackendApi> proxyApiSupplier,
-      final Supplier<BackendApi> directApiSupplier,
-      final String eventType) {
-    this(
-        proxyApi,
-        directApi,
-        proxyApiSupplier,
-        directApiSupplier,
-        eventType,
-        new FeatureFlagRouteSelector());
-  }
-
-  AgentlessFeatureFlagBackendApi(
-      @Nullable final BackendApi proxyApi,
-      @Nullable final BackendApi directApi,
-      final Supplier<BackendApi> proxyApiSupplier,
-      final Supplier<BackendApi> directApiSupplier,
-      final String eventType,
-      final LongSupplier nanoTime,
-      final long recoveryIntervalNanos) {
-    this(
-        proxyApi,
-        directApi,
-        proxyApiSupplier,
-        directApiSupplier,
-        eventType,
-        new FeatureFlagRouteSelector(nanoTime, recoveryIntervalNanos));
-  }
-
-  AgentlessFeatureFlagBackendApi(
-      @Nullable final BackendApi proxyApi,
-      @Nullable final BackendApi directApi,
-      final Supplier<BackendApi> proxyApiSupplier,
+      final Supplier<String> proxyEndpointSupplier,
+      final Function<String, BackendApi> proxyApiFactory,
       final Supplier<BackendApi> directApiSupplier,
       final String eventType,
       final FeatureFlagRouteSelector routeSelector) {
-    this.proxyApi = proxyApi;
     this.directApi = directApi;
-    this.proxyApiSupplier = proxyApiSupplier;
+    this.proxyEndpointSupplier = proxyEndpointSupplier;
+    this.proxyApiFactory = proxyApiFactory;
     this.directApiSupplier = directApiSupplier;
     this.eventType = eventType;
     this.routeSelector = routeSelector;
     this.directApiCreationAttempted = directApi != null;
-    routeSelector.initialize(proxyApi != null, directApi != null);
   }
 
   @Override
@@ -90,12 +59,14 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       return selected.api.post(
           uri, requestBody, responseParser, requestListener, requestCompression);
     } catch (final IOException exception) {
-      if (!selected.local) {
+      if (selected.localRoute == null) {
         throw exception;
       }
 
       final BackendApi fallbackApi = getOrCreateDirectApi();
-      routeSelector.localFailure(fallbackApi != null);
+      // Route selection governs future batches; replay permission applies only to this batch.
+      // DIRECT is intentionally terminal, even for a transient or ambiguous local failure.
+      routeSelector.localFailure(selected.localRoute, fallbackApi != null);
       if (fallbackApi == null || !isSafeToReplayDirectly(exception)) {
         throw exception;
       }
@@ -105,52 +76,42 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
   }
 
   private SelectedApi selectApi() throws IOException {
-    FeatureFlagRouteSelector.Route selectedRoute = routeSelector.current();
-    if (selectedRoute == FeatureFlagRouteSelector.Route.UNAVAILABLE
-        && routeSelector.tryBeginLocalRecovery()) {
-      final BackendApi recoveredProxyApi = discoverProxyApi();
-      if (recoveredProxyApi != null) {
-        proxyApi = recoveredProxyApi;
-        routeSelector.localRecovered();
-      }
-      selectedRoute = routeSelector.current();
+    if (routeSelector.tryBeginLocalRecovery()) {
+      routeSelector.localRecoveryFinished(discoverProxyEndpoint());
     }
 
-    if (selectedRoute == FeatureFlagRouteSelector.Route.LOCAL) {
-      BackendApi selectedProxyApi = proxyApi;
-      if (selectedProxyApi == null) {
-        selectedProxyApi = discoverProxyApi();
-        if (selectedProxyApi != null) {
-          proxyApi = selectedProxyApi;
-        } else {
-          final BackendApi selectedDirectApi = getOrCreateDirectApi();
-          routeSelector.localFailure(selectedDirectApi != null);
-          if (selectedDirectApi != null) {
-            return new SelectedApi(selectedDirectApi, false);
-          }
-          throw unavailableRoute();
-        }
-      }
-      return new SelectedApi(selectedProxyApi, true);
+    final FeatureFlagRouteSelector.LocalRoute localRoute = routeSelector.localRoute();
+    if (localRoute != null) {
+      return new SelectedApi(getOrCreateProxyApi(localRoute), localRoute);
     }
 
-    if (selectedRoute == FeatureFlagRouteSelector.Route.DIRECT) {
+    if (routeSelector.current() == FeatureFlagRouteSelector.Route.DIRECT) {
       final BackendApi selectedDirectApi = getOrCreateDirectApi();
       if (selectedDirectApi != null) {
-        return new SelectedApi(selectedDirectApi, false);
+        return new SelectedApi(selectedDirectApi, null);
       }
     }
     throw unavailableRoute();
   }
 
   @Nullable
-  private BackendApi discoverProxyApi() {
+  private String discoverProxyEndpoint() {
     try {
-      return proxyApiSupplier.get();
+      return proxyEndpointSupplier.get();
     } catch (final RuntimeException exception) {
       LOGGER.debug("Could not discover the local Feature Flagging {} route", eventType, exception);
       return null;
     }
+  }
+
+  private synchronized BackendApi getOrCreateProxyApi(
+      final FeatureFlagRouteSelector.LocalRoute localRoute) {
+    if (proxyRoute != localRoute) {
+      // Client construction uses the shared validated endpoint; it performs no discovery.
+      proxyApi = proxyApiFactory.apply(localRoute.endpoint);
+      proxyRoute = localRoute;
+    }
+    return proxyApi;
   }
 
   @Nullable
@@ -184,11 +145,12 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
 
   private static final class SelectedApi {
     private final BackendApi api;
-    private final boolean local;
+    private final FeatureFlagRouteSelector.LocalRoute localRoute;
 
-    private SelectedApi(final BackendApi api, final boolean local) {
+    private SelectedApi(
+        final BackendApi api, @Nullable final FeatureFlagRouteSelector.LocalRoute localRoute) {
       this.api = api;
-      this.local = local;
+      this.localRoute = localRoute;
     }
   }
 }

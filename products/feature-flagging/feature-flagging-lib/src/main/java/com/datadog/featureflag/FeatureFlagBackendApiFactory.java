@@ -77,30 +77,37 @@ final class FeatureFlagBackendApiFactory {
           V2_EVP_PROXY_ENDPOINT);
     }
 
-    final BackendApi proxyApi = createProxyApi(false);
     final BackendApi directApi = createDirectApi();
-    if (proxyApi == null && directApi == null) {
+    final FeatureFlagRouteSelector.Route route =
+        routeSelector.initialize(() -> discoverProxyEndpoint(false), directApi != null);
+    if (route == FeatureFlagRouteSelector.Route.UNAVAILABLE) {
       LOGGER.warn(
           "Feature Flagging {} delivery is waiting for a compatible local EVP proxy because direct intake credentials are unavailable",
           eventType.logName());
     }
     return new AgentlessFeatureFlagBackendApi(
-        proxyApi,
         directApi,
-        () -> createProxyApi(true),
+        () -> discoverProxyEndpoint(true),
+        endpoint ->
+            backendApiFactory.createEvpProxyApiForEndpoint(
+                Intake.EVENT_PLATFORM,
+                eventType.responseCompressionEnabled(),
+                HttpRetryPolicy.Factory.NEVER_RETRY,
+                endpoint),
         this::createDirectApi,
         eventType.logName(),
         routeSelector);
   }
 
   @Nullable
-  private BackendApi createProxyApi(final boolean forceDiscovery) {
-    return backendApiFactory.createEvpProxyApi(
-        Intake.EVENT_PLATFORM,
-        eventType.responseCompressionEnabled(),
-        HttpRetryPolicy.Factory.NEVER_RETRY,
-        forceDiscovery,
-        asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+  private String discoverProxyEndpoint(final boolean forceDiscovery) {
+    try {
+      return backendApiFactory.discoverEvpProxyEndpoint(
+          forceDiscovery, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+    } catch (final RuntimeException exception) {
+      LOGGER.debug("Could not discover the local Feature Flagging route", exception);
+      return null;
+    }
   }
 
   private boolean hasDirectCredentials() {

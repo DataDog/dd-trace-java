@@ -21,6 +21,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -41,7 +44,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger directApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             local,
             null,
             () -> local,
@@ -73,7 +76,7 @@ class AgentlessFeatureFlagBackendApiTest {
         new RecordingBackendApi(new ConnectException("connection refused"));
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(local, null, () -> local, () -> direct, eventType);
+        createApi(local, null, () -> local, () -> direct, eventType);
 
     api.post(route, requestBody(eventType), stream -> null, null, false);
 
@@ -89,7 +92,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi recoveredLocal = new RecordingBackendApi();
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             unavailableLocal, null, () -> recoveredLocal, () -> direct, "exposure", clock::get, 10);
 
     api.post("exposures", requestBody("first"), stream -> null, null, false);
@@ -127,7 +130,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi recoveredLocal = new RecordingBackendApi();
     final AtomicInteger proxyApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             null,
             direct,
             () -> {
@@ -158,7 +161,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final CountDownLatch probeStarted = new CountDownLatch(1);
     final CountDownLatch releaseProbe = new CountDownLatch(1);
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             null,
             null,
             () -> {
@@ -205,7 +208,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final AtomicLong clock = new AtomicLong();
     final AtomicInteger proxyApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             null,
             null,
             () -> {
@@ -238,7 +241,7 @@ class AgentlessFeatureFlagBackendApiTest {
         new RecordingBackendApi(new HttpResponseException(404, "rejected"));
     final AtomicInteger directApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             local,
             null,
             () -> local,
@@ -262,7 +265,7 @@ class AgentlessFeatureFlagBackendApiTest {
   @Test
   void permitsUnavailableStartupSoLocalDeliveryCanRecover() {
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(null, null, () -> null, () -> null, "flag evaluation");
+        createApi(null, null, () -> null, () -> null, "flag evaluation");
 
     assertThrows(
         IOException.class,
@@ -275,7 +278,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi direct = new RecordingBackendApi(failure);
     final AtomicInteger proxyApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             null,
             direct,
             () -> {
@@ -334,7 +337,7 @@ class AgentlessFeatureFlagBackendApiTest {
         };
     final AtomicInteger directApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             local,
             null,
             () -> local,
@@ -367,7 +370,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi evaluationLocal = new RecordingBackendApi();
     final RecordingBackendApi evaluationDirect = new RecordingBackendApi();
     final AgentlessFeatureFlagBackendApi exposureApi =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             exposureLocal,
             exposureDirect,
             () -> exposureLocal,
@@ -375,7 +378,7 @@ class AgentlessFeatureFlagBackendApiTest {
             "exposure",
             routeSelector);
     final AgentlessFeatureFlagBackendApi evaluationApi =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             evaluationLocal,
             evaluationDirect,
             () -> evaluationLocal,
@@ -395,51 +398,11 @@ class AgentlessFeatureFlagBackendApiTest {
   }
 
   @Test
-  void sharedLocalRouteDiscoversWriterSpecificProxy() throws Exception {
-    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
-    routeSelector.initialize(true, false);
-    final RecordingBackendApi recoveredLocal = new RecordingBackendApi();
-    final AtomicInteger proxyApiCreations = new AtomicInteger();
+  void failedRecoveryExceptionRemainsUnavailable() {
+    final AtomicLong clock = new AtomicLong();
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector(clock::get, 10);
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
-            null,
-            null,
-            () -> {
-              proxyApiCreations.incrementAndGet();
-              return recoveredLocal;
-            },
-            () -> null,
-            "flag evaluation",
-            routeSelector);
-
-    api.post("flagevaluation", requestBody("local"), stream -> null, null, false);
-
-    assertEquals(1, proxyApiCreations.get());
-    assertEquals(1, recoveredLocal.calls);
-    assertEquals(FeatureFlagRouteSelector.Route.LOCAL, routeSelector.current());
-  }
-
-  @Test
-  void sharedLocalRouteUsesDirectWhenWriterSpecificProxyIsUnavailable() throws Exception {
-    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
-    routeSelector.initialize(true, false);
-    final RecordingBackendApi direct = new RecordingBackendApi();
-    final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
-            null, direct, () -> null, () -> direct, "flag evaluation", routeSelector);
-
-    api.post("flagevaluation", requestBody("direct"), stream -> null, null, false);
-
-    assertEquals(1, direct.calls);
-    assertEquals(FeatureFlagRouteSelector.Route.DIRECT, routeSelector.current());
-  }
-
-  @Test
-  void sharedLocalRouteBecomesUnavailableWhenWriterHasNoRoute() {
-    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
-    routeSelector.initialize(true, false);
-    final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             null,
             null,
             () -> {
@@ -448,7 +411,7 @@ class AgentlessFeatureFlagBackendApiTest {
             () -> null,
             "flag evaluation",
             routeSelector);
-
+    clock.set(10);
     assertThrows(
         IOException.class,
         () -> api.post("flagevaluation", requestBody("missing"), stream -> null, null, false));
@@ -458,10 +421,9 @@ class AgentlessFeatureFlagBackendApiTest {
   @Test
   void sharedDirectRouteWithoutWriterClientIsUnavailable() {
     final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
-    routeSelector.initialize(false, true);
+    routeSelector.initialize(() -> null, true);
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
-            null, null, () -> null, () -> null, "flag evaluation", routeSelector);
+        createApi(null, null, () -> null, () -> null, "flag evaluation", routeSelector);
 
     assertThrows(
         IOException.class,
@@ -475,7 +437,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger proxyApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             null,
             direct,
             () -> {
@@ -500,7 +462,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger directApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
+        createApi(
             local,
             null,
             () -> local,
@@ -522,6 +484,54 @@ class AgentlessFeatureFlagBackendApiTest {
 
   private static RequestBody requestBody(final String value) {
     return RequestBody.create(MediaType.parse("application/json"), value);
+  }
+
+  private static AgentlessFeatureFlagBackendApi createApi(
+      BackendApi local,
+      BackendApi direct,
+      Supplier<BackendApi> discoverLocal,
+      Supplier<BackendApi> createDirect,
+      String eventType) {
+    return createApi(
+        local, direct, discoverLocal, createDirect, eventType, new FeatureFlagRouteSelector());
+  }
+
+  private static AgentlessFeatureFlagBackendApi createApi(
+      BackendApi local,
+      BackendApi direct,
+      Supplier<BackendApi> discoverLocal,
+      Supplier<BackendApi> createDirect,
+      String eventType,
+      LongSupplier clock,
+      long interval) {
+    return createApi(
+        local,
+        direct,
+        discoverLocal,
+        createDirect,
+        eventType,
+        new FeatureFlagRouteSelector(clock, interval));
+  }
+
+  private static AgentlessFeatureFlagBackendApi createApi(
+      BackendApi local,
+      BackendApi direct,
+      Supplier<BackendApi> discoverLocal,
+      Supplier<BackendApi> createDirect,
+      String eventType,
+      FeatureFlagRouteSelector selector) {
+    final AtomicReference<BackendApi> localApi = new AtomicReference<>(local);
+    selector.initialize(() -> local == null ? null : "local", direct != null);
+    return new AgentlessFeatureFlagBackendApi(
+        direct,
+        () -> {
+          localApi.set(discoverLocal.get());
+          return localApi.get() == null ? null : "local";
+        },
+        endpoint -> localApi.get(),
+        createDirect,
+        eventType,
+        selector);
   }
 
   private static void postWithoutFailure(

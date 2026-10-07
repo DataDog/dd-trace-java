@@ -1,6 +1,7 @@
 package datadog.communication.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
+import static datadog.communication.http.OkHttpUtils.appendPath;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
@@ -491,13 +492,5 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsTelemetryProxy() {
     return discoveryState.telemetryProxyEndpoint != null;
-  }
-
-  private static HttpUrl appendPath(final HttpUrl baseUrl, final String path) {
-    int firstCharacter = 0;
-    while (firstCharacter < path.length() && path.charAt(firstCharacter) == '/') {
-      firstCharacter++;
-    }
-    return baseUrl.newBuilder().addPathSegments(path.substring(firstCharacter)).build();
   }
 }

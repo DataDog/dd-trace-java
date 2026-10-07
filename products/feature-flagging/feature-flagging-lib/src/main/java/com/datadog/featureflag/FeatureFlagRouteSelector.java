@@ -2,6 +2,8 @@ package com.datadog.featureflag;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 /** Process-wide route state shared by all Feature Flagging event writers. */
 final class FeatureFlagRouteSelector {
@@ -19,6 +21,17 @@ final class FeatureFlagRouteSelector {
   private final long recoveryIntervalNanos;
   private volatile Route route = Route.UNINITIALIZED;
   private volatile long nextLocalDiscoveryNanos;
+  private LocalRoute localRoute;
+  private boolean recoveryInProgress;
+
+  /** A validated endpoint and its identity, replaced on every successful recovery. */
+  static final class LocalRoute {
+    final String endpoint;
+
+    private LocalRoute(final String endpoint) {
+      this.endpoint = endpoint;
+    }
+  }
 
   FeatureFlagRouteSelector() {
     this(System::nanoTime, DEFAULT_RECOVERY_INTERVAL_NANOS);
@@ -29,9 +42,13 @@ final class FeatureFlagRouteSelector {
     this.recoveryIntervalNanos = recoveryIntervalNanos;
   }
 
-  synchronized Route initialize(final boolean localAvailable, final boolean directAvailable) {
-    if (route == Route.UNINITIALIZED || route == Route.UNAVAILABLE) {
-      if (localAvailable) {
+  synchronized Route initialize(
+      final Supplier<String> discoverEndpoint, final boolean directAvailable) {
+    if (route == Route.UNINITIALIZED) {
+      // Startup happens once across both writers. Later unavailable probes run outside this lock.
+      final String endpoint = discoverEndpoint.get();
+      if (endpoint != null) {
+        localRoute = new LocalRoute(endpoint);
         route = Route.LOCAL;
       } else if (directAvailable) {
         route = Route.DIRECT;
@@ -47,8 +64,13 @@ final class FeatureFlagRouteSelector {
     return route;
   }
 
-  synchronized Route localFailure(final boolean directAvailable) {
-    if (route == Route.LOCAL) {
+  synchronized @Nullable LocalRoute localRoute() {
+    return route == Route.LOCAL ? localRoute : null;
+  }
+
+  synchronized Route localFailure(final LocalRoute failedRoute, final boolean directAvailable) {
+    // An in-flight send on an old endpoint cannot invalidate a newly recovered route.
+    if (route == Route.LOCAL && localRoute == failedRoute) {
       if (directAvailable) {
         route = Route.DIRECT;
       } else {
@@ -60,16 +82,24 @@ final class FeatureFlagRouteSelector {
   }
 
   synchronized boolean tryBeginLocalRecovery() {
-    if (route != Route.UNAVAILABLE || nanoTime.getAsLong() - nextLocalDiscoveryNanos < 0) {
+    if (route != Route.UNAVAILABLE
+        || recoveryInProgress
+        || nanoTime.getAsLong() - nextLocalDiscoveryNanos < 0) {
       return false;
     }
-    scheduleLocalDiscovery();
+    recoveryInProgress = true;
     return true;
   }
 
-  synchronized void localRecovered() {
+  synchronized void localRecoveryFinished(@Nullable final String endpoint) {
+    recoveryInProgress = false;
     if (route == Route.UNAVAILABLE) {
-      route = Route.LOCAL;
+      if (endpoint != null) {
+        localRoute = new LocalRoute(endpoint);
+        route = Route.LOCAL;
+      } else {
+        scheduleLocalDiscovery();
+      }
     }
   }
 

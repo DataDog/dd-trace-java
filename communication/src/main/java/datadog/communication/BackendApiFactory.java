@@ -1,5 +1,6 @@
 package datadog.communication;
 
+import static datadog.communication.http.OkHttpUtils.appendPath;
 import static java.util.Collections.emptyList;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -191,6 +192,17 @@ public class BackendApiFactory {
       HttpRetryPolicy.Factory retryPolicyFactory,
       boolean forceDiscovery,
       Iterable<String> requiredProxyHeaders) {
+    String endpoint = discoverEvpProxyEndpoint(forceDiscovery, requiredProxyHeaders);
+    return endpoint == null
+        ? null
+        : createEvpProxyApi(intake, responseCompression, retryPolicyFactory, endpoint);
+  }
+
+  /**
+   * Discovers a capability-validated endpoint that related senders can share without re-probing.
+   */
+  public @Nullable String discoverEvpProxyEndpoint(
+      boolean forceDiscovery, Iterable<String> requiredProxyHeaders) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     if (forceDiscovery) {
@@ -203,14 +215,10 @@ public class BackendApiFactory {
         && !featuresDiscovery.supportsEvpProxyHeaders(requiredProxyHeaders)) {
       evpProxyEndpoint = null;
     }
-    if (evpProxyEndpoint == null) {
-      return null;
-    }
-
-    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, evpProxyEndpoint);
+    return evpProxyEndpoint;
   }
 
-  /** Creates an EVP proxy client for a fixed compatibility endpoint without Agent discovery. */
+  /** Creates a client for a fixed compatibility or previously discovered endpoint, without I/O. */
   public BackendApi createEvpProxyApiForEndpoint(
       Intake intake,
       boolean responseCompression,
@@ -239,14 +247,6 @@ public class BackendApiFactory {
         sendOnce ? HttpRetryPolicy.Factory.NEVER_RETRY : retryPolicyFactory,
         configureHttpClient(sharedCommunicationObjects.agentHttpClient),
         responseCompression);
-  }
-
-  static HttpUrl appendPath(final HttpUrl baseUrl, final String path) {
-    int firstCharacter = 0;
-    while (firstCharacter < path.length() && path.charAt(firstCharacter) == '/') {
-      firstCharacter++;
-    }
-    return baseUrl.newBuilder().addPathSegments(path.substring(firstCharacter)).build();
   }
 
   OkHttpClient configureHttpClient(final OkHttpClient httpClient) {

@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static datadog.communication.EvpProxy.ORIGIN_HEADER;
 import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -62,6 +63,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -509,12 +511,14 @@ class ExposureWriterTests {
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(
+    when(backendApiFactory.discoverEvpProxyEndpoint(
+            false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+        .thenReturn(V4_EVP_PROXY_ENDPOINT);
+    when(backendApiFactory.createEvpProxyApiForEndpoint(
             Intake.EVENT_PLATFORM,
             true,
             HttpRetryPolicy.Factory.NEVER_RETRY,
-            false,
-            asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+            V4_EVP_PROXY_ENDPOINT))
         .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(true), eq(false)))
         .thenReturn(directApi);
@@ -567,6 +571,49 @@ class ExposureWriterTests {
       writer.init();
       poll.eventually(() -> assertTrue(writer.isSerializerThreadAlive()));
     }
+  }
+
+  @Test
+  void idleUnavailableWriterOnlyProbesForANewBatchAndStillCloses() throws Exception {
+    final Config config = mockConfig("idle-recovery");
+    when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
+    final AtomicLong clock = new AtomicLong();
+    final BackendApiFactory backend = mock(BackendApiFactory.class);
+    final BackendApi proxy = mock(BackendApi.class);
+    when(backend.discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+        .thenReturn(V4_EVP_PROXY_ENDPOINT);
+    when(backend.createEvpProxyApiForEndpoint(
+            Intake.EVENT_PLATFORM,
+            true,
+            HttpRetryPolicy.Factory.NEVER_RETRY,
+            V4_EVP_PROXY_ENDPOINT))
+        .thenReturn(proxy);
+    final FeatureFlagBackendApiFactory factory =
+        new FeatureFlagBackendApiFactory(
+            config,
+            backend,
+            FeatureFlagEventType.EXPOSURE,
+            new FeatureFlagRouteSelector(clock::get, 10));
+    final ExposureWriterImpl writer =
+        new ExposureWriterImpl(16, 100, MILLISECONDS, factory, config);
+    try {
+      writer.init();
+      poll.eventually(
+          () ->
+              verify(backend)
+                  .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)));
+      clock.set(10);
+      MILLISECONDS.sleep(300);
+      verify(backend, never())
+          .discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+      verify(proxy, never()).post(any(), any(), any(), any(), eq(false));
+      writer.accept(buildExposure());
+      poll.eventually(() -> verify(proxy).post(eq("exposures"), any(), any(), any(), eq(false)));
+      verify(backend).discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+    } finally {
+      writer.close();
+    }
+    assertFalse(writer.isSerializerThreadAlive());
   }
 
   private static Config mockConfig(String serviceName) {

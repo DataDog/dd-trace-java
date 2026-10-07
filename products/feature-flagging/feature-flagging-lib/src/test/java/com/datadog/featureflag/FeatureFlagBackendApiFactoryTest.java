@@ -41,12 +41,7 @@ class FeatureFlagBackendApiFactoryTest {
 
     assertSame(proxyApi, selected);
     verify(backendApiFactory, never())
-        .createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            false,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            false,
-            asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+        .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
@@ -54,13 +49,9 @@ class FeatureFlagBackendApiFactoryTest {
   void agentlessPrefersCapabilityGatedLocalRouteWithDirectFallbackReady() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            false,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            false,
-            asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
-        .thenReturn(mock(BackendApi.class));
+    when(backendApiFactory.discoverEvpProxyEndpoint(
+            false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+        .thenReturn(V2_EVP_PROXY_ENDPOINT);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenReturn(mock(BackendApi.class));
 
@@ -69,12 +60,7 @@ class FeatureFlagBackendApiFactoryTest {
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
     verify(backendApiFactory)
-        .createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            false,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            false,
-            asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+        .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
     verify(backendApiFactory).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
@@ -107,14 +93,9 @@ class FeatureFlagBackendApiFactoryTest {
   void agentlessKeepsCompatibleLocalRouteWhenDirectUrlIsInvalid() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    final BackendApi proxyApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            false,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            false,
-            asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
-        .thenReturn(proxyApi);
+    when(backendApiFactory.discoverEvpProxyEndpoint(
+            false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+        .thenReturn(V2_EVP_PROXY_ENDPOINT);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 

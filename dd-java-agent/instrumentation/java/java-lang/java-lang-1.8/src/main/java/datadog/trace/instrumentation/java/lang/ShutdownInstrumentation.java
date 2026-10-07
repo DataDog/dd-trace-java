@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.shutdown.ShutdownHelper;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -30,9 +31,10 @@ public class ShutdownInstrumentation extends InstrumenterModule
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    // Agent-owned subsystems such as Feature Flagging can run while tracing is disabled. Their
-    // bounded final drains still depend on ShutdownHelper running before application hooks.
-    return true;
+    // Preserve tracing's historical hook and include Feature Flagging's bounded final drains even
+    // when tracing is disabled. Do not instrument shutdown when both consumers are disabled.
+    return enabledSystems.contains(TargetSystem.TRACING)
+        || Config.get().isFeatureFlaggingProviderEnabled();
   }
 
   @Override
