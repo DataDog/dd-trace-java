@@ -919,7 +919,7 @@ public enum JDBCConnectionUrlParser {
    * @return the port, or {@code null} if {@code s[start, end)} is not a valid port number
    */
   private static Integer parsePort(final CharSequence s, final int start, final int end) {
-    final int port = parseNonNegativeInt(s, start, end);
+    final int port = parseNonNegativeInt(s, start, end - start);
     return port >= 0 ? port : null;
   }
 

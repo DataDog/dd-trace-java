@@ -167,17 +167,18 @@ class NumbersTest {
   }
 
   @TableTest({
-    "scenario            | input        | start | end | expected",
-    "middle of string    | host:1521/db | 5     | 9   | 1521    ",
-    "to end              | host:1521    | 5     | 9   | 1521    ",
-    "empty range         | host:/db     | 5     | 5   | -1      ",
-    "inverted range      | host:1521    | 6     | 5   | -1      ",
+    "scenario            | input        | start | len | expected",
+    "middle of string    | host:1521/db | 5     | 4   | 1521    ",
+    "to end              | host:1521    | 5     | 4   | 1521    ",
+    "empty range         | host:/db     | 5     | 0   | -1      ",
+    "negative length     | host:1521    | 6     | -1  | -1      ",
     "negative start      | 1521         | -1    | 4   | -1      ",
-    "end past length     | 1521         | 0     | 5   | -1      ",
-    "range spans garbage | host:1521/db | 4     | 9   | -1      "
+    "past end            | 1521         | 1     | 4   | -1      ",
+    "start past length   | 1521         | 5     | 1   | -1      ",
+    "range spans garbage | host:1521/db | 4     | 5   | -1      "
   })
-  void parseNonNegativeIntRange(String input, int start, int end, int expected) {
-    assertEquals(expected, parseNonNegativeInt(input, start, end));
+  void parseNonNegativeIntRange(String input, int start, int len, int expected) {
+    assertEquals(expected, parseNonNegativeInt(input, start, len));
   }
 
   @Test

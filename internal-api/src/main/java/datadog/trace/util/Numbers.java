@@ -25,18 +25,18 @@ public final class Numbers {
   }
 
   /**
-   * Parses a non-negative decimal {@code int} from {@code s[start, end)} without throwing or
-   * allocating.
+   * Parses a non-negative decimal {@code int} from the {@code len} characters of {@code s} starting
+   * at {@code start}, without throwing or allocating.
    *
    * @return the parsed value, or {@code -1} if the range is empty or out of bounds, contains
    *     anything other than ASCII digits (including a sign), or overflows {@code int}
    */
-  public static int parseNonNegativeInt(@Nullable CharSequence s, int start, int end) {
-    if (s == null || start < 0 || end > s.length() || start >= end) {
+  public static int parseNonNegativeInt(@Nullable CharSequence s, int start, int len) {
+    if (s == null || start < 0 || len <= 0 || start > s.length() - len) {
       return -1;
     }
     int result = 0;
-    for (int i = start; i < end; i++) {
+    for (int i = start, end = start + len; i < end; i++) {
       int digit = s.charAt(i) - '0';
       if (digit < 0 || digit > 9 || result > (Integer.MAX_VALUE - digit) / 10) {
         return -1;
