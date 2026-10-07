@@ -2,8 +2,9 @@ package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.version.Version
 import java.util.SortedSet
+import kotlin.random.Random
 
-class VersionSet(versions: Collection<Version>) {
+class VersionSet(private val versions: Collection<Version>) {
   private val sortedVersions: SortedSet<ParsedVersion> = sortedSetOf()
 
   init {
@@ -29,6 +30,41 @@ class VersionSet(versions: Collection<Version>) {
       previous?.let { resultSet.add(it) }
       return resultSet.map { it.version }
     }
+
+  /** Sample boundaries lazily, backfilling deferred releases and retaining eligible range extrema. */
+  internal fun sampleEligibleBoundaries(
+    limit: Int,
+    random: Random,
+    isEligible: (Version) -> Boolean
+  ): Set<Version> {
+    val eligibility = mutableMapOf<Version, Boolean>()
+    fun eligible(version: Version) = eligibility.getOrPut(version) { isEligible(version) }
+    val ordered = versions.sorted()
+    val lowest = ordered.firstOrNull(::eligible) ?: return emptySet()
+    val highest = ordered.last(::eligible)
+    val selected = linkedSetOf(lowest, highest)
+    val groups = versions.map(::ParsedVersion).sorted().groupBy { it.majorMinor }
+    // Preserve the existing seeded sample when all boundaries are eligible.
+    for (boundary in lowAndHighForMajorMinor.shuffled(random).asReversed()) {
+      if (selected.size >= limit) break
+      val parsed = ParsedVersion(boundary)
+      val group = groups.getValue(parsed.majorMinor)
+      val replacement = if (parsed == group.first()) {
+        group.firstOrNull { eligible(it.version) }?.version
+      } else {
+        // Equivalent parsed versions can have different repository spellings and timestamps.
+        // Keep the first eligible spelling of the highest eligible parsed version.
+        var highestEligible: ParsedVersion? = null
+        for (candidate in group.asReversed()) {
+          if (highestEligible != null && candidate.compareTo(highestEligible) != 0) break
+          if (eligible(candidate.version)) highestEligible = candidate
+        }
+        highestEligible?.version
+      }
+      replacement?.let(selected::add)
+    }
+    return selected
+  }
 
   internal class ParsedVersion(val version: Version) : Comparable<ParsedVersion> {
     companion object {

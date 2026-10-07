@@ -711,6 +711,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       </project>
       """.trimIndent()
     )
+    check(pomFile.setLastModified(java.time.Instant.parse("2000-01-01T00:00:00Z").toEpochMilli()))
 
     writeProject(
       """

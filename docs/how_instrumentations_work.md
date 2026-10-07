@@ -118,6 +118,23 @@ To run muzzle on your instrumentation, run:
 ./gradlew :dd-java-agent:instrumentation:rediscala-1.8:muzzle
 ```
 
+Muzzle defers library versions published within the last **48 hours**, based on the POM's
+`Last-Modified` timestamp. Override the cooldown with `-PmuzzleMinDependencyAgeHours=<hours>`
+or `MIN_DEPENDENCY_AGE_HOURS`; the Gradle property takes precedence. A module can override both
+with `muzzle { minimumDependencyAgeHours.set(hours) }`. Set the value to `0` to disable the cooldown.
+
+The cooldown applies to pass, fail, and inverse checks. Sampling retains the lowest and highest
+eligible versions and backfills deferred boundaries with eligible releases. A declared range with
+no eligible versions fails explicitly; an empty inverse selection adds no checks. Core JDK checks,
+additional and transitive dependencies, and dependency range reports are unaffected.
+
+Timestamp lookups are cached within each planning pass and rechecked when validating a cached
+configuration. HTTP lookups use HEAD requests with two-second connect/read timeouts and no retries;
+a transport failure disables further timestamp requests to that repository for the planning pass.
+If the Central proxy cannot provide a timestamp, muzzle tries the configured extra repositories,
+then Maven Central for the timestamp only. If no timestamp is available, it warns and keeps the
+version eligible so that repository failures do not silently remove compatibility checks.
+
 > [!WARNING]
 > Muzzle does _not_ run tests.
 > It checks that the types and methods used by the instrumentation are present in particular versions of libraries.

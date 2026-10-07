@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle.planner
 
+import datadog.gradle.plugin.muzzle.MuzzleDependencyAge
 import datadog.gradle.plugin.muzzle.MuzzleDirective
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils
 import org.eclipse.aether.DefaultRepositorySystemSession
@@ -10,6 +11,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.ValueSource
 import org.gradle.api.provider.ValueSourceParameters
 import java.io.Serializable
+import java.time.Instant
 import kotlin.random.Random
 
 /** Tracks the selected coordinates as configuration inputs. */
@@ -21,24 +23,27 @@ internal abstract class MuzzlePlansValueSource :
     val samplingSeed: Property<Long>
   }
 
-  override fun getDisplayName() = "Muzzle coordinates"
+  override fun getDisplayName() = "eligible Muzzle coordinates"
 
   override fun obtain(): List<MuzzlePlannedVersion> {
     val startNanos = System.nanoTime()
     val system = MuzzleMavenRepoUtils.newRepositorySystem()
+    val startedAt = Instant.now()
+    val ages = mutableMapOf<Int, MuzzleDependencyAge>()
     val random = Random(parameters.samplingSeed.get())
     val requests = parameters.requests.get()
-    val planners = mutableMapOf<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>()
+    val sessions = mutableMapOf<List<List<Triple<String, String, String>>>, DefaultRepositorySystemSession>()
     val plans = requests.flatMap { request ->
       // Repository IDs can be reused for different URLs, so keep their local metadata separate.
       val repositories = request.directives.map { it.additionalRepositories.toList() }.distinct()
-      val planner = planners.getOrPut(repositories) {
-        val session = DefaultRepositorySystemSession(MuzzleMavenRepoUtils.newRepositorySystemSession(system)).apply {
+      val session = sessions.getOrPut(repositories) {
+        DefaultRepositorySystemSession(MuzzleMavenRepoUtils.newRepositorySystemSession(system)).apply {
           // Background lookups escape Gradle's ValueSource input tracking and expose temporary files.
           setConfigProperty("aether.metadataResolver.threads", 1)
         }
-        MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session, random = random))
       }
+      val age = ages.getOrPut(request.minimumAgeHours) { MuzzleDependencyAge(request.minimumAgeHours, startedAt) }
+      val planner = MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session, age, random = random))
       request.directives.flatMapIndexed { index, directive ->
         planner.plan(listOf(directive)).map { plan ->
           MuzzlePlannedVersion(request.projectPath, index, plan.artifact?.version, plan.directive.assertPass)
@@ -46,7 +51,8 @@ internal abstract class MuzzlePlansValueSource :
       }
     }
     Logging.getLogger(MuzzlePlansValueSource::class.java).info(
-      "Muzzle planned ${plans.size} checks for ${requests.size} modules in " +
+      "Muzzle planned ${plans.size} checks for ${requests.size} modules with " +
+        "${ages.values.sumOf { it.timestampLookupCount }} timestamp lookups in " +
         "${(System.nanoTime() - startNanos) / 1_000_000}ms"
     )
     return plans
@@ -55,6 +61,7 @@ internal abstract class MuzzlePlansValueSource :
 
 internal data class MuzzlePlanningRequest(
   val projectPath: String,
+  val minimumAgeHours: Int,
   val directives: List<MuzzleDirective>
 ) : Serializable
 
