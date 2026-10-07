@@ -179,15 +179,15 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
       async(jobName("first"), CoroutineStart.LAZY) {
         childSpan("first-span").activateAndUse {
           spans.incrementAndGet()
-          delay(1)
         }
+        delay(1)
       }.run(jobs::add)
 
       async(jobName("second"), CoroutineStart.LAZY) {
         childSpan("second-span").activateAndUse {
           spans.incrementAndGet()
-          delay(1)
         }
+        delay(1)
       }.run(jobs::add)
     }
 
@@ -372,8 +372,11 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
 
   protected suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
     try {
-      get().activateManualSpan(this).use {
+      val scope = get().activateManualSpan(this)
+      try {
         block()
+      } finally {
+        scope.close()
       }
     } finally {
       finish()

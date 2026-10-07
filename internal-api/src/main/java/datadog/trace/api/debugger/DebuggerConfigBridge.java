@@ -1,7 +1,7 @@
 package datadog.trace.api.debugger;
 
 import datadog.trace.api.Config;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import datadog.trace.api.internal.VisibleForTesting;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,15 +11,38 @@ public final class DebuggerConfigBridge {
 
   private static DebuggerConfigUpdate DEFERRED_UPDATE;
   private static volatile DebuggerConfigUpdater UPDATER;
+  private static final Object LOCK = new Object();
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static fields")
-  public static synchronized void updateConfig(DebuggerConfigUpdate update) {
-    if (!update.hasUpdates()) {
-      LOGGER.debug("No config update detected, skipping");
-      return;
+  public static void updateConfig(DebuggerConfigUpdate update) {
+    synchronized (LOCK) {
+      if (!update.hasUpdates()) {
+        LOGGER.debug("No config update detected, skipping");
+        return;
+      }
+      applyUpdate(update);
     }
+  }
+
+  /**
+   * Resets the debugger config to the values held by the static {@link Config}, discarding any
+   * remote-config overrides. Used when the remote APM_TRACING override is removed entirely, as
+   * opposed to {@link #updateConfig} which only applies partial overrides.
+   */
+  public static void resetToInitialConfig() {
+    synchronized (LOCK) {
+      LOGGER.debug("Resetting debugger config to initial state");
+      Config config = Config.get();
+      applyUpdate(
+          new DebuggerConfigUpdate(
+              config.isDynamicInstrumentationEnabled(),
+              config.isDebuggerExceptionEnabled(),
+              // if DI is enabled it enables also CodeOrigin, so we check both for initial state
+              config.isDebuggerCodeOriginEnabled() || config.isDynamicInstrumentationEnabled(),
+              config.isDistributedDebuggerEnabled()));
+    }
+  }
+
+  private static void applyUpdate(DebuggerConfigUpdate update) {
     if (UPDATER != null) {
       LOGGER.debug("DebuggerConfigUpdater available, performing update: {}", update);
       UPDATER.updateConfig(update);
@@ -29,19 +52,18 @@ public final class DebuggerConfigBridge {
     }
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static fields")
-  public static synchronized void setUpdater(@Nonnull DebuggerConfigUpdater updater) {
-    UPDATER = updater;
-    if (DEFERRED_UPDATE != null && DEFERRED_UPDATE.hasUpdates()) {
-      LOGGER.debug("Processing deferred update {}", DEFERRED_UPDATE);
-      updater.updateConfig(DEFERRED_UPDATE);
-      DEFERRED_UPDATE = null;
+  public static void setUpdater(@Nonnull DebuggerConfigUpdater updater) {
+    synchronized (LOCK) {
+      UPDATER = updater;
+      if (DEFERRED_UPDATE != null && DEFERRED_UPDATE.hasUpdates()) {
+        LOGGER.debug("Processing deferred update {}", DEFERRED_UPDATE);
+        updater.updateConfig(DEFERRED_UPDATE);
+        DEFERRED_UPDATE = null;
+      }
     }
   }
 
-  // for testing purposes
+  @VisibleForTesting
   static synchronized void reset() {
     UPDATER = null;
     DEFERRED_UPDATE = null;

@@ -3,15 +3,16 @@ package datadog.trace.instrumentation.cics;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.cics.CicsDecorator.CICS_CLIENT;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.ECI_EXECUTE_OPERATION;
 
 import com.ibm.connector2.cics.ECIInteraction;
 import com.ibm.connector2.cics.ECIInteractionSpec;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -29,7 +30,7 @@ public final class ECIInteractionInstrumentation
 
   public static class ExecuteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final Object spec) {
+    public static ContextScope enter(@Advice.Argument(0) final Object spec) {
       // Coordinating with JavaGatewayInterfaceInstrumentation
       CallDepthThreadLocalMap.incrementCallDepth(ECIInteraction.class);
 
@@ -46,11 +47,11 @@ public final class ECIInteractionInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       CallDepthThreadLocalMap.decrementCallDepth(ECIInteraction.class);
 
       if (null != scope) {
-        AgentSpan span = scope.span();
+        AgentSpan span = spanFromScope(scope);
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         scope.close();

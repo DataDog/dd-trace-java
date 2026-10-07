@@ -29,6 +29,12 @@ public class QueueTimerHelper {
                         ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
   }
 
+  /** Whether queue timing can safely start. */
+  public static boolean isReady() {
+    // Queue timing is unsupported in native images. JFR must initialise the TSC frequency first.
+    return !Platform.isNativeImage() && InstrumentationBasedProfiling.isJFRReady();
+  }
+
   public static <T> void startQueuingTimer(
       ContextStore<T, State> taskContextStore,
       Class<?> schedulerClass,
@@ -41,14 +47,8 @@ public class QueueTimerHelper {
 
   public static void startQueuingTimer(
       State state, Class<?> schedulerClass, Class<?> queueClass, int queueLength, Object task) {
-    if (Platform.isNativeImage()) {
-      // explicitly not supported for Graal native image
-      return;
-    }
     // TODO consider queue length based sampling here to reduce overhead
-    // avoid calling this before JFR is initialised because it will lead to reading the wrong
-    // TSC frequency before JFR has set it up properly
-    if (task != null && state != null && InstrumentationBasedProfiling.isJFRReady()) {
+    if (task != null && state != null && isReady()) {
       QueueTiming timing =
           (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
       timing.setTask(task);

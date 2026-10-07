@@ -135,4 +135,13 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
     tracer.close();
     return span;
   }
+
+  protected static Map<String, Map<String, Number>> rateByService(
+      String service, String env, double rate) {
+    Map<String, Number> byService = new HashMap<>();
+    byService.put("service:" + service + ",env:" + env, rate);
+    Map<String, Map<String, Number>> response = new HashMap<>();
+    response.put("rate_by_service", byService);
+    return response;
+  }
 }

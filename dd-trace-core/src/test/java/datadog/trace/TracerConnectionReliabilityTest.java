@@ -131,8 +131,7 @@ public class TracerConnectionReliabilityTest extends DDJavaSpecification {
     //noinspection GrDeprecatedAPIUsage Use FixedHostPortGenericContainer against deprecation
     // because we need to know the exposed to configure the tracer at start
     GenericContainer agentContainer =
-        new FixedHostPortGenericContainer(
-                "registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.64.1")
+        new FixedHostPortGenericContainer(System.getProperty("test.ddapm.agent.image"))
             .withFixedExposedPort(agentContainerPort, DEFAULT_TRACE_AGENT_PORT)
             .withEnv(
                 "ENABLED_CHECKS",

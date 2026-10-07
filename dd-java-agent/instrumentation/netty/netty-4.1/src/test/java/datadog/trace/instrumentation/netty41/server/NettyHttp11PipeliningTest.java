@@ -219,6 +219,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
+      assertTrue(handler.awaitChannelClosed(), "server did not close the blocked connection");
       assertNull(
           handler.inboundException,
           "additional pipelined requests should be swallowed by the existing blocking handler");
@@ -576,6 +577,11 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
 
     private boolean awaitAllRequestsReceived() throws InterruptedException {
       return receivedRequests.await(5, SECONDS);
+    }
+
+    private boolean awaitChannelClosed() throws InterruptedException {
+      ChannelHandlerContext responseContext = context;
+      return responseContext != null && responseContext.channel().closeFuture().await(10, SECONDS);
     }
 
     private void writeResponses() {

@@ -10,6 +10,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.civisibility.CiVisibilitySmokeTest;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
@@ -331,6 +332,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     Map<String, String> agentArgs = new HashMap<>();
     agentArgs.put(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT, "3");
     agentArgs.put(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL, mockBackend.getIntakeUrl());
+    agentArgs.put(DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "999999");
 
     int exitCode =
         whenRunningMavenBuild(agentArgs, Collections.emptyList(), Collections.emptyMap(), true);

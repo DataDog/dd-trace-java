@@ -36,6 +36,7 @@ docs/                     Developer documentation (see below)
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
+| Writing JUnit tests | [docs/how_to_test_with_junit.md](docs/how_to_test_with_junit.md) |
 | Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
@@ -63,6 +64,7 @@ docs/                     Developer documentation (see below)
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
+- **Parameterized tests**: Prefer `@TableTest` for multi-column literal data, with named scenarios and aligned columns. Prefer a simple `@TypeConverter` over switching to `@MethodSource` when it can turn table values into the required arguments. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks. See [the JUnit testing guide](docs/how_to_test_with_junit.md#parameterized-tests).
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 
