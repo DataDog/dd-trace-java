@@ -12284,7 +12284,7 @@
     ],
     "DD_PROFILING_OTLP_MODE": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "LIGHT",
         "aliases": []
