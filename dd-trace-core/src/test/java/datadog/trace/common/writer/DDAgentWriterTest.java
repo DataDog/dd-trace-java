@@ -147,9 +147,10 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | publishResult          ",
-    "buffer overflow   | DROPPED_BUFFER_OVERFLOW",
-    "dropped by policy | DROPPED_BY_POLICY      "
+    "scenario                      | publishResult                      ",
+    "buffer overflow               | DROPPED_BUFFER_OVERFLOW            ",
+    "buffer overflow (sampled out) | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT",
+    "dropped by policy             | DROPPED_BY_POLICY                  "
   })
   void testWriterWritePublishFails(PublishResult publishResult) {
     List<DDSpan> trace =
@@ -191,9 +192,10 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | publishResult          ",
-    "dropped by policy | DROPPED_BY_POLICY      ",
-    "buffer overflow   | DROPPED_BUFFER_OVERFLOW"
+    "scenario                      | publishResult                      ",
+    "dropped by policy             | DROPPED_BY_POLICY                  ",
+    "buffer overflow               | DROPPED_BUFFER_OVERFLOW            ",
+    "buffer overflow (sampled out) | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT"
   })
   void testDroppedTraceIsCounted(PublishResult publishResult) {
     // setup - use local mocks to avoid interference with instance-level mocks

@@ -44,13 +44,6 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsAnnotationsDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("resume").and(takesArgument(0, Object.class)).and(isPublic()),

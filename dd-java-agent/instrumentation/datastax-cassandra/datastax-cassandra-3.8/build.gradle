@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -26,6 +27,8 @@ testJvmConstraints {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testContainerImage(image('cassandra:3', 'test.cassandra.image'))
+
   compileOnly group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.8.0'
   compileOnly group: 'com.google.guava', name: 'guava', version: '18.0'
 

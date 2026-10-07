@@ -38,10 +38,12 @@ public interface ExposureCache {
   final class Value {
     public final String variant;
     public final String allocation;
+    public final Integer serialId;
 
     public Value(final ExposureEvent event) {
       this.variant = event.variant == null ? null : event.variant.key;
       this.allocation = event.allocation == null ? null : event.allocation.key;
+      this.serialId = event.serial_id;
     }
 
     @Override
@@ -50,12 +52,14 @@ public interface ExposureCache {
         return false;
       }
       final Value value = (Value) o;
-      return Objects.equals(variant, value.variant) && Objects.equals(allocation, value.allocation);
+      return Objects.equals(variant, value.variant)
+          && Objects.equals(allocation, value.allocation)
+          && Objects.equals(serialId, value.serialId);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(variant, allocation);
+      return Objects.hash(variant, allocation, serialId);
     }
   }
 }

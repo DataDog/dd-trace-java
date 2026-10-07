@@ -34,17 +34,17 @@ tasks.named("previewTest").configure {
   }
 }
 
-// Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
-tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
-}
-
 // Configure groovy test file compilation
 tasks.named("compilePreviewTestGroovy", GroovyCompile) {
+  // StructuredTaskScope.ShutdownOnFailure is a JDK 21 preview API removed in JDK 25, so pin
+  // the compiler to JDK 21. Groovy 3 cannot emit Java 21 bytecode, so retain the Java 8 target;
+  // this test is loaded only on Java 21 and --release does not apply to GroovyCompile.
+  configureCompiler(it, 21, JavaVersion.VERSION_1_8, "StructuredTaskScope.ShutdownOnFailure is a JDK 21 preview API removed in JDK 25")
   options.compilerArgs.add("--enable-preview")
 }
 // Configure Java test files compilation
 tasks.named("compilePreviewTestJava", JavaCompile) {
+  configureCompiler(it, 21, JavaVersion.VERSION_21, "Java preview features must be compiled with the matching JDK 21 toolchain")
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution

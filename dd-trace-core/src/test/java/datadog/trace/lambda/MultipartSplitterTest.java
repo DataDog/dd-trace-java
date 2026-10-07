@@ -1,0 +1,267 @@
+package datadog.trace.lambda;
+
+import static datadog.trace.lambda.MultipartSplitter.extractBoundary;
+import static datadog.trace.lambda.MultipartSplitter.parameter;
+import static datadog.trace.lambda.MultipartSplitter.split;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import datadog.trace.lambda.MultipartSplitter.Part;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+class MultipartSplitterTest {
+
+  private static final int NO_PART_BUDGET_LIMIT = 256;
+
+  @ParameterizedTest(name = "[{index}] {0} -> {1}")
+  @CsvSource(
+      delimiter = '|',
+      nullValues = "NULL",
+      value = {
+        // case is preserved: the boundary is matched byte-for-byte against the body
+        "multipart/form-data; boundary=AbC123        | AbC123",
+        // the parameter name is not
+        "multipart/form-data; BOUNDARY=xy            | xy",
+        // quoted values may hold separators
+        "multipart/form-data; boundary=\"a;b c\"     | a;b c",
+        // position among the other parameters does not matter
+        "multipart/form-data; boundary=xy; charset=x | xy",
+        // a parameter that merely ends in "boundary" is not one
+        "multipart/form-data; xboundary=xy           | NULL",
+        "multipart/form-data                         | NULL",
+        "multipart/form-data; boundary=              | NULL",
+        "NULL                                        | NULL",
+      })
+  void extractsTheBoundary(String contentType, String expected) {
+    assertEquals(expected, extractBoundary(contentType));
+  }
+
+  @Test
+  void rejectsABoundaryOverSeventyCharacters() {
+    String maximum = repeat('a', 70);
+
+    assertEquals(maximum, extractBoundary("multipart/form-data; boundary=" + maximum));
+    assertNull(extractBoundary("multipart/form-data; boundary=" + maximum + "a"));
+  }
+
+  @ParameterizedTest(name = "[{index}] {1} of {0} -> {2}")
+  @CsvSource(
+      delimiter = '|',
+      nullValues = "NULL",
+      value = {
+        "form-data; name=user               | name     | user",
+        "form-data; name=\"user\"           | name     | user",
+        "form-data; name=\"a;b\"            | name     | a;b",
+        "form-data; NAME=user               | name     | user",
+        "form-data; name=user; charset=utf-8| name     | user",
+        // "filename" must not answer a lookup for "name": the match has to start at a parameter
+        "form-data; filename=\"f\"; name=u  | name     | u",
+        // present but empty, which is what browsers send for an untouched file input
+        "form-data; filename=\"\"           | filename | ''",
+        "form-data; filename=               | filename | ''",
+        "form-data; name=user               | filename | NULL",
+        "NULL                               | name     | NULL",
+        // a quoted value cannot forge a parameter boundary: the quoted span is skipped whole, so
+        // this field is not mistaken for a file part and dropped
+        "form-data; name=\"; filename=x\"   | filename | NULL",
+        "form-data; name=\"; filename=x\"   | name     | '; filename=x'",
+        // and the same aliasing the other way round does not rename the field
+        "form-data; filename=\"; name=y\"   | name     | NULL",
+        // RFC 7230 optional whitespace is tolerated on both sides of the "="
+        "form-data; name =user             | name     | user",
+        // a bare parameter name is not a parameter
+        "form-data; name                    | name     | NULL",
+      })
+  void readsParameters(String headerValue, String paramName, String expected) {
+    assertEquals(expected, parameter(headerValue, paramName));
+  }
+
+  @Test
+  void unescapesQuotedParameterValues() {
+    assertEquals("a\"b", parameter("form-data; name=\"a\\\"b\"", "name"));
+  }
+
+  @Test
+  void toleratesTabsAroundTheParameterEquals() {
+    assertEquals("user", parameter("form-data;\tname\t=\tuser", "name"));
+  }
+
+  @Test
+  void keepsWhatWasReadOfAnUnterminatedQuotedValue() {
+    assertEquals("abc", parameter("form-data; name=\"abc", "name"));
+    assertEquals("a\"", parameter("form-data; name=\"a\\\"", "name"));
+  }
+
+  @ParameterizedTest(name = "[{index}] {0} -> {2} part(s)")
+  @CsvSource(
+      delimiter = '|',
+      value = {
+        "happy path                | --x@A: b@@v@--x--          | 1",
+        "two parts                 | --x@@a@--x@@b@--x--        | 2",
+        "preamble is discarded     | junk@--x@@v@--x--          | 1",
+        // The preamble is discarded even when a line in it looks like a delimiter: RFC 2046
+        // requires it to be ignored, so the fields after it are the ones the app receives
+        "preamble looks like one   | --x--not-a-close@--x@@v@--x-- | 1",
+        "epilogue is discarded     | --x@@v@--x--@junk          | 1",
+        // A delimiter at the very start of a part's content has no line break of its own, so it
+        // reads as content, not as a delimiter — and the part that follows is absorbed with it
+        "delimiter at content start| --x@@--x@@v@--x--         | 1",
+        // a truncated body still yields its last part
+        "truncated last delimiter  | --x@A: b@@v                | 1",
+        "truncated in the headers  | --x@A: b                   | 0",
+        // A part truncated inside its headers voids the parts before it too: its own headers are
+        // content the WAF would otherwise never see
+        "truncated after a part    | --x@@v@--x@A: b            | 0",
+        "no line break at all      | --x                        | 0",
+        "close delimiter only      | --x--                      | 0",
+        "empty part content        | --x@A: b@@                 | 1",
+        "part without headers      | --x@@v@--x--               | 1",
+        "unrelated delimiter       | --y@@v@--y--               | 0",
+        // RFC 2046 transport padding between the delimiter and its line break
+        "padded delimiter          | --x  @@v@--x--             | 1",
+      })
+  void splitsBodies(String name, String template, int expectedParts) {
+    assertEquals(
+        expectedParts, split(template.replace("@", "\r\n"), "x", NO_PART_BUDGET_LIMIT).size());
+  }
+
+  @Test
+  void toleratesBareLineFeeds() {
+    String body = "--x\nContent-Disposition: form-data; name=a\n\nvalue\n--x--\n";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals(1, parts.size());
+    assertEquals("value", content(body, parts.get(0)));
+  }
+
+  @Test
+  void readsADelimiterAtAContentStartAsContent() {
+    // The close delimiter here shares the line break that terminated the headers, so it has none of
+    // its own. Commons FileUpload reads it as the field's content and so must we: reporting an
+    // empty field would hide the payload behind it from the WAF.
+    String body =
+        "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n--x--\r\n' OR 1=1 --\r\n--x--";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals(1, parts.size());
+    assertEquals("--x--\r\n' OR 1=1 --", content(body, parts.get(0)));
+  }
+
+  @Test
+  void readsADelimiterWithItsOwnLineBreakAsADelimiter() {
+    // One line break more than the body above, which is enough to make the delimiter unambiguous:
+    // every parser reads the field as empty and the rest as the epilogue.
+    String body =
+        "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n\r\n--x--\r\n' OR 1=1 --\r\n--x--";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals(1, parts.size());
+    assertEquals("", content(body, parts.get(0)));
+  }
+
+  @Test
+  void stopsAtThePartBudget() {
+    String body = ("--x\r\n\r\na\r\n--x\r\n\r\nb\r\n--x\r\n\r\nc\r\n--x--");
+
+    assertEquals(2, split(body, "x", 2).size());
+    assertEquals(0, split(body, "x", 0).size());
+  }
+
+  @Test
+  void delimitsContentExactly() {
+    // Dashes, line breaks, a replacement character and a multi-byte character all inside the
+    // content, plus lines that start with the part and close delimiters without being either: the
+    // reported range must not be thrown off by a near miss on the line-feed anchor, on the
+    // delimiter itself, or on its trailing dashes
+    String content = "--not-a-boundary\r\n--x-not-a-boundary\r\n--x--not-a-close\r\n-x\nlast�é";
+    String body =
+        "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n" + content + "\r\n--x--\r\n";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals(1, parts.size());
+    assertEquals(content, content(body, parts.get(0)));
+    assertEquals("form-data; name=a", parts.get(0).contentDisposition);
+  }
+
+  @Test
+  void reportsNothingForAPartWhoseHeadersRunIntoTheNextDelimiter() {
+    // The first part's headers are not followed by a blank line, which no conforming parser
+    // accepts. Reporting the second part alone would show the WAF less than the app receives.
+    String body =
+        "--x\r\nX-First: 1\r\n"
+            + "--x\r\nContent-Disposition: form-data; name=\"b\"\r\n\r\nsecond\r\n--x--";
+
+    assertTrue(split(body, "x", NO_PART_BUDGET_LIMIT).isEmpty());
+  }
+
+  @Test
+  void matchesHeaderNamesCaseInsensitivelyAndTrimsValues() {
+    String body =
+        "--x\r\nCONTENT-Disposition:  form-data; name=a \r\n"
+            + "content-type \t:\ttext/plain \r\n\r\nv\r\n"
+            + "--x\r\nContent-Type:\r\n\r\nv\r\n--x--";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals("form-data; name=a", parts.get(0).contentDisposition);
+    assertEquals("text/plain", parts.get(0).contentType);
+    // A header present but empty is reported as "", distinct from the null of an absent one
+    assertEquals("", parts.get(1).contentType);
+    assertNull(parts.get(1).contentDisposition);
+  }
+
+  @Test
+  @Timeout(value = 10, unit = SECONDS)
+  void returnsPromptlyOnAnAdversarialBoundary() {
+    // Dashes are legal boundary characters, so a scan seeded on '-' would be quadratic here.
+    // Anchored on the mandatory line feed, of which this body has none, the scan is linear.
+    String boundary = repeat('-', 69) + "X";
+    String body = repeat('-', 1_000_000);
+
+    assertTrue(split(body, boundary, NO_PART_BUDGET_LIMIT).isEmpty());
+  }
+
+  @Test
+  @Timeout(value = 30, unit = SECONDS)
+  void neverThrowsOnAMutatedBody() {
+    String body =
+        "preamble\r\n--x\r\nContent-Disposition: form-data; name=\"a\"\r\n"
+            + "Content-Type: application/json\r\n\r\n{\"k\":1}\r\n"
+            + "--x\r\nContent-Disposition: form-data; name=b; filename=\"f\"\r\n\r\nfile\r\n"
+            + "--x--\r\nepilogue";
+    // Fixed positions rather than a random seed, so a failure is reproducible
+    char[] substitutes = {'-', '\r', '\n', ':', ';', '"', '\\', '=', '\0', '�'};
+
+    for (int i = 0; i <= body.length(); i++) {
+      split(body.substring(0, i), "x", NO_PART_BUDGET_LIMIT);
+      for (char substitute : substitutes) {
+        if (i < body.length()) {
+          split(
+              body.substring(0, i) + substitute + body.substring(i + 1), "x", NO_PART_BUDGET_LIMIT);
+        }
+      }
+    }
+  }
+
+  private static String content(String body, Part part) {
+    return body.substring(part.contentStart, part.contentEnd);
+  }
+
+  private static String repeat(char c, int count) {
+    StringBuilder builder = new StringBuilder(count);
+    for (int i = 0; i < count; i++) {
+      builder.append(c);
+    }
+    return builder.toString();
+  }
+}

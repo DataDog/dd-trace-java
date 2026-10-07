@@ -15,22 +15,25 @@ abstract class AbstractMuzzleReportTask : AbstractMuzzleTask() {
     .file("$MUZZLE_DEPS_RESULTS/${project.pathSlug}.csv")
 
   internal fun dumpVersionsToCsv(versions: SortedMap<String, TestedArtifact>) {
-    with(project.file(versionsFile)) {
-      parentFile.mkdirs()
-      writeText("instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n")
+    val file = versionsFile.get().asFile
+    file.parentFile.mkdirs()
+
+    file.bufferedWriter().use { writer ->
+      writer.append("instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n")
       versions.values.forEach {
-        appendText(
+        writer.append(
           listOf(
             it.instrumentation,
             it.group,
             it.module,
             it.lowVersion.toString(),
             it.highVersion.toString()
-          ).joinToString(",") + "\n"
-        )
+          ).joinToString(",")
+        ).append('\n')
       }
-      project.logger.info("Wrote muzzle versions report to\n  $this")
     }
+
+    logger.info("Wrote muzzle versions report to\n  $file")
   }
 
   companion object {

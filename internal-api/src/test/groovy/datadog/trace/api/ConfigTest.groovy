@@ -24,6 +24,8 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_BUCKETS
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL
@@ -102,6 +104,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
@@ -2795,6 +2798,38 @@ class ConfigTest extends DDSpecification {
     config.isCiVisibilityAgentlessEnabled()
   }
 
+  def "dynamic ATR buckets are parsed by Config: #configuredBuckets"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_DYNAMIC_ATR_ENABLED, "true")
+    properties.setProperty(CIVISIBILITY_DYNAMIC_ATR_BUCKETS, configuredBuckets)
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.ciVisibilityDynamicAtrBuckets == expectedBuckets
+
+    where:
+    configuredBuckets | expectedBuckets
+    "5,4,3,2,1"     | [5, 4, 3, 2, 1]
+    "5, 4, 3, 2, 1" | [5, 4, 3, 2, 1]
+    "5,4,3,2"       | null
+    "5,4,3,2,1,"    | null
+    "5,4,3,2,0"     | null
+    "5,4,3,2,21"    | null
+    "5,4,3,2,nope"  | null
+  }
+
+  def "dynamic ATR buckets are ignored when dynamic ATR is disabled"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_DYNAMIC_ATR_BUCKETS, "5,4,3,2,1")
+
+    expect:
+    new Config(ConfigProvider.withPropertiesOverride(properties)).ciVisibilityDynamicAtrBuckets == null
+  }
+
   static class ClassThrowsExceptionForValueOfMethod {
     static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) {
       throw new Throwable()
@@ -3456,6 +3491,26 @@ class ConfigTest extends DDSpecification {
     "false" | null    | false
     "true"  | "false" | true    // sys prop takes precedence
     "false" | "true"  | false   // sys prop takes precedence
+  }
+
+  def "Oracle DBM action propagation enabled = #configured"() {
+    setup:
+    def properties = new Properties()
+    if (configured != null) {
+      properties.setProperty(DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED, configured)
+    }
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.isDbmPropagationOracleActionOnlyEnabled() == expected
+
+    where:
+    configured | expected
+    null       | false
+    "false"    | false
+    "true"     | true
   }
 
   def "trace resource renaming activation with appsec=#appsec and explicit=#explicit"() {

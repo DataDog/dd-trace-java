@@ -7,8 +7,11 @@ import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
+import datadog.trace.util.SubSequence;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +24,7 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   private static final int MAX_HEADER_SIZE = 256;
   private static final String DATADOG_MEMBER_KEY = "dd=";
+  private static final String OTEL_MEMBER_KEY = "ot=";
   private static final int EMPTY_SIZE = DATADOG_MEMBER_KEY.length(); // 3
   private static final char MEMBER_SEPARATOR = ',';
   private static final char ELEMENT_SEPARATOR = ';';
@@ -49,44 +53,63 @@ public class W3CPTagsCodec extends PTagsCodec {
     int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
     int memberIndex = 0;
     int ddMemberIndex = -1;
+    int otelMemberStart = -1;
+    int otelMemberValueStart = -1;
+    int otelMemberValueEnd = -1;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
         // TODO should we try to pick up the `dd` member anyway?
         return tagsFactory.empty();
       }
-      if (ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
-        ddMemberStart = memberStart;
-        ddMemberIndex = memberIndex;
-      }
       // Validate the member key
-      int pos = validateMemberKey(value, memberStart);
-      if (pos < 0) {
+      int memberValueStart = validateMemberKey(value, memberStart);
+      if (memberValueStart < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
-      if (ddMemberValueStart == -1 && ddMemberIndex != -1) {
-        ddMemberValueStart = pos;
-      }
-      pos = validateMemberValue(value, pos);
-      if (pos < 0) {
+      int memberValueEnd = validateMemberValue(value, memberValueStart);
+      if (memberValueEnd < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
-      if (ddMemberValueEnd == -1 && ddMemberIndex != -1) {
-        ddMemberValueEnd = pos;
+
+      boolean datadogMember =
+          ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean otelMember =
+          !datadogMember && otelMemberStart == -1 && value.startsWith(OTEL_MEMBER_KEY, memberStart);
+      if (datadogMember) {
+        ddMemberStart = memberStart;
+        ddMemberValueStart = memberValueStart;
+        ddMemberIndex = memberIndex;
+        ddMemberValueEnd = memberValueEnd;
+
+      } else if (otelMember) {
+        otelMemberStart = memberStart;
+        otelMemberValueStart = memberValueStart;
+        otelMemberValueEnd = memberValueEnd;
       }
-      memberStart = findNextMember(value, pos);
+
+      memberIndex++;
+      memberStart = findNextMember(value, memberValueEnd);
       if (memberStart < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
-      memberIndex++;
+    }
+
+    OtelTraceState otelTraceState = null;
+    if (otelMemberStart != -1) {
+      int valueEnd = stripTrailingOWC(value, otelMemberValueStart, otelMemberValueEnd);
+      otelTraceState =
+          OtelTraceState.parse(
+              SubSequence.of(value, otelMemberValueStart, valueEnd),
+              memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd));
     }
 
     if (ddMemberIndex == -1) {
       // There was no dd member, so create an empty one with the _suffix_
-      return empty(tagsFactory, value);
+      return empty(tagsFactory, value, otelTraceState);
     }
 
     List<TagElement> tagPairs = null;
@@ -99,6 +122,14 @@ public class W3CPTagsCodec extends PTagsCodec {
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
     TagValue orgPropagationMarkerTagValue = null;
+    TagValue llmObsTraceIdTagValue = null;
+    TagValue llmObsMlAppTagValue = null;
+    TagValue llmObsSessionIdTagValue = null;
+    TagValue llmObsParentAgentSpanIdTagValue = null;
+    TagValue llmObsParentAgentNameTagValue = null;
+    TagValue llmObsParentIdTagValue = null;
+    TagValue llmObsSampleRateTagValue = null;
+    TagValue llmObsSamplingDecisionTagValue = null;
     while (tagPos < ddMemberValueEnd) {
       tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
       if (tagPos >= ddMemberValueEnd) {
@@ -158,7 +189,13 @@ public class W3CPTagsCodec extends PTagsCodec {
               if (tagKey.equals(TRACE_ID_TAG)) {
                 return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
               }
-              return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+              return empty(
+                  tagsFactory,
+                  value,
+                  firstMemberStart,
+                  ddMemberStart,
+                  ddMemberValueEnd,
+                  otelTraceState);
             }
             if (tagKey.equals(DECISION_MAKER_TAG)) {
               decisionMakerTagValue = tagValue;
@@ -168,6 +205,22 @@ public class W3CPTagsCodec extends PTagsCodec {
               traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
             } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
               orgPropagationMarkerTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_TRACE_ID_TAG)) {
+              llmObsTraceIdTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_ML_APP_TAG)) {
+              llmObsMlAppTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_SESSION_ID_TAG)) {
+              llmObsSessionIdTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_PAGENT_SPAN_ID_TAG)) {
+              llmObsParentAgentSpanIdTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_PAGENT_NAME_TAG)) {
+              llmObsParentAgentNameTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_PARENT_ID_TAG)) {
+              llmObsParentIdTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_SAMPLE_RATE_TAG)) {
+              llmObsSampleRateTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_SAMPLING_DECISION_TAG)) {
+              llmObsSamplingDecisionTagValue = tagValue;
             } else {
               if (tagPairs == null) {
                 // This is roughly the size of a two element linked list but can hold six
@@ -201,46 +254,77 @@ public class W3CPTagsCodec extends PTagsCodec {
         ddMemberValueEnd,
         maxUnknownSize,
         lastParentId,
-        orgPropagationMarkerTagValue);
+        orgPropagationMarkerTagValue,
+        LLMObsTagValues.of(
+            llmObsTraceIdTagValue,
+            llmObsMlAppTagValue,
+            llmObsSessionIdTagValue,
+            llmObsParentAgentSpanIdTagValue,
+            llmObsParentAgentNameTagValue,
+            llmObsParentIdTagValue,
+            llmObsSampleRateTagValue,
+            llmObsSamplingDecisionTagValue),
+        otelTraceState);
   }
 
   @Override
-  protected int estimateHeaderSize(PTags pTags) {
-    int size = EMPTY_SIZE + 1; // 'dd=' and delimiter;
-    // Yes, this is a bit much, but better safe than sorry
-    size += pTags.getXDatadogTagsSize();
+  @SuppressWarnings("StringEquality")
+  @SuppressFBWarnings(
+      value = "ES_COMPARING_STRINGS_WITH_EQ",
+      justification =
+          "Identity determines whether the sampling state retains this PTags instance's raw "
+              + "tracestate, allowing its parsed size metadata to be reused.")
+  protected int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+    int size = EMPTY_SIZE + 1;
+    size += pTags.getXDatadogTagsSize(samplingState);
     if (pTags.getOrigin() != null) {
-      size += pTags.getOrigin().length() + 3; // 'o:' + delimiter
+      size += pTags.getOrigin().length() + 3;
     }
-    if (pTags.getSamplingPriority() != PrioritySampling.UNSET) {
-      size += 5; // 's:-?[0-9]' + delimiter
+    if (samplingState.getSamplingPriority() != PrioritySampling.UNSET) {
+      size += 5;
     }
-    if (pTags instanceof W3CPTags) {
+    CharSequence lastParent =
+        lastParentIdOverride != null ? lastParentIdOverride : pTags.getLastParentId();
+    if (lastParent != null) {
+      size += lastParent.length() + 3;
+    }
+    String originalTracestate = samplingState.getTracestate();
+    boolean includesOriginalTracestate = false;
+    if (originalTracestate != null
+        && pTags instanceof W3CPTags
+        && originalTracestate == pTags.tracestate) {
       W3CPTags w3CPTags = (W3CPTags) pTags;
       size += w3CPTags.maxUnknownSize;
       if (w3CPTags.ddMemberStart != -1) {
-        size +=
-            (w3CPTags.tracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
+        size += originalTracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart);
+        includesOriginalTracestate = true;
       }
-    } else if (pTags.tracestate != null) {
-      // We assume there is no Datadog list-member
-      size += pTags.tracestate.length();
+    } else if (originalTracestate != null) {
+      size += originalTracestate.length();
+      includesOriginalTracestate = true;
     }
-    return size;
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    if (otelTraceState != null) {
+      if (includesOriginalTracestate && otelTraceState instanceof OtelTraceState) {
+        size -= ((OtelTraceState) otelTraceState).getOriginalSize();
+      }
+      size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
+    }
+    return Math.min(size, MAX_HEADER_SIZE);
   }
 
   @Override
-  protected int appendPrefix(StringBuilder sb, PTags ptags) {
-    return appendPrefix(sb, ptags, null);
-  }
-
-  @Override
-  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
+  protected int appendPrefix(
+      StringBuilder sb,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState) {
     sb.append(DATADOG_MEMBER_KEY);
     // Append sampling priority (s)
-    if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
+    if (samplingState.getSamplingPriority() != PrioritySampling.UNSET) {
       sb.append("s:");
-      sb.append(ptags.getSamplingPriority());
+      sb.append(samplingState.getSamplingPriority());
     }
     // Append origin (o)
     CharSequence origin = ptags.getOrigin();
@@ -278,7 +362,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int appendSuffix(StringBuilder sb, PTags ptags, int size) {
+  protected int appendSuffix(StringBuilder sb, PTags ptags, int size, SamplingState samplingState) {
     // If there is room for appending unknown from W3CPTags
     if (size < MAX_HEADER_SIZE && ptags instanceof W3CPTags) {
       W3CPTags w3cPTags = (W3CPTags) ptags;
@@ -290,14 +374,69 @@ public class W3CPTagsCodec extends PTagsCodec {
       sb.setLength(0);
       size = 0;
     }
-    // Append all other non-Datadog list-members
-    int newSize = cleanUpAndAppendSuffix(sb, ptags, size);
-    if (newSize != size) {
+    if (size == 0) {
+      String original = samplingState.getTracestate();
+      String trimmed = original == null ? null : original.trim();
+      if (canForwardRawTracestate(trimmed, samplingState.getOtelTraceState())) {
+        sb.append(trimmed);
+        return EMPTY_SIZE + 1;
+      }
+    }
+    // Append the managed OTel member and all other non-Datadog list-members
+    if (appendOtelAndVendorMembers(sb, samplingState, size != 0)) {
       // We don't care about the total size in bytes here, but only the fact that we added something
       // that should be returned
       size = Math.max(size, EMPTY_SIZE + 1);
     }
     return size;
+  }
+
+  private static boolean canForwardRawTracestate(String trimmed, CharSequence otelTraceState) {
+    if (trimmed == null || trimmed.isEmpty()) {
+      return false;
+    }
+    if (findNextMember(trimmed, 0) != 0) {
+      return false;
+    }
+    int otelMemberCount = 0;
+    int memberStart = 0;
+    while (memberStart < trimmed.length()) {
+      int memberEnd = trimmed.indexOf(MEMBER_SEPARATOR, memberStart);
+      if (memberEnd < 0) {
+        memberEnd = trimmed.length();
+      }
+      if (trimmed.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
+        return false;
+      }
+      if (trimmed.startsWith(OTEL_MEMBER_KEY, memberStart)) {
+        if (++otelMemberCount > 1 || otelTraceState == null) {
+          return false;
+        }
+        int valueStart = memberStart + OTEL_MEMBER_KEY.length();
+        int valueEnd = stripTrailingOWC(trimmed, valueStart, memberEnd);
+        if (!contentEquals(trimmed, valueStart, valueEnd, otelTraceState)) {
+          return false;
+        }
+      }
+      memberStart = findNextMember(trimmed, memberEnd + 1);
+    }
+    return (otelTraceState == null) == (otelMemberCount == 0);
+  }
+
+  private static boolean contentEquals(String value, int start, int end, CharSequence expected) {
+    if (expected instanceof OtelTraceState) {
+      expected = ((OtelTraceState) expected).comparisonValue();
+    }
+    int length = expected.length();
+    if (end - start != length) {
+      return false;
+    }
+    for (int i = 0; i < length; i++) {
+      if (value.charAt(start + i) != expected.charAt(i)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
@@ -698,50 +837,179 @@ public class W3CPTagsCodec extends PTagsCodec {
     return size;
   }
 
-  private static int cleanUpAndAppendSuffix(StringBuilder sb, PTags ptags, int size) {
-    String original = ptags.tracestate;
-    if (original == null) {
-      return size;
+  private static boolean appendOtelAndVendorMembers(
+      StringBuilder sb, SamplingState samplingState, boolean hasDatadogMember) {
+    String original = samplingState.getTracestate();
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
+    boolean memberAppended = false;
+    boolean preserveOtelPosition = samplingState.preservesInheritedOtelPosition();
+    if (!preserveOtelPosition && otelTraceState != null && remainingMembers > 0) {
+      appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.toString());
+      remainingMembers--;
+      memberAppended = true;
     }
-    int ddMemberStart = (ptags instanceof W3CPTags) ? ((W3CPTags) ptags).ddMemberStart : -1;
-    int remainingMemberAllowed = size == 0 ? MAX_MEMBER_COUNT : MAX_MEMBER_COUNT - 1;
-    int len = original.length();
-    int memberStart = findNextMember(original, 0);
-    while (memberStart < len) {
-      // Look for member end position
+    int len = original == null ? 0 : original.length();
+    int memberStart = original == null ? 0 : findNextMember(original, 0);
+    while (memberStart < len && remainingMembers > 0) {
       int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
       if (memberEnd < 0) {
         memberEnd = len;
       }
-      // Try to define Datadog member start if not already found
-      if (ddMemberStart == -1) {
-        if (original.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
-          ddMemberStart = memberStart;
-        }
-      }
-      // Skip Datadog member (already added with prefix and tags)
-      if (memberStart != ddMemberStart) {
-        if (sb.length() > 0) {
-          sb.append(MEMBER_SEPARATOR);
-          size++;
-        }
+      boolean datadogMember = original.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean otelMember = original.startsWith(OTEL_MEMBER_KEY, memberStart);
+      if (!datadogMember && (!otelMember || preserveOtelPosition)) {
         int end = stripTrailingOWC(original, memberStart, memberEnd);
-        sb.append(original, memberStart, end);
-        size += (end - memberStart);
-        remainingMemberAllowed--;
+        appendMember(sb, original, memberStart, end);
+        remainingMembers--;
+        memberAppended = true;
       }
-      // Check if remaining members are allowed
-      if (remainingMemberAllowed == 0) {
-        memberStart = len;
-      } else {
+      memberStart = findNextMember(original, memberEnd + 1);
+    }
+    return memberAppended;
+  }
+
+  public static boolean isUnchangedInheritedOtelMember(
+      String original, CharSequence otelTraceState) {
+    if (original == null || otelTraceState == null) {
+      return false;
+    }
+    int otelMemberCount = 0;
+    int memberStart = findNextMember(original, 0);
+    while (memberStart < original.length()) {
+      int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
+      if (memberEnd < 0) {
+        memberEnd = original.length();
+      }
+      if (original.startsWith(OTEL_MEMBER_KEY, memberStart)) {
+        if (++otelMemberCount > 1) {
+          return false;
+        }
+        int valueStart = memberStart + OTEL_MEMBER_KEY.length();
+        int valueEnd = stripTrailingOWC(original, valueStart, memberEnd);
+        if (!contentEquals(original, valueStart, valueEnd, otelTraceState)) {
+          return false;
+        }
+      }
+      memberStart = findNextMember(original, memberEnd + 1);
+    }
+    return otelMemberCount == 1;
+  }
+
+  public static String rebuildTracestate(SamplingState samplingState) {
+    String original = samplingState.getTracestate();
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    // TODO Consider a raw passthrough for unchanged state after checking dd= is not duplicated.
+    StringBuilder result = new StringBuilder(MAX_HEADER_SIZE);
+    int memberCount = 0;
+
+    if (original != null) {
+      int memberStart = findNextMember(original, 0);
+      while (memberStart < original.length()) {
+        int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
+        if (memberEnd < 0) {
+          memberEnd = original.length();
+        }
+        if (original.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
+          int end = stripTrailingOWC(original, memberStart, memberEnd);
+          appendMember(result, original, memberStart, end);
+          memberCount++;
+          break;
+        }
         memberStart = findNextMember(original, memberEnd + 1);
       }
     }
-    return size;
+
+    if (otelTraceState != null && memberCount < MAX_MEMBER_COUNT) {
+      appendMember(result, OTEL_MEMBER_KEY, otelTraceState);
+      memberCount++;
+    }
+
+    if (original != null) {
+      int memberStart = findNextMember(original, 0);
+      while (memberStart < original.length() && memberCount < MAX_MEMBER_COUNT) {
+        int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
+        if (memberEnd < 0) {
+          memberEnd = original.length();
+        }
+        boolean managed =
+            original.startsWith(DATADOG_MEMBER_KEY, memberStart)
+                || original.startsWith(OTEL_MEMBER_KEY, memberStart);
+        if (!managed) {
+          int end = stripTrailingOWC(original, memberStart, memberEnd);
+          appendMember(result, original, memberStart, end);
+          memberCount++;
+        }
+        memberStart = findNextMember(original, memberEnd + 1);
+      }
+    }
+    return result.length() == 0 ? null : result.toString();
   }
 
+  private static void appendMember(StringBuilder sb, String member, int start, int end) {
+    if (sb.length() != 0) {
+      sb.append(MEMBER_SEPARATOR);
+    }
+    sb.append(member, start, end);
+  }
+
+  private static void appendMember(StringBuilder sb, String key, CharSequence value) {
+    if (sb.length() != 0) {
+      sb.append(MEMBER_SEPARATOR);
+    }
+    sb.append(key).append(value);
+  }
+
+  static OtelTraceState extractOtelTraceState(String tracestate) {
+    if (tracestate == null || tracestate.isEmpty()) {
+      return null;
+    }
+    int firstMemberStart = findNextMember(tracestate, 0);
+    int memberStart = firstMemberStart;
+    int otelMemberStart = -1;
+    int otelMemberValueStart = -1;
+    int otelMemberValueEnd = -1;
+    while (memberStart < tracestate.length()) {
+      int memberValueStart = validateMemberKey(tracestate, memberStart);
+      if (memberValueStart < 0) {
+        return null;
+      }
+      int memberValueEnd = validateMemberValue(tracestate, memberValueStart);
+      if (memberValueEnd < 0) {
+        return null;
+      }
+      if (tracestate.startsWith(OTEL_MEMBER_KEY, memberStart)) {
+        otelMemberStart = memberStart;
+        otelMemberValueStart = memberValueStart;
+        otelMemberValueEnd = memberValueEnd;
+        break;
+      }
+      memberStart = findNextMember(tracestate, memberValueEnd);
+    }
+    if (otelMemberStart == -1) {
+      return null;
+    }
+    int valueEnd = stripTrailingOWC(tracestate, otelMemberValueStart, otelMemberValueEnd);
+    return OtelTraceState.parse(
+        SubSequence.of(tracestate, otelMemberValueStart, valueEnd),
+        memberContributionSize(tracestate, firstMemberStart, otelMemberStart, otelMemberValueEnd));
+  }
+
+  private static int memberContributionSize(
+      String tracestate, int firstMemberStart, int memberStart, int memberEnd) {
+    int memberSize = memberEnd - memberStart;
+    boolean isOnlyMember = memberStart == firstMemberStart && memberEnd == tracestate.length();
+    return isOnlyMember ? memberSize : memberSize + 1;
+  }
+
+  /** Creates tags that preserve unmanaged W3C tracestate members without sampling state. */
   static W3CPTags empty(PTagsFactory factory, String original) {
-    return empty(factory, original, 0, -1, -1);
+    return empty(factory, original, null);
+  }
+
+  private static W3CPTags empty(
+      PTagsFactory factory, String original, OtelTraceState otelTraceState) {
+    return empty(factory, original, 0, -1, -1, otelTraceState);
   }
 
   private static W3CPTags empty(
@@ -749,7 +1017,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       String original,
       int firstMemberStart,
       int ddMemberStart,
-      int ddMemberValueEnd) {
+      int ddMemberValueEnd,
+      OtelTraceState otelTraceState) {
     return new W3CPTags(
         factory,
         null,
@@ -764,7 +1033,9 @@ public class W3CPTagsCodec extends PTagsCodec {
         ddMemberValueEnd,
         0,
         null,
-        null);
+        null,
+        LLMObsTagValues.EMPTY,
+        otelTraceState);
   }
 
   private static class W3CPTags extends PTags {
@@ -799,7 +1070,9 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberValueEnd,
         int maxUnknownSize,
         CharSequence lastParentId,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue,
+        LLMObsTagValues llmObsTagValues,
+        OtelTraceState otelTraceState) {
       super(
           factory,
           tagPairs,
@@ -809,8 +1082,10 @@ public class W3CPTagsCodec extends PTagsCodec {
           samplingPriority,
           origin,
           lastParentId,
-          orgPropagationMarkerTagValue);
-      this.tracestate = original;
+          orgPropagationMarkerTagValue,
+          llmObsTagValues,
+          original,
+          otelTraceState);
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;
       this.ddMemberValueEnd = ddMemberValueEnd;

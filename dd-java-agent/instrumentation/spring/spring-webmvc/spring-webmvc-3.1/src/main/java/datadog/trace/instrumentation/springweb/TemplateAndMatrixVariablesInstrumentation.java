@@ -80,13 +80,6 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PairList",
-    };
-  }
-
-  @Override
   public Advice.PostProcessor.Factory postProcessor() {
     return postProcessorFactory;
   }

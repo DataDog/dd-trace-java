@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.maven3;
 
+import static java.util.Collections.addAll;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -51,17 +54,24 @@ public abstract class AbstractMavenTest {
 
     File pomFile = new File(AbstractMavenTest.class.getResource(pomPath).toURI());
 
-    String[] arguments = new String[additionalArgs.length + 4];
-    arguments[0] = "-f";
-    arguments[1] = pomFile.getAbsolutePath();
-    arguments[2] = goal;
+    List<String> arguments = new ArrayList<>();
+    addAll(arguments, "-f", pomFile.getAbsolutePath(), goal);
     // Cap Aether's HTTP read timeout so a stalled Maven Central fetch fails fast.
     // Default is 30 min, which exceeds the 20-min Gradle test task timeout and turns
     // a network stall into an opaque "Timeout has been exceeded" task abort.
-    arguments[3] = "-Daether.connector.requestTimeout=60000";
-    System.arraycopy(additionalArgs, 0, arguments, 4, additionalArgs.length);
+    arguments.add("-Daether.connector.requestTimeout=60000");
+    if (System.getenv("MAVEN_REPOSITORY_PROXY") != null) {
+      File settingsFile =
+          new File(AbstractMavenTest.class.getResource("/settings.mirror.xml").toURI());
+      addAll(arguments, "-s", settingsFile.getAbsolutePath());
+    }
+    addAll(arguments, additionalArgs);
 
-    mavenCli.doMain(arguments, WORKING_DIRECTORY.toAbsolutePath().toString(), stdOut, stderr);
+    mavenCli.doMain(
+        arguments.toArray(new String[0]),
+        WORKING_DIRECTORY.toAbsolutePath().toString(),
+        stdOut,
+        stderr);
 
     Exception error = spy.handlerError.get();
     if (error != null) {

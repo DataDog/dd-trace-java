@@ -10,7 +10,9 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.PARENT_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.generateBaggageItems;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.otBaggageHeaders;
 import static datadog.trace.test.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,8 +28,11 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
@@ -39,17 +44,17 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
     return HaystackHttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
-  @Test
-  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
-  void extractBaggageStopsAtItemLimit() {
-    Map<String, String> headers = new HashMap<>();
-    for (int i = 0; i < 50; i++) {
-      headers.put(OT_BAGGAGE_PREFIX + "key" + i, "value" + i);
+  @Nested
+  class BaggageLimits extends AbstractOTBaggageTest {
+    @Override
+    protected HttpCodec.Extractor extractor() {
+      return HaystackHttpExtractorTest.this.extractor;
     }
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
-
-    assertEquals(3, context.getBaggage().size());
+    @Override
+    protected Map<String, String> baggageHeaders(List<Entry<String, String>> items) {
+      return otBaggageHeaders(OT_BAGGAGE_PREFIX, items);
+    }
   }
 
   @Test
@@ -57,10 +62,8 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractKeepsHaystackIdsWhenBaggageLimitReached() {
     // the Haystack ids are recorded by the tracer for lossless injection, so caller supplied
     // Baggage-* headers must not be able to evict them by exhausting the item limit
-    Map<String, String> headers = new HashMap<>();
-    for (int i = 0; i < 50; i++) {
-      headers.put(OT_BAGGAGE_PREFIX + "key" + i, "value" + i);
-    }
+    Map<String, String> headers =
+        new HashMap<>(otBaggageHeaders(OT_BAGGAGE_PREFIX, generateBaggageItems(50)));
     headers.put(TRACE_ID_KEY, "44617461-646f-6721-0000-000000000001");
     headers.put(SPAN_ID_KEY, "44617461-646f-6721-0000-000000000002");
 

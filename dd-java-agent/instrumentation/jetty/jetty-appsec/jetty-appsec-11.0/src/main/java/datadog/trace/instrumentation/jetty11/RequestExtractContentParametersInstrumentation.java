@@ -44,11 +44,6 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     return "org.eclipse.jetty.server.Request";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".MultipartHelper"};
-  }
-
   // Discriminates Jetty 11.0.x ([11.0, 12.0)):
   //  - _contentParameters: MultiMap field exists in 11.x (excludes Jetty 12 where
   //    org.eclipse.jetty.server.Request was removed)

@@ -133,10 +133,10 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
 
   @TableTest(
       value = {
-        "scenario                     | expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
-        "error with non-string result | true     | 'true'       | '1234'         | '5678'         | 2               |              | true      | 'request123'          ",
-        "success with string result   | true     |              | '1234'         | '5678'         | 2               | '12345 '     | false     | 'request456'          "
-      })
+    "scenario                     | expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
+    "error with non-string result | true     | 'true'       | '1234'         | '5678'         | 2               |              | true      | 'request123'          ",
+    "success with string result   | true     |              | '1234'         | '5678'         | 2               | '12345 '     | false     | 'request456'          "
+  })
   void testEndInvocationSuccess(
       boolean expected,
       String eHeaderValue,
@@ -177,10 +177,10 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
 
   @TableTest(
       value = {
-        "scenario                     | expected | headerValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
-        "error with non-string result | false    | 'true'      |              | true      | 'request123'          ",
-        "success with string result   | false    |             | '12345'      | false     | 'request456'          "
-      })
+    "scenario                     | expected | headerValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
+    "error with non-string result | false    | 'true'      |              | true      | 'request123'          ",
+    "success with string result   | false    |             | '12345'      | false     | 'request456'          "
+  })
   void testEndInvocationFailure(
       boolean expected,
       String headerValue,

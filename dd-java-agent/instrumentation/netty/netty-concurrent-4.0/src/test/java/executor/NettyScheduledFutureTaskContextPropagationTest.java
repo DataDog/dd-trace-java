@@ -1,0 +1,227 @@
+package executor;
+
+import static datadog.trace.agent.test.assertions.SpanMatcher.span;
+import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
+import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import datadog.context.ContextScope;
+import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.Trace;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.ScheduledFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
+
+class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumentationTest {
+  @Test
+  void testDelayedScheduledFutureTaskActivatesCapturedContinuationWhenDelayExpires()
+      throws Exception {
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      BlockingTraceableTask task = new BlockingTraceableTask();
+      AgentSpan parent = startSpan("test", "parent");
+
+      // Netty 4.1.44+ calls ScheduledFutureTask.run() once while enqueueing a delayed task and
+      // again when the delay expires. Context must only activate when runTask() executes.
+      try (ContextScope ignored = activateSpan(parent)) {
+        executor.schedule(task, 50, MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+
+      // When the delayed task actually runs, runTask() activates the captured continuation so
+      // traced work in the task remains a child of the scheduling span.
+      assertTrue(task.started.await(5, SECONDS));
+      try {
+        assertTrue(task.sawActiveSpan.get());
+      } finally {
+        task.proceed.countDown();
+      }
+      assertTrue(task.finished.await(5, SECONDS));
+
+      assertTraces(
+          trace(
+              SORT_BY_START_TIME,
+              span().root().operationName("parent"),
+              span().childOfPrevious().operationName("asyncChild")));
+    }
+  }
+
+  @Test
+  void testDelayedTaskPropagatesContextOnAllNettyVersions() throws Exception {
+    // Cross-version invariant: context propagation through a delayed task must work on every
+    // supported Netty version — pre-4.1.44 (single run() at the deadline) and 4.1.44+ (a delay > 0
+    // self-enqueue run followed by execution through runTask()). This guards against regressing
+    // versions that use the original single-run lifecycle.
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      TraceableTask task = new TraceableTask();
+      AgentSpan parent = startSpan("test", "parent");
+
+      try (ContextScope ignored = activateSpan(parent)) {
+        executor.schedule(task, 50, MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+
+      assertTrue(task.finished.await(5, SECONDS));
+      assertTrue(task.sawActiveSpan.get());
+      assertTraces(
+          trace(
+              SORT_BY_START_TIME,
+              span().root().operationName("parent"),
+              span().childOfPrevious().operationName("asyncChild")));
+    }
+  }
+
+  @Test
+  void testImmediateScheduledTaskKeepsContext() throws Exception {
+    // A ScheduledFutureTask scheduled with a non-positive delay executes its body immediately
+    // through runTask(), where the captured continuation must activate.
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      TraceableTask task = new TraceableTask();
+      AgentSpan parent = startSpan("test", "parent");
+
+      try (ContextScope ignored = activateSpan(parent)) {
+        executor.schedule(task, 0, MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+
+      assertTrue(task.finished.await(5, SECONDS));
+      assertTrue(task.sawActiveSpan.get());
+      assertTraces(
+          trace(
+              SORT_BY_START_TIME,
+              span().root().operationName("parent"),
+              span().childOfPrevious().operationName("asyncChild")));
+    }
+  }
+
+  @Test
+  void testSuccessListenerKeepsSchedulingContext() throws Exception {
+    assertCompletionListenerContext(false);
+  }
+
+  @Test
+  void testFailureListenerKeepsSchedulingContext() throws Exception {
+    assertCompletionListenerContext(true);
+  }
+
+  private void assertCompletionListenerContext(boolean fail) throws Exception {
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      // Start the worker before capturing the scheduling span.
+      executor.submit(() -> {}).sync();
+      CountDownLatch proceed = new CountDownLatch(1);
+      CountDownLatch completed = new CountDownLatch(1);
+      AtomicReference<AgentSpan> listenerSpan = new AtomicReference<>();
+      AgentSpan parent = startSpan("test", "parent");
+      ScheduledFuture<?> future;
+      try (ContextScope ignored = activateSpan(parent)) {
+        future =
+            executor.schedule(
+                () -> {
+                  try {
+                    if (!proceed.await(5, SECONDS)) {
+                      throw new AssertionError("Listener was not registered");
+                    }
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                  }
+                  if (fail) {
+                    throw new IllegalStateException("expected task failure");
+                  }
+                },
+                50,
+                MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+      // Register without a span so listener instrumentation cannot mask early scope closure.
+      future.addListener(
+          done -> {
+            listenerSpan.set(activeSpan());
+            completed.countDown();
+          });
+      proceed.countDown();
+      assertTrue(completed.await(5, SECONDS));
+      assertSame(parent, listenerSpan.get());
+      assertTrue(fail != future.isSuccess());
+      assertNull(executor.submit(() -> (Object) activeSpan()).get(5, SECONDS));
+      assertTraces(trace(span().root().operationName("parent")));
+    }
+  }
+
+  private static final class CloseableDefaultEventExecutorGroup extends DefaultEventExecutorGroup
+      implements AutoCloseable {
+    private CloseableDefaultEventExecutorGroup() {
+      super(1);
+    }
+
+    @Override
+    public void close() {
+      try {
+        shutdownGracefully(0, 1, SECONDS).sync();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+
+  private static final class BlockingTraceableTask implements Runnable {
+    private final CountDownLatch started = new CountDownLatch(1);
+    private final CountDownLatch proceed = new CountDownLatch(1);
+    private final CountDownLatch finished = new CountDownLatch(1);
+    private final AtomicBoolean sawActiveSpan = new AtomicBoolean();
+
+    @Override
+    public void run() {
+      sawActiveSpan.set(activeSpan() != null);
+      started.countDown();
+      try {
+        proceed.await(5, SECONDS);
+        asyncChild();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } finally {
+        finished.countDown();
+      }
+    }
+
+    @Trace(operationName = "asyncChild")
+    private void asyncChild() {}
+  }
+
+  private static final class TraceableTask implements Runnable {
+    private final CountDownLatch finished = new CountDownLatch(1);
+    private final AtomicBoolean sawActiveSpan = new AtomicBoolean();
+
+    @Override
+    public void run() {
+      sawActiveSpan.set(activeSpan() != null);
+      try {
+        asyncChild();
+      } finally {
+        finished.countDown();
+      }
+    }
+
+    @Trace(operationName = "asyncChild")
+    private void asyncChild() {}
+  }
+}

@@ -64,11 +64,11 @@ public final class SessionFactoryInstrumentation extends AbstractHibernateInstru
       if (session instanceof Session) {
         final ContextStore<Session, SessionState> contextStore =
             InstrumentationContext.get(Session.class, SessionState.class);
-        contextStore.putIfAbsent((Session) session, new SessionState(span));
+        contextStore.getOrPut((Session) session, new SessionState(span));
       } else if (session instanceof StatelessSession) {
         final ContextStore<StatelessSession, SessionState> contextStore =
             InstrumentationContext.get(StatelessSession.class, SessionState.class);
-        contextStore.putIfAbsent((StatelessSession) session, new SessionState(span));
+        contextStore.getOrPut((StatelessSession) session, new SessionState(span));
       }
     }
 

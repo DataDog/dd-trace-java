@@ -21,7 +21,6 @@ import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.symbol.WireFilter;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassNameFiltering;
-import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -30,6 +29,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -46,6 +46,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -368,12 +369,7 @@ public class DebuggerAgent {
     SnapshotSink snapshotSink = new SnapshotSink(config, tags, lowRateUploader, highRateUploader);
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
-        config,
-        tags,
-        DebuggerMetrics.getInstance(config),
-        probeStatusSink,
-        snapshotSink,
-        symbolSink);
+        config, tags, DebuggerMetricCollector.get(), probeStatusSink, snapshotSink, symbolSink);
   }
 
   public static String getDefaultTagsMergedWithGlobalTags(Config config) {
@@ -443,8 +439,29 @@ public class DebuggerAgent {
       LOGGER.debug("Source file tracking is disabled");
       return;
     }
-    SourceFileTrackingTransformer sourceFileTrackingTransformer =
-        new SourceFileTrackingTransformer(finder);
+    SourceFileTrackingTransformer sourceFileTrackingTransformer;
+    if (Config.get().isDebuggerSynchronousSourceFileTrackingEnabled()) {
+      class SynchronousSourceFileTrackingTransformer extends SourceFileTrackingTransformer {
+        public SynchronousSourceFileTrackingTransformer(ClassesToRetransformFinder finder) {
+          super(finder);
+          this.classNameFilter = new ClassNameFiltering(Config.get());
+        }
+
+        @Override
+        public byte[] transform(
+            ClassLoader loader,
+            String className,
+            Class<?> classBeingRedefined,
+            ProtectionDomain protectionDomain,
+            byte[] classfileBuffer) {
+          registerSourceFile(className, classfileBuffer);
+          return null;
+        }
+      }
+      sourceFileTrackingTransformer = new SynchronousSourceFileTrackingTransformer(finder);
+    } else {
+      sourceFileTrackingTransformer = new SourceFileTrackingTransformer(finder);
+    }
     sourceFileTrackingTransformer.start();
     instrumentation.addTransformer(sourceFileTrackingTransformer);
   }

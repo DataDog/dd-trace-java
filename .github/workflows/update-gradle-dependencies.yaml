@@ -14,7 +14,7 @@ jobs:
       contents: read
       id-token: write # Required for OIDC token federation
     steps:
-      - uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+      - uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
         id: octo-sts
         with:
           scope: DataDog/dd-trace-java
@@ -25,7 +25,7 @@ jobs:
         with:
           submodules: "recursive"
 
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -104,7 +104,7 @@ jobs:
 
       - name: Push core changes
         if: steps.check-core-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@2801f6e08acb3a69b6c4d7b0d5deef27c1a15bc7 # action/v3.3.1
+        uses: DataDog/commit-headless@79367f840e221d63cb28a359de97833cdfde81dd # action/v3.4.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.core_branch }}"
@@ -164,7 +164,7 @@ jobs:
 
       - name: Push instrumentation changes
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@2801f6e08acb3a69b6c4d7b0d5deef27c1a15bc7 # action/v3.3.1
+        uses: DataDog/commit-headless@79367f840e221d63cb28a359de97833cdfde81dd # action/v3.4.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.instrumentation_branch }}"

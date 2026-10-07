@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.mongo;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-
 import com.mongodb.internal.async.SingleResultCallback;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -55,7 +53,7 @@ public class CallbackWrapper<T> implements SingleResultCallback<Object> {
   }
 
   public static SingleResultCallback<Object> wrapIfRequired(SingleResultCallback<Object> callback) {
-    ContextContinuation continuation = captureActiveSpan();
+    ContextContinuation continuation = Context.current().capture();
     if (continuation.context() != Context.root()) {
       return new CallbackWrapper<>(continuation, callback);
     }

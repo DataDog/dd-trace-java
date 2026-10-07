@@ -21,11 +21,6 @@ public class DefaultConnectionPoolInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".CallbackWrapper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

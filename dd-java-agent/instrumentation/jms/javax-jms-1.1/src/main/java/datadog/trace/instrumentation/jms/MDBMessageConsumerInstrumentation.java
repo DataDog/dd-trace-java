@@ -9,6 +9,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.logJMSException;
@@ -22,7 +23,6 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.jms.Destination;
 import javax.jms.JMSException;
@@ -81,7 +81,7 @@ public final class MDBMessageConsumerInstrumentation
 
   public static class MDBAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(0) final Message message) {
+    public static ContextScope methodEnter(@Advice.Argument(0) final Message message) {
       if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
         return null;
       }
@@ -103,12 +103,12 @@ public final class MDBMessageConsumerInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (null != scope) {
         CallDepthThreadLocalMap.reset(MessageListener.class);
         CONSUMER_DECORATE.onError(scope, throwable);
         scope.close();
-        scope.span().finish();
+        spanFromScope(scope).finish();
       }
     }
   }

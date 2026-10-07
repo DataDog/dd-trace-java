@@ -3,9 +3,9 @@ package com.datadog.debugger.agent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NOOP_TRACER;
 
 import com.datadog.debugger.sink.ProbeStatusSink;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 
@@ -38,19 +38,19 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
         dynamicSpan.setTag(tag.substring(0, idx), tag.substring(idx + 1));
       }
     }
-    AgentScope scope = tracerAPI.activateManualSpan(dynamicSpan);
+    ContextScope scope = tracerAPI.activateManualSpan(dynamicSpan);
     return new DebuggerSpanImpl(dynamicSpan, scope, probeStatusSink, encodedProbeId);
   }
 
   static class DebuggerSpanImpl implements DebuggerSpan {
     final AgentSpan underlyingSpan;
-    final AgentScope currentScope;
+    final ContextScope currentScope;
     final ProbeStatusSink probeStatusSink;
     final String encodedProbeId;
 
     public DebuggerSpanImpl(
         AgentSpan underlyingSpan,
-        AgentScope currentScope,
+        ContextScope currentScope,
         ProbeStatusSink probeStatusSink,
         String encodedProbeId) {
       this.underlyingSpan = underlyingSpan;

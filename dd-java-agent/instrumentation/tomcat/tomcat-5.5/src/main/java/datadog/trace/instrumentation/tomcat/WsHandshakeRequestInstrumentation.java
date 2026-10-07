@@ -49,8 +49,7 @@ public class WsHandshakeRequestInstrumentation extends InstrumenterModule.Tracin
         // apply jee configuration overrides if any since the servlet instrumentation won't kick in
         // for this span.
         ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
-        InstrumentationContext.get(WsHandshakeRequest.class, AgentSpan.class)
-            .putIfAbsent(self, span);
+        InstrumentationContext.get(WsHandshakeRequest.class, AgentSpan.class).getOrPut(self, span);
       }
     }
   }

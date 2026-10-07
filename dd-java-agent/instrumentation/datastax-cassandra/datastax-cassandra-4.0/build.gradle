@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -20,6 +21,8 @@ testJvmConstraints {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testContainerImage(image('cassandra:4', 'test.cassandra.image'))
+
   compileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
 
   // ProgrammaticConfig, required to set the timeout, wasn't added until 4.0.1
