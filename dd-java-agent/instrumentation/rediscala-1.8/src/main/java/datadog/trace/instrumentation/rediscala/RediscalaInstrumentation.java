@@ -57,15 +57,6 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".OnCompleteHandler",
-      packageName + ".RediscalaClientDecorator",
-      packageName + ".RedisConnectionInfo"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("akka.actor.ActorRef", packageName + ".RedisConnectionInfo");
   }

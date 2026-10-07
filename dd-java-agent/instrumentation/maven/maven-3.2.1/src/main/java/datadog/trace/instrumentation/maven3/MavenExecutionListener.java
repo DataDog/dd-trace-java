@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 public class MavenExecutionListener extends AbstractExecutionListener {
 
   private static final Logger log = LoggerFactory.getLogger(MavenExecutionListener.class);
+  private static final String TESTS_SKIPPED_BY_CONFIGURATION_REASON =
+      "Tests were skipped by Maven configuration";
 
   private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler;
 
@@ -159,7 +161,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
               && Boolean.parseBoolean(
                   MavenUtils.getConfigurationValue(session, mojoExecution, "skipITs")))) {
         buildEventsHandler.onTestModuleSkip(
-            request, moduleName, "Tests were skipped by Maven configuration");
+            request, moduleName, TESTS_SKIPPED_BY_CONFIGURATION_REASON);
       }
       buildEventsHandler.onTestModuleFinish(request, moduleName);
     } else {

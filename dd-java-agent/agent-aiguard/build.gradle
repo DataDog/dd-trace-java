@@ -6,11 +6,6 @@ plugins {
   id 'dd-trace-java.module.product-subsystem'
 }
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
 dependencies {
   api libs.slf4j
   implementation libs.moshi

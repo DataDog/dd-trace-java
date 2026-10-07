@@ -176,6 +176,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.slf4j.LoggerFactory:build_time,"
               + "datadog.instrument.fieldinject.GlobalObjectStore:build_time,"
               + "datadog.instrument.fieldinject.GlobalObjectStore$LookupKey:build_time,"
+              + "datadog.instrument.fieldinject.GlobalObjectStore$LookupKeyCache:build_time,"
               + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap:build_time,"
               + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap$1:build_time,"
               + "net.bytebuddy:build_time,"

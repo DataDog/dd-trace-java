@@ -6,10 +6,6 @@ tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11)
 }
 
-testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_11
-}
-
 muzzle {
   pass {
     group = 'io.vertx'
@@ -69,4 +65,3 @@ dependencies {
     exclude("server/Iast*.groovy")
   }
 }
-

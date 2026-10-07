@@ -43,15 +43,6 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RumHttpServletRequestWrapper",
-      packageName + ".RumHttpServletResponseWrapper",
-      packageName + ".WrappedServletOutputStream",
-    };
-  }
-
-  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(named(hierarchyMarkerType()))
         .or(implementsInterface(named("jakarta.servlet.FilterChain")));

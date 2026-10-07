@@ -26,13 +26,6 @@ public final class ConnectWorkerInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TaskListener",
-    };
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return TARGET_TYPE;
   }

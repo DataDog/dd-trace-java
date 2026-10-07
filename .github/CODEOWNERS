@@ -87,6 +87,7 @@
 /internal-api/src/*/*/datadog/trace/api/env/                    @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/flare/                  @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/function/               @DataDog/apm-java
+/internal-api/src/*/*/datadog/perfcontract/                     @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/intake/                 @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/logging/                @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/metrics/                @DataDog/apm-java
@@ -174,6 +175,8 @@
 /dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless
 
 # @DataDog/apm-lang-platform-java
+/.agents/skills/fix-continuation-leakage/ @DataDog/apm-lang-platform-java
+/.claude/skills/fix-continuation-leakage/ @DataDog/apm-lang-platform-java
 /.editorconfig                          @DataDog/apm-lang-platform-java
 /.githooks/                             @DataDog/apm-lang-platform-java
 /.github/                               @DataDog/apm-lang-platform-java
@@ -191,6 +194,7 @@
 /dd-java-agent/agent-installer/                      @DataDog/apm-lang-platform-java
 /dd-java-agent/agent-tooling/                        @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation-annotation-processor/ @DataDog/apm-lang-platform-java
+/dd-java-agent/instrumentation-testing/src/*/java/datadog/trace/agent/test/scopediag/ @DataDog/apm-lang-platform-java
 /dd-java-agent/src/                                  @DataDog/apm-lang-platform-java
 /dd-smoke-tests/concurrent/             @DataDog/apm-lang-platform-java
 /dd-smoke-tests/field-injection/        @DataDog/apm-lang-platform-java

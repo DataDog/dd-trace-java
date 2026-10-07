@@ -43,16 +43,6 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".KarateTracingHook",
-      packageName + ".ExecutionContext"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "com.intuit.karate.core.Scenario", packageName + ".ExecutionContext");

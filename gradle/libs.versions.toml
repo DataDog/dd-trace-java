@@ -14,11 +14,11 @@ google-java-format = "1.36.1"
 greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
-spotless = "8.10.1"
+spotless = "8.10.3"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
-ddprof = "1.50.0"
+ddprof = "1.51.0"
 dogstatsd = "4.4.5"
 datadog-okhttp = "3.12.15" # Datadog fork
 datadog-okio = "1.17.6" # Datadog fork
@@ -43,7 +43,7 @@ scala33 = "3.3.0"
 autoservice = "1.1.1"
 asm = "9.10.1"
 byte-buddy = "1.18.12"
-instrument-java = "0.0.5"
+instrument-java = "0.0.6"
 
 # Benchmarks
 jmh = "1.37"
@@ -169,6 +169,7 @@ moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 json-unit-assertj = { module = "net.javacrumbs.json-unit:json-unit-assertj", version.ref = "json-unit" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit5" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
