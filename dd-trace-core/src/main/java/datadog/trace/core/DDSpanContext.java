@@ -6,7 +6,6 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 
-import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -1462,46 +1461,87 @@ public class DDSpanContext
     if (events.isEmpty()) {
       return null;
     }
-    try (JsonWriter writer = new JsonWriter()) {
-      writer.beginArray();
-      for (AgentSpanEvent event : events) {
-        writer.beginObject();
-        writer.name("time_unix_nano").value(event.timeUnixNano());
-        writer.name("name").value(event.name());
-        Map<String, Object> attributes = event.attributes();
-        if (!attributes.isEmpty()) {
-          writer.name("attributes").beginObject();
-          for (Map.Entry<String, Object> attribute : attributes.entrySet()) {
-            writer.name(attribute.getKey());
-            writeSpanEventAttributeValue(writer, attribute.getValue());
-          }
-          writer.endObject();
-        }
-        writer.endObject();
+    StringBuilder builder = new StringBuilder("[");
+    for (AgentSpanEvent event : events) {
+      if (builder.length() > 1) {
+        builder.append(',');
       }
-      writer.endArray();
-      return writer.toString();
+      builder.append("{\"time_unix_nano\":").append(event.timeUnixNano()).append(",\"name\":");
+      appendJsonString(builder, event.name());
+      Map<String, Object> attributes = event.attributes();
+      if (!attributes.isEmpty()) {
+        builder.append(",\"attributes\":{");
+        int attributesStart = builder.length();
+        for (Map.Entry<String, Object> attribute : attributes.entrySet()) {
+          if (builder.length() > attributesStart) {
+            builder.append(',');
+          }
+          appendJsonString(builder, attribute.getKey());
+          builder.append(':');
+          appendJsonValue(builder, attribute.getValue());
+        }
+        builder.append('}');
+      }
+      builder.append('}');
+    }
+    return builder.append(']').toString();
+  }
+
+  private static void appendJsonValue(StringBuilder builder, Object value) {
+    if (value instanceof String) {
+      appendJsonString(builder, (String) value);
+    } else if (value instanceof List) {
+      List<?> values = (List<?>) value;
+      builder.append('[');
+      for (int i = 0; i < values.size(); i++) {
+        if (i > 0) {
+          builder.append(',');
+        }
+        appendJsonValue(builder, values.get(i));
+      }
+      builder.append(']');
+    } else if (value instanceof Number || value instanceof Boolean) {
+      builder.append(value);
+    } else {
+      builder.append("null"); // null for unsupported types
     }
   }
 
-  private static void writeSpanEventAttributeValue(JsonWriter writer, Object value) {
-    if (value instanceof CharSequence) {
-      writer.value(value.toString());
-    } else if (value instanceof Boolean) {
-      writer.value((Boolean) value);
-    } else if (value instanceof Double || value instanceof Float) {
-      writer.value(((Number) value).doubleValue());
-    } else if (value instanceof Number) {
-      writer.value(((Number) value).longValue());
-    } else if (value instanceof List) {
-      writer.beginArray();
-      for (Object item : (List<?>) value) {
-        writeSpanEventAttributeValue(writer, item);
-      }
-      writer.endArray();
-    } else {
-      writer.nullValue();
+  private static void appendJsonString(StringBuilder builder, String value) {
+    if (value == null) {
+      builder.append("null");
+      return;
     }
+    builder.append('"');
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '\\':
+          builder.append("\\\\");
+          break;
+        case '"':
+          builder.append("\\\"");
+          break;
+        case '\b':
+          builder.append("\\b");
+          break;
+        case '\f':
+          builder.append("\\f");
+          break;
+        case '\n':
+          builder.append("\\n");
+          break;
+        case '\r':
+          builder.append("\\r");
+          break;
+        case '\t':
+          builder.append("\\t");
+          break;
+        default:
+          builder.append(c);
+      }
+    }
+    builder.append('"');
   }
 
   void injectW3CBaggageTags(Map<String, String> baggageItemsWithPropagationTags) {
