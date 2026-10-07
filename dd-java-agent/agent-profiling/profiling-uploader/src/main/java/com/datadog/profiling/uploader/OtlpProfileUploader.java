@@ -20,6 +20,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE_DEFAULT;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.profiling.otel.JfrToOtlpConverter;
 import datadog.communication.otlp.OtlpPayload;
@@ -115,6 +116,13 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     }
     this.enabled = enabledConfig && createdSender != null;
     this.sender = createdSender;
+    if (enabled) {
+      log.warn(
+          SEND_TELEMETRY,
+          "OTLP profiles export is enabled. The OTLP profiles protocol is at Development maturity"
+              + " (profiles specification: Alpha) and may change incompatibly; do not use it in"
+              + " production.");
+    }
     this.mode =
         configProvider.getEnum(
             PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, PROFILING_OTLP_MODE_DEFAULT);

@@ -18,6 +18,7 @@ package com.datadog.profiling.uploader;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -34,8 +35,10 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -190,6 +193,37 @@ public class OtlpProfileUploaderTest {
       unblock.countDown();
       shortWaitUploader.shutdown();
     }
+  }
+
+  @Test
+  public void warnsThatOtlpProfilesAreNotProductionReadyWhenEnabled() {
+    String log = captureStderr(() -> new OtlpProfileUploader(config, configProvider, 1).shutdown());
+
+    assertTrue(log.contains("WARN"), log);
+    assertTrue(log.contains("OTLP profiles export is enabled"), log);
+    assertTrue(log.contains("do not use it in production"), log);
+  }
+
+  @Test
+  public void doesNotWarnWhenDisabled() {
+    when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(false);
+
+    String log = captureStderr(() -> new OtlpProfileUploader(config, configProvider, 1).shutdown());
+
+    assertFalse(log.contains("OTLP profiles export is enabled"), log);
+  }
+
+  // the test classpath binds slf4j-simple, which writes to the current System.err
+  private static String captureStderr(Runnable action) {
+    PrintStream original = System.err;
+    ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(captured, true));
+    try {
+      action.run();
+    } finally {
+      System.setErr(original);
+    }
+    return new String(captured.toByteArray(), StandardCharsets.UTF_8);
   }
 
   private RecordingData mockRecordingData() throws IOException {
