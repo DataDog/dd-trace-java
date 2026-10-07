@@ -775,10 +775,16 @@ class SmokeTestAppEndToEndTest {
       .withEnvironment(sanitizedGradleEnvironment(environment))
       .forwardOutput()
 
+  // Proxy scenarios must not inherit repository settings exported by the CI job.
   private fun sanitizedGradleEnvironment(
     overrides: Map<String, String>? = null,
   ): Map<String, String> =
-    System.getenv() +
+    (System.getenv() - setOf(
+      "MAVEN_REPOSITORY_PROXY",
+      "MVNW_REPOURL",
+      "ORG_GRADLE_PROJECT_mavenRepositoryProxy",
+      "ORG_GRADLE_PROJECT_gradlePluginProxy",
+    )) +
       mapOf(
         "GRADLE_ARGS" to "",
         "GRADLE_OPTS" to "",
