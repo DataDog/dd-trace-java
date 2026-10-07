@@ -17,7 +17,8 @@ public final class DBQueryInfo {
   private static final Function<String, DBQueryInfo> NORMALIZE = DBQueryInfo::new;
 
   public static DBQueryInfo ofStatement(String sql) {
-    return NORMALIZE.apply(sql);
+    // applications may pass null to Statement.execute; the driver rejects it, we must not throw
+    return sql == null ? null : NORMALIZE.apply(sql);
   }
 
   public static DBQueryInfo ofPreparedStatement(String sql) {

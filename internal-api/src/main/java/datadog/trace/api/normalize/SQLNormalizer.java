@@ -45,6 +45,9 @@ public final class SQLNormalizer {
   }
 
   public static UTF8BytesString normalize(String sql) {
+    if (sql == null) {
+      return null;
+    }
     byte[] utf8 = sql.getBytes(UTF_8);
     try {
       BitSet splitters = findSplitterPositions(utf8);
