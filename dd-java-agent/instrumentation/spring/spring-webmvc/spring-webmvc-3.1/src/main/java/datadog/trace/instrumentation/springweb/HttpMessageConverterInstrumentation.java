@@ -53,6 +53,13 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".SpringBlockingHelper",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -129,9 +136,11 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          boolean success = SpringBlockingHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+          if (success) {
+            t = new BlockingException("Blocked request (for HttpMessageConverter/read)");
+          }
         }
-        t = new BlockingException("Blocked request (for HttpMessageConverter/read)");
       }
     }
   }
@@ -158,9 +167,11 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          boolean success = SpringBlockingHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+          if (success) {
+            throw new BlockingException("Blocked response (for HttpMessageConverter/write)");
+          }
         }
-        throw new BlockingException("Blocked response (for HttpMessageConverter/write)");
       }
     }
   }
