@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -162,15 +163,22 @@ class RemoteConfigServiceImplTest {
     final ServerConfiguration config =
         deserialize(
             configWithFeatures(
-                "[{\"key\": \"holdout.key\", \"value\": \"q4-global\"},"
-                    + " {\"key\": \"holdout.weight\", \"value\": 0.5},"
-                    + " {\"key\": \"holdout.should_include_in_holdout_analysis\", \"value\": true}]"));
+                "[{\"key\": \"holdout.key\", \"value\": \"q4-global\", \"destinations\": [\"HOOK\"]},"
+                    + " {\"key\": \"holdout.weight\", \"value\": 0.5,"
+                    + " \"destinations\": [\"EXPOSURE\", \"EVALUATION\"]},"
+                    + " {\"key\": \"holdout.should_include_in_holdout_analysis\", \"value\": true,"
+                    + " \"destinations\": [\"HOOK\", \"SOME_FUTURE_DESTINATION\"]}]"));
 
     final List<Feature> features = featuresOf(config);
     assertEquals(3, features.size());
-    assertFeature(features.get(0), "holdout.key", "q4-global");
-    assertFeature(features.get(1), "holdout.weight", 0.5);
-    assertFeature(features.get(2), "holdout.should_include_in_holdout_analysis", true);
+    assertFeature(features.get(0), "holdout.key", "q4-global", "HOOK");
+    assertFeature(features.get(1), "holdout.weight", 0.5, "EXPOSURE", "EVALUATION");
+    assertFeature(
+        features.get(2),
+        "holdout.should_include_in_holdout_analysis",
+        true,
+        "HOOK",
+        "SOME_FUTURE_DESTINATION");
     assertEquals(Integer.valueOf(7), serialIdOf(config));
   }
 
@@ -184,23 +192,45 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void dropsMalformedSplitFeaturesAndKeepsTheFlag() throws Exception {
+    final String hook = ", \"destinations\": [\"HOOK\"]";
     final ServerConfiguration config =
         deserialize(
             configWithFeatures(
-                "[{\"key\": \"object-value\", \"value\": {\"nested\": true}},"
-                    + " {\"key\": \"array-value\", \"value\": [1]},"
-                    + " {\"key\": \"null-value\", \"value\": null},"
-                    + " {\"key\": \"\", \"value\": \"empty key\"},"
-                    + " {\"key\": 3, \"value\": \"numeric key\"},"
-                    + " {\"value\": \"missing key\"},"
-                    + " {\"key\": \"missing value\"},"
+                "[{\"key\": \"object-value\", \"value\": {\"nested\": true}"
+                    + hook
+                    + "},"
+                    + " {\"key\": \"array-value\", \"value\": [1]"
+                    + hook
+                    + "},"
+                    + " {\"key\": \"null-value\", \"value\": null"
+                    + hook
+                    + "},"
+                    + " {\"key\": \"\", \"value\": \"empty key\""
+                    + hook
+                    + "},"
+                    + " {\"key\": 3, \"value\": \"numeric key\""
+                    + hook
+                    + "},"
+                    + " {\"value\": \"missing key\""
+                    + hook
+                    + "},"
+                    + " {\"key\": \"missing value\""
+                    + hook
+                    + "},"
+                    + " {\"key\": \"no-destinations\", \"value\": \"dropped\"},"
+                    + " {\"key\": \"empty-destinations\", \"value\": \"dropped\", \"destinations\": []},"
+                    + " {\"key\": \"destinations-not-a-list\", \"value\": \"dropped\","
+                    + " \"destinations\": \"HOOK\"},"
+                    + " {\"key\": \"only-invalid-destinations\", \"value\": \"dropped\","
+                    + " \"destinations\": [1, \"\", null, {\"name\": \"HOOK\"}]},"
                     + " \"not-an-object\","
-                    + " {\"key\": \"holdout.key\", \"value\": \"q4-global\", \"destination\": \"HOOK\"}]"));
+                    + " {\"key\": \"holdout.key\", \"value\": \"q4-global\","
+                    + " \"destinations\": [1, \"HOOK\", \"\"], \"destination\": \"HOOK\"}]"));
 
     assertTrue(config.flags.containsKey("valid-flag"));
     final List<Feature> features = featuresOf(config);
     assertEquals(1, features.size());
-    assertFeature(features.get(0), "holdout.key", "q4-global");
+    assertFeature(features.get(0), "holdout.key", "q4-global", "HOOK");
   }
 
   @Test
@@ -213,9 +243,11 @@ class RemoteConfigServiceImplTest {
     assertEquals(Integer.valueOf(7), serialIdOf(config));
   }
 
-  private static void assertFeature(final Feature feature, final String key, final Object value) {
+  private static void assertFeature(
+      final Feature feature, final String key, final Object value, final String... destinations) {
     assertEquals(key, feature.key);
     assertEquals(value, feature.value);
+    assertEquals(Arrays.asList(destinations), feature.destinations);
   }
 
   private static List<Feature> featuresOf(final ServerConfiguration config) {
