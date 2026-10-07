@@ -19,8 +19,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.newCoroutineContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -36,6 +38,84 @@ import kotlin.coroutines.suspendCoroutine
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StandardSuspensionHandoffTests {
+  fun runScopedChildWait(kind: String, closeInside: Boolean, outcome: String) {
+    val workers = Executors.newFixedThreadPool(2)
+    val childWorkers = Executors.newSingleThreadExecutor()
+    val dispatcher = workers.asCoroutineDispatcher()
+    val childDispatcher = childWorkers.asCoroutineDispatcher()
+    val restoring = CountDownLatch(1)
+    val released = CountDownLatch(1)
+    val childStarted = CountDownLatch(1)
+    val expected = when (outcome) {
+      "return" -> null
+      "throw" -> IllegalStateException("scoped body failed")
+      "cancel" -> CancellationException("scoped body cancelled")
+      else -> error("Unknown completion: $outcome")
+    }
+    val before = RestoreGate(restoring, released)
+    val after = RestoreGate(restoring, released)
+    val context = CoroutineScope(dispatcher).newCoroutineContext(before) + after
+    val parent = get().buildSpan("kotlin_coroutine", "parent").start()
+    val parentScope = get().activateManualSpan(parent)
+    try {
+      runBlocking(context) {
+        suspend fun closeCapturedScope() {
+          val transient = get().buildSpan("kotlin_coroutine", "closed").start()
+          val scope = get().activateManualSpan(transient)
+          try {
+            suspendCoroutine<Unit> { it.resume(Unit) }
+          } finally {
+            scope.close()
+            transient.finish()
+          }
+          check(activeSpan() === parent) { "Inline completion did not restore parent" }
+        }
+        if (!closeInside) closeCapturedScope()
+        val block: suspend CoroutineScope.() -> Unit = {
+          if (closeInside) closeCapturedScope()
+          launch(childDispatcher) {
+            childStarted.countDown()
+            check(restoring.await(10, SECONDS)) { "Source did not enter restoration" }
+          }
+          check(childStarted.await(10, SECONDS)) { "Child did not start" }
+          if (expected != null) throw expected
+          Unit
+        }
+        try {
+          try {
+            when (kind) {
+              "scope" -> coroutineScope(block)
+              "supervisor" -> supervisorScope(block)
+              "context" -> withContext(CoroutineName("nested"), block)
+              "timeout" -> withTimeout(10000, block)
+              else -> error("Unknown scoped builder: $kind")
+            }
+            check(expected == null) { "Scoped failure was swallowed" }
+          } catch (failure: Exception) {
+            check(expected != null && (failure === expected || failure.cause === expected)) {
+              "Unexpected scoped failure: $failure"
+            }
+          }
+          check(restoring.count == 0L && released.count == 1L) { "Source restoration did not overlap resumption" }
+          check(before.updates.get() >= 2 && after.updates.get() >= 2) { "Parent did not resume" }
+          check(activeSpan() === parent) { "Child wait resumed ${activeSpan()?.operationName} instead of parent" }
+          get().buildSpan("kotlin_coroutine", "after-child").start().finish()
+        } finally {
+          released.countDown()
+        }
+      }
+    } finally {
+      released.countDown()
+      restoring.countDown()
+      parentScope.close()
+      parent.finish()
+      dispatcher.close()
+      childDispatcher.close()
+      check(workers.awaitTermination(10, SECONDS))
+      check(childWorkers.awaitTermination(10, SECONDS))
+    }
+  }
+
   fun runReplayedRestoration() {
     val interceptor = object : AbstractCoroutineContextElement(ContinuationInterceptor), ContinuationInterceptor {
       override fun <T> interceptContinuation(continuation: Continuation<T>): Continuation<T> = continuation

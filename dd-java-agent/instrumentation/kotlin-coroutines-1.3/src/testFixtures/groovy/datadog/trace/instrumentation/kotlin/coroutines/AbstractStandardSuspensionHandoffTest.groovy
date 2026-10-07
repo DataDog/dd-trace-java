@@ -3,6 +3,32 @@ package datadog.trace.instrumentation.kotlin.coroutines
 import datadog.trace.agent.test.InstrumentationSpecification
 
 abstract class AbstractStandardSuspensionHandoffTest extends InstrumentationSpecification {
+  def "#kind child wait refreshes scope closed inside block #closeInside on #outcome"() {
+    when:
+    new StandardSuspensionHandoffTests().runScopedChildWait(kind, closeInside, outcome)
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+    def spans = trace.collectEntries { [(it.operationName.toString()): it] }
+
+    then:
+    trace.size() == 3
+    spans.closed.parentId == spans.parent.spanId
+    spans['after-child'].parentId == spans.parent.spanId
+
+    where:
+    kind         | closeInside | outcome
+    'scope'      | false       | 'return'
+    'scope'      | true        | 'return'
+    'supervisor' | false       | 'return'
+    'supervisor' | true        | 'return'
+    'context'    | false       | 'return'
+    'context'    | true        | 'return'
+    'timeout'    | false       | 'return'
+    'timeout'    | true        | 'return'
+    'scope'      | true        | 'throw'
+    'scope'      | true        | 'cancel'
+  }
+
   def "early dispatcher #outcome preserves scope opened afterward #openAfter with delayed restore #delayedRestore"() {
     when:
     new StandardSuspensionHandoffTests().runEarlyDispatcherChange(openAfter, outcome, delayedRestore)

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.trace.api.GenericClassValue;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -10,6 +11,7 @@ import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.AbstractCoroutine;
 import kotlinx.coroutines.ThreadContextElement;
+import kotlinx.coroutines.internal.ScopeCoroutine;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
 public final class DatadogThreadContextElement
@@ -21,6 +23,15 @@ public final class DatadogThreadContextElement
 
   private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
       new CoroutineContext.Key<DatadogThreadContextElement>() {};
+
+  private static final ClassValue<Boolean> SCOPED_COROUTINE =
+      GenericClassValue.of(
+          type -> {
+            // Older timeout coroutines are scoped but do not extend ScopeCoroutine.
+            return ScopeCoroutine.class.isAssignableFrom(type)
+                || (AbstractCoroutine.class.isAssignableFrom(type)
+                    && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName()));
+          });
 
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
     if (coroutineContext.get(DATADOG_KEY) != null) {
@@ -96,13 +107,11 @@ public final class DatadogThreadContextElement
     }
   }
 
-  /** Publishes scope changes before suspension can resume the coroutine on another worker. */
-  public static void beforeSuspension(Continuation<?> continuation) {
-    captureContext(continuation);
-  }
-
-  public static Object beforeContextChange(Continuation<?> continuation) {
-    return captureContext(continuation);
+  public static void beforeScopedCompletion(Object coroutine) {
+    if (SCOPED_COROUTINE.get(coroutine.getClass())) {
+      // The scoped body has finished changing its scopes; children can resume it during completion.
+      captureContext((AbstractCoroutine<?>) coroutine);
+    }
   }
 
   public static void afterContextChange(Continuation<?> continuation, Object original) {
@@ -117,7 +126,8 @@ public final class DatadogThreadContextElement
     }
   }
 
-  private static Exchange captureContext(Continuation<?> continuation) {
+  /** Publishes the active scope stack before Kotlin can hand execution to another worker. */
+  public static Object captureContext(Continuation<?> continuation) {
     DatadogThreadContextElement element = continuation.getContext().get(DATADOG_KEY);
     if (element == null) {
       return null;
