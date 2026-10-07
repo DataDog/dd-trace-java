@@ -35,7 +35,7 @@ abstract class MuzzleTask @Inject constructor(
   objects: ObjectFactory,
   providers: ProviderFactory,
 ) : AbstractMuzzleTask() {
-  override fun getDescription(): String = if (muzzleDirective.isPresent) {
+  override fun getDescription(): String = super.getDescription() ?: if (muzzleDirective.isPresent) {
     "Run instrumentation muzzle on ${muzzleDirective.get().name} dependency"
   } else {
     "Run instrumentation muzzle on compile time dependencies"

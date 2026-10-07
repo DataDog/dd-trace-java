@@ -75,6 +75,7 @@ class MuzzlePlugin : Plugin<Project> {
     }
 
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
+      description = "Check instrumentation compatibility against the configured dependency versions"
       this.muzzleBootstrap.set(muzzleBootstrap)
       this.muzzleTooling.set(muzzleTooling)
       dependsOn(compileMuzzle)

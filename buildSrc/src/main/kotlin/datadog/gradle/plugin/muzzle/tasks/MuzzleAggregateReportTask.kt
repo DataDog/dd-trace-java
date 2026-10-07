@@ -12,7 +12,7 @@ import java.util.TreeMap
 
 abstract class MuzzleAggregateReportTask : AbstractMuzzleReportTask() {
   init {
-    description = "Aggregate instrumentation dependency version reports"
+    description = "Aggregate instrumentation dependency range reports"
     versionsFile.convention(project.layout.buildDirectory.file("$MUZZLE_DEPS_RESULTS/muzzle.csv"))
     // Preserve the existing order-sensitive handling of Maven-equivalent version spellings.
     outputs.upToDateWhen { false }

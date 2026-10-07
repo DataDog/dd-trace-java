@@ -130,7 +130,7 @@ tasks.register("latestDepTest")
 
 tasks.register("generateMuzzleReport") {
   group = "Muzzle"
-  description = "Generate the aggregate instrumentation dependency version report"
+  description = "Aggregate instrumentation dependency range reports"
   dependsOn(":dd-java-agent:instrumentation:aggregateMuzzleReports")
 }
 

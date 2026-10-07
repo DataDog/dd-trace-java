@@ -29,7 +29,7 @@ muzzleReports {
 
 tasks.register('muzzleInstrumentationReport') {
   group = 'Muzzle'
-  description = 'Generate the aggregate instrumentation dependency version report'
+  description = 'Aggregate instrumentation dependency range reports'
   dependsOn(tasks.named('aggregateMuzzleReports'))
 }
 

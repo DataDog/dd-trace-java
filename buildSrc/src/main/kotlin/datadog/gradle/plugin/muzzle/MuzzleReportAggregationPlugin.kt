@@ -47,7 +47,7 @@ class MuzzleReportAggregationPlugin : Plugin<Project> {
 
     project.tasks.register("mergeMuzzleReports") {
       group = "Muzzle"
-      description = "Deprecated: use aggregateMuzzleReports for the aggregate dependency report"
+      description = "Deprecated: use aggregateMuzzleReports for dependency range reports"
       dependsOn(report)
       doFirst { logger.warn("mergeMuzzleReports is deprecated; use aggregateMuzzleReports") }
     }

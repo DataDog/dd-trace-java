@@ -34,7 +34,7 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
   }
 
   init {
-    description = "Generate this instrumentation's dependency version report"
+    description = "Generate this instrumentation's dependency range report"
     reportDirectives.convention(emptyList())
     versionsFile.convention(project.layout.buildDirectory.file("$MUZZLE_DEPS_RESULTS/${project.pathSlug}.csv"))
     // Repository metadata can change without any local task input changing.

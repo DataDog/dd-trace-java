@@ -8,6 +8,27 @@ import org.junit.jupiter.api.Test
 
 class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
   @Test
+  fun `help distinguishes compatibility validation from dependency reports`() {
+    writeReportingProject("muzzle { pass { coreJdk() } }")
+    val descriptions = mapOf(
+      "demo:muzzle" to "Check instrumentation compatibility against the configured dependency versions",
+      "demo:generateMuzzleReport" to "Generate this instrumentation's dependency range report",
+      "aggregateMuzzleReports" to "Aggregate instrumentation dependency range reports",
+      "mergeMuzzleReports" to "Deprecated: use aggregateMuzzleReports for dependency range reports"
+    )
+    descriptions.forEach { (task, description) ->
+      val result = run(
+        "help", "--task", ":dd-java-agent:instrumentation:$task",
+        "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace"
+      )
+      assertThat(result.task(":help")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+      assertThat(result.output).contains(description)
+      assertThat(result.tasks).noneMatch { it.path.contains("muzzle", ignoreCase = true) }
+    }
+    assertThat(file(REPORT)).doesNotExist()
+  }
+
+  @Test
   fun `aggregates only published reports and refreshes Maven ranges with configuration cache reuse`() {
     val repo = createMavenRepoFixture()
     repo.publishVersions("example", "library", listOf("1.0", "1.10", "2.0", "3.0"))
