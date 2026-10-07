@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -165,6 +166,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final String METADATA_EXPOSURE_CACHE_HIT = "__dd_exposure_cache_hit";
   // Each feature of the selected split is copied to the metadata under this prefix.
   static final String METADATA_FEATURE_PREFIX = "__dd_feature.";
+
+  static final String FEATURE_DESTINATION_HOOK = "HOOK";
+  private static final Set<String> KNOWN_FEATURE_DESTINATIONS =
+      new HashSet<>(asList(FEATURE_DESTINATION_HOOK, "EXPOSURE", "EVALUATION"));
+  // A newer UFC can name destinations this SDK does not know; warn once per name, not per
+  // evaluation.
+  static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
 
   // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
   // key = non-DD provider; the hook falls back to false (fail-closed).
@@ -665,7 +673,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         continue;
       }
       final Feature feature = (Feature) item;
-      if (feature.key == null) {
+      if (feature.key == null || !deliversToHook(feature)) {
         continue;
       }
       final String key = METADATA_FEATURE_PREFIX + feature.key;
@@ -677,6 +685,22 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         metadataBuilder.addDouble(key, ((Number) feature.value).doubleValue());
       }
     }
+  }
+
+  private static boolean deliversToHook(final Feature feature) {
+    if (feature.destinations == null) {
+      return false;
+    }
+    boolean hook = false;
+    for (final String destination : feature.destinations) {
+      if (FEATURE_DESTINATION_HOOK.equals(destination)) {
+        hook = true;
+      } else if (!KNOWN_FEATURE_DESTINATIONS.contains(destination)
+          && WARNED_FEATURE_DESTINATIONS.add(destination)) {
+        log.warn("Ignoring unknown feature destination {}", destination);
+      }
+    }
+    return hook;
   }
 
   /** The serial id an exposure carries: none when the agent's exposure event predates it. */
