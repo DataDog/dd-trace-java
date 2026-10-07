@@ -390,31 +390,37 @@ public enum JDBCConnectionUrlParser {
 
   ORACLE_CONNECT_INFO() {
     @Override
-    DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
+    DBInfo.Builder doParse(final String connectInfo, final DBInfo.Builder builder) {
 
       final String host;
       final Integer port;
       final String instance;
 
-      final int hostEnd = jdbcUrl.indexOf(':');
-      final int instanceLoc = jdbcUrl.indexOf('/');
+      // EZConnect Plus parameters (?key=value) are not part of the address
+      final int queryLoc = connectInfo.indexOf('?');
+      final String jdbcUrl = queryLoc >= 0 ? connectInfo.substring(0, queryLoc) : connectInfo;
+
+      // skip a bracketed IPv6 literal so its colons are not taken as the port separator
+      final int hostSearchStart = jdbcUrl.startsWith("[") ? Math.max(jdbcUrl.indexOf(']'), 0) : 0;
+      final int instanceLoc = jdbcUrl.indexOf('/', hostSearchStart);
+      final int colonLoc = jdbcUrl.indexOf(':', hostSearchStart);
+      // a ':' after the service name separates the server type, not the port
+      final int hostEnd = instanceLoc >= 0 && colonLoc > instanceLoc ? -1 : colonLoc;
       if (hostEnd > 0) {
         host = jdbcUrl.substring(0, hostEnd);
         final int afterHostEnd = jdbcUrl.indexOf(':', hostEnd + 1);
-        if (afterHostEnd > 0) {
-          port = Integer.parseInt(jdbcUrl.substring(hostEnd + 1, afterHostEnd));
+        if (afterHostEnd > 0 && (instanceLoc < 0 || afterHostEnd < instanceLoc)) {
+          // host:port:sid
+          port = parsePort(jdbcUrl.substring(hostEnd + 1, afterHostEnd));
           instance = jdbcUrl.substring(afterHostEnd + 1);
         } else {
           if (instanceLoc > 0) {
-            instance = jdbcUrl.substring(instanceLoc + 1);
-            port = Integer.parseInt(jdbcUrl.substring(hostEnd + 1, instanceLoc));
+            // host:port/service[:server_type][/instance_name]
+            instance = serviceName(jdbcUrl.substring(instanceLoc + 1));
+            port = parsePort(jdbcUrl.substring(hostEnd + 1, instanceLoc));
           } else {
             final String portOrInstance = jdbcUrl.substring(hostEnd + 1);
-            Integer parsedPort = null;
-            try {
-              parsedPort = Integer.parseInt(portOrInstance);
-            } catch (final NumberFormatException ignored) {
-            }
+            final Integer parsedPort = parsePort(portOrInstance);
             if (parsedPort == null) {
               port = null;
               instance = portOrInstance;
@@ -428,7 +434,7 @@ public enum JDBCConnectionUrlParser {
         if (instanceLoc > 0) {
           host = jdbcUrl.substring(0, instanceLoc);
           port = null;
-          instance = jdbcUrl.substring(instanceLoc + 1);
+          instance = serviceName(jdbcUrl.substring(instanceLoc + 1));
         } else {
           if (jdbcUrl.isEmpty()) {
             return builder;
@@ -446,6 +452,28 @@ public enum JDBCConnectionUrlParser {
         builder.port(port);
       }
       return builder.instance(instance);
+    }
+
+    private Integer parsePort(final String port) {
+      try {
+        return Integer.parseInt(port);
+      } catch (final NumberFormatException ignored) {
+        return null;
+      }
+    }
+
+    /** Drops the optional {@code :server_type} and {@code /instance_name} EZConnect suffixes. */
+    private String serviceName(final String service) {
+      int end = service.length();
+      final int serverTypeLoc = service.indexOf(':');
+      if (serverTypeLoc >= 0) {
+        end = serverTypeLoc;
+      }
+      final int instanceNameLoc = service.indexOf('/');
+      if (instanceNameLoc >= 0 && instanceNameLoc < end) {
+        end = instanceNameLoc;
+      }
+      return service.substring(0, end);
     }
   },
 
@@ -469,10 +497,12 @@ public enum JDBCConnectionUrlParser {
       }
 
       final int hostStart;
+      final int protocolEnd = connectInfo.indexOf("://");
       if (connectInfo.startsWith("//")) {
         hostStart = "//".length();
-      } else if (connectInfo.startsWith("ldap://")) {
-        hostStart = "ldap://".length();
+      } else if (protocolEnd > 0 && protocolEnd == connectInfo.indexOf(':')) {
+        // protocol prefix, e.g. ldap://, tcp://, tcps://
+        hostStart = protocolEnd + "://".length();
       } else {
         hostStart = 0;
       }
@@ -726,6 +756,10 @@ public enum JDBCConnectionUrlParser {
 
       final int protoLoc = jdbcUrl.indexOf("://");
       final int typeEndLoc = dbInfo.getType().length();
+      if (protoLoc <= typeEndLoc) {
+        // no "jtds:<subtype>://" prefix to parse
+        return builder;
+      }
       final String subtype = jdbcUrl.substring(typeEndLoc + 1, protoLoc);
 
       builder.subtype(subtype);
@@ -740,40 +774,37 @@ public enum JDBCConnectionUrlParser {
         }
       }
 
+      // <server>[:<port>][/<database>][;<property>=<value>[;...]]
       final String details = jdbcUrl.substring(protoLoc + "://".length());
 
-      final int hostEndLoc;
-      final int portLoc = details.indexOf(':', typeEndLoc + 1);
-      final int dbLoc = details.indexOf('/', typeEndLoc);
-      final int paramLoc = details.indexOf(';', dbLoc);
-
-      if (paramLoc > 0) {
+      final int paramLoc = details.indexOf(';');
+      final String address;
+      if (paramLoc >= 0) {
         populateStandardProperties(builder, splitQuery(details.substring(paramLoc + 1), ';'));
-        if (dbLoc > 0) {
-          builder.db(details.substring(dbLoc + 1, paramLoc));
-        }
+        address = details.substring(0, paramLoc);
       } else {
-        if (dbLoc > 0) {
-          builder.db(details.substring(dbLoc + 1));
-        }
+        address = details;
       }
 
-      if (portLoc > 0) {
-        hostEndLoc = portLoc;
-        final int portEndLoc = dbLoc > 0 ? dbLoc : (paramLoc > 0 ? paramLoc : details.length());
+      final int dbLoc = address.indexOf('/');
+      final String hostAndPort;
+      if (dbLoc >= 0) {
+        builder.db(address.substring(dbLoc + 1));
+        hostAndPort = address.substring(0, dbLoc);
+      } else {
+        hostAndPort = address;
+      }
+
+      final int portLoc = hostAndPort.indexOf(':');
+      if (portLoc >= 0) {
         try {
-          builder.port(Integer.parseInt(details.substring(portLoc + 1, portEndLoc)));
+          builder.port(Integer.parseInt(hostAndPort.substring(portLoc + 1)));
         } catch (final NumberFormatException ignored) {
         }
-      } else if (dbLoc > 0) {
-        hostEndLoc = dbLoc;
-      } else if (paramLoc > 0) {
-        hostEndLoc = paramLoc;
+        builder.host(hostAndPort.substring(0, portLoc));
       } else {
-        hostEndLoc = details.length();
+        builder.host(hostAndPort);
       }
-
-      builder.host(details.substring(0, hostEndLoc));
 
       return builder;
     }
