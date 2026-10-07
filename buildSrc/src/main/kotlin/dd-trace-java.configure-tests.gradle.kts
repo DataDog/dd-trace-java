@@ -37,6 +37,11 @@ val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests"
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
+  // Image fetching has separate retry and no-progress limits from container startup.
+  // Allow slow CI pulls while preserving explicit environment overrides.
+  environment.putIfAbsent("TESTCONTAINERS_PULL_TIMEOUT", "240")
+  environment.putIfAbsent("TESTCONTAINERS_PULL_PAUSE_TIMEOUT", "60")
+
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
