@@ -89,6 +89,7 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
+  implementation(libs.forbiddenapis)
 
   implementation("net.bytebuddy", "byte-buddy-gradle-plugin", libs.versions.byte.buddy.get())
 
@@ -134,6 +135,9 @@ testing {
 
     withType(JvmTestSuite::class).configureEach {
       useJUnitJupiter(libs.versions.junit5)
+      dependencies {
+        implementation(platform(libs.junit.bom))
+      }
       targets.configureEach {
         testTask
       }
