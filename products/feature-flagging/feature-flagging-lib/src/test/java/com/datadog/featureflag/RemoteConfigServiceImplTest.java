@@ -1,6 +1,7 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
@@ -334,6 +335,35 @@ class RemoteConfigServiceImplTest {
 
     assertThrows(
         UnsupportedOperationException.class, () -> adapter.toJson(mock(JsonWriter.class), true));
+  }
+
+  @Test
+  void featureListAdapterFactoryOnlyCreatesAdapterForUnannotatedFeatureList() {
+    final Moshi moshi = moshi();
+    final Type featuresType = Types.newParameterizedType(List.class, Feature.class);
+
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.FeatureListAdapter.FACTORY.create(
+            featuresType, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.FeatureListAdapter);
+    assertNull(
+        UniversalFlagConfigParser.FeatureListAdapter.FACTORY.create(
+            Types.newParameterizedType(List.class, String.class), emptySet(), moshi));
+    assertNull(
+        UniversalFlagConfigParser.FeatureListAdapter.FACTORY.create(
+            featuresType, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void featureListAdapterIsReadOnly() {
+    final UniversalFlagConfigParser.FeatureListAdapter adapter =
+        new UniversalFlagConfigParser.FeatureListAdapter();
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> adapter.toJson(mock(JsonWriter.class), emptyList()));
   }
 
   @Test
