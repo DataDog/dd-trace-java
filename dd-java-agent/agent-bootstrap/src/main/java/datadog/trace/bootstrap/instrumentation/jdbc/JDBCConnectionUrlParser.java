@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
+import static datadog.trace.util.Numbers.parseNonNegativeInt;
 import static java.lang.Math.max;
 
 import datadog.trace.api.Pair;
@@ -140,7 +141,7 @@ public enum JDBCConnectionUrlParser {
       final int portLoc = serverName.indexOf(':');
 
       if (portLoc > 1) {
-        port = Integer.parseInt(serverName.substring(portLoc + 1));
+        port = parsePort(serverName, portLoc + 1, serverName.length());
         serverName = serverName.substring(0, portLoc);
       }
 
@@ -221,10 +222,7 @@ public enum JDBCConnectionUrlParser {
 
       if (portLoc > 0) {
         hostEndLoc = portLoc;
-        try {
-          builder.port(Integer.parseInt(jdbcUrl.substring(portLoc + 1, dbLoc)));
-        } catch (final NumberFormatException ignored) {
-        }
+        setPort(builder, parsePort(jdbcUrl, portLoc + 1, dbLoc));
       } else {
         hostEndLoc = dbLoc;
       }
@@ -268,10 +266,7 @@ public enum JDBCConnectionUrlParser {
       if (portLoc > 0) {
         hostEndLoc = portLoc;
         final int portEndLoc = clusterSepLoc > 0 ? clusterSepLoc : dbLoc;
-        try {
-          builder.port(Integer.parseInt(jdbcUrl.substring(portLoc + 1, portEndLoc)));
-        } catch (final NumberFormatException ignored) {
-        }
+        setPort(builder, parsePort(jdbcUrl, portLoc + 1, portEndLoc));
       } else {
         hostEndLoc = clusterSepLoc > 0 ? clusterSepLoc : dbLoc;
       }
@@ -303,7 +298,7 @@ public enum JDBCConnectionUrlParser {
 
       final Matcher portMatcher = PORT_REGEX.matcher(jdbcUrl);
       if (portMatcher.find()) {
-        builder.port(Integer.parseInt(portMatcher.group(1)));
+        setPort(builder, parsePort(portMatcher.group(1)));
       }
 
       final Matcher userMatcher = USER_REGEX.matcher(jdbcUrl);
@@ -411,13 +406,13 @@ public enum JDBCConnectionUrlParser {
         final int afterHostEnd = jdbcUrl.indexOf(':', hostEnd + 1);
         if (afterHostEnd > 0 && (instanceLoc < 0 || afterHostEnd < instanceLoc)) {
           // host:port:sid
-          port = parsePort(jdbcUrl.substring(hostEnd + 1, afterHostEnd));
+          port = parsePort(jdbcUrl, hostEnd + 1, afterHostEnd);
           instance = jdbcUrl.substring(afterHostEnd + 1);
         } else {
           if (instanceLoc > 0) {
             // host:port/service[:server_type][/instance_name]
             instance = serviceName(jdbcUrl.substring(instanceLoc + 1));
-            port = parsePort(jdbcUrl.substring(hostEnd + 1, instanceLoc));
+            port = parsePort(jdbcUrl, hostEnd + 1, instanceLoc);
           } else {
             final String portOrInstance = jdbcUrl.substring(hostEnd + 1);
             final Integer parsedPort = parsePort(portOrInstance);
@@ -533,7 +528,7 @@ public enum JDBCConnectionUrlParser {
 
       final Matcher portMatcher = PORT_REGEX.matcher(urlPart2);
       if (portMatcher.find()) {
-        builder.port(Integer.parseInt(portMatcher.group(1)));
+        setPort(builder, parsePort(portMatcher.group(1)));
       }
 
       final Matcher instanceMatcher = INSTANCE_REGEX.matcher(urlPart2);
@@ -719,7 +714,7 @@ public enum JDBCConnectionUrlParser {
         final int portLoc = url.indexOf(':');
         if (portLoc > 0) {
           host = url.substring(0, portLoc);
-          builder.port(Integer.parseInt(url.substring(portLoc + 1)));
+          setPort(builder, parsePort(url, portLoc + 1, url.length()));
         } else {
           host = url;
         }
@@ -789,10 +784,7 @@ public enum JDBCConnectionUrlParser {
 
       final int portLoc = hostAndPort.indexOf(':');
       if (portLoc >= 0) {
-        final Integer port = parsePort(hostAndPort.substring(portLoc + 1));
-        if (port != null) {
-          builder.port(port);
-        }
+        setPort(builder, parsePort(hostAndPort, portLoc + 1, hostAndPort.length()));
         builder.host(hostAndPort.substring(0, portLoc));
       } else {
         builder.host(hostAndPort);
@@ -923,11 +915,26 @@ public enum JDBCConnectionUrlParser {
 
   // Source: https://stackoverflow.com/a/13592567
   @SuppressForbidden
-  private static Integer parsePort(final String port) {
-    try {
-      return Integer.parseInt(port);
-    } catch (final NumberFormatException ignored) {
-      return null;
+  /**
+   * @return the port, or {@code null} if {@code s[start, end)} is not a valid port number
+   */
+  private static Integer parsePort(final CharSequence s, final int start, final int end) {
+    final int port = parseNonNegativeInt(s, start, end);
+    return port >= 0 ? port : null;
+  }
+
+  /**
+   * @return the port, or {@code null} if {@code s} is null or not a valid port number
+   */
+  private static Integer parsePort(final String s) {
+    final int port = parseNonNegativeInt(s);
+    return port >= 0 ? port : null;
+  }
+
+  /** Sets the port only when one was parsed, keeping any default already on the builder. */
+  private static void setPort(final DBInfo.Builder builder, final Integer port) {
+    if (port != null) {
+      builder.port(port);
     }
   }
 
@@ -987,12 +994,7 @@ public enum JDBCConnectionUrlParser {
       }
 
       if (props.containsKey("portnumber")) {
-        final String portNumber = (String) props.get("portnumber");
-        try {
-          builder.port(Integer.parseInt(portNumber));
-        } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: {}", portNumber, e);
-        }
+        setPort(builder, parsePort((String) props.get("portnumber")));
       }
       if (props.containsKey("servicename")) {
         // this property is used to specify the db to use for Sybase connection strings
@@ -1000,12 +1002,7 @@ public enum JDBCConnectionUrlParser {
       }
 
       if (props.containsKey("portNumber")) {
-        final String portNumber = (String) props.get("portNumber");
-        try {
-          builder.port(Integer.parseInt(portNumber));
-        } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: {}", portNumber, e);
-        }
+        setPort(builder, parsePort((String) props.get("portNumber")));
       }
     }
   }

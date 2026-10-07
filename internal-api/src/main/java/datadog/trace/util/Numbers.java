@@ -15,6 +15,38 @@ public final class Numbers {
   }
 
   /**
+   * Parses a non-negative decimal {@code int} from the whole sequence without throwing.
+   *
+   * @return the parsed value, or {@code -1} if {@code s} is null or empty, contains anything other
+   *     than ASCII digits (including a sign), or overflows {@code int}
+   */
+  public static int parseNonNegativeInt(@Nullable CharSequence s) {
+    return s == null ? -1 : parseNonNegativeInt(s, 0, s.length());
+  }
+
+  /**
+   * Parses a non-negative decimal {@code int} from {@code s[start, end)} without throwing or
+   * allocating.
+   *
+   * @return the parsed value, or {@code -1} if the range is empty or out of bounds, contains
+   *     anything other than ASCII digits (including a sign), or overflows {@code int}
+   */
+  public static int parseNonNegativeInt(@Nullable CharSequence s, int start, int end) {
+    if (s == null || start < 0 || end > s.length() || start >= end) {
+      return -1;
+    }
+    int result = 0;
+    for (int i = start; i < end; i++) {
+      int digit = s.charAt(i) - '0';
+      if (digit < 0 || digit > 9 || result > (Integer.MAX_VALUE - digit) / 10) {
+        return -1;
+      }
+      result = result * 10 + digit;
+    }
+    return result;
+  }
+
+  /**
    * Attempts to parse a string value as a number with fast-path validation to avoid throwing
    * NumberFormatException for invalid inputs.
    *
