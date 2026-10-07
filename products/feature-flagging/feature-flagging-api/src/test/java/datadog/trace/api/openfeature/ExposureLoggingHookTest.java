@@ -22,8 +22,10 @@ import datadog.trace.api.openfeature.Provider.Options;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
+import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import java.util.ArrayList;
@@ -133,6 +135,33 @@ class ExposureLoggingHookTest {
   }
 
   @Test
+  void sendsNothingWithoutTheDetailsAnExposureNeeds() {
+    final ExposureDeduplicationCache cache = new ExposureDeduplicationCache(10);
+    final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(cache);
+    final HookContext<Object> withContext = hookContext(new MutableContext("user-1"));
+
+    hook.finallyAfter(withContext, null, emptyMap());
+    hook.finallyAfter(withContext, details("variant", null), emptyMap());
+    hook.finallyAfter(
+        withContext, details("variant", exposureMetadata(false, false, "a")), emptyMap());
+    hook.finallyAfter(
+        withContext, details("variant", exposureMetadata(true, true, "a")), emptyMap());
+    hook.finallyAfter(
+        withContext, details("variant", exposureMetadata(true, false, null)), emptyMap());
+    hook.finallyAfter(withContext, details(null, exposureMetadata(true, false, "a")), emptyMap());
+    hook.finallyAfter(null, details("variant", exposureMetadata(true, false, "a")), emptyMap());
+
+    assertTrue(dispatched.isEmpty());
+    assertEquals(0, cache.size());
+
+    hook.finallyAfter(
+        withContext, details("variant", exposureMetadata(true, false, "a")), emptyMap());
+
+    assertEquals(1, dispatched.size());
+    assertEquals(1, cache.size());
+  }
+
+  @Test
   void cacheEvictsTheLeastRecentlyUsedSubject() {
     final ExposureDeduplicationCache cache = new ExposureDeduplicationCache(2);
     cache.record("flag", "user-1", "allocation", "on", 7);
@@ -144,6 +173,37 @@ class ExposureLoggingHookTest {
     assertFalse(cache.contains("flag", "user-2", "allocation", "on", 7));
     assertTrue(cache.contains("flag", "user-3", "allocation", "on", 7));
     assertFalse(cache.contains("flag", "user-1", "allocation", "on", 8));
+  }
+
+  private static HookContext<Object> hookContext(final MutableContext context) {
+    return HookContext.<Object>builder()
+        .flagKey("flag")
+        .type(FlagValueType.INTEGER)
+        .defaultValue(0)
+        .ctx(context)
+        .build();
+  }
+
+  private static FlagEvaluationDetails<Object> details(
+      final String variant, final ImmutableMetadata metadata) {
+    final FlagEvaluationDetails.FlagEvaluationDetailsBuilder<Object> builder =
+        FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).variant(variant);
+    if (metadata != null) {
+      builder.flagMetadata(metadata);
+    }
+    return builder.build();
+  }
+
+  private static ImmutableMetadata exposureMetadata(
+      final boolean doLog, final boolean cacheHit, final String allocationKey) {
+    final ImmutableMetadata.ImmutableMetadataBuilder builder =
+        ImmutableMetadata.builder()
+            .addBoolean(DDEvaluator.METADATA_DO_LOG, doLog)
+            .addBoolean(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT, cacheHit);
+    if (allocationKey != null) {
+      builder.addString("allocationKey", allocationKey);
+    }
+    return builder.build();
   }
 
   private FlagEvaluationDetails<Integer> evaluate(final String targetingKey) {
