@@ -70,7 +70,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.environment.JavaVirtualMachine:rerun,"
               + "datadog.environment.OperatingSystem:rerun,"
               + "datadog.environment.OperatingSystem$Architecture:rerun,"
-              + "datadog.trace.agent.core.tagprocessor.TagsPostProcessorFactory$Lazy:rerun,"
+              + "datadog.trace.agent.core.tagprocessor.TagsPostProcessorFactory$Lazy:run_time,"
               + "datadog.trace.agent.tooling.WeakMaps$Adapter:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
