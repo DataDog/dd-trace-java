@@ -34,6 +34,7 @@ import dev.openfeature.sdk.OpenFeatureAPI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -133,15 +134,26 @@ class ExposureHookTest {
         configuration(
             Boolean.TRUE,
             Arrays.asList(
-                new Feature("holdout.key", "q4-global"),
-                new Feature("holdout.assignment_group", "status_quo"),
-                new Feature("holdout.weight", 0.5),
-                new Feature("holdout.should_include_in_holdout_analysis", true))));
+                new Feature("holdout.key", "q4-global", singletonList("HOOK")),
+                new Feature("holdout.assignment_group", "status_quo", singletonList("HOOK")),
+                new Feature("holdout.weight", 0.5, Arrays.asList("EVALUATION", "HOOK")),
+                new Feature(
+                    "holdout.should_include_in_holdout_analysis",
+                    true,
+                    Arrays.asList("HOOK", "SOME_FUTURE_DESTINATION")),
+                new Feature("bandit.policy_id", "p2", Arrays.asList("EXPOSURE", "EVALUATION")),
+                new Feature("unknown.only", "x", singletonList("SOME_FUTURE_DESTINATION")))));
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
     final Map<String, Object> features = evaluations.get(0).getFeatures();
     assertEquals(4, features.size());
+    assertFalse(
+        features.containsKey("bandit.policy_id"),
+        "a feature without HOOK is not delivered to hooks");
+    assertFalse(
+        features.containsKey("unknown.only"),
+        "a feature with only unknown destinations goes nowhere");
     assertEquals("q4-global", features.get("holdout.key"));
     assertEquals("status_quo", features.get("holdout.assignment_group"));
     assertEquals(0.5, features.get("holdout.weight"));
@@ -150,6 +162,26 @@ class ExposureHookTest {
         "q4-global",
         details.getFlagMetadata().getString(DDEvaluator.METADATA_FEATURE_PREFIX + "holdout.key"));
     assertThrows(UnsupportedOperationException.class, () -> features.put("other", "value"));
+  }
+
+  @Test
+  void warnsOnceForEachUnknownDestination() throws Exception {
+    DDEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
+    start(
+        true,
+        configuration(
+            Boolean.TRUE,
+            Arrays.asList(
+                new Feature("holdout.key", "q4-global", Arrays.asList("HOOK", "NEW_A")),
+                new Feature("other", "x", Arrays.asList("NEW_A", "NEW_B", "EXPOSURE")))));
+
+    evaluate("user-1");
+    evaluate("user-2");
+
+    assertEquals(
+        new HashSet<>(Arrays.asList("NEW_A", "NEW_B")), DDEvaluator.WARNED_FEATURE_DESTINATIONS);
+    assertEquals(1, evaluations.get(1).getFeatures().size());
+    DDEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
   }
 
   @Test

@@ -120,15 +120,16 @@ OpenFeatureAPI.getInstance().addHooks(new ExposureHook(evaluation -> {
 
 ### Features
 
-`getFeatures()` returns the features of the selected split. Values are a `String`, `Double` or
-`Boolean`. Holdout splits carry:
+`getFeatures()` returns the features of the selected split whose destinations include `HOOK`.
+Values are a `String`, `Double` or `Boolean`. Holdout splits carry:
 
 | Feature | Value |
 |---|---|
 | `holdout.key` | The holdout key |
 | `holdout.assignment_group` | `status_quo` or `all_shipped` |
 
-The map is empty when the split has no features.
+The map is empty when the split has no such features. Datadog can add destinations later; the
+provider ignores a destination it does not know and logs a warning once for each one.
 
 ### Flag metadata
 
@@ -140,7 +141,7 @@ The same data is in the evaluation's flag metadata, for hooks that use only the 
 | `__dd_do_log` | Boolean | The allocation logs exposures |
 | `__dd_exposure_cache_hit` | Boolean | The subject was already exposed. Present only when `__dd_do_log` is true |
 | `__dd_split_serial_id` | Integer | The split's serial id. Present when the split has one and `__dd_do_log` is true |
-| `__dd_feature.<key>` | String, Double or Boolean | One entry for each feature of the selected split |
+| `__dd_feature.<key>` | String, Double or Boolean | One entry for each feature of the selected split that lists the `HOOK` destination |
 
 ### Stop sending exposures to Datadog
 
