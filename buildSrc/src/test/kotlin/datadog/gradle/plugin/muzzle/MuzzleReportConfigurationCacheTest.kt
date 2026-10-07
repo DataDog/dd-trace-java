@@ -247,7 +247,7 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
   }
 
   @Test
-  fun `legacy generation keeps compilation prerequisites and reuses configuration cache`() {
+  fun `legacy generation compiles late source sets and reuses configuration cache`() {
     writeProject(
       """
       plugins {
@@ -255,8 +255,15 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
         id("dd-trace-java.muzzle")
       }
 
+      tasks.named("compileMuzzle").get()
       sourceSets.create("main_java11")
       """
+    )
+    writeJavaSource(
+      "LateInstrumentation",
+      "public class LateInstrumentation {}",
+      sourceSet = "main_java11",
+      projectPath = "dd-java-agent:instrumentation:demo"
     )
 
     val args = arrayOf(
@@ -270,11 +277,16 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     val first = run(*args)
     assertThat(first.task(args[0])?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
     assertThat(first.task(":dd-java-agent:agent-bootstrap:compileMain_java11Java")).isNotNull()
-    assertThat(first.task(":dd-java-agent:instrumentation:demo:compileMain_java11Java")).isNotNull()
+    assertThat(first.task(":dd-java-agent:instrumentation:demo:compileMain_java11Java")?.outcome)
+      .describedAs(first.output).isEqualTo(SUCCESS)
+    assertThat(file("dd-java-agent/instrumentation/demo/build/classes/java/main_java11/LateInstrumentation.class"))
+      .exists()
     assertThat(first.output).contains("Configuration cache entry stored")
 
     val reused = run(*args)
     assertThat(reused.task(args[0])?.outcome).describedAs(reused.output).isEqualTo(SUCCESS)
+    assertThat(reused.task(":dd-java-agent:instrumentation:demo:compileMain_java11Java")?.outcome)
+      .describedAs(reused.output).isEqualTo(SUCCESS)
     assertThat(reused.output).contains("Reusing configuration cache")
   }
 }
