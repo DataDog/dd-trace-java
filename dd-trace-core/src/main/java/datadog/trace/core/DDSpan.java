@@ -5,6 +5,9 @@ import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -27,6 +30,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
@@ -118,8 +122,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
    */
   private volatile int longRunningVersion = 0;
 
-  private static final List<AgentSpanLink> EMPTY = Collections.emptyList();
+  private static final List<AgentSpanLink> NO_LINK = emptyList();
   protected volatile List<AgentSpanLink> links;
+
+  private static final List<AgentSpanEvent> NO_EVENT = emptyList();
+  protected volatile List<AgentSpanEvent> events = NO_EVENT;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -148,7 +155,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       context.getTraceCollector().touch(); // external clock: explicitly update lastReferenced
     }
 
-    this.links = links == null || links.isEmpty() ? EMPTY : new CopyOnWriteArrayList<>(links);
+    this.links = links == null || links.isEmpty() ? NO_LINK : new CopyOnWriteArrayList<>(links);
   }
 
   public boolean isFinished() {
@@ -803,14 +810,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
-  public void processTagsAndBaggageWithStructuredLinks(final MetadataConsumer consumer) {
-    context.processTagsAndBaggageWithStructuredLinks(consumer, longRunningVersion, this);
+  public void processTagsAndBaggageWithStructuredLinksAndEvents(final MetadataConsumer consumer) {
+    context.processTagsAndBaggageWithStructuredLinksAndEvents(consumer, longRunningVersion, this);
   }
 
   @Override
-  public void processTagsAndBaggageWithStructuredLinks(
+  public void processTagsAndBaggageWithStructuredLinksAndEvents(
       final MetadataConsumer consumer, final boolean firstInChunk) {
-    context.processTagsAndBaggageWithStructuredLinks(
+    context.processTagsAndBaggageWithStructuredLinksAndEvents(
         consumer, longRunningVersion, this, firstInChunk);
   }
 
@@ -926,7 +933,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   public List<? extends AgentSpanLink> getLinks() {
-    return this.links;
+    return unmodifiableList(this.links);
   }
 
   @Override
@@ -951,17 +958,43 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     // CopyOnWriteArrayList containing the newly added link
 
     List<AgentSpanLink> links = this.links;
-    if (links != EMPTY) {
+    if (links != NO_LINK) {
       links.add(link);
       return;
     }
 
     synchronized (this) {
       links = this.links;
-      if (links != EMPTY) {
+      if (links != NO_LINK) {
         links.add(link);
       } else {
-        this.links = new CopyOnWriteArrayList<>(Collections.singletonList(link));
+        this.links = new CopyOnWriteArrayList<>(singletonList(link));
+      }
+    }
+  }
+
+  public List<? extends AgentSpanEvent> getEvents() {
+    return unmodifiableList(this.events);
+  }
+
+  @Override
+  public void addEvent(AgentSpanEvent event) {
+    if (event == null) {
+      return;
+    }
+    // Same lazy list creation as addLink()
+    List<AgentSpanEvent> events = this.events;
+    if (events != NO_EVENT) {
+      events.add(event);
+      return;
+    }
+
+    synchronized (this) {
+      events = this.events;
+      if (events != NO_EVENT) {
+        events.add(event);
+      } else {
+        this.events = new CopyOnWriteArrayList<>(singletonList(event));
       }
     }
   }

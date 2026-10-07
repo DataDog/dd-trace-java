@@ -11,6 +11,7 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -196,6 +197,7 @@ public class TraceGenerator {
           samplingPriority,
           statusCode,
           origin,
+          emptyList(),
           emptyList());
     }
 
@@ -216,7 +218,8 @@ public class TraceGenerator {
         int samplingPriority,
         int statusCode,
         CharSequence origin,
-        List<AgentSpanLink> spanLinks) {
+        List<AgentSpanLink> spanLinks,
+        List<AgentSpanEvent> spanEvents) {
       this.serviceName = UTF8BytesString.create(serviceName);
       this.operationName = UTF8BytesString.create(operationName);
       this.resourceName = UTF8BytesString.create(resourceName);
@@ -244,7 +247,8 @@ public class TraceGenerator {
               0,
               ProcessTags.getTagsForSerialization(),
               UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
-              spanLinks);
+              spanLinks,
+              spanEvents);
     }
 
     @Override

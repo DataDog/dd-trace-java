@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 
@@ -13,13 +12,13 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.environment.JavaVirtualMachine;
-import datadog.json.JsonReader;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -92,7 +91,7 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     CoreSpan<?> firstSpan = trace.get(0);
-    firstSpan.processTagsAndBaggageWithStructuredLinks(spanMetadata, true);
+    firstSpan.processTagsAndBaggageWithStructuredLinksAndEvents(spanMetadata, true);
     Metadata firstSpanMeta = spanMetadata.metadata;
 
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
@@ -132,7 +131,7 @@ public final class TraceMapperV1 implements TraceMapper {
     for (int i = 0; i < spans.size(); i++) {
       CoreSpan<?> span = spans.get(i);
       if (meta == null) {
-        span.processTagsAndBaggageWithStructuredLinks(spanMetadata, i == 0);
+        span.processTagsAndBaggageWithStructuredLinksAndEvents(spanMetadata, i == 0);
         meta = spanMetadata.metadata;
       }
       TagMap tags = meta.getTags();
@@ -166,7 +165,7 @@ public final class TraceMapperV1 implements TraceMapper {
       // links = 11, a collection of links to other spans
       encodeSpanLinks(writable, 11, meta.getSpanLinks());
       // events = 12, a collection of events that occurred during this span
-      encodeSpanEvents(writable, 12, tags.getObject(DDTags.SPAN_EVENTS));
+      encodeSpanEvents(writable, 12, meta.getSpanEvents());
       // env = 13, the optional string environment of this span
       encodeString(writable, 13, tags.getString(Tags.ENV));
       // version = 14, the optional string version of this span
@@ -204,68 +203,22 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  private void encodeSpanEvents(Writable writable, int fieldId, Object eventsObject) {
+  private void encodeSpanEvents(
+      Writable writable, int fieldId, List<? extends AgentSpanEvent> events) {
     writable.writeInt(fieldId);
-    List<?> events = parseSpanEvents(eventsObject);
-    if (events.isEmpty()) {
-      writable.startArray(0);
-      return;
-    }
-
-    int encodableCount = 0;
-    for (Object event : events) {
-      if (isEncodableSpanEvent(event)) {
-        encodableCount++;
-      }
-    }
-    writable.startArray(encodableCount);
-    for (Object event : events) {
-      if (!(event instanceof Map)) {
-        continue;
-      }
-      Map<?, ?> eventMap = (Map<?, ?>) event;
-      Long timeUnixNano = asLong(eventMap.get("time_unix_nano"));
-      Object nameObject = eventMap.get("name");
-      if (timeUnixNano == null || nameObject == null) {
-        continue;
-      }
-
-      Map<?, ?> attributes =
-          eventMap.get("attributes") instanceof Map ? (Map<?, ?>) eventMap.get("attributes") : null;
-
+    writable.startArray(events.size());
+    for (AgentSpanEvent event : events) {
       writable.startMap(3);
-      encodeLong(writable, 1, timeUnixNano);
-      encodeString(writable, 2, String.valueOf(nameObject));
-      encodeEventAttributes(writable, 3, attributes);
+      // 1: the time of the event, in nanoseconds since the Unix epoch
+      encodeLong(writable, 1, event.timeUnixNano());
+      // 2: the name of the event
+      encodeString(writable, 2, event.name());
+      // 3: a collection of attribute string key to value pairs on the event, map<uint32, AnyValue>
+      encodeEventAttributes(writable, 3, event.attributes());
     }
   }
 
-  private List<?> parseSpanEvents(Object eventsObject) {
-    if (eventsObject instanceof List) {
-      return (List<?>) eventsObject;
-    }
-    if (eventsObject instanceof CharSequence) {
-      try (JsonReader reader = new JsonReader(eventsObject.toString())) {
-        Object events = reader.nextValue();
-        if (events instanceof List) {
-          return (List<?>) events;
-        }
-      } catch (IOException e) {
-        log.debug("Failed to parse span events from JSON", e);
-      }
-    }
-    return emptyList();
-  }
-
-  private boolean isEncodableSpanEvent(Object event) {
-    if (!(event instanceof Map)) {
-      return false;
-    }
-    Map<?, ?> eventMap = (Map<?, ?>) event;
-    return eventMap.get("name") != null && asLong(eventMap.get("time_unix_nano")) != null;
-  }
-
-  private void encodeEventAttributes(Writable writable, int fieldId, Map<?, ?> attrs) {
+  private void encodeEventAttributes(Writable writable, int fieldId, Map<String, ?> attrs) {
     writable.writeInt(fieldId);
     if (attrs == null || attrs.isEmpty()) {
       writable.startArray(0);
@@ -273,19 +226,19 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     int attributeCount = 0;
-    for (Map.Entry<?, ?> entry : attrs.entrySet()) {
+    for (Map.Entry<String, ?> entry : attrs.entrySet()) {
       if (isEncodableEventAttribute(entry.getValue())) {
         attributeCount++;
       }
     }
     writable.startArray(attributeCount * 3);
 
-    for (Map.Entry<?, ?> entry : attrs.entrySet()) {
+    for (Map.Entry<String, ?> entry : attrs.entrySet()) {
       Object value = entry.getValue();
       if (!isEncodableEventAttribute(value)) {
         continue;
       }
-      writeStreamingString(writable, String.valueOf(entry.getKey()));
+      writeStreamingString(writable, entry.getKey());
       writeEventAttributeValue(writable, value);
     }
   }
@@ -361,20 +314,6 @@ public final class TraceMapperV1 implements TraceMapper {
     return !(number instanceof Float || number instanceof Double);
   }
 
-  private Long asLong(Object value) {
-    if (value instanceof Number) {
-      return ((Number) value).longValue();
-    }
-    if (value instanceof CharSequence) {
-      try {
-        return Long.parseLong(value.toString());
-      } catch (NumberFormatException ignored) {
-        return null;
-      }
-    }
-    return null;
-  }
-
   private void encodeSpanAttributes(
       Writable writable, int fieldId, Metadata meta, Map<String, Object> metaStruct) {
     TagMap tags = meta.getTags();
@@ -386,9 +325,7 @@ public final class TraceMapperV1 implements TraceMapper {
     boolean writeTopLevel = meta.topLevel();
     int tagCount = 0;
     for (TagMap.EntryReader entry : tags) {
-      if (!DDTags.SPAN_EVENTS.equals(entry.tag())) {
-        tagCount += getFlatAttributeCount(entry);
-      }
+      tagCount += getFlatAttributeCount(entry);
     }
 
     writable.writeInt(fieldId);
@@ -409,9 +346,6 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     for (TagMap.EntryReader entry : tags) {
-      if (DDTags.SPAN_EVENTS.equals(entry.tag())) {
-        continue;
-      }
       writeFlattenedTagAttribute(writable, entry);
     }
     if (writeHttpStatus) {

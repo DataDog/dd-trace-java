@@ -1,10 +1,12 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.PARENT_ID;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 
+import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -24,6 +26,7 @@ import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
@@ -1328,6 +1331,7 @@ public class DDSpanContext
         longRunningVersion,
         restrictedSpan,
         injectLinksAsTags,
+        true, // injectEventsAsTags
         injectBaggageAsTags,
         propagationTags);
   }
@@ -1342,26 +1346,28 @@ public class DDSpanContext
         longRunningVersion,
         restrictedSpan,
         injectLinksAsTags,
+        true, // injectEventsAsTags
         injectBaggageAsTags,
         firstInChunk ? getPropagationTags() : null);
   }
 
   /**
-   * Serialize span links as first-class structured data rather than tags. While baggage tag
-   * injection keeps following the tracer configuration.
+   * Serialize span links and span events as first-class structured data rather than tags. While
+   * baggage tag injection keeps following the tracer configuration.
    */
-  void processTagsAndBaggageWithStructuredLinks(
+  void processTagsAndBaggageWithStructuredLinksAndEvents(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
     processTagsAndBaggage(
         consumer,
         longRunningVersion,
         restrictedSpan,
         false, // injectLinksAsTags
+        false, // injectEventsAsTags
         injectBaggageAsTags,
         propagationTags);
   }
 
-  void processTagsAndBaggageWithStructuredLinks(
+  void processTagsAndBaggageWithStructuredLinksAndEvents(
       final MetadataConsumer consumer,
       int longRunningVersion,
       DDSpan restrictedSpan,
@@ -1371,6 +1377,7 @@ public class DDSpanContext
         longRunningVersion,
         restrictedSpan,
         false, // injectLinksAsTags
+        false, // injectEventsAsTags
         injectBaggageAsTags,
         firstInChunk ? getPropagationTags() : null);
   }
@@ -1380,10 +1387,11 @@ public class DDSpanContext
       int longRunningVersion,
       DDSpan restrictedSpan,
       boolean injectLinksAsTags,
+      boolean injectEventsAsTags,
       boolean injectBaggageAsTags,
       PropagationTags serializedPropagationTags) {
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
-    // links
+    // links and events
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
@@ -1396,6 +1404,14 @@ public class DDSpanContext
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
           unsafeTags.set(SPAN_LINKS, linksTag);
+        }
+      }
+
+      // Events
+      if (injectEventsAsTags) {
+        String eventsTag = spanEventsToTag(restrictedSpan.getEvents());
+        if (eventsTag != null) {
+          unsafeTags.set(SPAN_EVENTS, eventsTag);
         }
       }
 
@@ -1431,7 +1447,60 @@ public class DDSpanContext
               longRunningVersion,
               ProcessTags.getTagsForSerialization(),
               Config.get().isOtlpTracesExportEnabled() ? OTLP_EXPORT_TRUE : OTLP_EXPORT_FALSE,
-              restrictedSpan.getLinks()));
+              restrictedSpan.getLinks(),
+              restrictedSpan.getEvents()));
+    }
+  }
+
+  /**
+   * Encodes span events into a {@link DDTags#SPAN_EVENTS} tag value.
+   *
+   * @param events The span events to encode.
+   * @return The encoded tag value, {@code null} if no events.
+   */
+  private static String spanEventsToTag(List<? extends AgentSpanEvent> events) {
+    if (events.isEmpty()) {
+      return null;
+    }
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginArray();
+      for (AgentSpanEvent event : events) {
+        writer.beginObject();
+        writer.name("time_unix_nano").value(event.timeUnixNano());
+        writer.name("name").value(event.name());
+        Map<String, Object> attributes = event.attributes();
+        if (!attributes.isEmpty()) {
+          writer.name("attributes").beginObject();
+          for (Map.Entry<String, Object> attribute : attributes.entrySet()) {
+            writer.name(attribute.getKey());
+            writeSpanEventAttributeValue(writer, attribute.getValue());
+          }
+          writer.endObject();
+        }
+        writer.endObject();
+      }
+      writer.endArray();
+      return writer.toString();
+    }
+  }
+
+  private static void writeSpanEventAttributeValue(JsonWriter writer, Object value) {
+    if (value instanceof CharSequence) {
+      writer.value(value.toString());
+    } else if (value instanceof Boolean) {
+      writer.value((Boolean) value);
+    } else if (value instanceof Double || value instanceof Float) {
+      writer.value(((Number) value).doubleValue());
+    } else if (value instanceof Number) {
+      writer.value(((Number) value).longValue());
+    } else if (value instanceof List) {
+      writer.beginArray();
+      for (Object item : (List<?>) value) {
+        writeSpanEventAttributeValue(writer, item);
+      }
+      writer.endArray();
+    } else {
+      writer.nullValue();
     }
   }
 

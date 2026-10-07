@@ -1,19 +1,20 @@
 package datadog.opentelemetry.shim.trace;
 
+import static java.util.Collections.emptyMap;
+
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 
-public class OtelSpanEvent {
+public class OtelSpanEvent implements AgentSpanEvent {
   public static final String EXCEPTION_SPAN_EVENT_NAME = "exception";
   public static final AttributeKey<String> EXCEPTION_MESSAGE_ATTRIBUTE_KEY =
       AttributeKey.stringKey("exception.message");
@@ -26,33 +27,43 @@ public class OtelSpanEvent {
   private static TimeSource timeSource = SystemTimeSource.INSTANCE;
 
   private final String name;
-  private final String attributes;
+  private final Attributes attributes;
 
   /** Event timestamp in nanoseconds. */
   private final long timestamp;
 
   public OtelSpanEvent(String name, Attributes attributes) {
-    this.name = name;
-    this.attributes = AttributesJsonParser.toJson(attributes);
-    this.timestamp = OtelSpanEvent.timeSource.getCurrentTimeNanos();
+    this(name, attributes, OtelSpanEvent.timeSource.getCurrentTimeNanos());
   }
 
   public OtelSpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
-    this.name = name;
-    this.attributes = AttributesJsonParser.toJson(attributes);
-    this.timestamp = unit.toNanos(timestamp);
+    this(name, attributes, unit.toNanos(timestamp));
   }
 
-  @Nonnull
-  public static String toTag(List<OtelSpanEvent> events) {
-    StringBuilder builder = new StringBuilder("[");
-    for (OtelSpanEvent event : events) {
-      if (builder.length() > 1) {
-        builder.append(',');
-      }
-      builder.append(event.toJson());
+  private OtelSpanEvent(String name, Attributes attributes, long timestamp) {
+    this.name = name;
+    this.attributes = attributes;
+    this.timestamp = timestamp;
+  }
+
+  @Override
+  public String name() {
+    return this.name;
+  }
+
+  @Override
+  public long timeUnixNano() {
+    return this.timestamp;
+  }
+
+  @Override
+  public Map<String, Object> attributes() {
+    if (this.attributes == null || this.attributes.isEmpty()) {
+      return emptyMap();
     }
-    return builder.append(']').toString();
+    Map<String, Object> map = new HashMap<>();
+    this.attributes.forEach((key, value) -> map.put(key.getKey(), value));
+    return map;
   }
 
   /**
@@ -99,85 +110,8 @@ public class OtelSpanEvent {
     return errorString.toString();
   }
 
-  /** Helper class for JSON-encoding {@link OtelSpanEvent} {@link #attributes}. */
-  public static class AttributesJsonParser {
-    public static String toJson(Attributes attributes) {
-      if (attributes == null || attributes.isEmpty()) {
-        return "";
-      }
-      StringBuilder jsonBuilder = new StringBuilder();
-      jsonBuilder.append('{');
-
-      Set<Map.Entry<AttributeKey<?>, Object>> entrySet = attributes.asMap().entrySet();
-
-      for (Map.Entry<AttributeKey<?>, Object> entry : entrySet) {
-        if (jsonBuilder.length() > 1) {
-          jsonBuilder.append(',');
-        }
-        // AttributeKey type has method `getKey()` that "stringifies" the key
-        String key = entry.getKey().getKey();
-        Object value = entry.getValue();
-        // Escape key and append it
-        jsonBuilder.append('"').append(escapeJson(key)).append("\":");
-        // Append value to jsonBuilder
-        appendValue(value, jsonBuilder);
-      }
-      jsonBuilder.append('}');
-      return jsonBuilder.toString();
-    }
-
-    /**
-     * Recursively adds the value of an {@link Attributes} to the active StringBuilder in JSON
-     * format, depending on the value's type.
-     *
-     * @param value The value to append
-     * @param jsonBuilder The active {@link StringBuilder}
-     */
-    private static void appendValue(Object value, StringBuilder jsonBuilder) {
-      // Append value based on its type
-      if (value instanceof String) {
-        jsonBuilder.append('"').append(escapeJson((String) value)).append('"');
-      } else if (value instanceof List) {
-        jsonBuilder.append('[');
-        List<?> valArray = (List<?>) value;
-        for (int i = 0; i < valArray.size(); i++) {
-          if (i > 0) {
-            jsonBuilder.append(',');
-          }
-          appendValue(valArray.get(i), jsonBuilder);
-        }
-        jsonBuilder.append(']');
-      } else if (value instanceof Number || value instanceof Boolean) {
-        jsonBuilder.append(value);
-      } else {
-        jsonBuilder.append("null"); // null for unsupported types
-      }
-    }
-
-    private static String escapeJson(String value) {
-      return value
-          .replace("\\", "\\\\")
-          .replace("\"", "\\\"")
-          .replace("\b", "\\b")
-          .replace("\f", "\\f")
-          .replace("\n", "\\n")
-          .replace("\r", "\\r")
-          .replace("\t", "\\t");
-    }
-  }
-
   public static void setTimeSource(TimeSource newTimeSource) {
     timeSource = newTimeSource;
-  }
-
-  public String toJson() {
-    StringBuilder builder =
-        new StringBuilder(
-            "{\"time_unix_nano\":" + this.timestamp + ",\"name\":\"" + this.name + "\"");
-    if (!this.attributes.isEmpty()) {
-      builder.append(",\"attributes\":").append(this.attributes);
-    }
-    return builder.append('}').toString();
   }
 
   @Override
@@ -186,8 +120,8 @@ public class OtelSpanEvent {
         + this.timestamp
         + ", name='"
         + this.name
-        + "', attributes='"
+        + "', attributes="
         + this.attributes
-        + "'}";
+        + '}';
   }
 }

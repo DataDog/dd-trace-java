@@ -202,6 +202,9 @@ public abstract class ImmutableSpan implements AgentSpan {
   public void addLink(AgentSpanLink link) {}
 
   @Override
+  public void addEvent(AgentSpanEvent event) {}
+
+  @Override
   public AgentSpan setMetaStruct(String field, Object value) {
     return this;
   }
