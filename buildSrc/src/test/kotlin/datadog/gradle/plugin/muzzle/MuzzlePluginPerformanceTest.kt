@@ -8,6 +8,68 @@ import org.assertj.core.api.Assertions.assertThat
 class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
   @Test
+  fun `compileMuzzle does not resolve version directives or schedule checks`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle {
+        pass {
+          group = "does.not.exist"
+          module = "must-not-resolve"
+          versions = "[1.0,2.0)"
+        }
+      }
+      """
+    )
+    val result = run(":dd-java-agent:instrumentation:demo:compileMuzzle", "--offline", "--info")
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.tasks).noneMatch { it.path.contains("muzzle-Assert") || it.path.endsWith("muzzle-end") }
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:compileMuzzle")?.outcome).isEqualTo(UP_TO_DATE)
+    assertThat(result.output).contains("skipping muzzle task planification")
+  }
+
+  @Test
+  fun `aggregate skips excluded plans but explicit muzzle still checks them`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeNoopScanPlugin()
+    addSubproject("dd-java-agent:instrumentation:other",
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle {
+        includeInAggregate.set(false)
+        pass { coreJdk() }
+      }
+      """
+    )
+    writeRootProject(
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+    val aggregate = run("runMuzzle", "--info")
+    assertThat(aggregate.output).contains("BUILD SUCCESSFUL")
+    assertThat(aggregate.output).contains("No muzzle tasks invoked for :dd-java-agent:instrumentation:other")
+    assertThat(aggregate.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+    val explicit = run(":dd-java-agent:instrumentation:other:muzzle")
+    assertThat(explicit.output).contains("BUILD SUCCESSFUL")
+    assertThat(explicit.task(":dd-java-agent:instrumentation:other:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
   fun `task graph does not include muzzle tasks when not requested`() {
     writeProject(
       """

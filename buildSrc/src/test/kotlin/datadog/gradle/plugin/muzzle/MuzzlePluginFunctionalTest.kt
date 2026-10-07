@@ -8,6 +8,114 @@ import org.junit.jupiter.params.provider.ValueSource
 import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
+  @Test
+  fun `nested aggregate plans descendant instrumentation checks`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeNoopScanPlugin()
+    writeFile("dd-java-agent/build.gradle.kts",
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+    val result = run(":dd-java-agent:runMuzzle")
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `planning sees directives configured after project evaluation`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      """
+    )
+    writeNoopScanPlugin()
+    writeRootProject(
+      """
+      plugins { id("dd-trace-java.muzzle") apply false }
+      gradle.projectsEvaluated {
+        project(":dd-java-agent:instrumentation:demo").extensions.configure<datadog.gradle.plugin.muzzle.MuzzleExtension> {
+          pass { coreJdk() }
+        }
+      }
+      """
+    )
+    val result = run(":dd-java-agent:instrumentation:demo:muzzle")
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `cached graph is reused and replanned when a version is published`() {
+    val repository = createMavenRepoFixture()
+    repository.publishVersions("com.example.test", "cache-lib", listOf("1.0.0"))
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      repositories { maven { url = uri("${repository.repoUrl}") } }
+      muzzle {
+        pass {
+          group = "com.example.test"
+          module = "cache-lib"
+          versions = "[1.0.0,2.0.0)"
+        }
+      }
+      """
+    )
+    writeNoopScanPlugin()
+    val arguments = arrayOf(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache", "--stacktrace")
+    val environment = mapOf("MAVEN_REPOSITORY_PROXY" to repository.repoUrl)
+    val first = run(*arguments, env = environment)
+    assertThat(first.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
+    val second = run(*arguments, env = environment)
+    assertThat(second.output).contains("BUILD SUCCESSFUL", "Reusing configuration cache")
+    repository.publishVersions("com.example.test", "cache-lib", listOf("1.1.0"))
+    val third = run(*arguments, env = environment)
+    assertThat(third.output).contains("BUILD SUCCESSFUL").doesNotContain("Reusing configuration cache")
+    assertThat(third.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-cache-lib-1.1.0")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `late main source sets are compiled and available to muzzle workers`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      tasks.named("muzzle").get()
+      afterEvaluate { sourceSets.create("main_extra") }
+      """
+    )
+    writeFile("dd-java-agent/instrumentation/demo/src/main_extra/resources/late.txt", "late source set")
+    writeScanPlugin(
+      """
+      if (instrumentationClassLoader.getResource("late.txt") == null) {
+        throw new IllegalStateException("Missing late main source set");
+      }
+      """
+    )
+    val result = run(":dd-java-agent:instrumentation:demo:muzzle")
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:processMain_extraResources")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
   @ParameterizedTest
   @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle"])
   fun `detects muzzle invocation with various task names`(taskName: String) {

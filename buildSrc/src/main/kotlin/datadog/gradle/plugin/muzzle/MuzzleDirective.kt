@@ -83,6 +83,16 @@ open class MuzzleDirective : Serializable {
     }
   }
 
+  internal fun inverse(version: String): MuzzleDirective = MuzzleDirective().apply {
+    name = this@MuzzleDirective.name
+    group = this@MuzzleDirective.group
+    module = this@MuzzleDirective.module
+    versions = version
+    assertPass = !this@MuzzleDirective.assertPass
+    excludedDependencies = this@MuzzleDirective.excludedDependencies
+    includeSnapshots = this@MuzzleDirective.includeSnapshots
+  }
+
   /**
    * Slug of directive name.
    *
