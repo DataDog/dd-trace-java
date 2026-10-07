@@ -11,15 +11,28 @@ public class Split {
   // Moshi reflective deserialization from the UFC "serialId" JSON field. Surfaced as
   // __dd_split_serial_id in eval metadata for APM span enrichment.
   public final Integer serialId;
+  // Null when the UFC split has no features. A provider must check that this field exists before
+  // reading it, because an older agent ships a Split without it.
+  public final List<Feature> features;
 
   public Split(
       final List<Shard> shards,
       final String variationKey,
       final Map<String, String> extraLogging,
       final Integer serialId) {
+    this(shards, variationKey, extraLogging, serialId, null);
+  }
+
+  public Split(
+      final List<Shard> shards,
+      final String variationKey,
+      final Map<String, String> extraLogging,
+      final Integer serialId,
+      final List<Feature> features) {
     this.shards = shards;
     this.variationKey = variationKey;
     this.extraLogging = extraLogging;
     this.serialId = serialId;
+    this.features = features;
   }
 }
