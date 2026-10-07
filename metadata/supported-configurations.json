@@ -12097,9 +12097,9 @@
     ],
     "OTEL_EXPORTER_OTLP_PROFILES_COMPRESSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": null,
+        "default": "none",
         "aliases": []
       }
     ],
