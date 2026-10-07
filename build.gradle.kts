@@ -128,12 +128,6 @@ allprojects {
 
 tasks.register("latestDepTest")
 
-tasks.register("generateMuzzleReport") {
-  group = "Muzzle"
-  description = "Aggregate instrumentation dependency range reports"
-  dependsOn(":dd-java-agent:instrumentation:aggregateMuzzleReports")
-}
-
 nexusPublishing {
   repositories {
     val forceLocal = providers.gradleProperty("forceLocal").getOrElse("false").toBoolean()

@@ -742,7 +742,7 @@ muzzle-dep-report:
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
-    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+    - ./gradlew :dd-java-agent:instrumentation:aggregateMuzzleReports $GRADLE_ARGS
   after_script:
     - *container_info
     - *cgroup_info

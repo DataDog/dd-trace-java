@@ -81,7 +81,10 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     writeFile("relocated/build/muzzle-deps-results/stale.csv", HEADER + "stale,example,library,0,99")
     writeFile(REPORT, HEADER + "previous,example,library,0,99")
 
-    val args = arrayOf(":generateMuzzleReport", "--configuration-cache", "--configuration-cache-problems=fail", "--build-cache", "--stacktrace")
+    val args = arrayOf(
+      ":dd-java-agent:instrumentation:aggregateMuzzleReports",
+      "--configuration-cache", "--configuration-cache-problems=fail", "--build-cache", "--stacktrace"
+    )
     val env = mapOf("MAVEN_REPOSITORY_PROXY" to repo.repoUrl)
     val first = run(*args, env = env)
     assertThat(first.task(":dd-java-agent:instrumentation:aggregateMuzzleReports")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
@@ -104,7 +107,7 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     assertThat(second.task(":dd-java-agent:instrumentation:demo:generateMuzzleReport")?.outcome).isEqualTo(SUCCESS)
     assertThat(second.task(":dd-java-agent:instrumentation:nested:other:generateMuzzleReport")?.outcome).isEqualTo(SUCCESS)
     assertThat(second.task(":dd-java-agent:instrumentation:aggregateMuzzleReports")?.outcome).isEqualTo(SUCCESS)
-    assertThat(second.task(":generateMuzzleReport")?.outcome).isIn(SUCCESS, UP_TO_DATE)
+    assertThat(second.task(":generateMuzzleReport")).isNull()
 
     repo.publishVersions("example", "library", listOf("4.0"))
     val refreshed = run(*args, env = env)
@@ -135,7 +138,11 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     assertThat(help.tasks).noneMatch { it.path.contains("Muzzle") || it.path.contains("muzzle") }
     assertThat(file(REPORT)).doesNotExist()
 
-    val failed = run(":generateMuzzleReport", "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace", expectFailure = true, env = env)
+    val failed = run(
+      ":dd-java-agent:instrumentation:aggregateMuzzleReports",
+      "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace",
+      expectFailure = true, env = env
+    )
     assertThat(failed.output).contains("BUILD FAILED")
     assertThat(failed.task(":dd-java-agent:instrumentation:demo:generateMuzzleReport")?.outcome).isEqualTo(FAILED)
     assertThat(failed.task(":dd-java-agent:instrumentation:aggregateMuzzleReports")).isNull()
@@ -292,13 +299,18 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
   }
 
   @Test
-  fun `aggregate aliases delegate to instrumentation with the relocated CI artifact path`() {
+  fun `aggregation and aliases preserve the relocated CI artifact path without a root report task`() {
     writeReportingProject("muzzle { pass { coreJdk() } }")
     val cc = arrayOf("--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace")
-    val ci = run("generateMuzzleReport", "muzzleInstrumentationReport", *cc)
-    assertThat(ci.task(":generateMuzzleReport")?.outcome).describedAs(ci.output).isIn(SUCCESS, UP_TO_DATE)
-    assertThat(ci.task(":dd-java-agent:instrumentation:muzzleInstrumentationReport")?.outcome).isIn(SUCCESS, UP_TO_DATE)
+    val ci = run(":dd-java-agent:instrumentation:aggregateMuzzleReports", *cc)
+    assertThat(ci.task(":dd-java-agent:instrumentation:aggregateMuzzleReports")?.outcome).describedAs(ci.output).isEqualTo(SUCCESS)
+    assertThat(ci.task(":generateMuzzleReport")).isNull()
+    assertThat(ci.task(":dd-java-agent:instrumentation:muzzleInstrumentationReport")).isNull()
     assertThat(file(REPORT).readText()).isEqualTo(HEADER)
+
+    val missingRootTask = run(":generateMuzzleReport", expectFailure = true)
+    assertThat(missingRootTask.output).contains("'generateMuzzleReport' not found in root project")
+
     listOf("mergeMuzzleReports", "muzzleInstrumentationReport").forEach { alias ->
       val taskPath = ":dd-java-agent:instrumentation:$alias"
       val first = run(taskPath, *cc)
@@ -333,14 +345,17 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
       }
       """
     )
-    val args = arrayOf(":generateMuzzleReport", "--isolated-projects", "--configuration-cache-problems=fail", "--stacktrace")
+    val args = arrayOf(
+      ":dd-java-agent:instrumentation:aggregateMuzzleReports",
+      "--isolated-projects", "--configuration-cache-problems=fail", "--stacktrace"
+    )
     val first = run(*args)
     assertThat(first.task(":dd-java-agent:instrumentation:aggregateMuzzleReports")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
     assertThat(first.output).contains("Configuration cache entry stored")
     assertThat(file(REPORT).readText()).isEqualTo(HEADER)
     val reused = run(*args)
     assertThat(reused.task(":dd-java-agent:instrumentation:aggregateMuzzleReports")?.outcome).describedAs(reused.output).isEqualTo(SUCCESS)
-    assertThat(reused.task(":generateMuzzleReport")?.outcome).describedAs(reused.output).isIn(SUCCESS, UP_TO_DATE)
+    assertThat(reused.task(":generateMuzzleReport")).isNull()
     assertThat(reused.output).contains("Reusing configuration cache")
   }
 
@@ -394,9 +409,6 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
       """
       plugins { id("dd-trace-java.muzzle-report-aggregation") apply false }
       layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
-      tasks.register("generateMuzzleReport") {
-        dependsOn(":dd-java-agent:instrumentation:aggregateMuzzleReports")
-      }
       """
     )
   }
