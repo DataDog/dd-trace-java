@@ -10,6 +10,7 @@ import org.gradle.api.GradleException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.io.FileNotFoundException
 import java.net.ConnectException
@@ -25,6 +26,7 @@ class MuzzleDependencyAgeTest {
   private val repositories = listOf(repository("central", "https://repo.example/maven2"))
   private val proxy = repository("central-proxy", "https://proxy.example/maven2/")
   private val centralPom = "https://repo1.maven.org/maven2/com/example/lib/1.0/lib-1.0.pom"
+  private val requested = mutableListOf<String>()
   private val warnings = mutableListOf<String>()
 
   @Test
@@ -48,9 +50,7 @@ class MuzzleDependencyAgeTest {
 
   @Test
   fun `falls back to another repository when age is unavailable`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       if (url.startsWith("https://repo.example/")) {
         Timestamp(null, "HTTP 404")
       } else {
@@ -70,9 +70,7 @@ class MuzzleDependencyAgeTest {
   @ParameterizedTest
   @ValueSource(longs = [172799L, 172800L, 172801L])
   fun `Central timestamp fallback enforces the cooldown when proxy headers are missing`(ageSeconds: Long) {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       if (url == centralPom) {
         Timestamp(now.minusSeconds(ageSeconds))
       } else {
@@ -106,9 +104,7 @@ class MuzzleDependencyAgeTest {
 
   @Test
   fun `tries configured extra repositories before the Central timestamp fallback`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       if (url.startsWith(proxy.url)) Timestamp(null, "HTTP 404") else Timestamp(now)
     }
     val extra = repository("extra", "https://extra.example/maven2/")
@@ -120,50 +116,28 @@ class MuzzleDependencyAgeTest {
     )
   }
 
-  @Test
-  fun `caches proxy and Central timestamps across repeated checks`() {
-    val requested = mutableListOf<String>()
+  @ParameterizedTest
+  @ValueSource(booleans = [true, false])
+  fun `caches proxy and Central timestamps including unavailable timestamps`(available: Boolean) {
     val policy = policy { url ->
-      requested.add(url)
-      if (url == centralPom) Timestamp(now.minusSeconds(72 * 3600L)) else Timestamp(null, "HTTP 404")
+      if (url == centralPom) {
+        if (available) Timestamp(now.minusSeconds(72 * 3600L)) else Timestamp(null, "HTTP 429")
+      } else Timestamp(null, "missing or invalid Last-Modified header")
     }
-
-    repeat(2) {
-      assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy))).isTrue()
-    }
+    repeat(2) { assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy))).isTrue() }
     assertThat(requested).containsExactly(
-      "https://proxy.example/maven2/com/example/lib/1.0/lib-1.0.pom",
-      centralPom
+      "https://proxy.example/maven2/com/example/lib/1.0/lib-1.0.pom", centralPom
     )
     assertThat(policy.timestampLookupCount).isEqualTo(2)
-    assertThat(warnings).isEmpty()
-  }
-
-  @Test
-  fun `retains the dependency when proxy and Central timestamps are unknown and caches failures`() {
-    val requested = mutableListOf<String>()
-    val policy = policy { url ->
-      requested.add(url)
-      Timestamp(null, if (url == centralPom) "HTTP 429" else "missing or invalid Last-Modified header")
-    }
-
-    repeat(2) {
-      assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy))).isTrue()
-    }
-    assertThat(requested).containsExactly(
-      "https://proxy.example/maven2/com/example/lib/1.0/lib-1.0.pom",
-      centralPom
-    )
-    assertThat(warnings).hasSize(2).allSatisfy {
+    if (available) assertThat(warnings).isEmpty()
+    else assertThat(warnings).hasSize(2).allSatisfy {
       assertThat(it).contains("Muzzle retaining com.example:lib:1.0", "cannot verify publication age", "central-timestamp: HTTP 429")
     }
   }
 
   @Test
   fun `does not repeat unreachable Central timestamp requests for different versions`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       if (url.startsWith(proxy.url)) {
         Timestamp(null, "missing or invalid Last-Modified header")
       } else {
@@ -189,9 +163,7 @@ class MuzzleDependencyAgeTest {
 
   @Test
   fun `continues using proxy timestamps after the Central timestamp fallback times out`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       when {
         !url.startsWith(proxy.url) -> throw SocketTimeoutException()
         url.contains("/1.0/") -> Timestamp(null, "missing or invalid Last-Modified header")
@@ -207,9 +179,7 @@ class MuzzleDependencyAgeTest {
 
   @Test
   fun `continues trying healthy repositories after a connection failure`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       if (url.startsWith("https://repo.example/")) throw ConnectException()
       Timestamp(now)
     }
@@ -226,9 +196,8 @@ class MuzzleDependencyAgeTest {
 
   @Test
   fun `a subsequent build retries repositories after transport failures`() {
-    val requests = AtomicInteger()
     val lookup: (String) -> Timestamp = {
-      if (requests.incrementAndGet() == 1) throw SocketTimeoutException()
+      if (requested.size == 1) throw SocketTimeoutException()
       Timestamp(now)
     }
     val first = policy(lookup)
@@ -237,15 +206,14 @@ class MuzzleDependencyAgeTest {
     assertThat(eligible(first, "1.0")).isTrue()
     assertThat(eligible(first, "1.1")).isTrue()
     assertThat(eligible(second, "1.0")).isFalse()
-    assertThat(requests).hasValue(2)
+    assertThat(requested).hasSize(2)
   }
 
   @ParameterizedTest
   @ValueSource(booleans = [true, false])
   fun `retains cached publication timestamps when another version has a transport failure`(oldEnough: Boolean) {
-    val requests = AtomicInteger()
     val policy = policy {
-      if (requests.incrementAndGet() == 1) {
+      if (requested.size == 1) {
         Timestamp(if (oldEnough) now.minusSeconds(72 * 3600L) else now)
       } else {
         throw SocketTimeoutException()
@@ -255,41 +223,37 @@ class MuzzleDependencyAgeTest {
     assertThat(eligible(policy, "1.0")).isEqualTo(oldEnough)
     assertThat(eligible(policy, "1.1")).isTrue()
     assertThat(eligible(policy, "1.0")).isEqualTo(oldEnough)
-    assertThat(requests).hasValue(2)
+    assertThat(requested).hasSize(2)
   }
 
   @ParameterizedTest
   @ValueSource(strings = ["HTTP 404", "missing or invalid Last-Modified header"])
   fun `artifact-specific missing timestamps do not disable a repository`(reason: String) {
-    val requests = AtomicInteger()
     val policy = policy {
-      if (requests.incrementAndGet() == 1) Timestamp(null, reason) else Timestamp(now)
+      if (requested.size == 1) Timestamp(null, reason) else Timestamp(now)
     }
 
     assertThat(eligible(policy, "1.0")).isTrue()
     assertThat(eligible(policy, "1.1")).isFalse()
-    assertThat(requests).hasValue(2)
+    assertThat(requested).hasSize(2)
   }
 
   @Test
   fun `a missing local file does not disable timestamps for other local versions`() {
-    val requests = AtomicInteger()
     val policy = policy {
-      if (requests.incrementAndGet() == 1) throw FileNotFoundException()
+      if (requested.size == 1) throw FileNotFoundException()
       Timestamp(now)
     }
     val repos = listOf(repository("fixture", "file:/tmp/muzzle-repo/"))
 
     assertThat(policy.isEligible("com.example", "lib", "1.0", repos)).isTrue()
     assertThat(policy.isEligible("com.example", "lib", "1.1", repos)).isFalse()
-    assertThat(requests).hasValue(2)
+    assertThat(requested).hasSize(2)
   }
 
   @Test
   fun `does not duplicate Central timestamp requests when Central is already configured`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       Timestamp(null, "HTTP 404")
     }
     val repos = listOf(proxy, repository("central", "https://repo1.maven.org/maven2"))
@@ -303,35 +267,25 @@ class MuzzleDependencyAgeTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = ["private", "custom-proxy", "central"])
-  fun `does not add a Central timestamp fallback to custom repositories`(id: String) {
-    val repo = repository(id, "https://custom.example/maven2/")
-    val policy = policy { url ->
-      assertThat(url).startsWith(repo.url)
-      Timestamp(null, "HTTP 404")
-    }
-
-    assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(repo))).isTrue()
-    assertThat(warnings).singleElement().asString().doesNotContain("central-timestamp")
-  }
-
-  @Test
-  fun `does not add a Central timestamp fallback to local repository fixtures`() {
-    val repo = repository("central-proxy", "file:/tmp/muzzle-repo/")
-    val policy = policy { url ->
-      assertThat(url).startsWith(repo.url)
+  @CsvSource(value = [
+    "private,https://custom.example/maven2/",
+    "custom-proxy,https://custom.example/maven2/",
+    "central,https://custom.example/maven2/",
+    "central-proxy,file:/tmp/muzzle-repo/"
+  ])
+  fun `custom and local repositories do not add a Central timestamp fallback`(id: String, url: String) {
+    val repo = repository(id, url)
+    val policy = policy { requestedUrl ->
+      assertThat(requestedUrl).startsWith(repo.url)
       Timestamp(null, "missing or invalid Last-Modified header")
     }
-
     assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(repo))).isTrue()
     assertThat(warnings).singleElement().asString().doesNotContain("central-timestamp")
   }
 
   @Test
   fun `does not fall back to an older timestamp for a release known to be too new`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       Timestamp(now)
     }
 
@@ -359,9 +313,7 @@ class MuzzleDependencyAgeTest {
 
   @Test
   fun `caches timestamps by repository and coordinate including unknown timestamps`() {
-    val requested = mutableListOf<String>()
     val policy = policy { url ->
-      requested.add(url)
       Timestamp(null, "HTTP 404")
     }
     repeat(2) { eligible(policy, "1.0") }
@@ -405,25 +357,6 @@ class MuzzleDependencyAgeTest {
   }
 
   @Test
-  fun `reads POM publication time with HEAD and caches it`() {
-    val requests = AtomicInteger()
-    withRepository({ exchange ->
-      assertThat(exchange.requestMethod).isEqualTo("HEAD")
-      assertThat(exchange.requestURI.path).isEqualTo("/com/example/lib/1.0/lib-1.0.pom")
-      requests.incrementAndGet()
-      exchange.responseHeaders.add("Last-Modified", "Mon, 28 Sep 2026 12:00:00 GMT")
-      exchange.sendResponseHeaders(200, -1)
-    }) { repo ->
-      val policy = MuzzleDependencyAge(48, now, warn = warnings::add)
-      repeat(2) {
-        assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(repo))).isTrue()
-      }
-    }
-    assertThat(requests).hasValue(1)
-    assertThat(warnings).isEmpty()
-  }
-
-  @Test
   @Timeout(10)
   fun `a stalled HTTP response times out without retries and retains later versions`() {
     val requests = AtomicInteger()
@@ -448,38 +381,35 @@ class MuzzleDependencyAgeTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = ["", "not-a-date"])
-  fun `retains versions with missing and malformed Last-Modified headers`(header: String) {
-    withRepository({ exchange ->
-      if (header.isNotEmpty()) exchange.responseHeaders.add("Last-Modified", header)
-      exchange.sendResponseHeaders(200, -1)
-    }) { repo ->
-      assertThat(
-        MuzzleDependencyAge(48, now, warn = warnings::add)
-          .isEligible("com.example", "lib", "1.0", listOf(repo))
-      ).isTrue()
-    }
-    assertThat(warnings).singleElement().asString().contains("missing or invalid Last-Modified")
-  }
-
-  @ParameterizedTest
-  @ValueSource(ints = [403, 404, 429, 500, 503])
-  fun `does not retry HTTP failures and retains versions when repositories are unavailable`(status: Int) {
+  @CsvSource(delimiter = '|', value = [
+    "200|Mon, 28 Sep 2026 12:00:00 GMT|",
+    "200||missing or invalid Last-Modified",
+    "200|not-a-date|missing or invalid Last-Modified",
+    "403||HTTP 403", "404||HTTP 404", "429||HTTP 429", "500||HTTP 500", "503||HTTP 503"
+  ])
+  fun `HEAD requests read publication times and cache unavailable timestamps`(
+    status: Int, header: String?, reason: String?
+  ) {
     val requests = AtomicInteger()
     withRepository({ exchange ->
+      assertThat(exchange.requestMethod).isEqualTo("HEAD")
+      assertThat(exchange.requestURI.path).isEqualTo("/com/example/lib/1.0/lib-1.0.pom")
       requests.incrementAndGet()
+      header?.let { exchange.responseHeaders.add("Last-Modified", it) }
       exchange.sendResponseHeaders(status, -1)
     }) { repo ->
-      assertThat(
-        MuzzleDependencyAge(48, now, warn = warnings::add)
-          .isEligible("com.example", "lib", "1.0", listOf(repo))
-      ).isTrue()
+      val policy = MuzzleDependencyAge(48, now, warn = warnings::add)
+      repeat(2) { assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(repo))).isTrue() }
     }
     assertThat(requests).hasValue(1)
-    assertThat(warnings).singleElement().asString().contains("HTTP $status")
+    if (reason == null) assertThat(warnings).isEmpty()
+    else assertThat(warnings).hasSize(2).allSatisfy { assertThat(it).contains(reason) }
   }
 
-  private fun policy(lookup: (String) -> Timestamp) = MuzzleDependencyAge(48, now, lookup, warnings::add)
+  private fun policy(lookup: (String) -> Timestamp) = MuzzleDependencyAge(48, now, { url ->
+    requested.add(url)
+    lookup(url)
+  }, warnings::add)
 
   private fun eligible(policy: MuzzleDependencyAge, version: String = "1.0") = policy.isEligible("com.example", "lib", version, repositories)
 
