@@ -25,7 +25,6 @@ import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.regex.Pattern.compile;
 import static java.util.regex.Pattern.quote;
-import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -501,12 +500,23 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario | last ",
-    "nonfinal | false",
-    "final    | true "
+    "scenario                          | endpoint | last  | closeFrame | fail ",
+    "full close frame success          | full     | true  | true       | false",
+    "full close frame failure          | full     | true  | true       | true ",
+    "partial final close frame success | partial  | true  | true       | false",
+    "partial final close frame failure | partial  | true  | true       | true ",
+    "partial close frame success       | partial  | false | true       | false",
+    "partial close frame failure       | partial  | false | true       | true ",
+    "full closed success               | full     | true  | false      | false",
+    "full closed failure               | full     | true  | false      | true ",
+    "partial final closed success      | partial  | true  | false      | false",
+    "partial final closed failure      | partial  | true  | false      | true ",
+    "partial closed success            | partial  | false | false      | false",
+    "partial closed failure            | partial  | false | false      | true "
   })
-  void terminationFinishesAllPendingBinaryMessages(boolean last) throws Exception {
-    JettyEndpoints.PartialListener endpoint = new JettyEndpoints.PartialListener();
+  void terminationWaitsForPendingBinaryCallbacks(
+      JettyEndpoints.EndpointEvents endpoint, boolean last, boolean closeFrame, boolean fail)
+      throws Exception {
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -519,20 +529,45 @@ public class JettyWebSocketTest extends AbstractInstrumentationTest {
     assertEquals(1, writer.size());
     assertNotSame(endpoint.messageSpans.get(0), endpoint.messageSpans.get(1));
 
-    Callback.Completable closed = new Callback.Completable();
-    frameHandler.onClosed(new CloseStatus(CloseStatus.NORMAL, "bye"), closed);
-    closed.get(5, SECONDS);
+    if (closeFrame) {
+      deliver(frameHandler, CloseStatus.toFrame(CloseStatus.NORMAL, "bye"));
+    } else {
+      Callback.Completable closed = new Callback.Completable();
+      frameHandler.onClosed(new CloseStatus(CloseStatus.NORMAL, "bye"), closed);
+      closed.get(5, SECONDS);
+    }
 
-    writer.waitForTraces(4);
-    assertTrue(
-        writer.stream().flatMap(List::stream).collect(toList()).containsAll(endpoint.messageSpans));
+    DDSpan handshake = handshake();
+    assertTraces(trace(handshakeSpan()), trace(closeSpan(handshake)));
+    assertFalse(message.isDone());
+    assertFalse(previousMessage.isDone());
 
-    endpoint.pendingCallback.succeed();
-    message.get(5, SECONDS);
+    if (fail) {
+      endpoint.pendingCallback.fail(new IllegalStateException("callback failed after close"));
+    } else {
+      endpoint.pendingCallback.succeed();
+      message.get(5, SECONDS);
+    }
+    assertTrue(message.isDone());
+    assertEquals(fail, message.isCompletedExceptionally());
+    TagsMatcher[] errorTags =
+        fail
+            ? new TagsMatcher[] {error(IllegalStateException.class, "callback failed after close")}
+            : new TagsMatcher[0];
+    SpanMatcher expected = receiveSpan(handshake, "binary", 5, 1, errorTags).error(fail);
+    assertTraces(trace(handshakeSpan()), trace(expected), trace(closeSpan(handshake)));
+    assertSame(endpoint.messageSpans.get(1), writer.get(2).get(0));
+    assertFalse(previousMessage.isDone());
+
     previousCallback.succeed();
     previousMessage.get(5, SECONDS);
 
-    assertEquals(4, writer.size());
+    assertTraces(
+        trace(handshakeSpan()),
+        trace(receiveSpan(handshake, "binary", 8, 1)),
+        trace(expected),
+        trace(closeSpan(handshake)));
+    assertSame(endpoint.messageSpans.get(0), writer.get(3).get(0));
     assertNull(activeSpan());
   }
 

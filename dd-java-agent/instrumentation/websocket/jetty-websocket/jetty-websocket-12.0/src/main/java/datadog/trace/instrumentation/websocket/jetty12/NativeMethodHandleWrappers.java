@@ -18,6 +18,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
@@ -233,10 +234,15 @@ public class NativeMethodHandleWrappers {
           DECORATE.onFrameEnd(text);
         }
       }
-      for (BinaryMessage message : pendingBinary) {
-        DECORATE.onFrameEnd(message);
+      for (Iterator<BinaryMessage> iterator = pendingBinary.iterator(); iterator.hasNext(); ) {
+        BinaryMessage message = iterator.next();
+        // Close ends the message, but pending callbacks still determine the receive outcome.
+        message.complete = true;
+        if (message.pendingCallbacks == 0) {
+          DECORATE.onFrameEnd(message);
+          iterator.remove();
+        }
       }
-      pendingBinary.clear();
       currentBinary = null;
     }
   }
