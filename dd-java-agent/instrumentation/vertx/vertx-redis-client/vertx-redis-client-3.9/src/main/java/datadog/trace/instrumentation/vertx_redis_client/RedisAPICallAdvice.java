@@ -6,9 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 
 import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -21,7 +21,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 public class RedisAPICallAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope beforeCall(
+  public static ContextScope beforeCall(
       @Advice.Origin final Method currentMethod,
       @Advice.This final RedisAPI self,
       @Advice.Argument(
@@ -110,7 +110,7 @@ public class RedisAPICallAdvice {
     The potential racy condition when the handler may be added to an already finished task is handled
     by RedisAPIImplSendAdvice.
     */
-    AgentScope scope = activateSpan(clientSpan);
+    ContextScope scope = activateSpan(clientSpan);
     ResponseHandlerWrapper respHandler =
         new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
     handler = respHandler;
@@ -144,7 +144,7 @@ public class RedisAPICallAdvice {
   public static void afterCall(
       @Advice.Thrown final Throwable throwable,
       @Advice.This final RedisAPI self,
-      @Advice.Enter final AgentScope scope) {
+      @Advice.Enter final ContextScope scope) {
     CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
 
     if (null == scope) {

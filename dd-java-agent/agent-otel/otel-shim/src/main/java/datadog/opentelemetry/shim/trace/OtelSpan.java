@@ -11,7 +11,7 @@ import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
@@ -166,7 +166,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
     return this.recording;
   }
 
-  public AgentScope activate() {
+  public ContextScope activate() {
     return activateSpan(this.delegate);
   }
 

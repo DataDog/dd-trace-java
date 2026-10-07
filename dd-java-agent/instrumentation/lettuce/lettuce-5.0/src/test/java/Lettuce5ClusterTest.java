@@ -26,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.DockerImageName;
 
 class Lettuce5ClusterTest extends AbstractInstrumentationTest {
   private static final String TEST_SET_KEY = "TESTSETKEY";
@@ -53,7 +54,8 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     // Redis cluster discovery returns the announced node port, so the host-side port must be
     // stable. Use the same random ports inside the container so cluster nodes can also reach each
     // other at their announced addresses.
-    redisCluster = new GenericContainer<>("redis:6.2.6");
+    redisCluster =
+        new GenericContainer<>(DockerImageName.parse(System.getProperty("test.redis.image")));
     redisCluster.setPortBindings(
         Arrays.asList(
             redisClusterMasterPort + ":" + redisClusterMasterPort,

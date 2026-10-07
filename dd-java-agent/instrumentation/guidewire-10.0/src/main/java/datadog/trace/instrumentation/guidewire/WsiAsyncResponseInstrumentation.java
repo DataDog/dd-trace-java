@@ -52,11 +52,6 @@ public final class WsiAsyncResponseInstrumentation extends InstrumenterModule.Co
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return ASYNC_RESPONSE;
   }

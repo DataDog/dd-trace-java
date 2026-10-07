@@ -37,11 +37,6 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".PoolWaitingDecorator"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("pollFirst").and(takesArguments(1)),

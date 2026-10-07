@@ -8,10 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.TestProfilingContextIntegration;
 import datadog.trace.agent.tooling.TracerInstaller;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
@@ -36,7 +36,11 @@ class TimingReadinessForkedTest extends AbstractInstrumentationTest {
     writer = new ListWriter();
     profiling = new TestProfilingContextIntegration();
     CoreTracer profilingTracer =
-        CoreTracer.builder().writer(writer).profilingContextIntegration(profiling).build();
+        CoreTracer.builder()
+            .writer(writer)
+            .strictTraceWrites(true)
+            .profilingContextIntegration(profiling)
+            .build();
     TracerInstaller.forceInstallGlobalTracer(profilingTracer);
     tracer = profilingTracer;
   }
@@ -65,7 +69,7 @@ class TimingReadinessForkedTest extends AbstractInstrumentationTest {
 
   private static void submitTask(TestExecutor executor) throws Exception {
     AgentSpan span = startSpan("test", "submit");
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       ContextCheckingTask task = new ContextCheckingTask();
       executor.submit(task).get(5, SECONDS);
       assertEquals(span.getSpanId(), task.spanId);

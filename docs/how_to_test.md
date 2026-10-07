@@ -1,5 +1,8 @@
 # How to Test
 
+For JUnit test authoring, see the [JUnit testing guide](how_to_test_with_junit.md).
+Prefer `@TableTest` for parameterized tests with multi-column literal data. When a simple `@TypeConverter` can turn table values into the required arguments, prefer it over switching to `@MethodSource`. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks.
+
 ## The Different Types of Tests
 
 The project leverages different types of tests:
@@ -12,9 +15,12 @@ The project leverages different types of tests:
 2. A variant of unit tests is **instrumented tests**.  
    Their purpose is similar to unit tests, but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running.
    They extend the Spock specification `datadog.trace.agent.test.InstrumentationSpecification` which produces traces and metrics for testing.
+   Instrumentation test harnesses always use strict trace writes so unfinished asynchronous work fails visibly instead of producing an incomplete trace.
 
 3. The third type of tests is **Muzzle checks**.  
    Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
+   `coreJdk(version)` and library checks with `javaVersion` fingerprint the selected JDK's major version, vendor, full runtime/VM versions, OS, and architecture; `coreJdk()` tracks the Gradle daemon JVM instead.
+   Changing these values invalidates cached results even within the same Java major version.
 
 4. The fourth type of tests is **integration tests**.  
    They test features that require a more complex environment setup.
@@ -41,8 +47,25 @@ This mechanism exists to make sure either java agent state or static data are re
 
 ### Flaky Tests
 
-If a test runs unreliably, or doesn't have a fully deterministic behavior, this will lead to recurrent unexpected errors in continuous integration.
-In order to identify such tests and avoid the continuous integration to fail, they are marked as _flaky_ and must be annotated with the `@Flaky` annotation.
+Mark unreliable test methods or classes with `@Flaky` in both JUnit and Spock.
+
+All tests run by default. Use `-PskipFlakyTests` to skip flaky tests or `-PrunFlakyTests` to run only flaky tests.
+
+If a JUnit test is flaky only in certain environments, use `conditionMethod` to reference a static,
+no-argument method that returns `true` when the test is flaky:
+
+```java
+@Test
+@Flaky(conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm")
+void testOnSupportedJvms() {
+  // ...
+}
+```
+
+Use `suites = {"SomeSubclass"}` to limit the annotation to the concrete class executing the test,
+such as a subclass that inherits the annotated method. Simple and canonical class names are
+supported. Matching is exact, so subclasses and nested classes must each be listed. When both
+`suites` and a condition are specified, both must match.
 
 > [!TIP]
 > In case your pull request checks failed due to some unexpected flaky tests, you can retry the continuous 
@@ -51,6 +74,72 @@ In order to identify such tests and avoid the continuous integration to fail, th
 >    ![Re run workflow from failed](how_to_test/run-again-job.png)
 > * using the `Retry` button from the job view:
 >    ![Rerun workflow from failed](how_to_test/retry-failed-job.png)
+
+## Tests that use containers
+
+> [!IMPORTANT]
+> Don't use image name in Test Container constructors like `new CassandraContainer("cassandra:4")`, 
+> or `new GenericContainer("icr.io/appcafe/websphere-traditional:latest")`. Image tags can change.
+> Also, these are not properly tracked as _test_ task inputs and as such can't be fingerprinted.
+> Instead, use the `dd-trace-java.testcontainers` plugin to declare these as dependencies,
+> it will resolve the actual image digest before running the test.
+
+Declare container images in the module's Gradle build so a changed image cannot
+silently reuse cached test results:
+
+```kotlin
+import datadog.buildlogic.testcontainers.image
+
+plugins {
+  id("dd-trace-java.testcontainers")
+}
+
+dependencies {
+  testImplementation(libs.testcontainers)
+  testImplementation("com.redis.testcontainers:testcontainers-redis:1.6.2")
+  testContainerImage(image("redis:7-alpine", "test.redis.image"))
+}
+```
+
+Use `GenericContainer` or the dedicated container type and use its `DockerImageName` constructor
+overload with the relevant system property, **without a fallback value**. The compatibility
+declaration is important to let _testcontainer_ know it should accept it as a mirrored image.
+For example with Redis: 
+
+```java
+import com.redis.testcontainers.RedisContainer;
+import org.testcontainers.utility.DockerImageName;
+
+DockerImageName image = DockerImageName.parse(System.getProperty("test.redis.image"))
+    .asCompatibleSubstituteFor("redis");
+RedisContainer redis = new RedisContainer(image);
+```
+
+Essentially the plugin resolves tags to immutable registry digests before Gradle checks 
+whether test results are up to date or cached. Resolution failure stops the test task 
+earlier, rather than within the tests.
+
+The plugin feed the system property to both `test` and `forkedTest` tasks.
+
+`testContainerImage` is a "companion" for the `testImplementation` configuration. 
+The plugin automatically creates an image configuration for each `*Implementation`
+configuration. For example, `integrationTestImplementation` gets
+`integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
+for inheritance and shared configuration examples.
+
+## Continuation lifecycle failures
+
+Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out.
+Do not replace the harness tracer or introduce another way to disable strict writes.
+
+Fix continuation leaks when possible.
+If a fix cannot be included immediately, quarantine the Spock test with `@Flaky` and a useful reason or tracked issue so the failure remains visible.
+`@Flaky` is not yet supported for JUnit tests.
+Keep continuation tracking enabled so the diagnostic evidence is preserved.
+
+Disable tracking with `@TrackScopeContinuations(enabled = false, reason = "...")` only for a proven incompatibility with the diagnostic itself, never for an unresolved leak.
+Keep the opt-out narrow and document the incompatibility and its removal condition.
+Strict trace writes remain enabled.
 
 ## Running Tests
 

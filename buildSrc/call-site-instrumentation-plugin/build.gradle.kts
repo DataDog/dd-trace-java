@@ -40,6 +40,7 @@ dependencies {
 
   testCompileOnly(libs.jsr305)
   testImplementation(libs.bytebuddy)
+  testImplementation(platform(libs.junit.bom))
   testImplementation(libs.bundles.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)

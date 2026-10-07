@@ -13,6 +13,7 @@ import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.config.TestSetting;
 import datadog.trace.civisibility.execution.AttemptToFix;
 import datadog.trace.civisibility.execution.AutoTestRetry;
+import datadog.trace.civisibility.execution.DynamicAutoTestRetry;
 import datadog.trace.civisibility.execution.EarlyFlakeDetection;
 import datadog.trace.civisibility.execution.Quarantine;
 import datadog.trace.civisibility.execution.Regular;
@@ -142,6 +143,12 @@ public class ExecutionStrategy {
     if (isAutoRetryApplicable(test)) {
       // check-then-act with "autoRetriesUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      if (executionSettings.getDynamicAutoTestRetrySettings().isEnabled()) {
+        return new DynamicAutoTestRetry(
+            executionSettings.getDynamicAutoTestRetrySettings(),
+            isQuarantined(test),
+            autoRetriesUsed);
+      }
       return new AutoTestRetry(
           config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
     }

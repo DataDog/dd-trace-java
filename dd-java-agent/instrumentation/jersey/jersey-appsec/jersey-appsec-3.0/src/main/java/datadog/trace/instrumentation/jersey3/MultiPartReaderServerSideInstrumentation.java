@@ -46,11 +46,6 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".MultiPartHelper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("readMultiPart")

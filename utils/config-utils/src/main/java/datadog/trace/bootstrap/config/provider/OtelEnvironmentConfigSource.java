@@ -131,7 +131,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       String environment = attributeMap.remove("deployment.environment");
       String namedEnvironment = attributeMap.remove("deployment.environment.name");
       capture(ENV, namedEnvironment != null ? namedEnvironment : environment);
-      capture(TAGS, renderDatadogMap(attributeMap, 10));
+      capture(TAGS, renderDatadogMap(attributeMap));
     }
     capture(LOG_LEVEL, logLevel);
     capture(SERVICE_NAME, serviceName);
@@ -469,15 +469,11 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   /** Renders the map as a comma-separated list of key:value entries. */
-  private static String renderDatadogMap(Map<String, String> map, int maxEntries) {
+  private static String renderDatadogMap(Map<String, String> map) {
     StringBuilder buf = new StringBuilder();
 
-    int entries = 0;
     for (Map.Entry<String, String> entry : map.entrySet()) {
       buf.append(entry.getKey()).append(':').append(entry.getValue()).append(',');
-      if (++entries >= maxEntries) {
-        break;
-      }
     }
 
     // remove trailing comma, mapping empty conversion to null

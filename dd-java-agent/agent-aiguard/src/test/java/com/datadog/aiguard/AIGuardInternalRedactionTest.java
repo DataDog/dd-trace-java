@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
 import datadog.trace.api.aiguard.AIGuard.Evaluation;
@@ -28,7 +29,6 @@ import datadog.trace.api.aiguard.AIGuard.Message;
 import datadog.trace.api.aiguard.AIGuard.Options;
 import datadog.trace.api.telemetry.MetricCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
@@ -86,7 +86,7 @@ class AIGuardInternalRedactionTest {
     lenient().when(builder.start()).thenReturn(span);
     final AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     lenient().when(tracer.buildSpan(anyString(), anyString())).thenReturn(builder);
-    lenient().when(tracer.activateSpan(any())).thenReturn(mock(AgentScope.class));
+    lenient().when(tracer.activateSpan(any())).thenReturn(mock(ContextScope.class));
     AgentTracer.forceRegister(tracer);
   }
 

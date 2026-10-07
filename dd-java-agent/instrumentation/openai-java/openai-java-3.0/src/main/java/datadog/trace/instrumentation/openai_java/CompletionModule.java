@@ -13,18 +13,6 @@ public class CompletionModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CommonTags",
-      packageName + ".CompletionDecorator",
-      packageName + ".OpenAiDecorator",
-      packageName + ".HttpResponseWrapper",
-      packageName + ".HttpStreamResponseWrapper",
-      packageName + ".HttpStreamResponseStreamWrapper",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new CompletionServiceAsyncInstrumentation(), new CompletionServiceInstrumentation());

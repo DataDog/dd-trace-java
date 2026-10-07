@@ -33,13 +33,6 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".WrappedFuture",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("invoke")),
