@@ -30,6 +30,7 @@ import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.Feature;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
@@ -38,6 +39,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import okio.Buffer;
 import org.junit.jupiter.api.AfterEach;
@@ -152,6 +154,79 @@ class RemoteConfigServiceImplTest {
 
     assertNotNull(config);
     assertEquals(Integer.valueOf(expected), serialIdOf(config));
+  }
+
+  @Test
+  void parsesSplitFeatures() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            configWithFeatures(
+                "[{\"key\": \"holdout.key\", \"value\": \"q4-global\"},"
+                    + " {\"key\": \"holdout.weight\", \"value\": 0.5},"
+                    + " {\"key\": \"holdout.should_include_in_holdout_analysis\", \"value\": true}]"));
+
+    final List<Feature> features = featuresOf(config);
+    assertEquals(3, features.size());
+    assertFeature(features.get(0), "holdout.key", "q4-global");
+    assertFeature(features.get(1), "holdout.weight", 0.5);
+    assertFeature(features.get(2), "holdout.should_include_in_holdout_analysis", true);
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  @Test
+  void parsesAbsentSplitFeaturesAsNull() throws Exception {
+    final ServerConfiguration config = deserialize(configWithFeatures(null));
+
+    assertNull(featuresOf(config));
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  @Test
+  void dropsMalformedSplitFeaturesAndKeepsTheFlag() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            configWithFeatures(
+                "[{\"key\": \"object-value\", \"value\": {\"nested\": true}},"
+                    + " {\"key\": \"array-value\", \"value\": [1]},"
+                    + " {\"key\": \"null-value\", \"value\": null},"
+                    + " {\"key\": \"\", \"value\": \"empty key\"},"
+                    + " {\"key\": 3, \"value\": \"numeric key\"},"
+                    + " {\"value\": \"missing key\"},"
+                    + " {\"key\": \"missing value\"},"
+                    + " \"not-an-object\","
+                    + " {\"key\": \"holdout.key\", \"value\": \"q4-global\", \"destination\": \"HOOK\"}]"));
+
+    assertTrue(config.flags.containsKey("valid-flag"));
+    final List<Feature> features = featuresOf(config);
+    assertEquals(1, features.size());
+    assertFeature(features.get(0), "holdout.key", "q4-global");
+  }
+
+  @Test
+  void ignoresSplitFeaturesThatAreNotAList() throws Exception {
+    final ServerConfiguration config =
+        deserialize(configWithFeatures("{\"holdout.key\": \"q4-global\"}"));
+
+    assertTrue(config.flags.containsKey("valid-flag"));
+    assertNull(featuresOf(config));
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  private static void assertFeature(final Feature feature, final String key, final Object value) {
+    assertEquals(key, feature.key);
+    assertEquals(value, feature.value);
+  }
+
+  private static List<Feature> featuresOf(final ServerConfiguration config) {
+    return config.flags.get("valid-flag").allocations.get(0).splits.get(0).features;
+  }
+
+  /** Inserts the raw features JSON; null omits the key. */
+  private static String configWithFeatures(final String featuresJson) throws IOException {
+    final String json = resource("split-features.json");
+    return featuresJson == null
+        ? json.replace("\"features\": \"${features}\",", "")
+        : json.replace("\"${features}\"", featuresJson);
   }
 
   private static Integer serialIdOf(final ServerConfiguration config) {
