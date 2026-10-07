@@ -18,8 +18,10 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
@@ -77,13 +79,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   };
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
-    };
-  }
-
-  @Override
   public String[] knownMatchingTypes() {
     return CONCRETE_TYPES;
   }
@@ -102,7 +97,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
-    contextStore.put("java.sql.Connection", DBInfo.class.getName());
+    contextStore.put("java.sql.Connection", JDBCConnectionContext.class.getName());
     return contextStore;
   }
 
@@ -121,8 +116,13 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       final String inputSql = sql;
       final AgentSpan activeSpan = activeSpan();
       final DBInfo dbInfo =
-          JDBCDecorator.parseDBInfo(
-              connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+          JDBCDecorator.parseConnectionContext(
+                  connection,
+                  InstrumentationContext.get(Connection.class, JDBCConnectionContext.class))
+              .getDbInfo();
+      if (!DECORATE.shouldInjectSqlComment(dbInfo)) {
+        return inputSql;
+      }
       String dbService = DECORATE.getDbService(dbInfo);
       if (dbService != null) {
         dbService = traceConfig(activeSpan).getServiceMapping().getOrDefault(dbService, dbService);

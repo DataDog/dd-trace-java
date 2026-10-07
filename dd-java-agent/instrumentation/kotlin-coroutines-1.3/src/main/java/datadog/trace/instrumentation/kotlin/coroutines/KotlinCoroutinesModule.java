@@ -13,13 +13,6 @@ public class KotlinCoroutinesModule extends InstrumenterModule.ContextTracking {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatadogThreadContextElement", packageName + ".DatadogThreadContextElement$1"
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new CoroutineContextInstrumentation(),

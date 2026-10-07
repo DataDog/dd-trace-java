@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
@@ -33,6 +34,7 @@ import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import java.util.List;
 import java.util.Map;
 
@@ -50,13 +52,14 @@ public final class OtlpTraceJson {
   public static void writeSpan(
       JsonWriter writer, DDSpan span, MetaWriter metaWriter, List<? extends AgentSpanLink> links) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
+    SamplingState samplingState = propagationTags.samplingState();
 
     writer.beginObject();
 
     writer.name("traceId").value(hexTraceId(span.getTraceId()));
     writer.name("spanId").value(hexSpanId(span.getSpanId()));
 
-    String tracestate = propagationTags.getW3CTracestate();
+    String tracestate = propagationTags.getW3CTracestate(samplingState);
     if (tracestate != null) {
       writer.name("traceState").value(tracestate);
     }
@@ -66,7 +69,7 @@ public final class OtlpTraceJson {
     }
 
     int traceFlags = NO_TRACE_FLAGS;
-    if (span.samplingPriority() > 0) {
+    if (samplingState.getSamplingPriority() > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
     if (span.spanContext().isRemote()) {
@@ -207,8 +210,8 @@ public final class OtlpTraceJson {
 
       writeSpanTag(writer, THREAD_ID, metadata.getThreadId());
       writeSpanTag(writer, THREAD_NAME, metadata.getThreadName());
-      if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(writer, HTTP_STATUS, metadata.getHttpStatusCode());
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
+        writeSpanTag(writer, HTTP_STATUS, metadata.getHttpStatusCodeString());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(writer, ORIGIN_KEY, metadata.getOrigin());

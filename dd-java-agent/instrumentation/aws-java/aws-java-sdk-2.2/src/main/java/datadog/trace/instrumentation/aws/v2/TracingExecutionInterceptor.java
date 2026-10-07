@@ -160,6 +160,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
           DECORATE.onError(span, context.exception());
         }
       } else {
+        // service errors (non-2xx) have no SdkResponse, the status code is on the exception
+        DECORATE.onServiceError(span, context.exception());
         DECORATE.onError(span, context.exception());
       }
       DECORATE.beforeFinish(span);

@@ -105,7 +105,6 @@ public abstract class BaseIntegrationTest {
   protected Process targetProcess;
   private Configuration currentConfiguration;
   private ConfigOverrides configOverrides;
-  private boolean configProvided;
   protected final Object configLock = new Object();
   protected final List<Consumer<JsonSnapshotSerializer.IntakeRequest>> intakeRequestListeners =
       new ArrayList<>();
@@ -438,14 +437,13 @@ public abstract class BaseIntegrationTest {
     Configuration configuration;
     ConfigOverrides configOverrides;
     synchronized (configLock) {
-      configuration = getCurrentConfiguration();
-      configOverrides = getConfigOverrides();
-      configProvided = true;
-      configLock.notifyAll();
+      configuration = currentConfiguration;
+      configOverrides = this.configOverrides;
     }
     if (configuration == null) {
       configuration = createConfig(Collections.emptyList());
     }
+    LOG.info("configuration={} configOverrides={}", configuration, configOverrides);
     try {
       JsonAdapter<LogProbe> logAdapter =
           MoshiConfigTestHelper.createMoshiConfig().adapter(LogProbe.class);
@@ -512,24 +510,6 @@ public abstract class BaseIntegrationTest {
     return "";
   }
 
-  private Configuration getCurrentConfiguration() {
-    synchronized (configLock) {
-      return currentConfiguration;
-    }
-  }
-
-  private ConfigOverrides getConfigOverrides() {
-    synchronized (configLock) {
-      return configOverrides;
-    }
-  }
-
-  protected boolean isConfigProvided() {
-    synchronized (configLock) {
-      return configProvided;
-    }
-  }
-
   protected static JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>>
       createAdapterForSnapshot() {
     return MoshiSnapshotTestHelper.createMoshiSnapshot()
@@ -540,7 +520,6 @@ public abstract class BaseIntegrationTest {
   protected void setCurrentConfiguration(Configuration configuration) {
     synchronized (configLock) {
       this.currentConfiguration = configuration;
-      configProvided = false;
     }
   }
 
@@ -710,6 +689,11 @@ public abstract class BaseIntegrationTest {
   static final class ConfigOverrides {
     @Json(name = "lib_config")
     public LibConfig libConfig;
+
+    @Override
+    public String toString() {
+      return "ConfigOverrides{" + "libConfig=" + libConfig + '}';
+    }
   }
 
   static final class LibConfig {
@@ -724,5 +708,19 @@ public abstract class BaseIntegrationTest {
 
     @Json(name = "live_debugging_enabled")
     public Boolean liveDebuggingEnabled;
+
+    @Override
+    public String toString() {
+      return "LibConfig{"
+          + "dynamicInstrumentationEnabled="
+          + dynamicInstrumentationEnabled
+          + ", exceptionReplayEnabled="
+          + exceptionReplayEnabled
+          + ", codeOriginEnabled="
+          + codeOriginEnabled
+          + ", liveDebuggingEnabled="
+          + liveDebuggingEnabled
+          + '}';
+    }
   }
 }

@@ -61,8 +61,17 @@ open class MuzzlePluginTestFixture : GradleFixture() {
       """
       package datadog.trace.agent.tooling.muzzle;
 
+      import static java.util.Collections.singleton;
+
+      import java.util.Set;
+
       public final class MuzzleVersionScanPlugin {
         private MuzzleVersionScanPlugin() {}
+
+        public static Set<String> listInstrumentationNames(
+            ClassLoader instrumentationClassLoader, String muzzleDirective) {
+          return singleton("test-instrumentation");
+        }
 
         public static void assertInstrumentationMuzzled(
             ClassLoader instrumentationClassLoader,

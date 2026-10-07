@@ -6,9 +6,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.internal.ClientStreamListener;
 import net.bytebuddy.asm.Advice;
@@ -35,7 +35,7 @@ public final class AbstractClientStreamInstrumentation
 
   public static final class ActivateSpan {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.Argument(0) ClientStreamListener listener) {
+    public static ContextScope before(@Advice.Argument(0) ClientStreamListener listener) {
       AgentSpan span =
           InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
       if (null != span) {
@@ -45,7 +45,7 @@ public final class AbstractClientStreamInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }

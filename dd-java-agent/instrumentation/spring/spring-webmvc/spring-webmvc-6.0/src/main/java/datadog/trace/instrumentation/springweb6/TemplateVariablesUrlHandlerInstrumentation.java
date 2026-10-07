@@ -60,6 +60,13 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".SpringBlockingHelper",
+    };
+  }
+
+  @Override
   public Advice.PostProcessor.Factory postProcessor() {
     return postProcessorFactory;
   }

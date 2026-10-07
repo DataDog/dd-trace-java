@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.undertow;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.MultipartContentDecoder;
 import datadog.trace.api.internal.VisibleForTesting;
 import io.undertow.server.handlers.form.FormData;
@@ -37,6 +42,30 @@ public final class FormDataContentHelper {
     }
     GET_FILE_ITEM = gfi;
     FILE_ITEM_GET_INPUT_STREAM = gis;
+  }
+
+  /**
+   * Wraps {@link BlockResponseFunction#tryCommitBlockingResponse(RequestContext,
+   * Flow.Action.RequestBlockingAction)} so that an exception thrown by the commit attempt itself
+   * (rather than a plain {@code false} return) is still reported as a block failure. The advice
+   * that calls this method runs with {@code suppress = Throwable.class}, so without this guard such
+   * an exception would propagate out of the advice and be silently swallowed, and the
+   * default-method reporting inside {@code tryCommitBlockingResponse} would never run.
+   */
+  public static boolean tryCommitBlockingResponse(
+      BlockResponseFunction blockResponseFunction,
+      RequestContext reqCtx,
+      Flow.Action.RequestBlockingAction rba) {
+    try {
+      return blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+    } catch (Exception e) {
+      log.debug("Error committing blocking response", e);
+      Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+      if (rawAppSecCtx instanceof AppSecContext) {
+        ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+      }
+      return false;
+    }
   }
 
   public static List<String> collectContents(FormData attachment) {

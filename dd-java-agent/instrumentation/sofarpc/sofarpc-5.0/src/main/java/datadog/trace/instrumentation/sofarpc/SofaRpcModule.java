@@ -15,17 +15,6 @@ public class SofaRpcModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SofaRpcClientDecorator",
-      packageName + ".SofaRpcServerDecorator",
-      packageName + ".SofaRpcInjectAdapter",
-      packageName + ".SofaRpcExtractAdapter",
-      packageName + ".SofaRpcProtocolContext",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(
         new AbstractClusterInstrumentation(),
