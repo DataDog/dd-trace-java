@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
@@ -7,13 +8,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import kotlin.coroutines.Continuation;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Snapshots context before Kotlin publishes standard suspension or yield decisions. Custom
  * low-level suspension primitives can bypass these hooks.
  */
 public class SuspensionInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
@@ -24,6 +29,11 @@ public class SuspensionInstrumentation
       "kotlinx.coroutines.DispatchedContinuation",
       "kotlinx.coroutines.internal.DispatchedContinuation"
     };
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return hasSuperType(named("kotlin.coroutines.Continuation"));
   }
 
   @Override

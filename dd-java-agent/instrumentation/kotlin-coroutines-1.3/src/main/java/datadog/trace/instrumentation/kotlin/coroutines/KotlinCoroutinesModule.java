@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.Arrays;
+import datadog.trace.api.InstrumenterConfig;
+import java.util.ArrayList;
 import java.util.List;
 
 @AutoService(InstrumenterModule.class)
@@ -14,10 +15,13 @@ public class KotlinCoroutinesModule extends InstrumenterModule.ContextTracking {
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new CoroutineContextInstrumentation(),
-        new CoroutineInstrumentation(),
-        new LazyCoroutineInstrumentation(),
-        new SuspensionInstrumentation());
+    List<Instrumenter> instrumenters = new ArrayList<>();
+    instrumenters.add(new CoroutineContextInstrumentation());
+    instrumenters.add(new CoroutineInstrumentation());
+    instrumenters.add(new LazyCoroutineInstrumentation());
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      instrumenters.add(new SuspensionInstrumentation());
+    }
+    return instrumenters;
   }
 }

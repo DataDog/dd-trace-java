@@ -13,7 +13,7 @@ import kotlinx.coroutines.ThreadContextElement;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
 public final class DatadogThreadContextElement
-    implements ThreadContextElement<DatadogThreadContextElement.State> {
+    implements ThreadContextElement<DatadogThreadContextElement.Exchange> {
   private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation>
       CONTINUATION =
           AtomicReferenceFieldUpdater.newUpdater(
@@ -63,7 +63,7 @@ public final class DatadogThreadContextElement
   }
 
   @Override
-  public State updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
+  public Exchange updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
     if (context == null) {
       // record context to use for this coroutine
       context = Context.current();
@@ -71,14 +71,14 @@ public final class DatadogThreadContextElement
       continuation = context.capture();
     }
     Context resumed = context;
-    return new State(resumed.swap(), resumed);
+    return new Exchange(resumed.swap(), resumed);
   }
 
   @Override
-  public void restoreThreadContext(@Nonnull CoroutineContext coroutineContext, State state) {
-    Context suspended = state.originalContext.swap();
+  public void restoreThreadContext(@Nonnull CoroutineContext coroutineContext, Exchange exchange) {
+    Context suspended = exchange.originalContext.swap();
     // An early suspension snapshot or a newer restore takes precedence over this worker.
-    CONTEXT.compareAndSet(this, state.resumedContext, suspended);
+    CONTEXT.compareAndSet(this, exchange.resumedContext, suspended);
   }
 
   /** Publishes scope changes before suspension can resume the coroutine on another worker. */
@@ -93,11 +93,11 @@ public final class DatadogThreadContextElement
     }
   }
 
-  static final class State {
+  static final class Exchange {
     final Context originalContext;
     final Context resumedContext;
 
-    State(Context originalContext, Context resumedContext) {
+    Exchange(Context originalContext, Context resumedContext) {
       this.originalContext = originalContext;
       this.resumedContext = resumedContext;
     }
