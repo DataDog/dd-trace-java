@@ -39,6 +39,7 @@ import scala.Option;
 public class PlayHttpServerDecorator
     extends HttpServerDecorator<Request<?>, Request<?>, Result, Headers> {
   private static final Logger LOG = LoggerFactory.getLogger(PlayHttpServerDecorator.class);
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
@@ -231,7 +232,7 @@ public class PlayHttpServerDecorator
   }
 
   public void updateOn404Only(final AgentSpan span, final Result result) {
-    if (SHOULD_SET_404_RESOURCE_NAME && status(result) == 404) {
+    if (!OTEL_SEMANTICS && SHOULD_SET_404_RESOURCE_NAME && status(result) == 404) {
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
     }
   }

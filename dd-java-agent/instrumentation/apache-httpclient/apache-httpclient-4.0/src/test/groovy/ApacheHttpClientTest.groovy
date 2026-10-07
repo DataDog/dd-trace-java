@@ -195,3 +195,13 @@ class ApacheClientUriRequestResponseHandlerContextV0ForkedTest extends ApacheCli
 @Timeout(5)
 class ApacheClientUriRequestResponseHandlerContextV1ForkedTest extends ApacheClientUriRequestResponseHandlerContext implements TestingGenericHttpNamingConventions.ClientV1 {
 }
+
+@Timeout(5)
+class ApacheClientOtelSemanticsForkedTest extends ApacheClientUriRequestResponseHandlerContext {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.otel.semantics.enabled", "true")
+  }
+}

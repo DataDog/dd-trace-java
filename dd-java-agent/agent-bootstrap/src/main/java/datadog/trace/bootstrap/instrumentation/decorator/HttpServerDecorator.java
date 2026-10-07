@@ -14,6 +14,7 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
@@ -34,6 +35,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -77,6 +79,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
   private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
 
   private final boolean traceClientIpResolverEnabled =
@@ -287,7 +290,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     //   - peer.ipv4
     //   - peer.ipv6
     final boolean shouldTagIps =
-        config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
+        OTEL_SEMANTICS
+            || config.isClientIpEnabled()
+            || traceClientIpResolverEnabled && APPSEC_ACTIVE;
     // Whether to stash IP data for later tagging or not.
     // AI Guard requires client IP tags on the local root span when an ai_guard span is created.
     // Resolve the IPs eagerly but do not tag the span yet; stash them on the request context so
@@ -323,13 +328,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       String userAgent = extracted.getUserAgent();
       if (userAgent != null) {
-        span.setTag(Tags.HTTP_USER_AGENT, userAgent);
+        span.setTag(
+            OTEL_SEMANTICS ? KnownTags.HTTP_USERAGENT_OTEL_NAME : Tags.HTTP_USER_AGENT, userAgent);
       }
     }
 
     if (request != null) {
       String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
+      if (OTEL_SEMANTICS) {
+        OtelHttpSemantics.setRequestMethod(span, method);
+        span.setResourceName(
+            OtelHttpSemantics.spanNameMethod(method), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+      } else {
+        span.setTag(Tags.HTTP_METHOD, method);
+      }
 
       // Copy of HttpClientDecorator url handling
       try {
@@ -339,32 +351,62 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-          if (valid) {
-            span.setTag(
-                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
-          } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
-          }
-          if (extracted != null && extracted.getXForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
-          } else if (url.host() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, url.host());
+          if (OTEL_SEMANTICS) {
+            String scheme =
+                OtelHttpSemantics.forwardedValue(
+                    extracted == null ? null : extracted.getXForwardedProto());
+            if (scheme == null) {
+              scheme = url.scheme();
+            }
+            if (valid) {
+              if (scheme != null) {
+                span.setTag(KnownTags.URL_SCHEME_NAME, scheme);
+              }
+              span.setTag(KnownTags.URL_PATH_NAME, path);
+            } else if (supportsRaw) {
+              span.setTag(KnownTags.URL_PATH_NAME, url.raw());
+            }
+            OtelHttpSemantics.setServerAddressAndPort(
+                span,
+                extracted == null ? null : extracted.getXForwardedHost(),
+                extracted == null ? null : extracted.getXForwardedPort(),
+                scheme,
+                url.host(),
+                url.port());
+          } else {
+            if (valid) {
+              span.setTag(
+                  Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+            } else if (supportsRaw) {
+              span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
+            }
+            if (extracted != null && extracted.getXForwardedHost() != null) {
+              span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
+            } else if (url.host() != null) {
+              span.setTag(Tags.HTTP_HOSTNAME, url.host());
+            }
           }
 
-          if (valid && config.isHttpServerTagQueryString()) {
+          if (valid && (OTEL_SEMANTICS || config.isHttpServerTagQueryString())) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-            span.setTag(DDTags.HTTP_QUERY, query);
-            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+            if (OTEL_SEMANTICS) {
+              if (query != null && !query.isEmpty()) {
+                span.setTag(KnownTags.URL_QUERY_NAME, query);
+              }
+            } else {
+              span.setTag(DDTags.HTTP_QUERY, query);
+              span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+            }
           }
           Flow<Void> flow = callIGCallbackURI(span, url, method);
           if (flow.getAction() instanceof RequestBlockingAction) {
             span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
           }
-          if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
+          if (!OTEL_SEMANTICS && valid && SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
           }
-        } else if (SHOULD_SET_URL_RESOURCE_NAME) {
+        } else if (!OTEL_SEMANTICS && SHOULD_SET_URL_RESOURCE_NAME) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
@@ -398,7 +440,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
-          span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+          span.setTag(
+              OTEL_SEMANTICS ? KnownTags.HTTP_CLIENT_IP_OTEL_NAME : Tags.HTTP_CLIENT_IP,
+              inferredAddressStr);
         }
       }
     } else if (shouldTagIps && span.getLocalRootSpan() != span) {
@@ -408,9 +452,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       // likely already happened on the top span, so we don't need to do the resolution
       // again. Instead, copy from the top span, should it exist
       AgentSpan localRootSpan = span.getLocalRootSpan();
-      Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
+      String clientIpTag =
+          OTEL_SEMANTICS ? KnownTags.HTTP_CLIENT_IP_OTEL_NAME : Tags.HTTP_CLIENT_IP;
+      Object clientIp = localRootSpan.getTag(clientIpTag);
       if (clientIp != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
+        span.setTag(clientIpTag, clientIp);
       }
     }
 
@@ -421,7 +467,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setTag(Tags.PEER_HOST_IPV4, peerIp);
       }
       if (shouldTagIps) {
-        span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+        final String networkClientIpTag =
+            OTEL_SEMANTICS ? KnownTags.NETWORK_PEER_ADDRESS_NAME : Tags.NETWORK_CLIENT_IP;
+        span.setTag(networkClientIpTag, peerIp);
+        if (OTEL_SEMANTICS && span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME) == null) {
+          span.setTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME, peerIp);
+        }
       }
     }
     if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
@@ -484,9 +535,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
         span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
       }
+      if (OTEL_SEMANTICS && SERVER_ERROR_STATUSES.get(status)) {
+        OtelHttpSemantics.setErrorType(span, status);
+      }
     }
 
-    if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+    if (!OTEL_SEMANTICS && SHOULD_SET_404_RESOURCE_NAME && status == 404) {
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
     }
   }

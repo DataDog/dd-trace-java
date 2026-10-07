@@ -109,3 +109,28 @@ class OkHttp3V0ForkedTest extends OkHttp3Test {
 @Timeout(5)
 class OkHttp3V1ForkedTest extends OkHttp3Test implements TestingGenericHttpNamingConventions.ClientV1 {
 }
+
+@Timeout(5)
+class OkHttp3OtelSemanticsForkedTest extends OkHttp3Test {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "okhttp.request"
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.otel.semantics.enabled", "true")
+  }
+}

@@ -48,3 +48,12 @@ class PlayServerTest extends AbstractPlayServerTest {
     false
   }
 }
+
+class PlayServerOtelSemanticsForkedTest extends PlayServerTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.otel.semantics.enabled", "true")
+  }
+}

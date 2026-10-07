@@ -143,6 +143,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING
@@ -579,6 +581,35 @@ class ConfigTest extends DDSpecification {
     config.traceStatsInterval == 10000
   }
 
+  def "otel semantics forces its required configuration"() {
+    setup:
+    ConfigCollector.get().collect()
+    def prop = new Properties()
+    prop.setProperty(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    prop.setProperty(TRACE_OTEL_EXPORTER, "agent")
+    prop.setProperty(WRITER_TYPE, "LoggingWriter")
+    prop.setProperty(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v1")
+    prop.setProperty(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true")
+
+    when:
+    Config config = Config.get(prop)
+    def calculated = ConfigCollector.get().collect().get(ConfigOrigin.CALCULATED)
+
+    then:
+    config.traceOtelSemanticsEnabled
+    config.traceOtlpExporterEnabled
+    config.writerType == "OtlpWriter"
+    config.spanAttributeSchemaVersion == 0
+    !config.peerServiceDefaultsEnabled
+    config.httpClientErrorStatuses == toBitSet((400..599))
+
+    and: "the effective overrides are reported to telemetry"
+    calculated.get(TRACE_OTEL_EXPORTER).value == "otlp"
+    calculated.get(WRITER_TYPE).value == "OtlpWriter"
+    calculated.get(TRACE_SPAN_ATTRIBUTE_SCHEMA).value == "v0"
+    calculated.get(TRACE_PEER_SERVICE_DEFAULTS_ENABLED).value == false
+  }
+
   def "otel: check syntax for OTLP headers"() {
     setup:
     def prop = new Properties()
@@ -893,7 +924,7 @@ class ConfigTest extends DDSpecification {
     config.site == "new site"
     config.serviceName == "something else"
     config.traceEnabled == false
-    config.writerType == "LoggingWriter"
+    config.writerType == "OtlpWriter"
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
