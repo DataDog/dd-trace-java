@@ -60,6 +60,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -96,6 +97,9 @@ public class WAFModule implements AppSecModule {
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final WafHandle ctx;
+
+    /** Read-held while creating a context from {@link #ctx}; write-held while closing it. */
+    final StampedLock handleLock = new StampedLock();
 
     private CtxAndAddresses(Collection<Address<?>> addressesOfInterest, WafHandle ctx) {
       this.addressesOfInterest = addressesOfInterest;
@@ -208,7 +212,13 @@ public class WAFModule implements AppSecModule {
     }
 
     if (prevContextAndAddresses != null) {
-      prevContextAndAddresses.ctx.close();
+      // Context creation must finish acquiring native ruleset ownership before retiring the handle.
+      long stamp = prevContextAndAddresses.handleLock.writeLock();
+      try {
+        prevContextAndAddresses.ctx.close();
+      } finally {
+        prevContextAndAddresses.handleLock.unlockWrite(stamp);
+      }
     }
 
     reconf.reloadSubscriptions();
@@ -312,7 +322,8 @@ public class WAFModule implements AppSecModule {
       try {
         resultWithData = doRunWaf(reqCtx, newData, ctxAndAddr, gwCtx);
         if (resultWithData == null) {
-          // WAF context closed concurrently between the fast-path check and context creation; skip
+          // WAF context closed concurrently between the isWafContextClosed() check and context
+          // creation; skip
           // (APPSEC-69085). raspRuleEval() was already counted above, so don't also count
           // raspRuleSkipped() here - that counter is reserved for calls that never attempted eval.
           log.debug("Skipped; the WAF context was closed concurrently");
@@ -568,8 +579,25 @@ public class WAFModule implements AppSecModule {
         CtxAndAddresses ctxAndAddr,
         GatewayContext gwCtx)
         throws AbstractWafException {
-      WafContext wafContext =
-          reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+      // Existing contexts own their native ruleset, so using one needs no lock.
+      WafContext wafContext = reqCtx.getWafContextIfReady(wafMetricsEnabled, gwCtx.isRasp);
+      if (wafContext == null) {
+        for (; ; ) {
+          long stamp = ctxAndAddr.handleLock.readLock();
+          try {
+            // A callback may have captured this snapshot before remote config replaced it; never
+            // create a context from a retired handle.
+            if (ctxAndAddr == ctxAndAddresses.get()) {
+              wafContext =
+                  reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+              break;
+            }
+          } finally {
+            ctxAndAddr.handleLock.unlockRead(stamp);
+          }
+          ctxAndAddr = ctxAndAddresses.get();
+        }
+      }
       if (wafContext == null) {
         // Context closed concurrently with the isWafContextClosed() check in onDataAvailable; skip
         // (APPSEC-69085).
