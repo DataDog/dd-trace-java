@@ -53,4 +53,22 @@ class AgentSpanSetTagsFromTest {
   void skipsANullContributor() {
     assertSame(span, span.setTagsFrom((TagContributor) null));
   }
+
+  @Test
+  void skipsTheExtractorOnANoopSpan() {
+    TagExtractor<String> extractor = (source, target) -> calls.add(source);
+
+    assertSame(NoopSpan.INSTANCE, NoopSpan.INSTANCE.setTagsFrom("source", extractor));
+
+    assertTrue(calls.isEmpty());
+  }
+
+  @Test
+  void skipsTheContributorOnANoopSpan() {
+    TagContributor contributor = calls::add;
+
+    assertSame(NoopSpan.INSTANCE, NoopSpan.INSTANCE.setTagsFrom(contributor));
+
+    assertTrue(calls.isEmpty());
+  }
 }
