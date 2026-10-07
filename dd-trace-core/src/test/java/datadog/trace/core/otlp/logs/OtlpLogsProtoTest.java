@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -30,7 +31,6 @@ import datadog.trace.bootstrap.otlp.logs.OtlpScopedLogsVisitor;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.IOException;

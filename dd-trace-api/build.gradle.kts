@@ -41,6 +41,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.noop.NoOpDDTestSuite",
   "datadog.trace.api.config.AIGuardConfig",
   "datadog.trace.api.config.ProfilingConfig",
+  "datadog.trace.api.config.ProfilingConfig.OtlpMode",
   "datadog.trace.api.interceptor.MutableSpan",
   "datadog.trace.api.profiling.Profiling",
   "datadog.trace.api.profiling.Profiling.NoOp",

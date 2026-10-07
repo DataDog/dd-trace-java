@@ -12094,6 +12094,47 @@
         "aliases": []
       }
     ],
+    "OTEL_EXPORTER_OTLP_PROFILES_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_PROFILES_HEADERS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": [],
+        "sensitive": true
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_PROFILES_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "http/protobuf",
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_PROFILES_COMPRESSION": [
+      {
+        "version": "B",
+        "type": "string",
+        "default": "none",
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_PROFILES_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30000",
+        "aliases": []
+      }
+    ],
     "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": [
       {
         "version": "A",
@@ -12213,6 +12254,63 @@
         "version": "A",
         "type": "boolean",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_PROFILES_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_PROFILES_HEADERS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": [],
+        "sensitive": true
+      }
+    ],
+    "DD_OTLP_PROFILES_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "HTTP_PROTOBUF",
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_PROFILES_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "NONE",
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_PROFILES_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30000",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_OTLP_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_OTLP_MODE": [
+      {
+        "version": "B",
+        "type": "string",
+        "default": "LIGHT",
         "aliases": []
       }
     ]
