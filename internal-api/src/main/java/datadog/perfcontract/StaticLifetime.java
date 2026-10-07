@@ -64,7 +64,7 @@ import java.lang.annotation.Target;
  */
 @Documented
 @PerfContract
-@ImpliedFor({ClassValue.class, ThreadLocal.class})
+@ImpliedFor(ClassValue.class)
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.FIELD)
 public @interface StaticLifetime {}
