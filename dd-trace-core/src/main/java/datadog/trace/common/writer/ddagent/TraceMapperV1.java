@@ -18,12 +18,12 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.DDSpanEvent;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
@@ -203,11 +203,10 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  private void encodeSpanEvents(
-      Writable writable, int fieldId, List<? extends AgentSpanEvent> events) {
+  private void encodeSpanEvents(Writable writable, int fieldId, List<DDSpanEvent> events) {
     writable.writeInt(fieldId);
     writable.startArray(events.size());
-    for (AgentSpanEvent event : events) {
+    for (DDSpanEvent event : events) {
       writable.startMap(3);
       // 1: the time of the event, in nanoseconds since the Unix epoch
       encodeLong(writable, 1, event.timeUnixNano());

@@ -2,9 +2,6 @@ package datadog.opentelemetry.shim.trace;
 
 import static java.util.Collections.emptyMap;
 
-import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -12,9 +9,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
-public class OtelSpanEvent implements AgentSpanEvent {
+/** Helpers to record OpenTelemetry span events on agent spans. */
+public final class OtelSpanEvent {
   public static final String EXCEPTION_SPAN_EVENT_NAME = "exception";
   public static final AttributeKey<String> EXCEPTION_MESSAGE_ATTRIBUTE_KEY =
       AttributeKey.stringKey("exception.message");
@@ -23,46 +20,21 @@ public class OtelSpanEvent implements AgentSpanEvent {
   public static final AttributeKey<String> EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY =
       AttributeKey.stringKey("exception.stacktrace");
 
-  // TODO TimeSource instance is not retrieved from CoreTracer
-  private static TimeSource timeSource = SystemTimeSource.INSTANCE;
+  private OtelSpanEvent() {}
 
-  private final String name;
-  private final Attributes attributes;
-
-  /** Event timestamp in nanoseconds. */
-  private final long timestamp;
-
-  public OtelSpanEvent(String name, Attributes attributes) {
-    this(name, attributes, OtelSpanEvent.timeSource.getCurrentTimeNanos());
-  }
-
-  public OtelSpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
-    this(name, attributes, unit.toNanos(timestamp));
-  }
-
-  private OtelSpanEvent(String name, Attributes attributes, long timestamp) {
-    this.name = name;
-    this.attributes = attributes;
-    this.timestamp = timestamp;
-  }
-
-  @Override
-  public String name() {
-    return this.name;
-  }
-
-  @Override
-  public long timeUnixNano() {
-    return this.timestamp;
-  }
-
-  @Override
-  public Map<String, Object> attributes() {
-    if (this.attributes == null || this.attributes.isEmpty()) {
+  /**
+   * Converts OpenTelemetry attributes into span event attributes.
+   *
+   * @param attributes The OpenTelemetry attributes to convert.
+   * @return The attributes keyed by attribute name.
+   */
+  static Map<String, ?> eventAttributes(Attributes attributes) {
+    if (attributes == null || attributes.isEmpty()) {
       return emptyMap();
     }
-    Map<String, Object> map = new HashMap<>();
-    this.attributes.forEach((key, value) -> map.put(key.getKey(), value));
+    // Size the map to hold all attributes without resizing given the default load factor
+    Map<String, Object> map = new HashMap<>((int) (attributes.size() / 0.75f) + 1);
+    attributes.forEach((key, value) -> map.put(key.getKey(), value));
     return map;
   }
 
@@ -108,20 +80,5 @@ public class OtelSpanEvent implements AgentSpanEvent {
     final StringWriter errorString = new StringWriter();
     error.printStackTrace(new PrintWriter(errorString));
     return errorString.toString();
-  }
-
-  public static void setTimeSource(TimeSource newTimeSource) {
-    timeSource = newTimeSource;
-  }
-
-  @Override
-  public String toString() {
-    return "OtelSpanEvent{timestamp="
-        + this.timestamp
-        + ", name='"
-        + this.name
-        + "', attributes="
-        + this.attributes
-        + '}';
   }
 }

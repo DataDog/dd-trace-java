@@ -30,7 +30,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
@@ -43,6 +42,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -125,8 +125,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   private static final List<AgentSpanLink> NO_LINK = emptyList();
   protected volatile List<AgentSpanLink> links;
 
-  private static final List<AgentSpanEvent> NO_EVENT = emptyList();
-  protected volatile List<AgentSpanEvent> events = NO_EVENT;
+  private static final List<DDSpanEvent> NO_EVENT = emptyList();
+  protected volatile List<DDSpanEvent> events = NO_EVENT;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -973,17 +973,23 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     }
   }
 
-  public List<? extends AgentSpanEvent> getEvents() {
+  public List<DDSpanEvent> getEvents() {
     return unmodifiableList(this.events);
   }
 
   @Override
-  public void addEvent(AgentSpanEvent event) {
-    if (event == null) {
-      return;
-    }
+  public void addEvent(String name, Map<String, ?> attributes) {
+    addEvent(new DDSpanEvent(name, context.getTraceCollector().getCurrentTimeNano(), attributes));
+  }
+
+  @Override
+  public void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit) {
+    addEvent(new DDSpanEvent(name, unit.toNanos(timestamp), attributes));
+  }
+
+  private void addEvent(DDSpanEvent event) {
     // Same lazy list creation as addLink()
-    List<AgentSpanEvent> events = this.events;
+    List<DDSpanEvent> events = this.events;
     if (events != NO_EVENT) {
       events.add(event);
       return;

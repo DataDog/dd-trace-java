@@ -42,14 +42,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import datadog.opentelemetry.shim.trace.OtelSpanEvent;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanEvent;
 import datadog.trace.test.junit.utils.assertions.Matcher;
 import datadog.trace.test.junit.utils.assertions.Matchers;
 import io.opentelemetry.api.GlobalOpenTelemetry;
@@ -172,9 +171,6 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
   @Test
   void testAddEvent() {
     SpanBuilder builder = this.otelTracer.spanBuilder("some-name");
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(1000);
-    OtelSpanEvent.setTimeSource(timeSource);
 
     Span result = builder.startSpan();
     result.addEvent("event");
@@ -183,7 +179,7 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     String expectedEventTag =
         "["
             + "{ \"time_unix_nano\": "
-            + timeSource.getCurrentTimeNanos()
+            + eventTimeWithinSpan(result, 0)
             + ", \"name\": \"event\" }"
             + "]";
     assertTraces(
@@ -328,8 +324,8 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     writer.waitForTraces(1);
     List<DDSpan> firstTrace = writer.firstTrace();
     assertEquals(1, firstTrace.size());
-    Object eventsTag = firstTrace.get(0).getTags().get(SPAN_EVENTS);
-    JSONArray events = new JSONArray((String) eventsTag);
+    String eventsTag = firstTrace.get(0).getTags().getString(SPAN_EVENTS);
+    JSONArray events = new JSONArray(eventsTag);
     assertEquals(threadCount * eventsPerThread, events.length());
   }
 
@@ -764,10 +760,6 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
       String overriddenType,
       String overriddenStacktrace,
       String extraJson) {
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(1000);
-    OtelSpanEvent.setTimeSource(timeSource);
-
     Span result = this.otelTracer.spanBuilder("some-name").startSpan();
     result.recordException(exception, attributes);
     result.end();
@@ -791,7 +783,7 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     String expectedEventTag =
         "["
             + "{ \"time_unix_nano\": "
-            + timeSource.getCurrentTimeNanos()
+            + eventTimeWithinSpan(result, 0)
             + ", \"name\": \"exception\", \"attributes\": "
             + expectedAttributes
             + " }"
@@ -885,6 +877,18 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
 
   private static DDSpan getDDSpan(Span span) {
     return (DDSpan) ((WithAgentSpan) span).asAgentSpan();
+  }
+
+  /** Gets the time of the single span event, checking it comes from the same clock as the span. */
+  private static long eventTimeWithinSpan(Span span, int eventIndex) {
+    DDSpan ddSpan = getDDSpan(span);
+    List<DDSpanEvent> events = ddSpan.getEvents();
+    assertTrue(eventIndex < events.size());
+    long eventTime = events.get(eventIndex).timeUnixNano();
+    long startTime = ddSpan.getStartTime();
+    long endTime = startTime + ddSpan.getDurationNano();
+    assertTrue(startTime <= eventTime && eventTime <= endTime, "Event time outside span bounds");
+    return eventTime;
   }
 
   private static Matcher<String> isJson(String expected) {

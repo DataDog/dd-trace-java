@@ -25,7 +25,6 @@ import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
@@ -1457,22 +1456,22 @@ public class DDSpanContext
    * @param events The span events to encode.
    * @return The encoded tag value, {@code null} if no events.
    */
-  private static String spanEventsToTag(List<? extends AgentSpanEvent> events) {
+  private static String spanEventsToTag(List<DDSpanEvent> events) {
     if (events.isEmpty()) {
       return null;
     }
     StringBuilder builder = new StringBuilder("[");
-    for (AgentSpanEvent event : events) {
+    for (DDSpanEvent event : events) {
       if (builder.length() > 1) {
         builder.append(',');
       }
       builder.append("{\"time_unix_nano\":").append(event.timeUnixNano()).append(",\"name\":");
       appendJsonString(builder, event.name());
-      Map<String, Object> attributes = event.attributes();
+      Map<String, ?> attributes = event.attributes();
       if (!attributes.isEmpty()) {
         builder.append(",\"attributes\":{");
         int attributesStart = builder.length();
-        for (Map.Entry<String, Object> attribute : attributes.entrySet()) {
+        for (Map.Entry<String, ?> attribute : attributes.entrySet()) {
           if (builder.length() > attributesStart) {
             builder.append(',');
           }

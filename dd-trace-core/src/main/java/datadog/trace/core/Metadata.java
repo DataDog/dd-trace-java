@@ -4,7 +4,6 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.RadixTreeCache;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.List;
@@ -25,7 +24,7 @@ public final class Metadata {
   private final UTF8BytesString processTags;
   private final UTF8BytesString otlpExportMarker;
   private final List<? extends AgentSpanLink> spanLinks;
-  private final List<? extends AgentSpanEvent> spanEvents;
+  private final List<DDSpanEvent> spanEvents;
 
   public Metadata(
       long threadId,
@@ -41,7 +40,7 @@ public final class Metadata {
       UTF8BytesString processTags,
       UTF8BytesString otlpExportMarker,
       List<? extends AgentSpanLink> spanLinks,
-      List<? extends AgentSpanEvent> spanEvents) {
+      List<DDSpanEvent> spanEvents) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -135,7 +134,7 @@ public final class Metadata {
     return spanLinks;
   }
 
-  public List<? extends AgentSpanEvent> getSpanEvents() {
+  public List<DDSpanEvent> getSpanEvents() {
     return spanEvents;
   }
 }

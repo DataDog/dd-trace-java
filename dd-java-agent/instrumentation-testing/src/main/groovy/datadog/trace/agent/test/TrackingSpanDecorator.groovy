@@ -9,11 +9,11 @@ import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.core.DDSpan
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.annotation.Nonnull
 
 /**
@@ -406,8 +406,13 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
-  void addEvent(AgentSpanEvent event) {
-    delegate.addEvent(event)
+  void addEvent(String name, Map<String, ?> attributes) {
+    delegate.addEvent(name, attributes)
+  }
+
+  @Override
+  void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit) {
+    delegate.addEvent(name, attributes, timestamp, unit)
   }
 
   @Override

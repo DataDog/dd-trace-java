@@ -6,7 +6,8 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
-import static datadog.trace.core.TestSpanEvent.typedAttributes;
+import static datadog.trace.core.TestSpanEvents.typedAttributes;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -408,8 +409,8 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
     DDSpan span = DDSpan.create("test", 0, context, null);
-    span.addEvent(new TestSpanEvent("event.one", 1234567890L, typedAttributes()));
-    span.addEvent(new TestSpanEvent("event.two", 1234567891L, Collections.emptyMap()));
+    span.addEvent("event.one", typedAttributes(), 1234567890L, NANOSECONDS);
+    span.addEvent("event.two", Collections.emptyMap(), 1234567891L, NANOSECONDS);
 
     V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
 
@@ -440,8 +441,8 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
     DDSpan span = DDSpan.create("test", 0, context, null);
-    span.addEvent(new TestSpanEvent("event.one", 1234567890L, typedAttributes()));
-    span.addEvent(new TestSpanEvent("event \"two\"", 1234567891L, Collections.emptyMap()));
+    span.addEvent("event.one", typedAttributes(), 1234567890L, NANOSECONDS);
+    span.addEvent("event \"two\"", Collections.emptyMap(), 1234567891L, NANOSECONDS);
 
     List<DDSpan> trace = Collections.singletonList(span);
     Map<String, ?> metadata =

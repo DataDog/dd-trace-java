@@ -11,11 +11,11 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.DDSpanEvent;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.SpanKindFilter;
@@ -219,7 +219,7 @@ public class TraceGenerator {
         int statusCode,
         CharSequence origin,
         List<AgentSpanLink> spanLinks,
-        List<AgentSpanEvent> spanEvents) {
+        List<DDSpanEvent> spanEvents) {
       this.serviceName = UTF8BytesString.create(serviceName);
       this.operationName = UTF8BytesString.create(operationName);
       this.resourceName = UTF8BytesString.create(resourceName);

@@ -4,6 +4,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An abstract implementation of an {@link AgentSpan} with disabled mutators.
@@ -202,7 +203,10 @@ public abstract class ImmutableSpan implements AgentSpan {
   public void addLink(AgentSpanLink link) {}
 
   @Override
-  public void addEvent(AgentSpanEvent event) {}
+  public void addEvent(String name, Map<String, ?> attributes) {}
+
+  @Override
+  public void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit) {}
 
   @Override
   public AgentSpan setMetaStruct(String field, Object value) {

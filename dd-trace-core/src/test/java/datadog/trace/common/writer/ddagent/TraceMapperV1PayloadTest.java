@@ -29,7 +29,7 @@ import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipPayloadFie
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipSpanField;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.traceIdBytes;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.unpackUnsignedLong;
-import static datadog.trace.core.TestSpanEvent.typedAttributes;
+import static datadog.trace.core.TestSpanEvents.typedAttributes;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -51,7 +51,6 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.sampling.SamplingMechanism;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
@@ -63,8 +62,8 @@ import datadog.trace.common.writer.ddagent.V1PayloadReader.PayloadField;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.SpanField;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanEvent;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanLink;
+import datadog.trace.core.DDSpanEvent;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.core.TestSpanEvent;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.ByteArrayOutputStream;
@@ -401,9 +400,9 @@ class TraceMapperV1PayloadTest {
 
   @Test
   void spanEventsAreEncodedFromStructuredSpanEvents() throws IOException {
-    List<AgentSpanEvent> spanEvents = new ArrayList<>();
-    spanEvents.add(new TestSpanEvent("event.one", 1234567890L, typedAttributes()));
-    spanEvents.add(new TestSpanEvent("event.two", 1234567891L, emptyMap()));
+    List<DDSpanEvent> spanEvents = new ArrayList<>();
+    spanEvents.add(new DDSpanEvent("event.one", 1234567890L, typedAttributes()));
+    spanEvents.add(new DDSpanEvent("event.two", 1234567891L, emptyMap()));
 
     List<V1SpanEvent> events =
         readFirstSpan(serializeV1Payload(spanWithEvents(spanEvents))).getEvents();
@@ -433,7 +432,7 @@ class TraceMapperV1PayloadTest {
     attributes.put("drop.null", null);
     attributes.put("drop.map", singletonMap("nested", "x"));
     attributes.put("arr.mixed", asList("ok", null, singletonMap("nested", "x"), 3L));
-    List<AgentSpanEvent> spanEvents = singletonList(new TestSpanEvent("event", 5L, attributes));
+    List<DDSpanEvent> spanEvents = singletonList(new DDSpanEvent("event", 5L, attributes));
 
     List<V1SpanEvent> events =
         readFirstSpan(serializeV1Payload(spanWithEvents(spanEvents))).getEvents();
@@ -913,7 +912,7 @@ class TraceMapperV1PayloadTest {
     return span(123L, 0L, emptyMap(), emptyMap(), 200, spanLinks, emptyList());
   }
 
-  private static PojoSpan spanWithEvents(List<AgentSpanEvent> spanEvents) {
+  private static PojoSpan spanWithEvents(List<DDSpanEvent> spanEvents) {
     return span(123L, 0L, emptyMap(), emptyMap(), 200, emptyList(), spanEvents);
   }
 
@@ -925,7 +924,7 @@ class TraceMapperV1PayloadTest {
       Map<String, Object> tags,
       int statusCode,
       List<AgentSpanLink> spanLinks,
-      List<AgentSpanEvent> spanEvents) {
+      List<DDSpanEvent> spanEvents) {
     return new PojoSpan(
         "service-a",
         "operation-a",

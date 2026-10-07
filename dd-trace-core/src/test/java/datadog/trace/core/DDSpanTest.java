@@ -26,6 +26,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -529,6 +530,25 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
     span.setError(true, Byte.MAX_VALUE);
     assertTrue(span.isError());
+  }
+
+  @Test
+  void eventsWithoutTimestampUseTracerClock() {
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    timeSource.set(TimeUnit.SECONDS.toNanos(1_000));
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    try {
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "testSpan").start();
+      timeSource.advance(1_234);
+      span.addEvent("event", Collections.emptyMap());
+      span.addEvent("timed-event", Collections.emptyMap(), 42, TimeUnit.MILLISECONDS);
+
+      assertEquals(2, span.getEvents().size());
+      assertEquals(span.getStartTime() + 1_234, span.getEvents().get(0).timeUnixNano());
+      assertEquals(TimeUnit.MILLISECONDS.toNanos(42), span.getEvents().get(1).timeUnixNano());
+    } finally {
+      tracer.close();
+    }
   }
 
   private static int pendingReferenceCount(DDSpan span) {
