@@ -108,6 +108,29 @@ class JfrToOtlpConverterSmokeTest {
   }
 
   @Test
+  void convertRecordingWithJdkCPUTimeSample() throws IOException {
+    Path jfrFile = tempDir.resolve("jdk-cputime.jfr");
+
+    try (Recording recording = Recordings.newRecording(jfrFile)) {
+      // replaces jdk.ExecutionSample as the OpenJDK profiler's CPU sample source on JDK 25+ (Linux)
+      Type cpuTimeSampleType = recording.registerEventType("jdk.CPUTimeSample", type -> {});
+
+      writeEvent(recording, cpuTimeSampleType, valueBuilder -> {});
+    }
+
+    Instant start = Instant.now().minusSeconds(10);
+    Instant end = Instant.now();
+
+    String json =
+        new String(
+            converter.addFile(jfrFile, start, end).convert(JfrToOtlpConverter.Kind.JSON),
+            StandardCharsets.UTF_8);
+
+    assertTrue(
+        json.contains("\"values\""), "jdk.CPUTimeSample must produce a sample, got: " + json);
+  }
+
+  @Test
   void convertRecordingWithJdkNativeMethodSample() throws IOException {
     Path jfrFile = tempDir.resolve("jdk-native.jfr");
 

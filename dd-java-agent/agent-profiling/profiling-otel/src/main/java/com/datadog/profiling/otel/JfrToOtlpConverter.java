@@ -3,6 +3,7 @@ package com.datadog.profiling.otel;
 import com.datadog.profiling.otel.jfr.ExecutionSample;
 import com.datadog.profiling.otel.jfr.JavaMonitorEnter;
 import com.datadog.profiling.otel.jfr.JavaMonitorWait;
+import com.datadog.profiling.otel.jfr.JdkCPUTimeSample;
 import com.datadog.profiling.otel.jfr.JdkExecutionSample;
 import com.datadog.profiling.otel.jfr.JdkNativeMethodSample;
 import com.datadog.profiling.otel.jfr.JfrClass;
@@ -394,6 +395,7 @@ public final class JfrToOtlpConverter {
     try (TypedJafarParser parser = TypedJafarParser.open(jfrFile, parsingContext)) {
       parser.handle(ExecutionSample.class, this::handleExecutionSample);
       parser.handle(JdkExecutionSample.class, this::handleJdkExecutionSample);
+      parser.handle(JdkCPUTimeSample.class, this::handleJdkCPUTimeSample);
       parser.handle(JdkNativeMethodSample.class, this::handleJdkNativeMethodSample);
       parser.handle(MethodSample.class, this::handleMethodSample);
       parser.handle(ObjectSample.class, this::handleObjectSample);
@@ -420,6 +422,17 @@ public final class JfrToOtlpConverter {
 
   // Standard OpenJDK sampling events carry no span correlation fields, so the link index stays 0
   private void handleJdkExecutionSample(JdkExecutionSample event, Control ctl) {
+    if (event == null) {
+      return;
+    }
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
+    long timestamp = convertTimestamp(event.startTime(), ctl);
+
+    if (cpuAttrIndices == null) cpuAttrIndices = new int[] {getSampleTypeAttributeIndex("cpu")};
+    cpuSamples.add(new SampleData(stackIndex, 0, 1, timestamp, cpuAttrIndices));
+  }
+
+  private void handleJdkCPUTimeSample(JdkCPUTimeSample event, Control ctl) {
     if (event == null) {
       return;
     }
