@@ -491,6 +491,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       }
       String key = null;
       Object value = null;
+      List<String> destinations = Collections.emptyList();
       reader.beginObject();
       while (reader.hasNext()) {
         final String name = reader.nextName();
@@ -498,15 +499,39 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
           key = reader.nextString();
         } else if ("value".equals(name)) {
           value = readScalar(reader);
+        } else if ("destinations".equals(name)) {
+          destinations = readDestinations(reader);
         } else {
           reader.skipValue();
         }
       }
       reader.endObject();
-      if (key == null || key.isEmpty() || value == null) {
+      if (key == null || key.isEmpty() || value == null || destinations.isEmpty()) {
         return null;
       }
-      return new Feature(key, value);
+      return new Feature(key, value, destinations);
+    }
+
+    /** Keeps every non-empty string, including destinations this SDK does not know yet. */
+    private static List<String> readDestinations(final JsonReader reader) throws IOException {
+      if (reader.peek() != JsonReader.Token.BEGIN_ARRAY) {
+        reader.skipValue();
+        return Collections.emptyList();
+      }
+      final List<String> destinations = new ArrayList<>();
+      reader.beginArray();
+      while (reader.hasNext()) {
+        if (reader.peek() == JsonReader.Token.STRING) {
+          final String destination = reader.nextString();
+          if (!destination.isEmpty()) {
+            destinations.add(destination);
+          }
+        } else {
+          reader.skipValue();
+        }
+      }
+      reader.endArray();
+      return Collections.unmodifiableList(destinations);
     }
 
     @Nullable
