@@ -1,6 +1,6 @@
 package datadog.smoketest.springboot.openfeature;
 
-import datadog.trace.api.openfeature.Provider;
+import com.datadog.openfeature.Provider;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import org.springframework.context.annotation.Bean;
