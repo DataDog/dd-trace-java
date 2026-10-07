@@ -33,22 +33,6 @@ public final class UndertowInstrumentation extends InstrumenterModule.Tracing
         getClass().getName() + "$DispatchAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExchangeEndSpanListener",
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowBlockResponseFunction",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response",
-      packageName + ".UndertowRunnableWrapper"
-    };
-  }
-
   public static class DispatchAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void dispatchEnter(

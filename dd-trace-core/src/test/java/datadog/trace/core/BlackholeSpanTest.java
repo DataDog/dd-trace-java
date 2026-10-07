@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import java.util.Arrays;
@@ -24,13 +24,13 @@ public class BlackholeSpanTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().withProperties(props).writer(writer).build();
     try {
       AgentSpan root = tracer.startSpan("test", "root");
-      AgentScope scope1 = tracer.activateSpan(root);
+      ContextScope scope1 = tracer.activateSpan(root);
       AgentSpan bh;
       AgentSpan ignored;
       AgentSpan child;
       try {
         bh = tracer.blackholeSpan();
-        AgentScope scope2 = tracer.activateSpan(bh);
+        ContextScope scope2 = tracer.activateSpan(bh);
         try {
           ignored = tracer.startSpan("test", "ignored");
           ignored.finish();

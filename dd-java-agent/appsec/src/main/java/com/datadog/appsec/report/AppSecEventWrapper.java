@@ -6,6 +6,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 
 public class AppSecEventWrapper {
@@ -38,6 +39,16 @@ public class AppSecEventWrapper {
 
   private final Collection<AppSecEvent> triggers;
   private String json;
+
+  /**
+   * Required by the Moshi reflective adapter above. The adapter is only ever used to serialize, but
+   * Moshi resolves the instantiation strategy when the adapter is built, not when it is used: with
+   * no declared no-arg constructor it falls back to {@code sun.misc.Unsafe}, and on a runtime that
+   * does not resolve the {@code jdk.unsupported} module building the adapter throws.
+   */
+  private AppSecEventWrapper() {
+    this.triggers = Collections.emptyList();
+  }
 
   public AppSecEventWrapper(Collection<AppSecEvent> events) {
     this.triggers = events;

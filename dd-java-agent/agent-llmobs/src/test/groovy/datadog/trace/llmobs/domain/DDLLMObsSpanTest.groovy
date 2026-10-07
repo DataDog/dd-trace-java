@@ -64,7 +64,6 @@ class DDLLMObsSpanTest  extends DDSpecification{
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output"
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS
-  private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + "agent_manifest"
   private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
   LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method"
 
@@ -702,7 +701,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-abc-123"
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", expectedSessionId)
-    // Activate the parent's AgentScope so the child span is created in the same trace.
+    // Activate the parent's ContextScope so the child span is created in the same trace.
     // Without this, the child gets a fresh trace_id and the trace-consistency gate in
     // DDLLMObsSpan would (correctly) skip session_id inheritance.
     def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
@@ -741,7 +740,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-grandparent-xyz"
     def grandparent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "grandparent-workflow", expectedSessionId)
-    // Activate each ancestor's AgentScope so descendants stay in the same trace —
+    // Activate each ancestor's ContextScope so descendants stay in the same trace —
     // session_id inheritance is gated on trace-id consistency in DDLLMObsSpan.
     def grandparentScope = AgentTracer.activateSpan((AgentSpan) grandparent.span)
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
@@ -767,7 +766,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "child does NOT inherit session_id when stale LLMObsContext is from a different trace (e.g. async boundary leak)"() {
     setup:
     // Simulates a stale LLMObsContext (e.g. leaked across an async boundary). The parent's
-    // LLMObsContext is attached, but its AgentScope is deliberately NOT activated — so the
+    // LLMObsContext is attached, but its ContextScope is deliberately NOT activated — so the
     // next span we create starts a fresh trace and the trace-consistency gate must skip
     // session_id inheritance.
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "stale-workflow", "stale-session-id")
@@ -818,7 +817,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def stored = storedManifest(innerSpan)
     stored["name"] == "travel_desk"
     stored["instructions"] == "Book travel."
     stored["model"] == "gpt-4o"
@@ -846,7 +845,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def stored = storedManifest(innerSpan)
     stored["name"] == "my-agent"
     stored["instructions"] == "Do something."
     stored["framework"] == "manual"
@@ -869,7 +868,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def stored = storedManifest(innerSpan)
     def toolList = (List) stored["tools"]
     toolList.size() == 1
     toolList[0]["name"] == "valid-tool"
@@ -891,7 +890,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def stored = storedManifest(innerSpan)
     !stored.containsKey("tools")
 
     cleanup:
@@ -908,7 +907,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    innerSpan.getTag(AGENT_MANIFEST) == null
+    storedManifest(innerSpan) == null
 
     cleanup:
     test.finish()
@@ -933,7 +932,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def stored = storedManifest(innerSpan)
     stored["name"] == "second"          // second call wins on name
     stored["model"] == "gpt-4o"         // second call wins on model
     stored["instructions"] == "v1 instructions"  // first call's instructions preserved
@@ -960,7 +959,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def stored = storedManifest(innerSpan)
     def ms = (Map) stored["model_settings"]
     ms["temperature"] == 0.9    // second wins
     ms["max_tokens"] == 512     // first preserved
@@ -983,7 +982,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def stored = storedManifest(innerSpan)
     def ms = (Map) stored["model_settings"]
     ms["temperature"] == 0.5
     ms["custom_key"] == "custom_val"
@@ -1001,7 +1000,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan) test.span
-    innerSpan.getTag(AGENT_MANIFEST) == null
+    storedManifest(innerSpan) == null
 
     cleanup:
     test.finish()
@@ -1019,7 +1018,13 @@ class DDLLMObsSpanTest  extends DDSpecification{
     then:
     noExceptionThrown()
     def innerSpan = (AgentSpan) test.span
-    innerSpan.getTag(AGENT_MANIFEST) == null
+    storedManifest(innerSpan) == null
+  }
+
+  /** The manifest is carried inside the metadata tag, under the reserved _dd namespace. */
+  private static Map storedManifest(AgentSpan span) {
+    def dd = (Map) ((Map) span.getTag(METADATA))?.get("_dd")
+    return (Map) dd?.get("agent_manifest")
   }
 
   private LLMObsSpan llmObsSpan(String kind, name) {

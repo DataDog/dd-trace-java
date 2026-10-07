@@ -1,14 +1,15 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.ShutdownSignalException;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import org.slf4j.Logger;
@@ -65,10 +66,10 @@ public class TracedDelegatingConsumer implements Consumer {
       final AMQP.BasicProperties properties,
       final byte[] body)
       throws IOException {
-    AgentScope scope = null;
+    ContextScope scope = null;
     try {
       scope = RabbitDecorator.startReceivingSpan(propagate, 0, properties, body, queue);
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
       scope = activateSpan(span);
     } catch (final Exception e) {

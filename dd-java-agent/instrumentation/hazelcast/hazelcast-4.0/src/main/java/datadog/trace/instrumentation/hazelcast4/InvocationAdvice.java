@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.hazelcast4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastDecorator.DECORATE;
 
@@ -9,9 +10,9 @@ import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.proxy.ClientMapProxy;
 import com.hazelcast.client.impl.spi.impl.ClientInvocation;
 import com.hazelcast.client.impl.spi.impl.ClientInvocationFuture;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -20,7 +21,7 @@ public class InvocationAdvice {
 
   /** Method entry instrumentation. */
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(
+  public static ContextScope methodEnter(
       @Advice.This final ClientInvocation that,
       @Advice.FieldValue("objectName") final Object objectName,
       @Advice.FieldValue("clientMessage") final ClientMessage clientMessage) {
@@ -51,7 +52,7 @@ public class InvocationAdvice {
   /** Method exit instrumentation. */
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
-      @Advice.Enter final AgentScope scope,
+      @Advice.Enter final ContextScope scope,
       @Advice.Thrown final Throwable throwable,
       @Advice.FieldValue("clientInvocationFuture") final ClientInvocationFuture future) {
     if (scope == null) {
@@ -59,7 +60,7 @@ public class InvocationAdvice {
     }
 
     // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
-    final AgentSpan span = scope.span();
+    final AgentSpan span = spanFromScope(scope);
     if (throwable != null) {
       // There was a synchronous error,
       // which means we shouldn't wait for a callback to close the span.

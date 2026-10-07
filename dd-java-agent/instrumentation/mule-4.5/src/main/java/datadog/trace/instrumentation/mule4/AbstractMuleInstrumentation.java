@@ -23,14 +23,4 @@ public abstract class AbstractMuleInstrumentation extends InstrumenterModule.Tra
         "org.mule.runtime.api.component.Component");
     return contextStore;
   }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MuleDecorator",
-      packageName + ".DDEventTracer",
-      packageName + ".SpanState",
-      packageName + ".NoopMuleSpan",
-    };
-  }
 }
