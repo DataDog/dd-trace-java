@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.instrument.fieldinject.GlobalObjectStore;
+import datadog.instrument.fieldinject.ObjectStoreDispatch;
 import datadog.trace.api.InstrumenterConfig;
 import java.util.function.Function;
 
@@ -25,7 +25,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     } else if (MAP_PER_STORE) {
       return weakStore().get(key);
     } else {
-      return GlobalObjectStore.get(key, storeId);
+      return ObjectStoreDispatch.get(key, storeId);
     }
   }
 
@@ -36,7 +36,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     } else if (MAP_PER_STORE) {
       weakStore().put(key, context);
     } else {
-      GlobalObjectStore.put(key, storeId, context);
+      ObjectStoreDispatch.put(key, storeId, context);
     }
   }
 
@@ -58,7 +58,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     } else if (MAP_PER_STORE) {
       return weakStore().getOrPut(key, context);
     } else {
-      return GlobalObjectStore.getOrPut(key, storeId, context);
+      return ObjectStoreDispatch.getOrPut(key, storeId, context);
     }
   }
 
@@ -80,7 +80,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     } else if (MAP_PER_STORE) {
       return weakStore().getOrCompute(key, contextFactory);
     } else {
-      return GlobalObjectStore.getOrCompute(key, storeId, contextFactory);
+      return ObjectStoreDispatch.getOrCompute(key, storeId, contextFactory);
     }
   }
 
@@ -101,7 +101,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     } else if (MAP_PER_STORE) {
       return weakStore().remove(key);
     } else {
-      return GlobalObjectStore.remove(key, storeId);
+      return ObjectStoreDispatch.remove(key, storeId);
     }
   }
 

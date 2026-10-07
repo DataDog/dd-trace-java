@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.instrument.fieldinject.GlobalObjectStore;
+import datadog.instrument.fieldinject.ObjectStore;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
@@ -13,7 +13,7 @@ public final class ObjectStoreCleaner {
     if (!InstrumenterConfig.get().isRuntimeContextMapPerStore()) {
       AgentTaskScheduler.get()
           .scheduleAtFixedRate(
-              GlobalObjectStore::removeStaleEntries,
+              ObjectStore::removeStaleEntries,
               OBJECTSTORE_CLEAN_FREQUENCY_SECONDS,
               OBJECTSTORE_CLEAN_FREQUENCY_SECONDS,
               TimeUnit.SECONDS);
