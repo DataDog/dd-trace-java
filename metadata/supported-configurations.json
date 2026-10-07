@@ -12091,7 +12091,7 @@
       {
         "version": "A",
         "type": "string",
-        "default": "SDK-dependent, but will typically be either http/protobuf or grpc.",
+        "default": "http/protobuf",
         "aliases": []
       }
     ],
@@ -12107,7 +12107,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "10000",
+        "default": "30000",
         "aliases": []
       }
     ],
