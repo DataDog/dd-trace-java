@@ -8,6 +8,7 @@ import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
+import datadog.trace.api.featureflag.ufc.v1.Feature;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
@@ -62,6 +63,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final AtomicBoolean USE_LEGACY_EXPOSURE_API =
       new AtomicBoolean(
           !(SPLIT_SERIAL_ID_SUPPORTED.get() && exposureSerialIdSupported(ExposureEvent.class)));
+
+  static final AtomicBoolean SPLIT_FEATURES_SUPPORTED =
+      new AtomicBoolean(splitFeaturesSupported(Split.class));
+
+  /** An older agent ships a Split without features; its evaluations then carry no features. */
+  static boolean splitFeaturesSupported(final Class<?> splitClass) {
+    try {
+      return splitClass.getField("features").getType() == List.class;
+    } catch (final NoSuchFieldException | LinkageError | RuntimeException e) {
+      log.debug("The installed Datadog Java agent does not carry split features", e);
+      return false;
+    }
+  }
 
   static boolean splitSerialIdSupported(final Class<?> splitClass) {
     try {
@@ -149,6 +163,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // Emitted only when the allocation logs exposures: true when this subject's exposure was already
   // sent, so the exposure hook does not send it again.
   static final String METADATA_EXPOSURE_CACHE_HIT = "__dd_exposure_cache_hit";
+  // Each feature of the selected split is copied to the metadata under this prefix.
+  static final String METADATA_FEATURE_PREFIX = "__dd_feature.";
 
   // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
   // key = non-DD provider; the hook falls back to false (fail-closed).
@@ -611,6 +627,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       }
       metadataBuilder.addBoolean(METADATA_DO_LOG, doLog);
     }
+    if (SPLIT_FEATURES_SUPPORTED.get()) {
+      addSplitFeatures(metadataBuilder, split);
+    }
     if (doLog) {
       metadataBuilder.addBoolean(
           METADATA_EXPOSURE_CACHE_HIT,
@@ -634,6 +653,30 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .flagMetadata(metadataBuilder.build())
             .build();
     return result;
+  }
+
+  private static void addSplitFeatures(
+      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder, final Split split) {
+    if (split.features == null) {
+      return;
+    }
+    for (final Object item : split.features) {
+      if (!(item instanceof Feature)) {
+        continue;
+      }
+      final Feature feature = (Feature) item;
+      if (feature.key == null) {
+        continue;
+      }
+      final String key = METADATA_FEATURE_PREFIX + feature.key;
+      if (feature.value instanceof String) {
+        metadataBuilder.addString(key, (String) feature.value);
+      } else if (feature.value instanceof Boolean) {
+        metadataBuilder.addBoolean(key, (Boolean) feature.value);
+      } else if (feature.value instanceof Number) {
+        metadataBuilder.addDouble(key, ((Number) feature.value).doubleValue());
+      }
+    }
   }
 
   /** The serial id an exposure carries: none when the agent's exposure event predates it. */

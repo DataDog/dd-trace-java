@@ -19,12 +19,17 @@ import java.util.Map;
 class ExposureLoggingHook<T> implements Hook<T> {
 
   static final ExposureLoggingHook<Object> INSTANCE =
-      new ExposureLoggingHook<>(ExposureDeduplicationCache.INSTANCE);
+      new ExposureLoggingHook<>(
+          ExposureDeduplicationCache.INSTANCE, DatadogExposureLoggingGate.isEnabled());
 
   private final ExposureDeduplicationCache cache;
+  // When false the hook still records exposures, so customer ExposureHooks see the same cache
+  // verdicts whether or not exposures go to Datadog.
+  private final boolean sendToDatadog;
 
-  ExposureLoggingHook(final ExposureDeduplicationCache cache) {
+  ExposureLoggingHook(final ExposureDeduplicationCache cache, final boolean sendToDatadog) {
     this.cache = cache;
+    this.sendToDatadog = sendToDatadog;
   }
 
   @Override
@@ -52,8 +57,10 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Integer serialId =
           DDEvaluator.exposureSerialId(metadata.getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
       cache.record(flag, context.getTargetingKey(), allocationKey, variantKey, serialId);
-      FeatureFlaggingGateway.dispatch(
-          DDEvaluator.exposureEvent(flag, allocationKey, variantKey, context, serialId));
+      if (sendToDatadog) {
+        FeatureFlaggingGateway.dispatch(
+            DDEvaluator.exposureEvent(flag, allocationKey, variantKey, context, serialId));
+      }
     } catch (LinkageError e) {
       // Never let exposure reporting break flag evaluation.
     }
