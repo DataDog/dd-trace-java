@@ -15,7 +15,7 @@ public class Jetty12EE9JakartaPojoWebsocketModule extends Jetty10JavaxPojoWebSoc
 
   @Override
   public String muzzleDirective() {
-    return "jetty-websocket-12e9";
+    return "jetty-websocket-12ee9";
   }
 
   @Override

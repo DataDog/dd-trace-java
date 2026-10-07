@@ -17,6 +17,7 @@ muzzle {
     module = 'jetty-ee8-websocket-javax-server'
     versions = "[12,12.1)"
     javaVersion = "17"
+    assertInverse = true
   }
   pass {
     name = 'jetty-websocket-12ee9'
@@ -24,6 +25,7 @@ muzzle {
     module = 'jetty-ee9-websocket-jakarta-server'
     versions = "[12,12.1)"
     javaVersion = "17"
+    assertInverse = true
   }
   pass {
     name = 'jetty-websocket-12ee10'
@@ -31,6 +33,7 @@ muzzle {
     module = 'jetty-ee10-websocket-jakarta-server'
     versions = "[12,12.1)"
     javaVersion = "17"
+    assertInverse = true
   }
 }
 
