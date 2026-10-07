@@ -28,8 +28,8 @@ internal abstract class MuzzlePlansValueSource :
     val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
     val random = Random(parameters.samplingSeed.get())
     val requests = parameters.requests.get()
+    val planner = MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session, random = random))
     val plans = requests.flatMap { request ->
-      val planner = MuzzleTaskPlanner(MavenMuzzleResolutionService(system, session, random = random))
       request.directives.flatMapIndexed { index, directive ->
         planner.plan(listOf(directive)).map { plan ->
           MuzzlePlannedVersion(request.projectPath, index, plan.artifact?.version, plan.directive.assertPass)

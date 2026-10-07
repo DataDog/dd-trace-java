@@ -63,8 +63,9 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
       .sortedBy { it.name }
       .map { resultFile ->
         val taskName = resultFile.name.removeSuffix(".txt")
-        when {
-          !resultFile.exists() -> {
+        val result = if (resultFile.exists()) resultFile.readText() else null
+        when (result) {
+          null -> {
             MuzzleJUnitCase(
               name = taskName,
               failureMessage = "Muzzle result file missing",
@@ -72,13 +73,13 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
             )
           }
 
-          resultFile.readText() == "PASSING" -> MuzzleJUnitCase(name = taskName)
+          "PASSING" -> MuzzleJUnitCase(name = taskName)
 
           else -> {
             MuzzleJUnitCase(
               name = taskName,
               failureMessage = "Muzzle validation failed",
-              failureText = resultFile.readText()
+              failureText = result
             )
           }
         }
