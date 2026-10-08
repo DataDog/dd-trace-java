@@ -9,12 +9,9 @@ import org.gradle.internal.jvm.inspection.JavaInstallationRegistry
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
-import org.gradle.jvm.toolchain.JavaToolchainSpec
 import org.gradle.jvm.toolchain.JvmImplementation
 import org.gradle.jvm.toolchain.JvmVendorSpec
-import org.gradle.jvm.toolchain.internal.DefaultToolchainSpec
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
-import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.support.serviceOf
 import java.nio.file.Files
 import java.nio.file.Path
@@ -49,8 +46,6 @@ class TestJvmSpec(val project: Project) {
     }
   }
 
-  private val currentJavaHomePath = project.providers.systemProperty("java.home").map { it.normalizeToJDKJavaHome() }
-
   /**
    * The raw `testJvm` property as passed via command line or environment variable.
    */
@@ -81,32 +76,34 @@ class TestJvmSpec(val project: Project) {
   }.map { project.logger.info("normalized testJvm: {}", it); it }
 
   /**
-   * The home path of the test JVM.
+   * The launcher for the requested test JVM.
    *
    * The `<testJvm>` string (`8`, `11`, `ZULU8`, `GRAALVM25`, etc.) is interpreted in that order:
    * 1. Lookup for a valid path,
-   * 2. Look JVM via Gradle toolchains
-   *
-   * Holds the resolved JavaToolchainSpec for the test JVM.
+   * 2. Lookup via Gradle toolchains.
    */
-  private val testJvmSpec = normalizedTestJvm.map {
-    val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(it)?.groupValues?.drop(1) ?: listOf("", "")
+  private val testJvmLauncher = normalizedTestJvm.flatMap { testJvm ->
+    val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(testJvm)?.groupValues?.drop(1) ?: listOf("", "")
 
     // Allow looking up JAVA_<TESTJVM>_HOME environment variable (e.g., JAVA_IBM8_HOME, JAVA_SEMERU8_HOME),
     // because gradle doesn't offer a way to distinguish ibm8 or semeru8
-    val envVarValue = project.providers.environmentVariable("JAVA_${it.uppercase()}_HOME").orNull
+    val envVarValue = project.providers.environmentVariable("JAVA_${testJvm.uppercase()}_HOME").orNull
 
-    when {
-      Files.exists(Paths.get(it)) -> it.normalizeToJDKJavaHome().toToolchainSpec()
-      envVarValue != null && Files.exists(Paths.get(envVarValue)) -> envVarValue.normalizeToJDKJavaHome().toToolchainSpec()
+    val javaHome = when {
+      Files.exists(Paths.get(testJvm)) -> testJvm.normalizeToJDKJavaHome()
+      envVarValue != null && Files.exists(Paths.get(envVarValue)) -> envVarValue.normalizeToJDKJavaHome()
+      else -> null
+    }
+
+    val launcher = when {
+      javaHome != null -> javaHome.toLauncher()
       version.isNotBlank() -> {
-        // Best effort to make a spec for the passed testJvm
+        // Best effort to select a launcher for the passed testJvm
         // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
         // if it is an integer, we assume it's a Java version
         // also we can handle on macOs oracle, zulu, semeru, graalvm prefixes
 
-        // This is using internal APIs
-        DefaultToolchainSpec(project.serviceOf<PropertyFactory>()).apply {
+        project.javaToolchains.launcherFor {
           languageVersion.set(JavaLanguageVersion.of(version.toInt()))
           when (distribution.lowercase()) {
             "" -> {
@@ -143,7 +140,7 @@ class TestJvmSpec(val project: Project) {
 
       else -> throw GradleException(
         """
-        Unable to find launcher for Java '$it'. It needs to be:
+        Unable to find launcher for Java '$testJvm'. It needs to be:
         1. A valid path to a JDK home, or
         2. An environment variable named 'JAVA_<testJvm>_HOME' or '<testJvm>' pointing to a JDK home, or
         3. A Java version or a known distribution+version combination (e.g. '11', 'zulu8', 'graalvm11', etc.) that can be resolved via Gradle toolchains.
@@ -151,34 +148,31 @@ class TestJvmSpec(val project: Project) {
         """.trimIndent()
       )
     }
-  }.map { project.logger.info("testJvm home path: {}", it); it }
+
+    // Only explicit homes pointing to the build JVM leave the default test launcher in place.
+    launcher.orElse(project.providers.provider {
+      throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
+    }).filter { javaHome == null || !it.metadata.isCurrentJvm }
+  }
 
   /**
    * The Java launcher for the test JVM.
    *
-   * Current JVM or a launcher specified via the testJvm.
+   * Absent when no testJvm is supplied or an explicit home points to the build JVM.
    */
   val javaTestLauncher: Provider<JavaLauncher> =
-    project.providers.zip(testJvmSpec, normalizedTestJvm) { jvmSpec, testJvm ->
-      // Only change test JVM if it's not the one we are running the gradle build with
-      if ((jvmSpec as? SpecificInstallationToolchainSpec)?.javaHome == currentJavaHomePath.get()) {
-        project.objects.property<JavaLauncher>()
-      } else {
-        // The provider always says that a value is present so we need to wrap it for proper error messages
-        project.javaToolchains.launcherFor(jvmSpec).orElse(project.providers.provider {
-          throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
-        })
-      }
-    }.flatMap { it }.map { project.logger.info("testJvm launcher: {}", it.executablePath); it }
+    testJvmLauncher.map { project.logger.info("testJvm launcher: {}", it.executablePath); it }
 
   private fun String.normalizeToJDKJavaHome(): Path {
     val javaHome = project.file(this).toPath().toRealPath()
     return if (javaHome.endsWith("jre")) javaHome.parent else javaHome
   }
 
-  private fun Path.toToolchainSpec(): JavaToolchainSpec =
-    // This is using internal APIs
-    SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
+  private fun Path.toLauncher(): Provider<JavaLauncher> =
+    // No public API exists, use internal
+    project.javaToolchains.launcherFor(
+      SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
+    )
 
   private val Project.javaToolchains: JavaToolchainService
     get() =
@@ -188,6 +182,7 @@ class TestJvmSpec(val project: Project) {
    * Discovers available Java versions via Gradle's internal JavaInstallationRegistry.
    */
   private fun discoverJavaVersionsViaToolchains(): List<Int>? {
+    // No public API exists, use internal
     val registry = (project as ProjectInternal).services.get(JavaInstallationRegistry::class.java)
     val versions = registry.toolchains().mapNotNull { installation ->
         installation.metadata.languageVersion.majorVersion.toInt()
