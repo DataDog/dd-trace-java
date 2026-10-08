@@ -27,6 +27,8 @@ class HttpServletExtractAdapterTest {
 
   private static final HttpServletExtractAdapter.Response GETTER =
       HttpServletExtractAdapter.Response.GETTER;
+  private static final HttpServletExtractAdapter.Response.HeaderAccessLatch HEADER_LATCH =
+      HttpServletExtractAdapter.Response.HEADER_LATCH;
 
   @Test
   void readsHeadersFromSupportedResponse() {
@@ -85,23 +87,19 @@ class HttpServletExtractAdapterTest {
 
   @Test
   void latchesResponseClassWithoutHeaderAccessors() throws Exception {
-    // warm the accessor call sites with a working class first: JDK 8 then throws the
-    // AbstractMethodError without a message, as it does in production
-    GETTER.forEachKey(supportedResponse(), collectInto(new ArrayList<>()));
+    warmAccessorCallSites();
     HttpServletResponse old = newOldResponse("OldResponseLatched");
-    assertFalse(HttpServletExtractAdapter.Response.HEADER_ACCESS.isLatched(old));
+    assertFalse(HEADER_LATCH.isLatched(old));
 
     GETTER.forEachKey(old, collectInto(new ArrayList<>()));
 
-    assertTrue(HttpServletExtractAdapter.Response.HEADER_ACCESS.isLatched(old));
-    assertFalse(HttpServletExtractAdapter.Response.HEADER_ACCESS.isLatched(supportedResponse()));
+    assertTrue(HEADER_LATCH.isLatched(old));
+    assertFalse(HEADER_LATCH.isLatched(supportedResponse()));
   }
 
   @Test
   void latchesResponseClassMissingOnlyGetHeader() throws Exception {
-    // warm the accessor call sites with a working class first: JDK 8 then throws the
-    // AbstractMethodError without a message, as it does in production
-    GETTER.forEachKey(supportedResponse(), collectInto(new ArrayList<>()));
+    warmAccessorCallSites();
     // not producible by javac, but bytecode generators can implement one accessor and not the other
     HttpServletResponse partial = newPartialResponse("PartialResponse");
     List<String> seen = new ArrayList<>();
@@ -110,7 +108,7 @@ class HttpServletExtractAdapterTest {
     GETTER.forEachKey(partial, collectInto(seen));
 
     assertEquals(emptyList(), seen);
-    assertTrue(HttpServletExtractAdapter.Response.HEADER_ACCESS.isLatched(partial));
+    assertTrue(HEADER_LATCH.isLatched(partial));
   }
 
   @Test
@@ -123,7 +121,15 @@ class HttpServletExtractAdapterTest {
     GETTER.forEachKey(oldWrapper, collectInto(seen));
 
     assertEquals(asList("x-a=1", "x-b=2"), seen);
-    assertFalse(HttpServletExtractAdapter.Response.HEADER_ACCESS.isLatched(oldWrapper));
+    assertFalse(HEADER_LATCH.isLatched(oldWrapper));
+  }
+
+  /**
+   * Calls the accessors on a working class first. JDK 8 then throws the AbstractMethodError without
+   * a message, as it does in production, where the call sites have seen healthy responses.
+   */
+  private static void warmAccessorCallSites() {
+    GETTER.forEachKey(supportedResponse(), collectInto(new ArrayList<>()));
   }
 
   private static HttpServletResponse supportedResponse() {

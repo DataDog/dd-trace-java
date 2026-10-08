@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.servlet3;
 
-import static java.util.Collections.emptyEnumeration;
-import static java.util.Collections.enumeration;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.util.ClassLatch;
 import java.util.Collection;
@@ -11,33 +8,22 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.ContextVisitor<T> {
-  abstract Enumeration<String> getHeaderNames(T t);
-
-  abstract String getHeader(T t, String name);
-
-  @Override
-  public void forEachKey(T carrier, AgentPropagation.KeyClassifier classifier) {
-    Enumeration<String> headerNames = getHeaderNames(carrier);
-    while (headerNames.hasMoreElements()) {
-      String header = headerNames.nextElement();
-      if (!classifier.accept(header, getHeader(carrier, header))) {
-        break;
-      }
-    }
-  }
 
   public static final class Request extends HttpServletExtractAdapter<HttpServletRequest> {
     public static final Request GETTER = new Request();
 
     @Override
-    Enumeration<String> getHeaderNames(HttpServletRequest request) {
-      final Enumeration<String> ret = request.getHeaderNames();
-      return ret != null ? ret : emptyEnumeration();
-    }
-
-    @Override
-    String getHeader(HttpServletRequest request, String name) {
-      return request.getHeader(name);
+    public void forEachKey(HttpServletRequest carrier, AgentPropagation.KeyClassifier classifier) {
+      final Enumeration<String> headerNames = carrier.getHeaderNames();
+      if (headerNames == null) {
+        return;
+      }
+      while (headerNames.hasMoreElements()) {
+        String header = headerNames.nextElement();
+        if (!classifier.accept(header, carrier.getHeader(header))) {
+          break;
+        }
+      }
     }
   }
 
@@ -51,11 +37,11 @@ public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.C
   public static final class Response extends HttpServletExtractAdapter<HttpServletResponse> {
     public static final Response GETTER = new Response();
 
-    static final HeaderAccessLatch HEADER_ACCESS = new HeaderAccessLatch();
+    static final HeaderAccessLatch HEADER_LATCH = new HeaderAccessLatch();
 
     @Override
     public void forEachKey(HttpServletResponse carrier, AgentPropagation.KeyClassifier classifier) {
-      final Collection<String> headerNames = HEADER_ACCESS.tryApply(carrier);
+      final Collection<String> headerNames = HEADER_LATCH.tryApply(carrier);
       if (headerNames == null) {
         return;
       }
@@ -64,27 +50,16 @@ public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.C
         // is not evidence that this response class lacks the accessors
         final String value;
         try {
-          value = getHeader(carrier, header);
+          value = carrier.getHeader(header);
         } catch (AbstractMethodError e) {
           // only partly implemented: latch and stop instead of retrying, which would re-emit keys
-          HEADER_ACCESS.latchIfLacksGetHeader(carrier, e);
+          HEADER_LATCH.latchIfLacksGetHeader(carrier, e);
           return;
         }
         if (!classifier.accept(header, value)) {
           return;
         }
       }
-    }
-
-    @Override
-    Enumeration<String> getHeaderNames(HttpServletResponse response) {
-      final Collection<String> headerNames = response.getHeaderNames();
-      return headerNames != null ? enumeration(headerNames) : emptyEnumeration();
-    }
-
-    @Override
-    String getHeader(HttpServletResponse response, String name) {
-      return response.getHeader(name);
     }
 
     /** Skips response classes that do not implement the Servlet 3.0 header accessors. */
