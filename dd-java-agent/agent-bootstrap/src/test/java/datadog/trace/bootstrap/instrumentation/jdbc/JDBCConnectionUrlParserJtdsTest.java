@@ -15,15 +15,16 @@ import org.tabletest.junit.TableTest;
 class JDBCConnectionUrlParserJtdsTest {
 
   @TableTest({
-    "scenario                   | url                                                | subtype   | host   | port | db  ",
-    "host port and db           | jdbc:jtds:sqlserver://dbhost:1500/mydb             | sqlserver | dbhost | 1500 | mydb",
-    "colon in property after db | jdbc:jtds:sqlserver://dbhost:1500/mydb;appname=a:b | sqlserver | dbhost | 1500 | mydb",
-    "colon in property, no port | jdbc:jtds:sqlserver://dbhost/mydb;password=p:w     | sqlserver | dbhost | 1433 | mydb",
-    "colon in property, no db   | jdbc:jtds:sqlserver://dbhost;password=p:w          | sqlserver | dbhost | 1433 |     ",
-    "slash in property, no db   | jdbc:jtds:sqlserver://dbhost;password=p/w          | sqlserver | dbhost | 1433 |     ",
-    "short host with port       | jdbc:jtds:sqlserver://db:1500/mydb                 | sqlserver | db     | 1500 | mydb",
-    "sybase with port           | jdbc:jtds:sybase://dbhost:7200/mydb                | sybase    | dbhost | 7200 | mydb",
-    "missing protocol separator | jdbc:jtds:sqlserver:dbhost                         |           |        |      |     "
+    "scenario                   | url                                                | subtype   | host    | port | db  ",
+    "host port and db           | jdbc:jtds:sqlserver://dbhost:1500/mydb             | sqlserver | dbhost  | 1500 | mydb",
+    "colon in property after db | jdbc:jtds:sqlserver://dbhost:1500/mydb;appname=a:b | sqlserver | dbhost  | 1500 | mydb",
+    "colon in property, no port | jdbc:jtds:sqlserver://dbhost/mydb;password=p:w     | sqlserver | dbhost  | 1433 | mydb",
+    "colon in property, no db   | jdbc:jtds:sqlserver://dbhost;password=p:w          | sqlserver | dbhost  | 1433 |     ",
+    "slash in property, no db   | jdbc:jtds:sqlserver://dbhost;password=p/w          | sqlserver | dbhost  | 1433 |     ",
+    "short host with port       | jdbc:jtds:sqlserver://db:1500/mydb                 | sqlserver | db      | 1500 | mydb",
+    "sybase with port           | jdbc:jtds:sybase://dbhost:7200/mydb                | sybase    | dbhost  | 7200 | mydb",
+    "IPv6 literal with port     | jdbc:jtds:sqlserver://[::1]:1500/mydb              | sqlserver | '[::1]' | 1500 | mydb",
+    "missing protocol separator | jdbc:jtds:sqlserver:dbhost                         |           |         |      |     "
   })
   void parsesJtdsUrls(String url, String subtype, String host, Integer port, String db) {
     DBInfo info = extractDBInfo(url, null);

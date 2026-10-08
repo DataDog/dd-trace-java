@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.extractDBInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /**
@@ -35,5 +36,18 @@ class JDBCConnectionUrlParserOracleTest {
     assertEquals(host, info.getHost());
     assertEquals(port, info.getPort());
     assertEquals(instance, info.getInstance());
+  }
+
+  @Test
+  void keepsAnLdapDistinguishedNameWhole() {
+    // '/' and ':' are legal inside an LDAP name; only EZConnect suffixes are stripped
+    DBInfo info =
+        extractDBInfo(
+            "jdbc:oracle:thin:@ldap://orcl.host:389/cn=orcl,cn=OracleContext,ou=R/D,dc=example,dc=com",
+            null);
+    assertEquals("orcl.host", info.getHost());
+    assertEquals(389, info.getPort());
+    assertEquals("cn=orcl,cn=oraclecontext,ou=r/d,dc=example,dc=com", info.getInstance());
+    assertEquals(info.getInstance(), info.getDb());
   }
 }

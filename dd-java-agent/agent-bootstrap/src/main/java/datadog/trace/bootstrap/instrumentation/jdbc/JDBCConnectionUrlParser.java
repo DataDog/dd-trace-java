@@ -386,81 +386,7 @@ public enum JDBCConnectionUrlParser {
   ORACLE_CONNECT_INFO() {
     @Override
     DBInfo.Builder doParse(final String connectInfo, final DBInfo.Builder builder) {
-
-      final String host;
-      final Integer port;
-      final String instance;
-
-      // EZConnect Plus parameters (?key=value) are not part of the address
-      final int queryLoc = connectInfo.indexOf('?');
-      final String jdbcUrl = queryLoc >= 0 ? connectInfo.substring(0, queryLoc) : connectInfo;
-
-      // skip a bracketed IPv6 literal so its colons are not taken as the port separator
-      final int hostSearchStart = jdbcUrl.startsWith("[") ? Math.max(jdbcUrl.indexOf(']'), 0) : 0;
-      final int instanceLoc = jdbcUrl.indexOf('/', hostSearchStart);
-      final int colonLoc = jdbcUrl.indexOf(':', hostSearchStart);
-      // a ':' after the service name separates the server type, not the port
-      final int hostEnd = instanceLoc >= 0 && colonLoc > instanceLoc ? -1 : colonLoc;
-      if (hostEnd > 0) {
-        host = jdbcUrl.substring(0, hostEnd);
-        final int afterHostEnd = jdbcUrl.indexOf(':', hostEnd + 1);
-        if (afterHostEnd > 0 && (instanceLoc < 0 || afterHostEnd < instanceLoc)) {
-          // host:port:sid
-          port = parsePort(jdbcUrl, hostEnd + 1, afterHostEnd);
-          instance = jdbcUrl.substring(afterHostEnd + 1);
-        } else {
-          if (instanceLoc > 0) {
-            // host:port/service[:server_type][/instance_name]
-            instance = serviceName(jdbcUrl.substring(instanceLoc + 1));
-            port = parsePort(jdbcUrl, hostEnd + 1, instanceLoc);
-          } else {
-            final String portOrInstance = jdbcUrl.substring(hostEnd + 1);
-            final Integer parsedPort = parsePort(portOrInstance);
-            if (parsedPort == null) {
-              port = null;
-              instance = portOrInstance;
-            } else {
-              port = parsedPort;
-              instance = null;
-            }
-          }
-        }
-      } else {
-        if (instanceLoc > 0) {
-          host = jdbcUrl.substring(0, instanceLoc);
-          port = null;
-          instance = serviceName(jdbcUrl.substring(instanceLoc + 1));
-        } else {
-          if (jdbcUrl.isEmpty()) {
-            return builder;
-          } else {
-            host = null;
-            port = null;
-            instance = jdbcUrl;
-          }
-        }
-      }
-      if (host != null) {
-        builder.host(host);
-      }
-      if (port != null) {
-        builder.port(port);
-      }
-      return builder.instance(instance);
-    }
-
-    /** Drops the optional {@code :server_type} and {@code /instance_name} EZConnect suffixes. */
-    private String serviceName(final String service) {
-      int end = service.length();
-      final int serverTypeLoc = service.indexOf(':');
-      if (serverTypeLoc >= 0) {
-        end = serverTypeLoc;
-      }
-      final int instanceNameLoc = service.indexOf('/');
-      if (instanceNameLoc >= 0 && instanceNameLoc < end) {
-        end = instanceNameLoc;
-      }
-      return service.substring(0, end);
+      return parseOracleConnectInfo(connectInfo, builder, true);
     }
   },
 
@@ -485,6 +411,8 @@ public enum JDBCConnectionUrlParser {
 
       final int hostStart;
       final int protocolEnd = connectInfo.indexOf("://");
+      // an LDAP name is not EZConnect: it can contain '/', ':' and '?' that are not suffixes
+      final boolean ldap = connectInfo.startsWith("ldap://") || connectInfo.startsWith("ldaps://");
       if (connectInfo.startsWith("//")) {
         hostStart = "//".length();
       } else if (protocolEnd > 0 && protocolEnd == connectInfo.indexOf(':')) {
@@ -496,7 +424,7 @@ public enum JDBCConnectionUrlParser {
       if (user != null) {
         builder.user(user);
       }
-      return ORACLE_CONNECT_INFO.doParse(connectInfo.substring(hostStart), builder);
+      return parseOracleConnectInfo(connectInfo.substring(hostStart), builder, !ldap);
     }
   },
 
@@ -782,7 +710,10 @@ public enum JDBCConnectionUrlParser {
         hostAndPort = address;
       }
 
-      final int portLoc = hostAndPort.indexOf(':');
+      // skip a bracketed IPv6 literal so its colons are not taken as the port separator
+      final int hostSearchStart =
+          hostAndPort.startsWith("[") ? Math.max(hostAndPort.indexOf(']'), 0) : 0;
+      final int portLoc = hostAndPort.indexOf(':', hostSearchStart);
       if (portLoc >= 0) {
         setPort(builder, parsePort(hostAndPort, portLoc + 1, hostAndPort.length()));
         builder.host(hostAndPort.substring(0, portLoc));
@@ -911,6 +842,97 @@ public enum JDBCConnectionUrlParser {
       ExceptionLogger.LOGGER.debug("Error parsing URL", e);
       return parsedProps.build();
     }
+  }
+
+  /**
+   * Parses an Oracle connect string after any {@code @} and protocol prefix.
+   *
+   * @param ezConnect whether the service may carry EZConnect suffixes to drop
+   */
+  private static DBInfo.Builder parseOracleConnectInfo(
+      final String connectInfo, final DBInfo.Builder builder, final boolean ezConnect) {
+
+    final String host;
+    final Integer port;
+    final String instance;
+
+    // EZConnect Plus parameters (?key=value) are not part of the address
+    final int queryLoc = ezConnect ? connectInfo.indexOf('?') : -1;
+    final String jdbcUrl = queryLoc >= 0 ? connectInfo.substring(0, queryLoc) : connectInfo;
+
+    // skip a bracketed IPv6 literal so its colons are not taken as the port separator
+    final int hostSearchStart = jdbcUrl.startsWith("[") ? Math.max(jdbcUrl.indexOf(']'), 0) : 0;
+    final int instanceLoc = jdbcUrl.indexOf('/', hostSearchStart);
+    final int colonLoc = jdbcUrl.indexOf(':', hostSearchStart);
+    // a ':' after the service name separates the server type, not the port
+    final int hostEnd = instanceLoc >= 0 && colonLoc > instanceLoc ? -1 : colonLoc;
+    if (hostEnd > 0) {
+      host = jdbcUrl.substring(0, hostEnd);
+      final int afterHostEnd = jdbcUrl.indexOf(':', hostEnd + 1);
+      if (afterHostEnd > 0 && (instanceLoc < 0 || afterHostEnd < instanceLoc)) {
+        // host:port:sid
+        port = parsePort(jdbcUrl, hostEnd + 1, afterHostEnd);
+        instance = jdbcUrl.substring(afterHostEnd + 1);
+      } else {
+        if (instanceLoc > 0) {
+          // host:port/service[:server_type][/instance_name]
+          instance = serviceName(jdbcUrl.substring(instanceLoc + 1), ezConnect);
+          port = parsePort(jdbcUrl, hostEnd + 1, instanceLoc);
+        } else {
+          final String portOrInstance = jdbcUrl.substring(hostEnd + 1);
+          final Integer parsedPort = parsePort(portOrInstance);
+          if (parsedPort == null) {
+            port = null;
+            instance = portOrInstance;
+          } else {
+            port = parsedPort;
+            instance = null;
+          }
+        }
+      }
+    } else {
+      if (instanceLoc > 0) {
+        host = jdbcUrl.substring(0, instanceLoc);
+        port = null;
+        instance = serviceName(jdbcUrl.substring(instanceLoc + 1), ezConnect);
+      } else {
+        if (jdbcUrl.isEmpty()) {
+          return builder;
+        } else {
+          host = null;
+          port = null;
+          instance = jdbcUrl;
+        }
+      }
+    }
+    if (host != null) {
+      builder.host(host);
+    }
+    if (port != null) {
+      builder.port(port);
+    }
+    return builder.instance(instance);
+  }
+
+  /**
+   * Drops the optional {@code :server_type} and {@code /instance_name} EZConnect suffixes. Other
+   * forms, such as an LDAP distinguished name, can contain {@code :} and {@code /}, so they are
+   * kept whole.
+   */
+  private static String serviceName(final String service, final boolean ezConnect) {
+    if (!ezConnect) {
+      return service;
+    }
+    int end = service.length();
+    final int serverTypeLoc = service.indexOf(':');
+    if (serverTypeLoc >= 0) {
+      end = serverTypeLoc;
+    }
+    final int instanceNameLoc = service.indexOf('/');
+    if (instanceNameLoc >= 0 && instanceNameLoc < end) {
+      end = instanceNameLoc;
+    }
+    return service.substring(0, end);
   }
 
   /**
