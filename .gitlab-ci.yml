@@ -244,6 +244,6 @@ check_build_src:
   extends: .check_job
   needs: []
   script:
-    - ./gradlew -p build-logic :smoke-test:test --tests '*SmokeTestAppEndToEndTest.nested build clears inherited Gradle launcher environment' --tests '*cleanup*' --no-build-cache --rerun-tasks --stacktrace --parallel --max-workers=$GRADLE_WORKERS
+    - JAVA_HOME=$JAVA_25_HOME ./gradlew -p build-logic :smoke-test:test -Dorg.gradle.java.installations.fromEnv=JAVA_21_HOME,JAVA_25_HOME --tests '*SmokeTestAppEndToEndTest.nested build clears inherited Gradle launcher environment' --tests '*cleanup*' --no-build-cache --rerun-tasks --stacktrace --parallel --max-workers=$GRADLE_WORKERS
   variables:
     GRADLE_TARGET: ":buildSrc:build :build-logic:check"
