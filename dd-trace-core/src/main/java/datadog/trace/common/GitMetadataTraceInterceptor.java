@@ -29,7 +29,7 @@ public class GitMetadataTraceInterceptor extends AbstractTraceInterceptor {
     String ciWorkspacePath = (String) firstSpan.getTag(Tags.CI_WORKSPACE_PATH);
 
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(ciWorkspacePath);
-    gitInfo.addTags(firstSpan);
+    gitInfo.addTo(firstSpan);
 
     return trace;
   }
