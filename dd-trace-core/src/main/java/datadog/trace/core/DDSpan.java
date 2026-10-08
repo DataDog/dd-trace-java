@@ -38,6 +38,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   protected volatile List<AgentSpanLink> links;
 
   private static final List<DDSpanEvent> NO_EVENT = emptyList();
+
+  /**
+   * Span events, appended under the span lock until the span is finished. Volatile to check for no
+   * event without locking.
+   */
   protected volatile List<DDSpanEvent> events = NO_EVENT;
 
   /**
@@ -932,8 +938,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     return context.getTraceCollector().getTraceConfig();
   }
 
+  /**
+   * Get the span links for serializing purpose only.
+   *
+   * @return The span links for serialization purpose only.
+   */
   public List<? extends AgentSpanLink> getLinks() {
-    return this.links.isEmpty() ? this.links : unmodifiableList(this.links);
+    List<AgentSpanLink> links = this.links;
+    return links.isEmpty() ? links : unmodifiableList(links);
   }
 
   @Override
@@ -973,8 +985,19 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     }
   }
 
+  /**
+   * Get the span events for serializing purpose only. The collection is shared once the span is
+   * finished, as no more events can be added, and defensively-copied otherwise.
+   *
+   * @return The span events for serialization purpose only.
+   */
   public List<DDSpanEvent> getEvents() {
-    return this.events.isEmpty() ? this.events : unmodifiableList(this.events);
+    if (this.events == NO_EVENT) {
+      return NO_EVENT;
+    }
+    synchronized (this) {
+      return isFinished() ? this.events : new ArrayList<>(this.events);
+    }
   }
 
   @Override
@@ -988,20 +1011,18 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   private void addEvent(DDSpanEvent event) {
-    // Same lazy list creation as addLink()
-    List<DDSpanEvent> events = this.events;
-    if (events != NO_EVENT) {
-      events.add(event);
-      return;
-    }
-
+    // Append under lock rather than copy-on-write: events can be numerous, and are read once
     synchronized (this) {
-      events = this.events;
-      if (events != NO_EVENT) {
-        events.add(event);
-      } else {
-        this.events = new CopyOnWriteArrayList<>(singletonList(event));
+      // Ignore events once finished, so getEvents() can share the event list without copying it
+      if (isFinished()) {
+        return;
       }
+      List<DDSpanEvent> events = this.events;
+      if (events == NO_EVENT) {
+        events = new ArrayList<>();
+        this.events = events;
+      }
+      events.add(event);
     }
   }
 

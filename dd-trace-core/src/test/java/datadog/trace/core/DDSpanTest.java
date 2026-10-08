@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
@@ -42,6 +43,7 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -530,6 +532,33 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
     span.setError(true, Byte.MAX_VALUE);
     assertTrue(span.isError());
+  }
+
+  @Test
+  void eventsShouldNotBeMutated() {
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "testSpan").start();
+    assertTrue(span.getEvents().isEmpty());
+
+    span.addEvent("first", Collections.emptyMap());
+    List<DDSpanEvent> snapshot = span.getEvents();
+    snapshot.clear();
+    span.addEvent("second", Collections.emptyMap());
+
+    assertEquals(2, span.getEvents().size());
+  }
+
+  @Test
+  void eventsAreIgnoredOnceSpanIsFinished() {
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "testSpan").start();
+    span.addEvent("event", Collections.emptyMap());
+    span.finish();
+
+    span.addEvent("ignored", Collections.emptyMap());
+
+    List<DDSpanEvent> events = span.getEvents();
+    assertEquals(1, events.size());
+    assertEquals("event", events.get(0).name());
+    assertSame(events, span.getEvents());
   }
 
   @Test

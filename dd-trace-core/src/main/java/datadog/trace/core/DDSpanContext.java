@@ -1406,8 +1406,9 @@ public class DDSpanContext
       }
 
       // Events
+      List<DDSpanEvent> events = restrictedSpan.getEvents();
       if (injectEventsAsTags) {
-        String eventsTag = spanEventsToTag(restrictedSpan.getEvents());
+        String eventsTag = spanEventsToTag(events);
         if (eventsTag != null) {
           unsafeTags.set(SPAN_EVENTS, eventsTag);
         }
@@ -1446,7 +1447,7 @@ public class DDSpanContext
               ProcessTags.getTagsForSerialization(),
               Config.get().isOtlpTracesExportEnabled() ? OTLP_EXPORT_TRUE : OTLP_EXPORT_FALSE,
               restrictedSpan.getLinks(),
-              restrictedSpan.getEvents()));
+              events));
     }
   }
 
