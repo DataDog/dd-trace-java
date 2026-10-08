@@ -72,7 +72,8 @@ jobs:
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
       ref: "main" # system tests are pinned on release branches only
       binaries_artifact: binaries
-      desired_execution_time: 900  # 15 minutes
+      # Experiment with fewer, fuller shards to reduce repeated environment setup costs.
+      desired_execution_time: 1200  # 20 minutes
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
       skip_empty_scenarios: ${{ github.event_name != 'push' && github.event_name != 'schedule' }}
