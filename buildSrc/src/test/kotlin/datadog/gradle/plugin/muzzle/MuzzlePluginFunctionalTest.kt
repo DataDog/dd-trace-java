@@ -8,6 +8,28 @@ import org.junit.jupiter.params.provider.ValueSource
 import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
+  @Test
+  fun `nested aggregate plans descendant instrumentation checks`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeNoopScanPlugin()
+    writeFile("dd-java-agent/build.gradle.kts",
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+    val result = run(":dd-java-agent:runMuzzle")
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
   @ParameterizedTest
   @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle"])
   fun `detects muzzle invocation with various task names`(taskName: String) {
