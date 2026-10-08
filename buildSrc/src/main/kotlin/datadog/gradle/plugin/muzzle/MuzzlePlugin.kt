@@ -3,7 +3,6 @@ package datadog.gradle.plugin.muzzle
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
-import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
 import org.eclipse.aether.artifact.Artifact
@@ -76,6 +75,7 @@ class MuzzlePlugin : Plugin<Project> {
     }
 
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
+      description = "Check instrumentation compatibility against the configured dependency versions"
       this.muzzleBootstrap.set(muzzleBootstrap)
       this.muzzleTooling.set(muzzleTooling)
       dependsOn(compileMuzzle)
@@ -92,11 +92,14 @@ class MuzzlePlugin : Plugin<Project> {
       it.configure { finalizedBy(printReferencesTask) }
     }
 
-    project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
+    val extension = project.extensions.getByType<MuzzleExtension>()
+    val runtimeClasspath = project.mainSourceSet.runtimeClasspath
+    val report = project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
+      reportDirectives.convention(project.providers.provider { extension.directives })
+      instrumentationClasspath.from(reportingDirectives.map { if (it.isEmpty()) emptyList<Any>() else runtimeClasspath })
       dependsOn(compileMuzzle)
     }
-
-    project.tasks.register<MuzzleMergeReportsTask>("mergeMuzzleReports")
+    project.publishMuzzleReport(report.flatMap { it.versionsFile })
 
     val hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
       val taskProjectPath = taskName.substringBeforeLast(":", "")
