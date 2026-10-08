@@ -33,19 +33,20 @@ import org.openjdk.jmh.infra.Blackhole;
  * in the method's profile, not per map instance, so priming on scratch data changes the profile the
  * measured call sees without touching the measured map.
  *
- * <p>Java 8 results ({@code -prof gc}), {@code pollute} is the only thing that differs between the
- * two rows -- same call site, same always-hit measured lookup:
+ * <p>Java 17 results (Zulu 17.0.7, MacBook M1, {@code @Fork(2)}, {@code @Threads(8)}, {@code -prof
+ * gc}). {@code pollute} is the only thing that differs between the two rows -- same call site, same
+ * always-hit measured lookup:
  *
  * <pre>{@code
- * pollute   ops/us    B/op     gc.count
- * false      750.0     ≈0         ≈0     <- unstable_if prunes the miss branch, Key2 scalar-replaced
- * true       600.5     24.0      763     <- two-sided profile, Key2 allocated on every lookup
+ * pollute   ops/us           B/op  gc.count
+ * false     1610.2 ± 82.4    ≈0      ≈0    <- miss branch pruned (unstable_if), Key2 elided
+ * true      1154.7 ± 66.8    24.0    692   <- two-sided profile; Key2 allocated per lookup
  * }</pre>
  *
  * <p>{@code false} reproduces the artificially flattering result that {@link
  * ThreadSafeMapD2Benchmark}'s javadoc documents. {@code true} shows that one {@link
  * BenchmarkUtils#warmUp} call, priming a real miss before measurement, restores the allocation and
- * its ~20% throughput cost, with no change to the measured method or map.
+ * its ~28% throughput cost, with no change to the measured method or map.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -117,6 +118,9 @@ public class WarmUpEscapeAnalysisDemoBenchmark {
           bh,
           BenchmarkUtils.bench((ThreadState t) -> getOrCreate(t.scratch, t.scratchHitKey)),
           BenchmarkUtils.bench((ThreadState t) -> getOrCreate(t.scratch, t.freshMissKey())));
+      // Every miss inserted a fresh key; drop them so only the branch profile, not a larger live
+      // heap, separates this arm from pollute=false.
+      scratch.clear();
     }
 
     /** A key guaranteed never to have been looked up before, so this always takes the miss path. */
