@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mock;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Feature;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
@@ -33,6 +34,7 @@ import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -182,6 +184,113 @@ class ExposureHookTest {
         new HashSet<>(Arrays.asList("NEW_A", "NEW_B")), DDEvaluator.WARNED_FEATURE_DESTINATIONS);
     assertEquals(1, evaluations.get(1).getFeatures().size());
     DDEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
+  }
+
+  @Test
+  void routesEachFeatureToItsDestinations() throws Exception {
+    start(
+        true,
+        configuration(
+            Boolean.TRUE,
+            Arrays.asList(
+                new Feature("holdout.key", "q4-global", singletonList("HOOK")),
+                new Feature("bandit.arm", "a", singletonList("EXPOSURE")),
+                new Feature("experiment.tag", "pricing", singletonList("EVALUATION")),
+                new Feature("bandit.policy_id", "p2", Arrays.asList("EXPOSURE", "EVALUATION")))));
+
+    final FlagEvaluationDetails<Integer> details = evaluate("user-1");
+
+    final ImmutableMetadata metadata = details.getFlagMetadata();
+    assertEquals(
+        Collections.singletonMap("holdout.key", "q4-global"),
+        DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_FEATURE_PREFIX));
+    final Map<String, Object> exposureFeatures = new HashMap<>();
+    exposureFeatures.put("bandit.arm", "a");
+    exposureFeatures.put("bandit.policy_id", "p2");
+    assertEquals(
+        exposureFeatures,
+        DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX));
+    final Map<String, Object> evaluationFeatures = new HashMap<>();
+    evaluationFeatures.put("experiment.tag", "pricing");
+    evaluationFeatures.put("bandit.policy_id", "p2");
+    assertEquals(
+        evaluationFeatures,
+        DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX));
+    assertEquals(
+        Collections.singletonMap("holdout.key", "q4-global"), evaluations.get(0).getFeatures());
+    assertEquals(exposureFeatures, sentToDatadog.get(0).features);
+  }
+
+  @Test
+  void aRepeatedKeyKeepsTheFirstFeatureForEveryDestination() throws Exception {
+    start(
+        true,
+        configuration(
+            Boolean.TRUE,
+            Arrays.asList(
+                new Feature("holdout.key", "q4-global", singletonList("HOOK")),
+                new Feature("holdout.key", "q1-global", Arrays.asList("HOOK", "EXPOSURE")))));
+
+    final FlagEvaluationDetails<Integer> details = evaluate("user-1");
+
+    assertEquals(
+        Collections.singletonMap("holdout.key", "q4-global"), evaluations.get(0).getFeatures());
+    assertTrue(
+        DDEvaluator.featuresWithPrefix(
+                details.getFlagMetadata(), DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)
+            .isEmpty(),
+        "the repeated feature's EXPOSURE destination is ignored with it");
+    assertNull(sentToDatadog.get(0).features);
+  }
+
+  @Test
+  void sendsExposuresWithoutFeaturesWhenTheAgentLacksThem() throws Exception {
+    start(
+        true,
+        configuration(
+            Boolean.TRUE,
+            singletonList(new Feature("bandit.policy_id", "p2", singletonList("EXPOSURE")))));
+    DDEvaluator.EXPOSURE_FEATURES_SUPPORTED.set(false);
+    try {
+      evaluate("user-1");
+    } finally {
+      DDEvaluator.EXPOSURE_FEATURES_SUPPORTED.set(true);
+    }
+
+    assertEquals(1, sentToDatadog.size());
+    assertNull(sentToDatadog.get(0).features);
+  }
+
+  @Test
+  void featureSupportChecksRejectEventsFromAnOlderAgent() {
+    assertTrue(DDEvaluator.exposureFeaturesSupported(ExposureEvent.class));
+    assertFalse(DDEvaluator.exposureFeaturesSupported(SerialIdExposureEvent.class));
+    assertTrue(DDEvaluator.flagEvalFeaturesSupported(FlagEvalEvent.class));
+    assertFalse(DDEvaluator.flagEvalFeaturesSupported(LegacyFlagEvalEvent.class));
+  }
+
+  /** An exposure event from an agent that has serial ids but predates features. */
+  public static final class SerialIdExposureEvent {
+    public SerialIdExposureEvent(
+        final long timestamp,
+        final datadog.trace.api.featureflag.exposure.Allocation allocation,
+        final datadog.trace.api.featureflag.exposure.Flag flag,
+        final datadog.trace.api.featureflag.exposure.Variant variant,
+        final datadog.trace.api.featureflag.exposure.Subject subject,
+        final Integer serialId) {}
+  }
+
+  /** A flag-evaluation event from an agent that predates features. */
+  public static final class LegacyFlagEvalEvent {
+    public LegacyFlagEvalEvent(
+        final String flagKey,
+        final String variant,
+        final String allocationKey,
+        final String targetingKey,
+        final String errorMessage,
+        final long evalTimeMs,
+        final boolean observeFullEvaluationData,
+        final Map<String, Object> attrs) {}
   }
 
   @Test
