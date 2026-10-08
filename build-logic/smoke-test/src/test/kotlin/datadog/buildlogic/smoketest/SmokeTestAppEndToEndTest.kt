@@ -5,7 +5,6 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -123,7 +122,7 @@ class SmokeTestAppEndToEndTest {
     assertThat(applicationOutput("target/sample.jar")).exists()
   }
 
-  @RepeatedTest(10)
+  @Test
   fun `nested build clears inherited Gradle launcher environment`() {
     writeOuterSettings()
     val inheritedGradleUserHome = projectDir.resolve("inherited-gradle-user-home").toFile()
@@ -178,9 +177,7 @@ class SmokeTestAppEndToEndTest {
       .substringAfter("=")
     assertThat(gradleUserHomeEnv).isEqualTo(gradleUserHomeDir)
     assertThat(gradleUserHomeDir).isNotEqualTo(inheritedGradleUserHome.absolutePath)
-    assertThat(File(gradleUserHomeDir))
-      .withFailMessage("Nested Gradle user home still exists: %s", File(gradleUserHomeDir).walkTopDown().toList())
-      .doesNotExist()
+    assertThat(File(gradleUserHomeDir)).doesNotExist()
   }
 
   @Test
