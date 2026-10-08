@@ -144,7 +144,7 @@ class SmokeTestAppEndToEndTest {
         outputs.file(out)
         doLast {
           Runtime.getRuntime().addShutdownHook(Thread {
-            // Recreate the home after a successful early deletion, not just during a failed one.
+            // Always recreate gradle home
             Thread.sleep(2500)
             userHome.mkdirs()
             userHome.resolve("late-daemon-write.txt").writeText("stopping")
