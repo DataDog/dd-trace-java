@@ -622,9 +622,12 @@ public final class BenchmarkUtils {
 
   /**
    * Coarse "did you forget to register a bench" check: counts the {@code @Benchmark} methods
-   * declared on {@code benchClass} whose parameter list -- ignoring a trailing {@link Blackhole}
-   * parameter, which JMH supplies independently of a bench's own state parameters -- has {@code
-   * expectedStateArity} parameters, and fails loudly if fewer benches than that were registered.
+   * declared on {@code benchClass} or its superclasses whose parameter list -- ignoring a trailing
+   * {@link Blackhole} parameter, which JMH supplies independently of a bench's own state parameters
+   * -- has {@code expectedStateArity} parameters, and fails loudly if fewer benches than that were
+   * registered. Superclasses matter because JMH runs {@code @Setup} on a generated {@code
+   * Foo_jmhType} subclass, so {@code this} in a setup method never declares the {@code @Benchmark}
+   * methods itself.
    *
    * <p>This is deliberately weak: it can't tell which method is missing, and it can't tell whether
    * a multi-outcome method had every outcome driven, only that <i>some</i> bench exists for its
@@ -633,17 +636,24 @@ public final class BenchmarkUtils {
   private static void checkCoverage(
       Class<?> benchClass, int expectedStateArity, int registeredBenches) {
     int declaredBenchmarks = 0;
-    for (Method m : benchClass.getDeclaredMethods()) {
-      if (!m.isAnnotationPresent(Benchmark.class)) {
-        continue;
-      }
-      Class<?>[] params = m.getParameterTypes();
-      int arity = params.length;
-      if (arity > 0 && params[arity - 1] == Blackhole.class) {
-        --arity;
-      }
-      if (arity == expectedStateArity) {
-        ++declaredBenchmarks;
+    Set<String> seen = new HashSet<>();
+    for (Class<?> c = benchClass; c != null; c = c.getSuperclass()) {
+      for (Method m : c.getDeclaredMethods()) {
+        if (!m.isAnnotationPresent(Benchmark.class)) {
+          continue;
+        }
+        Class<?>[] params = m.getParameterTypes();
+        // An overriding @Benchmark method shadows the one it overrides; count it once.
+        if (!seen.add(m.getName() + Arrays.toString(params))) {
+          continue;
+        }
+        int arity = params.length;
+        if (arity > 0 && params[arity - 1] == Blackhole.class) {
+          --arity;
+        }
+        if (arity == expectedStateArity) {
+          ++declaredBenchmarks;
+        }
       }
     }
     if (registeredBenches < declaredBenchmarks) {
