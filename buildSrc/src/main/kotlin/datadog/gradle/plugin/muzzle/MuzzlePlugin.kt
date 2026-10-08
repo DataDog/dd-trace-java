@@ -120,20 +120,17 @@ class MuzzlePlugin : Plugin<Project> {
     // We only get here if we are running muzzle, so let's start timing things
     val startTime = System.currentTimeMillis()
 
-    project.afterEvaluate {
+    project.gradle.projectsEvaluated {
       if (relevantTasks.all { it.substringAfterLast(":").equals("runMuzzle", ignoreCase = true) } &&
         !extension.includeInAggregate.get()) {
         project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
-        return@afterEvaluate
+        return@projectsEvaluated
       }
-      val system = MuzzleMavenRepoUtils.newRepositorySystem()
-      val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-      val taskPlanner = MuzzleTaskPlanner.from(system, session)
       // use runAfter to set up task finalizers in version order
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
       val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
       val directives = project.extensions.getByType<MuzzleExtension>().directives
-      taskPlanner.plan(directives).forEach { plan ->
+      sharedTaskPlanner(project).plan(directives).forEach { plan ->
         runAfter = registerMuzzleTask(plan.directive, plan.artifact, project, runAfter, muzzleBootstrap, muzzleTooling)
         muzzleReportTasks.add(runAfter)
         project.logger.info("configured ${plan.directive}")
@@ -156,6 +153,24 @@ class MuzzlePlugin : Plugin<Project> {
       runAfter.configure {
         finalizedBy(timingTask)
       }
+    }
+  }
+
+  private fun sharedTaskPlanner(project: Project): MuzzleTaskPlanner {
+    val properties = project.rootProject.extensions.extraProperties
+    val key = "datadogMuzzleTaskPlanners"
+    if (!properties.has(key)) {
+      properties.set(key, mutableMapOf<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>())
+    }
+    @Suppress("UNCHECKED_CAST")
+    val planners = properties.get(key) as MutableMap<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>
+    // Repository IDs can be reused for different URLs, so keep their local metadata separate.
+    val repositories = project.extensions.getByType<MuzzleExtension>().directives
+      .map { it.additionalRepositories.toList() }.distinct()
+    return planners.getOrPut(repositories) {
+      val system = MuzzleMavenRepoUtils.newRepositorySystem()
+      val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
+      MuzzleTaskPlanner.from(system, session)
     }
   }
 
