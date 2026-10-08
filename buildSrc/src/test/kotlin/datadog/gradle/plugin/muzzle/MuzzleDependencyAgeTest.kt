@@ -48,23 +48,26 @@ class MuzzleDependencyAgeTest {
       .contains("com.example:lib:1.2", "eligible at 2026-09-30T12:00:01Z", "48h cooldown")
   }
 
-  @Test
-  fun `falls back to another repository when age is unavailable`() {
+  @ParameterizedTest
+  @CsvSource(value = ["central,true", "central-proxy,false"])
+  fun `uses configured extra repositories before any Central fallback`(primaryId: String, oldEnough: Boolean) {
+    val primary = if (primaryId == "central-proxy") proxy else repositories.single()
+    val extra = repository("extra", "https://extra.example/maven2/")
     val policy = policy { url ->
-      if (url.startsWith("https://repo.example/")) {
+      if (url.startsWith(primary.url)) {
         Timestamp(null, "HTTP 404")
       } else {
-        Timestamp(now.minusSeconds(72 * 3600L))
+        Timestamp(if (oldEnough) now.minusSeconds(72 * 3600L) else now)
       }
     }
-    val repos = repositories + repository("extra", "https://extra.example/maven2/")
 
-    assertThat(policy.isEligible("com.example", "lib", "1.0", repos)).isTrue()
+    assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(primary, extra))).isEqualTo(oldEnough)
     assertThat(requested).containsExactly(
-      "https://repo.example/maven2/com/example/lib/1.0/lib-1.0.pom",
-      "https://extra.example/maven2/com/example/lib/1.0/lib-1.0.pom"
+      "${primary.url.trimEnd('/')}/com/example/lib/1.0/lib-1.0.pom",
+      "${extra.url}com/example/lib/1.0/lib-1.0.pom"
     )
-    assertThat(warnings).isEmpty()
+    if (oldEnough) assertThat(warnings).isEmpty()
+    else assertThat(warnings).singleElement().asString().contains("Muzzle deferring com.example:lib:1.0")
   }
 
   @ParameterizedTest
@@ -102,20 +105,6 @@ class MuzzleDependencyAgeTest {
     assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy))).isEqualTo(oldEnough)
   }
 
-  @Test
-  fun `tries configured extra repositories before the Central timestamp fallback`() {
-    val policy = policy { url ->
-      if (url.startsWith(proxy.url)) Timestamp(null, "HTTP 404") else Timestamp(now)
-    }
-    val extra = repository("extra", "https://extra.example/maven2/")
-
-    assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy, extra))).isFalse()
-    assertThat(requested).containsExactly(
-      "https://proxy.example/maven2/com/example/lib/1.0/lib-1.0.pom",
-      "https://extra.example/maven2/com/example/lib/1.0/lib-1.0.pom"
-    )
-  }
-
   @ParameterizedTest
   @ValueSource(booleans = [true, false])
   fun `caches proxy and Central timestamps including unavailable timestamps`(available: Boolean) {
@@ -128,7 +117,6 @@ class MuzzleDependencyAgeTest {
     assertThat(requested).containsExactly(
       "https://proxy.example/maven2/com/example/lib/1.0/lib-1.0.pom", centralPom
     )
-    assertThat(policy.timestampLookupCount).isEqualTo(2)
     if (available) assertThat(warnings).isEmpty()
     else assertThat(warnings).hasSize(2).allSatisfy {
       assertThat(it).contains("Muzzle retaining com.example:lib:1.0", "cannot verify publication age", "central-timestamp: HTTP 429")
@@ -339,7 +327,6 @@ class MuzzleDependencyAgeTest {
 
     assertThat(policy.isEligible("com.example", "lib", "1.0", emptyList())).isTrue()
     assertThat(policy.isEligible("com.example", "lib", "1.0", listOf(proxy))).isTrue()
-    assertThat(policy.timestampLookupCount).isZero()
     assertThat(warnings).isEmpty()
   }
 

@@ -338,7 +338,10 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       """
     )
 
-    val result = run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    val result = run(
+      ":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace", "--configuration-cache",
+      env = mapOf("MIN_DEPENDENCY_AGE_HOURS" to "48")
+    )
     val muzzleTaskPath = ":dd-java-agent:instrumentation:demo:muzzle"
     val passDirectiveTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk"
     val failDirectiveTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-AssertFail-core-jdk"
@@ -366,6 +369,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     assertThat(failDirectiveResult).isRegularFile()
     assertThat(passDirectiveResult.readText()).isEqualTo("PASSING")
     assertThat(failDirectiveResult.readText()).isEqualTo("PASSING")
+    assertThat(result.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
+
+    val reused = run(
+      muzzleTaskPath, "--stacktrace", "--configuration-cache",
+      env = mapOf("MIN_DEPENDENCY_AGE_HOURS" to "48")
+    )
+    assertThat(reused.output).contains("BUILD SUCCESSFUL", "Reusing configuration cache")
+      .doesNotContain("Muzzle deferring", "Muzzle retaining")
   }
 
   @Test

@@ -20,8 +20,6 @@ internal class MuzzleDependencyAge(
   private val cutoff = buildStartedAt.minus(minimumAgeHours.toLong(), HOURS)
   private val timestamps = mutableMapOf<String, Timestamp>()
   private val unavailableRepositories = mutableMapOf<String, Timestamp>()
-  var timestampLookupCount: Int = 0
-    private set
 
   init {
     require(minimumAgeHours >= 0) { "Muzzle minimum dependency age must be non-negative" }
@@ -48,7 +46,6 @@ internal class MuzzleDependencyAge(
       val url = "$repositoryUrl/$pomPath"
       val timestamp = timestamps[url] ?: unavailableRepositories[repositoryUrl] ?: timestamps.getOrPut(url) {
         try {
-          timestampLookupCount++
           lookup(url)
         } catch (e: IOException) {
           if (repositoryUrl.startsWith("https://") || repositoryUrl.startsWith("http://")) {
