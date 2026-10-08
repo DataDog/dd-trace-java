@@ -5,11 +5,8 @@ import java.util.SortedSet
 import kotlin.random.Random
 
 class VersionSet(private val versions: Collection<Version>) {
-  private val sortedVersions: SortedSet<ParsedVersion> = sortedSetOf()
-
-  init {
-      versions.forEach { sortedVersions.add(ParsedVersion(it)) }
-  }
+  private val parsedVersions = versions.map(::ParsedVersion)
+  private val sortedVersions: SortedSet<ParsedVersion> = parsedVersions.toSortedSet()
 
   val lowAndHighForMajorMinor: List<Version>
     get() {
@@ -43,7 +40,7 @@ class VersionSet(private val versions: Collection<Version>) {
     val lowest = ordered.firstOrNull(::eligible) ?: return emptySet()
     val highest = ordered.last(::eligible)
     val selected = linkedSetOf(lowest, highest)
-    val groups = versions.map(::ParsedVersion).sorted().groupBy { it.majorMinor }
+    val groups = parsedVersions.sorted().groupBy { it.majorMinor }
     // Preserve the existing seeded sample when all boundaries are eligible.
     for (boundary in lowAndHighForMajorMinor.shuffled(random).asReversed()) {
       if (selected.size >= limit) break

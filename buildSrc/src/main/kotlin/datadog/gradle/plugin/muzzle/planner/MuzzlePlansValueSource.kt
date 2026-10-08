@@ -51,8 +51,7 @@ internal abstract class MuzzlePlansValueSource :
       }
     }
     Logging.getLogger(MuzzlePlansValueSource::class.java).info(
-      "Muzzle planned ${plans.size} checks for ${requests.size} modules with " +
-        "${ages.values.sumOf { it.timestampLookupCount }} timestamp lookups in " +
+      "Muzzle planned ${plans.size} checks for ${requests.size} modules in " +
         "${(System.nanoTime() - startNanos) / 1_000_000}ms"
     )
     return plans

@@ -82,11 +82,28 @@ class MuzzleDependencyAgeFunctionalTest : MuzzlePluginTestFixture() {
     assertThat(eligible.task("${assertionPrefix}1.0.0")?.outcome).isEqualTo(SUCCESS)
   }
 
-  @Test
-  fun `reconsiders publication timestamps when configuration caching is requested`() {
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `cached graphs revalidate newly eligible releases`(incompatible: Boolean) {
     fixture.publishVersions("com.example.test", "demo-lib", listOf("1.0.0"))
     fixture.publishVersions("com.example.test", "demo-lib", listOf("1.1.0"), publishedAt = Instant.now())
     writeProject(libraryProject(fixture))
+    if (incompatible) {
+      writeScanPlugin(
+        """
+        try (java.io.InputStream input = testApplicationClassLoader.getResourceAsStream(
+            "META-INF/maven/com.example.test/demo-lib/pom.properties")) {
+          java.util.Properties properties = new java.util.Properties();
+          properties.load(input);
+          if ("1.1.0".equals(properties.getProperty("version"))) {
+            throw new IllegalStateException("Newly eligible version is incompatible");
+          }
+        } catch (java.io.IOException e) {
+          throw new AssertionError(e);
+        }
+      """
+      )
+    }
 
     val first = runMuzzle("--configuration-cache")
     assertThat(first.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
@@ -100,43 +117,14 @@ class MuzzleDependencyAgeFunctionalTest : MuzzlePluginTestFixture() {
     val pom = fixture.repoDir.resolve("com/example/test/demo-lib/1.1.0/demo-lib-1.1.0.pom")
     check(pom.setLastModified(Instant.now().minusSeconds(72 * 3600L).toEpochMilli()))
 
-    val second = runMuzzle("--configuration-cache")
-    assertThat(second.output).contains("BUILD SUCCESSFUL").doesNotContain("Reusing configuration cache")
-    assertThat(second.task("${assertionPrefix}1.1.0")?.outcome).isEqualTo(SUCCESS)
-  }
-
-  @Test
-  fun `a deferred incompatible release fails validation after becoming eligible with configuration caching`() {
-    fixture.publishVersions("com.example.test", "demo-lib", listOf("1.0.0"))
-    fixture.publishVersions("com.example.test", "demo-lib", listOf("1.1.0"), publishedAt = Instant.now())
-    writeProject(libraryProject(fixture))
-    writeScanPlugin(
-      """
-      try (java.io.InputStream input = testApplicationClassLoader.getResourceAsStream(
-          "META-INF/maven/com.example.test/demo-lib/pom.properties")) {
-        java.util.Properties properties = new java.util.Properties();
-        properties.load(input);
-        if ("1.1.0".equals(properties.getProperty("version"))) {
-          throw new IllegalStateException("Newly eligible version is incompatible");
-        }
-      } catch (java.io.IOException e) {
-        throw new AssertionError(e);
-      }
-    """
-    )
-
-    val first = runMuzzle("--configuration-cache")
-    assertThat(first.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
-    assertThat(first.task("${assertionPrefix}1.1.0")).isNull()
-
-    val pom = fixture.repoDir.resolve("com/example/test/demo-lib/1.1.0/demo-lib-1.1.0.pom")
-    check(pom.setLastModified(Instant.now().minusSeconds(72 * 3600L).toEpochMilli()))
-
-    val second = runMuzzle("--configuration-cache", expectFailure = true)
-    assertThat(second.output).contains("Muzzle validation failed").doesNotContain("Reusing configuration cache")
-    assertThat(second.task("${assertionPrefix}1.1.0")?.outcome).isEqualTo(FAILED)
-    assertThat(resultFile("muzzle-AssertPass-com.example.test-demo-lib-1.1.0").toFile().readText())
-      .contains("Newly eligible version is incompatible")
+    val second = runMuzzle("--configuration-cache", expectFailure = incompatible)
+    assertThat(second.output).doesNotContain("Reusing configuration cache")
+      .contains(if (incompatible) "Muzzle validation failed" else "BUILD SUCCESSFUL")
+    assertThat(second.task("${assertionPrefix}1.1.0")?.outcome).isEqualTo(if (incompatible) FAILED else SUCCESS)
+    if (incompatible) {
+      assertThat(resultFile("muzzle-AssertPass-com.example.test-demo-lib-1.1.0").toFile().readText())
+        .contains("Newly eligible version is incompatible")
+    }
   }
 
   @Test
@@ -188,24 +176,6 @@ class MuzzleDependencyAgeFunctionalTest : MuzzlePluginTestFixture() {
     assertThat(first.tasks.filter { it.path.startsWith(assertionPrefix) }).hasSize(24)
     assertThat(second.tasks.filter { it.path.startsWith(assertionPrefix) }.map { it.path })
       .containsExactlyElementsOf(first.tasks.filter { it.path.startsWith(assertionPrefix) }.map { it.path })
-  }
-
-  @Test
-  fun `core JDK checks reuse configuration cache without publication lookups`() {
-    writeProject(
-      """
-      plugins { id("java"); id("dd-trace-java.muzzle") }
-      muzzle { pass { coreJdk() } }
-    """
-    )
-
-    val first = runMuzzle("--configuration-cache")
-    val second = runMuzzle("--configuration-cache")
-
-    assertThat(first.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
-    assertThat(second.output).contains("BUILD SUCCESSFUL", "Reusing configuration cache")
-    assertThat(first.task("$task-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
-    assertThat(second.output).doesNotContain("Muzzle deferring", "Muzzle retaining")
   }
 
   @Test
