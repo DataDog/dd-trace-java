@@ -933,7 +933,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   public List<? extends AgentSpanLink> getLinks() {
-    return unmodifiableList(this.links);
+    return this.links.isEmpty() ? this.links : unmodifiableList(this.links);
   }
 
   @Override
@@ -974,7 +974,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   public List<DDSpanEvent> getEvents() {
-    return unmodifiableList(this.events);
+    return this.events.isEmpty() ? this.events : unmodifiableList(this.events);
   }
 
   @Override
