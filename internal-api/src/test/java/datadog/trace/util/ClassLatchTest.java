@@ -300,10 +300,61 @@ class ClassLatchTest {
     assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(name), String.class, "getClientInfo"));
     assertFalse(
         ClassLatch.isNamedIn(new AbstractMethodError(name + "."), String.class, "getClientInfo"));
+    // no message: String has no abstract getClientInfo, so the error is not attributed to it
     assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(), String.class, "getClientInfo"));
     assertFalse(
         ClassLatch.isNamedIn(
             new AbstractMethodError("something else"), String.class, "getClientInfo"));
+  }
+
+  /** Stands in for a class that never implemented an interface method it declares. */
+  abstract static class Unimplemented {
+    public abstract String m();
+
+    public String implemented() {
+      return "ok";
+    }
+  }
+
+  /** Stands in for a wrapper that implements the method by delegating it. */
+  static class Delegating extends Unimplemented {
+    @Override
+    public String m() {
+      return "delegated";
+    }
+  }
+
+  @Test
+  void attributesAnErrorWithoutAMessageByTheClassItself() {
+    // JDK 8 gives no message once the call site has seen a class that implements the method
+    AbstractMethodError noMessage = new AbstractMethodError();
+    assertTrue(ClassLatch.isNamedIn(noMessage, Unimplemented.class, "m"));
+    // the class implements this method, so an error from it must come from elsewhere
+    assertFalse(ClassLatch.isNamedIn(noMessage, Unimplemented.class, "implemented"));
+    // a delegating wrapper is not blamed for its delegate's error
+    assertFalse(ClassLatch.isNamedIn(noMessage, Delegating.class, "m"));
+    assertFalse(ClassLatch.isNamedIn(noMessage, Unimplemented.class, "missing"));
+  }
+
+  @Test
+  void latchIfNamedLatchesOnAnErrorWithoutAMessage() {
+    final boolean[] result = new boolean[1];
+    ClassLatch<Object, String, RuntimeException> latch =
+        new ClassLatch<Object, String, RuntimeException>() {
+          @Override
+          protected Class<?> keyOf(Object target) {
+            return Unimplemented.class;
+          }
+
+          @Override
+          protected String apply(Object target) {
+            result[0] = latchIfNamed(target, "m", new AbstractMethodError());
+            return "unnamed";
+          }
+        };
+    latch.tryApply("x");
+    assertTrue(result[0]);
+    assertTrue(latch.isLatched("x"));
   }
 
   @Test

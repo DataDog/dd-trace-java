@@ -3,6 +3,9 @@ package datadog.trace.util;
 import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.function.ThrowingFunction;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -143,10 +146,11 @@ public abstract class ClassLatch<T, R, E extends Exception> {
 
   /**
    * Latches the target's key if the error's message names that class as the receiver that lacks
-   * {@code methodName}. Returns whether it latched. An error that does not name the key, for
-   * example one thrown inside a wrapper's delegate, is left alone — and so is one that names the
-   * key but for a different method, for example one the guarded method's own implementation calls
-   * internally.
+   * {@code methodName}, or, when the JVM gave no message, if that class still has {@code
+   * methodName} as an abstract method. Returns whether it latched. An error that does not name the
+   * key, for example one thrown inside a wrapper's delegate, is left alone — and so is one that
+   * names the key but for a different method, for example one the guarded method's own
+   * implementation calls internally.
    */
   protected final boolean latchIfNamed(T target, String methodName, AbstractMethodError error) {
     if (isNamedIn(error, keyOf(target), methodName)) {
@@ -159,10 +163,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   /**
    * For a call to a method that some implementations may lack: returns {@link #fallback} if the
    * call raises {@link AbstractMethodError} or {@link UnsupportedOperationException}, latching the
-   * key first in the former case if, and only if, the error names it (see {@link #latchIfNamed}).
-   * An error that does not name the key still yields the fallback; it just is not latched. An
-   * unsupported operation names no class, so it is never latched, and is caught on every call.
-   * Anything else, checked exceptions included, propagates unchanged.
+   * key first in the former case if, and only if, the error is attributed to it (see {@link
+   * #latchIfNamed}). An error that is not attributed to the key still yields the fallback; it just
+   * is not latched. An unsupported operation names no class, so it is never latched, and is caught
+   * on every call. Anything else, checked exceptions included, propagates unchanged.
    *
    * <pre>{@code
    * protected Properties apply(Connection c) throws SQLException {
@@ -236,8 +240,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * classes ({@link AbstractMethodError}): both yield {@link #fallback}, as does {@link
    * UnsupportedOperationException}. This is {@link #handleAbstractMethod} and {@link
    * #handleNoSuchMethod} together, with the same latching rules: an {@link AbstractMethodError}
-   * latches only if its message names the key, and a {@link NoSuchMethodError} latches the target's
-   * key. The two are easy to confuse, so prefer this one unless you know which a call site can see.
+   * latches only if it is attributed to the key (see {@link #latchIfNamed}), and a {@link
+   * NoSuchMethodError} latches the target's key. The two are easy to confuse, so prefer this one
+   * unless you know which a call site can see.
    *
    * <pre>{@code
    * protected Properties apply(Connection c) throws SQLException {
@@ -258,6 +263,49 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
+   * Whether a public method named {@code methodName} is still abstract on {@code type}, as an
+   * interface method that a concrete class never implemented is. This attributes the error to the
+   * class just as a message naming it would: a wrapper that delegates the method has a concrete
+   * implementation, so an error raised by its delegate is not attributed to it. Overloads are not
+   * told apart. Each class is scanned once, whatever the answer, so a class that keeps failing
+   * without being latched does not repeat the reflection.
+   */
+  static boolean lacksImplementation(Class<?> type, String methodName) {
+    for (final String abstractMethod : ABSTRACT_METHOD_NAMES.get(type)) {
+      if (abstractMethod.equals(methodName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static final String[] NO_NAMES = new String[0];
+
+  /**
+   * Per class, the names of its public methods that are still abstract. Only computed for classes
+   * that failed without a message. The value is a JDK type, like {@link #latched}'s.
+   */
+  private static final ClassValue<String[]> ABSTRACT_METHOD_NAMES =
+      new ClassValue<String[]>() {
+        @Override
+        protected String[] computeValue(Class<?> type) {
+          try {
+            int count = 0;
+            final Method[] methods = type.getMethods();
+            final String[] names = new String[methods.length];
+            for (final Method method : methods) {
+              if (Modifier.isAbstract(method.getModifiers())) {
+                names[count++] = method.getName();
+              }
+            }
+            return count == 0 ? NO_NAMES : Arrays.copyOf(names, count);
+          } catch (final SecurityException ignored) {
+            return NO_NAMES; // cannot tell, so never latch
+          }
+        }
+      };
+
+  /**
    * Matches the receiver class named by HotSpot's message against a class. Two formats exist:
    *
    * <ul>
@@ -271,11 +319,15 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * method's implementation can call a different, unimplemented method on the very same receiver,
    * raising an error that names the key class but blames a method other than {@code methodName}, so
    * the method name is checked too. An unparseable message never matches.
+   *
+   * <p>JDK 8 omits the message once the call site has dispatched to a class that does implement the
+   * method, which in production is nearly always. Without a message the class itself is checked
+   * instead: see {@link #lacksImplementation}.
    */
   static boolean isNamedIn(AbstractMethodError e, Class<?> type, String methodName) {
     final String message = e.getMessage();
     if (message == null) {
-      return false;
+      return lacksImplementation(type, methodName);
     }
     final String name = type.getName();
     if (message.startsWith(RECEIVER_PREFIX)) {
