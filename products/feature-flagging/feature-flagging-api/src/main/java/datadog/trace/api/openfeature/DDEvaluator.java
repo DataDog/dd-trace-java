@@ -720,12 +720,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     if (split.features == null) {
       return;
     }
+    Set<String> seenKeys = null;
     for (final Object item : split.features) {
       if (!(item instanceof Feature)) {
         continue;
       }
       final Feature feature = (Feature) item;
       if (feature.key == null || feature.destinations == null) {
+        continue;
+      }
+      if (seenKeys == null) {
+        seenKeys = new HashSet<>();
+      }
+      if (!seenKeys.add(feature.key)) {
         continue;
       }
       for (final String destination : feature.destinations) {

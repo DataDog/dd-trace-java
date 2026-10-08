@@ -222,6 +222,28 @@ class ExposureHookTest {
   }
 
   @Test
+  void aRepeatedKeyKeepsTheFirstFeatureForEveryDestination() throws Exception {
+    start(
+        true,
+        configuration(
+            Boolean.TRUE,
+            Arrays.asList(
+                new Feature("holdout.key", "q4-global", singletonList("HOOK")),
+                new Feature("holdout.key", "q1-global", Arrays.asList("HOOK", "EXPOSURE")))));
+
+    final FlagEvaluationDetails<Integer> details = evaluate("user-1");
+
+    assertEquals(
+        Collections.singletonMap("holdout.key", "q4-global"), evaluations.get(0).getFeatures());
+    assertTrue(
+        DDEvaluator.featuresWithPrefix(
+                details.getFlagMetadata(), DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)
+            .isEmpty(),
+        "the repeated feature's EXPOSURE destination is ignored with it");
+    assertNull(sentToDatadog.get(0).features);
+  }
+
+  @Test
   void sendsExposuresWithoutFeaturesWhenTheAgentLacksThem() throws Exception {
     start(
         true,
