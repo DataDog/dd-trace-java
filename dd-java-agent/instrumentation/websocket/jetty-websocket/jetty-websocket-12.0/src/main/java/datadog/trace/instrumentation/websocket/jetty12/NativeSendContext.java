@@ -11,9 +11,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.core.Behavior;
 import org.eclipse.jetty.websocket.core.CoreSession;
@@ -23,7 +20,6 @@ public class NativeSendContext {
   private final AgentSpan handshakeSpan;
   private final String sessionId;
   private final boolean client;
-  private final Set<Message> pending = new HashSet<>();
   private Message partialMessage;
   private boolean closed;
 
@@ -53,7 +49,6 @@ public class NativeSendContext {
         return null;
       }
       message = new Message(handshakeSpan, sessionId);
-      pending.add(message);
     }
     AgentSpan span = DECORATE.startOutboundFrameSpan(message, type, size);
     message.pendingCallbacks++;
@@ -66,17 +61,16 @@ public class NativeSendContext {
 
   public synchronized void finish() {
     closed = true;
-    for (Iterator<Message> iterator = pending.iterator(); iterator.hasNext(); ) {
-      Message message = iterator.next();
-      // Close ends the message, but pending callbacks still determine the send outcome.
+    // Callbacks own completed messages; only the unfinished fragment sequence needs closing.
+    Message message = partialMessage;
+    partialMessage = null;
+    if (message != null) {
       message.complete = true;
       if (message.pendingCallbacks == 0) {
         message.finished = true;
         DECORATE.onFrameEnd(message);
-        iterator.remove();
       }
     }
-    partialMessage = null;
   }
 
   public static class Message extends HandlerContext.Sender {
@@ -121,9 +115,7 @@ public class NativeSendContext {
     }
 
     private void complete(Throwable failure) {
-      synchronized (context) {
-        onError(failure);
-      }
+      onError(failure);
       try (ContextScope ignored = activateSpan(span)) {
         try {
           if (delegate != null) {
@@ -134,9 +126,7 @@ public class NativeSendContext {
             }
           }
         } catch (Throwable t) {
-          synchronized (context) {
-            onError(t);
-          }
+          onError(t);
           throw t;
         }
       } finally {
@@ -148,10 +138,10 @@ public class NativeSendContext {
     }
 
     public void onMethodExit(ContextScope scope, Throwable failure) {
-      synchronized (context) {
-        try {
-          onError(failure);
-        } finally {
+      try {
+        onError(failure);
+      } finally {
+        synchronized (context) {
           if (scope != null) {
             scope.close();
           }
@@ -165,8 +155,11 @@ public class NativeSendContext {
     }
 
     private void onError(Throwable failure) {
+      if (failure == null) {
+        return;
+      }
       synchronized (context) {
-        if (failure != null && !message.finished) {
+        if (!message.finished) {
           DECORATE.onError(span, failure);
           message.complete = true;
           if (context.partialMessage == message) {
@@ -183,7 +176,6 @@ public class NativeSendContext {
         if (--message.pendingCallbacks == 0 && message.complete && !message.finished) {
           message.finished = true;
           DECORATE.onFrameEnd(message);
-          context.pending.remove(message);
         }
       }
     }

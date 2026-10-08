@@ -17,9 +17,6 @@ import java.io.Reader;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.core.Behavior;
@@ -186,7 +183,6 @@ public class NativeMethodHandleWrappers {
       BinaryMessage message = contexts.currentBinary;
       if (message == null) {
         message = new BinaryMessage(contexts.handshakeSpan, contexts.sessionId);
-        contexts.pendingBinary.add(message);
       }
       message.pendingCallbacks++;
       message.complete = last;
@@ -212,7 +208,6 @@ public class NativeMethodHandleWrappers {
     private final String sessionId;
     private HandlerContext.Receiver text;
     private BinaryMessage currentBinary;
-    private final Set<BinaryMessage> pendingBinary = new HashSet<>();
 
     public ReceiveContexts(AgentSpan span, CoreSession session) {
       if (Config.get().isWebsocketMessagesInheritSampling()) {
@@ -235,16 +230,15 @@ public class NativeMethodHandleWrappers {
           DECORATE.onFrameEnd(text);
         }
       }
-      for (Iterator<BinaryMessage> iterator = pendingBinary.iterator(); iterator.hasNext(); ) {
-        BinaryMessage message = iterator.next();
-        // Close ends the message, but pending callbacks still determine the receive outcome.
+      // Callbacks own completed messages; only the unfinished fragment sequence needs closing.
+      BinaryMessage message = currentBinary;
+      currentBinary = null;
+      if (message != null) {
         message.complete = true;
         if (message.pendingCallbacks == 0) {
           DECORATE.onFrameEnd(message);
-          iterator.remove();
         }
       }
-      currentBinary = null;
     }
   }
 
@@ -313,7 +307,6 @@ public class NativeMethodHandleWrappers {
         released = true;
         if (--message.pendingCallbacks == 0 && message.complete) {
           DECORATE.onFrameEnd(message);
-          contexts.pendingBinary.remove(message);
         }
       }
     }
