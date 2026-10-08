@@ -17,6 +17,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.regex.Pattern.compile;
 import static java.util.regex.Pattern.quote;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -50,6 +51,88 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class NativeWebSocketSendTest extends AbstractInstrumentationTest {
+  @TableTest({
+    "scenario                           | behavior | binary | partial | parent",
+    "client text without parent         | CLIENT   | false  | false   | false ",
+    "client binary without parent       | CLIENT   | true   | false   | false ",
+    "client partial text without parent | CLIENT   | false  | true    | false ",
+    "client partial binary no parent    | CLIENT   | true   | true    | false ",
+    "client text with parent            | CLIENT   | false  | false   | true  ",
+    "client binary with parent          | CLIENT   | true   | false   | true  ",
+    "client partial text with parent    | CLIENT   | false  | true    | true  ",
+    "client partial binary with parent  | CLIENT   | true   | true    | true  ",
+    "server text without parent         | SERVER   | false  | false   | false ",
+    "server binary without parent       | SERVER   | true   | false   | false ",
+    "server partial text without parent | SERVER   | false  | true    | false ",
+    "server partial binary no parent    | SERVER   | true   | true    | false "
+  })
+  void clientSendsRequireActiveParent(
+      Behavior behavior, boolean binary, boolean partial, boolean parent) throws Exception {
+    Connection connection = new Connection(true, behavior);
+    RecordingCallback callback = new RecordingCallback();
+    if (parent) {
+      runUnderTrace(
+          "application",
+          () -> {
+            AgentSpan application = activeSpan();
+            connection.send(binary, partial, "hello", true, callback);
+            assertSame(application, activeSpan());
+            return null;
+          });
+    } else {
+      connection.send(binary, partial, "hello", true, callback);
+    }
+    connection.callbacks.get(0).succeeded();
+    callback.get(5, SECONDS);
+    assertNull(activeSpan());
+    AgentSpan sent = connection.spans.get(0);
+    assertSame(sent, callback.span);
+    if (behavior == Behavior.CLIENT && !parent) {
+      assertNull(sent, "Client sends without an active parent must not start a trace");
+      assertTraces(trace(handshakeSpan()));
+    } else if (parent) {
+      assertNotNull(sent);
+      assertTraces(
+          trace(handshakeSpan()),
+          trace(
+              SORT_BY_START_TIME,
+              span().operationName("application").root(),
+              sendSpan(connection, binary, 5, 1).childOfPrevious()));
+    } else {
+      assertNotNull(sent);
+      assertTraces(trace(handshakeSpan()), trace(sendSpan(connection, binary, 5, 1).root()));
+    }
+  }
+
+  @TableTest({
+    "scenario | binary",
+    "text     | false ",
+    "binary   | true  "
+  })
+  void clientPartialSendKeepsParentUntilLastFragment(boolean binary) throws Exception {
+    Connection connection = new Connection(true, Behavior.CLIENT);
+    runUnderTrace(
+        "application",
+        () -> {
+          connection.send(binary, true, "hello ", false, null);
+          return null;
+        });
+    assertNull(activeSpan());
+    connection.send(binary, true, "world", true, null);
+    connection.callbacks.get(1).succeeded();
+    connection.callbacks.get(0).succeeded();
+
+    assertNotNull(connection.spans.get(0));
+    assertSame(connection.spans.get(0), connection.spans.get(1));
+    assertNull(activeSpan());
+    assertTraces(
+        trace(handshakeSpan()),
+        trace(
+            SORT_BY_START_TIME,
+            span().operationName("application").root(),
+            sendSpan(connection, binary, 11, 2).childOfPrevious()));
+  }
+
   @TableTest({
     "scenario       | binary | partial | synchronous",
     "text async     | false  | false   | false      ",
@@ -377,11 +460,17 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     final IllegalStateException failure = new IllegalStateException("send failed");
     final JettyWebSocketFrameHandler handler;
     final Session session;
+    final Behavior behavior;
     DDSpan handshake;
     boolean synchronous;
     String failureMode = "";
 
     Connection(boolean traced) throws Exception {
+      this(traced, Behavior.SERVER);
+    }
+
+    Connection(boolean traced, Behavior behavior) throws Exception {
+      this.behavior = behavior;
       ServerFrameHandlerFactory factory =
           new ServerFrameHandlerFactory(mock(WebSocketContainer.class), new WebSocketComponents());
       handler = factory.newJettyFrameHandler(new Session.Listener.AutoDemanding() {});
@@ -408,7 +497,7 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
 
     @Override
     public Behavior getBehavior() {
-      return Behavior.SERVER;
+      return behavior;
     }
 
     @Override

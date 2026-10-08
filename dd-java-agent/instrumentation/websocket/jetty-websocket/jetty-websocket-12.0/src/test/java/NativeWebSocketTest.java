@@ -3,6 +3,7 @@ import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.error;
 import static datadog.trace.agent.test.assertions.TagsMatcher.includes;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
+import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace;
 import static datadog.trace.api.DDTags.DECISION_MAKER_INHERITED;
@@ -71,18 +72,26 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   private static final String URL = "ws://inmemory/test/param";
 
   @TableTest({
-    "scenario                  | msgType | fragmented | fail ",
-    "reader                    | text    | false      | false",
-    "input stream              | binary  | false      | false",
-    "fragmented reader         | text    | true       | false",
-    "fragmented input stream   | binary  | true       | false",
-    "reader failure            | text    | false      | true ",
-    "input stream failure      | binary  | false      | true ",
-    "fragmented reader failure | text    | true       | true ",
-    "fragmented stream failure | binary  | true       | true "
+    "scenario                         | behavior | msgType | fragmented | fail ",
+    "reader                           | SERVER   | text    | false      | false",
+    "input stream                     | SERVER   | binary  | false      | false",
+    "fragmented reader                | SERVER   | text    | true       | false",
+    "fragmented input stream          | SERVER   | binary  | true       | false",
+    "reader failure                   | SERVER   | text    | false      | true ",
+    "input stream failure             | SERVER   | binary  | false      | true ",
+    "fragmented reader failure        | SERVER   | text    | true       | true ",
+    "fragmented stream failure        | SERVER   | binary  | true       | true ",
+    "client reader                    | CLIENT   | text    | false      | false",
+    "client input stream              | CLIENT   | binary  | false      | false",
+    "client fragmented reader         | CLIENT   | text    | true       | false",
+    "client fragmented input stream   | CLIENT   | binary  | true       | false",
+    "client reader failure            | CLIENT   | text    | false      | true ",
+    "client input stream failure      | CLIENT   | binary  | false      | true ",
+    "client fragmented reader failure | CLIENT   | text    | true       | true ",
+    "client fragmented stream failure | CLIENT   | binary  | true       | true "
   })
-  void streamingMessagesHaveReceiveSpan(String msgType, boolean fragmented, boolean fail)
-      throws Exception {
+  void streamingMessagesHaveReceiveSpan(
+      Behavior behavior, String msgType, boolean fragmented, boolean fail) throws Exception {
     ExecutorService executor = newSingleThreadExecutor();
     try {
       WebSocketComponents components =
@@ -90,7 +99,7 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
       NativeEndpoints.StreamingEndpoint endpoint = new NativeEndpoints.StreamingEndpoint();
       endpoint.failMessages = fail;
       JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
-      openFrameHandler(frameHandler, Behavior.SERVER, true, components);
+      openFrameHandler(frameHandler, behavior, true, components);
 
       if (fragmented) {
         deliver(frameHandler, new Frame(opcode(msgType), "hello ").setFin(false));
@@ -162,24 +171,29 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario             | endpoint     | msgType",
-    "partial text         | partial      | text   ",
-    "partial binary       | partial      | binary ",
-    "POJO partial text    | pojoPartial  | text   ",
-    "POJO partial binary  | pojoPartial  | binary ",
-    "boxed partial text   | boxedPartial | text   ",
-    "boxed partial binary | boxedPartial | binary "
+    "scenario                   | behavior | endpoint     | msgType",
+    "partial text               | SERVER   | partial      | text   ",
+    "partial binary             | SERVER   | partial      | binary ",
+    "POJO partial text          | SERVER   | pojoPartial  | text   ",
+    "POJO partial binary        | SERVER   | pojoPartial  | binary ",
+    "boxed partial text         | SERVER   | boxedPartial | text   ",
+    "boxed partial binary       | SERVER   | boxedPartial | binary ",
+    "client partial text        | CLIENT   | partial      | text   ",
+    "client partial binary      | CLIENT   | partial      | binary ",
+    "client POJO partial text   | CLIENT   | pojoPartial  | text   ",
+    "client POJO partial binary | CLIENT   | pojoPartial  | binary "
   })
-  void fragmentedMessagesShareSpan(NativeEndpoints.EndpointEvents endpoint, String msgType)
-      throws Exception {
+  void fragmentedMessagesShareSpan(
+      Behavior behavior, NativeEndpoints.EndpointEvents endpoint, String msgType) throws Exception {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
-    openFrameHandler(frameHandler);
+    openFrameHandler(frameHandler, behavior, true);
     byte opcode = opcode(msgType);
 
     deliver(frameHandler, new Frame(opcode, "hello ").setFin(false));
 
     assertNull(activeSpan());
     assertEquals(singletonList("hello "), endpoint.messages);
+    assertNotNull(endpoint.messageSpans.get(0));
     assertEquals(1, writer.size());
 
     deliver(frameHandler, new Frame(OpCode.CONTINUATION, "world"));
@@ -198,14 +212,21 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario     | endpoint | msgType | last  | operation        ",
-    "full text    | full     | text    | true  | websocket.receive",
-    "full binary  | full     | binary  | true  | websocket.receive",
-    "partial text | partial  | text    | false | websocket.receive",
-    "POJO close   | pojoFull |         | true  | websocket.close  "
+    "scenario            | behavior | endpoint | msgType | last  | operation        ",
+    "full text           | SERVER   | full     | text    | true  | websocket.receive",
+    "full binary         | SERVER   | full     | binary  | true  | websocket.receive",
+    "partial text        | SERVER   | partial  | text    | false | websocket.receive",
+    "POJO close          | SERVER   | pojoFull |         | true  | websocket.close  ",
+    "client full text    | CLIENT   | full     | text    | true  | websocket.receive",
+    "client full binary  | CLIENT   | full     | binary  | true  | websocket.receive",
+    "client partial text | CLIENT   | partial  | text    | false | websocket.receive"
   })
   void handlerFailureMarksSpanAndClosesScope(
-      NativeEndpoints.EndpointEvents endpoint, String msgType, boolean last, String operation)
+      Behavior behavior,
+      NativeEndpoints.EndpointEvents endpoint,
+      String msgType,
+      boolean last,
+      String operation)
       throws Exception {
     endpoint.failClose = msgType == null;
     endpoint.failMessages = msgType != null;
@@ -214,13 +235,16 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
             ? CloseStatus.toFrame(CloseStatus.NORMAL, "bye")
             : new Frame(opcode(msgType), "hello").setFin(last);
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
-    openFrameHandler(frameHandler);
+    openFrameHandler(frameHandler, behavior, true);
 
     ExecutionException error =
         assertThrows(ExecutionException.class, () -> deliver(frameHandler, frame));
 
     assertNotNull(error.getCause());
     assertNull(activeSpan());
+    if (msgType != null) {
+      assertNotNull(endpoint.messageSpans.get(0));
+    }
     assertTraces(
         trace(handshakeSpan()),
         trace(
@@ -236,15 +260,15 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario        | behavior | traced",
-    "untraced server | SERVER   | false ",
-    "traced client   | CLIENT   | true  "
+    "scenario        | behavior",
+    "untraced server | SERVER  ",
+    "untraced client | CLIENT  "
   })
-  void doesNotTraceNativeMessages(Behavior behavior, boolean traced) throws Exception {
+  void doesNotTraceNativeMessagesWithoutHandshake(Behavior behavior) throws Exception {
     NativeEndpoints.FullListener endpoint = new NativeEndpoints.FullListener();
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
 
-    openFrameHandler(frameHandler, behavior, traced);
+    openFrameHandler(frameHandler, behavior, false);
     deliver(frameHandler, new Frame(OpCode.TEXT, "hello"));
     deliver(frameHandler, CloseStatus.toFrame(CloseStatus.NORMAL, "bye"));
 
@@ -252,11 +276,7 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertEquals(singletonList(null), endpoint.messageSpans);
     assertEquals(1000, endpoint.closeCode);
     assertNull(activeSpan());
-    if (traced) {
-      assertTraces(trace(handshakeSpan()));
-    } else {
-      assertTraces();
-    }
+    assertTraces();
   }
 
   @TableTest({
@@ -286,16 +306,19 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario | fail ",
-    "success  | false",
-    "failure  | true "
+    "scenario       | behavior | fail ",
+    "success        | SERVER   | false",
+    "failure        | SERVER   | true ",
+    "client success | CLIENT   | false",
+    "client failure | CLIENT   | true "
   })
-  void deferredBinaryCallbackCompletesReceiveSpan(boolean fail) throws Exception {
+  void deferredBinaryCallbackCompletesReceiveSpan(Behavior behavior, boolean fail)
+      throws Exception {
     NativeEndpoints.FullListener endpoint = new NativeEndpoints.FullListener();
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     Callback.Completable callback = new Callback.Completable();
-    openFrameHandler(frameHandler);
+    openFrameHandler(frameHandler, behavior, true);
 
     frameHandler.onFrame(new Frame(OpCode.BINARY, "hello"), callback);
 
@@ -318,9 +341,47 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
 
     assertTrue(callback.isDone());
     assertEquals(fail, callback.isCompletedExceptionally());
+    assertNotNull(endpoint.messageSpans.get(0));
     writer.waitForTraces(2);
     assertEquals(fail, endpoint.messageSpans.get(0).isError());
     assertNull(activeSpan());
+  }
+
+  @TableTest({
+    "scenario           | endpoint | msgType",
+    "client text        | full     | text   ",
+    "client binary      | full     | binary ",
+    "client POJO text   | pojoFull | text   ",
+    "client POJO binary | pojoFull | binary "
+  })
+  void clientReceivesLinkToHandshakeInsteadOfApplicationRoot(
+      NativeEndpoints.EndpointEvents endpoint, String msgType) throws Exception {
+    JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
+    runUnderTrace(
+        "application",
+        () -> {
+          openFrameHandler(frameHandler, Behavior.CLIENT, true);
+          return null;
+        });
+    assertNull(activeSpan());
+
+    deliver(frameHandler, new Frame(opcode(msgType), "hello"));
+
+    assertEquals(singletonList("hello"), endpoint.messages);
+    assertNotNull(endpoint.messageSpans.get(0));
+    assertNull(activeSpan());
+    writer.waitForTraces(2);
+    DDSpan handshake =
+        writer.get(0).stream()
+            .filter(s -> "parent".contentEquals(s.getOperationName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing handshake span"));
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().operationName("application").root(),
+            span().operationName("parent").childOfPrevious()),
+        trace(receiveSpan(handshake, msgType, 5, 1)));
   }
 
   @TableTest({
