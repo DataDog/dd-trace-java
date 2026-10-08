@@ -5,6 +5,7 @@ import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
+import kotlin.random.Random
 
 /**
  * Default [MuzzleResolutionService] implementation backed by Maven/Aether resolution.
@@ -12,12 +13,13 @@ import org.eclipse.aether.artifact.Artifact
 internal class MavenMuzzleResolutionService(
   private val system: RepositorySystem,
   private val session: RepositorySystemSession,
+  private val random: Random = Random.Default,
 ) : MuzzleResolutionService {
   override fun resolveArtifacts(directive: MuzzleDirective): Set<Artifact> {
     val range = MuzzleMavenRepoUtils.resolveVersionRange(directive, system, session)
-    return MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, range)
+    return MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, range, random)
   }
 
   override fun inverseOf(directive: MuzzleDirective): Set<MuzzleDirective> =
-    MuzzleMavenRepoUtils.inverseOf(directive, system, session)
+    MuzzleMavenRepoUtils.inverseOf(directive, system, session, random = random)
 }

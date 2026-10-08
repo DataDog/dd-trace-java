@@ -2,6 +2,7 @@ package datadog.gradle.plugin.muzzle.tasks
 
 import datadog.gradle.plugin.muzzle.pathSlug
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
@@ -11,11 +12,23 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.StringWriter
+import javax.inject.Inject
 import javax.xml.stream.XMLOutputFactory
 
 abstract class MuzzleEndTask : AbstractMuzzleTask() {
+  @get:Inject
+  abstract val invocationDetails: BuildInvocationDetails
+
   @get:Input
-  abstract val startTimeMs: Property<Long>
+  val startTimeMs: Property<Long> = project.objects.property(Long::class.java).convention(
+    project.providers.provider { invocationDetails.buildStartedTime }
+  )
+
+  @get:Input
+  val modulePath: String = project.path
+
+  @get:Input
+  val reportClassName: String = "muzzle.${project.pathSlug}"
 
   @get:Input
   abstract val sourceFile: Property<String>
@@ -39,8 +52,8 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   @TaskAction
   fun generatesResultFile() {
     val report = buildJUnitReport()
-    writeReportFile(project.file(resultsFile), renderReportXml(report), "muzzle junit")
-    writeReportFile(project.file(legacyResultsFile), renderLegacyReportXml(report.durationSeconds), "muzzle legacy")
+    writeReportFile(resultsFile.get().asFile, renderReportXml(report), "muzzle junit")
+    writeReportFile(legacyResultsFile.get().asFile, renderLegacyReportXml(report.durationSeconds), "muzzle legacy")
   }
 
   private fun buildJUnitReport(): MuzzleJUnitReport {
@@ -70,10 +83,10 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
       }
     }
     return MuzzleJUnitReport(
-      suiteName = project.path,
-      module = project.path,
+      suiteName = modulePath,
+      module = modulePath,
       sourceFile = sourceFile.get(),
-      className = "muzzle.${project.pathSlug}",
+      className = reportClassName,
       durationSeconds = seconds,
       testCases = testCases
     )
@@ -138,7 +151,7 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   private fun writeReportFile(file: File, xml: String, label: String) {
     file.parentFile.mkdirs()
     file.writeText(xml)
-    project.logger.info("Wrote $label report to\n  $file")
+    logger.info("Wrote $label report to\n  $file")
   }
 
   private fun renderLegacyReportXml(durationSeconds: Double): String {
