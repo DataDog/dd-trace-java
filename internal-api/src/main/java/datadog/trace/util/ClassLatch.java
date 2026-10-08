@@ -299,8 +299,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
               }
             }
             return count == 0 ? NO_NAMES : Arrays.copyOf(names, count);
-          } catch (final SecurityException ignored) {
-            return NO_NAMES; // cannot tell, so never latch
+          } catch (final SecurityException | LinkageError ignored) {
+            // cannot tell, so never latch: getMethods() resolves every public signature, and one
+            // that references a class missing from the class path raises NoClassDefFoundError
+            return NO_NAMES;
           }
         }
       };
