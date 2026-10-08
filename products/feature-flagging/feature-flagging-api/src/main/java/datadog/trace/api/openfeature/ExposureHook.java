@@ -7,8 +7,6 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -106,24 +104,8 @@ public final class ExposureHook implements Hook<Object> {
      * none.
      */
     public Map<String, Object> getFeatures() {
-      final ImmutableMetadata metadata = details.getFlagMetadata();
-      if (metadata == null) {
-        return Collections.emptyMap();
-      }
-      Map<String, Object> features = null;
-      for (final Map.Entry<String, Object> entry : metadata.asUnmodifiableMap().entrySet()) {
-        if (entry.getKey().startsWith(DDEvaluator.METADATA_FEATURE_PREFIX)) {
-          if (features == null) {
-            features = new HashMap<>();
-          }
-          features.put(
-              entry.getKey().substring(DDEvaluator.METADATA_FEATURE_PREFIX.length()),
-              entry.getValue());
-        }
-      }
-      return features == null
-          ? Collections.<String, Object>emptyMap()
-          : Collections.unmodifiableMap(features);
+      return DDEvaluator.featuresWithPrefix(
+          details.getFlagMetadata(), DDEvaluator.METADATA_FEATURE_PREFIX);
     }
   }
 }

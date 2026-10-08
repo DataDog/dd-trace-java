@@ -1,6 +1,7 @@
 package com.datadog.featureflag;
 
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -218,7 +219,7 @@ class FlagEvaluationAggregatorTest {
   void evalBucketTracksBoundsDefaultStateAndNullContextFieldCount() {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false);
+            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false, null);
 
     assertEquals(0, bucket.prunedContextFieldCount());
 
@@ -410,7 +411,8 @@ class FlagEvaluationAggregatorTest {
         errorMessage,
         targetingKey,
         contextKey,
-        false);
+        false,
+        "");
   }
 
   private static FlagEvaluationAggregator.DegradedKey degradedKey(
@@ -420,6 +422,51 @@ class FlagEvaluationAggregatorTest {
       final boolean runtimeDefaultUsed,
       final String errorMessage) {
     return new FlagEvaluationAggregator.DegradedKey(
-        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
+        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage, "");
+  }
+
+  @Test
+  void featuresSplitBucketsInBothTiersWhateverTheConsent() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    final Map<String, Object> p1 = singletonMap("bandit.policy_id", "p1");
+    final Map<String, Object> p2 = singletonMap("bandit.policy_id", "p2");
+
+    aggregator.aggregate(featureEvent("user-1", 1000L, false, p1));
+    aggregator.aggregate(featureEvent("user-1", 2000L, false, p2));
+    aggregator.aggregate(featureEvent("user-1", 3000L, false, p1));
+
+    final FlagEvaluationAggregator.AggregatedState full = aggregator.snapshot();
+    assertEquals(2, full.fullTier.size());
+    for (final FlagEvaluationAggregator.EvalBucket bucket : full.fullTier.values()) {
+      assertEquals(p1.equals(bucket.features) ? 2 : 1, bucket.count);
+    }
+
+    aggregator.simulateFullTierAtCap();
+    aggregator.aggregate(featureEvent("user-2", 4000L, false, p1));
+    aggregator.aggregate(featureEvent("user-3", 5000L, false, p2));
+    aggregator.aggregate(featureEvent("user-4", 6000L, false, p1));
+
+    final FlagEvaluationAggregator.AggregatedState degraded = aggregator.snapshot();
+    assertEquals(2, degraded.degradedTier.size());
+    for (final FlagEvaluationAggregator.EvalBucket bucket : degraded.degradedTier.values()) {
+      assertEquals(p1.equals(bucket.features) ? 2 : 1, bucket.count);
+    }
+  }
+
+  private static FlagEvalEvent featureEvent(
+      final String targetingKey,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> features) {
+    return new FlagEvalEvent(
+        "feature-flag",
+        "on",
+        "alloc1",
+        targetingKey,
+        null,
+        evalTimeMs,
+        observeFullEvaluationData,
+        emptyMap(),
+        features);
   }
 }

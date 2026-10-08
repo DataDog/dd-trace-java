@@ -5,6 +5,7 @@ import static java.util.Arrays.asList;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -67,6 +68,52 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   static final AtomicBoolean SPLIT_FEATURES_SUPPORTED =
       new AtomicBoolean(splitFeaturesSupported(Split.class));
+
+  static final AtomicBoolean EXPOSURE_FEATURES_SUPPORTED =
+      new AtomicBoolean(exposureFeaturesSupported(ExposureEvent.class));
+
+  static final AtomicBoolean FLAG_EVAL_FEATURES_SUPPORTED =
+      new AtomicBoolean(flagEvalFeaturesSupported(FlagEvalEvent.class));
+
+  /** An older agent's exposure event has no features; its exposures are then sent without them. */
+  static boolean exposureFeaturesSupported(final Class<?> eventClass) {
+    try {
+      eventClass.getConstructor(
+          long.class,
+          datadog.trace.api.featureflag.exposure.Allocation.class,
+          datadog.trace.api.featureflag.exposure.Flag.class,
+          datadog.trace.api.featureflag.exposure.Variant.class,
+          Subject.class,
+          Integer.class,
+          Map.class);
+      return true;
+    } catch (final NoSuchMethodException | LinkageError | RuntimeException e) {
+      log.debug("The installed Datadog Java agent does not send features on exposures", e);
+      return false;
+    }
+  }
+
+  /**
+   * An older agent's flag-evaluation event has no features; its rows are then sent without them.
+   */
+  static boolean flagEvalFeaturesSupported(final Class<?> eventClass) {
+    try {
+      eventClass.getConstructor(
+          String.class,
+          String.class,
+          String.class,
+          String.class,
+          String.class,
+          long.class,
+          boolean.class,
+          Map.class,
+          Map.class);
+      return true;
+    } catch (final NoSuchMethodException | LinkageError | RuntimeException e) {
+      log.debug("The installed Datadog Java agent does not send features on flag evaluations", e);
+      return false;
+    }
+  }
 
   /** An older agent ships a Split without features; its evaluations then carry no features. */
   static boolean splitFeaturesSupported(final Class<?> splitClass) {
@@ -164,12 +211,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // Emitted only when the allocation logs exposures: true when this subject's exposure was already
   // sent, so the exposure hook does not send it again.
   static final String METADATA_EXPOSURE_CACHE_HIT = "__dd_exposure_cache_hit";
-  // Each feature of the selected split is copied to the metadata under this prefix.
+  // Each feature of the selected split is copied to the metadata once for each destination it
+  // lists, under that destination's prefix. Only the HOOK prefix is a public contract; the other
+  // two
+  // carry features to Datadog's own exposure and flag-evaluation hooks.
   static final String METADATA_FEATURE_PREFIX = "__dd_feature.";
+  static final String METADATA_EXPOSURE_FEATURE_PREFIX = "__dd_exposure_feature.";
+  static final String METADATA_EVALUATION_FEATURE_PREFIX = "__dd_evaluation_feature.";
 
   static final String FEATURE_DESTINATION_HOOK = "HOOK";
-  private static final Set<String> KNOWN_FEATURE_DESTINATIONS =
-      new HashSet<>(asList(FEATURE_DESTINATION_HOOK, "EXPOSURE", "EVALUATION"));
+  static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
+  static final String FEATURE_DESTINATION_EVALUATION = "EVALUATION";
   // A newer UFC can name destinations this SDK does not know; warn once per name, not per
   // evaluation.
   static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
@@ -673,34 +725,67 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         continue;
       }
       final Feature feature = (Feature) item;
-      if (feature.key == null || !deliversToHook(feature)) {
+      if (feature.key == null || feature.destinations == null) {
         continue;
       }
-      final String key = METADATA_FEATURE_PREFIX + feature.key;
-      if (feature.value instanceof String) {
-        metadataBuilder.addString(key, (String) feature.value);
-      } else if (feature.value instanceof Boolean) {
-        metadataBuilder.addBoolean(key, (Boolean) feature.value);
-      } else if (feature.value instanceof Number) {
-        metadataBuilder.addDouble(key, ((Number) feature.value).doubleValue());
+      for (final String destination : feature.destinations) {
+        final String prefix = metadataPrefix(destination);
+        if (prefix != null) {
+          addFeature(metadataBuilder, prefix + feature.key, feature.value);
+        } else if (WARNED_FEATURE_DESTINATIONS.add(destination)) {
+          log.warn("Ignoring unknown feature destination {}", destination);
+        }
       }
     }
   }
 
-  private static boolean deliversToHook(final Feature feature) {
-    if (feature.destinations == null) {
-      return false;
+  private static String metadataPrefix(final String destination) {
+    if (FEATURE_DESTINATION_HOOK.equals(destination)) {
+      return METADATA_FEATURE_PREFIX;
     }
-    boolean hook = false;
-    for (final String destination : feature.destinations) {
-      if (FEATURE_DESTINATION_HOOK.equals(destination)) {
-        hook = true;
-      } else if (!KNOWN_FEATURE_DESTINATIONS.contains(destination)
-          && WARNED_FEATURE_DESTINATIONS.add(destination)) {
-        log.warn("Ignoring unknown feature destination {}", destination);
+    if (FEATURE_DESTINATION_EXPOSURE.equals(destination)) {
+      return METADATA_EXPOSURE_FEATURE_PREFIX;
+    }
+    if (FEATURE_DESTINATION_EVALUATION.equals(destination)) {
+      return METADATA_EVALUATION_FEATURE_PREFIX;
+    }
+    return null;
+  }
+
+  private static void addFeature(
+      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder,
+      final String key,
+      final Object value) {
+    if (value instanceof String) {
+      metadataBuilder.addString(key, (String) value);
+    } else if (value instanceof Boolean) {
+      metadataBuilder.addBoolean(key, (Boolean) value);
+    } else if (value instanceof Number) {
+      metadataBuilder.addDouble(key, ((Number) value).doubleValue());
+    }
+  }
+
+  /**
+   * The features stored in the metadata under {@code prefix}, keyed without the prefix. Empty when
+   * there are none; allocates nothing in that case.
+   */
+  static Map<String, Object> featuresWithPrefix(
+      final ImmutableMetadata metadata, final String prefix) {
+    if (metadata == null) {
+      return Collections.emptyMap();
+    }
+    Map<String, Object> features = null;
+    for (final Map.Entry<String, Object> entry : metadata.asUnmodifiableMap().entrySet()) {
+      if (entry.getKey().startsWith(prefix)) {
+        if (features == null) {
+          features = new HashMap<>();
+        }
+        features.put(entry.getKey().substring(prefix.length()), entry.getValue());
       }
     }
-    return hook;
+    return features == null
+        ? Collections.<String, Object>emptyMap()
+        : Collections.unmodifiableMap(features);
   }
 
   /** The serial id an exposure carries: none when the agent's exposure event predates it. */
@@ -780,7 +865,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String allocationKey,
       final String variantKey,
       final EvaluationContext context,
-      final Integer serialId) {
+      final Integer serialId,
+      final Map<String, Object> features) {
     final long timestamp = System.currentTimeMillis();
     // Exposure types share names with the imported UFC Allocation, Flag, and Variant types.
     final datadog.trace.api.featureflag.exposure.Allocation allocation =
@@ -791,9 +877,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         new datadog.trace.api.featureflag.exposure.Variant(variantKey);
     final Subject subject = new Subject(context.getTargetingKey(), flattenContext(context));
 
-    return USE_LEGACY_EXPOSURE_API.get()
-        ? new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject)
-        : new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject, serialId);
+    if (USE_LEGACY_EXPOSURE_API.get()) {
+      return new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject);
+    }
+    if (features.isEmpty() || !EXPOSURE_FEATURES_SUPPORTED.get()) {
+      return new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject, serialId);
+    }
+    return new ExposureEvent(
+        timestamp, allocation, exposureFlag, variant, subject, serialId, features);
   }
 
   static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {

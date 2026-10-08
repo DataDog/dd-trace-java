@@ -59,7 +59,14 @@ class ExposureLoggingHook<T> implements Hook<T> {
       cache.record(flag, context.getTargetingKey(), allocationKey, variantKey, serialId);
       if (sendToDatadog) {
         FeatureFlaggingGateway.dispatch(
-            DDEvaluator.exposureEvent(flag, allocationKey, variantKey, context, serialId));
+            DDEvaluator.exposureEvent(
+                flag,
+                allocationKey,
+                variantKey,
+                context,
+                serialId,
+                DDEvaluator.featuresWithPrefix(
+                    metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)));
       }
     } catch (LinkageError e) {
       // Never let exposure reporting break flag evaluation.

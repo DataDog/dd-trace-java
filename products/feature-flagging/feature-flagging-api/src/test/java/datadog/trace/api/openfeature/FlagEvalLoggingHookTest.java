@@ -144,6 +144,60 @@ class FlagEvalLoggingHookTest {
     assertEquals("alloc-1", e.allocationKey);
   }
 
+  @Test
+  void finallyAfterAddsEvaluationFeaturesWhateverTheConsent() {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    hook.finallyAfter(
+        null,
+        details(
+            "my-flag",
+            "on-value",
+            "on",
+            Reason.TARGETING_MATCH.name(),
+            ImmutableMetadata.builder()
+                .addString("allocationKey", "alloc-1")
+                .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
+                .addString(
+                    DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX + "bandit.policy_id", "p2")
+                .addString(DDEvaluator.METADATA_FEATURE_PREFIX + "holdout.key", "q4-global")
+                .addString(DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX + "bandit.arm", "a")
+                .build()),
+        Collections.emptyMap());
+
+    assertEquals(
+        Collections.singletonMap("bandit.policy_id", "p2"),
+        captured.get().features,
+        "only EVALUATION features reach the event, also without consent");
+  }
+
+  @Test
+  void finallyAfterSendsNoFeaturesWhenTheAgentLacksThem() {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+    DDEvaluator.FLAG_EVAL_FEATURES_SUPPORTED.set(false);
+    try {
+      hook.finallyAfter(
+          null,
+          details(
+              "my-flag",
+              "on-value",
+              "on",
+              Reason.TARGETING_MATCH.name(),
+              ImmutableMetadata.builder()
+                  .addString("allocationKey", "alloc-1")
+                  .addString(
+                      DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX + "bandit.policy_id", "p2")
+                  .build()),
+          Collections.emptyMap());
+    } finally {
+      DDEvaluator.FLAG_EVAL_FEATURES_SUPPORTED.set(true);
+    }
+
+    assertTrue(captured.get().features.isEmpty());
+  }
+
   // ---- variant comes from details.getVariant(), NOT details.getValue() ----
 
   @Test

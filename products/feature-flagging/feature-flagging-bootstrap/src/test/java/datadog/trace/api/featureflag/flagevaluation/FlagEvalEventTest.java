@@ -51,4 +51,19 @@ class FlagEvalEventTest {
     assertTrue(
         new FlagEvalEvent("f", "on", "a", "t", null, 1L, true, attrs).observeFullEvaluationData);
   }
+
+  @Test
+  void storesFeaturesAndDefaultsThemToEmpty() {
+    final Map<String, Object> features = Collections.singletonMap("bandit.policy_id", "p2");
+
+    assertSame(
+        features,
+        new FlagEvalEvent("f", "on", "a", "t", null, 1L, false, Collections.emptyMap(), features)
+            .features);
+    assertTrue(
+        new FlagEvalEvent("f", "on", "a", "t", null, 1L, false, Collections.emptyMap(), null)
+            .features.isEmpty());
+    assertTrue(
+        new FlagEvalEvent("f", "on", "a", "t", 1L, Collections.emptyMap()).features.isEmpty());
+  }
 }
