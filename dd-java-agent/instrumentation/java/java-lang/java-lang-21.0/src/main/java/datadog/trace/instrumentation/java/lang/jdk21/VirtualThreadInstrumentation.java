@@ -66,11 +66,14 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
         Instrumenter.HasMethodAdvice,
         ExcludeFilterProvider {
 
-  // Preload classes used by Context.swap() to avoid class loading on the virtual thread mount path.
-  // DatadogClassLoader loads these from a JarFile using synchronized I/O, which pins
-  // virtual thread carrier threads and can deadlock the application.
+  /**
+   * Preloads mount/unmount helpers to avoid class loading during a JVMTI mount transition. Class
+   * loading can wait for that same transition to finish, or pin carriers in synchronized jar I/O.
+   */
   private static final String[] PRELOAD_CLASS_NAMES = {
-    "datadog.trace.core.scopemanager.ScopeContext", "datadog.trace.core.scopemanager.ScopeStack"
+    VIRTUAL_THREAD_STATE_CLASS_NAME,
+    "datadog.trace.core.scopemanager.ScopeContext",
+    "datadog.trace.core.scopemanager.ScopeStack"
   };
 
   public VirtualThreadInstrumentation() {

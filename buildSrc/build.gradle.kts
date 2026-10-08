@@ -29,6 +29,10 @@ gradlePlugin {
       id = "dd-trace-java.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
+    create("muzzle-report-aggregation-plugin") {
+      id = "dd-trace-java.muzzle-report-aggregation"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzleReportAggregationPlugin"
+    }
     create("call-site-instrumentation-plugin") {
       id = "dd-trace-java.call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
