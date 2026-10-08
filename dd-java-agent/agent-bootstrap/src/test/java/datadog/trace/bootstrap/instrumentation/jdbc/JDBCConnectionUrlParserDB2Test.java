@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.DB2;
 import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.extractDBInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.tabletest.junit.TableTest;
 
@@ -31,5 +33,25 @@ class JDBCConnectionUrlParserDB2Test {
     assertEquals(instance, info.getInstance());
     assertEquals(user, info.getUser());
     assertEquals(db, info.getDb());
+  }
+
+  /**
+   * A URL without "//" after the type, whose only "://" is inside a ';' property value, used to
+   * throw a {@code StringIndexOutOfBoundsException}. Calls {@code DB2.doParse} directly since
+   * {@code extractDBInfo} swallows parse exceptions.
+   */
+  @TableTest({
+    "scenario                        | url                                                   | type ",
+    "DB2 with URL in property value  | db2:mydb;x=http://y                                   | db2  ",
+    "AS400 with file URL in property | as400:host;ssltruststore=file://x                     | as400",
+    "AS400 with several properties   | as400:host;libraries=a;secure=true;keystore=file:///x | as400",
+    "Empty type suffix with property | db2:;a=b://h                                          | db2  "
+  })
+  void schemeSeparatorOnlyInPropertyValueShouldNotThrow(String url, String type) {
+    DBInfo info = DB2.doParse(url, DBInfo.DEFAULT.toBuilder().type(type)).build();
+    assertEquals(type, info.getType());
+    assertNull(info.getHost());
+    assertEquals(50000, info.getPort());
+    assertNull(info.getInstance());
   }
 }
