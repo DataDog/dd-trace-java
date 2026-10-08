@@ -139,8 +139,17 @@ class SmokeTestAppEndToEndTest {
       """
       tasks.register("recordGradleEnvironment") {
         val out = layout.buildDirectory.file("gradle-env.txt")
+        val shutdownMarker = layout.buildDirectory.file("daemon-stopped.txt").get().asFile
+        val userHome = gradle.gradleUserHomeDir
         outputs.file(out)
         doLast {
+          Runtime.getRuntime().addShutdownHook(Thread {
+            // Recreate the home after a successful early deletion, not just during a failed one.
+            Thread.sleep(2500)
+            userHome.mkdirs()
+            userHome.resolve("late-daemon-write.txt").writeText("stopping")
+            shutdownMarker.writeText("stopped")
+          })
           out.get().asFile.writeText(
             listOf(
               "GRADLE_ARGS=${'$'}{System.getenv("GRADLE_ARGS") ?: "<null>"}",
@@ -177,6 +186,7 @@ class SmokeTestAppEndToEndTest {
       .substringAfter("=")
     assertThat(gradleUserHomeEnv).isEqualTo(gradleUserHomeDir)
     assertThat(gradleUserHomeDir).isNotEqualTo(inheritedGradleUserHome.absolutePath)
+    assertThat(applicationOutput("daemon-stopped.txt")).exists()
     assertThat(File(gradleUserHomeDir)).doesNotExist()
   }
 

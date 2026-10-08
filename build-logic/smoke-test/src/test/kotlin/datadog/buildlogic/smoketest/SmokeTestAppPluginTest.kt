@@ -12,6 +12,7 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Fast in-process tests that exercise plugin application and extension wiring through
@@ -20,22 +21,16 @@ import java.io.File
 class SmokeTestAppPluginTest {
 
   @Test
-  fun `nested Gradle user home cleanup retries files written during daemon shutdown`() {
+  fun `nested Gradle user home cleanup ignores unrelated processes and invalid daemon logs`() {
     val project = ProjectBuilder.builder().build()
     project.apply<JavaPlugin>()
     val task = project.tasks.create("nestedBuild", NestedGradleBuild::class.java)
-    var deleteAttempts = 0
-    val userHome = object : File(project.projectDir, "gradle-user-home") {
-      override fun delete(): Boolean {
-        // A daemon can write another file after the recursive walk has visited the children.
-        if (deleteAttempts++ == 0) {
-          resolve("daemon-shutdown.log").writeText("stopping")
-        }
-        return super.delete()
-      }
-    }
-    assertThat(userHome.mkdirs()).isTrue()
-    userHome.resolve("daemon.log").writeText("running")
+    val userHome = File(project.projectDir, "gradle-user-home")
+    val daemonDir = userHome.resolve("daemon/8.14.5")
+    assertThat(daemonDir.mkdirs()).isTrue()
+    daemonDir.resolve("daemon-${ProcessHandle.current().pid()}.out.log").writeText("unrelated process")
+    daemonDir.resolve("daemon-invalid.out.log").writeText("invalid PID")
+    daemonDir.resolve("daemon--1.out.log").writeText("invalid PID")
 
     task.deleteGradleUserHome(userHome)
 
@@ -43,13 +38,47 @@ class SmokeTestAppPluginTest {
   }
 
   @Test
+  fun `nested Gradle user home cleanup preserves the directory when a process does not exit`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    val task = project.tasks.create("nestedBuild", NestedGradleBuild::class.java)
+    task.stopTimeoutSeconds.set(0L)
+    val userHome = File(project.projectDir, "gradle-user-home")
+    assertThat(userHome.mkdirs()).isTrue()
+    val source = File(project.projectDir, "CleanupProcess.java")
+    source.writeText(
+      """
+      class CleanupProcess {
+        public static void main(String[] args) throws Exception {
+          System.out.println("ready");
+          System.in.read();
+        }
+      }
+      """.trimIndent(),
+    )
+    val java = File(System.getProperty("java.home"), "bin/java")
+    val process = ProcessBuilder(java.absolutePath, source.absolutePath)
+      .redirectError(ProcessBuilder.Redirect.INHERIT)
+      .start()
+    try {
+      assertThat(process.inputStream.bufferedReader().readLine()).isEqualTo("ready")
+
+      task.deleteGradleUserHome(userHome, listOf(process.toHandle()))
+
+      assertThat(process.isAlive).isTrue()
+      assertThat(userHome).exists()
+    } finally {
+      process.destroyForcibly()
+      assertThat(process.waitFor(5, TimeUnit.SECONDS)).isTrue()
+    }
+  }
+
+  @Test
   fun `nested Gradle user home cleanup preserves interruption`() {
     val project = ProjectBuilder.builder().build()
     project.apply<JavaPlugin>()
     val task = project.tasks.create("nestedBuild", NestedGradleBuild::class.java)
-    val userHome = object : File(project.projectDir, "gradle-user-home") {
-      override fun delete(): Boolean = false
-    }
+    val userHome = File(project.projectDir, "gradle-user-home")
     assertThat(userHome.mkdirs()).isTrue()
 
     Thread.currentThread().interrupt()
