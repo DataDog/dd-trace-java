@@ -66,9 +66,7 @@ public class Jetty12NativeFrameHandlerInstrumentation
         @Advice.Argument(1) WebSocketSession session,
         @Advice.Argument(value = 2, readOnly = false) MethodHandle handle) {
       AgentSpan span = activeSpan();
-      if (span != null
-          && session.getCoreSession().getBehavior() == Behavior.SERVER
-          && handle != null) {
+      if (span != null && handle != null) {
         handle =
             NativeMethodHandleWrappers.wrapMessage(
                 handle,

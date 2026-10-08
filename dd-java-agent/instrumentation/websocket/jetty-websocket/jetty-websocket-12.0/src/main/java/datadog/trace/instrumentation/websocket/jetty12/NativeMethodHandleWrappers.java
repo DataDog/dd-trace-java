@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.Set;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.core.Behavior;
 import org.eclipse.jetty.websocket.core.CoreSession;
 
 /**
@@ -217,7 +218,7 @@ public class NativeMethodHandleWrappers {
       if (Config.get().isWebsocketMessagesInheritSampling()) {
         span.forceSamplingDecision();
       }
-      handshakeSpan = span.getLocalRootSpan();
+      handshakeSpan = session.getBehavior() == Behavior.CLIENT ? span : span.getLocalRootSpan();
       sessionId = Integer.toHexString(System.identityHashCode(session));
     }
 
