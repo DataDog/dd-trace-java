@@ -11,10 +11,23 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import org.assertj.core.api.Assertions.assertThat
+import kotlin.random.Random
 
 class MuzzleVersionUtilsTest {
 
   private val versionScheme = GenericVersionScheme()
+
+  @Test
+  fun `sampling seed reproduces large ranges while preserving extrema`() {
+    val versions = (0..30).flatMap { minor -> listOf("1.$minor.0", "1.$minor.1") }
+    val result = createVersionRangeResult(*versions.toTypedArray())
+    val first = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false, Random(42))
+    val replay = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false, Random(42))
+    val nextBuild = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false, Random(43))
+    assertThat(replay).containsExactlyElementsOf(first)
+    assertThat(first).contains(result.lowestVersion, result.highestVersion).hasSize(RANGE_COUNT_LIMIT - 1)
+    assertThat(nextBuild).contains(result.lowestVersion, result.highestVersion).isNotEqualTo(first)
+  }
 
   @ParameterizedTest(name = "[{index}] filters pre-release: {0}")
   @ValueSource(
