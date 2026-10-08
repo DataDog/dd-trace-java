@@ -17,6 +17,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.regex.Pattern.compile;
 import static java.util.regex.Pattern.quote;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -46,62 +47,65 @@ import org.eclipse.jetty.websocket.core.CloseStatus;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.WebSocketComponents;
+import org.eclipse.jetty.websocket.core.exception.ProtocolException;
 import org.eclipse.jetty.websocket.server.internal.ServerFrameHandlerFactory;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class NativeWebSocketSendTest extends AbstractInstrumentationTest {
   @TableTest({
-    "scenario                           | behavior | binary | partial | parent",
-    "client text without parent         | CLIENT   | false  | false   | false ",
-    "client binary without parent       | CLIENT   | true   | false   | false ",
-    "client partial text without parent | CLIENT   | false  | true    | false ",
-    "client partial binary no parent    | CLIENT   | true   | true    | false ",
-    "client text with parent            | CLIENT   | false  | false   | true  ",
-    "client binary with parent          | CLIENT   | true   | false   | true  ",
-    "client partial text with parent    | CLIENT   | false  | true    | true  ",
-    "client partial binary with parent  | CLIENT   | true   | true    | true  ",
-    "server text without parent         | SERVER   | false  | false   | false ",
-    "server binary without parent       | SERVER   | true   | false   | false ",
-    "server partial text without parent | SERVER   | false  | true    | false ",
-    "server partial binary no parent    | SERVER   | true   | true    | false "
+    "scenario       | binary | partial",
+    "text           | false  | false  ",
+    "binary         | true   | false  ",
+    "partial text   | false  | true   ",
+    "partial binary | true   | true   "
   })
-  void clientSendsRequireActiveParent(
-      Behavior behavior, boolean binary, boolean partial, boolean parent) throws Exception {
-    Connection connection = new Connection(true, behavior);
+  void clientSendsWithoutParentAreNotTraced(boolean binary, boolean partial) throws Exception {
+    Connection connection = new Connection(true, Behavior.CLIENT);
     RecordingCallback callback = new RecordingCallback();
-    if (parent) {
-      runUnderTrace(
-          "application",
-          () -> {
-            AgentSpan application = activeSpan();
-            connection.send(binary, partial, "hello", true, callback);
-            assertSame(application, activeSpan());
-            return null;
-          });
-    } else {
-      connection.send(binary, partial, "hello", true, callback);
-    }
+
+    connection.send(binary, partial, "hello", true, callback);
     connection.callbacks.get(0).succeeded();
     callback.get(5, SECONDS);
+
+    assertNull(connection.spans.get(0));
+    assertNull(callback.span);
+    assertNull(activeSpan());
+    assertTraces(trace(handshakeSpan()));
+  }
+
+  @TableTest({
+    "scenario       | binary | partial",
+    "text           | false  | false  ",
+    "binary         | true   | false  ",
+    "partial text   | false  | true   ",
+    "partial binary | true   | true   "
+  })
+  void clientSendsUseActiveParent(boolean binary, boolean partial) throws Exception {
+    Connection connection = new Connection(true, Behavior.CLIENT);
+    RecordingCallback callback = new RecordingCallback();
+
+    runUnderTrace(
+        "application",
+        () -> {
+          AgentSpan application = activeSpan();
+          connection.send(binary, partial, "hello", true, callback);
+          assertSame(application, activeSpan());
+          return null;
+        });
+    connection.callbacks.get(0).succeeded();
+    callback.get(5, SECONDS);
+
     assertNull(activeSpan());
     AgentSpan sent = connection.spans.get(0);
+    assertNotNull(sent);
     assertSame(sent, callback.span);
-    if (behavior == Behavior.CLIENT && !parent) {
-      assertNull(sent, "Client sends without an active parent must not start a trace");
-      assertTraces(trace(handshakeSpan()));
-    } else if (parent) {
-      assertNotNull(sent);
-      assertTraces(
-          trace(handshakeSpan()),
-          trace(
-              SORT_BY_START_TIME,
-              span().operationName("application").root(),
-              sendSpan(connection, binary, 5, 1).childOfPrevious()));
-    } else {
-      assertNotNull(sent);
-      assertTraces(trace(handshakeSpan()), trace(sendSpan(connection, binary, 5, 1).root()));
-    }
+    assertTraces(
+        trace(handshakeSpan()),
+        trace(
+            SORT_BY_START_TIME,
+            span().operationName("application").root(),
+            sendSpan(connection, binary, 5, 1).childOfPrevious()));
   }
 
   @TableTest({
@@ -142,11 +146,12 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     "partial text   | false  | true    | false      ",
     "partial binary | true   | true    | false      "
   })
-  void sendsFinishOnCallback(boolean binary, boolean partial, boolean synchronous)
-      throws Exception {
+  void serverSendsWithoutParentFinishOnCallback(
+      boolean binary, boolean partial, boolean synchronous) throws Exception {
     Connection connection = new Connection(true);
     connection.synchronous = synchronous;
     RecordingCallback callback = new RecordingCallback();
+    assertNull(activeSpan());
     connection.send(binary, partial, "hello", true, callback);
     assertNull(activeSpan());
     AgentSpan sent = connection.spans.get(0);
@@ -328,6 +333,41 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
         trace(sendSpan(connection, false, 5, 1).root()));
     connection.callbacks.forEach(Callback::succeeded);
     assertEquals(3, writer.size());
+    assertNull(activeSpan());
+  }
+
+  @TableTest({
+    "scenario            | binary",
+    "text rejects binary | false ",
+    "binary rejects text | true  "
+  })
+  void rejectedPartialSendPreservesUnfinishedMessage(boolean binary) throws Exception {
+    Connection connection = new Connection(true);
+    connection.send(binary, true, "hello", false, null);
+    connection.callbacks.get(0).succeeded();
+    AgentSpan unfinished = connection.spans.get(0);
+    RecordingCallback rejected = new RecordingCallback();
+
+    connection.send(!binary, true, "rejected", false, rejected);
+
+    assertInstanceOf(ProtocolException.class, rejected.failure);
+    assertNotSame(unfinished, rejected.span);
+    SpanMatcher failedSend =
+        span()
+            .operationName(compile(quote("websocket.send")))
+            .type(DDSpanTypes.WEBSOCKET)
+            .root()
+            .error();
+    assertTraces(trace(handshakeSpan()), trace(failedSend));
+
+    Callback.Completable closed = new Callback.Completable();
+    connection.handler.onClosed(new CloseStatus(CloseStatus.NORMAL, "bye"), closed);
+    closed.get(5, SECONDS);
+
+    assertTraces(
+        trace(handshakeSpan()),
+        trace(sendSpan(connection, binary, 5, 1).root()),
+        trace(failedSend));
     assertNull(activeSpan());
   }
 

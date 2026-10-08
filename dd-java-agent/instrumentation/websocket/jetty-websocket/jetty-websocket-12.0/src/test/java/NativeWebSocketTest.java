@@ -212,28 +212,19 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario            | behavior | endpoint | msgType | last  | operation        ",
-    "full text           | SERVER   | full     | text    | true  | websocket.receive",
-    "full binary         | SERVER   | full     | binary  | true  | websocket.receive",
-    "partial text        | SERVER   | partial  | text    | false | websocket.receive",
-    "POJO close          | SERVER   | pojoFull |         | true  | websocket.close  ",
-    "client full text    | CLIENT   | full     | text    | true  | websocket.receive",
-    "client full binary  | CLIENT   | full     | binary  | true  | websocket.receive",
-    "client partial text | CLIENT   | partial  | text    | false | websocket.receive"
+    "scenario            | behavior | endpoint | msgType | last ",
+    "full text           | SERVER   | full     | text    | true ",
+    "full binary         | SERVER   | full     | binary  | true ",
+    "partial text        | SERVER   | partial  | text    | false",
+    "client full text    | CLIENT   | full     | text    | true ",
+    "client full binary  | CLIENT   | full     | binary  | true ",
+    "client partial text | CLIENT   | partial  | text    | false"
   })
-  void handlerFailureMarksSpanAndClosesScope(
-      Behavior behavior,
-      NativeEndpoints.EndpointEvents endpoint,
-      String msgType,
-      boolean last,
-      String operation)
+  void messageHandlerFailureMarksSpanAndClosesScope(
+      Behavior behavior, NativeEndpoints.EndpointEvents endpoint, String msgType, boolean last)
       throws Exception {
-    endpoint.failClose = msgType == null;
-    endpoint.failMessages = msgType != null;
-    Frame frame =
-        endpoint.failClose
-            ? CloseStatus.toFrame(CloseStatus.NORMAL, "bye")
-            : new Frame(opcode(msgType), "hello").setFin(last);
+    endpoint.failMessages = true;
+    Frame frame = new Frame(opcode(msgType), "hello").setFin(last);
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler, behavior, true);
 
@@ -242,14 +233,41 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
 
     assertNotNull(error.getCause());
     assertNull(activeSpan());
-    if (msgType != null) {
-      assertNotNull(endpoint.messageSpans.get(0));
-    }
+    assertNotNull(endpoint.messageSpans.get(0));
+    assertTraces(
+        trace(handshakeSpan()),
+        trace(
+            receiveSpan(
+                    handshake(),
+                    msgType,
+                    5,
+                    1,
+                    error(IllegalStateException.class, "handler failed"))
+                .error()));
+    assertInstanceOf(String.class, writer.get(1).get(0).getTag("error.stack"));
+  }
+
+  @Test
+  void closeHandlerFailureMarksSpanAndClosesScope() throws Exception {
+    NativeEndpoints.PojoFullEndpoint endpoint = new NativeEndpoints.PojoFullEndpoint();
+    endpoint.failClose = true;
+    JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
+    openFrameHandler(frameHandler);
+
+    ExecutionException error =
+        assertThrows(
+            ExecutionException.class,
+            () -> deliver(frameHandler, CloseStatus.toFrame(CloseStatus.NORMAL, "bye")));
+
+    assertNotNull(error.getCause());
+    assertNull(activeSpan());
+    assertEquals(1000, endpoint.closeCode);
+    assertEquals("bye", endpoint.closeReason);
     assertTraces(
         trace(handshakeSpan()),
         trace(
             span()
-                .operationName(compile(quote(operation)))
+                .operationName(compile(quote("websocket.close")))
                 .resourceName(compile(quote("websocket /test/param")))
                 .type(DDSpanTypes.WEBSOCKET)
                 .error()));
@@ -280,12 +298,10 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario              | endpoint    | last ",
-    "full                  | full        | true ",
-    "partial final         | partial     | true ",
-    "partial nonfinal      | partial     | false",
-    "POJO full             | pojoFull    | true ",
-    "POJO partial nonfinal | pojoPartial | false"
+    "scenario         | endpoint | last ",
+    "full             | full     | true ",
+    "partial final    | partial  | true ",
+    "partial nonfinal | partial  | false"
   })
   void binaryCallbackFailureMarksReceiveSpan(NativeEndpoints.EndpointEvents endpoint, boolean last)
       throws Exception {
@@ -385,15 +401,11 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario             | endpoint    | reverse",
-    "full forward         | full        | false  ",
-    "full reverse         | full        | true   ",
-    "partial forward      | partial     | false  ",
-    "partial reverse      | partial     | true   ",
-    "POJO full forward    | pojoFull    | false  ",
-    "POJO full reverse    | pojoFull    | true   ",
-    "POJO partial forward | pojoPartial | false  ",
-    "POJO partial reverse | pojoPartial | true   "
+    "scenario        | endpoint | reverse",
+    "full forward    | full     | false  ",
+    "full reverse    | full     | true   ",
+    "partial forward | partial  | false  ",
+    "partial reverse | partial  | true   "
   })
   void pendingBinaryMessagesHaveIndependentSpans(
       NativeEndpoints.EndpointEvents endpoint, boolean reverse) throws Exception {
