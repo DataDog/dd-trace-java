@@ -83,18 +83,21 @@ public final class ExposureHook implements Hook<Object> {
     }
 
     /**
-     * True when this subject was already exposed to the same allocation, variant and serial id,
-     * false when the exposure is new or changed, null when the evaluation is not an exposure.
+     * True when this exposure repeats one already recorded for this subject: same allocation,
+     * variant and serial id. False for a new or changed exposure, and for an evaluation that is not
+     * an exposure.
      */
-    public Boolean getCacheHit() {
-      return isExposure()
-          ? details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT)
-          : null;
+    public boolean isCacheHit() {
+      return isExposure() && Boolean.TRUE.equals(cacheHitStamp());
     }
 
     /** True for exactly the exposures that Datadog sends: new or changed exposures. */
     public boolean shouldSend() {
-      return isExposure() && Boolean.FALSE.equals(getCacheHit());
+      return isExposure() && Boolean.FALSE.equals(cacheHitStamp());
+    }
+
+    private Boolean cacheHitStamp() {
+      return details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT);
     }
 
     /**

@@ -109,7 +109,7 @@ class ExposureHookTest {
     assertEquals(ErrorCode.GENERAL, details.getErrorCode());
     final ExposureHook.Evaluation evaluation = evaluations.get(0);
     assertFalse(evaluation.isExposure());
-    assertNull(evaluation.getCacheHit());
+    assertFalse(evaluation.isCacheHit());
     assertFalse(evaluation.shouldSend());
   }
 
@@ -121,7 +121,7 @@ class ExposureHookTest {
 
     final ExposureHook.Evaluation evaluation = evaluations.get(0);
     assertFalse(evaluation.isExposure());
-    assertNull(evaluation.getCacheHit());
+    assertFalse(evaluation.isCacheHit());
     assertFalse(evaluation.shouldSend());
     assertEquals("flag", evaluation.getDetails().getFlagKey());
     assertEquals("user-1", evaluation.getContext().getTargetingKey());
@@ -217,8 +217,11 @@ class ExposureHookTest {
     assertFalse(evaluation("on", exposureMetadata(null, true, false)).isExposure());
     assertFalse(evaluation("on", exposureMetadata("allocation", false, false)).isExposure());
     assertTrue(evaluation("on", exposureMetadata("allocation", true, false)).shouldSend());
-    assertEquals(
-        Boolean.TRUE, evaluation("on", exposureMetadata("allocation", true, true)).getCacheHit());
+    assertFalse(evaluation("on", exposureMetadata("allocation", true, false)).isCacheHit());
+    assertTrue(evaluation("on", exposureMetadata("allocation", true, true)).isCacheHit());
+    assertFalse(
+        evaluation("on", exposureMetadata("allocation", false, true)).isCacheHit(),
+        "an evaluation that is not an exposure is never a cache hit");
     assertFalse(evaluation("on", exposureMetadata("allocation", true, true)).shouldSend());
   }
 

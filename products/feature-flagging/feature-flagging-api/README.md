@@ -114,7 +114,7 @@ OpenFeatureAPI.getInstance().addHooks(new ExposureHook(evaluation -> {
   evaluation of an allocation that logs exposures, for a subject not yet exposed to the same
   allocation, variant and serial id.
 - `isExposure()` is true for every successful evaluation of an allocation that logs exposures,
-  including repeats. `getCacheHit()` tells repeats apart.
+  including repeats. `isCacheHit()` tells repeats apart.
 - An evaluation that fails, including one that a later `after` hook fails, is not an exposure.
 - An exception from the callback is logged and does not affect the evaluation.
 
