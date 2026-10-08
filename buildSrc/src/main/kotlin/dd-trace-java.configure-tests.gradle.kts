@@ -2,7 +2,6 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.testing.Test
-import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions
 import org.gradle.kotlin.dsl.develocity
 import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.withType
@@ -103,16 +102,14 @@ tasks.named("check") {
 }
 
 tasks.withType<Test>().configureEach {
-  // Flaky tests management for JUnit 5
-  (options as? JUnitPlatformOptions)?.apply {
-    if (skipFlakyTestsProvider.isPresent) {
-      excludeTags("flaky")
-    } else if (runFlakyTestsProvider.isPresent) {
+  // Keep suites without test-utils out of flaky-only runs. Runtime extensions refine this tag.
+  if (!skipFlakyTestsProvider.isPresent && runFlakyTestsProvider.isPresent) {
+    useJUnitPlatform {
       includeTags("flaky")
     }
   }
 
-  // Set system property flag that is checked from tests to determine if they should be skipped or run
+  // Let the JUnit and Spock extensions evaluate @Flaky conditions before selecting tests.
   if (skipFlakyTestsProvider.isPresent) {
     jvmArgs("-Drun.flaky.tests=false")
   } else if (runFlakyTestsProvider.isPresent) {

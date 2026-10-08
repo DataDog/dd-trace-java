@@ -23,15 +23,6 @@ public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterMod
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".EndHandlerWrapper",
-      packageName + ".RouteHandlerWrapper",
-      packageName + ".VertxDecorator",
-    };
-  }
-
-  @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "io.vertx.core.http.impl.Http1xServerResponse",

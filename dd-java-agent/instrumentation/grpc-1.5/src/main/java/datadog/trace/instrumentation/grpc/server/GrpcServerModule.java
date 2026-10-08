@@ -19,18 +19,6 @@ public class GrpcServerModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcServerDecorator",
-      packageName + ".GrpcServerDecorator$1",
-      packageName + ".GrpcExtractAdapter",
-      packageName + ".TracingServerInterceptor",
-      packageName + ".TracingServerInterceptor$TracingServerCall",
-      packageName + ".TracingServerInterceptor$TracingServerCallListener",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap("io.grpc.ServerBuilder", Boolean.class.getName());
   }

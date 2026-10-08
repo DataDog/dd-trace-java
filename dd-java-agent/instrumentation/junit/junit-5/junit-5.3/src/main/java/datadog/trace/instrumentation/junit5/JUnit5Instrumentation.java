@@ -45,18 +45,6 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JUnitPlatformUtils",
-      packageName + ".ExecutionRequestFactory",
-      packageName + ".TestDataFactory",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".TracingListener",
-      packageName + ".CompositeEngineListener",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("org.junit.platform.engine.TestDescriptor", "java.lang.Object");
   }

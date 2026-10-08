@@ -29,11 +29,6 @@ public final class S3ClientInstrumentation extends InstrumenterModule.Tracing
         S3ClientInstrumentation.class.getName() + "$AwsS3BuilderAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".S3Interceptor"};
-  }
-
   public static class AwsS3BuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {

@@ -1,9 +1,11 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.isUnchangedInheritedOtelMember;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.propagation.ptags.PTagsFactory;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +23,67 @@ import java.util.Map;
  * </pre>
  */
 public abstract class PropagationTags {
+
+  public static final class SamplingState {
+    private static final byte OTEL_POSITION_UNKNOWN = 0;
+    private static final byte OTEL_POSITION_PRESERVED = 1;
+    private static final byte OTEL_POSITION_REPLACED = 2;
+
+    private final int samplingPriority;
+    private final String tracestate;
+    private final CharSequence otelTraceState;
+    private final CharSequence decisionMaker;
+    private final CharSequence knuthSamplingRate;
+    private volatile byte otelPosition;
+
+    public SamplingState(
+        int samplingPriority,
+        String tracestate,
+        CharSequence otelTraceState,
+        CharSequence decisionMaker,
+        CharSequence knuthSamplingRate) {
+      this.samplingPriority = samplingPriority;
+      this.tracestate = tracestate;
+      this.otelTraceState = otelTraceState;
+      this.decisionMaker = decisionMaker;
+      this.knuthSamplingRate = knuthSamplingRate;
+    }
+
+    public int getSamplingPriority() {
+      return samplingPriority;
+    }
+
+    public String getTracestate() {
+      return tracestate;
+    }
+
+    public CharSequence getOtelTraceState() {
+      return otelTraceState;
+    }
+
+    public CharSequence getDecisionMaker() {
+      return decisionMaker;
+    }
+
+    public CharSequence getKnuthSamplingRate() {
+      return knuthSamplingRate;
+    }
+
+    public boolean preservesInheritedOtelPosition() {
+      if (tracestate == null || otelTraceState == null) {
+        return false;
+      }
+      byte position = otelPosition;
+      if (position == OTEL_POSITION_UNKNOWN) {
+        position =
+            isUnchangedInheritedOtelMember(tracestate, otelTraceState)
+                ? OTEL_POSITION_PRESERVED
+                : OTEL_POSITION_REPLACED;
+        otelPosition = position;
+      }
+      return position == OTEL_POSITION_PRESERVED;
+    }
+  }
 
   public static PropagationTags.Factory factory(Config config) {
     return factory(config.getxDatadogTagsMaxLength());
@@ -65,9 +128,22 @@ public abstract class PropagationTags {
    */
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
+  public abstract boolean tryUpdateTraceSamplingPriority(
+      int samplingPriority, int samplingMechanism, boolean allowOverride);
+
+  public abstract boolean tryUpdateProbabilitySamplingDecision(
+      int samplingPriority,
+      int samplingMechanism,
+      double sampleRate,
+      boolean rateLimiterRejected,
+      long traceIdLowOrderBits,
+      boolean allowOverride);
+
   public abstract void forceKeep(int samplingMechanism);
 
   public abstract int getSamplingPriority();
+
+  public abstract SamplingState samplingState();
 
   public abstract void updateTraceOrigin(CharSequence origin);
 
@@ -86,6 +162,8 @@ public abstract class PropagationTags {
    * @return The original W3C tracestate header value.
    */
   public abstract String getW3CTracestate();
+
+  public abstract String getW3CTracestate(SamplingState samplingState);
 
   /**
    * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
@@ -115,6 +193,25 @@ public abstract class PropagationTags {
    * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
    */
   public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
+
+  public abstract String headerValue(
+      HeaderType headerType, CharSequence lastParentIdOverride, SamplingState samplingState);
+
+  /**
+   * Like {@link #headerValue(HeaderType, CharSequence, SamplingState)} but also writes the {@code
+   * _dd.p.llmobs_*} tags from {@code llmObsValues}.
+   *
+   * <p>Threaded in for the same reason as {@code lastParentIdOverride}: these values belong to the
+   * span being injected, while these tags can be shared by every span in a local trace, so holding
+   * them here would let concurrent injections serialize each other's LLM Observability context. A
+   * {@code null} {@code llmObsValues} writes the values that arrived on the inbound headers, which
+   * is what a service forwarding a request without an LLMObs span of its own should propagate.
+   */
+  public abstract String headerValue(
+      HeaderType headerType,
+      CharSequence lastParentIdOverride,
+      LLMObsPropagationValues llmObsValues,
+      SamplingState samplingState);
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
@@ -151,16 +248,6 @@ public abstract class PropagationTags {
   public abstract String getDebugPropagation();
 
   /**
-   * Updates the Knuth sampling rate (_dd.p.ksr) propagated tag. This records the sampling rate that
-   * was applied when making an agent-based or rule-based sampling decision. The rate is formatted
-   * with up to 6 significant digits and no trailing zeros, matching the Go/Python reference
-   * implementations (%.6g format).
-   *
-   * @param rate the sampling rate value
-   */
-  public abstract void updateKnuthSamplingRate(double rate);
-
-  /**
    * Returns the Org Propagation Marker (OPM) currently held in these tags, encoded as {@code
    * _dd.p.opm} in Datadog headers and {@code t.opm} in W3C tracestate. Returns {@code null} if no
    * OPM is set.
@@ -173,6 +260,29 @@ public abstract class PropagationTags {
    * overrides any inbound OPM.
    */
   public abstract void updateOrgPropagationMarker(CharSequence opm);
+
+  /**
+   * Returns the LLM Observability values that arrived on the inbound headers as {@code
+   * _dd.p.llmobs_*}, or {@code null} if none did. Individual fields are {@code null} when their tag
+   * was absent, and carry the value as the application wrote it, with any {@code tracestate}
+   * substitutions undone.
+   *
+   * <p>This reads what was <em>extracted</em>, never what a local injection staged over it. The two
+   * live in the same object — an extracted context's tags become the local root's — but only the
+   * extracted half is a statement about the caller. A local LLMObs span's tags stay staged until
+   * the next injection resets them, so a sibling span opened in that window would otherwise read a
+   * finished span's attribution as if it had come from upstream.
+   *
+   * <p>Two fields carry more than their name suggests. The LLMObs trace id is distinct from the APM
+   * trace id: an LLMObs trace spans only the services that produce LLMObs spans, so it survives
+   * intermediate hops that start a new APM trace and it stays stable when one APM trace carries
+   * several LLMObs traces; it is carried on the wire as an unsigned 128-bit <em>decimal</em>
+   * integer, the format dd-trace-py writes and parses. And the sample rate is the one that produced
+   * the accompanying sampling decision ({@code "1"} retained, {@code "0"} dropped) upstream, not
+   * this service's configured rate — honouring the pair keeps a distributed LLMObs trace whole
+   * across services configured at different rates, which re-rolling locally would not.
+   */
+  public abstract LLMObsPropagationValues getExtractedLLMObsValues();
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();
