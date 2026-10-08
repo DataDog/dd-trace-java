@@ -4,6 +4,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.internal.provider.PropertyFactory
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.internal.jvm.inspection.JavaInstallationRegistry
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -74,6 +75,10 @@ class TestJvmSpec(val project: Project) {
       else -> testJvm
     }
   }.map { project.logger.info("normalized testJvm: {}", it); it }
+
+  private val defaultJavaLauncher = project.javaToolchains.launcherFor(
+    project.extensions.getByType(JavaPluginExtension::class.java).toolchain
+  )
 
   /**
    * The launcher for the requested test JVM.
@@ -149,19 +154,39 @@ class TestJvmSpec(val project: Project) {
       )
     }
 
-    // Only explicit homes pointing to the build JVM leave the default test launcher in place.
     launcher.orElse(project.providers.provider {
       throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
-    }).filter { javaHome == null || !it.metadata.isCurrentJvm }
+    })
   }
 
   /**
    * The Java launcher for the test JVM.
    *
-   * Absent when no testJvm is supplied or an explicit home points to the build JVM.
+   * `requestedTestJvmLauncher` represents what `testJvm` selected. It is present whenever `testJvm` is set and
+   * is used by the _test jvm constraints_, and external conventions like native-image checks, and JMH.
+   *
+   * Absent when no `testJvm` is supplied.
    */
-  val javaTestLauncher: Provider<JavaLauncher> =
+  val requestedTestJvmLauncher: Provider<JavaLauncher> =
     testJvmLauncher.map { project.logger.info("testJvm launcher: {}", it.executablePath); it }
+
+  /**
+   * The launcher override required by test tasks.
+   *
+   * `javaTestLauncherOverride` represents whether `Test.javaLauncher` must be **explicitly** configured.
+   * It is absent when `testJvm` and the project toolchain both select the Gradle daemon JVM,
+   * because setting it would be redundant.
+   *
+   * Absent when the requested JVM and the default project launcher both use the current JVM.
+   */
+  internal val javaTestLauncherOverride: Provider<JavaLauncher> =
+    requestedTestJvmLauncher.flatMap { requested ->
+      if (!requested.metadata.isCurrentJvm) {
+        project.providers.provider { requested }
+      } else {
+        defaultJavaLauncher.filter { !it.metadata.isCurrentJvm }.map { requested }
+      }
+    }
 
   private fun String.normalizeToJDKJavaHome(): Path {
     val javaHome = project.file(this).toPath().toRealPath()
