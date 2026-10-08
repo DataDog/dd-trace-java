@@ -1,6 +1,7 @@
 package datadog.buildlogic.smoketest
 
 import datadog.buildlogic.smoketest.NestedGradleBuild.Companion.gradleExecutableName
+import datadog.buildlogic.smoketest.NestedGradleBuild.Companion.isGradleDaemonCandidate
 import datadog.buildlogic.smoketest.NestedMavenBuild.Companion.mavenWrapperName
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.plugins.JavaPlugin
@@ -12,6 +13,7 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.util.Optional
 import java.util.concurrent.TimeUnit
 
 /**
@@ -21,14 +23,31 @@ import java.util.concurrent.TimeUnit
 class SmokeTestAppPluginTest {
 
   @Test
-  fun `nested Gradle user home cleanup ignores unrelated processes and invalid daemon logs`() {
+  fun `daemon discovery retains candidates without command line metadata`() {
+    val info = object : ProcessHandle.Info by ProcessHandle.current().info() {
+      override fun commandLine(): Optional<String> = Optional.empty()
+    }
+
+    assertThat(isGradleDaemonCandidate(info, Long.MAX_VALUE)).isTrue()
+    assertThat(isGradleDaemonCandidate(info, 0L)).isFalse()
+
+    val unrelated = object : ProcessHandle.Info by info {
+      override fun commandLine(): Optional<String> = Optional.of("java OtherApplication")
+    }
+    assertThat(isGradleDaemonCandidate(unrelated, Long.MAX_VALUE)).isFalse()
+  }
+
+  @Test
+  fun `nested Gradle user home cleanup ignores reused PIDs and invalid daemon logs`() {
     val project = ProjectBuilder.builder().build()
     project.apply<JavaPlugin>()
     val task = project.tasks.create("nestedBuild", NestedGradleBuild::class.java)
     val userHome = File(project.projectDir, "gradle-user-home")
     val daemonDir = userHome.resolve("daemon/8.14.5")
     assertThat(daemonDir.mkdirs()).isTrue()
-    daemonDir.resolve("daemon-${ProcessHandle.current().pid()}.out.log").writeText("unrelated process")
+    val staleLog = daemonDir.resolve("daemon-${ProcessHandle.current().pid()}.out.log")
+    staleLog.writeText("reused PID")
+    assertThat(staleLog.setLastModified(0L)).isTrue()
     daemonDir.resolve("daemon-invalid.out.log").writeText("invalid PID")
     daemonDir.resolve("daemon--1.out.log").writeText("invalid PID")
 

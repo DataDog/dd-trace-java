@@ -188,6 +188,14 @@ class SmokeTestAppEndToEndTest {
     assertThat(gradleUserHomeDir).isNotEqualTo(inheritedGradleUserHome.absolutePath)
     assertThat(applicationOutput("daemon-stopped.txt")).exists()
     assertThat(File(gradleUserHomeDir)).doesNotExist()
+
+    assertThat(applicationOutput("daemon-stopped.txt").delete()).isTrue()
+    assertThat(envFile.delete()).isTrue()
+    val second = runner("recordGradleEnvironment", "--rerun-tasks", "--no-build-cache").build()
+
+    assertThat(second.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("daemon-stopped.txt")).exists()
+    assertThat(File(gradleUserHomeDir)).doesNotExist()
   }
 
   @Test

@@ -254,10 +254,19 @@ abstract class NestedGradleBuild @Inject constructor(
   ): List<ProcessHandle>? {
     try {
       // Capture handles before --stop, while the isolated home's daemon logs still identify them.
-      val daemons = findGradleDaemons(gradleUserHomeDir)
+      val daemons = try {
+        findGradleDaemons(gradleUserHomeDir)
+      } catch (e: Exception) {
+        logger.warn(
+          "Could not identify nested Gradle daemons; preserving user home: {}",
+          gradleUserHomeDir.absolutePath,
+          e,
+        )
+        null
+      }
       val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
       if (gradleExecutable == null) {
-        if (daemons.isEmpty()) return daemons
+        if (daemons?.isEmpty() == true) return daemons
         logger.warn(
           "Could not find nested Gradle executable under {} to stop its daemon",
           gradleUserHomeDir.absolutePath,
@@ -362,15 +371,7 @@ abstract class NestedGradleBuild @Inject constructor(
         val pid = log.name.removePrefix("daemon-").removeSuffix(".out.log").toLongOrNull()?.takeIf { it > 0 }
           ?: return@mapNotNull null
         val process = ProcessHandle.of(pid).orElse(null) ?: return@mapNotNull null
-        val info = process.info()
-        val commandLine = info.commandLine().orElse(null)
-        if (commandLine == null && process.isAlive) {
-          throw GradleException("Could not identify nested Gradle daemon process $pid")
-        }
-        // Ignore stale logs whose PID now belongs to another process.
-        if (commandLine?.contains("org.gradle.launcher.daemon.bootstrap.GradleDaemon") != true ||
-          info.startInstant().map { it.toEpochMilli() > log.lastModified() }.orElse(false)
-        ) {
+        if (!isGradleDaemonCandidate(process.info(), log.lastModified())) {
           return@mapNotNull null
         }
         process
@@ -402,6 +403,13 @@ abstract class NestedGradleBuild @Inject constructor(
   }
 
   companion object {
+    internal fun isGradleDaemonCandidate(info: ProcessHandle.Info, logLastModified: Long): Boolean {
+      // Windows does not expose command lines; keep unknown candidates until their exit is confirmed.
+      val commandLine = info.commandLine().orElse(null)
+      return (commandLine == null || commandLine.contains("org.gradle.launcher.daemon.bootstrap.GradleDaemon")) &&
+        info.startInstant().map { it.toEpochMilli() <= logLastModified }.orElse(true)
+    }
+
     internal fun gradleExecutableName(osName: String = System.getProperty("os.name")): String =
       if (isWindows(osName)) {
         "gradle.bat"
