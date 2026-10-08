@@ -29,6 +29,7 @@ import org.gradle.kotlin.dsl.newInstance
 import org.gradle.tooling.GradleConnector
 import java.io.File
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import javax.inject.Inject
 
 /**
@@ -56,6 +57,12 @@ abstract class NestedGradleBuild @Inject constructor(
     )
     initScripts.convention(emptyList())
     gradleProperties.convention(emptyMap())
+    mavenRepositoryProxy.convention(
+      project.providers.gradleProperty(MAVEN_REPOSITORY_PROXY_PROPERTY),
+    )
+    gradlePluginProxy.convention(
+      project.providers.gradleProperty(GRADLE_PLUGIN_PROXY_PROPERTY),
+    )
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
@@ -91,6 +98,23 @@ abstract class NestedGradleBuild @Inject constructor(
 
   @get:Input
   abstract val gradleProperties: MapProperty<String, String>
+
+  /**
+   * Repository proxy to use for dependencies, defaulting to the `mavenRepositoryProxy` property of
+   * the owning build.
+   *
+   * A nested build runs against a throwaway Gradle user home, so it never sees the
+   * `gradle.properties` that configures the outer build. Forwarding this explicitly is what lets
+   * nested builds resolve for developers and CI machines that cannot reach Maven Central directly.
+   */
+  @get:Input
+  @get:Optional
+  abstract val mavenRepositoryProxy: Property<String>
+
+  /** Plugin repository proxy, defaulting to the `gradlePluginProxy` property of the owning build. */
+  @get:Input
+  @get:Optional
+  abstract val gradlePluginProxy: Property<String>
 
   @get:Nested
   abstract val javaLauncher: Property<JavaLauncher>
@@ -156,7 +180,9 @@ abstract class NestedGradleBuild @Inject constructor(
     val appBuildDirFile = applicationBuildDir.get().asFile
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
     val gradleUserHomeDir = createGradleUserHome()
-    val initScriptFiles = writeInitScripts()
+    val declaredProperties = gradleProperties.get()
+    val proxyProperties = proxyProperties(declaredProperties)
+    val initScriptFiles = writeInitScripts(proxyProperties.isNotEmpty())
 
     val args = buildList {
       initScriptFiles.forEach { script ->
@@ -165,9 +191,14 @@ abstract class NestedGradleBuild @Inject constructor(
       }
       add(if (buildCacheEnabled.get()) "--build-cache" else "--no-build-cache")
       add("-PappBuildDir=${appBuildDirFile.absolutePath}")
-      gradleProperties.get().forEach { (name, value) ->
+      declaredProperties.forEach { (name, value) ->
         addGradleProperty(name, value)
       }
+      // Forward the proxies unless the caller already declared them, so that every nested build
+      // resolves the same way as the outer one.
+      proxyProperties
+        .filterKeys { !declaredProperties.containsKey(it) }
+        .forEach { (name, value) -> addGradleProperty(name, value) }
       projectJars.get().forEach { entry ->
         add("-P${entry.propertyName.get()}=${entry.file.get().asFile.absolutePath}")
       }
@@ -209,8 +240,9 @@ abstract class NestedGradleBuild @Inject constructor(
           .run()
       }
     } finally {
-      stopGradleDaemon(appDir, gradleUserHomeDir, daemonJavaHome, mergedEnv)
-      deleteGradleUserHome(gradleUserHomeDir)
+      stopGradleDaemon(appDir, gradleUserHomeDir, daemonJavaHome, mergedEnv)?.let { daemons ->
+        deleteGradleUserHome(gradleUserHomeDir, daemons)
+      }
     }
   }
 
@@ -219,17 +251,29 @@ abstract class NestedGradleBuild @Inject constructor(
     gradleUserHomeDir: File,
     daemonJavaHome: File,
     environment: Map<String, String>,
-  ) {
-    val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
-    if (gradleExecutable == null) {
-      logger.warn(
-        "Could not find nested Gradle executable under {} to stop its daemon",
-        gradleUserHomeDir.absolutePath,
-      )
-      return
-    }
-
+  ): List<ProcessHandle>? {
     try {
+      // Capture handles before --stop, while the isolated home's daemon logs still identify them.
+      val daemons = try {
+        findGradleDaemons(gradleUserHomeDir)
+      } catch (e: Exception) {
+        logger.warn(
+          "Could not identify nested Gradle daemons; preserving user home: {}",
+          gradleUserHomeDir.absolutePath,
+          e,
+        )
+        null
+      }
+      val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
+      if (gradleExecutable == null) {
+        if (daemons?.isEmpty() == true) return daemons
+        logger.warn(
+          "Could not find nested Gradle executable under {} to stop its daemon",
+          gradleUserHomeDir.absolutePath,
+        )
+        return null
+      }
+
       val processBuilder = ProcessBuilder(gradleExecutable.absolutePath, "--stop")
         .directory(appDir)
         .redirectOutput(ProcessBuilder.Redirect.INHERIT)
@@ -252,12 +296,13 @@ abstract class NestedGradleBuild @Inject constructor(
       if (!completed) {
         process.destroyForcibly()
         logger.warn("Timed out after {} seconds while stopping nested Gradle daemon", timeoutSeconds)
-        return
+        return null
       }
       val exitCode = process.exitValue()
       if (exitCode != 0) {
         logger.warn("Nested Gradle daemon stop exited with code {}", exitCode)
       }
+      return daemons
     } catch (e: InterruptedException) {
       Thread.currentThread().interrupt()
       logger.warn(
@@ -267,14 +312,39 @@ abstract class NestedGradleBuild @Inject constructor(
     } catch (e: Exception) {
       logger.warn("Could not stop nested Gradle daemon before deleting its user home", e)
     }
+    return null
   }
 
-  private fun writeInitScripts(): List<File> =
-    initScripts.get().mapIndexed { index, script ->
+  private fun proxyProperties(declaredProperties: Map<String, String>): Map<String, String> =
+    buildMap {
+      addProxyProperty(
+        MAVEN_REPOSITORY_PROXY_PROPERTY,
+        declaredProperties,
+        mavenRepositoryProxy.orNull,
+      )
+      addProxyProperty(
+        GRADLE_PLUGIN_PROXY_PROPERTY,
+        declaredProperties,
+        gradlePluginProxy.orNull,
+      )
+    }
+
+  private fun writeInitScripts(hasProxy: Boolean): List<File> {
+    val declared = initScripts.get()
+    // Nested build scripts are not required to read the proxy properties themselves, so inject the
+    // repositories as well. Skipped when the caller already declared this script.
+    val effective =
+      if (!hasProxy || declared.contains(PROXY_REPOSITORIES_INIT_SCRIPT)) {
+        declared
+      } else {
+        listOf(PROXY_REPOSITORIES_INIT_SCRIPT) + declared
+      }
+    return effective.mapIndexed { index, script ->
       temporaryDir.resolve("init-$index.init.gradle.kts").also { file ->
         file.writeText(script)
       }
     }
+  }
 
   private fun findGradleExecutable(gradleUserHomeDir: File): File? =
     gradleUserHomeDir.walkTopDown().firstOrNull { file ->
@@ -294,13 +364,52 @@ abstract class NestedGradleBuild @Inject constructor(
     return directory
   }
 
-  private fun deleteGradleUserHome(directory: File) {
-    if (directory.exists() && !directory.deleteRecursively()) {
-      logger.warn("Could not delete nested Gradle user home: {}", directory.absolutePath)
+  private fun findGradleDaemons(directory: File): List<ProcessHandle> =
+    directory.resolve("daemon").walkTopDown()
+      .filter { it.isFile && it.name.startsWith("daemon-") && it.name.endsWith(".out.log") }
+      .mapNotNull { log ->
+        val pid = log.name.removePrefix("daemon-").removeSuffix(".out.log").toLongOrNull()?.takeIf { it > 0 }
+          ?: return@mapNotNull null
+        val process = ProcessHandle.of(pid).orElse(null) ?: return@mapNotNull null
+        if (!isGradleDaemonCandidate(process.info(), log.lastModified())) {
+          return@mapNotNull null
+        }
+        process
+      }
+      .toList()
+
+  internal fun deleteGradleUserHome(directory: File, daemons: List<ProcessHandle>? = null) {
+    try {
+      if (Thread.currentThread().isInterrupted) throw InterruptedException()
+
+      val processes = daemons ?: findGradleDaemons(directory)
+      val timeoutSeconds = stopTimeoutSeconds.getOrElse(30L)
+      val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+      // --stop acknowledges shutdown before the daemon's shutdown hooks and file writes finish.
+      processes.forEach { process ->
+        process.onExit().get((deadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS)
+      }
+      if (directory.exists() && !directory.deleteRecursively()) {
+        logger.warn("Could not delete nested Gradle user home: {}", directory.absolutePath)
+      }
+    } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      logger.warn("Interrupted before deleting nested Gradle user home: {}", directory.absolutePath)
+    } catch (e: TimeoutException) {
+      logger.warn("Nested Gradle daemons did not exit; preserving user home: {}", directory.absolutePath)
+    } catch (e: Exception) {
+      logger.warn("Could not clean up nested Gradle user home: {}", directory.absolutePath, e)
     }
   }
 
   companion object {
+    internal fun isGradleDaemonCandidate(info: ProcessHandle.Info, logLastModified: Long): Boolean {
+      // Windows does not expose command lines; keep unknown candidates until their exit is confirmed.
+      val commandLine = info.commandLine().orElse(null)
+      return (commandLine == null || commandLine.contains("org.gradle.launcher.daemon.bootstrap.GradleDaemon")) &&
+        info.startInstant().map { it.toEpochMilli() <= logLastModified }.orElse(true)
+    }
+
     internal fun gradleExecutableName(osName: String = System.getProperty("os.name")): String =
       if (isWindows(osName)) {
         "gradle.bat"
@@ -310,11 +419,31 @@ abstract class NestedGradleBuild @Inject constructor(
   }
 }
 
+private fun MutableMap<String, String>.addProxyProperty(
+  name: String,
+  declaredProperties: Map<String, String>,
+  defaultValue: String?,
+) {
+  val value =
+    if (declaredProperties.containsKey(name)) {
+      declaredProperties[name]
+    } else {
+      defaultValue
+    }
+  value?.takeIf { it.isNotBlank() }?.let { put(name, it) }
+}
+
 private fun MutableList<String>.addGradleProperty(name: String, value: String?) {
   if (!value.isNullOrBlank()) {
     add("-P$name=$value")
   }
 }
+
+/** Gradle property naming the repository proxy to resolve dependencies through. */
+internal const val MAVEN_REPOSITORY_PROXY_PROPERTY = "mavenRepositoryProxy"
+
+/** Gradle property naming the repository proxy to resolve plugins through. */
+internal const val GRADLE_PLUGIN_PROXY_PROPERTY = "gradlePluginProxy"
 
 internal val PROXY_REPOSITORIES_INIT_SCRIPT: String =
   NestedGradleBuild::class.java.getResource("proxy-repositories.init.gradle.kts")

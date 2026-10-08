@@ -665,7 +665,11 @@ class ClientStatsAggregatorTest {
     }
   }
 
-  @TableTest({"scenario    | count", "count = 10  | 10   ", "count = 100 | 100  "})
+  @TableTest({
+    "scenario    | count",
+    "count = 10  | 10   ",
+    "count = 100 | 100  "
+  })
   void aggregateRepetitiveSpans(int count) throws Exception {
     MetricWriter writer = mock(MetricWriter.class);
     Sink sink = mock(Sink.class);

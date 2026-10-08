@@ -13,12 +13,14 @@ public class MessageWriter implements ValueWriter<AIGuard.Message> {
   public void write(
       final AIGuard.Message value, final Writable writable, final EncodingCache encodingCache) {
     final int[] size = {0};
-    final boolean hasRole = isNotBlank(value.getRole(), size);
-    final boolean hasToolCallId = isNotBlank(value.getToolCallId(), size);
-    final boolean hasToolCalls = isNotEmpty(value.getToolCalls(), size);
+    final boolean hasRole = present(Strings.isNotBlank(value.getRole()), size);
+    final boolean hasToolCallId = present(Strings.isNotBlank(value.getToolCallId()), size);
+    final boolean hasToolCalls = present(isNotEmpty(value.getToolCalls()), size);
 
-    final boolean hasContentParts = isNotEmpty(value.getContentParts(), size);
-    final boolean hasContentString = !hasContentParts && isNotBlank(value.getContent(), size);
+    final boolean hasContentParts = present(isNotEmpty(value.getContentParts()), size);
+    // An empty content string is still written: "" is what the redaction remove strategy leaves
+    // behind, and dropping it would be indistinguishable from a message that never had content.
+    final boolean hasContentString = present(!hasContentParts && value.getContent() != null, size);
 
     writable.startMap(size[0]);
     writeString(hasRole, "role", value.getRole(), writable, encodingCache);
@@ -83,19 +85,15 @@ public class MessageWriter implements ValueWriter<AIGuard.Message> {
     }
   }
 
-  private static boolean isNotBlank(final String value, final int[] nonBlankCount) {
-    final boolean hasText = Strings.isNotBlank(value);
-    if (hasText) {
-      nonBlankCount[0]++;
+  /** Counts a field towards the map size when it is present, and reports whether it is. */
+  private static boolean present(final boolean present, final int[] fieldCount) {
+    if (present) {
+      fieldCount[0]++;
     }
-    return hasText;
+    return present;
   }
 
-  private static boolean isNotEmpty(final List<?> value, final int[] nonEmptyCount) {
-    final boolean nonEmpty = value != null && !value.isEmpty();
-    if (nonEmpty) {
-      nonEmptyCount[0]++;
-    }
-    return nonEmpty;
+  private static boolean isNotEmpty(final List<?> value) {
+    return value != null && !value.isEmpty();
   }
 }

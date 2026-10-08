@@ -5,7 +5,6 @@ import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import datadog.trace.util.ComparableVersion
-import io.cucumber.core.api.TypeRegistry
 import io.cucumber.core.options.Constants
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.engine.TestExecutionResult
@@ -234,7 +233,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   private boolean usesFlatExampleNaming() {
-    def version = TypeRegistry.package.getImplementationVersion()
+    def version = Constants.package.getImplementationVersion()
     // 5.4.0 does not populate the package version; cucumber 7.11.0 switched from the flat
     // "Example #<row>" naming to "Example #<examplesBlock>.<row>".
     return version == null || new ComparableVersion(version) < new ComparableVersion("7.11.0")
@@ -282,7 +281,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
 
   @Override
   String instrumentedLibraryVersion() {
-    def version = TypeRegistry.package.getImplementationVersion()
+    def version = Constants.package.getImplementationVersion()
     return version != null ? version : "5.4.0" // older releases do not have package version populated
   }
 

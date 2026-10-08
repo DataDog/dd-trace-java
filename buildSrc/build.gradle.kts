@@ -29,6 +29,10 @@ gradlePlugin {
       id = "dd-trace-java.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
+    create("muzzle-report-aggregation-plugin") {
+      id = "dd-trace-java.muzzle-report-aggregation"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzleReportAggregationPlugin"
+    }
     create("call-site-instrumentation-plugin") {
       id = "dd-trace-java.call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
@@ -89,8 +93,9 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
+  implementation(libs.forbiddenapis)
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.10")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", libs.versions.byte.buddy.get())
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -134,6 +139,9 @@ testing {
 
     withType(JvmTestSuite::class).configureEach {
       useJUnitJupiter(libs.versions.junit5)
+      dependencies {
+        implementation(platform(libs.junit.bom))
+      }
       targets.configureEach {
         testTask
       }

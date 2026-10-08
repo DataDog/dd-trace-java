@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.environment.JavaVirtualMachine;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.debugger.DebuggerConfigUpdate;
@@ -24,15 +25,23 @@ class DefaultDebuggerConfigUpdaterTest {
     DebuggerAgent.run(Config.get(), mock(Instrumentation.class), sco);
     DefaultDebuggerConfigUpdater productConfigUpdater =
         new DefaultDebuggerConfigUpdater(Config.get());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.EMPTY);
     productConfigUpdater.updateConfig(new DebuggerConfigUpdate(true, true, true, true));
     assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
-    assertTrue(productConfigUpdater.isExceptionReplayEnabled());
+    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+      assertTrue(productConfigUpdater.isExceptionReplayEnabled());
+    } else {
+      assertFalse(productConfigUpdater.isExceptionReplayEnabled());
+    }
     assertTrue(productConfigUpdater.isCodeOriginEnabled());
     assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.EMPTY);
     assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
-    assertTrue(productConfigUpdater.isExceptionReplayEnabled());
+    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+      assertTrue(productConfigUpdater.isExceptionReplayEnabled());
+    } else {
+      assertFalse(productConfigUpdater.isExceptionReplayEnabled());
+    }
     assertTrue(productConfigUpdater.isCodeOriginEnabled());
     assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
     productConfigUpdater.updateConfig(new DebuggerConfigUpdate(false, false, false, false));

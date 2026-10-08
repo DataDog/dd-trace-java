@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -84,64 +83,50 @@ public final class FieldBackedContextStores {
     contextStore31
   };
 
-  public static FieldBackedContextStore getContextStore(final int storeId) {
-    return stores[storeId]; // createStore ensures array is big enough for allocated storeIds
-  }
-
-  private static final ConcurrentHashMap<String, FieldBackedContextStore> STORES_BY_NAME =
+  private static final ConcurrentHashMap<String, FieldBackedContextStore> storesByName =
       new ConcurrentHashMap<>();
+  private static final Object allocationLock = new Object();
 
-  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
-  public static int getContextStoreId(final String keyClassName, final String contextClassName) {
-    final String storeName = storeName(keyClassName, contextClassName);
-    FieldBackedContextStore existingStore = STORES_BY_NAME.get(storeName);
-    if (null == existingStore) {
-      synchronized (STORES_BY_NAME) {
+  private static int nextStoreId;
+
+  public static int getContextStoreId(String keyClassName, String contextClassName) {
+    String storeName = keyClassName + ';' + contextClassName;
+    FieldBackedContextStore store = storesByName.get(storeName);
+    if (store == null) {
+      synchronized (allocationLock) {
         // speculatively create the next store in the sequence and attempt to map this name to it;
         // if another thread has mapped this name then the store will be kept for the next mapping
-        final int newStoreId = STORES_BY_NAME.size();
-        existingStore = STORES_BY_NAME.putIfAbsent(storeName, createStore(newStoreId));
-        if (null == existingStore) {
-          log.debug(
-              "Allocated ContextStore #{} - instrumentation.target.context={}->{}",
-              newStoreId,
-              keyClassName,
-              contextClassName);
-          return newStoreId;
+        FieldBackedContextStore existing =
+            storesByName.putIfAbsent(storeName, store = allocateStore(nextStoreId));
+        if (existing != null) {
+          return existing.storeId;
         }
+        nextStoreId++;
       }
+      log.debug(
+          "Allocated ContextStore #{} - instrumentation.target.context={}->{}",
+          store.storeId,
+          keyClassName,
+          contextClassName);
     }
-    return existingStore.storeId;
+    return store.storeId;
   }
 
-  private static String storeName(final String keyClassName, final String contextClassName) {
-    return keyClassName + ';' + contextClassName;
+  public static FieldBackedContextStore getContextStore(final int storeId) {
+    return stores[storeId]; // guaranteed to be populated by getContextStoreId
   }
 
-  // this method should only be called while holding a synchronized lock on STORES_BY_NAME
-  private static FieldBackedContextStore createStore(final int storeId) {
-    if (storeId < FAST_STORE_ID_LIMIT) {
-      return stores[storeId]; // pre-allocated
+  // this method should only be called while holding the allocation lock
+  private static FieldBackedContextStore allocateStore(int storeId) {
+    FieldBackedContextStore[] snapshot = stores;
+    if (storeId >= snapshot.length) {
+      stores = snapshot = Arrays.copyOf(snapshot, storeId + 16);
     }
-    if (stores.length <= storeId) {
-      stores = Arrays.copyOf(stores, storeId + 16);
-    }
-    // check in case an earlier thread created the store but didn't end up using it
-    FieldBackedContextStore store = stores[storeId];
-    if (null == store) {
-      store = new FieldBackedContextStore(storeId);
-      stores[storeId] = store;
+    // check for pre-allocated / speculatively allocated stores
+    FieldBackedContextStore store = snapshot[storeId];
+    if (store == null) {
+      snapshot[storeId] = store = new FieldBackedContextStore(storeId);
     }
     return store;
-  }
-
-  /** Injection helper that immediately delegates to the weak-map for the given context store. */
-  public static Object weakGet(final Object key, final int storeId) {
-    return getContextStore(storeId).weakStore().get(key);
-  }
-
-  /** Injection helper that immediately delegates to the weak-map for the given context store. */
-  public static void weakPut(final Object key, final int storeId, final Object context) {
-    getContextStore(storeId).weakStore().put(key, context);
   }
 }

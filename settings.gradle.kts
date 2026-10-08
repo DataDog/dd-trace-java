@@ -2,20 +2,24 @@ pluginManagement {
   repositories {
     mavenLocal()
 
-    if (settings.extra.has("gradlePluginProxy")) {
+    providers.gradleProperty("gradlePluginProxy").orNull?.let { proxy ->
       maven {
-        url = uri(settings.extra["gradlePluginProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
-    if (settings.extra.has("mavenRepositoryProxy")) {
+    val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
+    mavenRepositoryProxy?.let { proxy ->
       maven {
-        url = uri(settings.extra["mavenRepositoryProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
-    mavenCentral()
+    // TODO: temporary fix for Maven Central rate limiting
+    if (mavenRepositoryProxy == null) {
+      mavenCentral()
+    }
     // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
@@ -29,7 +33,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.5.0"
+  id("com.gradle.develocity") version "4.6.0"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -332,6 +336,7 @@ include(
   ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
+  ":dd-java-agent:instrumentation:couchbase:couchbase-3-common",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.2",
   ":dd-java-agent:instrumentation:cucumber-5.4",
@@ -378,6 +383,7 @@ include(
   ":dd-java-agent:instrumentation:grpc-1.5",
   ":dd-java-agent:instrumentation:gson-1.6",
   ":dd-java-agent:instrumentation:guava-10.0",
+  ":dd-java-agent:instrumentation:guidewire-10.0",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.6",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.9",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-4.0",
@@ -539,6 +545,7 @@ include(
   ":dd-java-agent:instrumentation:quartz-2.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",
   ":dd-java-agent:instrumentation:ratpack-1.5",
+  ":dd-java-agent:instrumentation:r2dbc:r2dbc-1.0",
   ":dd-java-agent:instrumentation:reactive-streams-1.0",
   ":dd-java-agent:instrumentation:reactor-core-3.1",
   ":dd-java-agent:instrumentation:reactor-netty-1.0",

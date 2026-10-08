@@ -209,6 +209,73 @@ class LLMObsTest {
   }
 
   @Test
+  void testAnnotateAgentManifestIsCompatibilityPreservingDefaultMethod() throws Exception {
+    assertTrue(
+        LLMObsSpan.class
+            .getMethod("annotateAgentManifest", LLMObs.AgentManifest.class)
+            .isDefault());
+  }
+
+  @Test
+  void testAgentManifestBuilderWithAllFields() {
+    Map<String, Object> modelSettings = new HashMap<>();
+    modelSettings.put("temperature", 0.7);
+    modelSettings.put("max_tokens", 1024);
+
+    List<LLMObs.AgentTool> tools =
+        Arrays.asList(
+            LLMObs.AgentTool.from(
+                "get_weather",
+                "Look up the weather",
+                Collections.singletonMap("city", Collections.singletonMap("type", "string"))));
+
+    LLMObs.AgentManifest manifest =
+        LLMObs.AgentManifest.builder()
+            .name("travel_desk")
+            .instructions("Book travel for the user.")
+            .model("gpt-4o")
+            .modelSettings(modelSettings)
+            .tools(tools)
+            .build();
+
+    assertEquals("travel_desk", manifest.getName());
+    assertEquals("Book travel for the user.", manifest.getInstructions());
+    assertEquals("gpt-4o", manifest.getModel());
+    assertEquals(modelSettings, manifest.getModelSettings());
+    assertNotSame(modelSettings, manifest.getModelSettings());
+    assertEquals(1, manifest.getTools().size());
+    assertNotSame(tools, manifest.getTools());
+    assertEquals("get_weather", manifest.getTools().get(0).getName());
+    assertEquals("Look up the weather", manifest.getTools().get(0).getDescription());
+  }
+
+  @Test
+  void testAgentManifestBuilderMinimal() {
+    LLMObs.AgentManifest manifest = LLMObs.AgentManifest.builder().build();
+    assertNull(manifest.getName());
+    assertNull(manifest.getInstructions());
+    assertNull(manifest.getModel());
+    assertNull(manifest.getModelSettings());
+    assertNull(manifest.getTools());
+  }
+
+  @Test
+  void testAgentToolCreation() {
+    LLMObs.AgentTool tool = LLMObs.AgentTool.from("search");
+    assertEquals("search", tool.getName());
+    assertNull(tool.getDescription());
+    assertNull(tool.getParameters());
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("query", Collections.singletonMap("type", "string"));
+    LLMObs.AgentTool fullTool = LLMObs.AgentTool.from("search", "Web search", params);
+    assertEquals("search", fullTool.getName());
+    assertEquals("Web search", fullTool.getDescription());
+    assertEquals(params, fullTool.getParameters());
+    assertNotSame(params, fullTool.getParameters());
+  }
+
+  @Test
   void testLLMMessageCreationWithToolCalls() {
     Map<String, Object> args = new HashMap<>();
     args.put("location", "Paris");

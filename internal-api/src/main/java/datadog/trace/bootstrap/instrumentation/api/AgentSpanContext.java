@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,26 @@ public interface AgentSpanContext {
   default void mergePathwayContext(PathwayContext pathwayContext) {}
 
   default void setIntegrationName(CharSequence componentName) {}
+
+  /**
+   * The integration name recorded on this context, or {@code null} if none. Default {@code null}
+   * mirrors {@link #setIntegrationName}'s no-op default: contexts that do not track an integration
+   * name report absence, which lets never-clobber callers guard before setting.
+   */
+  default CharSequence getIntegrationName() {
+    return null;
+  }
+
+  /**
+   * Gets the LLM Observability values that arrived on the inbound headers, or {@code null} if none
+   * did or this context implementation doesn't have propagation-tags access.
+   *
+   * <p>These describe the caller, so they report only what was <em>extracted</em> — never what a
+   * local injection staged onto the same tags for an outbound call.
+   */
+  default LLMObsPropagationValues getExtractedLLMObsValues() {
+    return null;
+  }
 
   /**
    * Gets whether the span context used is part of the local trace or from another service

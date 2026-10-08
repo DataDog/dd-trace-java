@@ -19,15 +19,6 @@ public class GrpcClientModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcClientDecorator",
-      packageName + ".GrpcClientDecorator$1",
-      packageName + ".GrpcInjectAdapter"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put("io.grpc.ClientCall", AgentSpan.class.getName());

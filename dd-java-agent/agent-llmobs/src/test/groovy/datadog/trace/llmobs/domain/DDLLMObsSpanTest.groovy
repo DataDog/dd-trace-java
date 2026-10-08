@@ -46,6 +46,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   void setup() {
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
     TEST_TRACER.flush()
+    LLMObsMetricCollector.get().resetForTesting()
   }
 
   void cleanup() {
@@ -228,6 +229,9 @@ class DDLLMObsSpanTest  extends DDSpecification{
     "v1" == tagVersion.toString()
 
     DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
+
+    cleanup:
+    test.finish()
   }
 
   def "test llm span string input formatted to messages"() {
@@ -510,6 +514,9 @@ class DDLLMObsSpanTest  extends DDSpecification{
     innerSpan.getTag(INPUT_PROMPT) == null
     innerSpan.getTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD) == null
 
+    cleanup:
+    test.finish()
+
     where:
     spanKind << [
       Tags.LLMOBS_AGENT_SPAN_KIND,
@@ -619,10 +626,10 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "finish records span.finished telemetry when LLMObs enabled"() {
     setup:
     LLMObsMetricCollector collector = LLMObsMetricCollector.get()
-    collector.drain()
 
     when:
     llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "workflow-span").finish()
+    collector.prepareMetrics()
 
     then:
     def metrics = collector.drain()
@@ -643,12 +650,12 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "finish records span.finished telemetry for non-root span when LLMObs enabled"() {
     setup:
     LLMObsMetricCollector collector = LLMObsMetricCollector.get()
-    collector.drain()
 
     when:
     runUnderTrace("parent") {
       llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm").finish()
     }
+    collector.prepareMetrics()
 
     then:
     def metrics = collector.drain()
@@ -669,10 +676,10 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "span has expected session tag and telemetry has #expectedHasSessionIdTag"() {
     setup:
     LLMObsMetricCollector collector = LLMObsMetricCollector.get()
-    collector.drain()
 
     when:
     llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "workflow-span", sessionId).finish()
+    collector.prepareMetrics()
 
     then:
     def metrics = collector.drain()
@@ -694,7 +701,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-abc-123"
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", expectedSessionId)
-    // Activate the parent's AgentScope so the child span is created in the same trace.
+    // Activate the parent's ContextScope so the child span is created in the same trace.
     // Without this, the child gets a fresh trace_id and the trace-consistency gate in
     // DDLLMObsSpan would (correctly) skip session_id inheritance.
     def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
@@ -733,7 +740,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-grandparent-xyz"
     def grandparent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "grandparent-workflow", expectedSessionId)
-    // Activate each ancestor's AgentScope so descendants stay in the same trace —
+    // Activate each ancestor's ContextScope so descendants stay in the same trace —
     // session_id inheritance is gated on trace-id consistency in DDLLMObsSpan.
     def grandparentScope = AgentTracer.activateSpan((AgentSpan) grandparent.span)
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
@@ -759,7 +766,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "child does NOT inherit session_id when stale LLMObsContext is from a different trace (e.g. async boundary leak)"() {
     setup:
     // Simulates a stale LLMObsContext (e.g. leaked across an async boundary). The parent's
-    // LLMObsContext is attached, but its AgentScope is deliberately NOT activated — so the
+    // LLMObsContext is attached, but its ContextScope is deliberately NOT activated — so the
     // next span we create starts a fresh trace and the trace-consistency gate must skip
     // session_id inheritance.
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "stale-workflow", "stale-session-id")
@@ -789,6 +796,235 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def innerSpan = (AgentSpan) test.span
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "team") == "backend"
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "owner") == "ml-platform"
+  }
+
+  def "agent manifest full annotation sets correct tag"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def settings = [temperature: 0.7, max_tokens: 1024]
+    def params = [city: [type: "string"]]
+    def tools = [LLMObs.AgentTool.from("get_weather", "Look up weather", params)]
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("travel_desk")
+      .instructions("Book travel.")
+      .model("gpt-4o")
+      .modelSettings(settings)
+      .tools(tools)
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = storedManifest(innerSpan)
+    stored["name"] == "travel_desk"
+    stored["instructions"] == "Book travel."
+    stored["model"] == "gpt-4o"
+    stored["framework"] == "manual"
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.7
+    ms["max_tokens"] == 1024
+    def toolList = (List) stored["tools"]
+    toolList.size() == 1
+    toolList[0]["name"] == "get_weather"
+    toolList[0]["description"] == "Look up weather"
+    toolList[0]["parameters"] == [city: [type: "string"]]
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest name defaults to span name when not provided"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder().instructions("Do something.").build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = storedManifest(innerSpan)
+    stored["name"] == "my-agent"
+    stored["instructions"] == "Do something."
+    stored["framework"] == "manual"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest drops tool with null name"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def validTool = LLMObs.AgentTool.from("valid-tool")
+    def badTool = LLMObs.AgentTool.from(null)
+    def manifest = LLMObs.AgentManifest.builder()
+      .tools([badTool, validTool])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = storedManifest(innerSpan)
+    def toolList = (List) stored["tools"]
+    toolList.size() == 1
+    toolList[0]["name"] == "valid-tool"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest with empty tools list omits tools key"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .tools([])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = storedManifest(innerSpan)
+    !stored.containsKey("tools")
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest on non-agent span is silently dropped"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "llm-span")
+    def manifest = LLMObs.AgentManifest.builder().name("agent").build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    storedManifest(innerSpan) == null
+
+    cleanup:
+    test.finish()
+  }
+
+  def "second annotateAgentManifest call merges with the first"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def first = LLMObs.AgentManifest.builder()
+      .name("first")
+      .instructions("v1 instructions")
+      .model("gpt-3.5")
+      .build()
+    def second = LLMObs.AgentManifest.builder()
+      .name("second")
+      .model("gpt-4o")
+      .build()
+
+    when:
+    test.annotateAgentManifest(first)
+    test.annotateAgentManifest(second)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = storedManifest(innerSpan)
+    stored["name"] == "second"          // second call wins on name
+    stored["model"] == "gpt-4o"         // second call wins on model
+    stored["instructions"] == "v1 instructions"  // first call's instructions preserved
+    stored["framework"] == "manual"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "second annotateAgentManifest call merges model_settings"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def first = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .modelSettings([temperature: 0.5, max_tokens: 512])
+      .build()
+    def second = LLMObs.AgentManifest.builder()
+      .modelSettings([temperature: 0.9, top_p: 0.95])
+      .build()
+
+    when:
+    test.annotateAgentManifest(first)
+    test.annotateAgentManifest(second)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = storedManifest(innerSpan)
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.9    // second wins
+    ms["max_tokens"] == 512     // first preserved
+    ms["top_p"] == 0.95         // second adds
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest model_settings forwarded as-is"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .modelSettings([temperature: 0.5, custom_key: "custom_val"])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = storedManifest(innerSpan)
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.5
+    ms["custom_key"] == "custom_val"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "annotateAgentManifest null manifest is ignored"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+
+    when:
+    test.annotateAgentManifest(null)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    storedManifest(innerSpan) == null
+
+    cleanup:
+    test.finish()
+  }
+
+  def "annotateAgentManifest after finish is silently ignored"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder().name("agent").model("gpt-4o").build()
+
+    when:
+    test.finish()
+    test.annotateAgentManifest(manifest)
+
+    then:
+    noExceptionThrown()
+    def innerSpan = (AgentSpan) test.span
+    storedManifest(innerSpan) == null
+  }
+
+  /** The manifest is carried inside the metadata tag, under the reserved _dd namespace. */
+  private static Map storedManifest(AgentSpan span) {
+    def dd = (Map) ((Map) span.getTag(METADATA))?.get("_dd")
+    return (Map) dd?.get("agent_manifest")
   }
 
   private LLMObsSpan llmObsSpan(String kind, name) {

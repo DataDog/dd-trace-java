@@ -73,14 +73,14 @@ abstract class PekkoHttpClientInstrumentationTest extends HttpClientTest {
         span {
           parent()
           operationName operation()
-          resourceName "pekko-http.client.request"
+          resourceName operation() // resource name is not set so defaults to operationName
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
           tags {
             "$Tags.COMPONENT" "pekko-http-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             errorTags(exception)
-            defaultTags()
+            defaultTags(false, false)
           }
         }
       }

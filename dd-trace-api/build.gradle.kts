@@ -55,6 +55,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.llmobs.LLMObsSpan",
   "datadog.trace.api.llmobs.LLMObsSpanData",
   "datadog.trace.api.llmobs.LLMObsSpanProcessor",
+  "datadog.trace.api.llmobs.LLMObs.LLMObsSpanFactory",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsSpan",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor",

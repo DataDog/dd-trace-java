@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
+
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -12,7 +14,7 @@ import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
 
 public class JUnit4BeforeAfterOperationsTracer {
-  public static AgentScope startTrace(final Method method) {
+  public static ContextScope startTrace(final Method method) {
     final AgentSpan span = AgentTracer.startSpan("junit", method.getName());
     if (method.isAnnotationPresent(Before.class)) {
       span.setTag(Tags.TEST_CALLBACK, "Before");
@@ -30,8 +32,8 @@ public class JUnit4BeforeAfterOperationsTracer {
     return AgentTracer.activateSpan(span);
   }
 
-  public static void endTrace(final AgentScope scope, final Throwable throwable) {
-    final AgentSpan span = scope.span();
+  public static void endTrace(final ContextScope scope, final Throwable throwable) {
+    final AgentSpan span = spanFromScope(scope);
     if (throwable != null) {
       span.addThrowable(throwable);
     }

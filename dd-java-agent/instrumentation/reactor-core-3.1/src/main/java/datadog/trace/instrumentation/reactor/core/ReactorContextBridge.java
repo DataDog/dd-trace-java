@@ -90,7 +90,7 @@ public final class ReactorContextBridge {
       context = subscriberContexts.get(source);
     }
     if (context != null) {
-      subscriberContexts.putIfAbsent(target, context);
+      subscriberContexts.getOrPut(target, context);
     }
   }
 

@@ -1,0 +1,150 @@
+package datadog.trace.agent.test.scopediag;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import datadog.trace.api.DDTraceId;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class ScopeRecordTest {
+
+  private static final StackTraceElement[] STACK = {
+    new StackTraceElement("com.app.Worker", "run", "Worker.java", 7)
+  };
+
+  private static ScopeEvent event(ScopeEvent.Type type, String thread, long nanos) {
+    return new ScopeEvent(type, thread, nanos, STACK);
+  }
+
+  private static ScopeRecord scope(long seq, Long continuationSeq, String openThread, long nanos) {
+    return new ScopeRecord(
+        seq,
+        DDTraceId.from(1),
+        9L,
+        "op",
+        (byte) 0,
+        continuationSeq,
+        false,
+        event(ScopeEvent.Type.SCOPE_OPEN, openThread, nanos));
+  }
+
+  private static ScopeDiagnosticsReport report(ScopeRecord... scopes) {
+    List<ScopeRecord> list = new ArrayList<>();
+    for (ScopeRecord s : scopes) {
+      list.add(s);
+    }
+    return new ScopeDiagnosticsReport(new ArrayList<>(), list, new HashMap<>());
+  }
+
+  @Test
+  void summarySeparatesScopeFindingsOnTheSameRecord() {
+    ScopeRecord scope = scope(0, null, "main", 1000);
+    scope.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD, "worker", 2000));
+    EnumSet<ScopeDiagnosticsCheck> checks = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    checks.remove(ScopeDiagnosticsCheck.NEVER_CLOSED);
+
+    String summary = report(scope).renderSummary(checks);
+    assertTrue(summary.contains("[CLOSE_WRONG_THREAD] scope#0"));
+    assertTrue(summary.contains("[NEVER_CLOSED] scope#0"));
+    assertTrue(
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
+            > summary.indexOf("Advisory findings (not enforced)"));
+    assertTrue(
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
+            < summary.indexOf("Excluded findings (not enforced)"));
+    assertTrue(
+        summary.indexOf("[NEVER_CLOSED] scope#0")
+            > summary.indexOf("Excluded findings (not enforced)"));
+  }
+
+  @Test
+  void openAndClosedHasNoFailures() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 3000));
+
+    assertTrue(s.closed());
+    assertEquals(0, s.failures().size());
+    assertFalse(s.threadHandoff());
+    assertEquals(Long.valueOf(2000), s.activeDurationNanos());
+    assertFalse(report(s).hasViolations());
+  }
+
+  @Test
+  void timelineIncludesEveryWrongThreadCloseCallsite() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.addWrongThreadClose(
+        new ScopeEvent(
+            ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD,
+            "worker-one",
+            2000,
+            new StackTraceElement[] {
+              new StackTraceElement("com.app.First", "close", "First.java", 12)
+            }));
+    s.addWrongThreadClose(
+        new ScopeEvent(
+            ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD,
+            "worker-two",
+            3000,
+            new StackTraceElement[] {
+              new StackTraceElement("com.app.Second", "close", "Second.java", 34)
+            }));
+    s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 4000));
+
+    ScopeDiagnosticsReport report = report(s);
+    assertFalse(report.hasViolations(), "wrong-thread cleanup remains advisory");
+    String timeline = report.renderTimeline();
+    assertTrue(timeline.contains("wrong-thread close"));
+    assertTrue(timeline.contains("@ worker-one  at com.app.First.close(First.java:12)"));
+    assertTrue(timeline.contains("@ worker-two  at com.app.Second.close(Second.java:34)"));
+  }
+
+  @Test
+  void openWithoutCloseIsNeverClosed() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+
+    assertFalse(s.closed());
+    assertTrue(s.failures().contains(ScopeDiagnosticsCheck.NEVER_CLOSED));
+
+    ScopeDiagnosticsReport report = report(s);
+    assertEquals(1, report.neverClosedScopeCount());
+    assertTrue(report.hasViolations());
+  }
+
+  @Test
+  void deferredCleanupIsNotALeak() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.markDeferredCleanup();
+
+    ScopeDiagnosticsReport report = report(s);
+    assertFalse(s.failures().contains(ScopeDiagnosticsCheck.NEVER_CLOSED));
+    assertEquals(1, report.deferredCleanupScopeCount());
+    assertEquals(0, report.neverClosedScopeCount());
+    assertFalse(report.hasViolations());
+  }
+
+  @Test
+  void openAndCloseOnDifferentThreadsIsHandoff() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "pool-1", 2000));
+
+    assertTrue(s.threadHandoff());
+  }
+
+  @Test
+  void wrongThreadCloseIsReportedButDoesNotFail() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 2000));
+    s.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD, "pool-2", 1500));
+
+    assertTrue(s.failures().contains(ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD));
+
+    ScopeDiagnosticsReport report = report(s);
+    assertEquals(1, report.closeWrongThreadCount());
+    assertFalse(report.hasViolations()); // wrong-thread is report-only
+  }
+}

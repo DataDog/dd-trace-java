@@ -9,7 +9,10 @@ repositories {
       allowInsecureProtocol = true
     }
   }
-  mavenCentral()
+  // TODO: temporary fix for Maven Central rate limiting
+  else {
+    mavenCentral()
+  }
   // add maven central repository for snapshot dependencies
   maven {
     content {
@@ -30,7 +33,7 @@ repositories {
     }
   }
   maven {
-    url = 'https://repo.spring.io/libs-milestone'
+    url = 'https://repo.spring.io/milestone'
     content {
       includeGroupAndSubgroups "org.springframework"
     }

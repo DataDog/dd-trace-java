@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -16,6 +17,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'sns', version: '2.25.40'
+  testContainerImage(image('localstack/localstack:4.2.0', 'test.localstack.image'))
   testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
