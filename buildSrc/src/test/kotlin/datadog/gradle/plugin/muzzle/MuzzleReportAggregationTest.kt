@@ -391,28 +391,6 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     )
   }
 
-  private fun writeAggregationProject() {
-    addSubproject("dd-java-agent:instrumentation",
-      """
-      plugins {
-        id("java")
-        id("dd-trace-java.muzzle-report-aggregation")
-      }
-      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
-      muzzleReports {
-        reportFile.set(layout.buildDirectory.file("muzzle-deps-results/dd-java-agent_instrumentation.csv"))
-      }
-      tasks.register("muzzleInstrumentationReport") { dependsOn(tasks.named("aggregateMuzzleReports")) }
-      """
-    )
-    writeRootProject(
-      """
-      plugins { id("dd-trace-java.muzzle-report-aggregation") apply false }
-      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
-      """
-    )
-  }
-
   private fun addAggregationInput(projectPath: String, script: String) {
     addSubproject(projectPath, script)
     writeFile("dd-java-agent/instrumentation/build.gradle.kts",

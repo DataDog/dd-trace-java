@@ -271,22 +271,6 @@ class MuzzleReportConfigurationCacheTest : MuzzlePluginTestFixture() {
     assertThat(reused.output).contains("Reusing configuration cache")
   }
 
-  private fun writeAggregationProject(vararg producers: String) {
-    writeFile("dd-java-agent/instrumentation/build.gradle.kts",
-      """
-      plugins {
-        id("java")
-        id("dd-trace-java.muzzle-report-aggregation")
-      }
-      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
-      muzzleReports.reportFile.set(layout.buildDirectory.file("muzzle-deps-results/dd-java-agent_instrumentation.csv"))
-      dependencies {
-        ${producers.joinToString("\n") { "implementation(project(\":dd-java-agent:instrumentation:$it\"))" }}
-      }
-      """
-    )
-  }
-
   // Model local report producers without Maven so mutations test the aggregation pipeline alone.
   private val reportProducerScript = """
     import org.gradle.api.attributes.Category
