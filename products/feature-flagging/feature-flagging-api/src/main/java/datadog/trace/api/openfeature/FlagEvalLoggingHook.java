@@ -151,16 +151,31 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
         attrs = Collections.emptyMap();
       }
 
+      // Features come from the flag configuration, not the evaluation context, so they are sent
+      // whatever the consent.
+      final Map<String, Object> features =
+          DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX);
       w.enqueue(
-          new FlagEvalEvent(
-              flagKey,
-              variant,
-              allocationKey,
-              targetingKey,
-              errorMessage,
-              evalTimeMs,
-              observeFullEvaluationData,
-              attrs));
+          features.isEmpty() || !DDEvaluator.FLAG_EVAL_FEATURES_SUPPORTED.get()
+              ? new FlagEvalEvent(
+                  flagKey,
+                  variant,
+                  allocationKey,
+                  targetingKey,
+                  errorMessage,
+                  evalTimeMs,
+                  observeFullEvaluationData,
+                  attrs)
+              : new FlagEvalEvent(
+                  flagKey,
+                  variant,
+                  allocationKey,
+                  targetingKey,
+                  errorMessage,
+                  evalTimeMs,
+                  observeFullEvaluationData,
+                  attrs,
+                  features));
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }
