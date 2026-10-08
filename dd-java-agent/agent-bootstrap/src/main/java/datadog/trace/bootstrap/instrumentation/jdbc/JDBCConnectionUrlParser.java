@@ -913,8 +913,6 @@ public enum JDBCConnectionUrlParser {
     }
   }
 
-  // Source: https://stackoverflow.com/a/13592567
-  @SuppressForbidden
   /**
    * @return the port, or {@code null} if {@code s[start, end)} is not a valid port number
    */
@@ -938,6 +936,8 @@ public enum JDBCConnectionUrlParser {
     }
   }
 
+  // Source: https://stackoverflow.com/a/13592567
+  @SuppressForbidden
   private static Map<String, String> splitQuery(final String query, final char separator) {
     if (query == null || query.isEmpty()) {
       return Collections.emptyMap();
