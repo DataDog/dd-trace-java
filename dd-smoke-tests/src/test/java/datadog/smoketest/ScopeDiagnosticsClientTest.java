@@ -1,5 +1,7 @@
 package datadog.smoketest;
 
+import static datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck.LEAKED;
+import static datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck.NEVER_CLOSED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,6 +12,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -144,6 +147,56 @@ class ScopeDiagnosticsClientTest {
         () -> SmokeServerApp.named("server").skipScopeContinuationCheck(null));
     assertDoesNotThrow(
         () -> SmokeCliApp.named("cli").skipScopeContinuationCheck("Expected Runtime.halt"));
+  }
+
+  @Test
+  void selectiveArgumentsPreservePathsAndReasons() throws Exception {
+    ScopeDiagnosticsClient client = client(true);
+    String argument =
+        client.javaAgentArgument("fixture & cleanup=expected; café + path", LEAKED, NEVER_CLOSED);
+    Properties options = new Properties();
+    for (String option : argument.substring(argument.indexOf("=directory=") + 1).split("&")) {
+      int separator = option.indexOf('=');
+      options.setProperty(
+          option.substring(0, separator),
+          URLDecoder.decode(option.substring(separator + 1), "UTF-8"));
+    }
+    assertEquals(client.directory().toString(), options.getProperty("directory"));
+    assertEquals("LEAKED,NEVER_CLOSED", options.getProperty("disabledChecks"));
+    assertEquals("fixture & cleanup=expected; café + path", options.getProperty("reason"));
+    assertThrows(IllegalArgumentException.class, () -> client.javaAgentArgument("  ", LEAKED));
+    assertThrows(IllegalArgumentException.class, () -> client.javaAgentArgument(null, LEAKED));
+  }
+
+  @Test
+  void builderRejectsInvalidOrContradictoryExclusions() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SmokeCliApp.named("cli").disableScopeContinuationChecks("", LEAKED));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SmokeServerApp.named("server").disableScopeContinuationChecks(null, LEAKED));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            SmokeCliApp.named("cli")
+                .disableScopeContinuationChecks(
+                    "Known fixture",
+                    (datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck) null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            SmokeCliApp.named("cli")
+                .skipScopeContinuationCheck("No premain")
+                .disableScopeContinuationChecks("Known fixture", LEAKED)
+                .build());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            SmokeCliApp.named("cli")
+                .disableScopeContinuationChecks("Known fixture", LEAKED)
+                .skipScopeContinuationCheck("No premain")
+                .build());
   }
 
   private ScopeDiagnosticsClient client(boolean cli) throws IOException {

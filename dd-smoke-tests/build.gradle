@@ -10,6 +10,7 @@ dependencies {
   api libs.datadog.okhttp
   api libs.testcontainers
   api project(':dd-java-agent:testing')
+  api project(':dd-java-agent:instrumentation-testing')
   api project(':utils:test-agent-utils:decoder')
 
   compileOnly(libs.junit.jupiter)

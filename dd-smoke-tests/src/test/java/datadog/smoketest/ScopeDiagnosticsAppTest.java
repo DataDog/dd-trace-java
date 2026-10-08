@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck.LEAKED;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -37,13 +38,30 @@ class ScopeDiagnosticsAppTest {
     }
   }
 
+  @Test
+  void cliHarnessCanExcludeLeaksWhileRecording() throws Exception {
+    SmokeCliApp app =
+        appBuilder("leak").disableScopeContinuationChecks("Known fixture", LEAKED).build();
+    try {
+      app.beforeAll(null);
+      app.beforeEach(null);
+      app.assertCompletesWithValue(30, SECONDS, 0);
+      app.afterEach(null);
+    } finally {
+      app.afterAll(null);
+    }
+  }
+
   private static SmokeCliApp app(String mode) {
+    return appBuilder(mode).build();
+  }
+
+  private static SmokeCliApp.Builder appBuilder(String mode) {
     return SmokeCliApp.named("scope-" + mode)
         .mainClass(ScopeDiagnosticsTestApp.class)
         .args(mode)
         .backend(AgentBackend.mockAgent())
         .jvmArgs("-Ddd.telemetry.enabled=false", "-Ddd.remote_config.enabled=false")
-        .skipTelemetryCheck()
-        .build();
+        .skipTelemetryCheck();
   }
 }

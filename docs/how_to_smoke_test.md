@@ -61,6 +61,28 @@ Legacy tests deliberately running without the agent need a documented opt-out, a
 guardrail tests where the companion would itself count as an extra agent and change the scenario.
 Disabling error-log checks does not disable this check, and relaxing strict trace writes is not a fix.
 
+To exclude individual checks from enforcement while preserving their recorded findings, use
+`.disableScopeContinuationChecks("specific reason", LEAKED, NEVER_CLOSED)` on the JUnit builder
+(with static imports from `ScopeDiagnosticsCheck`). In Spock, override
+`disabledScopeContinuationChecks()` and `disabledScopeContinuationChecksReason()`. A nonblank
+reason is required, and selective exclusions cannot be combined with a full recording opt-out.
+All other checks retain the instrumentation diagnostic's enforcement policy. Reports distinguish
+enforced, advisory, and excluded findings and retain the full timeline and exclusion reason.
+
+Custom launchers can pass options directly to the companion:
+
+```text
+-javaagent:/path/scope-diagnostics-agent.jar=directory=/path/control&disabledChecks=LEAKED,NEVER_CLOSED&reason=known+fixture
+```
+
+The control directory still contains the `config` file with `mode=cli` or `mode=server`. Option values
+use UTF-8 URL encoding; encode spaces as `+`, a literal `+` as `%2B`, and `&` as `%26`.
+Supported checks are `LEAKED`, `LATE_FINISH`, `DOUBLE_FINISH`, `ACTIVATE_AFTER_RESOLVE`,
+`CLOSE_WRONG_THREAD`, and `NEVER_CLOSED`. Unknown checks and missing exclusion reasons fail
+installation. Passing only the control directory remains supported and selects all checks.
+`ScopeDiagnosticsClient.javaAgentArgument(reason, checks...)` constructs these options for custom
+launchers.
+
 ## Your first smoke test
 
 A complete smoke test for a small web application serving two endpoints, with one test method per endpoint:

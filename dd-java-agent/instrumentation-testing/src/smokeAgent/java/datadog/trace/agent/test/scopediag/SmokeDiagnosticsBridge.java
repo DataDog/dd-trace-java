@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.scopediag;
 
 import java.lang.instrument.Instrumentation;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -9,10 +10,28 @@ import net.bytebuddy.dynamic.ClassFileLocator;
 public final class SmokeDiagnosticsBridge {
   private static Properties completed;
   private static boolean recording;
+  private static String exclusionReason = "";
+  private static EnumSet<ScopeDiagnosticsCheck> enabledChecks =
+      EnumSet.allOf(ScopeDiagnosticsCheck.class);
 
   private SmokeDiagnosticsBridge() {}
 
-  public static void install(Instrumentation instrumentation, Map<String, byte[]> classes) {
+  public static void install(
+      Instrumentation instrumentation,
+      Map<String, byte[]> classes,
+      String disabledChecks,
+      String reason) {
+    EnumSet<ScopeDiagnosticsCheck> checks = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    if (!disabledChecks.isEmpty()) {
+      if (reason.trim().isEmpty()) {
+        throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
+      }
+      for (String check : disabledChecks.split(",", -1)) {
+        checks.remove(ScopeDiagnosticsCheck.valueOf(check.trim()));
+      }
+    }
+    enabledChecks = checks;
+    exclusionReason = reason;
     ScopeContinuationTransformer.install(
         instrumentation, "datadog.trace.agent.core", new ClassFileLocator.Simple(classes));
   }
@@ -38,9 +57,11 @@ public final class SmokeDiagnosticsBridge {
     recording = false;
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     Properties result = new Properties();
-    result.setProperty("status", report.hasProblems() ? "problems" : "ok");
-    result.setProperty("detail", report.renderSummary());
+    result.setProperty("status", report.hasViolations(enabledChecks) ? "problems" : "ok");
+    result.setProperty("detail", report.renderSummary(enabledChecks));
     result.setProperty("timeline", report.renderTimeline());
+    result.setProperty("enabledChecks", enabledChecks.toString());
+    result.setProperty("reason", exclusionReason);
     long events = 0;
     for (ContinuationRecord record : report.records()) {
       events +=

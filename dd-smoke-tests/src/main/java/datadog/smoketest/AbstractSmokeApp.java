@@ -13,6 +13,7 @@ import static java.util.stream.Collectors.joining;
 import datadog.environment.OperatingSystem;
 import datadog.smoketest.backend.AgentBackend;
 import datadog.smoketest.backend.Traces;
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.test.util.ForkedTestUtils;
 import java.io.File;
@@ -100,6 +101,8 @@ public abstract class AbstractSmokeApp
   private final boolean applyMemoryTuning;
   private final boolean debugLogs;
   private final boolean checkScopeContinuations;
+  private final ScopeDiagnosticsCheck[] disabledScopeContinuationChecks;
+  private final String disabledScopeContinuationChecksReason;
 
   private final OutputThreads outputThreads = new OutputThreads();
   private Process process;
@@ -126,6 +129,8 @@ public abstract class AbstractSmokeApp
     this.applyMemoryTuning = builder.applyMemoryTuning;
     this.debugLogs = builder.debugLogs;
     this.checkScopeContinuations = builder.scopeContinuationSkipReason == null;
+    this.disabledScopeContinuationChecks = builder.disabledScopeContinuationChecks.clone();
+    this.disabledScopeContinuationChecksReason = builder.disabledScopeContinuationChecksReason;
     this.errorLogFilter =
         builder.errorLogFilter != null
             ? builder.errorLogFilter
@@ -402,7 +407,9 @@ public abstract class AbstractSmokeApp
     if (this.agentJar != null) {
       command.add("-javaagent:" + this.agentJar);
       if (this.scopeDiagnostics != null) {
-        command.add(this.scopeDiagnostics.javaAgentArgument());
+        command.add(
+            this.scopeDiagnostics.javaAgentArgument(
+                this.disabledScopeContinuationChecksReason, this.disabledScopeContinuationChecks));
       }
       command.add("-Ddd.agent.host=" + this.backend.url().getHost());
       command.add("-Ddd.trace.agent.port=" + this.backend.port());
@@ -589,6 +596,8 @@ public abstract class AbstractSmokeApp
     private boolean applyMemoryTuning = true;
     private boolean debugLogs;
     private String scopeContinuationSkipReason;
+    private ScopeDiagnosticsCheck[] disabledScopeContinuationChecks = new ScopeDiagnosticsCheck[0];
+    private String disabledScopeContinuationChecksReason;
 
     protected Builder(String name) {
       this.name = name;
@@ -829,6 +838,21 @@ public abstract class AbstractSmokeApp
       return self();
     }
 
+    /** Excludes named checks from enforcement while retaining diagnostic recording. */
+    public B disableScopeContinuationChecks(String reason, ScopeDiagnosticsCheck... checks) {
+      if (reason == null || reason.trim().isEmpty()) {
+        throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
+      }
+      this.disabledScopeContinuationChecks = checks.clone();
+      for (ScopeDiagnosticsCheck check : this.disabledScopeContinuationChecks) {
+        if (check == null) {
+          throw new IllegalArgumentException("A disabled scope diagnostic check must not be null");
+        }
+      }
+      this.disabledScopeContinuationChecksReason = reason;
+      return self();
+    }
+
     /** Disables scope diagnostics for this app; a nonblank explanation is required. */
     public B skipScopeContinuationCheck(String reason) {
       if (reason == null || reason.trim().isEmpty()) {
@@ -872,6 +896,11 @@ public abstract class AbstractSmokeApp
 
     /** Validates common invariants; concrete {@link #build()} implementations must call this. */
     protected void validate() {
+      if (this.scopeContinuationSkipReason != null
+          && this.disabledScopeContinuationChecks.length > 0) {
+        throw new IllegalArgumentException(
+            "Skipping scope diagnostics requires empty disabled checks");
+      }
       if (this.backend == null) {
         throw new IllegalStateException(
             "A AgentBackend is required. Use backend(...) to build your app");
