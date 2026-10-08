@@ -9,7 +9,9 @@ import com.ibm.wsspi.genericbnf.HeaderField;
 import com.ibm.wsspi.http.channel.HttpResponseMessage;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -29,6 +31,30 @@ import org.slf4j.LoggerFactory;
 public class LibertyBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(LibertyBlockingHelper.class);
   private static final WsByteBuffer[] EMPTY_BUFFER_ARRAY = new WsByteBuffer[0];
+
+  /**
+   * Wraps {@link BlockResponseFunction#tryCommitBlockingResponse(RequestContext,
+   * Flow.Action.RequestBlockingAction)} so that an exception thrown by the commit attempt itself
+   * (rather than a plain {@code false} return) is still reported as a block failure. The advice
+   * that calls this method runs with {@code suppress = Throwable.class}, so without this guard such
+   * an exception would propagate out of the advice and be silently swallowed, and the
+   * default-method reporting inside {@code tryCommitBlockingResponse} would never run.
+   */
+  public static boolean tryCommitBlockingResponse(
+      BlockResponseFunction blockResponseFunction,
+      RequestContext reqCtx,
+      Flow.Action.RequestBlockingAction rba) {
+    try {
+      return blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+    } catch (Exception e) {
+      log.debug("Error committing blocking response", e);
+      Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+      if (rawAppSecCtx instanceof AppSecContext) {
+        ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+      }
+      return false;
+    }
+  }
 
   public static BlockingException syncBufferEnter(
       HttpInboundServiceContextImpl thiz, WsByteBuffer[] buffers, AgentSpan span) {
@@ -105,6 +131,10 @@ public class LibertyBlockingHelper {
       thiz.finishResponseMessage(bufferArray);
     } catch (Exception e) {
       log.warn("Error committing blocking response", e);
+      Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+      if (rawAppSecCtx instanceof AppSecContext) {
+        ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+      }
     }
 
     requestContext.getTraceSegment().effectivelyBlocked();

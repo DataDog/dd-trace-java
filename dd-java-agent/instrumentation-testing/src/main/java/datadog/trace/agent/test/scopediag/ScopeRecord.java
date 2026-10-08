@@ -107,13 +107,13 @@ public final class ScopeRecord {
     return close.nanos - open.nanos;
   }
 
-  public synchronized EnumSet<Failure> failures() {
-    EnumSet<Failure> failures = EnumSet.noneOf(Failure.class);
+  public synchronized EnumSet<ScopeDiagnosticsCheck> failures() {
+    EnumSet<ScopeDiagnosticsCheck> failures = EnumSet.noneOf(ScopeDiagnosticsCheck.class);
     if (open != null && close == null && !deferredCleanup) {
-      failures.add(Failure.NEVER_CLOSED);
+      failures.add(ScopeDiagnosticsCheck.NEVER_CLOSED);
     }
     if (!wrongThreadCloses.isEmpty()) {
-      failures.add(Failure.CLOSE_WRONG_THREAD);
+      failures.add(ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD);
     }
     return failures;
   }
