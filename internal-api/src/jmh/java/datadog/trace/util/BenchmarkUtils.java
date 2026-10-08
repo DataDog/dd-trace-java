@@ -488,8 +488,9 @@ public final class BenchmarkUtils {
    * Fully automatic variant of {@link #warmUp(Object, Blackhole, Bench0[])}: reflectively discovers
    * every {@code @Benchmark} method on {@code benchClass}, builds {@code benchClass} and any
    * {@code @State} parameter types via their public no-arg constructor (as JMH itself requires of
-   * every {@code @State} class), runs the no-arg {@code @Setup} methods declared on those state
-   * instances, then drives every discovered method the same shuffled way as the explicit overloads.
+   * every {@code @State} class), runs the no-arg {@code @Setup} methods declared on the benchmark
+   * instance and those state instances, then drives every discovered method the same shuffled way
+   * as the explicit overloads.
    *
    * <p>This trades precision for zero effort: coverage is exactly "every {@code @Benchmark} method
    * on the class", so a method with several outcomes (e.g. {@code getOrCreate}'s hit and miss) only
@@ -501,7 +502,8 @@ public final class BenchmarkUtils {
    * reflectively constructed, is enough.
    */
   public static void warmUp(Class<?> benchClass, Blackhole bh) {
-    Object bench = newInstance(benchClass);
+    // A benchmark class is often an @State itself, with its own @Setup.
+    Object bench = newStateInstance(benchClass);
     Map<Class<?>, Object> stateInstances = new HashMap<>();
     List<ReflectiveInvocation> invocations = new ArrayList<>();
     for (Method m : benchClass.getDeclaredMethods()) {
