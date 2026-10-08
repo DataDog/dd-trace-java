@@ -3,8 +3,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.DDSpan;
@@ -125,7 +125,7 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
   /** Activate a manual parent span, run the OkHttp call, wait for the okhttp.request child. */
   private void runUnderParent(OkHttpClient client, CountDownLatch done) {
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
-    try (AgentScope ignored = AgentTracer.activateSpan(parentSpan)) {
+    try (ContextScope ignored = AgentTracer.activateSpan(parentSpan)) {
       Request request = new Request.Builder().url(baseUrl + "/ok").build();
       client
           .newCall(request)
@@ -302,7 +302,7 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
     AgentSpan parentA = AgentTracer.startSpan("test", "parentA");
     try {
       // call_B (the "finishing" trace) occupies the single slot and blocks at /gated.
-      try (AgentScope ignored = AgentTracer.activateSpan(parentB)) {
+      try (ContextScope ignored = AgentTracer.activateSpan(parentB)) {
         client
             .newCall(new Request.Builder().url(baseUrl + "/gated").build())
             .enqueue(countdownCallback(bDone));
@@ -310,7 +310,7 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
       assertTrue(gateServing.await(10, TimeUnit.SECONDS), "call_B never reached the server");
 
       // call_A (the "enqueuing" trace) must queue: the only slot is held by call_B.
-      try (AgentScope ignored = AgentTracer.activateSpan(parentA)) {
+      try (ContextScope ignored = AgentTracer.activateSpan(parentA)) {
         client
             .newCall(new Request.Builder().url(baseUrl + "/ok").build())
             .enqueue(countdownCallback(aDone));
@@ -370,7 +370,7 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
    */
   private void runParentBurst(OkHttpClient client, int requestsPerParent) {
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
-    try (AgentScope ignored = AgentTracer.activateSpan(parentSpan)) {
+    try (ContextScope ignored = AgentTracer.activateSpan(parentSpan)) {
       CountDownLatch done = new CountDownLatch(requestsPerParent);
       for (int i = 0; i < requestsPerParent; i++) {
         Request request = new Request.Builder().url(baseUrl + "/ok").build();

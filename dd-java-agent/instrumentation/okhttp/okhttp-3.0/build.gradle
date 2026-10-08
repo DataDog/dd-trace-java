@@ -36,7 +36,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('vthread21Test')
 
 tasks.named("compileVthread21TestJava", JavaCompile) {
-  configureCompiler(it, 21)
+  configureCompiler(it, JavaVersion.VERSION_21)
 }
 
 tasks.named("vthread21Test", Test) {

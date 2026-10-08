@@ -30,7 +30,7 @@ addTestSuiteForDir('vthread21Test5', 'vthread21Test')
 
 ['vthread21Test4', 'vthread21Test5'].each { suite ->
   tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
-    configureCompiler(it, 21)
+    configureCompiler(it, JavaVersion.VERSION_21)
   }
   tasks.named(suite, Test) {
     testJvmConstraints {
