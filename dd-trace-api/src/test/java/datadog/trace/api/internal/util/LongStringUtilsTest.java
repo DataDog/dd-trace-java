@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.api.DDTraceApiTableTestConverters;
+import java.math.BigInteger;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,6 +52,7 @@ class LongStringUtilsTest {
         "18446744073709551616", // unsigned max + 1
         "18446744073709551620", // first 19 digits already too large
         "99999999999999999999",
+        "73659894405625460838", // JDK 8's parseUnsignedLong wraps this instead of throwing
         "184467440737095516150", // 21 digits
         "000000000000000000001" // 21 digits, even with leading zeros
       })
@@ -126,9 +128,11 @@ class LongStringUtilsTest {
   }
 
   @Test
-  void matchesJdkForRandomDigitStrings() {
+  void matchesExactValueForRandomDigitStrings() {
     // Lengths around the 18 / 19 / 20 digit boundaries, where overflow handling changes. Longer
-    // input is always rejected, even with leading zeros, matching parseUnsignedLong(String)
+    // input is always rejected, even with leading zeros, matching parseUnsignedLong(String).
+    // BigInteger is the oracle: JDK 8's parseUnsignedLong misses some 20-digit overflows and
+    // wraps them instead of throwing.
     ThreadLocalRandom random = ThreadLocalRandom.current();
     char[] digits = new char[20];
     for (int i = 0; i < 10_000; i++) {
@@ -137,14 +141,9 @@ class LongStringUtilsTest {
         digits[j] = (char) ('0' + random.nextInt(10));
       }
       String s = new String(digits, 0, len);
-      boolean valid;
-      long expected = 0;
-      try {
-        expected = Long.parseUnsignedLong(s);
-        valid = true;
-      } catch (NumberFormatException e) {
-        valid = false;
-      }
+      BigInteger exact = new BigInteger(s);
+      boolean valid = exact.bitLength() <= 64;
+      long expected = exact.longValue();
       if (valid) {
         assertEquals(expected, parseUnsignedLongOrSentinel(s, 0, len, SENTINEL), s);
       } else {
