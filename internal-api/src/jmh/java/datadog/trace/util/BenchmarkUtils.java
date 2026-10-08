@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -334,25 +336,6 @@ public final class BenchmarkUtils {
    */
   public abstract static class Bench2<B, S1, S2> {
     abstract void invokeAndConsume(B bench, S1 s1, S2 s2, Blackhole bh);
-  }
-
-  /**
-   * Three-argument function: the receiver of an unbound reference to a two-{@code @State} benchmark
-   * method {@code R method(S1 s1, S2 s2)}, plus its two states.
-   */
-  @FunctionalInterface
-  public interface TriFunction<A, B, C, R> {
-    R apply(A a, B b, C c);
-  }
-
-  /**
-   * Three-argument consumer, for benches shaped like {@code void method(S state, Blackhole bh)}
-   * that consume the {@link Blackhole} themselves rather than returning a value for {@code warmUp}
-   * to consume on their behalf.
-   */
-  @FunctionalInterface
-  public interface TriConsumer<A, B, C> {
-    void accept(A a, B b, C c);
   }
 
   // Bench0 adapters -- an unbound reference to a no-arg @Benchmark method, or a state-capturing
