@@ -19,13 +19,7 @@ final class ExposureDeduplicationCache {
   private final Map<Key, Sent> entries;
 
   ExposureDeduplicationCache(final int capacity) {
-    this.entries =
-        new LinkedHashMap<Key, Sent>(16, 0.75f, true) {
-          @Override
-          protected boolean removeEldestEntry(final Map.Entry<Key, Sent> eldest) {
-            return size() > capacity;
-          }
-        };
+    this.entries = new BoundedLru(capacity);
   }
 
   synchronized boolean contains(
@@ -103,6 +97,20 @@ final class ExposureDeduplicationCache {
     @Override
     public int hashCode() {
       return Objects.hash(allocation, variant, serialId);
+    }
+  }
+
+  private static final class BoundedLru extends LinkedHashMap<Key, Sent> {
+    private final int capacity;
+
+    BoundedLru(final int capacity) {
+      super(16, 0.75f, true);
+      this.capacity = capacity;
+    }
+
+    @Override
+    protected boolean removeEldestEntry(final Map.Entry<Key, Sent> eldest) {
+      return size() > capacity;
     }
   }
 }
