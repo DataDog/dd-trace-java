@@ -15,9 +15,14 @@
  */
 package com.datadog.profiling.uploader;
 
+import static com.datadog.profiling.uploader.ProfileUploader.CPU_ARCH_TAG;
+import static com.datadog.profiling.uploader.ProfileUploader.REMOTE_SYMBOLS_REQUESTED;
+import static com.datadog.profiling.uploader.ProfileUploader.REMOTE_SYMBOLS_TAG;
 import static com.datadog.profiling.uploader.ProfileUploader.SERVELESS_TAG;
 import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_END_PARAM;
 import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_START_PARAM;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -325,6 +330,54 @@ public class ProfileUploaderTest {
     // data which are originally zipped will not be recompressed
     final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(true));
     assertArrayEquals(expectedBytes, rawJfr.get());
+  }
+
+  @Test
+  public void testRemoteSymbolsTagAbsentByDefault() throws Exception {
+    when(config.getProfilingUploadTimeout()).thenReturn(500000);
+    uploader = new ProfileUploader(config, configProvider);
+
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(true));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(multiPartItems.get(0).getString());
+    final Map<String, String> tags =
+        ProfilingTestUtils.parseTags(Arrays.asList(event.get("tags_profiler").asText().split(",")));
+
+    assertTrue(!tags.containsKey(REMOTE_SYMBOLS_TAG));
+    assertTrue(!tags.containsKey(CPU_ARCH_TAG));
+  }
+
+  @Test
+  public void testRemoteSymbolsTagAddedWhenRemotesymEnabled() throws Exception {
+    when(config.getProfilingUploadTimeout()).thenReturn(500000);
+    when(configProvider.getBoolean(
+            PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED,
+            PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT))
+        .thenReturn(true);
+    uploader = new ProfileUploader(config, configProvider);
+
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(true));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(multiPartItems.get(0).getString());
+    final Map<String, String> tags =
+        ProfilingTestUtils.parseTags(Arrays.asList(event.get("tags_profiler").asText().split(",")));
+
+    assertEquals(REMOTE_SYMBOLS_REQUESTED, tags.get(REMOTE_SYMBOLS_TAG));
+    String expectedArch =
+        "aarch64".equals(System.getProperty("os.arch")) ? "arm64" : System.getProperty("os.arch");
+    assertEquals(expectedArch, tags.get(CPU_ARCH_TAG));
   }
 
   @ParameterizedTest
