@@ -3,13 +3,17 @@ package datadog.smoketest;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
+import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 
 /** Controls scope recording in one smoke application's companion agent. */
@@ -53,7 +57,37 @@ public final class ScopeDiagnosticsClient {
   }
 
   public String javaAgentArgument() {
-    return "-javaagent:" + agent + "=" + directory;
+    return javaAgentArgument("", new ScopeDiagnosticsCheck[0]);
+  }
+
+  /** Excludes named checks from enforcement, keeping their events in the report. */
+  public String javaAgentArgument(String reason, ScopeDiagnosticsCheck... disabledChecks) {
+    String argument = "-javaagent:" + agent + "=";
+    if (disabledChecks.length == 0) {
+      return argument + directory;
+    }
+    if (reason == null || reason.trim().isEmpty()) {
+      throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
+    }
+    StringJoiner names = new StringJoiner(",");
+    for (ScopeDiagnosticsCheck check : disabledChecks) {
+      names.add(check.name());
+    }
+    return argument
+        + "directory="
+        + encode(directory.toString())
+        + "&disabledChecks="
+        + names
+        + "&reason="
+        + encode(reason);
+  }
+
+  private static String encode(String value) {
+    try {
+      return URLEncoder.encode(value, "UTF-8");
+    } catch (UnsupportedEncodingException impossible) {
+      throw new AssertionError(impossible);
+    }
   }
 
   public void awaitReady(Process process) {
@@ -93,11 +127,7 @@ public final class ScopeDiagnosticsClient {
     if (completed) {
       return;
     }
-    if (!cli) {
-      finish(process);
-      return;
-    }
-    if (process.isAlive()) {
+    if (!cli || process.isAlive()) {
       finish(process);
       return;
     }

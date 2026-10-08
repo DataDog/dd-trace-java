@@ -3,6 +3,7 @@ package datadog.smoketest
 import static datadog.smoketest.KnownLogExclusion.isKnownFlakyTestLogEntry
 
 import com.google.common.collect.ImmutableSet
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -23,6 +24,16 @@ abstract class ProcessManager extends Specification {
 
   /** Return a documented incompatibility; disabling log checks does not disable diagnostics. */
   protected String skipScopeContinuationCheckReason() {
+    null
+  }
+
+  /** Excludes named checks from enforcement while keeping diagnostic recording. */
+  protected ScopeDiagnosticsCheck[] disabledScopeContinuationChecks() {
+    [] as ScopeDiagnosticsCheck[]
+  }
+
+  /** Explains any selectively disabled checks. */
+  protected String disabledScopeContinuationChecksReason() {
     null
   }
 
@@ -223,6 +234,10 @@ abstract class ProcessManager extends Specification {
 
   protected final void configureScopeDiagnostics(ProcessBuilder builder, int index) {
     String reason = skipScopeContinuationCheckReason()
+    ScopeDiagnosticsCheck[] disabledChecks = disabledScopeContinuationChecks()
+    if (reason != null && disabledChecks.length > 0) {
+      throw new IllegalArgumentException('Skipping scope diagnostics requires empty disabled checks')
+    }
     if (reason != null && reason.trim().isEmpty()) {
       throw new IllegalArgumentException('Disabling scope continuation diagnostics requires a reason')
     }
@@ -230,7 +245,7 @@ abstract class ProcessManager extends Specification {
       ? new ScopeDiagnosticsClient(Paths.get(buildDirectory, 'reports'), "${getClass().simpleName}-${index}", scopeDiagnosticsProcessLifetime())
       : null
     scopeDiagnostics.add(diagnostic)
-    String argument = diagnostic == null ? '' : diagnostic.javaAgentArgument()
+    String argument = diagnostic == null ? '' : diagnostic.javaAgentArgument(disabledScopeContinuationChecksReason(), disabledChecks)
     boolean found = replaceScopeDiagnosticsArgument(builder, argument)
     if (diagnostic != null && !found) {
       throw new IllegalStateException('Smoke launch must include defaultJavaProperties, or document an incompatible launch with skipScopeContinuationCheckReason()')

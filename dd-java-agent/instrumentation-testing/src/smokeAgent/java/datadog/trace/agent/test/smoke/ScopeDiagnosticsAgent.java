@@ -8,6 +8,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,13 +28,15 @@ public final class ScopeDiagnosticsAgent {
     if (arguments == null || arguments.isEmpty()) {
       throw new IllegalArgumentException("Scope diagnostics require a control directory");
     }
-    Path directory = Paths.get(arguments).toAbsolutePath();
+    Properties options = parseArguments(arguments);
+    Path directory = Paths.get(options.getProperty("directory")).toAbsolutePath();
     try {
       Properties config = read(directory.resolve("config"));
       String mode = config.getProperty("mode");
       if (!"server".equals(mode) && !"cli".equals(mode)) {
         throw new IllegalArgumentException("Unknown scope diagnostics mode: " + mode);
       }
+      boolean cli = "cli".equals(mode);
       Class<?> agent = Class.forName("datadog.trace.bootstrap.Agent", false, null);
       Field field = agent.getDeclaredField("AGENT_CLASSLOADER");
       field.setAccessible(true);
@@ -50,11 +53,16 @@ public final class ScopeDiagnosticsAgent {
       Class<?> bridge =
           loader.loadClass("datadog.trace.agent.test.scopediag.SmokeDiagnosticsBridge");
       bridge
-          .getMethod("install", Instrumentation.class, Map.class)
-          .invoke(null, instrumentation, payload);
+          .getMethod("install", Instrumentation.class, Map.class, String.class, String.class)
+          .invoke(
+              null,
+              instrumentation,
+              payload,
+              options.getProperty("disabledChecks", ""),
+              options.getProperty("reason", ""));
       Method start = bridge.getMethod("start");
       Method finish = bridge.getMethod("finish");
-      if ("cli".equals(mode)) {
+      if (cli) {
         start.invoke(null);
         Runtime.getRuntime()
             .addShutdownHook(
@@ -71,9 +79,7 @@ public final class ScopeDiagnosticsAgent {
                     "scope-diagnostics-shutdown"));
       }
       Thread controller =
-          new Thread(
-              () -> control(directory, start, finish, "cli".equals(mode)),
-              "scope-diagnostics-control");
+          new Thread(() -> control(directory, start, finish, cli), "scope-diagnostics-control");
       controller.setDaemon(true);
       controller.start();
       Properties ready = new Properties();
@@ -86,11 +92,37 @@ public final class ScopeDiagnosticsAgent {
     }
   }
 
+  private static Properties parseArguments(String arguments) throws Exception {
+    Properties options = new Properties();
+    if (!arguments.startsWith("directory=")) {
+      options.setProperty("directory", arguments);
+      return options;
+    }
+    for (String entry : arguments.split("&", -1)) {
+      int separator = entry.indexOf('=');
+      if (separator < 0) {
+        throw new IllegalArgumentException("Expected key=value diagnostic option: " + entry);
+      }
+      String key = entry.substring(0, separator);
+      if (!"directory".equals(key) && !"disabledChecks".equals(key) && !"reason".equals(key)) {
+        throw new IllegalArgumentException("Unknown scope diagnostic option: " + key);
+      }
+      if (options.setProperty(key, URLDecoder.decode(entry.substring(separator + 1), "UTF-8"))
+          != null) {
+        throw new IllegalArgumentException("Duplicate scope diagnostic option: " + key);
+      }
+    }
+    if (options.getProperty("directory").isEmpty()) {
+      throw new IllegalArgumentException("Scope diagnostics require a control directory");
+    }
+    return options;
+  }
+
   private static void control(Path directory, Method start, Method finish, boolean cli) {
+    Path commandFile = directory.resolve("command");
     long previous = Long.MIN_VALUE;
     while (!Thread.currentThread().isInterrupted()) {
       try {
-        Path commandFile = directory.resolve("command");
         if (Files.exists(commandFile)) {
           Properties command = read(commandFile);
           long seq = Long.parseLong(command.getProperty("seq"));

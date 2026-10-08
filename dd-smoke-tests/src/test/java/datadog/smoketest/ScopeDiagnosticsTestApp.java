@@ -30,9 +30,15 @@ public final class ScopeDiagnosticsTestApp {
   private static void exercise(String action) {
     AgentSpan span = AgentTracer.startSpan("smoke-diagnostic-test", "diagnostic-" + action);
     ContextContinuation continuation = AgentTracer.get().capture(span);
-    if (!"leak".equals(action)) {
+    if ("double".equals(action)) {
+      continuation.release();
+      continuation.release();
+    } else if (!action.startsWith("leak")) {
       ContextScope scope = continuation.resume();
       scope.close();
+    }
+    if ("unclosed".equals(action) || "leak-and-unclosed".equals(action)) {
+      AgentTracer.activateSpan(span);
     }
     span.finish();
   }
