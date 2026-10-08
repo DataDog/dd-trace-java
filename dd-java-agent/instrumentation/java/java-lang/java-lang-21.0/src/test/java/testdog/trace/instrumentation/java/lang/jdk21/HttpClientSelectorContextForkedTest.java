@@ -22,11 +22,9 @@ class HttpClientSelectorContextForkedTest extends AbstractInstrumentationTest {
   @Test
   void selectorDoesNotRetainCreatingRequest() throws Exception {
     assumeTrue(Runtime.version().feature() >= 26);
-    HttpClient client = null;
     AgentSpan parent = startSpan("test", "client-owner");
-    try {
+    try (HttpClient client = newHttpClient(parent)) {
       try (ContextScope ignored = activateSpan(parent)) {
-        client = HttpClient.newHttpClient();
         Object impl = field(client.getClass(), "impl").get(client);
         Thread selector = (Thread) field(impl.getClass(), "selmgrThread").get(impl);
         assertTrue(selector.isVirtual());
@@ -38,10 +36,16 @@ class HttpClientSelectorContextForkedTest extends AbstractInstrumentationTest {
       }
       // Publish while the client is still alive: closing it must not be needed to release parent.
       assertTraces(trace(span().root().operationName("client-owner")));
-    } finally {
-      if (client != null) {
-        client.close();
-      }
+    }
+  }
+
+  private static HttpClient newHttpClient(Object parentSpan) {
+    AgentSpan parent = (AgentSpan) parentSpan;
+    try (ContextScope ignored = activateSpan(parent)) {
+      return HttpClient.newHttpClient();
+    } catch (Throwable error) {
+      parent.finish();
+      throw error;
     }
   }
 }
