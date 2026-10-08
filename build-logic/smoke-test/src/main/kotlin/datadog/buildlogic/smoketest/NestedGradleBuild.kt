@@ -348,10 +348,23 @@ abstract class NestedGradleBuild @Inject constructor(
     return directory
   }
 
-  private fun deleteGradleUserHome(directory: File) {
-    if (directory.exists() && !directory.deleteRecursively()) {
-      logger.warn("Could not delete nested Gradle user home: {}", directory.absolutePath)
+  internal fun deleteGradleUserHome(directory: File) {
+    // --stop acknowledges the request before the daemon finishes writing its logs and caches.
+    repeat(20) { attempt ->
+      if (!directory.exists() || directory.deleteRecursively()) {
+        return
+      }
+      if (attempt < 19) {
+        try {
+          Thread.sleep(100)
+        } catch (e: InterruptedException) {
+          Thread.currentThread().interrupt()
+          logger.warn("Interrupted while deleting nested Gradle user home: {}", directory.absolutePath)
+          return
+        }
+      }
     }
+    logger.warn("Could not delete nested Gradle user home: {}", directory.absolutePath)
   }
 
   companion object {

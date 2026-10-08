@@ -11,12 +11,57 @@ import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.withType
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
+import java.io.File
 
 /**
  * Fast in-process tests that exercise plugin application and extension wiring through
  * [ProjectBuilder]. End-to-end task execution lives in [SmokeTestAppEndToEndTest].
  */
 class SmokeTestAppPluginTest {
+
+  @Test
+  fun `nested Gradle user home cleanup retries files written during daemon shutdown`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    val task = project.tasks.create("nestedBuild", NestedGradleBuild::class.java)
+    var deleteAttempts = 0
+    val userHome = object : File(project.projectDir, "gradle-user-home") {
+      override fun delete(): Boolean {
+        // A daemon can write another file after the recursive walk has visited the children.
+        if (deleteAttempts++ == 0) {
+          resolve("daemon-shutdown.log").writeText("stopping")
+        }
+        return super.delete()
+      }
+    }
+    assertThat(userHome.mkdirs()).isTrue()
+    userHome.resolve("daemon.log").writeText("running")
+
+    task.deleteGradleUserHome(userHome)
+
+    assertThat(userHome).doesNotExist()
+  }
+
+  @Test
+  fun `nested Gradle user home cleanup preserves interruption`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    val task = project.tasks.create("nestedBuild", NestedGradleBuild::class.java)
+    val userHome = object : File(project.projectDir, "gradle-user-home") {
+      override fun delete(): Boolean = false
+    }
+    assertThat(userHome.mkdirs()).isTrue()
+
+    Thread.currentThread().interrupt()
+    try {
+      task.deleteGradleUserHome(userHome)
+
+      assertThat(Thread.currentThread().isInterrupted).isTrue()
+      assertThat(userHome).exists()
+    } finally {
+      Thread.interrupted()
+    }
+  }
 
   @Test
   fun `applying the plugin creates the smokeTestApp extension`() {
