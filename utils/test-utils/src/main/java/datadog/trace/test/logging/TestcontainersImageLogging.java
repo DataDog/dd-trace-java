@@ -13,10 +13,17 @@ import java.lang.management.ManagementFactory;
 /** Preserves image pull progress independently of test output and retries. */
 public final class TestcontainersImageLogging {
   private static final String APPENDER_NAME = "TESTCONTAINERS_IMAGES";
+  private static final Object CONFIGURATION_LOCK = new Object();
 
   private TestcontainersImageLogging() {}
 
-  public static synchronized void configure(LoggerContext context) {
+  public static void configure(LoggerContext context) {
+    synchronized (CONFIGURATION_LOCK) {
+      configureAppender(context);
+    }
+  }
+
+  private static void configureAppender(LoggerContext context) {
     String directory = System.getProperty("testcontainers.image.log.dir");
     if (directory == null) {
       return;
