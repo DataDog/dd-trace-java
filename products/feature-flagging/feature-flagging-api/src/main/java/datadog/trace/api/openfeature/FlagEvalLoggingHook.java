@@ -9,7 +9,10 @@ import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * OpenFeature Hook that captures flag evaluation events for EVP flagevaluation emission.
@@ -32,6 +35,33 @@ import java.util.function.Supplier;
  * writer is absent (killswitch off or not yet started) it is a no-op.
  */
 class FlagEvalLoggingHook<T> implements Hook<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(FlagEvalLoggingHook.class);
+
+  static final AtomicBoolean FEATURES_SUPPORTED =
+      new AtomicBoolean(featuresSupported(FlagEvalEvent.class));
+
+  /**
+   * An older agent's flag-evaluation event has no features; its rows are then sent without them.
+   */
+  static boolean featuresSupported(final Class<?> eventClass) {
+    try {
+      eventClass.getConstructor(
+          String.class,
+          String.class,
+          String.class,
+          String.class,
+          String.class,
+          long.class,
+          boolean.class,
+          Map.class,
+          Map.class);
+      return true;
+    } catch (final NoSuchMethodException | LinkageError | RuntimeException e) {
+      log.debug("The installed Datadog Java agent does not send features on flag evaluations", e);
+      return false;
+    }
+  }
 
   /**
    * Singleton instance: always registered when the provider is created; harmless when writer=null
@@ -156,7 +186,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final Map<String, Object> features =
           DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX);
       w.enqueue(
-          features.isEmpty() || !DDEvaluator.FLAG_EVAL_FEATURES_SUPPORTED.get()
+          features.isEmpty() || !FEATURES_SUPPORTED.get()
               ? new FlagEvalEvent(
                   flagKey,
                   variant,
