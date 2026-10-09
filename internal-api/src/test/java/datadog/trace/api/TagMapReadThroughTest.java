@@ -208,6 +208,23 @@ class TagMapReadThroughTest {
   }
 
   @Test
+  void readsThroughToParentUnlessShadowedOrRemoved() {
+    TagMap parent = frozenParent(); // {a, b}
+    TagMap child = TagMap.createFromParent(parent);
+    child.set("c", "child-c");
+    child.set(parent.getEntry("b")); // local copy sharing the parent's Entry instance
+
+    assertTrue(child.readsThroughToParent("a"));
+    assertFalse(child.readsThroughToParent("b")); // shadowed locally, even by the same Entry
+    assertFalse(child.readsThroughToParent("c")); // local only
+    assertTrue(child.readsThroughToParent("missing")); // would fall through, parent lacks it
+
+    child.remove("a"); // tombstone
+    assertFalse(child.readsThroughToParent("a"));
+    assertFalse(parent.readsThroughToParent("a")); // no parent
+  }
+
+  @Test
   void parentExposesAttachedParent() {
     TagMap parent = frozenParent();
     TagMap child = TagMap.createFromParent(parent);

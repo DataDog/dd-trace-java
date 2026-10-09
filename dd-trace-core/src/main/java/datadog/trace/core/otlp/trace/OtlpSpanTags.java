@@ -45,8 +45,8 @@ final class OtlpSpanTags {
     }
     tags.forEachLocal(thisObj, consumer);
     for (TagMap.EntryReader leftover : leftovers(parent)) {
-      // identity check: skips leftovers the span overrode locally (already written) or removed
-      if (tags.getEntry(leftover.tag()) == leftover) {
+      // skips leftovers the span holds locally (already written) or removed
+      if (tags.readsThroughToParent(leftover.tag())) {
         consumer.accept(thisObj, leftover);
       }
     }

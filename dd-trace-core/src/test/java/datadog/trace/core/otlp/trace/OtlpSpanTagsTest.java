@@ -72,6 +72,17 @@ class OtlpSpanTagsTest {
   }
 
   @Test
+  void writesLeftoversCopiedFromAnotherSpanOnce() {
+    TagMap parent = tracerTags();
+    TagMap span = TagMap.createFromParent(parent);
+    // e.g. setAllTags(otherSpan.getTags()): copies share the parent's immutable Entry instances
+    span.putAll(TagMap.createFromParent(parent));
+
+    Map<String, Object> tags = collect(new OtlpSpanTags(RESOURCE_TAGS), span);
+    assertEquals("alice", tags.get("owner")); // collect() fails on duplicate keys
+  }
+
+  @Test
   void skipsLeftoversRemovedFromSpan() {
     TagMap span = TagMap.createFromParent(tracerTags());
     span.remove("owner");

@@ -2020,6 +2020,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return this.parent;
   }
 
+  /**
+   * Whether a lookup of {@code tag} falls through to the parent chain: there is a parent, no local
+   * entry shadows it (even one sharing the parent's {@link Entry} instance), and it was not removed
+   * locally. Does not check whether the parent actually holds {@code tag}.
+   */
+  public boolean readsThroughToParent(String tag) {
+    return this.parent != null
+        && this.getLocalEntry(tag) == null
+        && (this.removedFromParent == null || !this.removedFromParent.contains(tag));
+  }
+
   public void checkWriteAccess() {
     if (this.frozen) throw new IllegalStateException("TagMap frozen");
   }
