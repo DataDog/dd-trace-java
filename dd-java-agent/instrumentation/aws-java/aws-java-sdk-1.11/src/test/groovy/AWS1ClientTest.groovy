@@ -27,6 +27,8 @@ import com.amazonaws.services.dynamodbv2.model.GetItemRequest
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder
 import com.amazonaws.services.kinesis.model.DeleteStreamRequest
+import com.amazonaws.services.lambda.AWSLambdaClientBuilder
+import com.amazonaws.services.lambda.model.InvokeRequest
 import com.amazonaws.services.rds.AmazonRDSClientBuilder
 import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
 import com.amazonaws.services.s3.AmazonS3Client
@@ -216,6 +218,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     "Kinesis"    | "DeleteStream"      |  "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream", "streamname": "somestream"] | ""                | "aws.stream.name"   | null
     "AWSStepFunctions" | "StartExecution"    |  "POST" | "/"                   | AWSStepFunctionsClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                       | { c -> c.startExecution(new StartExecutionRequest().withStateMachineArn("arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine")) } | ["aws.state_machine.arn": "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"] | "" | null | null
     "AWSStepFunctions" | "DescribeExecution" |  "POST" | "/"                   | AWSStepFunctionsClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                       | { c -> c.describeExecution(new DescribeExecutionRequest().withExecutionArn("arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution")) } | ["aws.execution.arn": "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"] | "" | null | null
+    "AWSLambda"  | "Invoke"            | "POST" | "/2015-03-31/functions/somefunction/invocations" | AWSLambdaClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.invoke(new InvokeRequest().withFunctionName("somefunction")) } | ["aws.function.name": "somefunction"] | "" | null | null
     "SQS"        | "CreateQueue"       |  "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue", "queuename": "somequeue"]   | """
 
         <CreateQueueResponse>

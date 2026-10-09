@@ -43,6 +43,7 @@ dependencies {
   // Also include netty instrumentation because it is used by aws async client
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'netty-nio-client', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 's3', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'rds', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'ec2', version: '2.2.0'
@@ -84,6 +85,7 @@ dependencies {
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'netty-nio-client', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 's3', version: fixedSdkVersion

@@ -15,6 +15,8 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.apache.ApacheHttpClient
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
@@ -283,37 +285,46 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
         """
   }
 
-  def "SNS TargetArn is not tagged as a topic ARN"() {
+  def "SNS topic ARN comes from TopicArn for #scenario (async=#async)"() {
     setup:
-    def client = SnsClient.builder()
+    def eventLoopGroup = async ? SdkEventLoopGroup.builder().numberOfThreads(1).build() : null
+    def builder = async ? SnsAsyncClient.builder()
+      .httpClientBuilder(NettyNioAsyncHttpClient.builder().eventLoopGroup(eventLoopGroup)) : SnsClient.builder()
+    def client = builder
       .endpointOverride(server.address)
-      .region(Region.AP_NORTHEAST_1)
+      .region(Region.US_EAST_1)
       .credentialsProvider(CREDENTIALS_PROVIDER)
       .build()
-    responseBody.set("""
-        <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
-            <PublishResult>
-                <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
-            </PublishResult>
-            <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
-        </PublishResponse>
-        """)
+    responseBody.set("""<PublishResponse><PublishResult><MessageId>test-message</MessageId></PublishResult></PublishResponse>""")
+    def request = PublishRequest.builder().topicArn(topicArn).targetArn(targetArn).message("test").build()
 
     when:
-    client.publish(
-      PublishRequest.builder()
-      .targetArn("arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device")
-      .message("")
-      .build())
+    def response = client.publish(request)
+    if (response instanceof Future) {
+      response.get()
+    }
     TEST_WRITER.waitForTraces(1)
-    def span = TEST_WRITER.flatten().first()
 
     then:
-    span.getTag("aws.topic.arn") == null
-    span.getTag("aws.topic.name") == "endpoint/APNS/app/device"
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    spans[0].getTag("aws.topic.arn") == topicArn
+    spans[0].getTag("aws.topic.name") == expectedTopicName
 
     cleanup:
     client.close()
+    if (eventLoopGroup != null) {
+      eventLoopGroup.eventLoopGroup().shutdownGracefully().syncUninterruptibly()
+    }
+
+    where:
+    scenario      | async | topicArn                                      | targetArn                                                   | expectedTopicName
+    "topic"       | false | "arn:aws:sns:us-east-1:123456789012:test-topic" | null                                                        | "test-topic"
+    "endpoint"    | false | null                                          | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "endpoint/APNS/app/device"
+    "both fields" | false | "arn:aws:sns:us-east-1:123456789012:test-topic" | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "test-topic"
+    "topic"       | true  | "arn:aws:sns:us-east-1:123456789012:test-topic" | null                                                        | "test-topic"
+    "endpoint"    | true  | null                                          | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "endpoint/APNS/app/device"
+    "both fields" | true  | "arn:aws:sns:us-east-1:123456789012:test-topic" | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "test-topic"
   }
 
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {

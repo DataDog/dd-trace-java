@@ -50,6 +50,7 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-stepfunctions', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-lambda', version: '[1.11,1.11.106]'
 
   // needed for kinesis:
   testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: null
@@ -113,6 +114,7 @@ dependencies {
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-stepfunctions', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-lambda', version: '+'
 }
 
 tasks.named("test", Test) {
