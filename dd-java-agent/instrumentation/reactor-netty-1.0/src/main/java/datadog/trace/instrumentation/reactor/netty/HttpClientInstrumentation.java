@@ -46,6 +46,7 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
       packageName + ".CaptureConnectSpan",
       packageName + ".TransferConnectSpan",
       packageName + ".ClearRequestContext",
+      packageName + ".ClearRequestContext$DeferredCleanup",
     };
   }
 
