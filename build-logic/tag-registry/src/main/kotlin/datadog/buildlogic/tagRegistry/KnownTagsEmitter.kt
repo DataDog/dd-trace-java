@@ -166,6 +166,21 @@ object KnownTagsEmitter {
           }
 
           /**
+           * Each tag's Datadog name, indexed by serial; slot 0 (no tag) is null. An array rather than a
+           * switch keeps nameOf small enough to inline at every caller.
+           */
+          static final String[] NAMES_BY_SERIAL = {
+            null,
+        """.trimIndent()
+      )
+      for (t in reg.tags.sortedBy { it.serial }) {
+        appendLine("    ${nameExpr(t)},")
+      }
+      appendLine(
+        """
+          };
+
+          /**
            * The registry's name&harr;id tables, as a {@link KnownTagCodec.Resolver}. {@code KnownTagCodec}
            * reads this field from its own holder, so the two classes complete each other: the codec owns
            * the bit layout and the naming policy, this class owns the data. Nothing has to be called first.
@@ -174,26 +189,12 @@ object KnownTagsEmitter {
               new KnownTagCodec.Resolver() {
                 @Override
                 public String nameOf(long tagId) {
-                  switch (KnownTagCodec.serialNum(tagId)) {
-        """.trimIndent()
-      )
-      for (t in reg.tags) {
-        appendLine(
-          """
-                      case ${serialC(t.identity)}:
-                        return ${nameExpr(t)};
-          """.trimIndent()
-        )
-      }
-      // openTelemetryNameOf: canonical id -> OTel-namespace name, null when the tag has none. The
-      // caller (a serializer) owns any fall-back-to-Datadog-name policy; this stays a pure lookup.
-      appendLine(
-        """
-                    default:
-                      return null;
-                  }
+                  int serial = KnownTagCodec.serialNum(tagId);
+                  return serial < NAMES_BY_SERIAL.length ? NAMES_BY_SERIAL[serial] : null;
                 }
         
+                // openTelemetryNameOf: canonical id -> OTel-namespace name, null when the tag has
+                // none. The caller (a serializer) owns any fall-back-to-Datadog-name policy.
                 @Override
                 public String openTelemetryNameOf(long tagId) {
                   switch (KnownTagCodec.serialNum(tagId)) {
