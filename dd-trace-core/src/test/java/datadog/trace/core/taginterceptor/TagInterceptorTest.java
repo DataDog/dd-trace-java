@@ -190,6 +190,25 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals("new-service", span.getServiceName());
   }
 
+  @TableTest({
+    "scenario                         | configured | tag      ",
+    "configured by OTel name          | db.system  | db.system",
+    "configured by Datadog name       | db.type    | db.type  ",
+    "Datadog name, set with OTel name | db.type    | db.system"
+  })
+  void splitByTagsMatchesTheCanonicalNameOfABuilderTag(String configured, String tag) {
+    CoreTracer tracer = createSplittingTracer(configured);
+
+    AgentSpan builderSpan = tracer.buildSpan("datadog", "some span").withTag(tag, "split").start();
+    AgentSpan setterSpan = tracer.buildSpan("datadog", "some span").start();
+    setterSpan.setTag(tag, "split");
+
+    assertEquals("split", builderSpan.getServiceName());
+    if (configured.equals(tag)) {
+      assertEquals("split", setterSpan.getServiceName());
+    }
+  }
+
   private CoreTracer createSplittingTracer(String tag) {
     return tracerBuilder()
         .serviceName("my-service")
