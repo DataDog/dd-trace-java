@@ -32,7 +32,7 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(0, report.leakCount());
     assertEquals(1, report.activateAfterResolveCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
   }
 
   @Test
@@ -80,6 +80,6 @@ class ScopeDiagnosticsAdmissionTest {
     assertEquals(1, report.records().size());
     assertEquals(0, report.leakCount());
     assertEquals(0, report.lateCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 }

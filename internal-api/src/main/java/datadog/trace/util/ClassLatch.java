@@ -4,6 +4,7 @@ import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.function.ThrowingFunction;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * A per-class latch for an operation that, once it has failed for a class, will fail the same way
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
  * @param <R> the type of the result
  * @param <E> the checked exception {@link #apply} may throw
  */
+@ThreadSafe
 public abstract class ClassLatch<T, R, E extends Exception> {
   private static final String RECEIVER_PREFIX = "Receiver class ";
 
