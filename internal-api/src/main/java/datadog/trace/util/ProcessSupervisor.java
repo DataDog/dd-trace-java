@@ -37,7 +37,7 @@ public class ProcessSupervisor implements Closeable {
 
   private static final long HEALTHY_DELAY_MILLIS = 10_000;
   private static final long FAULTED_DELAY_MILLIS = 2_000;
-  private static final int MAX_FAULTS = 5;
+  private static final long MAX_FAULTED_DELAY_MILLIS = 60_000;
 
   // Lifecycle events are logged at info level. A process that keeps failing quickly would flood
   // the log, so after this many failures in a row the details go to debug level until the
@@ -56,7 +56,7 @@ public class ProcessSupervisor implements Closeable {
   private Health currentHealth = Health.NEVER_CHECKED;
   private Health lastCheckResult = Health.NEVER_CHECKED;
   private Process currentProcess;
-  private int faults;
+  private final FaultBackoff faultBackoff = new FaultBackoff();
   private int failuresInARow;
 
   private volatile boolean stopping = false;
@@ -81,10 +81,6 @@ public class ProcessSupervisor implements Closeable {
   private void mainLoop() {
     try {
       while (!stopping) {
-        if (currentHealth == FAULTED && ++faults >= MAX_FAULTS) {
-          log.warn("Failed to start process [{}] after {} attempts", imageName, faults);
-          break;
-        }
         try {
           long delayMillis = nextCheckMillis - System.currentTimeMillis();
           if (delayMillis > 0) {
@@ -98,7 +94,11 @@ public class ProcessSupervisor implements Closeable {
         } catch (InterruptedException e) {
           currentHealth = INTERRUPTED;
         } catch (Throwable e) {
-          log.warn("Exception starting process: [{}]", imageName, e);
+          if (failuresInARow++ < QUIET_AFTER_FAILURES) {
+            log.warn("Exception starting process: [{}]", imageName, e);
+          } else {
+            log.debug("Exception starting process: [{}]", imageName, e);
+          }
           currentHealth = FAULTED;
         }
         scheduleNextHealthCheck();
@@ -135,7 +135,7 @@ public class ProcessSupervisor implements Closeable {
     if (currentHealth == HEALTHY) {
       nextCheckMillis = now + HEALTHY_DELAY_MILLIS;
     } else if (currentHealth == FAULTED) {
-      nextCheckMillis = now + FAULTED_DELAY_MILLIS;
+      nextCheckMillis = now + faultBackoff.recordFault();
     } else { // interrupted
       nextCheckMillis = Long.max(nextCheckMillis, now + 100);
     }
@@ -148,7 +148,6 @@ public class ProcessSupervisor implements Closeable {
         currentProcess = processBuilder.start();
       }
       currentHealth = HEALTHY;
-      faults = 0;
       logLifecycle(
           "Started process [{}] with pid {} from this process (pid {})",
           imageName,
@@ -164,6 +163,7 @@ public class ProcessSupervisor implements Closeable {
     currentHealth = code == 0 ? INTERRUPTED : FAULTED;
 
     long ranMillis = System.currentTimeMillis() - startedMillis;
+    faultBackoff.recordUptime(ranMillis);
     if (ranMillis >= STABLE_RUN_MILLIS) {
       failuresInARow = 0;
     }
@@ -243,6 +243,31 @@ public class ProcessSupervisor implements Closeable {
               + "the process may be left running",
           imageName,
           THREAD_JOIN_TIMOUT_MS);
+    }
+  }
+
+  /**
+   * Counts faults in a row and spaces out the retries that follow them. Faults are forgotten only
+   * once a process has stayed up for {@link #STABLE_RUN_MILLIS}, so an agent that keeps exiting
+   * soon after it starts backs off instead of restarting every few seconds. Retries never stop.
+   */
+  static final class FaultBackoff {
+    private static final int MAX_DOUBLINGS = 5;
+
+    private int faults;
+
+    /** Records a fault and returns how long to wait before the next health check. */
+    long recordFault() {
+      faults++;
+      int doublings = Math.min(faults - 1, MAX_DOUBLINGS);
+      return Math.min(FAULTED_DELAY_MILLIS << doublings, MAX_FAULTED_DELAY_MILLIS);
+    }
+
+    /** Forgets earlier faults once a process has been up for a stable period. */
+    void recordUptime(long upMillis) {
+      if (upMillis >= STABLE_RUN_MILLIS) {
+        faults = 0;
+      }
     }
   }
 
