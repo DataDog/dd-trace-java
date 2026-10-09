@@ -35,7 +35,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -51,7 +50,10 @@ public class TagInterceptor {
   private final boolean splitByServletContext;
   private final String inferredServiceName;
 
-  /** split-by-tags entries naming known tags, indexed by serial; null when there are none. */
+  /**
+   * Whether each known tag, indexed by serial, is a split-by-tags entry. Sized to every known
+   * serial and never changed after construction, so the check is a single load.
+   */
   private final boolean[] splitServiceSerials;
 
   /** split-by-tags entries naming custom tags; null when there are none. */
@@ -94,29 +96,22 @@ public class TagInterceptor {
   /**
    * Marks, by serial, each known tag that {@code names} names under any of its names, so a tag set
    * by id or by its OpenTelemetry name matches too. A name declared per direction marks each
-   * direction's tag. Returns null when no name is a known tag's.
+   * direction's tag.
    */
   private static boolean[] knownTagSerials(Set<String> names) {
+    boolean[] serials = new boolean[KnownTagCodec.serialLimit()];
     if (names.isEmpty()) {
-      return null;
+      return serials;
     }
     Set<String> canonicalNames = new HashSet<>();
     for (String name : names) {
       canonicalNames.add(KnownTagCodec.canonicalTagName(name));
     }
-    boolean[] serials = null;
-    for (int serial = 1; ; ++serial) {
-      String name = KnownTagCodec.nameOf(KnownTagCodec.makeTagId(serial));
-      if (name == null) {
-        return serials;
-      }
-      if (canonicalNames.contains(name)) {
-        if (serials == null || serial >= serials.length) {
-          serials = serials == null ? new boolean[serial + 1] : Arrays.copyOf(serials, serial + 1);
-        }
-        serials[serial] = true;
-      }
+    for (int serial = 1; serial < serials.length; ++serial) {
+      serials[serial] =
+          canonicalNames.contains(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(serial)));
     }
+    return serials;
   }
 
   /** The names in {@code names} that do not resolve to a known tag, or null when there are none. */
@@ -133,10 +128,9 @@ public class TagInterceptor {
     return custom;
   }
 
+  /** {@code tagId} is a known id, so its serial is in range. */
   private boolean isSplitServiceTag(long tagId) {
-    boolean[] serials = splitServiceSerials;
-    int serial = KnownTagCodec.serialNum(tagId);
-    return serials != null && serial < serials.length && serials[serial];
+    return splitServiceSerials[KnownTagCodec.serialNum(tagId)];
   }
 
   private boolean isSplitServiceTag(String customTag) {
@@ -170,8 +164,8 @@ public class TagInterceptor {
 
   /**
    * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag. Called with a
-   * constant id, the {@link KnownTagCodec#INTERCEPTED} test folds away; only a configured
-   * split-by-tags is left to check at run time.
+   * constant id, the {@link KnownTagCodec#INTERCEPTED} test folds away; only the split-by-tags
+   * table is left to check at run time. {@code tagId} must be a known id.
    */
   public boolean needsIntercept(long tagId) {
     return KnownTagCodec.isIntercepted(tagId) || isSplitServiceTag(tagId);

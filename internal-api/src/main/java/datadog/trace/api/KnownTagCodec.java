@@ -127,6 +127,14 @@ public final class KnownTagCodec {
     return otelName != null ? otelName : resolver.nameOf(tagId);
   }
 
+  /**
+   * One past the largest known serial: an array of this length, indexed by {@link #serialNum}, has
+   * a slot for every known tag (slot 0 is no tag).
+   */
+  public static int serialLimit() {
+    return KnownTags.NAMES_BY_SERIAL.length;
+  }
+
   /** The id for {@code name} in any namespace, or 0 when it is not a known tag. */
   public static long keyOf(String name) {
     return Installed.RESOLVER.keyOf(name);
