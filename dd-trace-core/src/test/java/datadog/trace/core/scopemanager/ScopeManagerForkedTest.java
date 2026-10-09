@@ -126,7 +126,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
   @Test
   void activatingNullSpanReturnsNoopScopeAndDoesNotCorruptStack() {
-    AgentScope nullScope = scopeManager.activateSpan(null);
+    ContextScope nullScope = scopeManager.activateSpan(null);
 
     assertInstanceOf(NoopScope.class, nullScope);
     assertNull(scopeManager.active());
@@ -136,10 +136,10 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     // a subsequent activation on the same thread must not NPE, even though the noop
     // activation above never pushed a scope with a null context onto the stack
     AgentSpan span = tracer.buildSpan("test", "test").start();
-    AgentScope scope = tracer.activateSpan(span);
+    ContextScope scope = tracer.activateSpan(span);
 
     assertSame(scope, scopeManager.active());
-    assertSame(span, scope.span());
+    assertSame(span, AgentSpan.fromContext(scope.context()));
 
     scope.close();
     span.finish();
