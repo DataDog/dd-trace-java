@@ -10,6 +10,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
@@ -996,6 +997,22 @@ public class DDSpanContext
   }
 
   /**
+   * Removes a known tag by id, rather than by its name, which need not resolve back to the id. An
+   * id that names no known tag is ignored, like the id-keyed setters do.
+   */
+  public void removeTag(long tagId) {
+    if (KnownTagCodec.nameOf(tagId) == null) {
+      return;
+    }
+    if (tagId == KnownTags.SPAN_KIND_ID) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    synchronized (unsafeTags) {
+      unsafeTags.getAndRemove(tagId);
+    }
+  }
+
+  /**
    * Sets a tag to the span. Tags are not propagated to the children.
    *
    * <p>Existing tag value with the same value will be replaced. Setting a tag with a {@code null}
@@ -1026,6 +1043,109 @@ public class DDSpanContext
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  /*
+   * Id-keyed setters, mirroring the String setters above: interception still runs on the tag's
+   * name (TagInterceptor is name-keyed), but a stored tag is set by id, skipping the name lookup.
+   * An id that names no known tag is ignored, like a null tag.
+   */
+  public void setTag(final long tagId, final Object value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final CharSequence value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final boolean value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final int value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final long value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final float value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final double value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
       }
     }
   }
@@ -1105,10 +1225,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
