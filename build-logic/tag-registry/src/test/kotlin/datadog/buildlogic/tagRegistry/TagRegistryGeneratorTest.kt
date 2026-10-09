@@ -505,7 +505,8 @@ class TagRegistryGeneratorTest {
         "COMPONENT_ID = 0x0001000000000000L",
         "RESOURCE_NAME_ID = 0x0002000000000002L",
         "SERVICE_ID = 0x0003000000000002L",
-        "public static final int SERVICE_SERIAL_NUM = 3;"
+        "public static final int SERVICE_SERIAL_NUM = 3;",
+        "public static final int SERIAL_LIMIT = 4;"
       )
   }
 

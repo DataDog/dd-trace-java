@@ -113,6 +113,9 @@ object KnownTagsEmitter {
       for (t in reg.tags) {
         appendLine("  public static final int ${serialC(t.identity)} = ${t.serial};")
       }
+      // Every known tag's serial is below SERIAL_LIMIT; serial 0 is no tag.
+      val serialLimit = (reg.tags.maxOfOrNull { it.serial } ?: 0) + 1
+      appendLine("  public static final int SERIAL_LIMIT = $serialLimit;")
 
       // OpenTelemetry name -> canonical tag name. Validation ensures aliases are distinct from all
       // canonical names. Sort by OTel name to keep output deterministic.

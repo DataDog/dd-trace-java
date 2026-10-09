@@ -28,6 +28,9 @@ public final class KnownTagCodec {
    * <p>There is deliberately NO OpenTelemetry-applicability flag: an absent otel-name means
    * pass-through (the tag is emitted under its Datadog name), so today every known tag has an
    * OpenTelemetry name and such a flag would be constant. It returns once a Datadog-only tag exists.
+   *
+   * <p>Serials are assigned at build time and are NOT stable across releases: they follow the tags'
+   * names in order, so adding a tag renumbers others. Never persist or transmit a raw id.
    */
   public static int serialNum(long tagId) {
     return (int) (tagId >>> 48);
@@ -132,7 +135,16 @@ public final class KnownTagCodec {
    * a slot for every known tag (slot 0 is no tag).
    */
   public static int serialLimit() {
-    return KnownTags.NAMES_BY_SERIAL.length;
+    return KnownTags.SERIAL_LIMIT;
+  }
+
+  /**
+   * True if {@code tagId} names a known tag -- the same answer as {@code nameOf(tagId) != null}, as
+   * a range check on its serial, so it folds away for a constant id.
+   */
+  public static boolean isKnown(long tagId) {
+    int serial = serialNum(tagId);
+    return serial != 0 && serial < KnownTags.SERIAL_LIMIT; // serial 0 is no tag
   }
 
   /** The id for {@code name} in any namespace, or 0 when it is not a known tag. */

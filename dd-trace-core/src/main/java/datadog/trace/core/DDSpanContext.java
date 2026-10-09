@@ -1000,7 +1000,7 @@ public class DDSpanContext
    * id that names no known tag is ignored, like the id-keyed setters do.
    */
   public void removeTag(long tagId) {
-    if (KnownTagCodec.nameOf(tagId) == null) {
+    if (isUnknownTag(tagId)) {
       return;
     }
     if (tagId == KnownTags.SPAN_KIND_ID) {
@@ -1154,7 +1154,7 @@ public class DDSpanContext
   }
 
   private static boolean isUnknownTag(long tagId) {
-    return KnownTagCodec.nameOf(tagId) == null;
+    return !KnownTagCodec.isKnown(tagId);
   }
 
   public void setTag(TagMap.EntryReader entry) {
