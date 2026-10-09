@@ -15,6 +15,7 @@ import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.DDTags.REQUIRED_CODE_ORIGIN_TAGS;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
@@ -56,6 +57,7 @@ public final class TagsMatcher {
     tagMatchers.put(DJM_ENABLED, any());
     tagMatchers.put(PARENT_ID, any());
     tagMatchers.put(SPAN_LINKS, any()); // this is checked by LinksAsserter
+    tagMatchers.put(SPAN_EVENTS, any()); // this is checked by SpanEventMatcher
     tagMatchers.put(DD_INTEGRATION, any());
     tagMatchers.put(TRACER_HOST, any());
 
