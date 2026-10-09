@@ -664,4 +664,38 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       caller.shutdownNow();
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Test 11: flush succeeds when the serializer starts after the flush begins
+  // -------------------------------------------------------------------------
+
+  @Test
+  void testFlushSucceedsWhenSerializerStartsAfterFlushBegins() throws Exception {
+    AtomicInteger flushCount = new AtomicInteger();
+    TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            mock(HealthMetrics.class),
+            flushCountingPayloadDispatcher(flushCount),
+            () -> false,
+            FAST_LANE,
+            100,
+            TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
+            null);
+    ExecutorService caller = Executors.newSingleThreadExecutor();
+    try {
+      // the agent can delay starting the writer (e.g. on IBM JDK 8) past a short-lived app's exit
+      Future<Boolean> flushed = caller.submit(() -> worker.flush(10, TimeUnit.SECONDS));
+      while (worker.getPrimaryQueue().isEmpty() && !flushed.isDone()) {
+        Thread.yield();
+      }
+      worker.start();
+
+      assertTrue(flushed.get(5, TimeUnit.SECONDS));
+      assertEquals(1, flushCount.get());
+    } finally {
+      worker.close();
+      caller.shutdownNow();
+    }
+  }
 }
