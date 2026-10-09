@@ -5,7 +5,7 @@ import static java.util.stream.Collectors.joining;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
-import datadog.trace.api.appsec.MediaType;
+import datadog.trace.api.http.MediaType;
 import datadog.trace.lambda.ContentTypeBodyParser.ParseContext;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

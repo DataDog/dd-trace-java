@@ -45,7 +45,9 @@ public class RatpackRequestBodyCallGetBufferAdvice {
         return null;
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+      // effectivelyBlocked() is intentionally absent: Ratpack blocks through Netty's
+      // BlockResponseFunction, whose BlockingResponseHandler already marks the segment.
+      blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
       return new BlockingException("Blocked request (for ByteBufBackedTypedData/getBuffer)");
     }
 

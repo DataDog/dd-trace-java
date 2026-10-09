@@ -109,6 +109,17 @@ class PlayServerTest extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBlockFailure() {
+    true
+  }
+
+  @Override
+  BlockFailureVariant blockFailureVariant() {
+    // play publishes the blocking path params callback from PathExtractionHelpers
+    BlockFailureVariant.PATH_PARAMS
+  }
+
+  @Override
   String testPathParam() {
     '/path/?/param'
   }
