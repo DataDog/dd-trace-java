@@ -88,12 +88,13 @@ public final class AxisEngineInstrumentation
       if (continuation instanceof ContextContinuation) {
         message.removeSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
         // resuming is a distinct operation, so create a new span under the original request
+        AgentSpan span;
         try (ContextScope parentScope = ((ContextContinuation) continuation).resume()) {
-          AgentSpan span = startSpan("axis2", AXIS2_MESSAGE);
+          span = startSpan("axis2", AXIS2_MESSAGE);
           DECORATE.afterStart(span);
           DECORATE.onMessage(span, message);
-          return activateSpan(span);
         }
+        return activateSpan(span);
       }
       return null;
     }

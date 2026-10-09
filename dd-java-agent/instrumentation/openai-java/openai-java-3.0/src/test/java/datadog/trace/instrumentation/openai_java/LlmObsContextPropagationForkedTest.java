@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.openai_java;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -15,6 +16,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -200,6 +202,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
               parentSpan.spanContext(),
               null,
               null,
+              null,
+              null,
               "0.25",
               LLMObsContext.SAMPLING_DECISION_DROPPED,
               null,
@@ -226,6 +230,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       try (ContextScope ignored2 =
           LLMObsContext.attach(
               parentSpan.spanContext(),
+              null,
+              null,
               null,
               null,
               "1",
@@ -264,6 +270,105 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   }
 
   @Test
+  void openAiRequestSpanStaysInTheParentsAdoptedLlmObsTrace() throws Exception {
+    // A parent that continued a trace from another service carries that service's LLMObs trace id,
+    // which is not the local APM trace id. The LLM span must report the parent's id, or it lands
+    // in a different LLMObs trace from its parent.
+    String adoptedTraceId = "6ab41f6e00000000fea4f6b7295bd5e9";
+
+    AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(
+              parentSpan.spanContext(),
+              adoptedTraceId,
+              null,
+              null,
+              null,
+              "1",
+              LLMObsContext.SAMPLING_DECISION_SAMPLED,
+              null,
+              null)) {
+        openAiClient.chat().completions().create(buildMinimalChatParams());
+      }
+    } finally {
+      parentSpan.finish();
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertNotEquals(adoptedTraceId, openAiSpan.getTraceId().toHexString());
+    assertEquals(adoptedTraceId, openAiSpan.getTag("_ml_obs_tag.trace_id"));
+  }
+
+  @Test
+  void openAiRequestSpanInheritsMlAppFromActiveContext() throws Exception {
+    String expectedMlApp = "upstream-app";
+
+    AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(
+              parentSpan.spanContext(),
+              null,
+              expectedMlApp,
+              null,
+              null,
+              "1",
+              LLMObsContext.SAMPLING_DECISION_SAMPLED,
+              null,
+              null)) {
+        openAiClient.chat().completions().create(buildMinimalChatParams());
+      }
+    } finally {
+      parentSpan.finish();
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertEquals(expectedMlApp, openAiSpan.getTag("_ml_obs_tag.ml_app"));
+  }
+
+  @Test
+  void openAiRequestSpanUsesServiceDefaultsWithoutLlmObsContext() throws Exception {
+    openAiClient.chat().completions().create(buildMinimalChatParams());
+
+    // No parent: no trace_id tag, so the mapper seeds it from the APM trace id, and ml_app is the
+    // configured default.
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertNull(openAiSpan.getTag("_ml_obs_tag.trace_id"));
+    assertEquals(Config.get().getLlmObsMlApp(), openAiSpan.getTag("_ml_obs_tag.ml_app"));
+  }
+
+  @Test
+  void openAiRequestSpanRecordsNoSamplingDecisionWhenItsParentHasNone() throws Exception {
+    // The parent continued a trace whose caller sent no verdict, so it has none. The LLM span must
+    // not roll its own: below a rate of 1 that could drop the span while its parent is kept.
+    AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(
+              parentSpan.spanContext(), null, null, null, null, null, null, null, null)) {
+        openAiClient.chat().completions().create(buildMinimalChatParams());
+      }
+    } finally {
+      parentSpan.finish();
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertEquals(
+        String.valueOf(parentSpan.getSpanId()), openAiSpan.getTag("_ml_obs_tag.parent_id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+  }
+
+  @Test
   void openAiRequestSpanInheritsNothingFromStaleCrossTraceContext() throws Exception {
     // Simulates a stale LLMObsContext leaked across an async boundary: the context is attached,
     // but its span is never made the active tracer span, so the openai.request call below starts
@@ -272,6 +377,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     try (ContextScope ignored =
         LLMObsContext.attach(
             staleParent.spanContext(),
+            null,
+            null,
             "stale-session",
             "stale-version",
             "0.25",

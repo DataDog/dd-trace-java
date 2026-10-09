@@ -44,13 +44,6 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JakartaRsAnnotationsDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("resume").and(takesArgument(0, Object.class)).and(isPublic()),

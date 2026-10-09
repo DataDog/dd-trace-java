@@ -15,6 +15,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.couchbase.RetryingCouchbaseContainer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -40,7 +41,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   Bucket bucket
 
   def setupSpec() {
-    couchbase = new CouchbaseContainer(
+    couchbase = new RetryingCouchbaseContainer(
       DockerImageName.parse(System.getProperty("test.couchbase.image"))
       .asCompatibleSubstituteFor("couchbase/server"))
       .withBucket(new BucketDefinition(BUCKET).withPrimaryIndex(true))

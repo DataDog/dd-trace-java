@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '9f0594bf306209c880a38652d1d02d5faf06870c' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha '454a97647cbc16ab7fd20e917aa31532ba7532eb' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -650,7 +650,7 @@ check_build_src:
   extends: .check_job
   needs: []
   variables:
-    GRADLE_TARGET: ":buildSrc:build"
+    GRADLE_TARGET: ":buildSrc:build :build-logic:check"
 
 check_base:
   extends: .check_job
@@ -742,7 +742,7 @@ muzzle-dep-report:
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
-    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+    - ./gradlew :dd-java-agent:instrumentation:aggregateMuzzleReports $GRADLE_ARGS
   after_script:
     - *container_info
     - *cgroup_info
@@ -863,14 +863,12 @@ muzzle-dep-report:
     - job: build
       artifacts: false
   variables:
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
+    DEFAULT_TEST_JVMS: /^(11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
     TEST_JVM_ARGS: "-Xshare:off"
   rules:
-    # IBM 8 has no arm64 image published upstream.
-    - if: '$testJvm == "ibm8"'
-      when: never
-    # Oracle 8 is available on arm64 but too flaky to run in CI.
-    - if: '$testJvm == "oracle8"'
+    # Java 8 is excluded from the arm64 test matrix for all distributions.
+    # Java 8 JVMs are very slow on AARCH64.
+    - if: '$testJvm =~ /^(8|oracle8|zulu8|semeru8|ibm8)$/'
       when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
@@ -981,10 +979,6 @@ test_base_arm64:
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix_4
-  # run coverage only on JVM 8, mirroring the amd64 test_base job
-  script:
-    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
-    - !reference [.test_job_common, script]
 
 test_inst:
   extends: .test_job_amd64_with_test_agent
@@ -1035,7 +1029,7 @@ test_inst_latest_arm64:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
+      - testJvm: ["17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1121,10 +1115,10 @@ test_debugger_arm64:
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
-  # avoid running coverage for semeru8, semeru11 and semeru17 as some tests are disabled and therefore cannot reach the
-  # expected coverage (ibm8/oracle8 never run on arm64)
+  # avoid running coverage for semeru11 and semeru17 as some tests are disabled and therefore cannot reach the
+  # expected coverage
   script:
-    - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - if [[ "$testJvm" != "semeru11" && "$testJvm" != "semeru17" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
     - !reference [.test_job_common, script]
 
 test_smoke:

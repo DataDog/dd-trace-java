@@ -40,11 +40,6 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RabbitListenerDecorator"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap("org.springframework.amqp.core.Message", State.class.getName());
   }
@@ -73,13 +68,14 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
         if (null != state) {
           ContextContinuation continuation = state.getAndResetContinuation();
           if (null != continuation) {
+            AgentSpan span;
             try (ContextScope scope = continuation.resume()) {
-              AgentSpan span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
+              span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
               span.setMeasured(true);
               DECORATE.afterStart(span);
               DECORATE.onConsume(span, message.getMessageProperties().getConsumerQueue());
-              return activateSpan(span);
             }
+            return activateSpan(span);
           }
         }
       }
