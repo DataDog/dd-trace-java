@@ -127,6 +127,25 @@ configuration. For example, `integrationTestImplementation` gets
 `integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
 for inheritance and shared configuration examples.
 
+### Image pull diagnostics
+
+Instrumentation tests enable Testcontainers' `tc.<image>` logger at INFO so image
+pull starts, layer progress, retries, stalls, completion and elapsed pull time
+appear in captured test output. Cache decisions remain under
+`org.testcontainers.images`.
+
+Instrumentation tests in modules using `dd-trace-java.testcontainers` also save these image events in
+`build/reports/docker-images/<test-task>/image-pulls-<worker-pid>.log`.
+These files use UTC timestamps and survive test retries and logging resets.
+GitLab publishes them as individual artifacts as well as inside `reports.tar`.
+The dedicated files exclude container output, Docker command arguments,
+authentication diagnostics and exception bodies.
+
+This records the progress reported to Testcontainers; it does not collect Docker
+daemon logs or prove whether a daemon-side pull continues after a client timeout.
+Use the JUnit failure and test duration alongside the image log to correlate
+failed attempts with later retries.
+
 ## Continuation lifecycle failures
 
 Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out.

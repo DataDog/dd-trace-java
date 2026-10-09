@@ -11,12 +11,14 @@ import java.io.File
 
 class ContainerImageArguments(
   @get:Nested @get:Optional val containers: Provider<ContainerImageInputs>,
+  // A diagnostic output location must not make cached tests machine-specific.
+  @get:Internal val imageLogDirectory: File? = null,
 ) : CommandLineArgumentProvider {
   override fun asArguments(): Iterable<String> =
     containers.orNull
       ?.images
       ?.map { (name, image) -> "-D$name=$image" }
-      .orEmpty()
+      .orEmpty() + listOfNotNull(imageLogDirectory?.let { "-Dtestcontainers.image.log.dir=${it.absolutePath}" })
 }
 
 class ContainerImageInputs(

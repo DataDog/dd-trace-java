@@ -104,7 +104,12 @@ class TestcontainersPlugin : Plugin<Project> {
             }
           }
 
-        jvmArgumentProviders.add(ContainerImageArguments(containers))
+        jvmArgumentProviders.add(
+          ContainerImageArguments(
+            containers,
+            project.layout.buildDirectory.dir("reports/docker-images/$name").get().asFile,
+          ),
+        )
       }
     }
   }

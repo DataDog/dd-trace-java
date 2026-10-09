@@ -90,6 +90,7 @@ import net.bytebuddy.utility.JavaModule
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.junit.jupiter.api.extension.ExtendWith
+import datadog.trace.test.logging.TestcontainersImageLogging
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
@@ -318,6 +319,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     rootLogger.setLevel(Level.WARN)
     ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
     ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
+    // Image pull progress uses tc.<image>, outside org.testcontainers.
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("tc")).setLevel(Level.INFO)
+    TestcontainersImageLogging.configure(rootLogger.getLoggerContext())
   }
 
   def codeOriginSetup() {
