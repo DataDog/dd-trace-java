@@ -103,6 +103,7 @@ object KnownTagsEmitter {
         append("// makeTagId(serial=${t.serial})")
         if (t.traceLevel) append(" + trace-level")
         if (t.intercepted) append(" + intercepted")
+        if (t.sharedNameDirection != null) append(" + shared-name")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         appendLine("  <${escape(t.required)}>")
         appendLine()

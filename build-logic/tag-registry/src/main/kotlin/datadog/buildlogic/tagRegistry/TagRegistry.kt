@@ -47,15 +47,18 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val FIRST_SERIAL = 1
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
     const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
+    const val SHARED_NAME = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.SHARED_NAME
 
     /**
      * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() + intercepted() -- must stay in sync.
-     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, other low bits and the reserved [47-32] window zero.
+     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, SHARED_NAME at bit 0, other low bits and the
+     * reserved [47-32] window zero.
      */
-    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean): Long {
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, sharedName: Boolean = false): Long {
       var id = serial.toLong() shl 48
       if (traceLevel) id = id or LEVEL_TRACE
       if (intercepted) id = id or INTERCEPTED
+      if (sharedName) id = id or SHARED_NAME
       return id
     }
 
@@ -76,7 +79,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             isTraceLevel,
             isIntercepted,
-            id = encode(serial, isTraceLevel, isIntercepted),
+            id = encode(serial, isTraceLevel, isIntercepted, t.identity.direction != null),
             declaredOtelName = renames[t.identity]?.otelName,
             otelDirection = renames[t.identity]?.direction,
           )

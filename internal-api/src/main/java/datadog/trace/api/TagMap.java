@@ -469,6 +469,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (name == null) {
         throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
       }
+      if (KnownTagCodec.hasSharedName(tagId)) {
+        // Name-keyed access hashes the shared name as a custom tag, so it could never find an entry
+        // keyed by this id; set the tag by name until resolution knows the span's direction.
+        throw new IllegalArgumentException("tag id has a shared name, set it by name: " + name);
+      }
       return name;
     }
 

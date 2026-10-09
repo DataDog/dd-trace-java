@@ -15,8 +15,8 @@ public final class KnownTagCodec {
    * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
    * are RESERVED and always zero here: they are the window the dense tag store uses for its
    * co-occurrence slot coordinate, which arrives with that store. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and bit 0 is
-   * reserved. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
+   * the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and bit 0 is the
+   * SHARED_NAME bit. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
    * them.
    *
    * <p>The INTERCEPTED bit marks a tag TagInterceptor may route on the set-path, to a span field or
@@ -57,6 +57,27 @@ public final class KnownTagCodec {
   /** True if the tagId names a tag TagInterceptor may route on the set-path. */
   public static boolean isIntercepted(long tagId) {
     return (tagId & INTERCEPTED) != 0L;
+  }
+
+  /**
+   * SHARED_NAME bit (low-32 carve, bit 0): marks one direction of a tag declared once per direction
+   * under a shared Datadog name, such as {@code peer.port}. {@link #keyOf} resolves that name to
+   * neither id, so the name alone cannot find an entry stored under one of them.
+   */
+  public static final long SHARED_NAME = 1L << 0;
+
+  /** True if the tagId is one direction of a tag whose Datadog name is shared across directions. */
+  public static boolean hasSharedName(long tagId) {
+    return (tagId & SHARED_NAME) != 0L;
+  }
+
+  /**
+   * True if {@code tagId} can key a {@link TagMap} entry: a known tag whose name resolves back to
+   * it. A {@link #hasSharedName shared-name} id cannot, until name resolution knows the span's
+   * direction. Like {@link #isKnown}, this folds away for a constant id.
+   */
+  public static boolean isKeyableById(long tagId) {
+    return isKnown(tagId) && !hasSharedName(tagId);
   }
 
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
