@@ -996,8 +996,14 @@ public class DDSpanContext
     }
   }
 
-  /** Removes a known tag by id, rather than by its name, which need not resolve back to the id. */
+  /**
+   * Removes a known tag by id, rather than by its name, which need not resolve back to the id. An
+   * id that names no known tag is ignored, like the id-keyed setters do.
+   */
   public void removeTag(long tagId) {
+    if (KnownTagCodec.nameOf(tagId) == null) {
+      return;
+    }
     if (tagId == KnownTags.SPAN_KIND_ID) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }

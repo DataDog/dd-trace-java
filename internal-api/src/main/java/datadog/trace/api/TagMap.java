@@ -338,8 +338,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     // Id-keyed factories: the tag id already names a canonical tag, so these skip the
-    // canonicalizing
-    // name lookup the String factories pay.
+    // canonicalizing name lookup the String factories pay.
     static Entry newAnyEntry(long tagId, Object value) {
       return new Entry(tagId, ANY, 0L, value);
     }

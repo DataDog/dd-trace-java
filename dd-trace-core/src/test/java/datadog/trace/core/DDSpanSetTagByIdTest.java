@@ -53,6 +53,15 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void clearingAnUnknownIdIsIgnored() {
+    span.setTag(0L, (String) null);
+    span.setTag(0L, "");
+    span.setTag(0L, (Object) null);
+
+    assertNull(span.getTag(KnownTags.PEER_HOSTNAME_NAME));
+  }
+
+  @Test
   void removingTheSpanKindByIdClearsTheKind() {
     span.setTag(KnownTags.SPAN_KIND_ID, "client");
     assertEquals("client", span.getSpanKindString());
