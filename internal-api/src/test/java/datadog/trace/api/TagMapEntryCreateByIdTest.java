@@ -20,8 +20,8 @@ class TagMapEntryCreateByIdTest {
         TagMap.Entry.create(KnownTags.DD_PROFILING_ENABLED_NAME, true),
         TagMap.Entry.create(KnownTags.DD_PROFILING_ENABLED_ID, true));
     assertEquivalent(
-        TagMap.Entry.create(KnownTags.PEER_PORT_NAME, 5432),
-        TagMap.Entry.create(KnownTags.PEER_PORT_ID, 5432));
+        TagMap.Entry.create(KnownTags.HTTP_STATUS_CODE_NAME, 5432),
+        TagMap.Entry.create(KnownTags.HTTP_STATUS_CODE_ID, 5432));
     assertEquivalent(
         TagMap.Entry.create(KnownTags.HTTP_RESEND_COUNT_NAME, 2L),
         TagMap.Entry.create(KnownTags.HTTP_RESEND_COUNT_ID, 2L));
