@@ -66,27 +66,28 @@ class SpanLinkTest {
 
   @Test
   void testSpanLinkAttributesEncoding() {
-    SpanAttributes.Builder builder = SpanAttributes.builder();
-
-    builder.put("string", "value");
-    builder.put("string-empty", "");
-    builder.put("string-null", (String) null);
-    builder.put("bool", true);
-    builder.put("bool-false", false);
-    builder.put("long", 12345L);
-    builder.put("long-negative", -12345L);
-    builder.put("double", 67.89);
-    builder.put("double-negative", -67.89);
-    builder.putStringArray("string-array", asList("abc", "", null, "def"));
-    builder.putStringArray("string-array-null", null);
-    builder.putBooleanArray("bool-array", asList(true, false, null, Boolean.TRUE, Boolean.FALSE));
-    builder.putStringArray("bool-array-null", null);
-    builder.putLongArray("long-array", asList(123L, 456L, null, Long.MIN_VALUE, Long.MAX_VALUE));
-    builder.putStringArray("long-array-null", null);
-    builder.putDoubleArray(
-        "double-array", asList(12.3D, 45.6D, null, Double.MIN_VALUE, Double.MAX_VALUE));
-    builder.putStringArray("double-array-null", null);
-    Map<String, String> map = builder.build().asMap();
+    Map<String, String> map =
+        SpanAttributes.builder()
+            .put("string", "value")
+            .put("string-empty", "")
+            .put("string-null", (String) null)
+            .put("bool", true)
+            .put("bool-false", false)
+            .put("long", 12345L)
+            .put("long-negative", -12345L)
+            .put("double", 67.89)
+            .put("double-negative", -67.89)
+            .putStringArray("string-array", asList("abc", "", null, "def"))
+            .putStringArray("string-array-null", null)
+            .putBooleanArray("bool-array", asList(true, false, null, Boolean.TRUE, Boolean.FALSE))
+            .putStringArray("bool-array-null", null)
+            .putLongArray("long-array", asList(123L, 456L, null, Long.MIN_VALUE, Long.MAX_VALUE))
+            .putStringArray("long-array-null", null)
+            .putDoubleArray(
+                "double-array", asList(12.3D, 45.6D, null, Double.MIN_VALUE, Double.MAX_VALUE))
+            .putStringArray("double-array-null", null)
+            .build()
+            .asMap();
 
     assertEquals("value", map.get("string"));
     assertEquals("", map.get("string-empty"));

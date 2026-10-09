@@ -223,7 +223,7 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @Test
-  @WithConfig(key = "dd.trace.otel.enabled", value = "true", addPrefix = false)
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(key = "otel.service.name", value = "TEST_SERVICE", addPrefix = false)
   @WithConfig(key = "otel.propagators", value = "xray,b3,datadog", addPrefix = false)
   @WithConfig(key = "otel.traces.sampler", value = "parentbased_traceidratio", addPrefix = false)
@@ -329,7 +329,7 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @Test
-  @WithConfig(key = "dd.trace.otel.enabled", value = "true", addPrefix = false)
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(key = "otel.traces.exporter", value = "otlp", addPrefix = false)
   void otelTracesExporterOtlpSystemPropertyIsMapped() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
@@ -350,9 +350,9 @@ class OtelEnvironmentConfigSourceTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"true", "false"})
-  @WithConfig(key = "dd.trace.otel.enabled", value = "true", addPrefix = false)
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   void otelTracesSpanMetricsEnabledSystemPropertyIsMappedWhenOtelIsEnabled(String value) {
-    injectSysConfig("otel.traces.span.metrics.enabled", value, false);
+    injectSysConfig(OTEL_TRACES_SPAN_METRICS_ENABLED, value, false);
 
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -372,7 +372,7 @@ class OtelEnvironmentConfigSourceTest {
 
   @Test
   // Without dd.trace.otel.enabled, setupTraceOtelEnvironment() does not run.
-  @WithConfig(key = "otel.traces.span.metrics.enabled", value = "true", addPrefix = false)
+  @WithConfig(key = OTEL_TRACES_SPAN_METRICS_ENABLED, value = "true", addPrefix = false)
   void otelTracesSpanMetricsEnabledIsNotMappedWhenOtelIsDisabled() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -389,7 +389,7 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @Test
-  @WithConfig(key = "dd.trace.otel.enabled", value = "true", addPrefix = false)
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(
       key = "otel.resource.attributes",
       value =
@@ -455,7 +455,7 @@ class OtelEnvironmentConfigSourceTest {
         "deployment.environment.name=production,deployment.environment=staging",
         "deployment.environment=staging,deployment.environment.name=production"
       })
-  @WithConfig(key = "dd.trace.otel.enabled", value = "true", addPrefix = false)
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   void namedDeploymentEnvironmentTakesPrecedenceOverLegacyAttribute(String resourceAttributes) {
     injectSysConfig("otel.resource.attributes", resourceAttributes, false);
 
