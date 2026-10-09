@@ -478,6 +478,55 @@ class TagRegistryGeneratorTest {
       .withMessageContaining("span-kind-neutral without an otel-name")
   }
 
+  @Test
+  fun `the tracer overlay declares routed keys and marks intercepted tags`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        base:
+          abstract: true
+          tags: [{dd-name: service, otel-name: service.name}, {dd-name: component}]
+      """
+    )
+    val overlay = directory.writeFile(
+      "overlay.yaml",
+      """
+      tags: [{dd-name: resource.name}]
+      intercepted: [resource.name, service]
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output, overlay)
+
+    val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(knownTags)
+      .contains(
+        "COMPONENT_ID = 0x0001000000000000L",
+        "RESOURCE_NAME_ID = 0x0002000000000002L",
+        "SERVICE_ID = 0x0003000000000002L",
+        "public static final int SERVICE_SERIAL_NUM = 3;"
+      )
+  }
+
+  @TableTest(
+    """
+          scenario           | overlay                      | message
+          undeclared name    | 'intercepted: [missing]'     | is not declared
+          ref in overlay     | 'tags: [{ref: service}]'     | must be declarations, not refs
+          unknown section    | 'span_types: {}'             | may only declare
+          duplicate of a tag | 'tags: [{dd-name: service}]' | declared in both
+          """
+  )
+  fun `invalid tracer overlays are rejected`(overlay: String, message: String) {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: service}]}}")
+    val overlayFile = directory.writeFile("overlay.yaml", overlay)
+
+    assertThatIllegalArgumentException()
+      .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated"), overlayFile) }
+      .withMessageContaining(message)
+  }
+
   private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(
     ObjectMapper(YAMLFactory()).readValue(
       directory.conventionsFile(yamlText),

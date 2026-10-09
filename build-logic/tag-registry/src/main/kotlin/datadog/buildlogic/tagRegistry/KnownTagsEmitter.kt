@@ -6,7 +6,7 @@ import java.util.Locale
 /**
  * Emits the generated `KnownTags.java` from a [TagRegistry]. Public API first — per-tag
  * `<X>_NAME` (string) + `<X>_ID` (encoded long, literal) couplets with a trailing `// makeTagId(...)`
- * derivation comment — then the package-private `<X>_SERIAL_NUM` constants, the
+ * derivation comment — then the `<X>_SERIAL_NUM` constants, the
  * `StringIndex.EmbeddingSupport` keyOf table and the resolver's name switches.
  */
 object KnownTagsEmitter {
@@ -101,15 +101,17 @@ object KnownTagsEmitter {
         }
         append("// makeTagId(serial=${t.serial})")
         if (t.traceLevel) append(" + trace-level")
+        if (t.intercepted) append(" + intercepted")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         appendLine("  <${escape(t.required)}>")
         appendLine()
       }
 
-      // Serial numbers (globalSerial per tag) — package-private, consumed by the resolver switch.
+      // Serial numbers (globalSerial per tag) — public, so a switch on KnownTagCodec.serialNum outside
+      // this package (the resolver here, TagInterceptor in core) can name them as case labels.
       appendLine("  // ---- serial numbers ----")
       for (t in reg.tags) {
-        appendLine("  static final int ${serialC(t.identity)} = ${t.serial};")
+        appendLine("  public static final int ${serialC(t.identity)} = ${t.serial};")
       }
 
       // OpenTelemetry name -> canonical tag name. Validation ensures aliases are distinct from all

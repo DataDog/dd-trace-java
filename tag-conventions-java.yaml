@@ -1,0 +1,54 @@
+# Tracer overlay for tag-conventions.yaml — dd-trace-java's set-path routing.
+# ---------------------------------------------------------------------------
+# tag-conventions.yaml is language-agnostic; which keys a tracer intercepts on the set-path (routing
+# them to a span field or a sampling directive instead of tag storage) is this tracer's concern, so
+# it lives here.
+#
+# tags        — keys that exist only to be routed, so the conventions do not declare them. They get
+#               ids like any other tag (instrumentation can set them by id) but belong to no span type.
+#               Same declaration syntax as tag-conventions.yaml; refs are not allowed.
+# intercepted — Datadog names TagInterceptor may route, declared in either file. Each one's id carries
+#               the INTERCEPTED bit, so a setter called with a constant id folds the interception test
+#               away. TagInterceptor's switch is the authority on what each one does; a test there
+#               keeps this list and the switch in agreement.
+# ---------------------------------------------------------------------------
+
+tags:
+  - { dd-name: resource.name,     type: string }
+  - { dd-name: span.type,         type: string }
+  - { dd-name: error,             type: boolean }
+  - { dd-name: manual.keep,       type: boolean }
+  - { dd-name: manual.drop,       type: boolean }
+  - { dd-name: asm.keep,          type: boolean }
+  - { dd-name: ai_guard.keep,     type: boolean }
+  - { dd-name: sampling.priority, type: int }
+  - { dd-name: _dd.p.ts,          type: int }
+  - { dd-name: _dd.p.debug,       type: string }
+  - { dd-name: _dd.origin,        type: string }
+  - { dd-name: _dd.measured,      type: boolean }
+  - { dd-name: _dd1.sr.eausr,     type: double }
+
+intercepted:
+  # declared above
+  - resource.name
+  - span.type
+  - error
+  - manual.keep
+  - manual.drop
+  - asm.keep
+  - ai_guard.keep
+  - sampling.priority
+  - _dd.p.ts
+  - _dd.p.debug
+  - _dd.origin
+  - _dd.measured
+  - _dd1.sr.eausr
+  # declared in tag-conventions.yaml
+  - service
+  - peer.service
+  - span.kind
+  - servlet.context
+  - db.statement
+  - http.method
+  - http.url
+  - http.status_code

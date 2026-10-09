@@ -15,15 +15,15 @@ public final class KnownTagCodec {
    * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
    * are RESERVED and always zero here: they are the window the dense tag store uses for its
    * co-occurrence slot coordinate, which arrives with that store. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level); bits 1-0 are reserved. Unknown (string-only)
-   * custom tags are NOT known ids — {@code keyOf} returns 0 for them.
+   * the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and bit 0 is
+   * reserved. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
+   * them.
    *
-   * <p>An id says what a tag IS, not how it is SET. Whether the tracer intercepts a tag on the
-   * set-path — routing it to a span field or a sampling directive instead of tag storage — belongs
-   * to TagInterceptor, whose {@code needsIntercept} switch is the authority; mirroring it here as a
-   * classification bit and a serial-range tier only created drift between the two. That
-   * classification returns with the work that consumes it (the id→handler dispatch table that
-   * retires TagInterceptor), and re-adding a bit then is purely additive.
+   * <p>Bit 1 is the INTERCEPTED bit: set on a tag TagInterceptor may route on the set-path (to a
+   * span field or a sampling directive instead of tag storage). It is a hint, not a decision: the
+   * interceptor's switch says what each such tag does, and may still store it. Because a setter
+   * called with a constant id can test the bit at JIT time, the interception path folds away for
+   * every tag without it.
    *
    * <p>There is deliberately NO OpenTelemetry-applicability flag: an absent otel-name means
    * pass-through (the tag is emitted under its Datadog name), so today every known tag has an
@@ -44,6 +44,17 @@ public final class KnownTagCodec {
   /** True if the tagId names a trace-level tag. */
   public static boolean isTraceLevel(long tagId) {
     return (tagId & LEVEL_TRACE) != 0L;
+  }
+
+  /**
+   * INTERCEPTED bit (low-32 carve, bit 1). Set marks a tag TagInterceptor may route on the
+   * set-path. Declared in the tracer overlay ({@code tag-conventions-java.yaml}).
+   */
+  public static final long INTERCEPTED = 1L << 1;
+
+  /** True if the tagId names a tag TagInterceptor may route on the set-path. */
+  public static boolean isIntercepted(long tagId) {
+    return (tagId & INTERCEPTED) != 0L;
   }
 
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */

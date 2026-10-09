@@ -13,6 +13,7 @@
 /SECURITY.md               @DataDog/apm-java
 /SUPPORT.md                @DataDog/apm-java
 /tag-conventions.yaml      @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+/tag-conventions-java.yaml @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
 /dd-smoke-tests/README.md  @DataDog/apm-java
 /docs/                     @DataDog/apm-java
 
