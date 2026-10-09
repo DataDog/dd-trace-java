@@ -76,7 +76,7 @@ class ExcludeFilterForkedTest extends InstrumentationSpecification {
 
       boolean hasAccessorInterface = false
       for (Class inter : clazz.getInterfaces()) {
-        if (inter.name == 'datadog.trace.bootstrap.FieldBackedContextAccessor') {
+        if (inter.name == 'datadog.instrument.fieldinject.KeyWithValue') {
           hasAccessorInterface = true
         }
       }
