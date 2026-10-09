@@ -15,6 +15,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import coveragefixture.Fixture;
 import coveragefixture.ObservedThread;
+import coveragefixture.VisibilityBridgeFixture;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
@@ -33,6 +34,21 @@ class ContextCoverageTest {
   private static final ContextKey<String> KEY = ContextKey.named("coverage-demo");
 
   @TempDir Path temporary;
+
+  @Test
+  void inheritedVisibilityBridgesDoNotCreateUnexpectedMethods() throws Exception {
+    VisibilityBridgeFixture fixture = new VisibilityBridgeFixture();
+    try (ContextCoverage coverage =
+        ContextCoverage.observe(
+            VisibilityBridgeFixture.class, VisibilityBridgeFixture.parentType())) {
+      inScenario("inherited-method", () -> assertTrue(fixture.inherited()));
+      coverage.writeReport(temporary);
+    }
+    JsonObject report = read(temporary);
+    assertHealthy(report);
+    assertScenario(report, "inherited-method", "ROOT_CONTEXT");
+    assertFalse(report.toString().contains("coveragefixture.VisibilityBridgeFixture.inherited()Z"));
+  }
 
   @Test
   void observesBootstrapJdkClassWithoutChangingItsBehavior() throws Exception {

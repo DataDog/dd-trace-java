@@ -19,7 +19,7 @@ def similarity(reference, local, weights):
 
 
 def score(reference, local, owner, weights):
-    """Match an operator within a potentially larger composed local execution."""
+    """Match the catalog's focused class within a larger local execution."""
     def belongs(method):
         return (method.startswith(owner + '#') or method.startswith(owner + '$')) and '#<' not in method
 
@@ -29,16 +29,8 @@ def score(reference, local, owner, weights):
         return 0.0
     total = sum(weights.get(method, 1) ** 2 for method in scoped_reference)
     recall = sum(weights.get(method, 1) ** 2 for method in scoped_reference if method in scoped_local) / total
-    operator = 0.65 * recall + 0.35 * similarity(scoped_reference, scoped_local, weights)
-    result = 0.75 * operator + 0.25 * similarity(reference, local, weights)
-    def terminals(methods):
-        return {method.split('#', 1)[1].split('(', 1)[0] for method, count in methods.items()
-                if count > 0 and method.split('#', 1)[1].split('(', 1)[0] in
-                {'onSuccess', 'onComplete', 'onError'}}
-    reference_terminal, local_terminal = terminals(reference), terminals(local)
-    if reference_terminal and local_terminal and reference_terminal.isdisjoint(local_terminal):
-        result *= 0.5
-    return result
+    focused = 0.65 * recall + 0.35 * similarity(scoped_reference, scoped_local, weights)
+    return 0.75 * focused + 0.25 * similarity(reference, local, weights)
 
 
 def classify(score_value, settings=None):
@@ -53,8 +45,11 @@ def match_tests(alternatives, local, owner, weights, settings=None):
     matches = []
     for test_id, methods in sorted(local.items()):
         scores = [(score(item['methods'], methods, owner, weights), item) for item in alternatives]
-        best_score, alternative = max(scores, key=lambda item: item[0])
-        if best_score <= 0:
+        best_score, alternative = max(scores, key=lambda item: (item[0],
+            sum(len(set(stage['methods']).intersection(methods)) for stage in item[1]['stages'])))
+        # Method-hit contributors remain inspectable without claiming a focused-class match.
+        if best_score <= 0 and not any(set(stage['methods']).intersection(methods)
+                                      for stage in alternative['stages']):
             continue
         stage_hits = []
         for stage in alternative['stages']:

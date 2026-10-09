@@ -184,7 +184,14 @@ public final class ContextCoverage implements AutoCloseable {
               (builder, type, loader, module, domain) ->
                   builder.visit(
                       Advice.to(loader == null ? BootstrapEntryAdvice.class : EntryAdvice.class)
-                          .on(ELIGIBLE)))
+                          .on(
+                              ELIGIBLE.and(
+                                  method ->
+                                      session.methods.containsKey(
+                                          type.getName()
+                                              + "."
+                                              + method.getInternalName()
+                                              + method.getDescriptor())))))
           .installOn(instrumentation);
       if (!session.errors.isEmpty() || !session.transformed.containsAll(names)) {
         throw new IllegalStateException("Incomplete transformation: " + session.errors);

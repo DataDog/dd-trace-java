@@ -337,7 +337,7 @@ def prepare(command, module, test_jvm, exclusions=(), exclusion_reason=None, exc
     if command in ("validate-knowledge", "knowledge", "run"):
         required += ("flows.json",)
     run = create_run(module, required)
-    if command == "run":
+    if command in ("run", "collect"):
         write(run / "collection-scope.json", scope)
     library = read(run / "knowledge/library.json")
     observation = read(run / "knowledge/observation.json")
@@ -355,7 +355,8 @@ def prepare(command, module, test_jvm, exclusions=(), exclusion_reason=None, exc
             manifest["status"] = "graph-ready"
             print("Graph:", run / "graph/raw-graph.json")
         else:
-            bind(run)
+            if command != "collect":
+                bind(run)
             if command in ("validate-knowledge", "knowledge"):
                 manifest["status"] = "knowledge-ready"
                 print("Knowledge validation:", run / "binding/knowledge-validation.json")
@@ -365,7 +366,7 @@ def prepare(command, module, test_jvm, exclusions=(), exclusion_reason=None, exc
                 project, gradle = gradle_bridge(run, module, test_jvm)
                 tasks = library.get("testTasks", [library.get("testTask", "test")])
                 execute(*gradle, *[project + ":" + task for task in tasks])
-                validate_observation_reports(run, observation["requiredTransformed"])
+                validate_observation_reports(run, observation.get("requiredTransformedAcrossSuite", observation["requiredTransformed"]))
                 manifest["status"] = "collected"
                 seal_evidence(run, manifest)
         write(run / "manifest.json", manifest)
@@ -393,11 +394,11 @@ def make_parser():
     init.add_argument("--observe-class", action="append", required=True)
     init.add_argument("--required-transformed", action="append", required=True)
     init.add_argument("--force", action="store_true")
-    for name in ("graph", "validate-knowledge", "knowledge", "run"):
+    for name in ("graph", "validate-knowledge", "knowledge", "run", "collect"):
         command = commands.add_parser(name)
         command.add_argument("--module", required=True)
         command.add_argument("--test-jvm", default="21")
-        if name == "run":
+        if name in ("run", "collect"):
             command.add_argument("--exclude-test", action="append", default=[], help="User-authorized Gradle test filter pattern; repeatable")
             command.add_argument("--exclusion-reason")
             command.add_argument("--exclusion-authorization", help="Record the explicit user approval; never infer approval")

@@ -20,6 +20,14 @@ class FingerprintTest(unittest.TestCase):
         self.assertGreater(score(success, success, 'lib/Source', weights),
                            score(error, success, 'lib/Source', weights))
 
+    def test_zero_similarity_does_not_hide_executed_reference_methods(self):
+        reference = {'lib/Source#subscribe()V': 1, 'lib/Common#call()V': 1}
+        alternative = dict(id='ref', recording='r0', methods=reference,
+                           stages=[dict(label='Prepare operation', methods=list(reference))])
+        matches = match_tests([alternative], {'local': {'lib/Common#call()V': 1}}, 'lib/Source', {})
+        self.assertEqual(0, matches[0]['score'])
+        self.assertEqual(['lib/Common#call()V'], matches[0]['stages'][0]['matched'])
+
     def test_composition_does_not_require_single_label(self):
         a = {'lib/A#subscribe()V': 1}
         b = {'lib/B#subscribe()V': 1}
@@ -47,10 +55,15 @@ class FingerprintTest(unittest.TestCase):
         weights = method_weights([{'shared', 'rare'}, {'shared'}, {'shared'}])
         self.assertGreater(weights['rare'], weights['shared'])
 
-    def test_shared_operator_cannot_hide_contradicting_terminal_entries(self):
-        reference = {'lib/A#subscribe()V': 1, 'lib/Observer#onError()V': 1}
-        local = {'lib/A#subscribe()V': 1, 'lib/Observer#onSuccess()V': 1}
-        self.assertLess(score(reference, local, 'lib/A', method_weights([reference])), .5)
+    def test_callback_names_do_not_impose_a_domain_specific_penalty(self):
+        reference = {'demo/Handler#handle()V': 1, 'demo/Response#onComplete()V': 1}
+        local = {'demo/Handler#handle()V': 1, 'demo/Unrelated#onError()V': 1}
+        renamed = {'demo/Handler#handle()V': 1, 'demo/Unrelated#failed()V': 1}
+        weights = method_weights([reference])
+        self.assertEqual(score(reference, renamed, 'demo/Handler', weights),
+                         score(reference, local, 'demo/Handler', weights))
+        self.assertGreater(score(reference, reference, 'demo/Handler', weights),
+                           score(reference, local, 'demo/Handler', weights))
 
     def test_empty_and_thresholds(self):
         self.assertEqual(0, similarity({}, {}, {}))

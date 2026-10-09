@@ -17,7 +17,11 @@ reference methods hit, context state, functionality families, stages and test ou
 Manual assertion review is optional and is not a report-generation gate.
 See ../WORKFLOW.md for collection and matching details.
 
-The RxJava harness and authored catalog now live on andrea.marziali/rxjava3-coverage in
-dd-java-agent/instrumentation/rxjava/rxjava-3.0/coverage/reference/.
-Generated recordings and reports are owned by that worktree. The ignored build link here exists
-only to preserve older artifact paths.
+Each flow selects a library-relative JVM class using `referenceClass`; `operator` is accepted as a
+legacy alias. Method names have no special lifecycle or outcome meaning in the classifier.
+Lifecycle stage labels and selectors belong in the catalog (`stageDefinitions` or per-flow `stages`).
+Without those definitions, the viewer shows an ungrouped summary and the selected class's recorded
+methods. Adding or changing stage selectors changes the reference scope; compare reports only when
+their scope is the same.
+
+Generated recordings and reports belong to their instrumentation workstream, not this directory.

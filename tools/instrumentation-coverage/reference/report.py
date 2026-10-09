@@ -4,6 +4,7 @@ import argparse
 import base64
 from collections import defaultdict
 import json
+import re
 from pathlib import Path
 import shutil
 import xml.etree.ElementTree as ET
@@ -17,6 +18,19 @@ HERE = Path(__file__).resolve().parent
 
 
 def validate_plan(plan):
+    definitions = [plan.get('stageDefinitions', [])]
+    definitions += [flow.get('stages', []) for family in plan['families'] for flow in family['flows']]
+    for stages in definitions:
+        labels = set()
+        for stage in stages:
+            label = stage['label'].strip()
+            if not label or label in labels or re.match(r'^(step|stage)\s+\d', label, re.I):
+                raise ValueError('Duplicate or placeholder stage label')
+            if not stage['description'].strip() or not stage['selectors']:
+                raise ValueError('Missing authored stage meaning or selectors')
+            for selector in stage['selectors']:
+                re.compile(selector)
+            labels.add(label)
     families, flows = set(), set()
     for family in plan['families']:
         if family['id'] in families or not family['description'].strip():
@@ -40,6 +54,42 @@ def canonical(method):
         return method
     separator = method.rfind('.', 0, method.index('('))
     return method[:separator].replace('.', '/') + '#' + method[separator + 1:]
+
+
+def authored_stage_groups(methods, definitions):
+    remaining, groups = set(methods), []
+    for stage in definitions:
+        selected = sorted(method for method in remaining
+                          if any(re.search(pattern, method) for pattern in stage['selectors']))
+        groups.append((stage['label'], selected, stage['description']))
+        remaining.difference_update(selected)
+    if remaining:
+        groups.append(('Supporting library methods', sorted(remaining),
+                       'Other recorded library entries in this upstream example.'))
+    return groups
+
+
+def observable_method(method):
+    """Mirror the JVM collector's eligibility without interpreting method names."""
+    # JVM access flags: synthetic, abstract, native and bridge.
+    return not method['name'].startswith('<') and not method['access'] & 0x1540
+
+
+def reference_stage_groups(methods, focused_methods, definitions):
+    if definitions:
+        return authored_stage_groups(methods, definitions)
+    return [('Reference methods', sorted(focused_methods),
+             'Recorded methods of the catalog-selected class; no lifecycle grouping is inferred.')]
+
+
+def reference_class(flow):
+    """Use the neutral catalog field, accepting the original field for compatibility."""
+    name = flow.get('referenceClass', flow.get('operator'))
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError('Missing catalog referenceClass: ' + flow['id'])
+    if 'referenceClass' in flow and 'operator' in flow and flow['operator'] != name:
+        raise ValueError('Conflicting catalog class fields: ' + flow['id'])
+    return name
 
 
 def verify_seal(directory):
@@ -133,32 +183,17 @@ def build(reference, ours, plan):
                     raise ValueError('Async example has no independent ownership evidence: ' + identity)
                 if any(item['status'] == 'pending' for item in window.get('futures', [])):
                     raise ValueError('Pending upstream future: ' + identity)
-                owner = library_package + flow['operator']
+                owner = library_package + reference_class(flow)
                 owned = sorted(method for method in window['methods'] if method in inventory
+                               and observable_method(inventory[method])
                                and (method.startswith(owner + '#') or method.startswith(owner + '$')))
                 if flow.get('methodNames'):
                     owned = [method for method in owned if method.split('#')[1].split('(')[0] in flow['methodNames']]
-                subscription = [method for method in owned if '#subscribeActual(' in method]
-                if not subscription:
-                    subscription = [method for method in owned if '#subscribe(' in method]
-                assembly = [method for method in owned if method.split('#')[1].split('(')[0] in flow.get('methodNames', [])]
-                if not subscription and not assembly:
-                    raise ValueError('Unresolved subscription checkpoint: ' + identity)
-                groups = [('Subscribe to source', subscription,
-                           'The operator subscribes its downstream and establishes the source-specific path.'),
-                          ('Select optional source', assembly,
-                           'The versioned factory selects scalar or empty delivery from the Optional input; the upstream assertions distinguish those outcomes.'),
-                          ('Scheduled task entry', [method for method in owned if '#run(' in method],
-                           'The recorded task enters the operator work; entry is not proof of accepted delivery.'),
-                          ('Signal-handling entries', [method for method in owned if any('#' + name + '(' in method
-                            for name in ['onNext', 'onSuccess', 'onError', 'onComplete'])],
-                           'These callbacks handle source signals. Post-terminal entries may be rejected; upstream assertions establish the outcome.'),
-                          ('Demand and draining', [method for method in owned if any('#' + name + '(' in method
-                            for name in ['request', 'drain', 'drainLoop', 'replay'])],
-                           'The implementation processes requests or drains retained work. Entry does not prove every queued value was accepted.'),
-                          ('Cleanup entries', [method for method in owned if any('#' + name + '(' in method
-                            for name in ['dispose', 'cancel', 'runFinally', 'disposeResource', 'disposeResourceAfter', 'clear', 'closeSafely'])],
-                           'The operator enters disposal, cancellation or final cleanup when observed in this example.')]
+                authored_stages = flow.get('stages', plan.get('stageDefinitions'))
+                groups = reference_stage_groups(
+                    (method for method in window['methods'] if method in inventory
+                     and observable_method(inventory[method]) and method.startswith(library_package)),
+                    owned, authored_stages)
                 stages = []
                 for label, methods, rationale in groups:
                     if not methods:
@@ -208,6 +243,8 @@ def build(reference, ours, plan):
             matches = match_tests(alternatives, local_methods, owner, weights, settings)
             best_score = matches[0]['score'] if matches else 0
             flows.append(dict(id=flow['id'], label=flow['label'], values=flow['values'], examples=upstream,
+                              stagePresentation=dict(mode='semantic') if flow.get('stages', plan.get('stageDefinitions'))
+                                  else dict(mode='ungrouped', reason='No catalog-authored lifecycle stages.'),
                               hit=sum(row['hit'] for row in methods.values()), total=len(methods),
                               instrumentationObligation=flow.get('instrumentationObligation'),
                               score=best_score, classification=classify(best_score, settings), matches=matches))
@@ -231,7 +268,7 @@ def build(reference, ours, plan):
     return dict(schemaVersion=1, library=plan['library'], version=plan['version'], scope=plan['scope'],
                 metric='Execution-fingerprint similarity to upstream scenarios',
                 classificationSettings=dict(likely=settings.get('likely', 0.80), partial=settings.get('partial', 0.50),
-                    closeMargin=settings.get('closeMargin', 0.05), method='Inverse-frequency weighted method counts; 75% operator, 25% full library path'),
+                    closeMargin=settings.get('closeMargin', 0.05), method='Inverse-frequency weighted method counts; 75% focused class, 25% full library path'),
                 families=families, tests=tests, ourOutcomes=outcomes, referenceValidation=validation,
                 referenceRun=str(reference), localRun=str(ours), graphSha256=digest(ours / 'graph/raw-graph.json'),
                 localSealSha256=digest(ours / 'seal.json'),
@@ -264,13 +301,15 @@ def portal_data(data):
                             group['methods'].append(row['id'])
                 references.append(dict(name=example['id'], upstreamId=example['id'], methods=list(dict.fromkeys(ids)),
                     scope=example['provenance'], body=example['source']['text'],
-                    helpers=[dict(name='Operator implementation', body=example['implementation']['text'])]))
+                    helpers=[dict(name='Reference implementation', body=example['implementation']['text'])]))
             candidates = [dict(match, name=data['tests'].get(match['testId'], match['testId']),
                 suite='Instrumentation tests', target='test', evidenceStatus='EXECUTION_SIMILARITY_ONLY')
                 for match in flow['matches']]
             variants.append(dict(id=flow['id'], name=family['name']+' · '+' · '.join(flow['values'])+' · '+flow['label'],
+                stagePresentation=flow['stagePresentation'],
                 trigger=family['description'], expected=flow['label'], classification=flow['classification'], score=flow['score'],
-                associations=[], similarityCandidates=candidates, methods=methods, stages=list(stages.values()),
+                associations=[], similarityCandidates=candidates, methods=methods,
+                stages=list(stages.values()) if flow['stagePresentation']['mode'] == 'semantic' else [],
                 references=references, limits=[], sourceEvidence=[], claimEvidence=[], assessmentSummary=''))
     inventory = {method for variant in variants for method in variant['methods']}
     observed = {method for variant in variants for method, row in variant['methods'].items() if row['tests']}

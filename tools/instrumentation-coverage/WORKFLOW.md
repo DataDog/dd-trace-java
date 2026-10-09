@@ -30,6 +30,11 @@ Use the existing agent-enabled collector:
 python3 tools/instrumentation-coverage/workflow.py run --module MODULE
 ```
 
+For a recorded-reference catalog, use `workflow.py collect --module MODULE` instead. This collects
+and seals the same tests and graph without requiring a legacy static KB or rendering its report.
+Then render with `reference/report.py` below. `requiredTransformedAcrossSuite` checks production
+transformation over the whole suite when some included unit tests never load the library.
+
 Use --test-jvm when needed. Keep method counts per exact local test, context observations,
 collector health and JUnit outcomes. Collector errors are not missing test coverage.
 
@@ -42,23 +47,27 @@ python3 tools/instrumentation-coverage/reference/report.py \
 
 The classifier compares each local test with each upstream example/repetition. It uses inverse
 document frequency to downweight methods shared across reference scenarios, logarithmic method
-counts to avoid domination by loops, operator/stage fingerprints and the broader library path.
+counts to avoid domination by loops, catalog-selected class fingerprints and the broader library path.
 Use observed edges/handoffs only when available in comparable form on both sides; the existing
 local collector records method entries, so its comparison does not pretend to have dynamic edges.
 
-The score is 75% operator/stage fingerprint similarity and 25% whole-library fingerprint similarity.
-Within the operator, reference recall receives more weight than local precision so a composed
+The score is 75% focused-class fingerprint similarity and 25% whole-library fingerprint similarity.
+Within the focused class, reference recall receives more weight than local precision so a composed
 local test can match several upstream behaviors. The strongest actual repetition is selected;
 repetitions are never merged into an artificial path.
-When both fingerprints contain terminal callbacks but their success/completion/error sets are
-disjoint, halve the score. This prevents shared subscription entries hiding opposite outcomes.
+Method names are opaque identities: no callback name imposes an outcome penalty. Lifecycle roles
+come only from catalog-authored stage selectors. Without those selectors, the report presents an
+ungrouped execution summary for the recorded methods of the selected class, not inferred stages.
+The class is selected by `referenceClass` (library-relative JVM name); `operator` remains a legacy
+alias. Changing stage selectors changes reference scope, so compare like-for-like scopes only.
 
 Default labels: **Likely match** at score >= 0.80, **Partial match** at score >= 0.50, otherwise
 **No match**. These thresholds are configurable in catalog classification. Scores are similarity,
 not calibrated probabilities. Show close alternatives within 0.05 of a test's strongest family
 match; do not convert ties into a manual-review requirement.
 
-The HTML shows family colors, scenario scores, best matching local tests, per-stage matched/missing
+The HTML hides classification labels and similarity scores. It shows family method-hit colors,
+matching local tests, per-stage matched/missing
 methods, context observations and test outcomes. It is the execution-based quality report.
 No prepare/assess phase, human approval, source-cited assertion binding, or "unverified" state
 is required. The old assertion-review commands remain available only for explicit requests.

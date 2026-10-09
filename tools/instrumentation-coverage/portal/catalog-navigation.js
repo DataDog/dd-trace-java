@@ -33,7 +33,8 @@ globalThis.PharosNavigation = {
       const methods=new Map();
       for(const v of members)for(const method of new Set(v.references.flatMap(r=>r.methods))){
         const prior=methods.get(method)||{context:0,root:0};
-        for(const id of new Set([...v.associations,...v.similarityCandidates].map(t=>t.testId))){
+        const ids=report.evidenceBasis==='execution-fingerprint'?Object.keys(v.methods[method]?.tests||{}):new Set([...v.associations,...v.similarityCandidates].map(t=>t.testId));
+        for(const id of ids){
           const counts=v.methods[method]?.tests[id]||{};
           prior.context+=counts.context||0;prior.root+=counts.root||0;
         }

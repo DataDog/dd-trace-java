@@ -1,299 +1,345 @@
-# Pharos — instrumentation quality architecture
+# Pharos architecture
 
-Architecture snapshot: **2026-10-01**. This describes the implemented Java prototype and its current
-boundaries. Cross-language adapters, portal integration and profiling are directions, not shipped
-parts of this architecture. For commands, see [WORKFLOW.md](WORKFLOW.md); for report usage, see
-[PHAROS.md](PHAROS.md).
-The current execution-based pipeline adds `reference/`: upstream collection, per-test fingerprint
-classification and the quality report. It reuses the existing local observer and static graph.
-Its recorder harness currently targets RxJava 3.0.0; classification consumes library choices as
-catalog data. Legacy static/optional assertion-review details below retain their original semantics.
+Snapshot: **2026-10-09**, from the `andrea.marziali/pharos` working tree, including
+the uncommitted collector and report improvements. This describes the implemented Java prototype,
+not a proposed production architecture.
 
-## Purpose and operating model
+Pharos measures how instrumentation tests exercise a library's recorded reference scenarios and
+where an active tracer Context is present. It combines a versioned behavior catalog, a static method
+graph, upstream execution recordings and instrumented local test runs into a portable quality report.
 
-Pharos compares instrumentation-test execution with named upstream scenarios. Documentation and
-source interpretation build the catalog; deterministic fingerprint matching classifies local tests.
-Test outcomes and root/non-root context observations remain available alongside scenario similarity.
+## 1. System overview
 
-The LLM follows the `instrumentation-quality` skill through:
+The system has two halves:
 
-**Catalog → upstream recording → local collection → classification → quality report.**
+- **Reusable library reference:** map a pinned library version, author families/scenarios, record
+  selected upstream tests, and group their methods into meaningful stages.
+- **Instrumentation assessment:** run our existing tests with the tracer and collector, classify
+  their execution fingerprints against that reference, and display reference method hits and Context
+  observations.
 
-The LLM authors semantic knowledge and test changes. Deterministic tools resolve artifacts, analyze
-bytecode, collect observations, validate evidence and render reports. The skill orchestrates an
-interactive agent session; there is no background agent service or external LLM call in the scripts.
-No acceptance-policy engine or universal instrumentation-quality threshold is implemented.
+The reference can be reused while its library artifacts, source, selections and recorder inputs
+remain unchanged. Changing our tests requires a new local collection, not a new library catalog.
 
 ```mermaid
-flowchart TD
-    S[Instrumentation-quality skill] --> K[Library-flow-knowledge helper]
-    L[Versioned library source, upstream tests and documentation] --> K
-    G[Resolved-artifact reachability graph] --> K
-    K --> KB[Module-owned library KB]
-    KB --> U[Record upstream scenario fingerprints]
-    KB --> C[Agent-enabled test collection]
-    T[Local instrumentation tests] --> C
-    C --> R[Sealed run and execution report]
-    R --> M[Automatic fingerprint classification]
-    U --> M
-    M --> UI[Family / scenario / stage report]
-    UI --> I[Improve tests when requested]
-    I --> T
+flowchart LR
+    subgraph Reference["Reusable reference for one library version"]
+        A["Resolved library artifacts"] --> G["Static method graph"]
+        D["Documentation, source and upstream tests"] --> K["Authored catalog: families and scenarios"]
+        G --> K
+        K --> U["Selected upstream tests + library-specific recorder"]
+        U --> R["Baseline outcomes + repeated recordings"]
+        G --> S["Semantic stage groups"]
+        K --> S
+        R --> S
+    end
+    subgraph Assessment["Each instrumentation assessment"]
+        T["Our instrumentation tests + production tracer"] --> C["Method-entry collector"]
+        C --> L["Local entries, Context states and test outcomes"]
+        R --> M["Fingerprint matching"]
+        S --> M
+        L --> M
+        M --> P["JSON + self-contained HTML report"]
+        P --> I["Requested test improvements"]
+        I --> T
+    end
 ```
 
-Arrows describe artifact handoffs, not recorded runtime call edges. The report UI is optional to the
-LLM loop: agents can inspect JSON directly.
+These arrows are artifact dependencies, not a recorded runtime call sequence.
 
-## Skills and deterministic components
+### Where the LLM is used
+
+An agent uses the [library-flow-knowledge skill](../../.agents/skills/library-flow-knowledge/SKILL.md)
+to interpret documentation, implementation and upstream tests, then author the catalog and stage
+meaning. The [instrumentation-quality skill](../../.agents/skills/instrumentation-quality/SKILL.md)
+guides collection, reporting and requested iterations.
+
+Graph extraction, collection, validation, fingerprint matching and rendering are scripted. They do
+not invoke an LLM. Writing new tests is agent/developer work, not a built-in background service.
+Manual review of every local test's assertions is **not** a required reporting phase.
+
+## 2. Components and boundaries
+
+All shared tooling lives under `tools/instrumentation-coverage/`. The directory name predates the
+Pharos name and is retained for compatibility.
 
 | Component | Responsibility |
 | --- | --- |
-| [instrumentation-quality](../../.agents/skills/instrumentation-quality/SKILL.md) | Entry point; select the current phase, carry evidence forward, investigate and iterate within the requested scope |
-| [library-flow-knowledge](../../.agents/skills/library-flow-knowledge/SKILL.md) | Author reusable behavior knowledge from upstream tests, documentation, implementation and graph evidence |
-| `workflow.py` | Initialize module configuration, generate graphs, validate bindings, collect, seal and replay runs |
-| `graph-query.py`, `validate-knowledge.py` | Bounded graph exploration and structural knowledge validation |
-| `collection.init.gradle` and Java observer/adapters | Opt-in Gradle integration and per-test method-entry observations with the tracer running |
-| `scripts/join.py` | Deterministically join a saved KB/graph with the selected run's observations |
-| `pharos.py` | Shared report interface: prepare, assess, resume, render, validate, replay and compare; compatibility build for the upstream pilot |
-| `assessment.py` | Prepare run-specific dossiers and validate LLM-authored assertion bindings |
-| `reference/fingerprint.py` | Weighted per-test similarity against separate upstream alternatives |
-| `reference/report.py`, `reference/view.html` | Automatic execution-based quality report; no assertion-review gate |
-| `portal/index.html` | Generic compact viewer; loads report JSON or is rendered with embedded data |
-| `cartography/` | Optional Spring upstream-runtime recording, classification and richer source-assessment experiment |
+| `workflow.py` | Module configuration, resolved-artifact export, graph generation/cache, local collection and run isolation |
+| `collection.init.gradle` | Opt-in bridge into the existing Gradle instrumentation test tasks |
+| `LibraryGraphAnalyzer.java` | Bytecode method inventory, declared call sites, type relations and dynamic invocation metadata |
+| `reference/plan.py` | Expand catalog example selections into explicit upstream invocation IDs |
+| `reference/run.py` | Snapshot and run a supplied upstream harness; compare baseline with recorded repetitions; seal artifacts |
+| Library-owned reference harness | Execute selected upstream tests and record entries/counts plus supported ownership/handoff information |
+| `ContextCoverage.java` | Observe eligible library method entries and root/non-root native tracer Context |
+| `InstrumentationCoverageExtension.java` | Spock instrumentation-test lifecycle and scenario attribution |
+| `JunitInstrumentationCoverageExtension.java` | Jupiter instrumentation-test lifecycle and invocation attribution |
+| `BootstrapContextCoverageBridge.java` | Notify the collector from selected bootstrap-loaded JDK classes |
+| `reference/fingerprint.py` | Deterministic matching against individual reference alternatives |
+| `reference/report.py` | Validate inputs, assign stages, build detailed comparison data and project it into the shared portal format |
+| `portal/index.html`, `portal/catalog-navigation.js` | Family/scenario navigation, stage and method inspection, test selection and downloadable investigation tasks |
+| `reference/capture.mjs` | Chrome-based checks of scenario navigation, report metrics, stages and desktop/mobile layout |
 
-The skill was renamed from `instrumentation-coverage` to `instrumentation-quality`; the existing
-`tools/instrumentation-coverage/` directory and collection command names are retained.
+Library-specific dependencies, recorder hooks, selected examples and catalog content belong to their
+instrumentation workstream. The shared runner requires an explicit harness; it is not a universal
+recorder that can onboard arbitrary libraries without adaptation.
 
-## Legacy static KB and optional assertion-review details
+## 3. The reusable reference
 
-The remaining snapshot describes the legacy tools. Manual source-cited assertion assessment is
-optional and only used when requested; it is not a required quality-report phase.
+### Resolve and map the actual library
 
-### Artifact ownership and lifetime
+The Gradle bridge exports the artifacts present on the selected test runtime: coordinates, paths
+and SHA-256 hashes. The static analyzer reads those artifacts, rather than an independently chosen
+library download. Core-JDK integrations can use the selected test launcher's versioned
+`jmods/<module>.jmod`.
 
-**Library knowledge is reusable; assertion assessments are run-specific.** A change to a local test
-normally requires new collection and reassessment, not regeneration of unchanged library knowledge.
+Method identity includes owner, name and JVM descriptor, preserving overloads. The graph retains
+declared invocation instructions, invokedynamic/bootstrap metadata and candidate lambda
+implementation relationships. Derived analyses do not replace the raw graph.
 
-| Artifact | Location / lifetime | Contents |
-| --- | --- | --- |
-| Library configuration | Module `coverage/library.json` | Coordinates, reviewed version, artifact groups or JDK module, runtime configuration and test tasks |
-| Observation configuration | Module `coverage/observation.json` | Adapter, selected classes, required production transformations and attribution mode |
-| Library KB | Module `coverage/{catalog.json,flows.json,evidence.json,knowledge-review.md}` | Functionality scope, stable flows, references, method checkpoints, optional Context contracts and review rationale |
-| Graph | Generated/cache directories; tied to resolved artifacts | Bytecode inventory, declared calls, dynamic invocation metadata and derived views |
-| Collection run | Module `build/instrumentation-coverage/RUN_ID/` | Copied knowledge, resolved artifacts, graph, observations, test results, seal and execution reports |
-| Dossier | Iteration `dossier.json` | Current test-source text, candidate test identities, observations, previous bindings and source-change information |
-| Assertion assessment | Iteration `assessment.json` | Source hashes, input report identity, per-behavior assertion bindings, citations and rationale |
-| Session | Iteration `session.json` | Module/report paths, phase, previous assessment and next command/action |
-| Assessed report | Iteration `report/{report.json,index.html}` | Selected-run observations plus validated assertion-association data |
+The graph is a structural map. It does not resolve all reflection, virtual dispatch or asynchronous
+callback relationships, and it is not a runtime call graph. Its cache identity includes artifact and
+tooling inputs; the current cache is local, not a cross-machine CI cache.
 
-Source-authored module knowledge belongs in version control. Generated runs and iteration artifacts
-remain under build/output directories. A session record resumes the assessment/investigation handoff;
-it is not a general scheduler or a transaction log of every graph/build operation.
+### Author families, scenarios and stages
 
-## Collection orchestration
+Documentation explains the library's behavior. Source and upstream tests identify concrete inputs,
+outcomes and execution examples. The catalog groups these into functionality families with explicit
+navigation dimensions, such as reactive type, operator or outcome.
 
-`workflow.py` is a standard-library CLI orchestrator. It creates a unique run directory, snapshots
-module knowledge, invokes Gradle, checks identities and collection health, and invokes the join.
-`collection.init.gradle` is the opt-in Gradle bridge. A future convention plugin can call the same
-components; this first implementation avoids installing behavior globally into every module.
+A scenario is not automatically a one-to-one copy of an upstream test. One scenario can have several
+examples; one composed test can exercise several scenarios. Split scenarios for meaningful behavior
+differences, not for every overload.
 
-The same tool root supplies the Java bytecode analyzer, observer, Spock/Jupiter adapters, Python
-deterministic join, schemas, and shared viewer. The viewer is independent of any instrumentation module.
-No LLM runs during collection, graph binding, joining or rendering.
+Stages group methods by their role, for example subscription, scheduled work, delivery, demand and
+cleanup. They are not mandatory checkpoints or a recorded ordering. Authored stage definitions use
+method selectors; unmatched recorded methods can appear under “Supporting library methods.”
+Catalogs without authored selectors use an ungrouped execution summary of their selected class's
+recorded methods. The renderer does not infer lifecycle roles from method names.
+Placeholder stage labels such as “Step 0” are rejected.
 
-## Graph identity
+### Record upstream execution
 
-The bridge exports coordinates, paths and SHA-256 hashes from the selected test runtime. The graph
-cache includes the artifact list, analyzer source, standalone build and dependency catalog hashes.
-Paths are included for local cache correctness because raw artifacts retain paths; cross-machine
-cache portability is not claimed. The raw graph retains declared bytecode calls, invokedynamic
-sites/bootstrap metadata, and candidate lambda implementation edges. Derived simplified views do
-not replace the raw graph.
+`reference/run.py` snapshots the supplied source and harness, then runs:
 
-Core JDK integrations use the selected test launcher's versioned `jmods/<module>.jmod` as the graph
-input. Its runtime version and SHA-256 are recorded like resolved library artifacts, so JDK behavior
-is never silently compared across toolchains.
+1. A recorder-off baseline.
+2. At least two recorder-enabled repetitions.
 
-Graph bindings resolve the reviewed catalog against this graph. A separate versioned functionality
-inventory classifies reviewed API families as mapped, candidate, or excluded. Validation binds its
-representative entry methods and checks its flow references, but never promotes a candidate into a
-required flow. Joined reports render candidates beside mapped flows and count tests that hit their
-representative entries; this is entry evidence until a reviewed corridor exists. Callback,
-reflection and virtual dispatch gaps remain explicit; a graph path is not runtime call evidence.
+It verifies matching invocation identities/outcomes and runtime artifacts, completed nonempty test
+windows, recorder health, and consistency of recorded registration/carrier/handoff references.
+Source and recorder snapshots are hashed; the reference run is sealed after validation.
 
-## Collection
+The library-owned mini-agent records method entries/counts independently of tracer Context.
+Where implemented by that harness, it also records synchronous edges, registrations, carrier
+ownership, asynchronous handoffs and future lifecycle states. These are explicit recorder features,
+not relationships inferred from two events having the same tracer Context.
 
-The Spock adapter observes existing instrumentation specifications with the production transformer
-installed. The observer reads the bootstrap Context implementation and does not activate Context.
-It installs after `setupSpec`, so load-time library and instrumentation decisions retain the test's
-configured semantics. Production entry advice still surrounds the observed method body because the
-observer adds its retransformation after the production transformer. Feature-body collection
-excludes setup and cleanup.
+Examples and repetitions remain separate fingerprint alternatives. Their counts need not be
+identical. For a catalog example marked asynchronous, the report builder requires independent
+handoff information for the representative recording unless it is explicitly a synchronous example.
 
-Each report records its run ID, worker ID, specification, tracer checks and health. Worker-specific
-folders prevent different worker processes from overwriting the same specification report. Tests
-are serialized in this mode. The initiating thread's test label is exact; worker labels refer to
-the active test window and do not establish request lineage.
+## 4. Local instrumentation-test collection
 
-Production transformed-class inventories are recorded per specification and required types are
-validated against their union after the complete test task. A helper specification may never load
-the library type exercised by another specification; requiring every type in every specification
-would turn valid heterogeneous module suites into collection failures.
+The production tracer runs through the existing instrumentation test harness. Pharos adds an
+observer; it does not replace the tracer or implement context propagation itself.
 
-Bootstrap JDK targets cannot call the application-loader collector directly. The workflow appends a
-small bridge-only jar to bootstrap, adds the required named-module read edge, and inlines a call to
-that bridge at eligible method entries. The bridge prevents recursive notification and delegates to
-the existing collector, which reads native Context state and applies the same scenario attribution.
-It does not propagate, attach, retain, or synthesize Context.
+### Gradle integration
 
-The JUnit Jupiter adapter intercepts the inherited `AbstractInstrumentationTest.initAll` before
-production installation, collects only during ordinary/template/dynamic test invocations, and
-finishes before the inherited `tearDownAll` removes the production transformer. It checks tracer
-registration, the harness transformer/listener, required transformed classes and bootstrap Context.
-An after-all fallback handles setup failures. Adapter-owned scenario IDs are separate from display
-names, preserving parameterized cases with identical labels. Observations record attribution
-provenance and confidence independently of native Context state. Autodetection and serialized Jupiter execution
-are enabled only by the opt-in Gradle bridge; ordinary unit classes are excluded.
+The opt-in init script selects the declared test tasks, verifies their library artifacts, adds the
+observer jar, sets collection properties and writes task-specific JUnit XML under the run directory.
+It uses one test worker at a time, disables test-result cache/up-to-date reuse, and disables Jupiter
+parallel execution in JUnit mode. The workflow disables Gradle configuration caching for this bridge.
+Ordinary test commands remain unaffected.
 
-## Run isolation and deterministic join
+Different library versions need separate collections and graphs. A latest-dependency compatibility
+test run is not mixed into a baseline-version coverage report.
 
-Each invocation creates a fresh UUID directory. Configuration is copied before execution. The
-artifact-export task refuses a changed dependency resolution between graph generation and tests.
-The workflow accepts only finalized, error-free observation reports with the current run ID.
+### Observation and tracer isolation
 
-After successful collection, the manifest hashes knowledge, graph, observations, test results and
-resolved-artifact metadata. Replay verifies both the file inventory and every hash. It reads only
-that run, preventing accidental joins with old outputs or additional unrelated reports. These are
+The observer retransforms selected, loadable classes and records declared eligible method entries.
+Abstract, native, synthetic and bridge methods are excluded. The retrofit inventory guard further
+limits advice to method IDs in the declared inventory, preventing generated inherited visibility
+bridges from creating unexpected observations.
+
+At entry, the collector reads whether the native Context differs from `Context.root()`. It does not
+attach, propagate or retain that Context. The observer jar deliberately excludes the Context
+implementation: observations must use the same bootstrap Context classes as the tracer.
+
+Bootstrap targets use a small separate bridge jar and required module read edges. The bridge avoids
+recursive notification and delegates to the collector; it does not synthesize propagation.
+
+### Test lifecycle and attribution
+
+The Spock adapter installs observation after specification setup and collects during feature bodies.
+The Jupiter adapter integrates with `AbstractInstrumentationTest` setup/teardown and collects ordinary,
+parameterized/template and dynamic invocations. Stable adapter-owned invocation IDs remain separate
+from human-readable test names.
+
+Initiating-thread attribution is exact. Background-thread attribution in the normal local collection
+uses the active serialized test window: it is **temporal**, not independently established request
+ownership. Late asynchronous work can therefore affect attribution.
+
+The local observer produces counts and Context states, not a comparable dynamic call-edge or async
+ownership graph. Optional handoff-analysis utilities exist separately and do not change this default.
+
+Collector errors, dropped observations, wrong run IDs and missing required production transformations
+fail collection. Required production-transformed classes are checked across the suite's union,
+allowing helper specifications that do not themselves load every library type.
+
+## 5. Matching and coverage
+
+### Fingerprint matching is internal classification
+
+The classifier normalizes local method IDs and compares each local test against each upstream
+example/repetition. It downweights methods common across scenarios and uses logarithmic counts to
+reduce domination by loops.
+
+For the current implementation:
+
+- Operator similarity combines weighted method recall (65%) with count-based cosine similarity (35%).
+- The final score combines focused-class similarity (75%) with the whole-library fingerprint (25%).
+- Method names are opaque identities, with no library-specific outcome penalties.
+- The best actual reference alternative is selected for each test; alternatives are not merged into
+  a synthetic execution path.
+- Stage membership supports matched/missing method inspection and tie-breaking. Upstream edges and
+  handoffs are retained in detailed data but are **not scored**, because local collection does not
+  record comparable features.
+
+Scores and classification thresholds remain in JSON for reproducibility. They are not calibrated
+probabilities or proof that a test asserts instrumentation correctness. A local test that contributes
+reference method hits remains inspectable even with a zero focused-class score.
+
+### The displayed metric is method coverage, not similarity
+
+For the execution-fingerprint report:
+
+```text
+coverage = unique displayed reference methods hit by our tests
+           -------------------------------------------------
+                  unique displayed reference methods
+```
+
+The displayed reference inventory comes from the catalog examples' stage projections, using the
+representative recording. Repetitions are retained separately for matching. Methods are deduplicated
+within each family and across the headline inventory. Families can share methods, so their counts
+must not be summed to obtain the headline.
+
+Aggregate hits include contributing local tests, not only tests above a similarity threshold.
+Selecting a test switches the stage/method inspection to that test's observations.
+
+The HTML headline and family bars focus on method hits and Context. They do not display likely/partial
+classification labels, average similarity, or an “unverified” approval state.
+
+| Method state | Meaning |
+| --- | --- |
+| Lights on | Non-root Context observed, without root entries in the selected detail scope |
+| Gray | Only root Context observed |
+| Mixed | Both root and non-root Context observed |
+| Not observed | Eligible reference method with no entry in the selected scope |
+| Outside collection | Method not eligible in that collection; not equivalent to a miss |
+
+Aggregate family bars count a method with any non-root observation as “With Context”; root-only hits
+remain gray. Mixed root observations are retained in method/test detail. A root observation is not
+automatically a defect, and a non-root observation does not identify the correct parent/span.
+
+## 6. Artifacts, ownership and replay
+
+The shared Pharos branch owns tooling. Instrumentation workstreams own version-specific library
+configuration, catalogs, harnesses and tests. Generated artifacts stay under build directories.
+
+```text
+instrumentation-module/
+  coverage/
+    library.json                   # artifact identity, runtime configuration, selected tasks
+    observation.json               # classes, adapter and required transformations
+    reference/
+      catalog.json                 # scope, families, scenarios, examples and stage selectors
+      selected-tests.txt           # generated upstream invocation selection
+      harness/                     # library-specific recorder and runner
+        build/runs/<reference-id>/ # source/tool snapshots, baseline, repetitions, validation, seal
+  build/instrumentation-coverage/<local-id>/
+    manifest.json                  # collection lifecycle and evidence hashes
+    resolved.json                  # selected library artifacts and hashes
+    graph-identity.json
+    knowledge/                     # saved collection configuration
+    graph/                         # raw graph and derived analysis
+    observations/<task>/worker-*/   # finalized per-specification method-entry reports
+    test-results/<task>/            # JUnit outcomes for this run
+    quality/
+      catalog.json                 # catalog used for this comparison
+      report.json                  # detailed comparison, alternatives and provenance
+      portal-report.json           # shared viewer projection
+      report.html                  # embedded data, navigation script and logo
+      seal.json                    # hashes of generated report files
+```
+
+The upstream runner uses a reference seal. Local `workflow.py` records an evidence inventory and hashes
+in the collection manifest. The reference report verifies supplied seals; for older local runs
+without a separate seal, it creates one over selected collection inputs. These mechanisms are
 consistency checks, not signatures or a security trust boundary.
 
-For identical saved inputs, the join deterministically evaluates the declared flow predicates,
-projects per-test observations onto expected methods, and emits the report/task artifacts. Reports
-from separate test executions can legitimately differ in counts and timestamps. The source tree's
-renderer/generator remains required for replay; byte-for-byte replay across tool revisions is not
-promised.
+Do not edit an old collection to reflect new tests. Recollect when tests, runtime artifacts or
+collector inputs change. When only rendering or matching changes, reuse saved inputs and produce
+new report output. Report reproduction depends on the renderer/tool revision as well as saved data.
 
-## Evidence states
+`report.html` is a self-contained sharing artifact. The detailed JSON preserves technical provenance
+and upstream recording information not exposed in the compact UI.
 
-- Context-present: at least one non-root entry and no root entries in the selected evidence.
-- Root: root entries only. This can be intentional.
-- Mixed: both root and non-root entries.
-- Not observed: in the exact eligible inventory, but no entry in the selected evidence.
-- Unknown: outside the inventory or unresolved.
+## 7. Running and validating the pipeline
 
-A flow with no matching test has no test window satisfying its predicate. It is not proof that no
-part of that behavior exists in the repository. The graph does not prove Context propagation,
-correct request identity, runtime call order or cross-thread handoffs.
+From the repository root, with paths replaced for the selected instrumentation:
 
-## Assertion assessment and iteration
+```sh
+python3 tools/instrumentation-coverage/reference/plan.py --plan CATALOG --output SELECTIONS
+python3 tools/instrumentation-coverage/reference/run.py --source UPSTREAM --classes SELECTIONS --harness HARNESS
+python3 tools/instrumentation-coverage/workflow.py collect --module MODULE --test-jvm 21
+python3 tools/instrumentation-coverage/reference/report.py --reference REFERENCE_RUN --ours LOCAL_RUN --plan CATALOG --output REPORT_DIRECTORY
+node tools/instrumentation-coverage/reference/capture.mjs REPORT_DIRECTORY
+```
 
-`pharos.py prepare` accepts an ordinary joined report or a Pharos report, plus explicitly selected
-local test and helper sources. It emits a dossier, an incomplete assessment and a session. Inputs
-are identified by library/version, a normalized report digest and source hashes. Preparation refuses
-to overwrite a nonempty iteration directory.
+Collection and comparison fail on relevant artifact mismatch, unhealthy recordings, failed tests or
+reference methods outside the required local stage collection scope. The report is not an automatic
+pass/fail quality gate.
 
-The LLM inspects test inputs, assertions, fixtures and helpers, then authors bindings to exact test
-identities available for that behavior. Every binding carries a rationale, a supported/partially
-supported status and exact local source citations. Unresolved behaviors retain empty bindings and
-an explanation. The full declared behavior inventory must remain present.
+Shared tooling checks:
 
-`pharos.py assess --session ...` checks the pinned input report, source hashes, test IDs, citation
-quotes/ranges and assessment structure, then renders the assessed report. The generic format is
-`pharos-assertion-assessment`, version 1. `ready: true` means the author has completed the draft for
-validation; it is not a quality gate or human approval. Output stays
-`LLM_DRAFT_NOT_HUMAN_REVIEWED`. Validation checks consistency, not whether the quoted assertion truly
-establishes the claimed behavior.
+```sh
+./gradlew -p tools/instrumentation-coverage test spotlessJavaCheck
+python3 -m unittest discover -s tools/instrumentation-coverage/tests
+python3 -m unittest discover -s tools/instrumentation-coverage/reference -p 'test_*.py'
+```
 
-After a test change, collect a fresh run and prepare a new iteration with `--previous`. Previous
-source paths are reused and changed/new sources identified; old bindings are retained only as hints.
-Fresh bindings start empty even when source hashes and test identities are unchanged. The LLM
-reassesses and rebinds them. Updating old hashes alone is not the workflow.
+The browser check visits every family/scenario, verifies headline counts and semantic stages,
+checks absence of classification labels/similarity text, and checks desktop/mobile layout.
+Its current launcher expects Google Chrome at a macOS application path.
 
-`pharos.py resume` prints the session's exact paths and handoff. It does not launch an LLM or execute
-its next action. Test implementation is performed by the active agent following the skill. A
-production instrumentation change needs scope from the user's request; otherwise a demonstrated
-failure is retained as a reproducer and reported.
+## 8. Legacy paths and current limits
 
-## Report and task interfaces
+The branch also retains these separate interfaces:
 
-The compact viewer uses `format: pharos-report`, `schemaVersion: 1`. Its domain checks are in
-`pharos.py`; the older joined report/task schemas remain in `schemas/`. These are distinct formats,
-not interchangeable schema-version numbers. The viewer does not perform full JSON Schema validation.
+- `workflow.py run`, `scripts/join.py` and `viewer/`: legacy static-KB binding and joined reports.
+- `pharos.py prepare/assess/resume` and `assessment.py`: optional source-cited assertion assessment.
+- `cartography/`: earlier upstream/Spring recording and assessment experiments.
+- Profile analyzers and handoff-analysis utilities: additional experiments, not inputs to the current
+  reference-method headline.
 
-Library identity, behavior names, stage groups, references, tests and method observations come from
-data. The same viewer loads report JSON through a file picker or runs offline as a snapshot with
-embedded data and the Pharos lighthouse. No Spring-specific stage definitions live in the viewer;
-the optional Spring producer supplies its curated groups.
+Their report meanings and data contracts are not interchangeable with the execution-fingerprint
+report. They are not mandatory steps in the current workflow.
 
-Reports distinguish execution evidence from source-cited behavioral support. The headline counts
-BEHAVIOR_SUPPORTED behaviors / declared mapped behaviors as a percentage, independent of catalog
-review status. Candidate families are excluded from that denominator. Inventory signals and review
-bookkeeping stay in authoring artifacts, not an omissions panel. See
-[CATALOG_RECONCILIATION.md](CATALOG_RECONCILIATION.md) for the persisted input/review contract. Method
-execution remains drilldown evidence, not an overall scenario coverage score.
+The delivered prototype is Java-specific. Cross-language portability would require language-native
+graph/collector implementations and test-harness adapters around the same concepts: stable method
+identity, pinned references, scenario IDs, entry counts, native context state and explicit provenance.
+That portability is an architectural direction, not shipped support or a finalized cross-language
+wire protocol.
 
-Rows and corridors default to aggregate observations across associated and candidate tests. Green
-means Context was seen at least once; gray means root-only; hatching means no hit. Methods outside
-collection remain unknown. Root observations remain inspectable even when aggregate coverage is green.
-Selecting a test switches to its observations only, including mixed states. Corridors group reference
-methods; they do not claim a recorded order, mandatory path, one complete test path or async causality.
-Downloads identify aggregate versus selected-test scope and contributing test IDs.
+There is no delivered portal/toolkit integration, automatic CI acceptance policy, hosted service,
+background LLM worker or automatic production fix. The scripts can run in CI and emit artifacts,
+but publishing and gating must be integrated separately.
 
-Compact-view downloads are `INVESTIGATE_TEST_EVIDENCE` tasks. They include library/version, report
-identity, selected test/reference, method observations, source assertions, KB evidence when present,
-run metadata, available rerun commands and limitations. A selected stage adds focus without dropping
-the other evidence. Possible outcomes include sufficient existing tests, stronger assertions, a new
-scenario, a mapping/collection correction, or an inconclusive result. A root observation or missing
-reference method does not establish an instrumentation defect.
+Finally, coverage is relative to the declared recorded reference, not every behavior in a library.
+Method entries and Context presence do not prove assertions, correct spans, call order or causal
+cross-thread propagation. Assertion review and boundary checks can be added later without replacing
+this execution-based coverage measure.
 
-The older full viewer retains flow-specific action bundles such as `ADD_FLOW_TEST`,
-`EXPAND_ENTRY_INVENTORY`, `INVESTIGATE_REACHABILITY` and `INVESTIGATE_CONTEXT_GAP`. Both interfaces are
-investigation aids; neither automatically applies a production fix.
-
-Report comparison is a deterministic inspection tool, not an acceptance policy. The Pharos comparison
-checks library/version, evidence basis, behavior IDs, reference method sets and method eligibility
-before listing changes in assessed tests, candidates and observed methods.
-
-## Optional upstream-runtime enrichment
-
-The Spring cartography experiment runs selected version-matched upstream tests in a standalone
-harness, records method sets and partial synchronous nesting, and uses repeated recordings to form
-reference fingerprints. Similarity retrieves candidate local tests; it does not prove the scenario
-or its assertions. Async handoff edges are not recorded or inferred from shared Context.
-
-This experimental source-assessment path has its own pinned assessment format and remains available
-through `pharos.py build`. Its output can enter the generic prepare/assess loop. The recording setup
-is still Spring-specific; other modules do not need it to author a KB or assess local assertions.
-
-## Current boundaries and extension points
-
-- The implementation is Java-specific, with Spock and JUnit adapters. Other tracers would need native
-  collectors and test adapters; a cross-language implementation has not been delivered.
-- Initiating-thread attribution and temporal worker attribution do not establish the same thing.
-  Late async work can fall into another test window. There is no causal async graph.
-- Current-source dossiers are snapshots at preparation time, not immutable snapshots of the original
-  run's complete test-source closure. Old-run assessments require a matching checkout or an explicit
-  limitation; the collection seal does not cover all inherited source code.
-- Static analysis cannot resolve every reflective, virtual or dynamic callback path. Observation is
-  limited to the selected, loadable entry inventory. Missing optional dependencies can restrict it.
-- The functionality catalog is bounded and authored. Tests and documentation improve its evidence;
-  neither graph generation nor validation certifies completeness or semantic truth.
-- The generic handoff retains evidence already available for each declared behavior. It cannot invent
-  an absent test identity or an unrecorded method observation; correct mapping/collection and rerun.
-- There is no automatic semantic reassessment, universal quality gate, autonomous background service,
-  toolkit/portal integration, or automatic instrumentation fix. Profiling is excluded from the current
-  quality view; CPU/allocation attribution is a possible later input.
-- Customer examples can enrich the KB with explicit provenance in future. Such examples should remain
-  evidence for particular scenarios, not automatically become universal requirements.
-
-## Validation so far
-
-The collection workflow has been exercised on Spring MVC and RxJava with the tracer enabled. The
-Spring missing-body experiment demonstrated a report → investigation task → test improvement → fresh
-collection → source-assessment loop; see [its record](cartography/pilot/experiments/missing-body/README.md).
-
-The generic preparation/reassessment handoff was then exercised using saved Spring baseline and
-candidate runs and one inspected RxJava behavior, without new integration-test executions for that
-handoff change. Regression checks cover stale inputs, invalid citations, altered behavior inventories
-and non-transfer of old assertion support. Skill validation and browser checks cover the entry points,
-shared viewer and downloaded evidence. This establishes the tested prototype paths, not every
-library, language or autonomous KB-authoring scenario.
+For operational guidance, see [WORKFLOW.md](WORKFLOW.md) and
+[the reference tools](reference/README.md).

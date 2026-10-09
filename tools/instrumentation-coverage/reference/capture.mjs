@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 const output=resolve(process.argv[2]);
 const expected=JSON.parse(await readFile(join(output,'report.json'),'utf8'));
 const portal=JSON.parse(await readFile(join(output,'portal-report.json'),'utf8'));
-const profile=await mkdtemp(join(tmpdir(),'rxjava-reference-browser-'));
+const profile=await mkdtemp(join(tmpdir(),'pharos-reference-browser-'));
 const browser=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--disable-gpu','--disable-background-networking','--no-first-run','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:['ignore','ignore','pipe']});
 let socket;
 try{
@@ -20,7 +20,7 @@ try{
  await send('Emulation.setDeviceMetricsOverride',{width:1400,height:1100,deviceScaleFactor:1,mobile:false});
  await send('Page.navigate',{url:pathToFileURL(join(output,'report.html')).href});
  for(let i=0;i<100;i++){if(await evaluate("document.querySelectorAll('[data-family]').length>0"))break;await new Promise(r=>setTimeout(r,50))}
- assert.equal(await evaluate("document.querySelectorAll('[data-family]').length"),expected.families.length);
+ assert.equal(await evaluate("document.querySelectorAll('[data-family]').length"),expected.families.length,await evaluate("document.querySelector('#error').textContent"));
  assert.equal(await evaluate("document.querySelector('.coverage-ring>span').textContent"),(100*portal.runCoverage.observed/portal.runCoverage.inventory).toFixed(1)+'%');
  let reviewed=0;
  for(const family of expected.families){
@@ -42,7 +42,7 @@ try{
    if(flow.matches.length>1){
     const second=flow.matches[1];
     await evaluate(`document.querySelector('#test-select').value=${JSON.stringify(second.testId)};document.querySelector('#test-select').dispatchEvent(new Event('change'))`);
-    assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('#detail .stage strong')).map(e=>e.textContent)"),second.stages.map(stage=>stage.label));
+    assert.deepEqual(await evaluate("Array.from(document.querySelectorAll('#detail .stage strong')).map(e=>e.textContent)"),variant.stagePresentation?.mode==='ungrouped'?[]:second.stages.map(stage=>stage.label));
     assert.ok(!/Likely match|Partial match|No match/.test(await evaluate("document.querySelector('#match-note').textContent")));
    }
    reviewed++;
