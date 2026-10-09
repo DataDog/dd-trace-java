@@ -265,8 +265,8 @@ class ExposureHookTest {
   void featureSupportChecksRejectEventsFromAnOlderAgent() {
     assertTrue(DDEvaluator.exposureFeaturesSupported(ExposureEvent.class));
     assertFalse(DDEvaluator.exposureFeaturesSupported(SerialIdExposureEvent.class));
-    assertTrue(DDEvaluator.flagEvalFeaturesSupported(FlagEvalEvent.class));
-    assertFalse(DDEvaluator.flagEvalFeaturesSupported(LegacyFlagEvalEvent.class));
+    assertTrue(FlagEvalLoggingHook.featuresSupported(FlagEvalEvent.class));
+    assertFalse(FlagEvalLoggingHook.featuresSupported(LegacyFlagEvalEvent.class));
   }
 
   /** An exposure event from an agent that has serial ids but predates features. */

@@ -176,7 +176,7 @@ class FlagEvalLoggingHookTest {
   void finallyAfterSendsNoFeaturesWhenTheAgentLacksThem() {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
-    DDEvaluator.FLAG_EVAL_FEATURES_SUPPORTED.set(false);
+    FlagEvalLoggingHook.FEATURES_SUPPORTED.set(false);
     try {
       hook.finallyAfter(
           null,
@@ -192,7 +192,7 @@ class FlagEvalLoggingHookTest {
                   .build()),
           Collections.emptyMap());
     } finally {
-      DDEvaluator.FLAG_EVAL_FEATURES_SUPPORTED.set(true);
+      FlagEvalLoggingHook.FEATURES_SUPPORTED.set(true);
     }
 
     assertTrue(captured.get().features.isEmpty());

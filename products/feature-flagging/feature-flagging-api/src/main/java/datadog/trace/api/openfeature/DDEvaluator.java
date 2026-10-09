@@ -5,7 +5,6 @@ import static java.util.Arrays.asList;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
-import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -72,9 +71,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final AtomicBoolean EXPOSURE_FEATURES_SUPPORTED =
       new AtomicBoolean(exposureFeaturesSupported(ExposureEvent.class));
 
-  static final AtomicBoolean FLAG_EVAL_FEATURES_SUPPORTED =
-      new AtomicBoolean(flagEvalFeaturesSupported(FlagEvalEvent.class));
-
   /** An older agent's exposure event has no features; its exposures are then sent without them. */
   static boolean exposureFeaturesSupported(final Class<?> eventClass) {
     try {
@@ -89,28 +85,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return true;
     } catch (final NoSuchMethodException | LinkageError | RuntimeException e) {
       log.debug("The installed Datadog Java agent does not send features on exposures", e);
-      return false;
-    }
-  }
-
-  /**
-   * An older agent's flag-evaluation event has no features; its rows are then sent without them.
-   */
-  static boolean flagEvalFeaturesSupported(final Class<?> eventClass) {
-    try {
-      eventClass.getConstructor(
-          String.class,
-          String.class,
-          String.class,
-          String.class,
-          String.class,
-          long.class,
-          boolean.class,
-          Map.class,
-          Map.class);
-      return true;
-    } catch (final NoSuchMethodException | LinkageError | RuntimeException e) {
-      log.debug("The installed Datadog Java agent does not send features on flag evaluations", e);
       return false;
     }
   }
