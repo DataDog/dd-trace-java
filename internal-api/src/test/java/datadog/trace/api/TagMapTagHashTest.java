@@ -72,9 +72,6 @@ class TagMapTagHashTest {
     assertEquals(tagIds.size(), copy.size());
     for (long tagId : tagIds) {
       String name = KnownTagCodec.nameOf(tagId);
-      if (KnownTagCodec.keyOf(name) != tagId) {
-        continue; // a name declared per direction does not resolve to either direction's id
-      }
       assertEquals("value", map.getObject(name), name);
       assertEquals("value", copy.getObject(name), name);
     }
@@ -84,7 +81,10 @@ class TagMapTagHashTest {
     List<Long> tagIds = new ArrayList<>();
     for (Field field : KnownTags.class.getFields()) {
       if (field.getType() == long.class && Modifier.isStatic(field.getModifiers())) {
-        tagIds.add(field.getLong(null));
+        long tagId = field.getLong(null);
+        if (KnownTagCodec.isKeyableById(tagId)) {
+          tagIds.add(tagId);
+        }
       }
     }
     return tagIds;

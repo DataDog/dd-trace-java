@@ -72,4 +72,14 @@ class TagMapSetByIdTest {
     assertThrows(IllegalArgumentException.class, () -> map.set(0L, "value"));
     assertThrows(IllegalArgumentException.class, () -> map.set(KnownTagCodec.makeTagId(9999), 1));
   }
+
+  @Test
+  void rejectsSharedNameIds() {
+    TagMap map = TagMap.create();
+    assertThrows(IllegalArgumentException.class, () -> map.set(KnownTags.PEER_PORT_INBOUND_ID, 80));
+    assertThrows(
+        IllegalArgumentException.class, () -> map.set(KnownTags.PEER_PORT_OUTBOUND_ID, 443));
+    assertThrows(
+        IllegalArgumentException.class, () -> map.getEntry(KnownTags.PEER_PORT_OUTBOUND_ID));
+  }
 }
