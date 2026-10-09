@@ -19,11 +19,10 @@ public final class KnownTagCodec {
    * reserved. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
    * them.
    *
-   * <p>Bit 1 is the INTERCEPTED bit: set on a tag TagInterceptor may route on the set-path (to a
-   * span field or a sampling directive instead of tag storage). It is a hint, not a decision: the
-   * interceptor's switch says what each such tag does, and may still store it. Because a setter
-   * called with a constant id can test the bit at JIT time, the interception path folds away for
-   * every tag without it.
+   * <p>The INTERCEPTED bit marks a tag TagInterceptor may route on the set-path, to a span field or
+   * a sampling directive instead of tag storage. It is a hint, not a decision: the interceptor's
+   * switch decides, and may still store the tag. A setter called with a constant id tests the bit
+   * at JIT time, so the interception path folds away for every tag without it.
    *
    * <p>There is deliberately NO OpenTelemetry-applicability flag: an absent otel-name means
    * pass-through (the tag is emitted under its Datadog name), so today every known tag has an
@@ -50,8 +49,8 @@ public final class KnownTagCodec {
   }
 
   /**
-   * INTERCEPTED bit (low-32 carve, bit 1). Set marks a tag TagInterceptor may route on the
-   * set-path. Declared in the tracer overlay ({@code tag-conventions-java.yaml}).
+   * INTERCEPTED bit (low-32 carve, bit 1): marks a tag TagInterceptor may route on the set-path.
+   * The tracer overlay, {@code tag-conventions-java.yaml}, lists these tags.
    */
   public static final long INTERCEPTED = 1L << 1;
 
@@ -139,8 +138,8 @@ public final class KnownTagCodec {
   }
 
   /**
-   * True if {@code tagId} names a known tag -- the same answer as {@code nameOf(tagId) != null}, as
-   * a range check on its serial, so it folds away for a constant id.
+   * True if {@code tagId} names a known tag. Gives the same answer as {@code nameOf(tagId) !=
+   * null}, but as a range check on the serial, which folds away for a constant id.
    */
   public static boolean isKnown(long tagId) {
     int serial = serialNum(tagId);

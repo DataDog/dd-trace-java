@@ -18,16 +18,17 @@ import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Measures {@code DDSpan.setTag} on a live span, overwriting one tag per call, by how the tag is
- * named: by a constant id, by a known tag's name, and by a custom name. {@code tagMap_byId} is the
- * floor -- the same store on a bare {@link TagMap}, with no span, lock, or interceptor.
+ * named: a constant id ({@code knownTag_byId}, {@code knownIntTag_byId}), a constant intercepted id
+ * ({@code interceptedTag_byId}, {@code span.kind}), a known tag's name, and a custom name.
  *
- * <p>A constant id should cost close to the floor plus the span's lock: its interception test folds
- * to the id's INTERCEPTED bit, and an id set has no custom-tag path. The name variants pay a
- * registry lookup first.
+ * <p>Controls: {@code tagMap_byId} is the same store on a bare {@link TagMap}, with no span, lock,
+ * or interceptor; {@code tagMap_byId_synchronized} adds an uncontended lock, as the span takes one;
+ * {@code knownTag_byNonConstantId} reads the id from a non-final field, which C2 never
+ * constant-folds.
  *
- * <p>Two controls separate those costs. {@code knownTag_byNonConstantId} reads the id from a
- * non-final field, which C2 never folds, so nothing about the id is known at compile time. {@code
- * tagMap_byId_synchronized} is the floor plus an uncontended lock, as the span takes one.
+ * <p>With a constant id, the interception test folds to the id's INTERCEPTED bit and there is no
+ * custom-tag path, so comparing {@code knownTag_byId} with {@code tagMap_byId_synchronized}
+ * isolates the span's own dispatch. The name variants add a registry lookup.
  */
 @State(Scope.Thread)
 @Warmup(iterations = 3, time = 1)

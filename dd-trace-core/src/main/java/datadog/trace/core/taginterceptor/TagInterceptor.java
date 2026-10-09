@@ -128,7 +128,7 @@ public class TagInterceptor {
     return custom;
   }
 
-  /** {@code tagId} is a known id, so its serial is in range. */
+  /** Requires a known id, whose serial is always in range of the table. */
   private boolean isSplitServiceTag(long tagId) {
     return splitServiceSerials[KnownTagCodec.serialNum(tagId)];
   }
@@ -150,7 +150,7 @@ public class TagInterceptor {
     return tagId != 0 ? needsIntercept(tagId) : isSplitServiceTag(entry.tag());
   }
 
-  /** Whether a custom tag -- one with no id -- may be routed: only split-by-tags routes one. */
+  /** Whether a custom tag (one with no id) may be routed; only split-by-tags routes them. */
   public boolean needsInterceptCustomTag(String customTag) {
     return isSplitServiceTag(customTag);
   }
@@ -163,9 +163,9 @@ public class TagInterceptor {
   }
 
   /**
-   * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag. Called with a
-   * constant id, the {@link KnownTagCodec#INTERCEPTED} test folds away; only the split-by-tags
-   * table is left to check at run time. {@code tagId} must be a known id.
+   * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag. With a constant
+   * id, the {@link KnownTagCodec#INTERCEPTED} test folds to a constant, leaving only the
+   * split-by-tags table load at run time. {@code tagId} must be a known id.
    */
   public boolean needsIntercept(long tagId) {
     return KnownTagCodec.isIntercepted(tagId) || isSplitServiceTag(tagId);
@@ -185,6 +185,9 @@ public class TagInterceptor {
    * Routes a known tag to a span field or a sampling directive. Returns true when the tag was
    * consumed, false when it should still be stored. Every tag with a case here carries the {@link
    * KnownTagCodec#INTERCEPTED} bit, declared in {@code tag-conventions-java.yaml}.
+   *
+   * <p>This method is deliberately too big for C2 to inline, so the handler bodies stay out of
+   * {@code DDSpanContext.setTag}'s compiled code; {@code TagInterceptorInliningTest} pins that.
    */
   public boolean interceptTag(DDSpanContext span, long tagId, Object value) {
     switch (KnownTagCodec.serialNum(tagId)) {
@@ -282,7 +285,7 @@ public class TagInterceptor {
 
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, long tagId, Object value) {
     if (shouldSetUrlResourceAsName) {
-      // Values are stored under their Datadog name, whichever spelling set them.
+      // Read by Datadog name only: entries are stored under it whichever spelling set them.
       if (tagId == KnownTags.HTTP_METHOD_ID) {
         final Object url = span.unsafeGetTag(HTTP_URL);
         if (url != null) {

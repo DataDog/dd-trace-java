@@ -8,13 +8,14 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 
 /**
- * Pins a code-shape property that C2 depends on but no other test can see.
+ * Pins a code shape that C2's inlining depends on and no behavioral test can see.
  *
- * <p>{@code interceptTag(DDSpanContext, long, Object)} must stay too big for C2 to inline (more
- * than {@code FreqInlineSize}, 325 bytes of bytecode). DDSpanContext.setTag calls it only for
- * intercepted tags; if it inlines into setTag's own compiled code, the profiled handler bodies come
- * with it and push setTag past {@code InlineSmallCode}, so callers stop inlining setTag and a
- * constant id no longer folds its interception test away.
+ * <p>{@code interceptTag(DDSpanContext, long, Object)} must stay too big for C2 to inline: more
+ * than {@code FreqInlineSize}, 325 bytes of bytecode by default. DDSpanContext.setTag calls it only
+ * for intercepted tags. If it inlined into setTag's own compiled code, the profiled handler bodies
+ * would come with it and can push setTag past {@code InlineSmallCode} (2500 bytes of machine code
+ * by default). Callers then refuse to inline setTag, and a constant id no longer folds its
+ * interception test away.
  */
 class TagInterceptorInliningTest {
   private static final int FREQ_INLINE_SIZE = 325;

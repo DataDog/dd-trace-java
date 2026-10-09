@@ -1017,8 +1017,8 @@ public class DDSpanContext
    * <p>Existing tag value with the same value will be replaced. Setting a tag with a {@code null}
    * value will remove the tag from the span.
    *
-   * <p>A known tag's name is resolved to its id once, and the tag is then set as the id-keyed
-   * setters set it; only a custom tag is handled by name.
+   * <p>A known tag's name is resolved to its id once, and the id-keyed setter does the rest; only a
+   * custom tag is handled by name.
    *
    * @param tag The tag name.
    * @param value The nullable tag value.
@@ -1056,9 +1056,9 @@ public class DDSpanContext
   }
 
   /*
-   * Id-keyed setters, mirroring the String setters above. With a constant id, the interception
-   * test folds to the KnownTagCodec.INTERCEPTED bit, and there is no custom-tag path to take. An id
-   * that names no known tag is ignored, like a null tag.
+   * Id-keyed setters, mirroring the String setters above. With a constant id, the
+   * KnownTagCodec.INTERCEPTED test folds, leaving only the split-by-tags table load; an id set never
+   * takes the custom-tag path. An id that names no known tag is ignored, like a null tag.
    */
   public void setTag(final long tagId, final Object value) {
     if (isUnknownTag(tagId)) {
@@ -1171,7 +1171,7 @@ public class DDSpanContext
   }
 
   /*
-   * Used when the interceptor's precheck determines that boxing is unavoidable
+   * Used when the interceptor's precheck says the tag may be intercepted, so boxing is unavoidable
    *
    * Either because the tagInterceptor needs to be fully checked (which requires boxing)
    * In that case, a box has already been created so it makes sense to pass the box
