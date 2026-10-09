@@ -348,10 +348,8 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   /**
-   * With APM tracing disabled, an upstream sampling decision is only trustworthy when a product
-   * asked for the trace ({@code _dd.p.ts}). Otherwise it must not be inherited: the extracted
-   * priority is locked onto the span context at construction, which would silence the local
-   * sampler.
+   * With APM tracing disabled, an upstream sampling decision is only kept when {@code _dd.p.ts}
+   * marks the trace for ASM or AI Guard. Otherwise the local sampler sets the priority.
    */
   @Nested
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")

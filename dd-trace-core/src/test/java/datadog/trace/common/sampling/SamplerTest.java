@@ -105,8 +105,7 @@ class SamplerTest extends DDJavaSpecification {
 
   /**
    * A trace a product asked for is not an APM trace the setting opts out of, so {@code manual.keep}
-   * still wins once {@code _dd.p.ts} is marked — here for ASM. This mirrors dd-trace-js, which
-   * honors {@code manual.keep} in standalone mode only alongside a product trace source.
+   * still wins once {@code _dd.p.ts} is marked — here for ASM.
    */
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @Test

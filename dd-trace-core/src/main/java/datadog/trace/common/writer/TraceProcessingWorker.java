@@ -200,12 +200,8 @@ public class TraceProcessingWorker implements AutoCloseable {
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           payloadDispatcher.addTrace(trace);
         } else if (event instanceof FlushEvent) {
-          // Sweep the secondary queue first. The flush marker is only ever offered to the primary
-          // queue, so without this a trace published to the secondary queue can still be sitting
-          // there when the marker is serialized: flush() returns, close() interrupts this thread,
-          // and the trace is never dispatched. That is harmless for a sampled-out APM trace, but
-          // with APM tracing disabled the dropped trace also carries the LLM Observability spans,
-          // which have to reach their intake regardless of the APM sampling decision.
+          // The flush marker only goes to the primary queue, so drain the secondary queue too:
+          // sampled-out traces can carry LLM Observability spans that must still be sent.
           consumeFromSecondaryQueue();
           payloadDispatcher.flush();
           ((FlushEvent) event).sync();

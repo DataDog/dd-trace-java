@@ -77,22 +77,10 @@ public class SamplingMechanism {
   /**
    * Returns true if sampling priority lock can be avoided for the given mechanism and priority
    *
-   * <p>With {@code dd.apm.tracing.enabled=false}, the drop decided for APM traces must also beat an
-   * already locked priority. Otherwise {@code manual.keep} — which force-keeps the span before the
-   * sampler ever votes — would leave the trace indexed and billed as APM, exactly what the setting
-   * opts out of. Traces a product does want are protected earlier: {@code
-   * TraceCollector#setSamplingPriorityIfNecessary} skips the sampler altogether when {@code
-   * _dd.p.ts} is marked for ASM or AI Guard, so only unmarked traces reach this drop. This matches
-   * dd-trace-js, whose standalone sampler honors {@code manual.keep} only alongside a product trace
-   * source tag.
-   *
-   * <p>The exemption is deliberately limited to a drop: a {@link #DEFAULT} keep must never override
-   * a priority someone else already set.
-   *
-   * <p>Data Jobs is excluded because it has no {@code _dd.p.ts} bit to be protected by: it keeps
-   * its traces with a {@link #DATA_JOBS} priority instead, which the drop would overwrite. Marking
-   * {@link datadog.trace.api.ProductTraceSource#DJM} on the trace and skipping the sampler for it,
-   * the way ASM and AI Guard do, would let the drop stay unconditional here.
+   * <p>With APM tracing disabled, the {@link #DEFAULT} drop overrides an already-set priority (e.g.
+   * {@code manual.keep}), so the trace isn't kept as APM. Traces marked for ASM or AI Guard never
+   * reach the sampler. The drop is not exempt when Data Jobs is enabled, so it can't overwrite a
+   * {@link #DATA_JOBS} keep.
    *
    * @param priority the sampling priority
    * @param mechanism the sampling mechanism
