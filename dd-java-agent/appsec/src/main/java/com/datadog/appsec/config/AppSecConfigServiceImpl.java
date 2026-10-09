@@ -401,6 +401,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       try {
         wafConfig = loadDefaultWafConfig();
         defaultConfigActivated = true;
+        // Reset so the upcoming handleWafUpdateResultReport call below (re)adopts the bundled
+        // ruleset version even if a remote config version was active just before this reactivation
+        // (last remote config removed -> falling back to the default rules).
+        currentRuleVersion = null;
       } catch (IOException e) {
         log.error("Error loading default config", e);
         throw new AbortStartupException("Error loading default config", e);
