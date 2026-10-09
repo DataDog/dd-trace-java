@@ -945,7 +945,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
    */
   public List<? extends AgentSpanLink> getLinks() {
     List<AgentSpanLink> links = this.links;
-    return links.isEmpty() ? links : unmodifiableList(links);
+    return links == NO_LINK ? NO_LINK : unmodifiableList(links);
   }
 
   @Override
@@ -954,19 +954,19 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       return;
     }
 
-    // If links are initially null / empty, then the shared placeholder List EMPTY is used.
-    // Because EMPTY is shared, EMPTY is safe for reading, but not for writing.
-    // On write - if links is the EMPTY placeholder, then need to create a CopyOnWriteArrayList
+    // If links are initially null / empty, then the shared placeholder List NO_LINK is used.
+    // Because NO_LINK is shared, NO_LINK is safe for reading, but not for writing.
+    // On write - if links is the NO_LINK placeholder, then need to create a CopyOnWriteArrayList
     // owned by this DDSpan
 
     // Creation of the CopyOnWriteArrayList is done via double checking locking using volatile &
     // synchronized
 
-    // If before or inside the synchronized block, links no longer points to EMPTY,
+    // If before or inside the synchronized block, links no longer points to NO_LINK,
     // then this thread or another thread has already handled the list construction,
     // so just add to the list
 
-    // If links still points to EMPTY inside the synchronized block, then construct a new
+    // If links still points to NO_LINK inside the synchronized block, then construct a new
     // CopyOnWriteArrayList containing the newly added link
 
     List<AgentSpanLink> links = this.links;
