@@ -4,13 +4,18 @@ import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Records test-time scope and continuation lifecycles and reports leaks. */
 public final class ScopeDiagnostics {
+  private static final Logger log = LoggerFactory.getLogger(ScopeDiagnostics.class);
+
   private static final int DEFAULT_MAX_FRAMES = 6;
   private static final long DEFAULT_QUIESCENCE_TIMEOUT_MILLIS = 250;
 
@@ -36,6 +41,21 @@ public final class ScopeDiagnostics {
   private final Listener listener = new Listener();
 
   private ScopeDiagnostics() {}
+
+  /** Starts configured recording, warning when no remaining check can fail the test. */
+  public static void startRecording(TrackScopeContinuations config) {
+    EnumSet<ScopeDiagnosticsCheck> checks = enabledChecks(config);
+    if (config != null && !config.enabled()) {
+      return;
+    }
+    if (ScopeDiagnosticsReport.enforcedChecks(checks).isEmpty()) {
+      log.warn(
+          "@TrackScopeContinuations excludes all enforced checks; recording remains enabled, "
+              + "but no diagnostic finding can fail the test. Reason: {}",
+          config.reason());
+    }
+    startRecording();
+  }
 
   /** Clears any prior data and starts recording with the default stack depth. */
   public static void startRecording() {
@@ -102,30 +122,59 @@ public final class ScopeDiagnostics {
 
   /**
    * Fails with an {@link AssertionError} (carrying the problem summary) if the report flags a
-   * genuine bug (see {@link ScopeDiagnosticsReport#hasProblems()}). Report-only signals such as
+   * genuine bug (see {@link ScopeDiagnosticsReport#hasViolations()}). Report-only signals such as
    * late-after-root and close-on-wrong-thread do not fail.
    */
-  public static void assertNoLeaks() {
-    assertNoLeaks(report());
+  public static void assertNoViolations() {
+    assertNoViolations(report());
   }
 
   /** Fails using the supplied snapshot, so rendering and assertion examine the same events. */
-  public static void assertNoLeaks(ScopeDiagnosticsReport report) {
-    if (report.hasProblems()) {
-      throw new AssertionError("Scope continuation problems detected:\n" + report.renderSummary());
+  public static void assertNoViolations(ScopeDiagnosticsReport report) {
+    assertNoViolations(report, null);
+  }
+
+  /** Fails when the supplied configuration selects an enforced violation in the snapshot. */
+  public static void assertNoViolations(
+      ScopeDiagnosticsReport report, TrackScopeContinuations config) {
+    EnumSet<ScopeDiagnosticsCheck> checks = enabledChecks(config);
+    if (report.hasViolations(checks)) {
+      throw new AssertionError(
+          "Scope/continuation lifecycle violations detected:\n" + report.renderSummary(checks));
     }
   }
 
-  /** Resolves the default-on policy and rejects opt-outs without a reason. */
+  /** Validates the configuration and returns whether recording is enabled. */
   public static boolean isEnabled(TrackScopeContinuations config) {
-    if (config == null || config.enabled()) {
-      return true;
+    enabledChecks(config);
+    return config == null || config.enabled();
+  }
+
+  static EnumSet<ScopeDiagnosticsCheck> enabledChecks(TrackScopeContinuations config) {
+    EnumSet<ScopeDiagnosticsCheck> allChecks = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    if (config == null) {
+      return allChecks;
     }
-    if (config.reason().trim().isEmpty()) {
+
+    if (!config.enabled() && config.disabledChecks().length > 0) {
       throw new IllegalArgumentException(
-          "@TrackScopeContinuations(enabled = false) requires a reason");
+          "@TrackScopeContinuations(enabled = false) requires empty disabledChecks");
     }
-    return false;
+    if ((!config.enabled() || config.disabledChecks().length > 0)
+        && config.reason().trim().isEmpty()) {
+      throw new IllegalArgumentException(
+          "@TrackScopeContinuations requires a reason when recording or checks are disabled");
+    }
+
+    EnumSet<ScopeDiagnosticsCheck> enabled = allChecks;
+    if (!config.enabled()) {
+      enabled.clear();
+    } else {
+      for (ScopeDiagnosticsCheck check : config.disabledChecks()) {
+        enabled.remove(check);
+      }
+    }
+    return enabled;
   }
 
   private void clear() {

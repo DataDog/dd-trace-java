@@ -6,7 +6,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '9f0594bf306209c880a38652d1d02d5faf06870c' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha '454a97647cbc16ab7fd20e917aa31532ba7532eb' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -652,7 +652,7 @@ check_build_src:
   extends: .check_job
   needs: []
   variables:
-    GRADLE_TARGET: ":buildSrc:build"
+    GRADLE_TARGET: ":buildSrc:build :build-logic:check"
 
 check_base:
   extends: .check_job
@@ -744,7 +744,7 @@ muzzle-dep-report:
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
-    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+    - ./gradlew :dd-java-agent:instrumentation:aggregateMuzzleReports $GRADLE_ARGS
   after_script:
     - *container_info
     - *cgroup_info
