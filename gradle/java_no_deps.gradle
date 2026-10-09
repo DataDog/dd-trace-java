@@ -226,7 +226,7 @@ tasks.named("javadoc", Javadoc) {
   javadocTool = javaToolchains.javadocToolFor {
     languageVersion = JavaLanguageVersion.of(8)
   }
-  source = sourceSets.main.java.srcDirs
+  source = sourceSets.main.java
   classpath = configurations.compileClasspath
 
   options {

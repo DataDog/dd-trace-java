@@ -17,6 +17,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -40,6 +41,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -62,6 +64,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 @SuppressWarnings("deprecation") // exercises the deprecated v1 EventTracker API on purpose
@@ -457,6 +461,27 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
         () -> tracker.onLoginSuccessEvent(SDK, USER_LOGIN, USER_ID, METADATA));
   }
 
+  @ParameterizedTest(name = "commit succeeds: {0}")
+  @ValueSource(booleans = {true, false})
+  void blockingOnALoginCommitsBlockingResponse(boolean commitResult) {
+    Flow.Action.RequestBlockingAction action =
+        new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON);
+    when(loginEvent.apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(USER_LOGIN)))
+        .thenReturn(new ActionFlow<>(action));
+    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(commitResult);
+    when(requestContext.getBlockResponseFunction()).thenReturn(brf);
+    when(requestContext.getTraceSegment()).thenReturn(traceSegment);
+
+    assertThrows(
+        BlockingException.class,
+        () -> tracker.onLoginSuccessEvent(SDK, USER_LOGIN, USER_ID, METADATA));
+
+    assertEquals(1, brf.calls);
+    assertSame(traceSegment, brf.lastSegment);
+    assertEquals(action.getStatusCode(), brf.lastStatusCode);
+    assertEquals(action.getBlockingContentType(), brf.lastTemplateType);
+  }
+
   @Test
   void shouldNotFailOnNullCallback() {
     when(provider.getCallback(EVENTS.user())).thenReturn(null);
@@ -572,6 +597,36 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     @Override
     public boolean isEnabled(UserIdCollectionMode mode) {
       return super.isEnabled(mode);
+    }
+  }
+
+  /**
+   * Hand-written fake that only implements the abstract 5-arg method, so it records the commit
+   * whichever {@code tryCommitBlockingResponse} overload the production code calls.
+   */
+  private static final class RecordingBlockResponseFunction implements BlockResponseFunction {
+    private final boolean commitResult;
+    private int calls;
+    private TraceSegment lastSegment;
+    private int lastStatusCode;
+    private BlockingContentType lastTemplateType;
+
+    private RecordingBlockResponseFunction(boolean commitResult) {
+      this.commitResult = commitResult;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
+      calls++;
+      lastSegment = segment;
+      lastStatusCode = statusCode;
+      lastTemplateType = templateType;
+      return commitResult;
     }
   }
 
