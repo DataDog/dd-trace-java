@@ -10,6 +10,9 @@ import datadog.trace.api.Config;
 import datadog.trace.util.ProcessSupervisor;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +94,7 @@ public class ExternalAgentLauncher implements Closeable {
 
         double delayMillis = 50;
         for (int retries = 0; retries < 7; retries++) {
-          if (!pipe.exists()) {
+          if (!pipeExists()) {
             return READY_TO_START; // no longer bound, start our own external process
           }
 
@@ -104,11 +107,40 @@ public class ExternalAgentLauncher implements Closeable {
       }
 
       // otherwise just check that the pipe is still bound
-      if (pipe.exists()) {
+      if (pipeExists()) {
         return HEALTHY; // keep using external process
       } else {
         return READY_TO_START; // start our own process
       }
+    }
+
+    /**
+     * {@link File#exists()} can report false for a pipe whose instances are all busy, for example
+     * under load. In that case open the pipe once to tell busy from absent.
+     */
+    private boolean pipeExists() {
+      if (pipe.exists()) {
+        return true;
+      }
+      if (!OperatingSystem.isWindows()) {
+        return false;
+      }
+      try (RandomAccessFile ignored = new RandomAccessFile(pipe, "rw")) {
+        return true;
+      } catch (FileNotFoundException e) {
+        return !isPipeNotFound(e);
+      } catch (IOException e) {
+        return true; // opened, then failed to close
+      }
+    }
+
+    /**
+     * Only "cannot find the file" (ERROR_FILE_NOT_FOUND) means no process is serving the pipe.
+     * Errors such as "All pipe instances are busy" (ERROR_PIPE_BUSY) mean that one is.
+     */
+    private static boolean isPipeNotFound(FileNotFoundException e) {
+      String message = e.getMessage();
+      return message != null && message.contains("cannot find the file");
     }
   }
 }
