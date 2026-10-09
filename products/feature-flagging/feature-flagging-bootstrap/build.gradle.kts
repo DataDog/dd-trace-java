@@ -18,6 +18,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration",
   "datadog.trace.api.featureflag.ufc.v1.ConditionOperator",
   "datadog.trace.api.featureflag.ufc.v1.Environment",
+  "datadog.trace.api.featureflag.ufc.v1.Feature",
   "datadog.trace.api.featureflag.ufc.v1.Flag",
   "datadog.trace.api.featureflag.ufc.v1.Rule",
   "datadog.trace.api.featureflag.ufc.v1.ServerConfiguration",

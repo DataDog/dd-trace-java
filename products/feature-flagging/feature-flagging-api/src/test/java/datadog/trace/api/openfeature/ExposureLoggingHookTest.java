@@ -137,7 +137,7 @@ class ExposureLoggingHookTest {
   @Test
   void sendsNothingWithoutTheDetailsAnExposureNeeds() {
     final ExposureDeduplicationCache cache = new ExposureDeduplicationCache(10);
-    final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(cache);
+    final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(cache, true);
     final HookContext<Object> withContext = hookContext(new MutableContext("user-1"));
 
     hook.finallyAfter(withContext, null, emptyMap());

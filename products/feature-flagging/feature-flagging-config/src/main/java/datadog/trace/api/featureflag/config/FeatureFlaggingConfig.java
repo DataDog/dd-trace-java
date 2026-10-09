@@ -31,6 +31,13 @@ public class FeatureFlaggingConfig {
   public static final String FLAGGING_EVALUATION_COUNTS_ENABLED =
       "flagging.evaluation.counts.enabled";
 
+  /**
+   * Turns off sending exposures to Datadog while customer exposure hooks keep receiving them.
+   * Default: enabled. Maps to {@code DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED}.
+   */
+  public static final String FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED =
+      "feature.flags.exposures.datadog.logging.enabled";
+
   public static final String FEATURE_FLAGS_CONFIGURATION_SOURCE =
       "feature.flags.configuration.source";
   public static final String FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL =

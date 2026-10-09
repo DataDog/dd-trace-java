@@ -8,6 +8,7 @@ import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
+import datadog.trace.api.featureflag.ufc.v1.Feature;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,6 +64,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final AtomicBoolean USE_LEGACY_EXPOSURE_API =
       new AtomicBoolean(
           !(SPLIT_SERIAL_ID_SUPPORTED.get() && exposureSerialIdSupported(ExposureEvent.class)));
+
+  static final AtomicBoolean SPLIT_FEATURES_SUPPORTED =
+      new AtomicBoolean(splitFeaturesSupported(Split.class));
+
+  /** An older agent ships a Split without features; its evaluations then carry no features. */
+  static boolean splitFeaturesSupported(final Class<?> splitClass) {
+    try {
+      return splitClass.getField("features").getType() == List.class;
+    } catch (final NoSuchFieldException | LinkageError | RuntimeException e) {
+      log.debug("The installed Datadog Java agent does not carry split features", e);
+      return false;
+    }
+  }
 
   static boolean splitSerialIdSupported(final Class<?> splitClass) {
     try {
@@ -149,6 +164,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // Emitted only when the allocation logs exposures: true when this subject's exposure was already
   // sent, so the exposure hook does not send it again.
   static final String METADATA_EXPOSURE_CACHE_HIT = "__dd_exposure_cache_hit";
+  // Each feature of the selected split is copied to the metadata under this prefix.
+  static final String METADATA_FEATURE_PREFIX = "__dd_feature.";
+
+  static final String FEATURE_DESTINATION_HOOK = "HOOK";
+  private static final Set<String> KNOWN_FEATURE_DESTINATIONS =
+      new HashSet<>(asList(FEATURE_DESTINATION_HOOK, "EXPOSURE", "EVALUATION"));
+  // A newer UFC can name destinations this SDK does not know; warn once per name, not per
+  // evaluation.
+  static final int MAX_WARNED_FEATURE_DESTINATIONS = 64;
+  static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
 
   // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
   // key = non-DD provider; the hook falls back to false (fail-closed).
@@ -611,6 +636,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       }
       metadataBuilder.addBoolean(METADATA_DO_LOG, doLog);
     }
+    if (SPLIT_FEATURES_SUPPORTED.get()) {
+      addSplitFeatures(metadataBuilder, split);
+    }
     if (doLog) {
       metadataBuilder.addBoolean(
           METADATA_EXPOSURE_CACHE_HIT,
@@ -634,6 +662,47 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .flagMetadata(metadataBuilder.build())
             .build();
     return result;
+  }
+
+  private static void addSplitFeatures(
+      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder, final Split split) {
+    if (split.features == null) {
+      return;
+    }
+    for (final Object item : split.features) {
+      if (!(item instanceof Feature)) {
+        continue;
+      }
+      final Feature feature = (Feature) item;
+      if (feature.key == null || !deliversToHook(feature)) {
+        continue;
+      }
+      final String key = METADATA_FEATURE_PREFIX + feature.key;
+      if (feature.value instanceof String) {
+        metadataBuilder.addString(key, (String) feature.value);
+      } else if (feature.value instanceof Boolean) {
+        metadataBuilder.addBoolean(key, (Boolean) feature.value);
+      } else if (feature.value instanceof Number) {
+        metadataBuilder.addDouble(key, ((Number) feature.value).doubleValue());
+      }
+    }
+  }
+
+  private static boolean deliversToHook(final Feature feature) {
+    if (feature.destinations == null) {
+      return false;
+    }
+    boolean hook = false;
+    for (final String destination : feature.destinations) {
+      if (FEATURE_DESTINATION_HOOK.equals(destination)) {
+        hook = true;
+      } else if (!KNOWN_FEATURE_DESTINATIONS.contains(destination)
+          && WARNED_FEATURE_DESTINATIONS.size() < MAX_WARNED_FEATURE_DESTINATIONS
+          && WARNED_FEATURE_DESTINATIONS.add(destination)) {
+        log.warn("Ignoring unknown feature destination {}", destination);
+      }
+    }
+    return hook;
   }
 
   /** The serial id an exposure carries: none when the agent's exposure event predates it. */
