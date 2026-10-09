@@ -1113,9 +1113,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
       }
@@ -1225,10 +1225,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
