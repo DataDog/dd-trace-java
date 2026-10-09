@@ -162,17 +162,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
-    // SNS
+    // SNS. TargetArn may identify a mobile platform endpoint, so only TopicArn is a topic ARN.
     Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-    if (!snsTopicArn.isPresent()) {
-      snsTopicArn = request.getValueForField("TargetArn", String.class);
-    }
-    snsTopicArn.ifPresent(
-        arn -> {
-          span.setTag(InstrumentationTags.AWS_TOPIC_ARN, arn);
-          span.setTag(InstrumentationTags.SNS_TOPIC_ARN, arn);
-        });
-    Optional<String> snsTopicName = snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+    snsTopicArn.ifPresent(arn -> span.setTag(InstrumentationTags.AWS_TOPIC_ARN, arn));
+    Optional<String> snsTargetArn =
+        snsTopicArn.isPresent() ? snsTopicArn : request.getValueForField("TargetArn", String.class);
+    Optional<String> snsTopicName =
+        snsTargetArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
     snsTopicName.ifPresent(topic -> setTopicName(span, topic));
 
     // Kinesis
@@ -200,11 +196,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // DynamoDB "TableName"), so "StateMachineArn" would never match here.
     request
         .getValueForField("stateMachineArn", String.class)
-        .ifPresent(
-            arn -> {
-              span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, arn);
-              span.setTag(InstrumentationTags.STATE_MACHINE_ARN, arn);
-            });
+        .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, arn));
     request
         .getValueForField("executionArn", String.class)
         .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, arn));
@@ -213,11 +205,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     if ("lambda".equalsIgnoreCase(awsServiceName)) {
       request
           .getValueForField("FunctionName", String.class)
-          .ifPresent(
-              name -> {
-                span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, name);
-                span.setTag(InstrumentationTags.FUNCTION_NAME, name);
-              });
+          .ifPresent(name -> span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, name));
     }
 
     // DSM

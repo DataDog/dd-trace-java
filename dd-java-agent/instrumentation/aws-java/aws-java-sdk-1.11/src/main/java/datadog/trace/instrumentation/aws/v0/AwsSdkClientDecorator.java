@@ -155,7 +155,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
       span.setTag(InstrumentationTags.AWS_TOPIC_ARN, topicArn);
-      span.setTag(InstrumentationTags.SNS_TOPIC_ARN, topicArn);
       topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
       span.setTag(InstrumentationTags.AWS_TOPIC_NAME, topicName);
       span.setTag(InstrumentationTags.TOPIC_NAME, topicName);
@@ -191,7 +190,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String stateMachineArn = access.getStateMachineArn(originalRequest);
     if (null != stateMachineArn) {
       span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, stateMachineArn);
-      span.setTag(InstrumentationTags.STATE_MACHINE_ARN, stateMachineArn);
     }
     String executionArn = access.getExecutionArn(originalRequest);
     if (null != executionArn) {
@@ -201,7 +199,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       String functionName = access.getFunctionName(originalRequest);
       if (null != functionName) {
         span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, functionName);
-        span.setTag(InstrumentationTags.FUNCTION_NAME, functionName);
       }
     }
 

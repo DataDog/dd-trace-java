@@ -175,17 +175,14 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
               "aws.topic.arn" "arn:aws:sns::123:some-topic"
-              "aws.sns.topic_arn" "arn:aws:sns::123:some-topic"
               peerServiceFrom("aws.topic.name")
               checkPeerService = true
             } else if (service == "Sfn" && operation == "StartExecution") {
               "aws.state_machine.arn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
-              "statemachinearn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
             } else if (service == "Sfn" && operation == "DescribeExecution") {
               "aws.execution.arn" "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"
             } else if (service == "Lambda") {
               "aws.function.name" "somefunction"
-              "functionname" "somefunction"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"
@@ -286,6 +283,39 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
         """
   }
 
+  def "SNS TargetArn is not tagged as a topic ARN"() {
+    setup:
+    def client = SnsClient.builder()
+      .endpointOverride(server.address)
+      .region(Region.AP_NORTHEAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("""
+        <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
+            <PublishResult>
+                <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
+            </PublishResult>
+            <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
+        </PublishResponse>
+        """)
+
+    when:
+    client.publish(
+      PublishRequest.builder()
+      .targetArn("arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device")
+      .message("")
+      .build())
+    TEST_WRITER.waitForTraces(1)
+    def span = TEST_WRITER.flatten().first()
+
+    then:
+    span.getTag("aws.topic.arn") == null
+    span.getTag("aws.topic.name") == "endpoint/APNS/app/device"
+
+    cleanup:
+    client.close()
+  }
+
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {
     setup:
     boolean executed = false
@@ -355,17 +385,14 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
               "aws.topic.arn" "arn:aws:sns::123:some-topic"
-              "aws.sns.topic_arn" "arn:aws:sns::123:some-topic"
               peerServiceFrom("aws.topic.name")
               checkPeerService = true
             } else if (service == "Sfn" && operation == "StartExecution") {
               "aws.state_machine.arn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
-              "statemachinearn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
             } else if (service == "Sfn" && operation == "DescribeExecution") {
               "aws.execution.arn" "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"
             } else if (service == "Lambda") {
               "aws.function.name" "somefunction"
-              "functionname" "somefunction"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"
@@ -610,7 +637,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "aws.topic.name" "test-topic"
               "topicname" "test-topic"
               "aws.topic.arn" "arn:aws:sns::123:test-topic"
-              "aws.sns.topic_arn" "arn:aws:sns::123:test-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "test-table"
               "tablename" "test-table"
