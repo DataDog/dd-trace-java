@@ -53,6 +53,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   // reads no statics, so this is safe to build directly during TagMap's <clinit>.
   public static final TagMap EMPTY = new TagMap(new Object[1], 0);
 
+  // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
+  // tag, so it cannot represent "not computed".
+  static final long TAG_ID_NOT_COMPUTED = Long.MIN_VALUE;
+
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
   public static final TagMap fromMap(@Nonnull Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
@@ -141,7 +145,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public static final class EntryRemoval extends EntryChange {
     EntryRemoval(String tag) {
-      super(tag);
+      // Canonicalize so a removal recorded under an OpenTelemetry rename matches an Entry recorded
+      // (via Entry's own constructor) under its Datadog name -- see Ledger#contains/#matches.
+      super(KnownTagCodec.canonicalTagName(tag));
     }
 
     @Override
@@ -170,6 +176,24 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     public static final byte DOUBLE = 9;
 
     String tag();
+
+    /** Returns the known ID for {@link #tag()}, or {@code 0L} for an unknown tag. */
+    long tagId();
+
+    /**
+     * This entry's tag name in the OpenTelemetry namespace: the rename the registry declares for
+     * it, else its Datadog name (pass-through, the default), else — for a custom tag, which the
+     * registry does not name at all — {@link #tag()} itself.
+     *
+     * <p>Never null, which is the point of asking the reader rather than the codec. {@link
+     * KnownTagCodec#openTelemetryTagOf} owns the naming policy but returns null for an unknown id,
+     * because only the holder of the entry knows the key to fall back to. This completes that one
+     * step and nothing more, so the policy still lives in exactly one place.
+     */
+    default String openTelemetryTag() {
+      String otelTag = KnownTagCodec.openTelemetryTagOf(tagId());
+      return otelTag != null ? otelTag : tag();
+    }
 
     byte type();
 
@@ -342,7 +366,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     volatile String strCache = null;
 
     private Entry(String tag, byte type, long prim, Object obj) {
-      super(tag);
+      /*
+       * Canonicalize known names at the single Entry construction point, so Datadog and
+       * OpenTelemetry spellings use the same TagMap key. This adds a StringIndex lookup to every
+       * new entry, including on the application thread.
+       */
+      super(KnownTagCodec.canonicalTagName(tag));
       this.lazyTagHash = 0; // lazily computed
 
       this.rawType = type;
@@ -359,6 +388,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       hash = _hash(this.tag);
       this.lazyTagHash = hash;
       return hash;
+    }
+
+    @Override
+    public long tagId() {
+      /*
+       * Resolve on demand. Only OTLP serialization currently needs the ID, so caching it here
+       * would add a field to every Entry to save a lookup on exported tags.
+       */
+      return KnownTagCodec.keyOf(this.tag);
     }
 
     @Override
@@ -914,12 +952,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     private boolean contains(String tag) {
+      // Entries and removals are both recorded under their canonical Datadog name (see newAnyEntry
+      // et al. and EntryRemoval's own constructor); canonicalize the query the same way or it
+      // would miss.
+      String canonicalTag = KnownTagCodec.canonicalTagName(tag);
+
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so bounds check elimination optimization works
       int lenClamp = Math.min(this.nextPos, thisChanges.length);
       for (int i = 0; i < lenClamp; ++i) {
-        if (thisChanges[i].matches(tag)) return true;
+        if (thisChanges[i].matches(canonicalTag)) return true;
       }
       return false;
     }
@@ -928,13 +971,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * Just for testing
      */
     Entry findLastEntry(String tag) {
+      String canonicalTag = KnownTagCodec.canonicalTagName(tag);
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so ArrayBoundsCheckElimination optimization works
       int clampLen = Math.min(this.nextPos, thisChanges.length) - 1;
       for (int i = clampLen; i >= 0; --i) {
         EntryChange thisChange = thisChanges[i];
-        if (!thisChange.isRemoval() && thisChange.matches(tag)) return (Entry) thisChange;
+        if (!thisChange.isRemoval() && thisChange.matches(canonicalTag)) return (Entry) thisChange;
       }
       return null;
     }
@@ -1254,7 +1298,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getEntry(String tag) {
-    Entry local = this.getLocalEntry(tag);
+    // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
+    // an OpenTelemetry rename must canonicalize the same way, or it would hash to the wrong bucket
+    // and silently miss the entry stored under the Datadog name.
+    String canonicalTag = KnownTagCodec.canonicalTagName(tag);
+
+    Entry local = this.getLocalEntry(canonicalTag);
     if (local != null) {
       // Local entry shadows the parent (local-wins) — unchanged hot path.
       return local;
@@ -1266,10 +1315,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     if (parent == null) {
       return null;
     }
-    if (this.removedFromParent != null && this.removedFromParent.contains(tag)) {
+    if (this.removedFromParent != null && this.removedFromParent.contains(canonicalTag)) {
       return null; // tombstoned: removed locally, do not read through
     }
-    return parent.getEntry(tag);
+    return parent.getEntry(canonicalTag);
   }
 
   /** Looks up an entry in this map's own buckets only — no read-through to the parent. */
@@ -1734,7 +1783,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry getAndRemove(String tag) {
     this.checkWriteAccess();
 
-    Entry localRemoved = this.removeLocal(tag);
+    // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
+    // OpenTelemetry rename must canonicalize first to find (and tombstone) the right entry.
+    String canonicalTag = KnownTagCodec.canonicalTagName(tag);
+
+    Entry localRemoved = this.removeLocal(canonicalTag);
 
     TagMap parent = this.parent;
     if (parent != null) {
@@ -1743,16 +1796,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       // local entry if there was one, otherwise the parent's (which we now hide). Single-parent in
       // phase 1; rare path (only when removing a parent-exposed key).
       boolean alreadyTombstoned =
-          this.removedFromParent != null && this.removedFromParent.contains(tag);
+          this.removedFromParent != null && this.removedFromParent.contains(canonicalTag);
       if (!alreadyTombstoned) {
-        Entry parentEntry = parent.getEntry(tag);
+        Entry parentEntry = parent.getEntry(canonicalTag);
         if (parentEntry != null) {
           if (this.removedFromParent == null) {
             // Small initial capacity: this set is rare and almost always holds only a handful of
             // tombstoned keys, so the default 16-bucket HashSet table would be wasteful.
             this.removedFromParent = new HashSet<>(4);
           }
-          this.removedFromParent.add(tag);
+          this.removedFromParent.add(canonicalTag);
           return localRemoved != null ? localRemoved : parentEntry;
         }
       }
@@ -2890,22 +2943,35 @@ final class EntryReadingHelper implements TagMap.EntryReader {
   private Map.Entry<String, Object> mapEntry;
   private String tag;
   private Object value;
+  private long tagId;
 
   void set(String tag, Object value) {
     this.mapEntry = null;
     this.tag = tag;
     this.value = value;
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
   void set(Map.Entry<String, Object> mapEntry) {
     this.mapEntry = mapEntry;
     this.tag = mapEntry.getKey();
     this.value = mapEntry.getValue();
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
   @Override
   public String tag() {
     return this.tag;
+  }
+
+  @Override
+  public long tagId() {
+    long id = this.tagId;
+    if (id != TagMap.TAG_ID_NOT_COMPUTED) return id;
+
+    id = KnownTagCodec.keyOf(this.tag);
+    this.tagId = id;
+    return id;
   }
 
   @Override
