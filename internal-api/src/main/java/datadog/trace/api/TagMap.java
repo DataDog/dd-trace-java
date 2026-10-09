@@ -1900,6 +1900,24 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
+  /**
+   * Visits only this map's own (local) entries, skipping everything read through from the parent
+   * chain. Pair with {@link #parent()} when the caller handles the shared parent entries itself.
+   */
+  public <T> void forEachLocal(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+    Object[] thisBuckets = this.buckets;
+    for (int i = 0; i < thisBuckets.length; ++i) {
+      Object thisBucket = thisBuckets[i];
+      if (thisBucket instanceof Entry) {
+        Entry thisEntry = (Entry) thisBucket;
+        consumer.accept(thisObj, thisEntry);
+      } else if (thisBucket instanceof BucketGroup) {
+        BucketGroup thisGroup = (BucketGroup) thisBucket;
+        thisGroup.forEachInChain(thisObj, consumer);
+      }
+    }
+  }
+
   private <T> void forEachParent(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
     for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
       Object[] parentBuckets = ancestor.buckets;
@@ -1994,6 +2012,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public boolean isFrozen() {
     return this.frozen;
+  }
+
+  /** The frozen read-through parent, or {@code null} when this map has none. */
+  @Nullable
+  public TagMap parent() {
+    return this.parent;
   }
 
   public void checkWriteAccess() {

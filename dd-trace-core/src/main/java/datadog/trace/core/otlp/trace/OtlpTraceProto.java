@@ -27,6 +27,7 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentatio
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
+import static datadog.trace.core.otlp.common.OtlpResourceProto.TRACE_RESOURCE_ATTRIBUTES;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.NO_TRACE_FLAGS;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
@@ -247,6 +248,7 @@ public final class OtlpTraceProto {
 
   public static class MetaWriter implements MetadataConsumer {
     private final StreamingBuffer buf;
+    private final OtlpSpanTags spanTags = new OtlpSpanTags(TRACE_RESOURCE_ATTRIBUTES);
 
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
@@ -297,7 +299,7 @@ public final class OtlpTraceProto {
         writeSpanTag(buf, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      metadata.getTags().forEach(buf, OtlpTraceProto::writeSpanTag);
+      spanTags.forEach(metadata.getTags(), buf, OtlpTraceProto::writeSpanTag);
 
       // reset for next span
       includeProcessTags = false;
