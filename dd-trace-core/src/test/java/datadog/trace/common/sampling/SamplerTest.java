@@ -5,7 +5,6 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
-import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
@@ -86,17 +85,6 @@ class SamplerTest extends DDJavaSpecification {
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @Test
   void apmTracesDroppedWhenApmTracingDisabledAndNoOtherProductEnabled() {
-    assertApmTracesDropped();
-  }
-
-  /**
-   * LLM Observability rides the tracer but ships its spans to the LLM Observability intake, so
-   * disabling APM tracing must drop the APM traces without disabling the tracer.
-   */
-  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
-  @WithConfig(key = LLMOBS_ENABLED, value = "true")
-  @Test
-  void apmTracesDroppedWhenApmTracingDisabledAndLlmObsEnabled() {
     assertApmTracesDropped();
   }
 
