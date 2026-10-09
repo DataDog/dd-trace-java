@@ -1,6 +1,6 @@
 package opentelemetry14;
 
-import static datadog.opentelemetry.shim.trace.OtelSpanEventTestHelper.stringifyErrorStack;
+import static datadog.opentelemetry.shim.trace.OtelConventionsTestHelper.stringifyErrorStack;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;

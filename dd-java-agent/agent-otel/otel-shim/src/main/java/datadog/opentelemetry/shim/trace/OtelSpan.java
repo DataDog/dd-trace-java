@@ -1,11 +1,10 @@
 package datadog.opentelemetry.shim.trace;
 
+import static datadog.opentelemetry.shim.trace.OtelConventions.EXCEPTION_SPAN_EVENT_NAME;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
-import static datadog.opentelemetry.shim.trace.OtelConventions.applySpanEventExceptionAttributesAsTags;
-import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_SPAN_EVENT_NAME;
-import static datadog.opentelemetry.shim.trace.OtelSpanEvent.eventAttributes;
-import static datadog.opentelemetry.shim.trace.OtelSpanEvent.initializeExceptionAttributes;
+import static datadog.opentelemetry.shim.trace.OtelConventions.applySpanEventExceptionAttributes;
+import static datadog.opentelemetry.shim.trace.OtelConventions.convertEventAttributes;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
@@ -27,6 +26,7 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -79,7 +79,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes) {
     if (this.recording) {
-      this.delegate.addEvent(name, eventAttributes(attributes));
+      this.delegate.addEvent(name, convertEventAttributes(attributes, 0));
     }
     return this;
   }
@@ -87,7 +87,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     if (this.recording) {
-      this.delegate.addEvent(name, eventAttributes(attributes), timestamp, unit);
+      this.delegate.addEvent(name, convertEventAttributes(attributes, 0), timestamp, unit);
     }
     return this;
   }
@@ -111,9 +111,9 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
     if (this.recording) {
-      additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
-      applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
-      this.delegate.addEvent(EXCEPTION_SPAN_EVENT_NAME, eventAttributes(additionalAttributes));
+      Map<String, Object> attributes = convertEventAttributes(additionalAttributes, 3);
+      applySpanEventExceptionAttributes(this.delegate, exception, attributes);
+      this.delegate.addEvent(EXCEPTION_SPAN_EVENT_NAME, attributes);
     }
     return this;
   }
