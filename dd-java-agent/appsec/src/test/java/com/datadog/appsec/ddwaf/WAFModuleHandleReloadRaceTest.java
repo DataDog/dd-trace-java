@@ -208,6 +208,61 @@ class WAFModuleHandleReloadRaceTest {
   }
 
   @Test
+  void retriesWithoutWaitingForRetiredHandleDestruction() throws Exception {
+    CountDownLatch captured = new CountDownLatch(1);
+    CountDownLatch replaced = new CountDownLatch(1);
+    when(request.isWafContextClosed())
+        .thenAnswer(
+            invocation -> {
+              captured.countDown();
+              assertTrue(replaced.await(10, TimeUnit.SECONDS));
+              return false;
+            });
+    when(request.getOrCreateWafContext(any(), anyBoolean(), anyBoolean())).thenReturn(context);
+    StampedLock oldLock = (StampedLock) currentSnapshotField("handleLock");
+    FutureTask<Void> evaluation =
+        new FutureTask<>(
+            () -> {
+              evaluate();
+              return null;
+            });
+    FutureTask<Void> update =
+        new FutureTask<>(
+            () -> {
+              reload();
+              return null;
+            });
+    Thread evaluationThread = new Thread(evaluation, "waf-stale-snapshot-test");
+    Thread updateThread = new Thread(update, "waf-retired-handle-test");
+    long stamp = oldLock.writeLock();
+    try {
+      evaluationThread.start();
+      assertTrue(captured.await(10, TimeUnit.SECONDS));
+      updateThread.start();
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+      while (currentHandle() == initialHandle && !update.isDone() && System.nanoTime() < deadline) {
+        Thread.yield();
+      }
+      assertTrue(currentHandle() != initialHandle, "replacement must be published");
+      replaced.countDown();
+      evaluation.get(10, TimeUnit.SECONDS);
+      assertFalse(update.isDone(), "old-handle destruction is still blocked");
+      verify(request)
+          .getOrCreateWafContext(
+              argThat(handle -> handle != initialHandle && handle.isOnline()),
+              anyBoolean(),
+              anyBoolean());
+    } finally {
+      replaced.countDown();
+      oldLock.unlockWrite(stamp);
+      evaluationThread.join(10000);
+      updateThread.join(10000);
+    }
+    update.get(10, TimeUnit.SECONDS);
+    assertFalse(initialHandle.isOnline());
+  }
+
+  @Test
   void usesAReadyContextWithoutTakingTheHandleLock() throws Exception {
     when(request.getWafContextIfReady(anyBoolean(), anyBoolean())).thenReturn(context);
     StampedLock handleLock = (StampedLock) currentSnapshotField("handleLock");
