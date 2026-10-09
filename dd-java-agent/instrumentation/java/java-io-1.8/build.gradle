@@ -16,14 +16,15 @@ addTestSuiteForDir('java11Test', 'java11Test')
 ext.java11TestMinJavaVersionForTests = JavaVersion.VERSION_11
 
 tasks.named("compileJava11TestJava", JavaCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 tasks.named("compileJava11TestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '9.0.56'
+  testImplementation libs.bundles.mockito
   java11TestImplementation sourceSets.test.output
 }

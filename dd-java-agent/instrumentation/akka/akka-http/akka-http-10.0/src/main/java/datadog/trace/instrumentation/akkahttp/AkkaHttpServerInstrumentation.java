@@ -62,27 +62,6 @@ public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Trac
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatadogWrapperHelper",
-      packageName + ".DatadogWrapperHelper$SwappedContextScope",
-      packageName + ".DatadogServerRequestResponseFlowWrapper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$2",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$3",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$4",
-      packageName + ".AkkaHttpServerHeaders",
-      packageName + ".AkkaHttpServerDecorator",
-      packageName + ".UriAdapter",
-      packageName + ".RecoverFromBlockedExceptionPF",
-      packageName + ".appsec.BlockingResponseHelper",
-      packageName + ".appsec.ScalaListCollector",
-      packageName + ".appsec.AkkaBlockResponseFunction",
-    };
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }

@@ -24,22 +24,6 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AbstractDatadogSparkListener",
-      packageName + ".DatabricksParentContext",
-      packageName + ".OpenlineageParentContext",
-      packageName + ".PredeterminedTraceIdContext",
-      packageName + ".RemoveEldestHashMap",
-      packageName + ".SparkAggregatedTaskMetrics",
-      packageName + ".SparkConfAllowList",
-      packageName + ".SparkSQLUtils",
-      packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
-      packageName + ".SparkSQLUtils$AccumulatorWithStage",
-    };
-  }
-
-  @Override
   public boolean defaultEnabled() {
     return false;
   }

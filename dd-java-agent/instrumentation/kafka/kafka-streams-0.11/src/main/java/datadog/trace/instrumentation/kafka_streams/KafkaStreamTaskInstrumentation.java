@@ -72,7 +72,6 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapterInterface",
       "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",

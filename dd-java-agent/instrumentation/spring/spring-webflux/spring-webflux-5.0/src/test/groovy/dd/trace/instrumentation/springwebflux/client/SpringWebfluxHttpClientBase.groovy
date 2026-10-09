@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator
+import io.netty.channel.Channel
 import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.client.ClientRequest
 import org.springframework.web.reactive.function.client.ClientResponse
@@ -44,7 +45,28 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
 
     check()
 
-    response.statusCode().value()
+    consumeResponse(response)
+  }
+
+  protected static int consumeResponse(ClientResponse response) {
+    int status = response.statusCode().value()
+    Channel channel = responseChannel(response)
+    response.bodyToMono(Void).block()
+    // Body completion can occur inside channelRead, before channelReadComplete is fired.
+    channel.eventLoop().submit({} as Runnable).sync()
+    return status
+  }
+
+  private static Channel responseChannel(ClientResponse response) {
+    def clientHttpResponse = field(response, "response")
+    def nettyResponse = field(clientHttpResponse, "response")
+    return nettyResponse.channel()
+  }
+
+  private static Object field(Object target, String name) {
+    def field = target.class.getDeclaredField(name)
+    field.accessible = true
+    return field.get(target)
   }
 
   @Override

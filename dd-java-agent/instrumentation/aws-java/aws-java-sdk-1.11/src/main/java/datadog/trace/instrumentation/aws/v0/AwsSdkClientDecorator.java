@@ -6,6 +6,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
@@ -339,6 +340,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected URI url(final Request request) {
     return request.getEndpoint();
+  }
+
+  /** Tags the HTTP status code of a service error, which has no response to read it from. */
+  public void onServiceError(final AgentSpan span, final Exception error) {
+    if (error instanceof AmazonServiceException) {
+      final int status = ((AmazonServiceException) error).getStatusCode();
+      if (status > 0) {
+        span.setHttpStatusCode(status);
+      }
+    }
   }
 
   @Override

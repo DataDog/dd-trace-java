@@ -77,6 +77,8 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-debugger:debugger-test-scala')
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-installer')
+  testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
+  testImplementation group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.1.1'
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
 

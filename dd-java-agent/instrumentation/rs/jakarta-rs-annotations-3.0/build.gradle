@@ -14,11 +14,11 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 tasks.named("compileLatestDepJava11TestJava", JavaCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("compileLatestDepJava11TestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("latestDepJava11Test", Test) {
@@ -27,6 +27,8 @@ tasks.named("latestDepJava11Test", Test) {
 
 dependencies {
   compileOnly group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
+
+  testImplementation libs.bundles.mockito
 
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'

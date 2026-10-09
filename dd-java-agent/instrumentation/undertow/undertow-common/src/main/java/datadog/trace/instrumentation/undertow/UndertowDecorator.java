@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
+import io.undertow.util.HttpString;
 import java.net.InetSocketAddress;
 
 public class UndertowDecorator
@@ -70,7 +71,9 @@ public class UndertowDecorator
 
   @Override
   protected String method(final HttpServerExchange exchange) {
-    return exchange.getRequestMethod().toString();
+    // null when the request line failed to parse (see RequestParseFailureAdvice)
+    final HttpString method = exchange.getRequestMethod();
+    return method == null ? null : method.toString();
   }
 
   @Override
