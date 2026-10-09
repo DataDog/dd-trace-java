@@ -1,10 +1,8 @@
 package com.datadog.featureflag;
 
-import static datadog.communication.EvpProxy.ORIGIN_HEADER;
-import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
@@ -12,7 +10,9 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
+import java.net.ConnectException;
 import javax.annotation.Nullable;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +20,37 @@ import org.slf4j.LoggerFactory;
 final class FeatureFlagBackendApiFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagBackendApiFactory.class);
+
+  /** Retries connection refusal only; automatic retries and redirects remain disabled. */
+  static final HttpRetryPolicy.Factory PRE_SEND_RETRY =
+      new HttpRetryPolicy.Factory(3, 100, 2.0) {
+        @Override
+        public HttpRetryPolicy create() {
+          return new PreSendRetryPolicy();
+        }
+      };
+
+  private static final class PreSendRetryPolicy extends HttpRetryPolicy {
+    private int attemptsLeft = 3;
+
+    private PreSendRetryPolicy() {
+      super(3, 100, 2.0, false);
+    }
+
+    @Override
+    public boolean shouldRetry(final Exception exception) {
+      if (exception instanceof ConnectException && attemptsLeft > 0) {
+        attemptsLeft--;
+        return true;
+      }
+      return false;
+    }
+
+    @Override
+    public boolean shouldRetry(@Nullable final Response response) {
+      return false;
+    }
+  }
 
   private final Config config;
   private final BackendApiFactory backendApiFactory;
@@ -68,23 +99,17 @@ final class FeatureFlagBackendApiFactory {
     final boolean agentless =
         CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource());
     if (!agentless) {
-      // Preserve the historical Agent-backed client: fixed EVP v2, no /info discovery, no direct
-      // credentials, and no Agentless route state.
+      // Remote Config stays Agent-only. Fixed v2 intentionally replaces Java's previous
+      // discovered endpoint; only connection refusal retains a bounded retry.
       return backendApiFactory.createEvpProxyApiForEndpoint(
           Intake.EVENT_PLATFORM,
           eventType.responseCompressionEnabled(),
-          HttpRetryPolicy.Factory.NEVER_RETRY,
+          PRE_SEND_RETRY,
           V2_EVP_PROXY_ENDPOINT);
     }
 
     final BackendApi directApi = createDirectApi();
-    final FeatureFlagRouteSelector.Route route =
-        routeSelector.initialize(() -> discoverProxyEndpoint(false), directApi != null);
-    if (route == FeatureFlagRouteSelector.Route.UNAVAILABLE) {
-      LOGGER.warn(
-          "Feature Flagging {} delivery is waiting for a compatible local EVP proxy because direct intake credentials are unavailable",
-          eventType.logName());
-    }
+    routeSelector.initialize(() -> discoverProxyEndpoint(false), directApi != null);
     return new AgentlessFeatureFlagBackendApi(
         directApi,
         () -> discoverProxyEndpoint(true),
@@ -102,8 +127,8 @@ final class FeatureFlagBackendApiFactory {
   @Nullable
   private String discoverProxyEndpoint(final boolean forceDiscovery) {
     try {
-      return backendApiFactory.discoverEvpProxyEndpoint(
-          forceDiscovery, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+      // Identity-forwarding requirements belong with SDK identity emission in the identity PR.
+      return backendApiFactory.discoverEvpProxyEndpoint(forceDiscovery, emptyList());
     } catch (final RuntimeException exception) {
       LOGGER.debug("Could not discover the local Feature Flagging route", exception);
       return null;

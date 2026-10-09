@@ -36,6 +36,34 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class AgentlessFeatureFlagBackendApiTest {
 
+  @Test
+  void recoveryErrorDoesNotPermanentlyBlockTheSiblingWriter() throws Exception {
+    final AtomicLong clock = new AtomicLong();
+    final FeatureFlagRouteSelector selector = new FeatureFlagRouteSelector(clock::get, 10);
+    final RecordingBackendApi recovered = new RecordingBackendApi();
+    final AgentlessFeatureFlagBackendApi exposures =
+        createApi(
+            null,
+            null,
+            () -> {
+              throw new LinkageError("probe failure");
+            },
+            () -> null,
+            "exposure",
+            selector);
+    final AgentlessFeatureFlagBackendApi evaluations =
+        createApi(null, null, () -> recovered, () -> null, "flag evaluation", selector);
+
+    clock.set(10);
+    assertThrows(
+        LinkageError.class,
+        () -> exposures.post("exposures", requestBody("first"), stream -> null, null, false));
+    clock.set(20);
+    evaluations.post("flagevaluation", requestBody("second"), stream -> null, null, false);
+
+    assertEquals(1, recovered.calls);
+  }
+
   @ParameterizedTest
   @ValueSource(ints = {404, 405})
   void replaysRejectedBatchDirectlyAndKeepsDirectRoute(final int statusCode) throws Exception {

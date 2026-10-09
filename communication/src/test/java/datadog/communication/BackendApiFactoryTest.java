@@ -218,7 +218,7 @@ class BackendApiFactoryTest {
   }
 
   @Test
-  void evpProxyPreservesConfiguredAgentBasePath() throws Exception {
+  void evpProxyKeepsHistoricalRelativeUrlResolution() throws Exception {
     final MockWebServer agent = new MockWebServer();
     agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
     agent.start();
@@ -237,14 +237,14 @@ class BackendApiFactoryTest {
           null,
           false);
 
-      assertEquals("/agent/base/evp_proxy/v4/api/v2/flagevaluation", agent.takeRequest().getPath());
+      assertEquals("/agent/evp_proxy/v4/api/v2/flagevaluation", agent.takeRequest().getPath());
     } finally {
       agent.shutdown();
     }
   }
 
   @Test
-  void discoveryPreservesAgentBasePathAndAcceptsCaseInsensitiveIdentityCapabilities()
+  void discoveryKeepsHistoricalUrlResolutionAndAcceptsCaseInsensitiveCapabilities()
       throws Exception {
     final MockWebServer agent = new MockWebServer();
     agent.enqueue(
@@ -267,7 +267,7 @@ class BackendApiFactoryTest {
 
       discovery.discover();
 
-      assertEquals("/agent/base/info", agent.takeRequest().getPath());
+      assertEquals("/agent/info", agent.takeRequest().getPath());
       assertEquals(V4_EVP_PROXY_ENDPOINT, discovery.getEvpProxyEndpoint());
       assertTrue(discovery.supportsEvpProxyHeaders(asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)));
     } finally {

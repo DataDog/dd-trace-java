@@ -1,10 +1,8 @@
 package com.datadog.featureflag;
 
-import static datadog.communication.EvpProxy.ORIGIN_HEADER;
-import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -242,7 +240,9 @@ class ExposureWriterTests {
     List<ExposureEvent> exposures = buildExposures(threads * exposuresPerThread);
     CountDownLatch latch = new CountDownLatch(1);
 
-    try (ExposureWriterImpl writer = new ExposureWriterImpl(sharedCommunicationObjects, config)) {
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            sharedCommunicationObjects, config, new FeatureFlagRouteSelector())) {
       writer.init();
       List<Future<Boolean>> futures = new ArrayList<>();
       for (int index = 0; index < exposures.size(); index += exposuresPerThread) {
@@ -432,7 +432,10 @@ class ExposureWriterTests {
   @Test
   void testCloseBeforeInitPreventsLaterStartAndAccept() {
     ExposureWriterImpl writer =
-        new ExposureWriterImpl(sharedCommunicationObjects, mockConfig("never-started-service"));
+        new ExposureWriterImpl(
+            sharedCommunicationObjects,
+            mockConfig("never-started-service"),
+            new FeatureFlagRouteSelector());
 
     writer.close();
     writer.init();
@@ -511,8 +514,7 @@ class ExposureWriterTests {
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.discoverEvpProxyEndpoint(
-            false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+    when(backendApiFactory.discoverEvpProxyEndpoint(false, emptyList()))
         .thenReturn(V4_EVP_PROXY_ENDPOINT);
     when(backendApiFactory.createEvpProxyApiForEndpoint(
             Intake.EVENT_PLATFORM,
@@ -567,7 +569,9 @@ class ExposureWriterTests {
     Config config = mockConfig("unavailable-service");
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
 
-    try (ExposureWriterImpl writer = new ExposureWriterImpl(sharedCommunicationObjects, config)) {
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            sharedCommunicationObjects, config, new FeatureFlagRouteSelector())) {
       writer.init();
       poll.eventually(() -> assertTrue(writer.isSerializerThreadAlive()));
     }
@@ -580,8 +584,7 @@ class ExposureWriterTests {
     final AtomicLong clock = new AtomicLong();
     final BackendApiFactory backend = mock(BackendApiFactory.class);
     final BackendApi proxy = mock(BackendApi.class);
-    when(backend.discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
-        .thenReturn(V4_EVP_PROXY_ENDPOINT);
+    when(backend.discoverEvpProxyEndpoint(true, emptyList())).thenReturn(V4_EVP_PROXY_ENDPOINT);
     when(backend.createEvpProxyApiForEndpoint(
             Intake.EVENT_PLATFORM,
             true,
@@ -598,18 +601,14 @@ class ExposureWriterTests {
         new ExposureWriterImpl(16, 100, MILLISECONDS, factory, config);
     try {
       writer.init();
-      poll.eventually(
-          () ->
-              verify(backend)
-                  .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)));
+      poll.eventually(() -> verify(backend).discoverEvpProxyEndpoint(false, emptyList()));
       clock.set(10);
       MILLISECONDS.sleep(300);
-      verify(backend, never())
-          .discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+      verify(backend, never()).discoverEvpProxyEndpoint(true, emptyList());
       verify(proxy, never()).post(any(), any(), any(), any(), eq(false));
       writer.accept(buildExposure());
       poll.eventually(() -> verify(proxy).post(eq("exposures"), any(), any(), any(), eq(false)));
-      verify(backend).discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+      verify(backend).discoverEvpProxyEndpoint(true, emptyList());
     } finally {
       writer.close();
     }

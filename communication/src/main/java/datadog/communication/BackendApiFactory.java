@@ -1,6 +1,5 @@
 package datadog.communication;
 
-import static datadog.communication.http.OkHttpUtils.appendPath;
 import static java.util.Collections.emptyList;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -32,9 +31,10 @@ public class BackendApiFactory {
   /**
    * Creates a backend factory with optional send-once transport semantics.
    *
-   * <p>When {@code sendOnce} is true, both the explicit HTTP retry policy and OkHttp's automatic
-   * connection retry are disabled. This is required for event payloads that do not carry an
-   * idempotency key.
+   * <p>When {@code sendOnce} is true, automatic connection retries and redirects are disabled, and
+   * the default HTTP retry policy is {@link HttpRetryPolicy.Factory#NEVER_RETRY}. Explicit caller
+   * policies may retry proven pre-send failures, but must not replay an ambiguously accepted event
+   * payload without an idempotency key.
    */
   public BackendApiFactory(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, boolean sendOnce) {
@@ -238,19 +238,26 @@ public class BackendApiFactory {
         intake,
         evpProxyEndpoint,
         responseCompression);
-    HttpUrl evpProxyUrl = appendPath(sharedCommunicationObjects.agentUrl, evpProxyEndpoint);
+    HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
     String subdomain = intake.getUrlPrefix();
     return new EvpProxyApi(
         traceId,
         evpProxyUrl,
         subdomain,
-        sendOnce ? HttpRetryPolicy.Factory.NEVER_RETRY : retryPolicyFactory,
+        retryPolicyFactory,
         configureHttpClient(sharedCommunicationObjects.agentHttpClient),
         responseCompression);
   }
 
   OkHttpClient configureHttpClient(final OkHttpClient httpClient) {
-    return sendOnce ? httpClient.newBuilder().retryOnConnectionFailure(false).build() : httpClient;
+    return sendOnce
+        ? httpClient
+            .newBuilder()
+            .retryOnConnectionFailure(false)
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+        : httpClient;
   }
 
   private HttpRetryPolicy.Factory retryPolicyFactory() {

@@ -4,9 +4,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Process-wide route state shared by all Feature Flagging event writers. */
 final class FeatureFlagRouteSelector {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagRouteSelector.class);
 
   static final long DEFAULT_RECOVERY_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
 
@@ -55,6 +59,7 @@ final class FeatureFlagRouteSelector {
       } else {
         route = Route.UNAVAILABLE;
         scheduleLocalDiscovery();
+        logUnavailable();
       }
     }
     return route;
@@ -76,6 +81,7 @@ final class FeatureFlagRouteSelector {
       } else {
         route = Route.UNAVAILABLE;
         scheduleLocalDiscovery();
+        logUnavailable();
       }
     }
     return route;
@@ -97,6 +103,7 @@ final class FeatureFlagRouteSelector {
       if (endpoint != null) {
         localRoute = new LocalRoute(endpoint);
         route = Route.LOCAL;
+        LOGGER.info("Feature Flagging event delivery recovered through the local EVP proxy");
       } else {
         scheduleLocalDiscovery();
       }
@@ -105,5 +112,11 @@ final class FeatureFlagRouteSelector {
 
   private void scheduleLocalDiscovery() {
     nextLocalDiscoveryNanos = nanoTime.getAsLong() + recoveryIntervalNanos;
+  }
+
+  private static void logUnavailable() {
+    LOGGER.warn(
+        "Feature Flagging events are being dropped because no local EVP proxy or direct intake"
+            + " route is available. Make the Agent reachable, or configure DD_API_KEY and a valid DD_SITE.");
   }
 }

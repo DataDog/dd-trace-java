@@ -77,7 +77,12 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
 
   private SelectedApi selectApi() throws IOException {
     if (routeSelector.tryBeginLocalRecovery()) {
-      routeSelector.localRecoveryFinished(discoverProxyEndpoint());
+      String endpoint = null;
+      try {
+        endpoint = discoverProxyEndpoint();
+      } finally {
+        routeSelector.localRecoveryFinished(endpoint);
+      }
     }
 
     final FeatureFlagRouteSelector.LocalRoute localRoute = routeSelector.localRoute();
@@ -129,7 +134,14 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
   }
 
   private IOException unavailableRoute() {
-    return new IOException("No Feature Flagging " + eventType + " delivery route is available");
+    return new UnavailableRouteException(eventType);
+  }
+
+  /** Expected drop while the shared selector waits for a usable route. */
+  static final class UnavailableRouteException extends IOException {
+    private UnavailableRouteException(final String eventType) {
+      super("No Feature Flagging " + eventType + " delivery route is available");
+    }
   }
 
   private static boolean isSafeToReplayDirectly(final IOException exception) {

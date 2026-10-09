@@ -2,12 +2,10 @@ package com.datadog.featureflag;
 
 import static com.datadog.featureflag.FeatureFlagEventType.EXPOSURE;
 import static com.datadog.featureflag.FeatureFlagEventType.FLAG_EVALUATION;
-import static datadog.communication.EvpProxy.ORIGIN_HEADER;
-import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
-import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
@@ -17,7 +15,6 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
-import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import org.junit.jupiter.api.Test;
@@ -32,7 +29,7 @@ class FeatureFlagBackendApiFactoryTest {
     when(backendApiFactory.createEvpProxyApiForEndpoint(
             Intake.EVENT_PLATFORM,
             false,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
+            FeatureFlagBackendApiFactory.PRE_SEND_RETRY,
             V2_EVP_PROXY_ENDPOINT))
         .thenReturn(proxyApi);
 
@@ -40,17 +37,15 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertSame(proxyApi, selected);
-    verify(backendApiFactory, never())
-        .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+    verify(backendApiFactory, never()).discoverEvpProxyEndpoint(false, emptyList());
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
   @Test
-  void agentlessPrefersCapabilityGatedLocalRouteWithDirectFallbackReady() {
+  void agentlessPrefersLocalRouteWithDirectFallbackReady() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.discoverEvpProxyEndpoint(
-            false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+    when(backendApiFactory.discoverEvpProxyEndpoint(false, emptyList()))
         .thenReturn(V2_EVP_PROXY_ENDPOINT);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenReturn(mock(BackendApi.class));
@@ -59,8 +54,7 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
-    verify(backendApiFactory)
-        .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+    verify(backendApiFactory).discoverEvpProxyEndpoint(false, emptyList());
     verify(backendApiFactory).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
@@ -93,8 +87,7 @@ class FeatureFlagBackendApiFactoryTest {
   void agentlessKeepsCompatibleLocalRouteWhenDirectUrlIsInvalid() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.discoverEvpProxyEndpoint(
-            false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+    when(backendApiFactory.discoverEvpProxyEndpoint(false, emptyList()))
         .thenReturn(V2_EVP_PROXY_ENDPOINT);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));

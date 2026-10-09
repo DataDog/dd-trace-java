@@ -1,7 +1,6 @@
 package datadog.communication.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
-import static datadog.communication.http.OkHttpUtils.appendPath;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
@@ -159,7 +158,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
       final Request request =
-          prepareRequest(appendPath(agentBaseUrl, "info"), emptyMap()).get().build();
+          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
       try (Response response = client.newCall(request).execute()) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
@@ -209,7 +208,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       try (Response response =
           client
               .newCall(
-                  prepareRequest(appendPath(agentBaseUrl, candidate), emptyMap())
+                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
                       .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .build())
               .execute()) {
@@ -437,7 +436,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public HttpUrl buildUrl(String endpoint) {
-    return appendPath(agentBaseUrl, endpoint);
+    return agentBaseUrl.resolve(endpoint);
   }
 
   public boolean supportsDataStreams() {
