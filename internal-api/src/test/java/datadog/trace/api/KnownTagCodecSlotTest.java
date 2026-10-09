@@ -1,0 +1,62 @@
+package datadog.trace.api;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.lang.reflect.Field;
+import java.util.HashSet;
+import java.util.Set;
+import org.junit.jupiter.api.Test;
+
+/** {@link KnownTagCodec}'s dense-store slot: bits [47-32] of an id, assigned by graph coloring. */
+class KnownTagCodecSlotTest {
+  @Test
+  void everySlotIsBelowTheSlotCount() throws IllegalAccessException {
+    for (Field field : KnownTags.class.getFields()) {
+      if (field.getType() != long.class) {
+        continue;
+      }
+      long tagId = field.getLong(null);
+      if (KnownTagCodec.hasSlot(tagId)) {
+        assertTrue(KnownTagCodec.slotOf(tagId) < KnownTagCodec.slotCount(), field.getName());
+      } else {
+        assertEquals(KnownTagCodec.NO_SLOT, KnownTagCodec.slotOf(tagId), field.getName());
+      }
+    }
+  }
+
+  @Test
+  void tagsOnAnHttpServerSpanHaveDistinctSlots() {
+    long[] httpServerTags = {
+      KnownTags.SERVICE_ID,
+      KnownTags.COMPONENT_ID,
+      KnownTags.SPAN_KIND_ID,
+      KnownTags.HTTP_METHOD_ID,
+      KnownTags.HTTP_URL_ID,
+      KnownTags.HTTP_STATUS_CODE_ID,
+      KnownTags.HTTP_ROUTE_ID,
+      KnownTags.HTTP_HOSTNAME_ID,
+    };
+    Set<Integer> slots = new HashSet<>();
+    for (long tagId : httpServerTags) {
+      assertTrue(KnownTagCodec.hasSlot(tagId), Long.toHexString(tagId));
+      assertTrue(slots.add(KnownTagCodec.slotOf(tagId)), Long.toHexString(tagId));
+    }
+  }
+
+  @Test
+  void anOptionalTagIsStoredByHash() {
+    assertFalse(KnownTagCodec.hasSlot(KnownTags.PEER_PORT_OUTBOUND_ID));
+  }
+
+  @Test
+  void theSlotDoesNotChangeTheSerialOrFlags() {
+    long tagId = KnownTags.HTTP_METHOD_ID;
+
+    assertTrue(KnownTagCodec.hasSlot(tagId));
+    assertEquals(KnownTags.HTTP_METHOD_NAME, KnownTagCodec.nameOf(tagId));
+    assertTrue(KnownTagCodec.isIntercepted(tagId));
+    assertFalse(KnownTagCodec.isTraceLevel(tagId));
+  }
+}

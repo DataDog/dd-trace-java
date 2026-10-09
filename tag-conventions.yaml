@@ -2,9 +2,10 @@
 # ---------------------------------------------------------------------------
 # The code generator consumes THIS file to emit each language's tag-id constants and its
 # id<->name resolver. A tag id is IDENTITY (a globally unique serial + the trace-level bit);
-# storage layout (the dense store's slot assignment) and set-path routing (which keys the tracer
-# intercepts into span fields or sampling directives) are per-language concerns that arrive with
-# the code that consumes them, via a per-language overlay alongside this file.
+# storage layout and set-path routing (which keys the tracer intercepts into span fields or
+# sampling directives) are per-language concerns. A language derives its layout from the span types
+# below -- dd-trace-java colors them into dense-store slots -- and declares its routing in a
+# per-language overlay alongside this file.
 #
 # TRACE-LEVEL is its own thing (its own TagMap "type" on the TraceSegment) — the process/trace
 # constants + product flags that are set once per trace, NOT per span. Declared explicitly in the
@@ -53,10 +54,10 @@
 # that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
 # interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
 # span-kind still requires it.
-# The id coordinate (group-decl / field-decl) is NOT authored here — the generator assigns it: each
-# declaration source (the trace-level tier, each span type, each mixin) is a group, and within a
-# group `field-decl` numbers the dense (required/conditional/recommended) tags; the rest are
-# bucketed. See the design doc.
+# Storage layout is NOT authored here. dd-trace-java's generator derives a dense-store slot for each
+# required/conditional/recommended tag by graph coloring: tags resolved onto one concrete span type
+# (or both trace-level) get distinct slots, and tags that never appear together may share one. The
+# rest are stored by hash.
 # ---------------------------------------------------------------------------
 
 # Trace-level tier: its own TagMap on the TraceSegment. Set once per trace, not per span.

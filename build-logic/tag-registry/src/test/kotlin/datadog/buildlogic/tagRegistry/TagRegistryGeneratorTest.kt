@@ -60,7 +60,7 @@ class TagRegistryGeneratorTest {
     assertThat(first.getValue("tag-assignment.txt"))
       .contains("tags=6", "test.name", "service.name")
     assertThat(first.getValue("java/datadog/trace/api/KnownTags.java"))
-      .contains("ENV_ID = 0x0001000000000004L", "TEST_NAME", "http.request.method")
+      .contains("ENV_ID = 0x0001FFFF00000004L", "TEST_NAME", "http.request.method")
   }
 
   @TableTest(
@@ -461,8 +461,8 @@ class TagRegistryGeneratorTest {
   @Test
   fun `every tag id is positive, at both ends of the serial range`() {
     for (serial in listOf(TagRegistry.FIRST_SERIAL, TagRegistry.SERIAL_CAPACITY - 1)) {
-      assertThat(TagRegistry.encode(serial, traceLevel = false, intercepted = false)).isPositive()
-      assertThat(TagRegistry.encode(serial, traceLevel = true, intercepted = false)).isPositive()
+      assertThat(TagRegistry.encode(serial, traceLevel = false, intercepted = false, slot = TagRegistry.NO_SLOT)).isPositive()
+      assertThat(TagRegistry.encode(serial, traceLevel = true, intercepted = false, slot = TagRegistry.NO_SLOT)).isPositive()
     }
   }
 
@@ -470,7 +470,7 @@ class TagRegistryGeneratorTest {
   fun `a serial outside the range that keeps ids positive is rejected`() {
     for (serial in listOf(0, TagRegistry.SERIAL_CAPACITY, Short.MAX_VALUE + 1)) {
       assertThatIllegalArgumentException()
-        .isThrownBy { TagRegistry.encode(serial, traceLevel = false, intercepted = false) }
+        .isThrownBy { TagRegistry.encode(serial, traceLevel = false, intercepted = false, slot = TagRegistry.NO_SLOT) }
         .withMessageContaining("serial $serial is outside")
     }
   }
@@ -554,9 +554,9 @@ class TagRegistryGeneratorTest {
     val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(knownTags)
       .contains(
-        "COMPONENT_ID = 0x0001000000000000L",
-        "RESOURCE_NAME_ID = 0x0002000000000002L",
-        "SERVICE_ID = 0x0003000000000002L",
+        "COMPONENT_ID = 0x0001FFFF00000000L",
+        "RESOURCE_NAME_ID = 0x0002FFFF00000002L",
+        "SERVICE_ID = 0x0003FFFF00000002L",
         "public static final int SERVICE_SERIAL_NUM = 3;",
         "public static final int SERIAL_LIMIT = 4;"
       )
@@ -578,6 +578,44 @@ class TagRegistryGeneratorTest {
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated"), overlayFile) }
       .withMessageContaining(message)
+  }
+
+  @Test
+  fun `tags on one span type get distinct slots and tags that never co-occur share one`() {
+    val yaml = directory.conventionsFile(
+      """
+      trace_level:
+        tags: [{dd-name: env, required: required}]
+      span_types:
+        base:
+          abstract: true
+          tags: [{dd-name: service, required: required}]
+        http.server:
+          extends: base
+          span-kind: server
+          tags: [{dd-name: http.route, required: required}]
+        db.client:
+          extends: base
+          span-kind: client
+          tags: [{dd-name: db.type, required: required}, {dd-name: db.user}]
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    // service is on both span types, so it takes slot 0; http.route and db.type never share a span
+    // type, so both take slot 1; env is trace-level (its own TagMap) and reuses slot 0; db.user is
+    // optional, so it is stored by hash (no slot, 0xFFFF).
+    assertThat(contents(output).getValue("java/datadog/trace/api/KnownTags.java"))
+      .contains(
+        "DB_TYPE_ID = 0x0001000100000000L",
+        "DB_USER_ID = 0x0002FFFF00000000L",
+        "ENV_ID = 0x0003000000000004L",
+        "HTTP_ROUTE_ID = 0x0004000100000000L",
+        "SERVICE_ID = 0x0005000000000000L",
+        "public static final int SLOT_COUNT = 2;"
+      )
   }
 
   private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(

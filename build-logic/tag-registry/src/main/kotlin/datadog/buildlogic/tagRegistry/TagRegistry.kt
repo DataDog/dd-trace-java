@@ -2,12 +2,18 @@ package datadog.buildlogic.tagRegistry
 
 /**
  * Assigns tag ids from a parsed [TagConventions]. The id encoding mirrors KnownTagCodec: [63-48
- * serial][47-32 reserved][31-0 flags].
+ * serial][47-32 slot][31-0 flags].
  *
- * <p>An id is a globally unique serial plus two classification bits: trace-level and intercepted. It
- * carries no storage-layout coordinate -- bits [47-32] are held vacant for the co-occurrence slot
- * that the dense tag store assigns by graph coloring, which lands with the dense store itself.
- * Nothing here needs to know how (or whether) a tag is stored.
+ * <p>An id is a globally unique serial, a dense-store slot, and two classification bits:
+ * trace-level and intercepted.
+ *
+ * <p>The slot comes from GRAPH COLORING the tag co-occurrence graph. Each concrete span type's
+ * resolved tags appear together on one span, so they form a clique and need distinct slots; the
+ * trace-level tier is its own clique (it lives in a separate TagMap). Tags that never share a clique
+ * may share a slot -- a tag declared per direction (peer.port inbound and outbound) typically does --
+ * so the slot count stays bounded by the largest clique, small enough for one occupancy `long` in
+ * the dense store. Only tags at a required/conditional/recommended level are slotted; the rest get
+ * [NO_SLOT] and are stored by hash.
  *
  * <p>The intercepted bit marks a tag the tracer may route on the set-path (to a span field or a
  * sampling directive instead of tag storage), as listed by the tracer overlay. A setter called with
@@ -22,6 +28,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val serial: Int,
     val traceLevel: Boolean,
     val intercepted: Boolean,
+    /** The dense-store slot, or [NO_SLOT] when the tag is stored by hash. */
+    val slot: Int,
     val id: Long,
     /** The tag's OpenTelemetry name, in [otelDirection] or every direction; null when not renamed. */
     val declaredOtelName: String? = null,
@@ -49,6 +57,13 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
     const val SHARED_NAME = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.SHARED_NAME
 
+    const val SLOT_SHIFT = 32 // slot window [47-32]; mirrors KnownTagCodec.SLOT_SHIFT
+    const val NO_SLOT = 0xFFFF // all-ones slot: stored by hash; mirrors KnownTagCodec.NO_SLOT
+    const val MAX_SLOTS = 64 // one occupancy long in the dense store
+
+    /** Requirement levels whose tags get a dense-store slot. */
+    val SLOTTED_LEVELS = setOf("required", "conditional", "recommended")
+
     /**
      * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
      * (unknown) and of KnownTagCodec's negative lookup sentinels.
@@ -56,17 +71,23 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val SERIAL_CAPACITY = 1 shl 15
 
     /**
-     * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() + intercepted() -- must stay in sync.
-     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, SHARED_NAME at bit 0, other low bits and the
-     * reserved [47-32] window zero. Every id is made here, and the range check makes each one
-     * positive by construction.
+     * Mirrors KnownTagCodec's layout -- must stay in sync: serial at [63-48], slot at [47-32],
+     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, SHARED_NAME at bit 0, other low bits zero. Every id
+     * is made here, and the range check makes each one positive by construction.
      */
-    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, sharedName: Boolean = false): Long {
+    fun encode(
+      serial: Int,
+      traceLevel: Boolean,
+      intercepted: Boolean,
+      sharedName: Boolean = false,
+      slot: Int,
+    ): Long {
+      require(slot == NO_SLOT || slot in 0 until MAX_SLOTS) { "slot $slot is outside [0, $MAX_SLOTS)" }
       require(serial in FIRST_SERIAL until SERIAL_CAPACITY) {
         "serial $serial is outside [$FIRST_SERIAL, $SERIAL_CAPACITY): more tags would make tag ids " +
           "negative, where KnownTagCodec's lookup sentinels live"
       }
-      var id = serial.toLong() shl 48
+      var id = (serial.toLong() shl 48) or (slot.toLong() shl SLOT_SHIFT)
       if (traceLevel) id = id or LEVEL_TRACE
       if (intercepted) id = id or INTERCEPTED
       if (sharedName) id = id or SHARED_NAME
@@ -76,6 +97,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     fun build(conv: TagConventions): TagRegistry {
       val traceLevel = conv.traceLevelTags().map { it.identity }.toSet()
       val renames = conv.otelMappings().associateBy { it.tag }
+
+      val slots = colorSlots(conv)
 
       // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
       val tags =
@@ -90,7 +113,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             isTraceLevel,
             isIntercepted,
-            id = encode(serial, isTraceLevel, isIntercepted, t.identity.direction != null),
+            slot = slots[t.identity] ?: NO_SLOT,
+            id = encode(serial, isTraceLevel, isIntercepted, t.identity.direction != null, slots[t.identity] ?: NO_SLOT),
             declaredOtelName = renames[t.identity]?.otelName,
             otelDirection = renames[t.identity]?.direction,
           )
@@ -98,6 +122,44 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
       validateOtelNames(tags)
       return TagRegistry(tags)
+    }
+
+    /**
+     * Colors the co-occurrence graph of slotted tags: tags resolved onto one concrete span type, or
+     * both trace-level, must get distinct slots. Greedy, most-constrained first (by clique count,
+     * then label), so the result is a pure function of the conventions.
+     */
+    private fun colorSlots(conv: TagConventions): Map<TagConventions.TagIdentity, Int> {
+      val cliques = ArrayList<Set<TagConventions.TagIdentity>>()
+      for (type in conv.concreteTypes()) {
+        cliques.add(conv.resolve(type).filter { it.required in SLOTTED_LEVELS }.map { it.identity }.toSet())
+      }
+      cliques.add(conv.traceLevelTags().filter { it.required in SLOTTED_LEVELS }.map { it.identity }.toSet())
+
+      val neighbors = HashMap<TagConventions.TagIdentity, MutableSet<TagConventions.TagIdentity>>()
+      for (clique in cliques) {
+        for (a in clique) {
+          val adjacent = neighbors.getOrPut(a) { HashSet() }
+          for (b in clique) if (a != b) adjacent.add(b)
+        }
+      }
+      val cliqueCount = neighbors.keys.associateWith { tag -> cliques.count { tag in it } }
+      val order =
+        neighbors.keys.sortedWith(
+          compareByDescending<TagConventions.TagIdentity> { cliqueCount.getValue(it) }.thenBy { it.label }
+        )
+      val slots = HashMap<TagConventions.TagIdentity, Int>()
+      for (tag in order) {
+        val taken = neighbors.getValue(tag).mapNotNull { slots[it] }.toSet()
+        var slot = 0
+        while (slot in taken) slot++
+        require(slot < MAX_SLOTS) {
+          "coloring needs more than $MAX_SLOTS slots at '${tag.label}'; the dense store's occupancy " +
+            "long holds $MAX_SLOTS"
+        }
+        slots[tag] = slot
+      }
+      return slots
     }
 
     /**

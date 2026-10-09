@@ -71,16 +71,17 @@ object TagRegistryGenerator {
       """
       # Tag id assignment.  tags=${reg.tags.size}
 
-      # TAGS     serial lvl int id                 required     name
+      # TAGS     serial lvl int slot id                 required     name
       """.trimIndent()
     )
     for (t in reg.tags) {
       appendLine(
-        "  %6d   %s   %s   %-18s %-12s %s".format(
+        "  %6d   %s   %s   %4s %-18s %-12s %s".format(
           Locale.ROOT,
           t.serial,
           if (t.traceLevel) "T" else "-",
           if (t.intercepted) "I" else "-",
+          if (t.slot == TagRegistry.NO_SLOT) "-" else t.slot.toString(),
           "0x%016X".format(Locale.ROOT, t.id),
           t.required,
           t.name
