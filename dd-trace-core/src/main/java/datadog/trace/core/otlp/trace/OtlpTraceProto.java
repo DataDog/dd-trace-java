@@ -15,6 +15,7 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
@@ -142,7 +143,7 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
     }
 
-    span.processTagsAndBaggage(metaWriter);
+    span.processTagsAndBaggage(metaWriter, OWN_PROPAGATION_TAGS);
 
     if (span.isError()) {
       int stateSize = 2;

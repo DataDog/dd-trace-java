@@ -1,5 +1,6 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -46,7 +47,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     for (DDSpan span : trace) {
       // This is needed to properly do all delayed processing to make this writer even
       // remotely realistic so the test actually test something
-      span.processTagsAndBaggage(metadataConsumer);
+      span.processTagsAndBaggage(metadataConsumer, OWN_PROPAGATION_TAGS);
     }
 
     add(trace);
