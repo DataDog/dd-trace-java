@@ -619,7 +619,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               context.getTargetingKey(),
               allocation.key,
               variant.key,
-              exposureSerialId(split.serialId)));
+              SPLIT_SERIAL_ID_SUPPORTED.get() ? exposureSerialId(split.serialId) : null));
     }
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
