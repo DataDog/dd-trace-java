@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.config;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
@@ -337,7 +339,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       }
 
     } catch (Exception e) {
-      LOGGER.error("Error while obtaining CI Visibility settings", e);
+      LOGGER.error(EXCLUDE_TELEMETRY, "Error while obtaining CI Visibility settings", e);
       return CiVisibilitySettings.SETTINGS_REQUEST_ERROR;
     }
   }
