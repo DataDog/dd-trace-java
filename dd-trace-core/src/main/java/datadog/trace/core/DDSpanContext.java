@@ -648,8 +648,7 @@ public class DDSpanContext
             if (ctx.unsafeTags.containsKey(tag)) {
               return;
             }
-            final Object value = tagEntry.objectValue();
-            if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+            if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
               ctx.unsafeTags.set(tagEntry);
             }
           });
@@ -1018,6 +1017,9 @@ public class DDSpanContext
    * <p>Existing tag value with the same value will be replaced. Setting a tag with a {@code null}
    * value will remove the tag from the span.
    *
+   * <p>A known tag's name is resolved to its id once, and the tag is then set as the id-keyed
+   * setters set it; only a custom tag is handled by name.
+   *
    * @param tag The tag name.
    * @param value The nullable tag value.
    */
@@ -1025,9 +1027,12 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (null == value) {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (null == value) {
       removeTag(tag);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1038,9 +1043,12 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (null == value) {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (null == value) {
       removeTag(tag);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1048,18 +1056,18 @@ public class DDSpanContext
   }
 
   /*
-   * Id-keyed setters, mirroring the String setters above: interception still runs on the tag's
-   * name (TagInterceptor is name-keyed), but a stored tag is set by id, skipping the name lookup.
-   * An id that names no known tag is ignored, like a null tag.
+   * Id-keyed setters, mirroring the String setters above. With a constant id, the interception
+   * test folds to the KnownTagCodec.INTERCEPTED bit, and there is no custom-tag path to take. An id
+   * that names no known tag is ignored, like a null tag.
    */
   public void setTag(final long tagId, final Object value) {
-    final String tag = KnownTagCodec.nameOf(tagId);
-    if (null == tag) {
+    if (isUnknownTag(tagId)) {
       return;
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.needsIntercept(tagId)
+        || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
       }
@@ -1067,13 +1075,13 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final CharSequence value) {
-    final String tag = KnownTagCodec.nameOf(tagId);
-    if (null == tag) {
+    if (isUnknownTag(tagId)) {
       return;
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.needsIntercept(tagId)
+        || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
       }
@@ -1081,12 +1089,11 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final boolean value) {
-    final String tag = KnownTagCodec.nameOf(tagId);
-    if (null == tag) {
+    if (isUnknownTag(tagId)) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1095,12 +1102,11 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final int value) {
-    final String tag = KnownTagCodec.nameOf(tagId);
-    if (null == tag) {
+    if (isUnknownTag(tagId)) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1109,12 +1115,11 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final long value) {
-    final String tag = KnownTagCodec.nameOf(tagId);
-    if (null == tag) {
+    if (isUnknownTag(tagId)) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1123,12 +1128,11 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final float value) {
-    final String tag = KnownTagCodec.nameOf(tagId);
-    if (null == tag) {
+    if (isUnknownTag(tagId)) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1137,12 +1141,11 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final double value) {
-    final String tag = KnownTagCodec.nameOf(tagId);
-    if (null == tag) {
+    if (isUnknownTag(tagId)) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1150,16 +1153,17 @@ public class DDSpanContext
     }
   }
 
+  private static boolean isUnknownTag(long tagId) {
+    return KnownTagCodec.nameOf(tagId) == null;
+  }
+
   public void setTag(TagMap.EntryReader entry) {
     if (entry == null) {
       return;
     }
 
-    // pre-check to avoid boxing
-    boolean intercepted =
-        precheckIntercept(entry.tag())
-            && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
-    if (!intercepted) {
+    // the interceptor prechecks the entry, to avoid boxing
+    if (!tagInterceptor.interceptTag(this, entry)) {
       synchronized (unsafeTags) {
         unsafeTags.set(entry);
       }
@@ -1167,16 +1171,7 @@ public class DDSpanContext
   }
 
   /*
-   * Uses to determine if there's an opportunity to avoid primitve boxing.
-   * If the underlying map doesn't support efficient primitives, then boxing is used.
-   * If the tag may be intercepted, then boxing is also used.
-   */
-  private boolean precheckIntercept(String tag) {
-    return tagInterceptor.needsIntercept(tag);
-  }
-
-  /*
-   * Used when precheckIntercept determines that boxing is unavoidable
+   * Used when the interceptor's precheck determines that boxing is unavoidable
    *
    * Either because the tagInterceptor needs to be fully checked (which requires boxing)
    * In that case, a box has already been created so it makes sense to pass the box
@@ -1187,10 +1182,10 @@ public class DDSpanContext
    * The TagMap isn't optimized and will need to box the primitive regardless of
    * tag interception
    */
-  private void setBox(String tag, Object box) {
-    if (!tagInterceptor.interceptTag(this, tag, box)) {
+  private void setBox(long tagId, Object box) {
+    if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, box);
+        unsafeTags.set(tagId, box);
       }
     }
   }
@@ -1199,9 +1194,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1212,9 +1209,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1225,9 +1224,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1238,9 +1239,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1251,9 +1254,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1277,10 +1282,7 @@ public class DDSpanContext
         map.forEach(
             this,
             (ctx, tagEntry) -> {
-              String tag = tagEntry.tag();
-              Object value = tagEntry.objectValue();
-
-              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+              if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
                 ctx.unsafeTags.set(tagEntry);
               }
             });
@@ -1307,9 +1309,7 @@ public class DDSpanContext
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
-          Object value = entry.objectValue();
-
-          if (!tagInterceptor.interceptTag(this, tag, value)) {
+          if (!tagInterceptor.interceptTag(this, entry)) {
             unsafeTags.set(entry);
           }
         }

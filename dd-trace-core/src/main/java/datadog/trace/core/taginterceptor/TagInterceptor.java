@@ -146,10 +146,19 @@ public class TagInterceptor {
 
   public boolean needsIntercept(TagMap map) {
     for (TagMap.EntryReader entry : map) {
-      long tagId = entry.tagId();
-      if (tagId != 0 ? needsIntercept(tagId) : isSplitServiceTag(entry.tag())) return true;
+      if (needsIntercept(entry)) return true;
     }
     return false;
+  }
+
+  public boolean needsIntercept(TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    return tagId != 0 ? needsIntercept(tagId) : isSplitServiceTag(entry.tag());
+  }
+
+  /** Whether a custom tag -- one with no id -- may be routed: only split-by-tags routes one. */
+  public boolean needsInterceptCustomTag(String customTag) {
+    return isSplitServiceTag(customTag);
   }
 
   public boolean needsIntercept(Map<String, ?> map) {
@@ -255,8 +264,21 @@ public class TagInterceptor {
     }
   }
 
-  private boolean interceptCustomTag(DDSpanContext span, String tag, Object value) {
-    return isSplitServiceTag(tag) && splitService(span, value);
+  /**
+   * Routes an entry by its id, or by its name when it is a custom tag. Prechecks, so a primitive
+   * entry that needs no interception is never boxed.
+   */
+  public boolean interceptTag(DDSpanContext span, TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    if (tagId != 0) {
+      return needsIntercept(tagId) && interceptTag(span, tagId, entry.objectValue());
+    }
+    return isSplitServiceTag(entry.tag()) && splitService(span, entry.objectValue());
+  }
+
+  /** Routes a custom tag -- one with no id. */
+  public boolean interceptCustomTag(DDSpanContext span, String customTag, Object value) {
+    return isSplitServiceTag(customTag) && splitService(span, value);
   }
 
   private static boolean splitService(DDSpanContext span, Object value) {
