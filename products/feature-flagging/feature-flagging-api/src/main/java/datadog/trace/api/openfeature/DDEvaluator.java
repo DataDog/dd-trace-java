@@ -172,6 +172,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       new HashSet<>(asList(FEATURE_DESTINATION_HOOK, "EXPOSURE", "EVALUATION"));
   // A newer UFC can name destinations this SDK does not know; warn once per name, not per
   // evaluation.
+  static final int MAX_WARNED_FEATURE_DESTINATIONS = 64;
   static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
 
   // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
@@ -696,6 +697,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       if (FEATURE_DESTINATION_HOOK.equals(destination)) {
         hook = true;
       } else if (!KNOWN_FEATURE_DESTINATIONS.contains(destination)
+          && WARNED_FEATURE_DESTINATIONS.size() < MAX_WARNED_FEATURE_DESTINATIONS
           && WARNED_FEATURE_DESTINATIONS.add(destination)) {
         log.warn("Ignoring unknown feature destination {}", destination);
       }

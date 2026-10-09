@@ -33,6 +33,7 @@ import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -182,6 +183,33 @@ class ExposureHookTest {
         new HashSet<>(Arrays.asList("NEW_A", "NEW_B")), DDEvaluator.WARNED_FEATURE_DESTINATIONS);
     assertEquals(1, evaluations.get(1).getFeatures().size());
     DDEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
+  }
+
+  @Test
+  void stopsRememberingUnknownDestinationsAtTheCap() throws Exception {
+    DDEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
+    for (int i = 0; i < DDEvaluator.MAX_WARNED_FEATURE_DESTINATIONS; i++) {
+      DDEvaluator.WARNED_FEATURE_DESTINATIONS.add("OLD_" + i);
+    }
+    try {
+      start(
+          true,
+          configuration(
+              Boolean.TRUE,
+              singletonList(
+                  new Feature("holdout.key", "q4-global", Arrays.asList("HOOK", "NEW_A")))));
+
+      evaluate("user-1");
+
+      assertEquals(
+          DDEvaluator.MAX_WARNED_FEATURE_DESTINATIONS,
+          DDEvaluator.WARNED_FEATURE_DESTINATIONS.size());
+      assertFalse(DDEvaluator.WARNED_FEATURE_DESTINATIONS.contains("NEW_A"));
+      assertEquals(
+          Collections.singletonMap("holdout.key", "q4-global"), evaluations.get(0).getFeatures());
+    } finally {
+      DDEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
+    }
   }
 
   @Test
