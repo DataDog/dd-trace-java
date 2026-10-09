@@ -380,6 +380,19 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
       assertEquals(SAMPLER_KEEP, context.getSamplingPriority());
     }
+
+    @Test
+    void upstreamPriorityDroppedWhenOnlyDsmMarkedTheTrace() {
+      Map<String, String> headers = new HashMap<>();
+      headers.put(TRACE_ID_KEY, "1");
+      headers.put(SPAN_ID_KEY, "2");
+      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP));
+      headers.put(DATADOG_TAGS_KEY, "_dd.p.ts=04");
+
+      ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+
+      assertEquals(UNSET, context.getSamplingPriority());
+    }
   }
 
   @Nested

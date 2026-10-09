@@ -350,11 +350,13 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private int samplingPriorityOrDefault(DDTraceId traceId, int samplingPriority) {
     if (!apmTracingEnabled
         && (propagationTags == null
-            || propagationTags.getTraceSource() == ProductTraceSource.UNSET)) {
-      // With APM tracing disabled, an upstream decision is only meaningful when a product asked
-      // for the trace (_dd.p.ts). Otherwise it is an APM decision we must not inherit: the
-      // extracted priority is locked onto the span context at construction, so it would silence
-      // the local sampler before it ever votes.
+            || !ProductTraceSource.isProductMarked(
+                propagationTags.getTraceSource(),
+                ProductTraceSource.ASM,
+                ProductTraceSource.AI_GUARD))) {
+      // With APM tracing disabled, don't inherit an upstream APM decision: let the local sampler
+      // set the priority. Same products as TraceCollector.setSamplingPriorityIfNecessary. Needed
+      // when Data Jobs is enabled, where the drop can't override an already-set priority.
       return PrioritySampling.UNSET;
     }
     return samplingPriority == PrioritySampling.UNSET || DDTraceId.ZERO.equals(traceId)
