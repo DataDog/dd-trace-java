@@ -3,6 +3,7 @@ package datadog.trace.agent.test.scopediag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
@@ -23,6 +24,31 @@ import org.junit.jupiter.api.Test;
 /** Exercises diagnostics against continuations created by a real {@link CoreTracer}. */
 class ScopeDiagnosticsIntegrationTest {
 
+  @TrackScopeContinuations(
+      disabledChecks = {
+        ScopeDiagnosticsCheck.LEAKED,
+        ScopeDiagnosticsCheck.DOUBLE_FINISH,
+        ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+        ScopeDiagnosticsCheck.NEVER_CLOSED
+      },
+      reason = "test recording without enforcement")
+  private static class AdvisoryOnly {}
+
+  @TrackScopeContinuations(
+      disabledChecks = {
+        ScopeDiagnosticsCheck.LEAKED,
+        ScopeDiagnosticsCheck.LATE_FINISH,
+        ScopeDiagnosticsCheck.DOUBLE_FINISH,
+        ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+        ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD,
+        ScopeDiagnosticsCheck.NEVER_CLOSED
+      },
+      reason = "test recording without enforcement")
+  private static class AllExcluded {}
+
+  @TrackScopeContinuations(enabled = false, reason = "test full recording opt-out")
+  private static class Disabled {}
+
   private CoreTracer tracer;
 
   @AfterEach
@@ -32,6 +58,39 @@ class ScopeDiagnosticsIntegrationTest {
     if (tracer != null) {
       tracer.close();
     }
+  }
+
+  @Test
+  void excludingAllEnforcedChecksRecordsLeaksWithoutFailing() {
+    assertRecordsWithoutEnforcement(AdvisoryOnly.class);
+  }
+
+  @Test
+  void excludingAllChecksRecordsLeaksWithoutFailing() {
+    assertRecordsWithoutEnforcement(AllExcluded.class);
+  }
+
+  @Test
+  void fullOptOutDoesNotStartRecording() {
+    ScopeDiagnostics.startRecording(Disabled.class.getAnnotation(TrackScopeContinuations.class));
+    assertNull(ScopeDiagnostics.recordingWindow());
+  }
+
+  private void assertRecordsWithoutEnforcement(Class<?> fixture) {
+    TrackScopeContinuations config = fixture.getAnnotation(TrackScopeContinuations.class);
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+    ScopeDiagnostics.startRecording(config);
+    assertNotNull(ScopeDiagnostics.recordingWindow());
+    AgentSpan span = tracer.startSpan("test", "op");
+    ContextContinuation continuation = tracer.capture(span);
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.leakCount());
+    assertTrue(report.renderTimeline().contains("LEAKED"));
+    ScopeDiagnostics.assertNoViolations(report, config);
+
+    continuation.release();
+    span.finish();
   }
 
   @Test
@@ -49,7 +108,7 @@ class ScopeDiagnosticsIntegrationTest {
 
     assertEquals(2, report.records().size(), "both captures recorded");
     assertEquals(1, report.leakCount(), "exactly the un-resolved continuation leaks");
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
     assertFalse(leaked.toString().isEmpty());
 
     span.finish();
@@ -84,7 +143,7 @@ class ScopeDiagnosticsIntegrationTest {
         report.activateAfterResolveCount(),
         "a same-span re-activation resolved during activate() is not activate-after-resolve");
     assertEquals(0, report.leakCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -114,14 +173,14 @@ class ScopeDiagnosticsIntegrationTest {
     ContextContinuation continuation = tracer.capture(span);
     ContextScope scope = continuation.resume();
     scope.close();
-    assertFalse(ScopeDiagnostics.report().hasProblems());
+    assertFalse(ScopeDiagnostics.report().hasViolations());
     scope.close();
     span.finish();
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(1, report.doubleCount());
     assertEquals(0, report.leakCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
     assertTrue(report.renderTimeline().contains("DOUBLE_FINISH"));
   }
 
@@ -147,7 +206,7 @@ class ScopeDiagnosticsIntegrationTest {
     assertFalse(report.renderTimeline().contains("cancel"));
     assertEquals(0, report.doubleCount());
     assertEquals(0, report.leakCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -163,7 +222,7 @@ class ScopeDiagnosticsIntegrationTest {
     assertEquals(1, report.records().size());
     assertEquals(ContinuationStatus.RELEASED, report.records().get(0).status());
     assertEquals(ScopeEvent.Type.RESOLVE_RELEASE, report.records().get(0).terminal().type);
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -228,7 +287,7 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(1, report.deferredCleanupScopeCount());
     assertEquals(0, report.neverClosedScopeCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
 
     tracer.closePrevious(true);
   }
@@ -263,7 +322,7 @@ class ScopeDiagnosticsIntegrationTest {
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertFalse(report.hasIncompleteLifecycles());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
     span.finish();
   }
 
@@ -281,7 +340,7 @@ class ScopeDiagnosticsIntegrationTest {
 
     assertEquals(1, report.neverClosedScopeCount(), "the open scope never closed");
     assertEquals(1, report.leakCount(), "and the continuation it backs also leaks");
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
 
     scope.close();
     span.finish();

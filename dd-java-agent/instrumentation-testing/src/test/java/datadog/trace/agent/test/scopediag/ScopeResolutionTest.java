@@ -184,6 +184,6 @@ class ScopeResolutionTest {
 
   private void assertResolvedOnce() {
     assertEquals(0, ScopeDiagnostics.report().leakCount());
-    assertFalse(ScopeDiagnostics.report().hasProblems());
+    assertFalse(ScopeDiagnostics.report().hasViolations());
   }
 }
