@@ -117,7 +117,9 @@ public enum JDBCConnectionUrlParser {
       } else {
         paramLoc = jdbcUrl.indexOf(';');
         if (paramLoc >= 0 && paramLoc < hostIndex) {
-          // the "://" is inside a property value (e.g. db2:mydb;x=file://...), so no host part
+          // the "://" is inside a property value (e.g. db2:mydb;x=file://...), so there is no host
+          // part to parse, but the properties (user, schema, ...) still apply
+          populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), ';'));
           return builder;
         }
         urlPart1 = paramLoc >= 0 ? jdbcUrl.substring(0, paramLoc) : jdbcUrl;

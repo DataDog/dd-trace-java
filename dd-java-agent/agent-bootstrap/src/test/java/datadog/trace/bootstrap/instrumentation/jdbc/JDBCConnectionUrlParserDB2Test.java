@@ -54,4 +54,22 @@ class JDBCConnectionUrlParserDB2Test {
     assertEquals(50000, info.getPort());
     assertNull(info.getInstance());
   }
+
+  /**
+   * The same URLs keep their recognized properties. The old parser applied them before throwing,
+   * and {@code parse} returned that builder from its catch block, so they were recorded then too.
+   */
+  @TableTest({
+    "scenario                   | url                                          | type  | user  | schema",
+    "AS400 user before file URL | as400:host;user=alice;ssltruststore=file://x | as400 | alice |       ",
+    "DB2 schema before http URL | db2:mydb;schema=s1;x=http://y                | db2   |       | s1    ",
+    "AS400 user after file URL  | as400:host;keystore=file:///k;user=bob       | as400 | bob   |       "
+  })
+  void schemeSeparatorOnlyInPropertyValueKeepsProperties(
+      String url, String type, String user, String schema) {
+    DBInfo info = DB2.doParse(url, DBInfo.DEFAULT.toBuilder().type(type)).build();
+    assertEquals(type, info.getType());
+    assertEquals(user, info.getUser());
+    assertEquals(schema, info.getSchema());
+  }
 }
