@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,27 @@ class ScopeRecordTest {
   }
 
   @Test
+  void summarySeparatesScopeFindingsOnTheSameRecord() {
+    ScopeRecord scope = scope(0, null, "main", 1000);
+    scope.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD, "worker", 2000));
+    EnumSet<ScopeDiagnosticsCheck> checks = EnumSet.allOf(ScopeDiagnosticsCheck.class);
+    checks.remove(ScopeDiagnosticsCheck.NEVER_CLOSED);
+
+    String summary = report(scope).renderSummary(checks);
+    assertTrue(summary.contains("[CLOSE_WRONG_THREAD] scope#0"));
+    assertTrue(summary.contains("[NEVER_CLOSED] scope#0"));
+    assertTrue(
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
+            > summary.indexOf("Advisory findings (not enforced)"));
+    assertTrue(
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
+            < summary.indexOf("Excluded findings (not enforced)"));
+    assertTrue(
+        summary.indexOf("[NEVER_CLOSED] scope#0")
+            > summary.indexOf("Excluded findings (not enforced)"));
+  }
+
+  @Test
   void openAndClosedHasNoFailures() {
     ScopeRecord s = scope(0, null, "main", 1000);
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 3000));
@@ -49,7 +71,7 @@ class ScopeRecordTest {
     assertEquals(0, s.failures().size());
     assertFalse(s.threadHandoff());
     assertEquals(Long.valueOf(2000), s.activeDurationNanos());
-    assertFalse(report(s).hasProblems());
+    assertFalse(report(s).hasViolations());
   }
 
   @Test
@@ -74,7 +96,7 @@ class ScopeRecordTest {
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 4000));
 
     ScopeDiagnosticsReport report = report(s);
-    assertFalse(report.hasProblems(), "wrong-thread cleanup remains advisory");
+    assertFalse(report.hasViolations(), "wrong-thread cleanup remains advisory");
     String timeline = report.renderTimeline();
     assertTrue(timeline.contains("wrong-thread close"));
     assertTrue(timeline.contains("@ worker-one  at com.app.First.close(First.java:12)"));
@@ -86,11 +108,11 @@ class ScopeRecordTest {
     ScopeRecord s = scope(0, null, "main", 1000);
 
     assertFalse(s.closed());
-    assertTrue(s.failures().contains(Failure.NEVER_CLOSED));
+    assertTrue(s.failures().contains(ScopeDiagnosticsCheck.NEVER_CLOSED));
 
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.neverClosedScopeCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
   }
 
   @Test
@@ -99,10 +121,10 @@ class ScopeRecordTest {
     s.markDeferredCleanup();
 
     ScopeDiagnosticsReport report = report(s);
-    assertFalse(s.failures().contains(Failure.NEVER_CLOSED));
+    assertFalse(s.failures().contains(ScopeDiagnosticsCheck.NEVER_CLOSED));
     assertEquals(1, report.deferredCleanupScopeCount());
     assertEquals(0, report.neverClosedScopeCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -119,10 +141,10 @@ class ScopeRecordTest {
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 2000));
     s.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD, "pool-2", 1500));
 
-    assertTrue(s.failures().contains(Failure.CLOSE_WRONG_THREAD));
+    assertTrue(s.failures().contains(ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD));
 
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.closeWrongThreadCount());
-    assertFalse(report.hasProblems()); // wrong-thread is report-only
+    assertFalse(report.hasViolations()); // wrong-thread is report-only
   }
 }
