@@ -74,6 +74,8 @@ dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
   implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
 
+  testImplementation libs.bundles.mockito
+
   routeGeneratorImplementation libs.scala211
   routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'
 

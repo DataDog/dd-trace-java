@@ -18,9 +18,15 @@ import org.spockframework.runtime.extension.ExtensionAnnotation;
 @ExtendWith(ScopeDiagnosticsExtension.class)
 @ExtensionAnnotation(ScopeDiagnosticsSpockExtension.class)
 public @interface TrackScopeContinuations {
-  /** Set to {@code false} only for a proven incompatibility with the diagnostic itself. */
+  /**
+   * Enables recording and diagnostics. Disabling requires a reason and an empty {@link
+   * #disabledChecks()} list.
+   */
   boolean enabled() default true;
 
-  /** Explains why the diagnostic is disabled. Required when {@link #enabled()} is false. */
+  /** Checks excluded from enforcement while recording remains enabled. Requires a reason. */
+  ScopeDiagnosticsCheck[] disabledChecks() default {};
+
+  /** Required when recording is disabled or {@link #disabledChecks()} is nonempty. */
   String reason() default "";
 }
