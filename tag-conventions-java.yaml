@@ -6,8 +6,9 @@
 #
 # tags        — keys that exist only to be routed, so the conventions do not declare them. They get
 #               ids like any other tag (instrumentation can set them by id) but belong to no span type.
-#               Same declaration syntax as tag-conventions.yaml; refs are not allowed.
-# intercepted — Datadog names TagInterceptor may route, declared in either file. Each one's id carries
+#               Each is intercepted, so it is not listed again below. Same declaration syntax as
+#               tag-conventions.yaml; refs are not allowed.
+# intercepted — tags declared in tag-conventions.yaml that TagInterceptor also routes. Each one's id carries
 #               the INTERCEPTED bit, so a setter called with a constant id folds the interception test
 #               away. TagInterceptor's switch is the authority on what each one does; a test there
 #               keeps this list and the switch in agreement.
@@ -29,21 +30,6 @@ tags:
   - { dd-name: _dd1.sr.eausr,     type: double }
 
 intercepted:
-  # declared above
-  - resource.name
-  - span.type
-  - error
-  - manual.keep
-  - manual.drop
-  - asm.keep
-  - ai_guard.keep
-  - sampling.priority
-  - _dd.p.ts
-  - _dd.p.debug
-  - _dd.origin
-  - _dd.measured
-  - _dd1.sr.eausr
-  # declared in tag-conventions.yaml
   - service
   - peer.service
   - span.kind

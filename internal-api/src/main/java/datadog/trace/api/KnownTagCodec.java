@@ -143,7 +143,7 @@ public final class KnownTagCodec {
    */
   public static boolean isKnown(long tagId) {
     int serial = serialNum(tagId);
-    return serial != 0 && serial < KnownTags.SERIAL_LIMIT; // serial 0 is no tag
+    return serial != 0 && serial < serialLimit(); // serial 0 is no tag
   }
 
   /** The id for {@code name} in any namespace, or 0 when it is not a known tag. */

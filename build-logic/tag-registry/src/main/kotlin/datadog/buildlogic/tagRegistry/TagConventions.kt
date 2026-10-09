@@ -243,7 +243,7 @@ class TagConventions private constructor(
     /** The type's own or nearest inherited `span-kind` direction, or null when none is declared. */
     private fun directionOf(spanTypes: Map<String, SpanType>, st: SpanType): Direction? = chainOf(spanTypes, st.name).firstNotNullOfOrNull { it.direction }
 
-    /** Reads `span-kind` as the direction it sets, or null when absent. */
+    /** The tracer overlay's `tags`, as a mixin that applies to no span type; empty when none. */
     private fun overlayMixin(overlay: Map<String, Any?>): Map<String, Mixin> {
       val tags = tagList(overlay["tags"])
       if (tags.isEmpty()) return emptyMap()
@@ -253,6 +253,7 @@ class TagConventions private constructor(
       )
     }
 
+    /** Reads `span-kind` as the direction it sets, or null when absent. */
     private fun parseDirection(m: Map<String, Any?>, owner: String): Direction? {
       val spanKind = m["span-kind"]
       require(spanKind == null || spanKind in SPAN_KIND_DIRECTIONS) {
@@ -261,15 +262,15 @@ class TagConventions private constructor(
       return (spanKind as String?)?.let { SPAN_KIND_DIRECTIONS.getValue(it) }
     }
 
-    @Suppress("UNCHECKED_CAST")
     /** The synthetic mixin holding the tracer overlay's tags; it applies to no span type. */
     const val OVERLAY_MIXIN = "tracer overlay"
 
     /**
      * Parses [root], the language-agnostic conventions, plus [overlay], this tracer's own set-path
-     * routing: `tags` declares keys that exist only to be routed (e.g. `resource.name`), and
-     * `intercepted` lists the Datadog names the tracer intercepts, from either file.
+     * routing: `tags` declares keys that exist only to be routed (e.g. `resource.name`), so each is
+     * intercepted, and `intercepted` adds the tags declared in [root] that the tracer also routes.
      */
+    @Suppress("UNCHECKED_CAST")
     fun parse(root: Map<String, Any?>, overlay: Map<String, Any?> = emptyMap()): TagConventions {
       for (section in listOf("span_types", "mixins", "trace_level")) {
         require(root[section] == null || root[section] is Map<*, *>) { "$section must be a mapping" }
@@ -282,7 +283,10 @@ class TagConventions private constructor(
       require(interceptedRaw == null || (interceptedRaw is List<*> && interceptedRaw.all { it is String })) {
         "intercepted must be a list of Datadog tag names"
       }
-      val intercepted = (interceptedRaw as? List<String>)?.toSet() ?: emptySet()
+      // An overlay tag exists only to be routed, so it is intercepted without being listed.
+      val intercepted =
+        ((interceptedRaw as? List<String>) ?: emptyList()).toSet() +
+          tagList(overlay["tags"]).map { it.ddName }
       val spanTypesRaw = (root["span_types"] as? Map<String, Any?>) ?: emptyMap()
       val parsedSpanTypes =
         spanTypesRaw.mapValues { (name, v) ->

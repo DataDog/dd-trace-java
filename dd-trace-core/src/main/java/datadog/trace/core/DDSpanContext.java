@@ -1000,7 +1000,7 @@ public class DDSpanContext
    * id that names no known tag is ignored, like the id-keyed setters do.
    */
   public void removeTag(long tagId) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagId == KnownTags.SPAN_KIND_ID) {
@@ -1061,7 +1061,7 @@ public class DDSpanContext
    * takes the custom-tag path. An id that names no known tag is ignored, like a null tag.
    */
   public void setTag(final long tagId, final Object value) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (null == value) {
@@ -1075,7 +1075,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final CharSequence value) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (null == value) {
@@ -1089,7 +1089,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final boolean value) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1102,7 +1102,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final int value) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1115,7 +1115,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final long value) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1128,7 +1128,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final float value) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1141,7 +1141,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final double value) {
-    if (isUnknownTag(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1151,10 +1151,6 @@ public class DDSpanContext
         unsafeTags.set(tagId, value);
       }
     }
-  }
-
-  private static boolean isUnknownTag(long tagId) {
-    return !KnownTagCodec.isKnown(tagId);
   }
 
   public void setTag(TagMap.EntryReader entry) {

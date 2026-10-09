@@ -52,7 +52,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
      * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() + intercepted() -- must stay in sync.
      * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, other low bits and the reserved [47-32] window zero.
      */
-    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean = false): Long {
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean): Long {
       var id = serial.toLong() shl 48
       if (traceLevel) id = id or LEVEL_TRACE
       if (intercepted) id = id or INTERCEPTED

@@ -7,7 +7,8 @@ import java.util.Locale
  * Emits the generated `KnownTags.java` from a [TagRegistry]. Public API first — per-tag
  * `<X>_NAME` (string) + `<X>_ID` (encoded long, literal) couplets with a trailing `// makeTagId(...)`
  * derivation comment — then the `<X>_SERIAL_NUM` constants, the
- * `StringIndex.EmbeddingSupport` keyOf table and the resolver's name switches.
+ * `StringIndex.EmbeddingSupport` keyOf table, the `NAMES_BY_SERIAL` array behind `nameOf`, and the
+ * resolver's `openTelemetryNameOf` switch.
  */
 object KnownTagsEmitter {
 

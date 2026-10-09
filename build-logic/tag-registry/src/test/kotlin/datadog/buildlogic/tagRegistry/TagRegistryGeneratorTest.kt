@@ -492,7 +492,7 @@ class TagRegistryGeneratorTest {
       "overlay.yaml",
       """
       tags: [{dd-name: resource.name}]
-      intercepted: [resource.name, service]
+      intercepted: [service]
       """
     )
     val output = File(directory, "generated")
