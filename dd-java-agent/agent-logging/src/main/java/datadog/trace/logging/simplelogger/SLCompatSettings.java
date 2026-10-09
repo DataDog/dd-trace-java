@@ -181,14 +181,22 @@ public class SLCompatSettings {
         printStreamWrapper = new PrintStreamWrapper(System.out);
         break;
       default:
-        FileOutputStream outputStream = null;
+        java.io.OutputStream outputStream = null;
         try {
           File outputFile = new File(logFile);
           File parentFile = outputFile.getParentFile();
           if (parentFile != null) {
             parentFile.mkdirs();
           }
-          outputStream = new FileOutputStream(outputFile);
+          if (AasPerProcessLogFile.isEnabled()) {
+            // Repro-only (SVLS-9057): one file per JVM instead of truncating a shared file
+            AasPerProcessLogFile.RollingFileOutputStream rolling =
+                AasPerProcessLogFile.open(outputFile);
+            outputStream = rolling;
+            outputFile = rolling.currentFile();
+          } else {
+            outputStream = new FileOutputStream(outputFile);
+          }
           PrintStream printStream = new PrintStream(outputStream, true);
           LogReporter.register(outputFile);
           return printStream;
