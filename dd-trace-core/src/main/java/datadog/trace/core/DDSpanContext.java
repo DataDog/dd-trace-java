@@ -611,9 +611,9 @@ public class DDSpanContext
    * <p>This is the shared seam for both the construction path ({@code CoreSpanBuilder}) and
    * decorator {@code afterStart} (via {@link DDSpan#apply}). The context owns the tag map, so the
    * eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
-   * identity short-circuit will land here -- deferred to the dense-store / tag-registry work, which
-   * exposes intercept status at the internal-api level. Until then the constant tags route through
-   * the interceptor, identical to the per-tag calls this replaces.
+   * identity short-circuit will land here, with the dense store; a tag's intercept status is
+   * already on its id ({@link KnownTagCodec#isIntercepted}). Until then each constant tag is
+   * prechecked by the interceptor, identical to the per-tag calls this replaces.
    */
   public void apply(@Nonnull final SpanPrototype prototype) {
     if (this.spanType == null) {

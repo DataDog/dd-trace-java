@@ -200,8 +200,9 @@ mixins:
 # - span.kind enumerates: server | client | producer | consumer | internal | broker.
 # - Some keys (resource.name, error, sampling.priority, ...) are accepted by setTag but routed to a
 #   span field or a trace directive instead of tag storage. That routing is a per-language tracer
-#   concern, so it is NOT modelled here; such a key appears above only when it also needs an id and
-#   a name (service does, for OpenTelemetry's service.name).
+#   concern, so it is NOT modelled here: dd-trace-java declares those keys, and marks every tag it
+#   intercepts, in its own overlay (tag-conventions-java.yaml). Such a key appears above only when it
+#   also needs an id and a name across tracers (service does, for OpenTelemetry's service.name).
 # - Tags with no otel-name pass through under their Datadog name (RFC "retain"). A `# TODO(otel)` note
 #   marks a pending OpenTelemetry-team review of a mapping that is not yet a settled rename.
 # - db.statement/db.query.text is deliberately never re-exposed as a stored tag once consumed into
