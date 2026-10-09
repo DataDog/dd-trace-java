@@ -27,7 +27,8 @@ class JDBCConnectionUrlParserOracleTest {
     "tcp protocol                   | jdbc:oracle:thin:@tcp://orcl.host:55/orclsn                         | orcl.host | 55   | orclsn  ",
     "EZConnect Plus params          | jdbc:oracle:thin:@tcps://orcl.host:2484/orclsn?wallet_location=c:/w | orcl.host | 2484 | orclsn  ",
     "IPv6 literal                   | jdbc:oracle:thin:@//[::1]:55/orclsn                                 | '[::1]'   | 55   | orclsn  ",
-    "non-numeric port               | jdbc:oracle:thin:@orcl.host:abc:orclsn                              | orcl.host | 1521 | orclsn  "
+    "non-numeric port               | jdbc:oracle:thin:@orcl.host:abc:orclsn                              | orcl.host | 1521 | orclsn  ",
+    "leading plus on port           | jdbc:oracle:thin:@orcl.host:+55:orclsn                              | orcl.host | 55   | orclsn  "
   })
   void parsesOracleConnectStrings(String url, String host, Integer port, String instance) {
     DBInfo info = extractDBInfo(url, null);

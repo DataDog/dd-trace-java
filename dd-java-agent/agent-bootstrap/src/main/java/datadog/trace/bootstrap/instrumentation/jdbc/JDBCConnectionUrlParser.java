@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
+import static datadog.trace.util.IntStringUtils.ALLOW_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
 import static java.lang.Math.max;
 
@@ -936,10 +937,14 @@ public enum JDBCConnectionUrlParser {
   }
 
   /**
+   * A leading {@code '+'} is not legal in a port by spec (RFC 3986's {@code port = *DIGIT}), but it
+   * was accepted here through {@link Integer#parseInt}, and drivers that parse ports the same way
+   * connect to {@code +1444} as port 1444. Accepting it keeps the tagged port accurate.
+   *
    * @return the port, or {@code null} if {@code s[start, end)} is not a valid port number
    */
   private static Integer parsePort(final CharSequence s, final int start, final int end) {
-    final int port = parseNonNegativeInt(s, start, end - start);
+    final int port = parseNonNegativeInt(s, start, end - start, ALLOW_LEADING_PLUS);
     return port >= 0 ? port : null;
   }
 
@@ -947,7 +952,7 @@ public enum JDBCConnectionUrlParser {
    * @return the port, or {@code null} if {@code s} is null or not a valid port number
    */
   private static Integer parsePort(final String s) {
-    final int port = parseNonNegativeInt(s);
+    final int port = parseNonNegativeInt(s, ALLOW_LEADING_PLUS);
     return port >= 0 ? port : null;
   }
 

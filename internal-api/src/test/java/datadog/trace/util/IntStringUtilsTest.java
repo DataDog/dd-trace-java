@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import static datadog.trace.util.IntStringUtils.ALLOW_LEADING_PLUS;
+import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -25,7 +27,7 @@ class IntStringUtilsTest {
     "non-ASCII digit  | '\u0661'    | -1        "
   })
   void parseNonNegativeIntWholeSequence(String input, int expected) {
-    assertEquals(expected, parseNonNegativeInt(input));
+    assertEquals(expected, parseNonNegativeInt(input, REJECT_LEADING_PLUS));
   }
 
   @TableTest({
@@ -40,12 +42,31 @@ class IntStringUtilsTest {
     "range spans garbage | host:1521/db | 4     | 5   | -1      "
   })
   void parseNonNegativeIntRange(String input, int start, int len, int expected) {
-    assertEquals(expected, parseNonNegativeInt(input, start, len));
+    assertEquals(expected, parseNonNegativeInt(input, start, len, REJECT_LEADING_PLUS));
+  }
+
+  @TableTest({
+    "scenario           | input        | start | len | expected",
+    "plus then digits   | +1444        | 0     | 5   | 1444    ",
+    "plus inside range  | host:+1521/x | 5     | 5   | 1521    ",
+    "digits only        | 1521         | 0     | 4   | 1521    ",
+    "plus only          | +            | 0     | 1   | -1      ",
+    "two pluses         | ++1          | 0     | 3   | -1      ",
+    "minus still bad    | -1           | 0     | 2   | -1      ",
+    "plus not leading   | 1+1          | 0     | 3   | -1      ",
+    "plus then overflow | +2147483648  | 0     | 11  | -1      "
+  })
+  void parseNonNegativeIntAllowingLeadingPlus(String input, int start, int len, int expected) {
+    assertEquals(expected, parseNonNegativeInt(input, start, len, ALLOW_LEADING_PLUS));
+    if (start == 0 && len == input.length()) {
+      assertEquals(expected, parseNonNegativeInt(input, ALLOW_LEADING_PLUS));
+    }
   }
 
   @Test
   void parseNonNegativeIntNull() {
-    assertEquals(-1, parseNonNegativeInt(null));
-    assertEquals(-1, parseNonNegativeInt(null, 0, 0));
+    assertEquals(-1, parseNonNegativeInt(null, REJECT_LEADING_PLUS));
+    assertEquals(-1, parseNonNegativeInt(null, 0, 0, REJECT_LEADING_PLUS));
+    assertEquals(-1, parseNonNegativeInt(null, ALLOW_LEADING_PLUS));
   }
 }
