@@ -55,8 +55,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Registers JVM runtime metrics with OTel-native names against the agent's bootstrap-level metric
- * registry. Each point also carries the identity, process, and source-MBean tags used by the
- * JMXFetch runtime metrics it replaces.
+ * registry. Each point also carries selected JMXFetch-compatible identity, entrypoint, and
+ * source-MBean attributes.
  */
 public final class JvmOtlpRuntimeMetrics {
   private static final Logger log = LoggerFactory.getLogger(JvmOtlpRuntimeMetrics.class);
@@ -78,8 +78,8 @@ public final class JvmOtlpRuntimeMetrics {
       AttributeKey.stringKey("jvm.thread.state");
   private static final AttributeKey<String> JMX_DOMAIN = AttributeKey.stringKey("jmx_domain");
 
-  // Keep the identity of the default config whose runtime metrics this OTLP path replaces, rather
-  // than the no-JVM-defaults config that remains active alongside it.
+  // Match the identity of the JMXFetch runtime metrics being replaced. JMXFetch remains active with
+  // default JVM metric collection disabled.
   private static final String LEGACY_JMX_INSTANCE = "dd-java-agent default";
   private static final String LEGACY_JMX_CHECK_NAME = "jmxfetch-config";
   private static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
@@ -781,7 +781,7 @@ public final class JvmOtlpRuntimeMetrics {
     return OtelMetricRegistry.INSTANCE.registerStorage(JVM_SCOPE, descriptor, storageFactory);
   }
 
-  /** Memory beans and their attributes, shared by all jvm.memory.* registrations. */
+  /** Caches memory MXBeans and attributes so metric collection does not rebuild them. */
   private static final class MemoryAttributes {
     private final MemoryMXBean memoryBean;
     private final List<MemoryPoolMXBean> pools;
@@ -816,7 +816,10 @@ public final class JvmOtlpRuntimeMetrics {
         MEMORY_POOL, pool.getName());
   }
 
-  /** Adds the requested legacy identity and ObjectName tags for the source platform MXBean. */
+  /**
+   * Builds attributes in increasing precedence: common JMXFetch attributes, ObjectName properties,
+   * then metric-specific attributes.
+   */
   private static Attributes withJmxTags(
       Attributes metricAttributes, PlatformManagedObject bean, Attributes legacyJmxAttributes) {
     ObjectName objectName = bean.getObjectName();

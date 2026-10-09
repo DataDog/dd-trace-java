@@ -113,23 +113,16 @@ public class JvmOtlpRuntimeMetricsTest {
   void allDataPointsHaveLegacyJmxTags() {
     MetricCollector collector = new MetricCollector();
     OtelMetricRegistry.INSTANCE.collectMetrics(collector);
-    String entrypointBasedir = expectedProcessTags().get("entrypoint.basedir");
-    String entrypointName = processTagValue("entrypoint.name");
-    String entrypointType = processTagValue("entrypoint.type");
-    String entrypointWorkdir = processTagValue("entrypoint.workdir");
+    Map<String, String> processTags = expectedProcessTags();
+    assertNotNull(processTags.get("entrypoint.name"), "Missing process tag entrypoint.name");
+    assertNotNull(processTags.get("entrypoint.type"), "Missing process tag entrypoint.type");
+    assertNotNull(processTags.get("entrypoint.workdir"), "Missing process tag entrypoint.workdir");
 
     int dataPointCount = 0;
     for (Map.Entry<String, List<DataPointEntry>> metric : collector.points.entrySet()) {
       for (DataPointEntry point : metric.getValue()) {
         dataPointCount++;
-        assertEquals(
-            "dd-java-agent default",
-            point.attrs.get("instance"),
-            metric.getKey() + " should carry the legacy instance tag");
-        assertEquals(
-            "jmxfetch-config",
-            point.attrs.get("dd.internal.jmx_check_name"),
-            metric.getKey() + " should carry the legacy JMX check name");
+        assertCommonJmxFetchTags(metric.getKey(), point, processTags);
         assertEquals(
             Config.get().getRuntimeId(),
             point.attrs.get("runtime-id"),
@@ -137,36 +130,9 @@ public class JvmOtlpRuntimeMetricsTest {
         assertNotNull(
             point.attrs.get("jmx_domain"), metric.getKey() + " should carry the JMX domain");
         assertNotNull(point.attrs.get("type"), metric.getKey() + " should carry the MBean type");
-        assertEquals(
-            entrypointBasedir,
-            point.attrs.get("entrypoint.basedir"),
-            metric.getKey() + " should carry the process entrypoint base directory when present");
-        assertEquals(
-            entrypointName,
-            point.attrs.get("entrypoint.name"),
-            metric.getKey() + " should carry the process entrypoint name");
-        assertEquals(
-            entrypointType,
-            point.attrs.get("entrypoint.type"),
-            metric.getKey() + " should carry the process entrypoint type");
-        assertEquals(
-            entrypointWorkdir,
-            point.attrs.get("entrypoint.workdir"),
-            metric.getKey() + " should carry the process entrypoint workdir");
       }
     }
     assertTrue(dataPointCount > 0, "Expected at least one JVM runtime metric data point");
-  }
-
-  private static String processTagValue(String key) {
-    String prefix = key + ":";
-    List<String> processTags = ProcessTags.getTagsAsStringList();
-    assertNotNull(processTags, "Process tags should be enabled for this test");
-    return processTags.stream()
-        .filter(tag -> tag.startsWith(prefix))
-        .map(tag -> tag.substring(prefix.length()))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("Missing process tag " + key));
   }
 
   @Test
@@ -372,7 +338,7 @@ public class JvmOtlpRuntimeMetricsTest {
     }
   }
 
-  /** Collects the registry and runs {@code check} on every JVM runtime metric data point. */
+  /** Passes the metric name and each collected {@code jvm.*} point to {@code check}. */
   static void forEachJvmPoint(BiConsumer<String, DataPointEntry> check) {
     MetricCollector collector = new MetricCollector();
     OtelMetricRegistry.INSTANCE.collectMetrics(collector);
@@ -409,9 +375,8 @@ public class JvmOtlpRuntimeMetricsTest {
 
   static void assertJmxFetchTags(
       String metric, DataPointEntry point, String domain, String type, String name) {
+    assertCommonJmxFetchTags(metric, point, expectedProcessTags());
     String context = metric + " " + point.attrs;
-    assertEquals("dd-java-agent default", point.attrs.get("instance"), context);
-    assertEquals("jmxfetch-config", point.attrs.get("dd.internal.jmx_check_name"), context);
     assertEquals(domain, point.attrs.get("jmx_domain"), context);
     assertEquals(type, point.attrs.get("type"), context);
     assertEquals(name, point.attrs.get("name"), context);
@@ -421,7 +386,13 @@ public class JvmOtlpRuntimeMetricsTest {
         Config.get().getMergedJmxTags().get("_dd.injection.mode"),
         point.attrs.get("_dd.injection.mode"),
         context);
-    Map<String, String> processTags = expectedProcessTags();
+  }
+
+  private static void assertCommonJmxFetchTags(
+      String metric, DataPointEntry point, Map<String, String> processTags) {
+    String context = metric + " " + point.attrs;
+    assertEquals("dd-java-agent default", point.attrs.get("instance"), context);
+    assertEquals("jmxfetch-config", point.attrs.get("dd.internal.jmx_check_name"), context);
     for (String key : ENTRYPOINT_TAGS) {
       assertEquals(processTags.get(key), point.attrs.get(key), context);
     }

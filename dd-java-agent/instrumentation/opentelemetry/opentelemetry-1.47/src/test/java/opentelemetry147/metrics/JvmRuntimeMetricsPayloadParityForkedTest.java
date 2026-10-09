@@ -39,8 +39,8 @@ import org.datadog.jmxfetch.AppConfig;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-// Forked because Config, ProcessTags, the StatsD manager, and JvmOtlpRuntimeMetrics all cache
-// process-wide state. This test compares the actual wire payloads produced by both pipelines.
+// Forked because Config, ProcessTags, the StatsD manager, and JvmOtlpRuntimeMetrics retain
+// process-wide state. This test compares the serialized DogStatsD and OTLP payloads.
 class JvmRuntimeMetricsPayloadParityForkedTest {
 
   private static final Set<String> COMMON_TAGS =
