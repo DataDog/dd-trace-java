@@ -9,6 +9,8 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+apply(from = "$rootDir/../gradle/open-java-format.gradle")
+
 spotless {
   java {
     toggleOffOn()
@@ -16,9 +18,8 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    removeUnusedImports()
     forbidWildcardImports()
-    googleJavaFormat(libs.versions.google.java.format.get())
+    addStep(project.extra["openJavaFormatStep"] as com.diffplug.spotless.FormatterStep)
   }
 }
 

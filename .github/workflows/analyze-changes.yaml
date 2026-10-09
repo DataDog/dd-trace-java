@@ -39,7 +39,7 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'" \
           ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
@@ -81,7 +81,7 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'" \
           ./gradlew clean publishToMavenLocal --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Copy published artifacts
