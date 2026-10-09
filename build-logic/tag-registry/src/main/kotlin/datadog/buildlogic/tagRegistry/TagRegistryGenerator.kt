@@ -94,5 +94,27 @@ object TagRegistryGenerator {
     for ((otel, canonical) in otelPairs) {
       appendLine("  %-30s -> %s".format(Locale.ROOT, otel, canonical))
     }
+    appendLine(
+      """
+
+      # DIRECTION-SCOPED OPENTELEMETRY NAMES. Each applies only on spans of the given direction, so
+      # it is not in the tables above; name resolution does not use it until it knows the direction.
+      """.trimIndent()
+    )
+    val scoped =
+      reg.tags.filter { it.otelDirection != null }.sortedWith(compareBy({ it.declaredOtelName }, { it.otelDirection }))
+    for (t in scoped) {
+      appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, t.declaredOtelName, t.otelDirection!!.yamlKey, t.name))
+    }
+    appendLine(
+      """
+
+      # SHARED DATADOG NAMES. One Datadog name for a tag per direction: emitting it needs no context,
+      # but resolving the name to a tag needs the span's direction, so keyOf does not resolve it yet.
+      """.trimIndent()
+    )
+    for ((ddName, shared) in reg.tags.filter { it.sharedNameDirection != null }.groupBy { it.ddName }.toSortedMap()) {
+      appendLine("  %-30s -> %s".format(Locale.ROOT, ddName, shared.joinToString(", ") { it.name }))
+    }
   }
 }
