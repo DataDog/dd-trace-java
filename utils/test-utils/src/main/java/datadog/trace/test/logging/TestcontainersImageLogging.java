@@ -36,7 +36,9 @@ public final class TestcontainersImageLogging {
     appender.setContext(context);
     appender.setName(APPENDER_NAME);
     // Separate workers; append when the logging context is reset between specifications.
-    String processId = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+    String runtimeName = ManagementFactory.getRuntimeMXBean().getName();
+    int separator = runtimeName.indexOf('@');
+    String processId = separator >= 0 ? runtimeName.substring(0, separator) : runtimeName;
     appender.setFile(new File(directory, "image-pulls-" + processId + ".log").getPath());
     appender.setAppend(true);
     appender.setEncoder(encoder);
