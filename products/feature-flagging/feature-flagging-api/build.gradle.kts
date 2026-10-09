@@ -15,7 +15,7 @@ configure<TestJvmConstraintsExtension> {
 description = "Implementation of the OpenFeature Provider interface."
 
 extra["excludedClassesCoverage"] = listOf(
-  // POJOs
+  // Value classes with only equals/hashCode; the cache tests cover their use.
   "datadog.trace.api.openfeature.ExposureDeduplicationCache.Key",
   "datadog.trace.api.openfeature.ExposureDeduplicationCache.Sent"
 )
