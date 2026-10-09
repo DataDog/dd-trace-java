@@ -1203,9 +1203,58 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * removed from the collision chain.
    */
 
-  private final Object[] buckets;
+  /*
+   * Dense known-tag store (experimental; see DenseStore.ENABLED, default off).
+   * <p>
+   * With the flag on, a known tag that has a dense-store slot (KnownTagCodec.hasSlot -- the
+   * registry colors required/conditional/recommended tags into slots so tags on one span type never
+   * share one) is NOT stored as a bucket Entry. Its value lives in the insertion-ordered parallel
+   * arrays knownIds/knownValues instead, with no per-tag Entry object: that is the allocation win.
+   * Known tags without a slot (NO_SLOT) and custom tags stay in the buckets, exactly as before.
+   * <p>
+   * Presence: knownOccupancy holds 1L << slot for every dense id ever added. A clear bit means the
+   * tag is definitely absent, so an append or a miss skips the scan. A set bit only means "maybe":
+   * the knownIds scan is authoritative, so two tags sharing a slot in one map (legal -- tags from
+   * span types that never co-occur can still both be set) still work. Bits are never cleared on
+   * remove; a stale bit costs a scan, never a wrong answer. knownTraceLevel records whether any
+   * trace-level id was added (trace and span tags reuse slot numbers), with the same superset rule.
+   * <p>
+   * Disjointness: whether an id routes dense depends only on the id and the global flag, so in a
+   * given JVM a tag is always dense or always bucketed -- never both, in any map. Read-through
+   * therefore shadows within a region: an ancestor's dense value can only be shadowed by a nearer
+   * level's dense value of the same id (parentDenseVisible), an ancestor's bucket entry only by a
+   * nearer bucket entry (parentEntryVisible, unchanged). Tombstones (removedFromParent) are keyed by
+   * canonical name and apply to both regions.
+   * <p>
+   * size counts bucket entries only; knownCount counts dense entries; the local total is
+   * size + knownCount. Buckets start on the shared EMPTY_BUCKETS (when the flag is on) and are
+   * copied on the first bucket write, so an all-dense map allocates no bucket array.
+   * <p>
+   * Iteration (iterator(), forEach) emits a dense entry through a reused EntryReadingHelper
+   * flyweight: valid only until the next element, so call .entry() to retain one. Point reads
+   * (getEntry) materialize a fresh Entry.
+   */
+
+  /** Holder for the dense-store flag, read once from Config so the JIT folds it. */
+  private static final class DenseStore {
+    static final boolean ENABLED = Config.get().isTraceDenseTagsEnabled();
+  }
+
+  /** Shared all-null buckets (length 16) that maps start on when the dense store is enabled. */
+  private static final Object[] EMPTY_BUCKETS = new Object[1 << 4];
+
+  /** Initial capacity of the dense arrays; the largest span type resolves about this many tags. */
+  private static final int KNOWN_INIT_CAP = 12;
+
+  private Object[] buckets;
   private int size;
   private boolean frozen;
+
+  private long[] knownIds;
+  private Object[] knownValues;
+  private int knownCount;
+  private long knownOccupancy;
+  private boolean knownTraceLevel;
 
   /**
    * Optional frozen parent for read-through. When non-null, reads that miss the local buckets fall
@@ -1238,8 +1287,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * optimizations can treat it as fixed.
    */
   private TagMap(TagMap parent) {
-    // needs to be a power of 2 for bucket masking calculation to work as intended
-    this.buckets = new Object[1 << 4];
+    // needs to be a power of 2 for bucket masking calculation to work as intended. With the dense
+    // store on, start on the shared empty buckets; the first bucket write copies them.
+    this.buckets = DenseStore.ENABLED ? EMPTY_BUCKETS : new Object[1 << 4];
     this.size = 0;
     this.frozen = false;
     this.parent = parent;
@@ -1256,8 +1306,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Override
   public int size() {
     // Exact (Map contract). Under read-through resolves the union; prefer estimateSize() for hints.
+    int local = this.size + this.knownCount; // buckets + dense
     TagMap parent = this.parent;
-    return parent == null ? this.size : this.size + this.visibleParentCount();
+    return parent == null ? local : local + this.visibleParentCount();
   }
 
   /**
@@ -1267,6 +1318,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private int visibleParentCount() {
     int count = 0;
     for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      long[] ancestorIds = ancestor.knownIds;
+      for (int i = 0; i < ancestor.knownCount; ++i) {
+        if (this.parentDenseVisible(ancestorIds[i], ancestor)) count++;
+      }
       Object[] parentBuckets = ancestor.buckets;
       for (int i = 0; i < parentBuckets.length; ++i) {
         Object parentBucket = parentBuckets[i];
@@ -1290,7 +1345,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Override
   public boolean isEmpty() {
     // Exact (Map contract). Under read-through resolves the parent; prefer isDefinitelyEmpty().
-    if (this.size != 0) {
+    if (this.size != 0 || this.knownCount != 0) {
       return false;
     }
     TagMap parent = this.parent;
@@ -1304,14 +1359,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       // entry -> this map is non-empty.
       return false;
     }
-    // size == 0 with tombstones (rare): empty iff every visible ancestor entry is tombstoned
+    // no local entries but tombstones (rare): empty iff every visible ancestor entry is tombstoned
     return this.visibleParentCount() == 0;
   }
 
   public boolean isDefinitelyEmpty() {
     // Cheap: empty iff no level in the chain holds a local entry (ignores shadowing/tombstones).
     for (TagMap level = this; level != null; level = level.parent) {
-      if (level.size != 0) {
+      if (level.size != 0 || level.knownCount != 0) {
         return false;
       }
     }
@@ -1319,10 +1374,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public int estimateSize() {
-    // Upper bound: sum of every level's local size, ignoring read-through shadowing/removals.
+    // Upper bound: sum of every level's local size (buckets + dense), ignoring read-through
+    // shadowing/removals.
     int total = 0;
     for (TagMap level = this; level != null; level = level.parent) {
-      total += level.size;
+      total += level.size + level.knownCount;
     }
     return total;
   }
@@ -1483,8 +1539,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return parent.getEntry(canonicalTag, tagHash);
   }
 
-  /** Looks up an entry in this map's own buckets only — no read-through to the parent. */
+  /** Looks up an entry in this map's own storage only — no read-through to the parent. */
   private Entry getLocalEntry(String tag, long tagHash) {
+    if (DenseStore.ENABLED) {
+      long denseId = denseIdOf(tagHash);
+      if (denseId != 0) {
+        int i = this.knownIndexOf(denseId);
+        return i < 0 ? null : Entry.newAnyEntry(denseId, this.knownValues[i]);
+      }
+    }
     Object[] thisBuckets = this.buckets;
     int hash = Entry.bucketHash(tagHash);
     return findInBucket(thisBuckets[hash & (thisBuckets.length - 1)], hash, tag);
@@ -1530,6 +1593,116 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       }
     }
     return true;
+  }
+
+  // ---- dense known-tag store (see the class-level note above the fields) ----
+
+  /**
+   * The id to store densely for {@code tagHash} (an Entry's tag hash, or a tag id), or 0 when it
+   * stays in the buckets: a custom tag, a known tag with no slot, or the dense store disabled.
+   */
+  private static long denseIdOf(long tagHash) {
+    // a known tag's hash is its id (upper 32 bits nonzero); a custom tag's upper 32 bits are zero
+    return (tagHash >>> 32) != 0 && KnownTagCodec.hasSlot(tagHash) ? tagHash : 0L;
+  }
+
+  private static long slotBit(long denseId) {
+    return 1L << KnownTagCodec.slotOf(denseId);
+  }
+
+  /**
+   * Index of {@code denseId} in the dense arrays, or -1; skips the scan when its slot bit is clear.
+   */
+  private int knownIndexOf(long denseId) {
+    if ((this.knownOccupancy & slotBit(denseId)) == 0) {
+      return -1; // definitely absent
+    }
+    long[] ids = this.knownIds;
+    for (int i = 0; i < this.knownCount; ++i) {
+      if (ids[i] == denseId) return i;
+    }
+    return -1;
+  }
+
+  /**
+   * Stores a dense value, replacing it in place when present (returning the prior value as an
+   * Entry, per the Map contract) or appending it. No Entry is retained.
+   */
+  private Entry putKnownValue(long denseId, Object value) {
+    int i = this.knownIndexOf(denseId);
+    if (i >= 0) {
+      Object prior = this.knownValues[i];
+      this.knownValues[i] = value;
+      return Entry.newAnyEntry(denseId, prior);
+    }
+    if (this.knownIds == null) {
+      this.knownIds = new long[KNOWN_INIT_CAP];
+      this.knownValues = new Object[KNOWN_INIT_CAP];
+    } else if (this.knownCount == this.knownIds.length) {
+      int newCap = this.knownIds.length << 1;
+      this.knownIds = Arrays.copyOf(this.knownIds, newCap);
+      this.knownValues = Arrays.copyOf(this.knownValues, newCap);
+    }
+    int idx = this.knownCount++;
+    this.knownIds[idx] = denseId;
+    this.knownValues[idx] = value;
+    this.knownOccupancy |= slotBit(denseId);
+    this.knownTraceLevel |= KnownTagCodec.isTraceLevel(denseId);
+    return null;
+  }
+
+  /** Local dense write: clears any tombstone for the tag, then stores the value. */
+  private Entry putDenseLocal(long denseId, Object value) {
+    this.checkWriteAccess();
+    if (this.removedFromParent != null) {
+      this.removedFromParent.remove(KnownTagCodec.nameOf(denseId));
+    }
+    return this.putKnownValue(denseId, value);
+  }
+
+  /** Removes a dense value (swap with the last), returning it as an Entry, or null. */
+  private Entry removeKnown(long denseId) {
+    int i = this.knownIndexOf(denseId);
+    if (i < 0) return null;
+    Object prior = this.knownValues[i];
+    int last = --this.knownCount;
+    this.knownIds[i] = this.knownIds[last];
+    this.knownValues[i] = this.knownValues[last];
+    this.knownIds[last] = 0L;
+    this.knownValues[last] = null;
+    // knownOccupancy is not cleared: another present id may share the slot bit.
+    return Entry.newAnyEntry(denseId, prior);
+  }
+
+  /**
+   * Whether an ancestor's dense value for {@code denseId} (held at {@code fromAncestor}) is visible
+   * from this leaf: not shadowed by a nearer level's dense value of the same id, and not tombstoned
+   * by a nearer level. The dense counterpart of {@link #parentEntryVisible}; by disjointness no
+   * bucket check is needed. A nearer level with no trace-level ids cannot shadow a trace-level one.
+   */
+  private boolean parentDenseVisible(long denseId, TagMap fromAncestor) {
+    boolean traceLevel = KnownTagCodec.isTraceLevel(denseId);
+    String tag = null; // resolved lazily, only if a nearer level carries tombstones
+    for (TagMap nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
+      if ((!traceLevel || nearer.knownTraceLevel) && nearer.knownIndexOf(denseId) >= 0) {
+        return false; // shadowed by a nearer dense value
+      }
+      if (nearer.removedFromParent != null) {
+        if (tag == null) tag = KnownTagCodec.nameOf(denseId);
+        if (nearer.removedFromParent.contains(tag)) return false; // tombstoned by a nearer level
+      }
+    }
+    return true;
+  }
+
+  /** The buckets to write to, copying the shared empty buckets on the first write. */
+  private Object[] writableBuckets() {
+    Object[] b = this.buckets;
+    if (DenseStore.ENABLED && b == EMPTY_BUCKETS) {
+      b = new Object[1 << 4];
+      this.buckets = b;
+    }
+    return b;
   }
 
   @Deprecated
@@ -1739,30 +1912,58 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(long tagId, @Nonnull Object value) {
+    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      this.putDenseLocal(tagId, value);
+      return;
+    }
     this.putEntry(Entry.newAnyEntry(tagId, value));
   }
 
   public void set(long tagId, @Nonnull CharSequence value) {
+    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      this.putDenseLocal(tagId, value);
+      return;
+    }
     this.putEntry(Entry.newObjectEntry(tagId, value));
   }
 
   public void set(long tagId, boolean value) {
+    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      this.putDenseLocal(tagId, Boolean.valueOf(value));
+      return;
+    }
     this.putEntry(Entry.newBooleanEntry(tagId, value));
   }
 
   public void set(long tagId, int value) {
+    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      this.putDenseLocal(tagId, Integer.valueOf(value));
+      return;
+    }
     this.putEntry(Entry.newIntEntry(tagId, value));
   }
 
   public void set(long tagId, long value) {
+    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      this.putDenseLocal(tagId, Long.valueOf(value));
+      return;
+    }
     this.putEntry(Entry.newLongEntry(tagId, value));
   }
 
   public void set(long tagId, float value) {
+    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      this.putDenseLocal(tagId, Float.valueOf(value));
+      return;
+    }
     this.putEntry(Entry.newFloatEntry(tagId, value));
   }
 
   public void set(long tagId, double value) {
+    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      this.putDenseLocal(tagId, Double.valueOf(value));
+      return;
+    }
     this.putEntry(Entry.newDoubleEntry(tagId, value));
   }
 
@@ -1800,6 +2001,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * top.
    */
   private Entry putEntry(@Nonnull Entry newEntry) {
+    if (DenseStore.ENABLED) {
+      long denseId = denseIdOf(newEntry.tagHash);
+      if (denseId != 0) {
+        return this.putDenseLocal(denseId, newEntry.objectValue());
+      }
+    }
     this.checkWriteAccess();
 
     long newTagHash = newEntry.tagHash;
@@ -1816,7 +2023,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.removedFromParent.remove(newEntry.tag);
     }
 
-    Object[] thisBuckets = this.buckets;
+    Object[] thisBuckets = this.writableBuckets();
 
     int newHash = newEntry.hash();
     int bucketIndex = newHash & (thisBuckets.length - 1);
@@ -1941,7 +2148,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       that.forEach(this, (self, entry) -> self.set(entry));
       return;
     }
-    if (this.size == 0) {
+    // empty must consider both regions: a map holding only dense values has size == 0
+    if (this.size == 0 && this.knownCount == 0) {
       this.putAllIntoEmptyMap(that);
     } else {
       this.putAllMerge(that);
@@ -1949,7 +2157,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   private void putAllMerge(TagMap that) {
-    Object[] thisBuckets = this.buckets;
+    // incoming dense values clobber existing ones, as incoming bucket entries do below
+    for (int i = 0; i < that.knownCount; ++i) {
+      this.putKnownValue(that.knownIds[i], that.knownValues[i]);
+    }
+    if (that.size == 0) {
+      return; // no bucket entries to merge; leaves shared empty buckets shared
+    }
+
+    Object[] thisBuckets = this.writableBuckets();
     Object[] thatBuckets = that.buckets;
 
     // Since TagMap-s don't support expansion, buckets are perfectly aligned
@@ -2066,7 +2282,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * Specially optimized version of putAll for the common case of destination map being empty
    */
   private void putAllIntoEmptyMap(TagMap that) {
-    Object[] thisBuckets = this.buckets;
+    if (that.knownCount > 0) {
+      // dense values are immutable objects, so the copy can share them
+      this.knownIds = Arrays.copyOf(that.knownIds, that.knownIds.length);
+      this.knownValues = Arrays.copyOf(that.knownValues, that.knownValues.length);
+      this.knownCount = that.knownCount;
+      this.knownOccupancy = that.knownOccupancy;
+      this.knownTraceLevel = that.knownTraceLevel;
+    }
+    if (DenseStore.ENABLED && that.size == 0) {
+      return; // no bucket entries; stay on the shared empty buckets
+    }
+
+    Object[] thisBuckets = this.writableBuckets();
     Object[] thatBuckets = that.buckets;
 
     // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
@@ -2113,6 +2341,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         thisGroup.fillMapFromChain(map);
       }
     }
+    for (int i = 0; i < this.knownCount; ++i) {
+      map.put(KnownTagCodec.nameOf(this.knownIds[i]), this.knownValues[i]);
+    }
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
@@ -2137,6 +2368,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
         thisGroup.fillStringMapFromChain(stringMap);
       }
+    }
+    for (int i = 0; i < this.knownCount; ++i) {
+      stringMap.put(
+          KnownTagCodec.nameOf(this.knownIds[i]),
+          TagValueConversions.toString(this.knownValues[i]));
     }
   }
 
@@ -2211,8 +2447,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return localRemoved;
   }
 
-  /** Removes an entry from this map's own buckets only — no parent/tombstone handling. */
+  /** Removes an entry from this map's own storage only — no parent/tombstone handling. */
   private Entry removeLocal(String tag, long tagHash) {
+    if (DenseStore.ENABLED) {
+      long denseId = denseIdOf(tagHash);
+      if (denseId != 0) {
+        return this.removeKnown(denseId);
+      }
+    }
     Object[] thisBuckets = this.buckets;
 
     int hash = Entry.bucketHash(tagHash);
@@ -2280,6 +2522,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
+    if (this.knownCount > 0) {
+      // dense values go through one reused flyweight -- no Entry per tag
+      EntryReadingHelper reader = new EntryReadingHelper();
+      for (int i = 0; i < this.knownCount; ++i) {
+        reader.set(this.knownIds[i], this.knownValues[i]);
+        consumer.accept(reader);
+      }
+    }
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -2306,7 +2556,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private void forEachParent(Consumer<? super TagMap.EntryReader> consumer) {
     // Walk the ancestor chain, nearest first. Each entry is emitted once, by the nearest level that
     // defines its key, when not shadowed by a nearer level and not tombstoned.
+    EntryReadingHelper reader = null;
     for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      for (int i = 0; i < ancestor.knownCount; ++i) {
+        long denseId = ancestor.knownIds[i];
+        if (this.parentDenseVisible(denseId, ancestor)) {
+          if (reader == null) reader = new EntryReadingHelper();
+          reader.set(denseId, ancestor.knownValues[i]);
+          consumer.accept(reader);
+        }
+      }
       Object[] parentBuckets = ancestor.buckets;
       for (int i = 0; i < parentBuckets.length; ++i) {
         Object parentBucket = parentBuckets[i];
@@ -2329,6 +2588,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+    if (this.knownCount > 0) {
+      EntryReadingHelper reader = new EntryReadingHelper();
+      for (int i = 0; i < this.knownCount; ++i) {
+        reader.set(this.knownIds[i], this.knownValues[i]);
+        consumer.accept(thisObj, reader);
+      }
+    }
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -2352,7 +2618,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   private <T> void forEachParent(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+    EntryReadingHelper reader = null;
     for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      for (int i = 0; i < ancestor.knownCount; ++i) {
+        long denseId = ancestor.knownIds[i];
+        if (this.parentDenseVisible(denseId, ancestor)) {
+          if (reader == null) reader = new EntryReadingHelper();
+          reader.set(denseId, ancestor.knownValues[i]);
+          consumer.accept(thisObj, reader);
+        }
+      }
       Object[] parentBuckets = ancestor.buckets;
       for (int i = 0; i < parentBuckets.length; ++i) {
         Object parentBucket = parentBuckets[i];
@@ -2377,6 +2652,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
+    if (this.knownCount > 0) {
+      EntryReadingHelper reader = new EntryReadingHelper();
+      for (int i = 0; i < this.knownCount; ++i) {
+        reader.set(this.knownIds[i], this.knownValues[i]);
+        consumer.accept(thisObj, otherObj, reader);
+      }
+    }
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -2401,7 +2683,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   private <T, U> void forEachParent(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
+    EntryReadingHelper reader = null;
     for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      for (int i = 0; i < ancestor.knownCount; ++i) {
+        long denseId = ancestor.knownIds[i];
+        if (this.parentDenseVisible(denseId, ancestor)) {
+          if (reader == null) reader = new EntryReadingHelper();
+          reader.set(denseId, ancestor.knownValues[i]);
+          consumer.accept(thisObj, otherObj, reader);
+        }
+      }
       Object[] parentBuckets = ancestor.buckets;
       for (int i = 0; i < parentBuckets.length; ++i) {
         Object parentBucket = parentBuckets[i];
@@ -2428,8 +2719,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public void clear() {
     this.checkWriteAccess();
 
-    Arrays.fill(this.buckets, null);
+    if (DenseStore.ENABLED) {
+      this.buckets = EMPTY_BUCKETS; // never write to the shared empty buckets
+    } else {
+      Arrays.fill(this.buckets, null);
+    }
     this.size = 0;
+    this.knownIds = null;
+    this.knownValues = null;
+    this.knownCount = 0;
+    this.knownOccupancy = 0L;
+    this.knownTraceLevel = false;
     // clear() removes ALL mappings, including any inherited through read-through. Detaching the
     // parent (rather than tombstoning every inherited key) is simpler and cheaper, and leaves an
     // empty, parent-less map. Detach is one-way -- the parent is never re-pointed.
@@ -2485,6 +2785,35 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
               throw new IllegalStateException("incorrect bucket");
             }
           }
+        }
+      }
+    }
+
+    // dense store: every id slotted and unique, its slot bit set, the count within bounds
+    if (this.knownCount > 0) {
+      if (this.knownIds == null || this.knownCount > this.knownIds.length) {
+        throw new IllegalStateException("incorrect known count");
+      }
+      for (int i = 0; i < this.knownCount; ++i) {
+        long denseId = this.knownIds[i];
+        if (denseIdOf(denseId) == 0) {
+          throw new IllegalStateException("dense id without a slot");
+        }
+        if ((this.knownOccupancy & slotBit(denseId)) == 0) {
+          throw new IllegalStateException("dense id missing from occupancy");
+        }
+        for (int j = i + 1; j < this.knownCount; ++j) {
+          if (this.knownIds[j] == denseId) {
+            throw new IllegalStateException("duplicate dense id");
+          }
+        }
+      }
+    }
+    // disjointness: with the dense store on, no bucket entry may be one that routes dense
+    if (DenseStore.ENABLED) {
+      for (EntryReader entry : this) {
+        if (entry instanceof Entry && denseIdOf(((Entry) entry).tagHash) != 0) {
+          throw new IllegalStateException("dense-routed tag stored in a bucket: " + entry.tag());
         }
       }
     }
@@ -2608,6 +2937,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       }
       ledger.append('\n');
     }
+    for (int i = 0; i < this.knownCount; ++i) {
+      ledger
+          .append("[dense ")
+          .append(i)
+          .append("] = {")
+          .append(KnownTagCodec.nameOf(this.knownIds[i]))
+          .append('=')
+          .append(this.knownValues[i])
+          .append("}\n");
+    }
     return ledger.toString();
   }
 
@@ -2619,7 +2958,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     private TagMap level;
     private Object[] buckets;
 
-    private Entry nextEntry;
+    // A bucket entry is its own retain-safe Entry; a dense value is emitted through the reused
+    // denseReader flyweight, valid only until the next element (call .entry() to retain one).
+    private EntryReader nextEntry;
+    private EntryReadingHelper denseReader;
+
+    // dense cursor for the current level; reset when moving to the next ancestor
+    private int knownIndex = 0;
 
     private int bucketIndex = -1;
 
@@ -2639,9 +2984,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.nextEntry != null;
     }
 
-    final Entry nextEntryOrThrowNoSuchElement() {
+    final EntryReader nextEntryOrThrowNoSuchElement() {
       if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
+        EntryReader nextEntry = this.nextEntry;
         this.nextEntry = null;
         return nextEntry;
       }
@@ -2653,9 +2998,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       }
     }
 
-    final Entry nextEntryOrNull() {
+    final EntryReader nextEntryOrNull() {
       if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
+        EntryReader nextEntry = this.nextEntry;
         this.nextEntry = null;
         return nextEntry;
       }
@@ -2663,8 +3008,23 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.hasNext() ? this.nextEntry : null;
     }
 
-    private final Entry advance() {
+    private final EntryReader advance() {
       while (true) {
+        // the current level's dense values first, then its buckets
+        if (this.knownIndex < this.level.knownCount) {
+          int i = this.knownIndex++;
+          long denseId = this.level.knownIds[i];
+          if (this.level == this.map || this.map.parentDenseVisible(denseId, this.level)) {
+            EntryReadingHelper reader = this.denseReader;
+            if (reader == null) {
+              reader = this.denseReader = new EntryReadingHelper();
+            }
+            reader.set(denseId, this.level.knownValues[i]);
+            return reader;
+          }
+          continue; // ancestor dense value shadowed/tombstoned -> skip
+        }
+
         Entry tagEntry = this.rawAdvance();
         if (tagEntry != null) {
           // leaf entries emit as-is; ancestor entries only if visible from the leaf -- not shadowed
@@ -2678,6 +3038,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         // current level exhausted; advance to the next ancestor's buckets (read-through union)
         if (this.level.parent != null) {
           this.level = this.level.parent;
+          this.knownIndex = 0;
           this.buckets = this.level.buckets;
           this.bucketIndex = -1;
           this.group = null;
@@ -3217,9 +3578,23 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public Iterator<Map.Entry<String, Object>> iterator() {
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      Iterator<Map.Entry<String, Object>> iter = (Iterator) this.map.iterator();
-      return iter;
+      return new EntriesIterator(this.map);
+    }
+  }
+
+  /**
+   * entrySet() yields retain-safe Map.Entry objects: a bucket entry is returned as is, a dense
+   * value is materialized into a fresh Entry.
+   */
+  static final class EntriesIterator extends IteratorBase
+      implements Iterator<Map.Entry<String, Object>> {
+    EntriesIterator(TagMap map) {
+      super(map);
+    }
+
+    @Override
+    public Map.Entry<String, Object> next() {
+      return this.nextEntryOrThrowNoSuchElement().entry();
     }
   }
 
@@ -3315,6 +3690,14 @@ final class EntryReadingHelper implements TagMap.EntryReader {
     this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
+  /** A dense value: the id is already known, so it needs no lookup (and may name a shared name). */
+  void set(long tagId, Object value) {
+    this.mapEntry = null;
+    this.tag = KnownTagCodec.nameOf(tagId);
+    this.value = value;
+    this.tagId = tagId;
+  }
+
   void set(Map.Entry<String, Object> mapEntry) {
     this.mapEntry = mapEntry;
     this.tag = mapEntry.getKey();
@@ -3399,7 +3782,10 @@ final class EntryReadingHelper implements TagMap.EntryReader {
 
   @Override
   public TagMap.Entry entry() {
-    return TagMap.anyEntryFor(this.tag, this.value);
+    long id = this.tagId;
+    return id != TagMap.TAG_ID_NOT_COMPUTED && id != 0
+        ? TagMap.Entry.newAnyEntry(id, this.value)
+        : TagMap.anyEntryFor(this.tag, this.value);
   }
 
   @Override
