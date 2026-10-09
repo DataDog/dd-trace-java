@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,7 +42,6 @@ class KnownTagsTest {
         Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_IPV4_ID),
         Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_IPV6_ID),
-        Arguments.of(Tags.PEER_PORT, KnownTags.PEER_PORT_ID),
         Arguments.of(Tags.COMPONENT, KnownTags.COMPONENT_ID),
         Arguments.of(Tags.SPAN_KIND, KnownTags.SPAN_KIND_ID),
         Arguments.of(DDTags.LANGUAGE_TAG_KEY, KnownTags.LANGUAGE_ID),
@@ -157,6 +157,19 @@ class KnownTagsTest {
     assertEquals(0L, KnownTagCodec.keyOf("definitely.not.a.known.tag"));
     assertEquals(0L, KnownTagCodec.keyOf("http.statuscode")); // close-but-not-listed
     assertEquals(0L, KnownTagCodec.keyOf(""));
+  }
+
+  /**
+   * {@code peer.port} means the server's port on outbound spans and the client's on inbound ones,
+   * so it is one tag per direction. Both share the Datadog name, which therefore resolves to no tag
+   * until name resolution knows the span's direction.
+   */
+  @Test
+  void aNameDeclaredPerDirectionIsOneTagPerDirection() {
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_INBOUND_ID));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertNotEquals(KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID);
+    assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
   }
 
   @Test
