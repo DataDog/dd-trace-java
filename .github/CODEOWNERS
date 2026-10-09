@@ -311,6 +311,9 @@
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/blocking/                       @DataDog/asm-java
 /internal-api/src/*/*/datadog/trace/bootstrap/instrumentation/api/java/lang/ProcessImplInstrumentationHelpers.java @DataDog/asm-java
 
+# AppSec module - explicit rule so ownership does not depend only on the **/appsec/ wildcard
+/dd-java-agent/appsec/                                                                               @DataDog/asm-java
+
 # @DataDog/ci-app-libraries
 /dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries
 /dd-smoke-tests/backend-mock/                       @DataDog/ci-app-libraries
