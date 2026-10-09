@@ -995,9 +995,9 @@ class TraceMapperV1PayloadTest {
     }
 
     @Override
-    public void processTagsAndBaggage(MetadataConsumer consumer) {
+    public void processTagsAndBaggage(MetadataConsumer consumer, int options) {
       processTagsAndBaggageCount++;
-      super.processTagsAndBaggage(consumer);
+      super.processTagsAndBaggage(consumer, options);
     }
   }
 

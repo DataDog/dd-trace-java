@@ -404,7 +404,7 @@ public class TraceGenerator {
     public void processServiceTags() {}
 
     @Override
-    public void processTagsAndBaggage(MetadataConsumer consumer) {
+    public void processTagsAndBaggage(MetadataConsumer consumer, int options) {
       consumer.accept(metadata);
     }
 
