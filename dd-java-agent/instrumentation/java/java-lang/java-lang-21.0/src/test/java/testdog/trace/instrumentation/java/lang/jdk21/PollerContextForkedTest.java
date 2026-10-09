@@ -20,29 +20,35 @@ import java.lang.reflect.Field;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.JRE;
+import org.junit.jupiter.api.condition.OS;
 
+@EnabledOnOs({OS.LINUX, OS.MAC})
 class PollerContextForkedTest extends AbstractInstrumentationTest {
   @Test
   @EnabledForJreRange(min = JRE.JAVA_22)
   void firstPollerInitializationDoesNotRetainRequest() throws Exception {
     // Set these before Poller.<clinit>; changing them afterward cannot reconfigure its pollers.
     // The fork isolates the properties and poller initialization from other tests.
-    System.setProperty("jdk.pollerMode", "VTHREAD_POLLERS");
+    System.setProperty("jdk.pollerMode", "2");
     System.setProperty("jdk.readPollers", "1");
     System.setProperty("jdk.writePollers", "1");
     assertFalse(GlobalIgnores.isIgnored("sun.nio.ch.Poller$Pollers", false));
+    assertFalse(GlobalIgnores.isIgnored("sun.nio.ch.Poller$VThreadsPollerGroup", false));
     assertTrue(GlobalIgnores.isIgnored("sun.nio.ch.Poller", false));
     AgentSpan parent = startSpan("test", "poller-owner");
     try (ContextScope ignored = activateSpan(parent)) {
       Class<?> poller = Class.forName("sun.nio.ch.Poller");
-      Object pollers = field(poller, "POLLERS").get(null);
+      Object pollers =
+          field(poller, Runtime.version().feature() >= 27 ? "POLLER_GROUP" : "POLLERS").get(null);
       Object executor = field(pollers.getClass(), "executor").get(pollers);
       @SuppressWarnings("unchecked")
       Set<Thread> threads = (Set<Thread>) field(executor.getClass(), "threads").get(executor);
       assertEquals(2, threads.size(), "one read poller and one write poller must be running");
       for (Thread thread : threads) {
         assertTrue(thread.isVirtual());
+        assertTrue(thread.isAlive());
         assertNull(
             virtualThreadState(thread), "poller must retain neither context nor continuation");
       }

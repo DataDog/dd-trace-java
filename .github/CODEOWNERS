@@ -229,6 +229,7 @@
 /utils/test-junit-utils/                                                               @DataDog/apm-lang-platform-java
 /utils/test-utils/                                                                     @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/java/                                                   @DataDog/apm-lang-platform-java @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/java/java-lang/java-lang-21.0/src/test/java/testdog/trace/instrumentation/java/lang/jdk21/PerCarrierPollerContextForkedTest.java  @DataDog/apm-lang-platform-java @DataDog/apm-idm-java
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                         @DataDog/asm-java

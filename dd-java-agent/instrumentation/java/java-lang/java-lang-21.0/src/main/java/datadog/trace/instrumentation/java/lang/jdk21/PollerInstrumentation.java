@@ -12,10 +12,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
-/** Keeps process-lifetime JDK I/O pollers independent of the first requesting thread. */
+/** Keeps JDK I/O pollers independent of the request that first needs them. */
 @AutoService(InstrumenterModule.class)
 public final class PollerInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public PollerInstrumentation() {
     super("java-lang", "java-lang-21", "virtual-thread");
   }
@@ -26,14 +26,24 @@ public final class PollerInstrumentation extends InstrumenterModule.ContextTrack
   }
 
   @Override
-  public String instrumentedType() {
-    return "sun.nio.ch.Poller$Pollers";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "sun.nio.ch.Poller$Pollers",
+      "sun.nio.ch.Poller$VThreadsPollerGroup",
+      "sun.nio.ch.Poller$PollerPerCarrierPollerGroup"
+    };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("start").and(takesArguments(0)).and(returns(void.class)),
+        named("start")
+            .and(takesArguments(0))
+            .and(returns(void.class))
+            .or(
+                named("startReadPoller")
+                    .and(takesArguments(0))
+                    .and(returns(named("sun.nio.ch.Poller")))),
         getClass().getName() + "$StartAdvice");
   }
 

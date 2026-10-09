@@ -108,6 +108,8 @@
 0 sun.rmi.transport.*
 0 sun.nio.ch.FileChannelImpl
 0 sun.nio.ch.Poller$Pollers
+0 sun.nio.ch.Poller$VThreadsPollerGroup
+0 sun.nio.ch.Poller$PollerPerCarrierPollerGroup
 # USM needs it
 0 sun.security.ssl.*
 0 javax.net.ssl.SSLSocket
