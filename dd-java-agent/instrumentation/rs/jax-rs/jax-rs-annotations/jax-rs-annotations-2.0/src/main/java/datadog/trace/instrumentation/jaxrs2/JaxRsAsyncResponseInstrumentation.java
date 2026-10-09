@@ -4,7 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -46,13 +48,21 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("resume").and(takesArgument(0, Object.class)).and(isPublic()),
+        named("resume")
+            .and(takesArguments(1))
+            .and(takesArgument(0, Object.class))
+            .and(returns(boolean.class))
+            .and(isPublic()),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseAdvice");
     transformer.applyAdvice(
-        named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
+        named("resume")
+            .and(takesArguments(1))
+            .and(takesArgument(0, Throwable.class))
+            .and(returns(boolean.class))
+            .and(isPublic()),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
     transformer.applyAdvice(
-        named("cancel"),
+        named("cancel").and(returns(boolean.class)),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
   }
 
@@ -60,17 +70,30 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
+        @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Thrown Throwable throwable,
+        @Advice.Return final boolean succeeded) {
+      if (throwable == null && !succeeded) {
+        // AsyncResponse#resume() returns false when the response was already resolved (a
+        // second resume()/cancel() call on the same response); nothing changed, so there is
+        // nothing to tag or finish. If the call threw instead of returning, treat it the same
+        // as before: @Advice.Return defaults to false on the exception path, so that alone
+        // does not mean "already resolved".
+        return;
+      }
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
 
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
-        contextStore.put(asyncResponse, null);
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        // If this resource method's invocation is still open -- however deeply other
+        // instrumented calls have nested in the meantime -- let its own exit advice close the
+        // scope and finish the span instead of finishing it here, which would both
+        // double-finish the span and finish it prematurely while the resource method may
+        // still be doing work under it.
+        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
       }
     }
   }
@@ -80,17 +103,22 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final AsyncResponse asyncResponse,
-        @Advice.Argument(0) final Throwable throwable) {
+        @Advice.Argument(0) final Throwable throwable,
+        @Advice.Thrown final Throwable methodThrew,
+        @Advice.Return final boolean succeeded) {
+      if (methodThrew == null && !succeeded) {
+        // see comment in AsyncResponseAdvice#stopSpan
+        return;
+      }
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
 
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
-        contextStore.put(asyncResponse, null);
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        // see comment in AsyncResponseAdvice#stopSpan
+        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
       }
     }
   }
@@ -99,21 +127,30 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
+        @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Thrown Throwable throwable,
+        @Advice.Return final boolean succeeded) {
+      if (throwable == null && !succeeded) {
+        // AsyncResponse#cancel() returns false when the response was already resolved (a
+        // second resume()/cancel() call on the same response); nothing changed, so there is
+        // nothing to tag or finish. If the call threw instead of returning, treat it the same
+        // as before: @Advice.Return defaults to false on the exception path, so that alone
+        // does not mean "already resolved".
+        return;
+      }
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
 
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
-        contextStore.put(asyncResponse, null);
         if (throwable != null) {
           DECORATE.onError(span, throwable);
         } else {
           span.setTag("canceled", true);
         }
-        DECORATE.beforeFinish(span);
-        span.finish();
+        // see comment in AsyncResponseAdvice#stopSpan
+        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
       }
     }
   }
