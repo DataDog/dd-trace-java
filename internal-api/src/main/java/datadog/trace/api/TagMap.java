@@ -243,41 +243,65 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
           || (value instanceof CharSequence && ((CharSequence) value).length() == 0);
     }
 
+    /*
+     * Name-keyed factories. They accept only a name whose tag needs no span direction: an entry is
+     * built with no span, so it cannot resolve peer.port (the client's port inbound, the server's
+     * outbound) or server.address. For those, use the id-keyed create(long, ...) below with the
+     * tag for the direction, or set the name on the span, which resolves it by its kind. Prefer
+     * the id-keyed factories generally: these are expected to be deprecated.
+     */
+
     /**
      * Entry for {@code (tag, value)}, or null when {@code value} is null or an empty {@code
      * CharSequence} -- checked by runtime type, so an empty String passed as {@code Object} skips
      * the same as via the {@link #create(String, CharSequence)} overload.
+     *
+     * @throws IllegalArgumentException if {@code tag}'s tag depends on the span's direction
      */
     @Nullable
     public static final Entry create(@Nonnull String tag, Object value) {
-      return isEmptyValue(value) ? null : TagMap.anyEntryFor(tag, value);
+      return isEmptyValue(value) ? null : new Entry(directionFreeKeyOf(tag), tag, ANY, 0L, value);
     }
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
     @Nullable
     public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
-      return isEmptyValue(value) ? null : TagMap.objectEntryFor(tag, value);
+      return isEmptyValue(value) ? null : new Entry(directionFreeKeyOf(tag), tag, OBJECT, 0, value);
     }
 
     public static final Entry create(@Nonnull String tag, boolean value) {
-      return TagMap.booleanEntryFor(tag, value);
+      return new Entry(
+          directionFreeKeyOf(tag), tag, BOOLEAN, boolean2Prim(value), Boolean.valueOf(value));
     }
 
     public static final Entry create(@Nonnull String tag, int value) {
-      return TagMap.intEntryFor(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, INT, int2Prim(value), null);
     }
 
     public static final Entry create(@Nonnull String tag, long value) {
-      return TagMap.longEntryFor(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, LONG, long2Prim(value), null);
     }
 
     public static final Entry create(@Nonnull String tag, float value) {
-      return TagMap.floatEntryFor(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, FLOAT, float2Prim(value), null);
     }
 
     public static final Entry create(@Nonnull String tag, double value) {
-      return TagMap.doubleEntryFor(tag, value);
+      return new Entry(directionFreeKeyOf(tag), tag, DOUBLE, double2Prim(value), null);
+    }
+
+    /** {@code tag}'s id, or 0 for a custom tag; rejects a name whose tag depends on direction. */
+    private static long directionFreeKeyOf(String tag) {
+      long key = KnownTagCodec.lookup(tag);
+      if (key < 0) {
+        throw new IllegalArgumentException(
+            "'"
+                + tag
+                + "' names a different tag depending on the span's direction; create the entry"
+                + " with a KnownTags id for the direction, or set the name on the span");
+      }
+      return key;
     }
 
     /*
@@ -1414,12 +1438,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
     // an OpenTelemetry rename must canonicalize the same way, or it would hash to the wrong bucket
     // and silently miss the entry stored under the Datadog name.
-    long tagHash = Entry.tagHashOf(tag);
-    String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
-    return this.getEntry(canonicalTag, tagHash);
+    long tagId = KnownTagCodec.keyOrSharedName(tag);
+    if (tagId == 0) {
+      return this.getEntry(tag, Entry.customHash(tag));
+    } else if (tagId != KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL) {
+      return this.getEntry(KnownTagCodec.nameOf(tagId), tagId);
+    }
+    // A Datadog name shared by a tag per direction: a map holds at most one of them per span.
+    for (int direction = KnownTagCodec.DIRECTION_INBOUND;
+        direction <= KnownTagCodec.DIRECTION_NONE;
+        direction++) {
+      long sharingId = KnownTagCodec.directionalKeyOf(tag, direction);
+      Entry entry = sharingId > 0 ? this.getEntry(tag, sharingId) : null;
+      if (entry != null) {
+        return entry;
+      }
+    }
+    // Set by that name alone, with no direction: stored as a custom tag.
+    return this.getEntry(tag, Entry.customHash(tag));
   }
 
-  /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
+  /**
+   * The entry for a known tag id. Unlike a lookup by a Datadog name shared by a tag per direction
+   * ({@code peer.port}), which finds whichever of those tags the map holds, this finds only the
+   * one.
+   */
   public Entry getEntry(long tagId) {
     return this.getEntry(Entry.requireKnownName(tagId), tagId);
   }
@@ -1456,7 +1499,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private static Entry findInBucket(Object bucket, int hash, String tag) {
     if (bucket instanceof Entry) {
       Entry tagEntry = (Entry) bucket;
-      return tagEntry.matches(tag) ? tagEntry : null;
+      return tagEntry.hash() == hash && tagEntry.matches(tag) ? tagEntry : null;
     } else if (bucket instanceof BucketGroup) {
       return ((BucketGroup) bucket).findInChain(hash, tag);
     }
@@ -1700,7 +1743,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return null;
     } else if (bucket instanceof Entry) {
       Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(newEntry.tag)) {
+      if (existingEntry.hash() == newHash && existingEntry.matches(newEntry.tag)) {
         thisBuckets[bucketIndex] = newEntry;
 
         // replaced existing entry - no size change
@@ -2014,9 +2057,24 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must canonicalize first to find (and tombstone) the right entry.
-    long tagHash = Entry.tagHashOf(tag);
-    String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
-    return this.getAndRemove(canonicalTag, tagHash);
+    long tagId = KnownTagCodec.keyOrSharedName(tag);
+    if (tagId == 0) {
+      return this.getAndRemove(tag, Entry.customHash(tag));
+    } else if (tagId != KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL) {
+      return this.getAndRemove(KnownTagCodec.nameOf(tagId), tagId);
+    }
+    // A shared name removes whichever of its tags the map holds, and any custom tag of that name.
+    Entry removed = this.getAndRemove(tag, Entry.customHash(tag));
+    for (int direction = KnownTagCodec.DIRECTION_INBOUND;
+        direction <= KnownTagCodec.DIRECTION_NONE;
+        direction++) {
+      long sharingId = KnownTagCodec.directionalKeyOf(tag, direction);
+      Entry entry = sharingId > 0 ? this.getAndRemove(tag, sharingId) : null;
+      if (removed == null) {
+        removed = entry;
+      }
+    }
+    return removed;
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
@@ -2064,7 +2122,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // null bucket case - do nothing
     if (bucket instanceof Entry) {
       Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(tag)) {
+      if (existingEntry.hash() == hash && existingEntry.matches(tag)) {
         thisBuckets[bucketIndex] = null;
 
         this.size -= 1;

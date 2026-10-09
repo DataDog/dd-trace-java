@@ -293,7 +293,13 @@ class TagRegistryGeneratorTest {
     TagRegistryGenerator.generate(yaml, output)
 
     val generated = contents(output)
-    assertThat(generated.getValue("java/datadog/trace/api/KnownTags.java")).doesNotContain("server.address")
+    val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source).doesNotContain("HTTP_HOSTNAME_OTEL_NAME")
+    assertThat(source).contains("KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, // server.address")
+    assertThat(source.substringAfter("case \"server.address\":").substringBefore("default:"))
+      .contains("case KnownTagCodec.DIRECTION_INBOUND:", "return HTTP_HOSTNAME_ID;")
+      .doesNotContain("DIRECTION_OUTBOUND")
+    assertThat(source).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
     assertThat(generated.getValue("tag-assignment.txt"))
       .containsPattern("server\\.address +inbound +-> http\\.hostname")
   }
@@ -340,7 +346,7 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `a Datadog name declared per direction is not resolvable without a direction`() {
+  fun `a Datadog name declared per direction resolves only with a direction`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -361,9 +367,38 @@ class TagRegistryGeneratorTest {
       .contains("PEER_PORT_INBOUND_ID", "PEER_PORT_OUTBOUND_ID")
       .contains("{@code peer.port} on outbound spans.", "{@code peer.port} on inbound spans.")
       .doesNotContain("PEER_PORT_NAME", "PEER_PORT_INBOUND_NAME", "PEER_PORT_OUTBOUND_NAME")
-    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("PEER_PORT")
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
+      .doesNotContain("PEER_PORT")
+      .contains("KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL, // peer.port")
+    assertThat(source.substringAfter("case \"peer.port\":").substringBefore("default:"))
+      .contains("return PEER_PORT_INBOUND_ID;", "return PEER_PORT_OUTBOUND_ID;")
     assertThat(generated.getValue("tag-assignment.txt"))
       .containsPattern("peer\\.port +-> peer\\.port@inbound, peer\\.port@outbound")
+  }
+
+  @Test
+  fun `a tag declared per direction is emitted under its OpenTelemetry name without a direction`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+        http.server:
+          span-kind: server
+          include: [inbound_peer]
+          tags: [{dd-name: http.hostname, otel-name: server.address}]
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int, otel-name: server.port}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int, otel-name: client.port}]}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    val emit = source.substringAfter("public String openTelemetryNameOf(long tagId, int direction)")
+    assertThat(emit).contains("return \"server.port\";", "return \"client.port\";")
+    assertThat(emit).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
   }
 
   @Test
@@ -421,6 +456,23 @@ class TagRegistryGeneratorTest {
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
       .withMessageContaining(message)
+  }
+
+  @Test
+  fun `every tag id is positive, at both ends of the serial range`() {
+    for (serial in listOf(TagRegistry.FIRST_SERIAL, TagRegistry.SERIAL_CAPACITY - 1)) {
+      assertThat(TagRegistry.encode(serial, traceLevel = false, intercepted = false)).isPositive()
+      assertThat(TagRegistry.encode(serial, traceLevel = true, intercepted = false)).isPositive()
+    }
+  }
+
+  @Test
+  fun `a serial outside the range that keeps ids positive is rejected`() {
+    for (serial in listOf(0, TagRegistry.SERIAL_CAPACITY, Short.MAX_VALUE + 1)) {
+      assertThatIllegalArgumentException()
+        .isThrownBy { TagRegistry.encode(serial, traceLevel = false, intercepted = false) }
+        .withMessageContaining("serial $serial is outside")
+    }
   }
 
   @Test

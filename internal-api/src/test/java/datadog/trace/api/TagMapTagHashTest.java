@@ -3,7 +3,10 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -82,9 +85,58 @@ class TagMapTagHashTest {
     assertEquals(tagIds.size(), copy.size());
     for (long tagId : tagIds) {
       String name = KnownTagCodec.nameOf(tagId);
-      assertEquals("value", map.getObject(name), name);
-      assertEquals("value", copy.getObject(name), name);
+      assertEquals("value", map.getEntry(tagId).objectValue(), name);
+      assertEquals("value", copy.getEntry(tagId).objectValue(), name);
     }
+  }
+
+  /**
+   * A Datadog name shared by a tag per direction names no single tag, but a span holds only one of
+   * them, so a lookup by that name finds whichever the map holds.
+   */
+  @Test
+  void aSharedNameFindsWhicheverOfItsTagsTheMapHolds() {
+    TagMap inbound = TagMap.create();
+    inbound.set(KnownTags.PEER_PORT_INBOUND_ID, 1234);
+    TagMap outbound = TagMap.create();
+    outbound.set(KnownTags.PEER_PORT_OUTBOUND_ID, 5432);
+
+    assertEquals(1234, inbound.getEntry(Tags.PEER_PORT).intValue());
+    assertEquals(5432, outbound.getEntry(Tags.PEER_PORT).intValue());
+    assertEquals(5432, outbound.get(Tags.PEER_PORT));
+    assertTrue(outbound.containsKey(Tags.PEER_PORT));
+    assertEquals(5432, outbound.copy().get(Tags.PEER_PORT));
+    assertNull(outbound.getEntry(KnownTags.PEER_PORT_INBOUND_ID));
+  }
+
+  @Test
+  void aSharedNameSetWithoutADirectionIsACustomTag() {
+    TagMap map = TagMap.create();
+    map.set(Tags.PEER_PORT, 5432);
+
+    assertEquals(5432, map.getEntry(Tags.PEER_PORT).intValue());
+    assertEquals(0L, map.getEntry(Tags.PEER_PORT).tagId());
+  }
+
+  @Test
+  void removingASharedNameRemovesWhicheverOfItsTagsTheMapHolds() {
+    TagMap map = TagMap.create();
+    map.set(KnownTags.PEER_PORT_OUTBOUND_ID, 5432);
+
+    assertEquals(5432, map.getAndRemove(Tags.PEER_PORT).intValue());
+    assertNull(map.getEntry(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertEquals(0, map.size());
+  }
+
+  @Test
+  void aSharedNameReadsThroughToTheParent() {
+    TagMap parent = TagMap.create();
+    parent.set(KnownTags.PEER_PORT_OUTBOUND_ID, 5432);
+    TagMap child = TagMap.createFromParent(parent.freeze());
+
+    assertEquals(5432, child.get(Tags.PEER_PORT));
+    child.remove(Tags.PEER_PORT);
+    assertNull(child.get(Tags.PEER_PORT));
   }
 
   private static List<Long> knownTagIds() throws IllegalAccessException {

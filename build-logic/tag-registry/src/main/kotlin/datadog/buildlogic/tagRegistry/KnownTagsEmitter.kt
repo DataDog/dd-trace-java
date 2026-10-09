@@ -65,10 +65,27 @@ object KnownTagsEmitter {
     fun otelNameC(identity: TagConventions.TagIdentity) = otelNameOfConst.getValue(identity)
 
     val order = reg.tags.map { it.identity } // stable emit order
-    // keyOf has no direction argument, so omit shared names and let them resolve to 0 (unknown).
+    // keyOf(name) has no direction, so shared names are left out here and resolve to 0 (unknown);
+    // they are added below, marked, for keyOf(name, direction).
     val keyOfOrder = reg.tags.filter { it.sharedNameDirection == null }.map { it.identity }
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
     val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.identity to it } }.toMap()
+    // Names whose tag depends on the span's direction: a shared Datadog name (one tag per direction)
+    // and a direction-scoped OpenTelemetry name. keyOf(name) resolves none of them; keyOf(name,
+    // direction) switches on each one's tag per direction.
+    val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, TagConventions.TagIdentity>>()
+    // Shared Datadog names, marked in the keyOf table so a lookup by that name alone can probe its tags.
+    val sharedNames = sortedSetOf<String>()
+    for (t in reg.tags) {
+      t.sharedNameDirection?.let {
+        directional.getOrPut(t.ddName) { mutableMapOf() }[it] = t.identity
+        sharedNames.add(t.ddName)
+      }
+      t.otelDirection?.let { directional.getOrPut(t.declaredOtelName!!) { mutableMapOf() }[it] = t.identity }
+    }
+    check(directional.keys.none { name -> keyOfOrder.any { it.ddName == name } || name in otelName.values }) {
+      "a direction-dependent name is also direction-free: ${directional.keys}"
+    }
     return buildString {
       // Public API first (name + encoded id couplets), so readers see the useful parts up top; the
       // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
@@ -139,6 +156,7 @@ object KnownTagsEmitter {
       otelByCanonical.forEach { (otel, _) ->
         appendLine("    \"${escape(otel)}\",")
       }
+      directional.keys.forEach { appendLine("    \"${escape(it)}\",") }
       appendLine(
         """
           };
@@ -148,6 +166,11 @@ object KnownTagsEmitter {
       keyOfOrder.forEach { appendLine("    ${idC(it)},") }
       otelByCanonical.forEach { (_, canonical) ->
         appendLine("    ${idC(canonical)},")
+      }
+      // A direction-dependent name's value is not an id but a marker saying which kind it is.
+      for (name in directional.keys) {
+        val marker = if (name in sharedNames) "SHARED_DATADOG_NAME_SENTINEL" else "DIRECTION_SCOPED_OTEL_NAME_SENTINEL"
+        appendLine("    KnownTagCodec.$marker, // $name")
       }
       // Resolver. KnownTagCodec.Installed links to this field directly, so merely resolving a tag
       // name initializes this class -- there is no registration step and no ordering to get wrong.
@@ -198,21 +221,29 @@ object KnownTagsEmitter {
                   return serial < NAMES_BY_SERIAL.length ? NAMES_BY_SERIAL[serial] : null;
                 }
         
-                // openTelemetryNameOf: canonical id -> OTel-namespace name, null when the tag has
-                // none. The caller (a serializer) owns any fall-back-to-Datadog-name policy.
+                // openTelemetryNameOf: id -> OTel-namespace name on spans of a direction, null when
+                // the tag has none there. The caller (a serializer) owns any fall-back-to-Datadog-name
+                // policy.
                 @Override
-                public String openTelemetryNameOf(long tagId) {
+                public String openTelemetryNameOf(long tagId, int direction) {
                   switch (KnownTagCodec.serialNum(tagId)) {
         """.trimIndent()
       )
-      for (identity in order) {
-        if (otelName[identity] == null) continue
-        appendLine(
-          """
-                      case ${serialC(identity)}:
-                        return ${otelNameC(identity)};
-          """.trimIndent()
-        )
+      for (t in reg.tags) {
+        val otel = t.declaredOtelName ?: continue
+        val scoped = t.otelDirection
+        val result =
+          when {
+            scoped == null -> otelNameC(t.identity)
+
+            // A tag declared per direction exists only on spans of its direction, so emitting it
+            // needs none; only resolving the name to it does.
+            t.sharedNameDirection != null -> "\"${escape(otel)}\""
+
+            else -> "direction == KnownTagCodec.DIRECTION_${scoped.name} ? \"${escape(otel)}\" : null"
+          }
+        appendLine("case ${serialC(t.identity)}:")
+        appendLine("  return $result;")
       }
       appendLine(
         """
@@ -222,9 +253,33 @@ object KnownTagsEmitter {
               }
 
               @Override
-              public long keyOf(String name) {
+              public long lookup(String name) {
                 int slot = StringIndex.EmbeddingSupport.indexOf(KEYOF_HASHES, KEYOF_KEYS, name);
                 return slot < 0 ? 0L : KEYOF_IDS[slot];
+              }
+
+              @Override
+              public long directionalKeyOf(String name, int direction) {
+                switch (name) {
+        """.trimIndent()
+      )
+      for ((name, byDirection) in directional) {
+        appendLine("    case \"${escape(name)}\":")
+        appendLine("      switch (direction) {")
+        for (d in TagConventions.Direction.entries) {
+          val tag = byDirection[d] ?: continue
+          appendLine("        case KnownTagCodec.DIRECTION_${d.name}:")
+          appendLine("          return ${idC(tag)};")
+        }
+        appendLine("        default:")
+        appendLine("          return KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL;")
+        appendLine("      }")
+      }
+      appendLine(
+        """
+                  default:
+                    return 0L;
+                }
               }
             };
 
