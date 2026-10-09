@@ -73,6 +73,21 @@ class TestJvmConstraintsPluginTest {
   }
 
   @Test
+  fun `current JVM selected by testJvm overrides an unavailable project toolchain`() {
+    val javaHome = System.getProperty("java.home")
+    withTestJvm(JavaVersion.current().majorVersion) {
+      val project = ProjectBuilder.builder().build()
+      project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+      project.extensions.getByType(JavaPluginExtension::class.java).toolchain.languageVersion.set(JavaLanguageVersion.of(99))
+
+      val testTask = project.tasks.named("test", GradleTest::class.java).get()
+
+      assertThat(testTask.javaLauncher.get().metadata.installationPath.asFile.toPath().toRealPath())
+        .isEqualTo(Paths.get(javaHome).toRealPath())
+    }
+  }
+
+  @Test
   fun `current JVM home selected by testJvm does not require a launcher override`() {
     withTestJvm(System.getProperty("java.home")) {
       val project = ProjectBuilder.builder().build()

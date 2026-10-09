@@ -184,7 +184,14 @@ class TestJvmSpec(val project: Project) {
       if (!requested.metadata.isCurrentJvm) {
         project.providers.provider { requested }
       } else {
-        defaultJavaLauncher.filter { !it.metadata.isCurrentJvm }.map { requested }
+        project.providers.provider {
+          try {
+            defaultJavaLauncher.get().metadata.isCurrentJvm
+          } catch (_: GradleException) {
+            // An unavailable project toolchain must not block an explicitly resolved testJvm.
+            false
+          }
+        }.filter { !it }.map { requested }
       }
     }
 
