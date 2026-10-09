@@ -71,6 +71,25 @@ class ClassLoaderMatchersTest extends DDSpecification {
     ]
   }
 
+  @Unroll
+  def "skips gosu SingleServingGosuClassLoader: #loaderName"() {
+    given:
+    ClassLoader loader = new ByteBuddy()
+      .subclass(ClassLoader)
+      .name(loaderName)
+      .make()
+      .load(ClassLoader.getSystemClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
+      .getLoaded()
+      .getDeclaredConstructor(ClassLoader)
+      .newInstance(ClassLoader.getSystemClassLoader())
+
+    expect:
+    ClassLoaderMatchers.canSkipClassLoaderByName(loader)
+
+    where:
+    loaderName << ["gw.internal.gosu.compiler.SingleServingGosuClassLoader"]
+  }
+
   /*
    * A URLClassloader which only delegates java.* classes
    */
