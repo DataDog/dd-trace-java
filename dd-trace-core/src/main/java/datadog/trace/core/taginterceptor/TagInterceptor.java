@@ -27,6 +27,7 @@ import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURC
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
@@ -41,6 +42,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -77,9 +79,9 @@ public class TagInterceptor {
       boolean jeeSplitByDeployment) {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
-    this.splitServiceTags = splitServiceTags;
+    this.splitServiceTags = withCanonicalNames(splitServiceTags);
     this.ruleFlags = ruleFlags;
-    splitByServletContext = splitServiceTags.contains(SERVLET_CONTEXT);
+    splitByServletContext = this.splitServiceTags.contains(SERVLET_CONTEXT);
 
     shouldSet404ResourceName =
         ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
@@ -87,6 +89,25 @@ public class TagInterceptor {
             && ruleFlags.isEnabled(STATUS_404_DECORATOR);
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
     this.jeeSplitByDeployment = jeeSplitByDeployment;
+  }
+
+  /**
+   * Adds the Datadog name of each configured tag: entries set on the span builder arrive under it,
+   * so a tag configured by its OpenTelemetry name (e.g. {@code db.system}) would otherwise be
+   * missed.
+   */
+  private static Set<String> withCanonicalNames(Set<String> tags) {
+    Set<String> result = null;
+    for (String tag : tags) {
+      String canonical = KnownTagCodec.canonicalTagName(tag);
+      if (!canonical.equals(tag) && !tags.contains(canonical)) {
+        if (result == null) {
+          result = new HashSet<>(tags);
+        }
+        result.add(canonical);
+      }
+    }
+    return result == null ? tags : result;
   }
 
   public boolean needsIntercept(TagMap map) {
