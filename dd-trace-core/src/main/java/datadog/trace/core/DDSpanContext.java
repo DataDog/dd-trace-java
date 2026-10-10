@@ -1072,7 +1072,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, value);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1086,7 +1086,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, value);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1099,7 +1099,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, value);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1112,7 +1112,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, value);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1125,7 +1125,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, value);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1138,7 +1138,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, value);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1151,7 +1151,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, value);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1184,7 +1184,7 @@ public class DDSpanContext
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tagId, box);
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }

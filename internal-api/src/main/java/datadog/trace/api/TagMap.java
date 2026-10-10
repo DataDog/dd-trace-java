@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.apicontract.Restricted;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
@@ -1617,6 +1618,58 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * canonical name without the name lookup the String setters pay. The id must name a known tag;
    * custom tags have no id and use the String setters.
    */
+  /**
+   * The tracer core's trusted operations on this map, which skip checks the core has already made.
+   * Restricted to the core; instrumentation uses the checked methods.
+   */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public Internals internals() {
+    return new Internals(this);
+  }
+
+  /** See {@link TagMap#internals()}. Created per call, so escape analysis removes it. */
+  public static final class Internals {
+    private final TagMap map;
+
+    private Internals(TagMap map) {
+      this.map = map;
+    }
+
+    /*
+     * Sets a known tag by id without validating it, unlike TagMap.set(long, ...): the caller has
+     * already checked KnownTagCodec.isKeyableById(tagId).
+     */
+    public void setKnown(long tagId, @Nonnull Object value) {
+      this.map.putEntry(new Entry(tagId, null, Entry.ANY, 0L, value));
+    }
+
+    public void setKnown(long tagId, @Nonnull CharSequence value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.OBJECT, 0L, value));
+    }
+
+    public void setKnown(long tagId, boolean value) {
+      this.map.putEntry(
+          new Entry(
+              tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
+    }
+
+    public void setKnown(long tagId, int value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value), null));
+    }
+
+    public void setKnown(long tagId, long value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value), null));
+    }
+
+    public void setKnown(long tagId, float value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value), null));
+    }
+
+    public void setKnown(long tagId, double value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
+    }
+  }
+
   public void set(long tagId, @Nonnull Object value) {
     this.putEntry(Entry.newAnyEntry(tagId, value));
   }
