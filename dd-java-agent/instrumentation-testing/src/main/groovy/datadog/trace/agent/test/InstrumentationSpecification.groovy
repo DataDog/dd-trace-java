@@ -90,6 +90,7 @@ import net.bytebuddy.utility.JavaModule
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.junit.jupiter.api.extension.ExtendWith
+import datadog.trace.test.logging.TestcontainersImageLogging
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
@@ -297,7 +298,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   @SuppressForbidden
-  private static void configureLoggingLevels() {
+  private static void configureLoggingLevels(String imageTestName = null) {
     def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
 
     // Check logger class by name to avoid NoClassDefFoundError at runtime for tests without Logback.
@@ -318,6 +319,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     rootLogger.setLevel(Level.WARN)
     ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
     ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
+    // Image pull progress uses tc.<image>, outside org.testcontainers.
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("tc")).setLevel(Level.INFO)
+    TestcontainersImageLogging.configure(rootLogger.getLoggerContext(), imageTestName)
   }
 
   def codeOriginSetup() {
@@ -466,7 +470,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     InstrumentationErrors.resetErrors() // reset for each test
 
-    configureLoggingLevels()
+    configureLoggingLevels(getClass().name + " :: " + specificationContext.currentFeature.name)
 
     assertThreadsEachCleanup = false
 
@@ -562,6 +566,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
         throw scopeDiagnosticsFailure
       }
     } finally {
+      // The image logging helper requires Logback, which some test suites intentionally exclude.
+      if (LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).class.name == "ch.qos.logback.classic.Logger") {
+        TestcontainersImageLogging.clearTestName()
+      }
       if (scopeDiagnosticsSuiteEnabled()) {
         ScopeDiagnostics.startRecording()
       }

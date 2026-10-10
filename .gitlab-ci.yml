@@ -821,6 +821,7 @@ muzzle-dep-report:
     paths:
       - ./reports.tar
       - ./profiles.tar
+      - 'workspace/**/build/reports/docker-images/'
       - ./results
       - './test_counts_*.json'
       - '.gradle/daemon/*/*.out.log'

@@ -46,4 +46,5 @@ dependencies {
   compileOnly(libs.bundles.spock)
 
   testImplementation(libs.junit.platform.launcher)
+  testImplementation(libs.logback.classic)
 }
