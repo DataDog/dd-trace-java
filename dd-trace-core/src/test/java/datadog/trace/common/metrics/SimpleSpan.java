@@ -324,7 +324,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   public void processServiceTags() {}
 
   @Override
-  public void processTagsAndBaggage(MetadataConsumer consumer) {}
+  public void processTagsAndBaggage(MetadataConsumer consumer, int options) {}
 
   @Override
   public SimpleSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {

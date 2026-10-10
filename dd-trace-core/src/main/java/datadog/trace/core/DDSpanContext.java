@@ -5,6 +5,10 @@ import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
+import static datadog.trace.core.CoreSpan.STRUCTURED_LINKS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -1324,72 +1328,26 @@ public class DDSpanContext
     }
   }
 
-  void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        injectLinksAsTags,
-        true, // injectEventsAsTags
-        injectBaggageAsTags,
-        propagationTags);
-  }
-
-  void processTagsAndBaggage(
-      final MetadataConsumer consumer,
-      int longRunningVersion,
-      DDSpan restrictedSpan,
-      boolean firstInChunk) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        injectLinksAsTags,
-        true, // injectEventsAsTags
-        injectBaggageAsTags,
-        firstInChunk ? getPropagationTags() : null);
-  }
-
   /**
-   * Serialize span links and span events as first-class structured data rather than tags. While
-   * baggage tag injection keeps following the tracer configuration.
+   * Processes the span tags and baggage, and hands the resulting {@link Metadata} to the consumer.
+   *
+   * @param consumer The consumer of the span metadata.
+   * @param longRunningVersion The long-running version of the span.
+   * @param restrictedSpan The span to read links and events from.
+   * @param options The {@link CoreSpan} options describing what the serialization protocol needs.
    */
-  void processTagsAndBaggageWithStructuredLinksAndEvents(
-      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        false, // injectLinksAsTags
-        false, // injectEventsAsTags
-        injectBaggageAsTags,
-        propagationTags);
-  }
-
-  void processTagsAndBaggageWithStructuredLinksAndEvents(
-      final MetadataConsumer consumer,
-      int longRunningVersion,
-      DDSpan restrictedSpan,
-      boolean firstInChunk) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        false, // injectLinksAsTags
-        false, // injectEventsAsTags
-        injectBaggageAsTags,
-        firstInChunk ? getPropagationTags() : null);
-  }
-
   void processTagsAndBaggage(
-      final MetadataConsumer consumer,
-      int longRunningVersion,
-      DDSpan restrictedSpan,
-      boolean injectLinksAsTags,
-      boolean injectEventsAsTags,
-      boolean injectBaggageAsTags,
-      PropagationTags serializedPropagationTags) {
+      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan, int options) {
+    boolean injectLinksAsTags = this.injectLinksAsTags && (options & STRUCTURED_LINKS) == 0;
+    boolean injectEventsAsTags = (options & STRUCTURED_EVENTS) == 0;
+    PropagationTags serializedPropagationTags;
+    if ((options & ROOT_PROPAGATION_TAGS) != 0) {
+      serializedPropagationTags = getPropagationTags();
+    } else if ((options & OWN_PROPAGATION_TAGS) != 0) {
+      serializedPropagationTags = this.propagationTags;
+    } else {
+      serializedPropagationTags = null;
+    }
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
     // links and events
     // This is a compromise to avoid...
@@ -1418,7 +1376,7 @@ public class DDSpanContext
 
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
-      if (injectBaggageAsTags) {
+      if (this.injectBaggageAsTags) {
         baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
         if (w3cBaggage != null) {
           injectW3CBaggageTags(baggageItemsWithPropagationTags);

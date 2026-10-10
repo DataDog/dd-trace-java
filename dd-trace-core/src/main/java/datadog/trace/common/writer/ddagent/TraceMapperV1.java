@@ -2,6 +2,9 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
+import static datadog.trace.core.CoreSpan.STRUCTURED_LINKS;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 
@@ -42,6 +45,9 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("SameParameterValue")
 public final class TraceMapperV1 implements TraceMapper {
   private static final Logger log = LoggerFactory.getLogger(TraceMapperV1.class);
+
+  /** Span links and events are encoded natively rather than as tags. */
+  private static final int STRUCTURED_LINKS_AND_EVENTS = STRUCTURED_LINKS | STRUCTURED_EVENTS;
 
   // Attribute value types (from V1 spec)
   static final int VALUE_TYPE_STRING = 1;
@@ -91,7 +97,8 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     CoreSpan<?> firstSpan = trace.get(0);
-    firstSpan.processTagsAndBaggageWithStructuredLinksAndEvents(spanMetadata, true);
+    firstSpan.processTagsAndBaggage(
+        spanMetadata, STRUCTURED_LINKS_AND_EVENTS | ROOT_PROPAGATION_TAGS);
     Metadata firstSpanMeta = spanMetadata.metadata;
 
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
@@ -131,7 +138,8 @@ public final class TraceMapperV1 implements TraceMapper {
     for (int i = 0; i < spans.size(); i++) {
       CoreSpan<?> span = spans.get(i);
       if (meta == null) {
-        span.processTagsAndBaggageWithStructuredLinksAndEvents(spanMetadata, i == 0);
+        span.processTagsAndBaggage(
+            spanMetadata, STRUCTURED_LINKS_AND_EVENTS | (i == 0 ? ROOT_PROPAGATION_TAGS : 0));
         meta = spanMetadata.metadata;
       }
       TagMap tags = meta.getTags();

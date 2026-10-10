@@ -2,6 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
 import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.GenerationalUtf8Cache;
@@ -367,7 +368,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
           metaWriter
               .withWritable(writable)
               .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
-          i == 0);
+          i == 0 ? ROOT_PROPAGATION_TAGS : 0);
       if (!metaStruct.isEmpty()) {
         /* 13 */
         metaStructWriter.withWritable(writable).write(metaStruct);
