@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.apicontract.Restricted;
+import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
@@ -1627,7 +1628,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return new Internals(this);
   }
 
-  /** See {@link TagMap#internals()}. Created per call, so escape analysis removes it. */
+  /**
+   * See {@link TagMap#internals()}. Created per call so escape analysis removes it: use it within
+   * the expression ({@code map.internals().setKnown(...)}) rather than storing it.
+   */
+  @NoEscape
   public static final class Internals {
     private final TagMap map;
 
