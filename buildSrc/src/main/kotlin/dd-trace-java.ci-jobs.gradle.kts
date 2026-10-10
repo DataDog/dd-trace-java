@@ -1,4 +1,5 @@
 import datadog.gradle.plugin.ci.isInSelectedSlot
+import datadog.gradle.plugin.muzzle.MuzzleExtension
 import org.gradle.api.tasks.testing.Test
 import java.io.File
 
@@ -15,6 +16,12 @@ if (project != rootProject) {
 }
 
 allprojects {
+  pluginManager.withPlugin("dd-trace-java.muzzle") {
+    extensions.configure<MuzzleExtension> {
+      includeInAggregate.convention(project.isInSelectedSlot)
+    }
+  }
+
   // Enable tests only on the selected slot (if -Pslot=n/t is provided)
   tasks.withType<Test>().configureEach {
     onlyIf("Project is in selected slot") {
@@ -124,9 +131,9 @@ if (gitBaseRefProvider.isPresent) {
 
 tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
-    p.isInSelectedSlot.get()
-        && p.plugins.hasPlugin("java")
-        && p.plugins.hasPlugin("dd-trace-java.muzzle")
+    p.plugins.hasPlugin("java") &&
+      p.plugins.hasPlugin("dd-trace-java.muzzle") &&
+      p.extensions.getByType<MuzzleExtension>().includeInAggregate.get()
   }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }

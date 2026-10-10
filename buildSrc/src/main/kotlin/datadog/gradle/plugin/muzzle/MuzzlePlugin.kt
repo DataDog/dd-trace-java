@@ -101,14 +101,17 @@ class MuzzlePlugin : Plugin<Project> {
     }
     project.publishMuzzleReport(report.flatMap { it.versionsFile })
 
-    val hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
+    val relevantTasks = project.gradle.startParameter.taskNames.filter { taskName ->
       val taskProjectPath = taskName.substringBeforeLast(":", "")
       val taskNameOnly = taskName.substringAfterLast(":")
-      val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path
+      val isAggregate = taskNameOnly.equals("runMuzzle", ignoreCase = true)
+      val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path ||
+        (isAggregate && project.path.startsWith("$taskProjectPath:"))
 
-      isRelevantForProject && taskNameOnly.endsWith("muzzle", ignoreCase = true)
+      isRelevantForProject && !taskNameOnly.equals("compileMuzzle", ignoreCase = true) &&
+        taskNameOnly.endsWith("muzzle", ignoreCase = true)
     }
-    if (!hasRelevantTask) {
+    if (relevantTasks.isEmpty()) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
       project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
       return
@@ -117,10 +120,15 @@ class MuzzlePlugin : Plugin<Project> {
     // We only get here if we are running muzzle, so let's start timing things
     val startTime = System.currentTimeMillis()
 
-    val system = MuzzleMavenRepoUtils.newRepositorySystem()
-    val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-    val taskPlanner = MuzzleTaskPlanner.from(system, session)
     project.afterEvaluate {
+      if (relevantTasks.all { it.substringAfterLast(":").equals("runMuzzle", ignoreCase = true) } &&
+        !extension.includeInAggregate.get()) {
+        project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
+        return@afterEvaluate
+      }
+      val system = MuzzleMavenRepoUtils.newRepositorySystem()
+      val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
+      val taskPlanner = MuzzleTaskPlanner.from(system, session)
       // use runAfter to set up task finalizers in version order
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
       val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
