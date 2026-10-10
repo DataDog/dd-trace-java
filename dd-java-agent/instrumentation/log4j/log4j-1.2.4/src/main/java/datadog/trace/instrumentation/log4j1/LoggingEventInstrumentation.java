@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(InstrumenterModule.class)
-public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
+public class LoggingEventInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LoggingEventInstrumentation() {
     super("log4j", "log4j-1");

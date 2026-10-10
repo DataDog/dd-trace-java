@@ -33,7 +33,8 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   static final String LOG4J2_BACKEND = "Log4j2"
   static final String LOGBACK_BACKEND = "Logback"
   static final String JBOSS_BACKEND = "JBoss"
-  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND, JBOSS_BACKEND] as Set
+  static final String LOG4J1_BACKEND = "Log4j1"
+  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND, JBOSS_BACKEND, LOG4J1_BACKEND] as Set
 
   @Shared
   File outputLogFile
@@ -538,7 +539,7 @@ class JCLInterfaceJULBackend extends JULBackend {
 
 class JCLInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -566,7 +567,7 @@ class JCLInterfaceLog4j2LatestBackend extends JCLInterfaceLog4j2Backend {}
 
 class Log4j1InterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -621,7 +622,7 @@ class Slf4jInterfaceLogbackLatestBackend extends Slf4jInterfaceLogbackBackend {}
 
 class Slf4jInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -675,7 +676,7 @@ class Slf4jInterfaceJULBackend extends JULBackend {
 
 class Slf4jInterfaceJCLToLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
@@ -780,7 +781,7 @@ class JBossInterfaceJBossLatestBackend extends JBossInterfaceJBossBackend {}
 
 class JBossInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() {
-    "Log4j1"
+    LOG4J1_BACKEND
   }
   def supportsJson() {
     false
