@@ -377,6 +377,56 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `a Datadog name declared per direction gets an undirected tag in its directions' slot`() {
+    val conventions = tagConventions(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+        http.server: {span-kind: server, include: [inbound_peer], tags: [{dd-name: http.route}]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int}]}
+      """
+    )
+
+    val tags = TagRegistry.build(conventions).tags
+    val undirected = tags.single { it.undirected }
+    val byName = tags.associateBy { it.name }
+    val inbound = byName.getValue("peer.port@inbound")
+    val outbound = byName.getValue("peer.port@outbound")
+
+    assertThat(undirected.ddName).isEqualTo("peer.port")
+    assertThat(undirected.serial).isEqualTo(tags.filter { !it.undirected }.maxOf { it.serial } + 1)
+    assertThat(listOf(inbound.slot, outbound.slot)).containsOnly(undirected.slot)
+    for (t in listOf(inbound, outbound)) {
+      assertThat((t.id ushr TagRegistry.UNDIRECTED_SHIFT) and 0x7FFF).isEqualTo(undirected.serial.toLong())
+    }
+    assertThat(undirected.id and TagRegistry.UNDIRECTED).isNotZero()
+    assertThat(undirected.id and TagRegistry.SHARED_NAME).isZero()
+  }
+
+  @Test
+  fun `a shared name with no tag in a direction resolves there to its undirected tag`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int}]}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source).contains("PEER_PORT_UNDIRECTED_ID").doesNotContain("PEER_PORT_UNDIRECTED_NAME")
+    assertThat(source.substringAfter("case \"peer.port\":").substringAfter("default:").substringBefore(";"))
+      .contains("return PEER_PORT_UNDIRECTED_ID")
+  }
+
+  @Test
   fun `a tag declared per direction is emitted under its OpenTelemetry name without a direction`() {
     val yaml = directory.conventionsFile(
       """
@@ -489,7 +539,7 @@ class TagRegistryGeneratorTest {
       """
     )
 
-    assertThat(TagRegistry.build(conventions).tags.map { it.identity })
+    assertThat(TagRegistry.build(conventions).tags.filterNot { it.undirected }.map { it.identity })
       .containsExactlyInAnyOrder(
         TagConventions.TagIdentity("x", TagConventions.Direction.INBOUND),
         TagConventions.TagIdentity("x", TagConventions.Direction.OUTBOUND),
@@ -511,7 +561,7 @@ class TagRegistryGeneratorTest {
       """
     )
 
-    assertThat(TagRegistry.build(conventions).tags.map { it.name })
+    assertThat(TagRegistry.build(conventions).tags.filterNot { it.undirected }.map { it.name })
       .containsExactlyInAnyOrder("peer.port@inbound", "peer.port@outbound", "user@domain")
   }
 

@@ -166,7 +166,8 @@ class KnownTagsTest {
   /**
    * {@code peer.port} means the server's port on outbound spans and the client's on inbound ones,
    * so it is one tag per direction. Both share the Datadog name, which therefore resolves to no tag
-   * until name resolution knows the span's direction.
+   * until name resolution knows the span's direction; with an unknown direction, it denotes the
+   * name's undirected tag.
    */
   @Test
   void aNameDeclaredPerDirectionIsOneTagPerDirection() {
@@ -176,14 +177,28 @@ class KnownTagsTest {
     assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_INBOUND_ID));
     assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_OUTBOUND_ID));
     assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_UNDIRECTED_ID));
+    assertTrue(KnownTagCodec.isUndirected(KnownTags.PEER_PORT_UNDIRECTED_ID));
+    assertFalse(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_UNDIRECTED_ID));
+  }
+
+  /** Each direction's id holds its undirected tag, so a constant id folds the supersede check. */
+  @Test
+  void aDirectionsTagNamesItsUndirectedTag() {
+    for (long tagId :
+        new long[] {KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID}) {
+      assertEquals(KnownTags.PEER_PORT_UNDIRECTED_ID, KnownTagCodec.undirectedIdOf(tagId));
+      assertEquals(
+          KnownTagCodec.slotOf(KnownTags.PEER_PORT_UNDIRECTED_ID), KnownTagCodec.slotOf(tagId));
+    }
   }
 
   static Stream<Arguments> directionalNames() {
     return Stream.of(
         Arguments.of(Tags.PEER_PORT, DIRECTION_INBOUND, KnownTags.PEER_PORT_INBOUND_ID),
         Arguments.of(Tags.PEER_PORT, DIRECTION_OUTBOUND, KnownTags.PEER_PORT_OUTBOUND_ID),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_NONE, 0L),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_UNKNOWN, 0L),
+        Arguments.of(Tags.PEER_PORT, DIRECTION_NONE, KnownTags.PEER_PORT_UNDIRECTED_ID),
+        Arguments.of(Tags.PEER_PORT, DIRECTION_UNKNOWN, KnownTags.PEER_PORT_UNDIRECTED_ID),
         Arguments.of("server.address", DIRECTION_INBOUND, KnownTags.HTTP_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_OUTBOUND, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_UNKNOWN, 0L),

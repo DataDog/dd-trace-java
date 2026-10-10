@@ -45,11 +45,11 @@ object KnownTagsEmitter {
     val serialOfConst = HashMap<TagConventions.TagIdentity, String>()
     val otelNameOfConst = HashMap<TagConventions.TagIdentity, String>()
     for (t in reg.tags) {
-      val base = sanitize(t.name)
+      val base = sanitize(t.name).let { if (t.undirected) "${it}_UNDIRECTED" else it }
       // Shared Datadog names get no NAME constant because they identify several tags.
       // Callers use a direction-specific ID (e.g. PEER_PORT_OUTBOUND_ID); nameOf emits the
       // shared Datadog name as a literal.
-      if (t.sharedNameDirection == null) nameOfConst[t.identity] = unique(withSuffix(base, "_NAME"))
+      if (t.sharedNameDirection == null && !t.undirected) nameOfConst[t.identity] = unique(withSuffix(base, "_NAME"))
       idOfConst[t.identity] = unique(withSuffix(base, "_ID"))
       serialOfConst[t.identity] = unique(withSuffix(base, "_SERIAL_NUM"))
       // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
@@ -67,7 +67,7 @@ object KnownTagsEmitter {
     val order = reg.tags.map { it.identity } // stable emit order
     // keyOf(name) has no direction, so shared names are left out here and resolve to 0 (unknown);
     // they are added below, marked, for keyOf(name, direction).
-    val keyOfOrder = reg.tags.filter { it.sharedNameDirection == null }.map { it.identity }
+    val keyOfOrder = reg.tags.filter { it.sharedNameDirection == null && !it.undirected }.map { it.identity }
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
     val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.identity to it } }.toMap()
     // Names whose tag depends on the span's direction: a shared Datadog name (one tag per direction)
@@ -76,6 +76,8 @@ object KnownTagsEmitter {
     val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, TagConventions.TagIdentity>>()
     // Shared Datadog names, marked in the keyOf table so a lookup by that name alone can probe its tags.
     val sharedNames = sortedSetOf<String>()
+    // A shared name's undirected tag: what the name denotes in a direction with no tag of its own.
+    val undirectedOf = reg.tags.filter { it.undirected }.associate { it.ddName to it.identity }
     for (t in reg.tags) {
       t.sharedNameDirection?.let {
         directional.getOrPut(t.ddName) { mutableMapOf() }[it] = t.identity
@@ -105,7 +107,12 @@ object KnownTagsEmitter {
 
       for (t in reg.tags) {
         val direction = t.sharedNameDirection
-        if (direction == null) {
+        if (t.undirected) {
+          appendLine(
+            "  /** {@code ${escape(t.ddName)}} set by that name on a span with no direction yet. Internal: " +
+              "instrumentation sets a direction's ID, which supersedes this one. */"
+          )
+        } else if (direction == null) {
           appendLine("  public static final String ${nameC(t.identity)} = \"${escape(t.ddName)}\";")
         } else {
           appendLine(
@@ -122,6 +129,7 @@ object KnownTagsEmitter {
         if (t.traceLevel) append(" + trace-level")
         if (t.intercepted) append(" + intercepted")
         if (t.sharedNameDirection != null) append(" + shared-name")
+        if (t.undirected) append(" + undirected")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         appendLine("  <${escape(t.required)}>")
         appendLine()
@@ -276,7 +284,8 @@ object KnownTagsEmitter {
           appendLine("          return ${idC(tag)};")
         }
         appendLine("        default:")
-        appendLine("          return KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL;")
+        val undirected = undirectedOf[name]
+        appendLine("          return ${if (undirected != null) idC(undirected) else "KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL"};")
         appendLine("      }")
       }
       appendLine(

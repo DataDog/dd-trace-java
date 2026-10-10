@@ -1507,8 +1507,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         return entry;
       }
     }
-    // Set by that name alone, with no direction: stored as a custom tag.
-    return this.getEntry(tag, Entry.customHash(tag));
+    // Set by that name alone, with no direction: stored as the undirected tag -- or, when built as
+    // an Entry by name, as a custom tag.
+    long undirectedId = KnownTagCodec.directionalKeyOf(tag, KnownTagCodec.DIRECTION_UNKNOWN);
+    Entry undirected = this.getEntry(tag, undirectedId);
+    return undirected != null ? undirected : this.getEntry(tag, Entry.customHash(tag));
   }
 
   /**
@@ -1632,14 +1635,37 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
+   * {@link #knownIndexOf} for a write: one direction of a shared name also matches the name's
+   * undirected tag, which it supersedes in place. Both share a slot, so one occupancy test covers
+   * them, and for a constant id the alias folds to a constant (or, for most tags, to the id
+   * itself).
+   */
+  private int knownWriteIndexOf(long denseId) {
+    if ((this.knownOccupancy & slotBit(denseId)) == 0) {
+      return -1; // definitely absent
+    }
+    long alias =
+        KnownTagCodec.hasSharedName(denseId) ? KnownTagCodec.undirectedIdOf(denseId) : denseId;
+    long[] ids = this.knownIds;
+    for (int i = 0; i < this.knownCount; ++i) {
+      long id = ids[i];
+      if (id == denseId || id == alias) return i;
+    }
+    return -1;
+  }
+
+  /**
    * Stores a dense value, replacing it in place when present or appending it, and returns the prior
    * value, or null when there was none. Dense values are never null. Builds no Entry, so a caller
    * that discards the result allocates nothing, whether or not the JIT inlines this.
    */
   private Object storeKnownValue(long denseId, Object value) {
-    int i = this.knownIndexOf(denseId);
+    int i = this.knownWriteIndexOf(denseId);
     if (i >= 0) {
-      Object prior = this.knownValues[i];
+      long[] ids = this.knownIds;
+      // a superseded undirected tag is relabeled, and was not this tag's prior value
+      Object prior = ids[i] == denseId ? this.knownValues[i] : null;
+      ids[i] = denseId;
       this.knownValues[i] = value;
       return prior;
     }
@@ -1660,10 +1686,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
-   * Local dense write: clears any tombstone for the tag, then stores the value, returning the prior
-   * value or null. The {@code set(long, ...)} methods use this; it builds no Entry.
-   */
-  /**
    * {@code tagId}, when it names a known tag; the checked id-keyed setters reject anything else.
    */
   private static long requireKnownId(long tagId) {
@@ -1673,15 +1695,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return tagId;
   }
 
+  /**
+   * Local dense write: clears any tombstone for the tag, then stores the value, returning the prior
+   * value or null. The {@code set(long, ...)} methods use this; it builds no Entry.
+   */
   private Object storeDenseLocal(long denseId, Object value) {
     this.checkWriteAccess();
-    if (KnownTagCodec.hasSharedName(denseId)) {
-      // One direction of a tag declared per direction, written by id, supersedes a value written
-      // under the shared name alone (before a span knew its direction), so the map never holds
-      // both. Folds away for a constant id.
-      String sharedName = KnownTagCodec.nameOf(denseId);
-      this.removeLocal(sharedName, Entry.customHash(sharedName));
-    }
     if (this.removedFromParent != null) {
       this.removedFromParent.remove(KnownTagCodec.nameOf(denseId));
     }
@@ -1767,8 +1786,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   /**
    * The id a write by name stores under: the tag's id, 0 for a custom tag, or -- for a Datadog name
    * shared by a tag per direction ({@code peer.port}) -- whichever of those tags this map already
-   * holds. When it holds neither, the write stays a custom tag under the name, which a span re-keys
-   * once it knows its direction.
+   * holds. When it holds none, the write is the name's undirected tag, which a span re-keys once it
+   * knows its direction.
    */
   private long writeKeyOf(String tag) {
     long tagId = KnownTagCodec.keyOrSharedName(tag);
@@ -1783,7 +1802,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         return sharingId;
       }
     }
-    return 0L;
+    return KnownTagCodec.directionalKeyOf(tag, KnownTagCodec.DIRECTION_UNKNOWN);
   }
 
   static Entry anyEntryFor(String tag, Object value) {
@@ -1912,8 +1931,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     /*
      * Sets a known tag by id without validating it, unlike TagMap.set(long, ...): the caller has
-     * already checked KnownTagCodec.isKnown(tagId). A slotted tag goes straight to the dense store,
-     * as in set(long, ...), so no Entry is built.
+     * already checked KnownTagCodec.isKnown(tagId). With the dense store on, the tag goes straight
+     * to the dense arrays, so no Entry is built.
      */
     public void setKnown(long tagId, @Nonnull Object value) {
       if (DenseStore.ENABLED) {
@@ -2074,10 +2093,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     long newTagHash = newEntry.tagHash;
     if ((newTagHash >>> 32) != 0 && KnownTagCodec.hasSharedName(newTagHash)) {
-      // One direction of a tag declared per direction, written by id, supersedes a value written
-      // under the shared name alone (before a span knew its direction), so the map never holds
-      // both.
-      this.removeLocal(newEntry.tag, Entry.customHash(newEntry.tag));
+      // One direction of a tag declared per direction supersedes the name's undirected tag (set
+      // before a span knew its direction), so the map never holds both.
+      this.removeLocal(newEntry.tag, KnownTagCodec.undirectedIdOf(newTagHash));
     }
 
     // Re-setting a key clears any read-through tombstone for it (the new value overrides the
@@ -2462,8 +2480,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     } else if (tagId != KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL) {
       return this.getAndRemove(KnownTagCodec.nameOf(tagId), tagId);
     }
-    // A shared name removes whichever of its tags the map holds, and any custom tag of that name.
-    Entry removed = this.getAndRemove(tag, Entry.customHash(tag));
+    // A shared name removes whichever of its tags the map holds, including the undirected one, and
+    // any custom tag of that name.
+    long undirectedId = KnownTagCodec.directionalKeyOf(tag, KnownTagCodec.DIRECTION_UNKNOWN);
+    Entry removed = this.getAndRemove(tag, undirectedId);
+    Entry custom = this.getAndRemove(tag, Entry.customHash(tag));
+    if (removed == null) {
+      removed = custom;
+    }
     for (int direction = KnownTagCodec.DIRECTION_INBOUND;
         direction <= KnownTagCodec.DIRECTION_NONE;
         direction++) {

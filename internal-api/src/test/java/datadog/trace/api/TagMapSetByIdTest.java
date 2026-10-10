@@ -96,11 +96,12 @@ class TagMapSetByIdTest {
   @Test
   void aWriteByIdSupersedesAValueSetUnderTheSharedNameAlone() {
     TagMap map = TagMap.create();
-    map.set("peer.port", 8080); // no direction known: stored under the name
+    map.set("peer.port", 8080); // no direction known: stored as the undirected tag
 
     map.set(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
 
     assertEquals(1, map.size());
+    assertNull(map.getEntry(KnownTags.PEER_PORT_UNDIRECTED_ID));
     assertEquals(443, map.getEntry("peer.port").intValue());
     assertEquals(443, map.getEntry(KnownTags.PEER_PORT_OUTBOUND_ID).intValue());
   }

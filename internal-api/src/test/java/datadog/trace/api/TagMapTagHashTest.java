@@ -110,12 +110,12 @@ class TagMapTagHashTest {
   }
 
   @Test
-  void aSharedNameSetWithoutADirectionIsACustomTag() {
+  void aSharedNameSetWithoutADirectionIsTheUndirectedTag() {
     TagMap map = TagMap.create();
     map.set(Tags.PEER_PORT, 5432);
 
     assertEquals(5432, map.getEntry(Tags.PEER_PORT).intValue());
-    assertEquals(0L, map.getEntry(Tags.PEER_PORT).tagId());
+    assertEquals(KnownTags.PEER_PORT_UNDIRECTED_ID, map.getEntry(Tags.PEER_PORT).tagId());
   }
 
   @Test

@@ -84,7 +84,7 @@ object TagRegistryGenerator {
           if (t.slot == TagRegistry.NO_SLOT) "-" else t.slot.toString(),
           "0x%016X".format(Locale.ROOT, t.id),
           t.required,
-          t.name
+          if (t.undirected) "${t.name} (undirected)" else t.name
         )
       )
     }
@@ -116,6 +116,8 @@ object TagRegistryGenerator {
 
       # SHARED DATADOG NAMES. One Datadog name for a tag per direction: emitting it needs no context,
       # but resolving the name to a tag needs the span's direction, so keyOf does not resolve it yet.
+      # Until a span has a direction (or in one with no tag of its own) the name denotes its
+      # undirected tag, which shares the directional tags' slot and is superseded by them.
       """.trimIndent()
     )
     for ((ddName, shared) in reg.tags.filter { it.sharedNameDirection != null }.groupBy { it.ddName }.toSortedMap()) {

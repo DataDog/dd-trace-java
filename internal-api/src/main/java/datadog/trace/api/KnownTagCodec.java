@@ -16,9 +16,10 @@ public final class KnownTagCodec {
    * unique per known tag and is the whole of the tag's identity — nameOf/openTelemetryNameOf key on
    * it, and the generator emits each id as a literal. Bits [47-32] hold the tag's dense-store slot
    * ({@link #slotOf}), assigned by graph coloring so tags on one span type never share a slot, or
-   * {@link #NO_SLOT} for a tag stored by hash. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and bit 0 is the
-   * SHARED_NAME bit. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
+   * {@link #NO_SLOT} for a tag stored by hash. Of the low 32 flag bits, bit 3 is the UNDIRECTED
+   * bit, bit 2 is the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and
+   * bit 0 is the SHARED_NAME bit; a SHARED_NAME id also holds its undirected tag's serial at
+   * [30-16]. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
    * them.
    *
    * <p>The INTERCEPTED bit marks a tag TagInterceptor may route on the set-path, to a span field or
@@ -71,6 +72,31 @@ public final class KnownTagCodec {
   /** True if the tagId is one direction of a tag whose Datadog name is shared across directions. */
   public static boolean hasSharedName(long tagId) {
     return (tagId & SHARED_NAME) != 0L;
+  }
+
+  /**
+   * UNDIRECTED bit (low-32 carve, bit 3): marks the undirected tag of a shared Datadog name -- what
+   * {@code peer.port} denotes when set by that name on a span with no direction yet, or in a
+   * direction with no tag of its own. It shares its directional tags' slot, and writing one of them
+   * supersedes it, so a map holds at most one tag per shared name.
+   */
+  public static final long UNDIRECTED = 1L << 3;
+
+  /** True if the tagId is the undirected tag of a shared Datadog name. */
+  public static boolean isUndirected(long tagId) {
+    return (tagId & UNDIRECTED) != 0L;
+  }
+
+  /** Bit position of a {@link #SHARED_NAME} id's undirected serial: bits [30-16]. */
+  static final int UNDIRECTED_SHIFT = 16;
+
+  /**
+   * The undirected tag of a {@link #SHARED_NAME} id's name: its serial is held in the id, and it
+   * shares the id's slot and interception. Arithmetic only, so a constant id folds it.
+   */
+  public static long undirectedIdOf(long sharedNameId) {
+    long serial = (sharedNameId >>> UNDIRECTED_SHIFT) & 0x7FFFL;
+    return (serial << 48) | (sharedNameId & ((0xFFFFL << SLOT_SHIFT) | INTERCEPTED)) | UNDIRECTED;
   }
 
   /** Bit position of the dense-store slot: bits [47-32] of an id. */

@@ -939,7 +939,8 @@ public class DDSpanContext
    */
   private long directionalTagId(String tag) {
     long tagId = KnownTagCodec.directionalKeyOf(tag, tagDirection());
-    return tagId > 0 ? tagId : 0L;
+    // an undirected tag is not the only one the name may find: TagMap checks each of them
+    return tagId > 0 && !KnownTagCodec.isUndirected(tagId) ? tagId : 0L;
   }
 
   /**
@@ -949,14 +950,15 @@ public class DDSpanContext
   private long directionalTagIdToStore(String tag) {
     int direction = tagDirection();
     long tagId = KnownTagCodec.directionalKeyOf(tag, direction);
-    if (tagId > 0) {
-      return tagId;
-    }
-    if (tagId == KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL
-        && direction == KnownTagCodec.DIRECTION_UNKNOWN) {
+    boolean undirected = tagId > 0 && KnownTagCodec.isUndirected(tagId);
+    // A shared name stored as its undirected tag, or a direction-scoped name stored as a custom
+    // tag, is re-keyed once the span has a direction.
+    if (direction == KnownTagCodec.DIRECTION_UNKNOWN
+        && (undirected || tagId == KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL)) {
       unresolvedDirectionalTags = true;
     }
-    return 0L;
+    // TagMap picks an undirected name's key: a direction's tag it holds, else the undirected tag.
+    return tagId > 0 && !undirected ? tagId : 0L;
   }
 
   /** Re-keys tags stored under a direction-dependent name before the span had a direction. */
@@ -969,8 +971,12 @@ public class DDSpanContext
       unresolvedDirectionalTags = false;
       List<TagMap.Entry> unresolved = new ArrayList<>(2);
       for (TagMap.EntryReader entry : unsafeTags) {
-        if (entry.tagId() == 0 && KnownTagCodec.directionalKeyOf(entry.tag(), direction) > 0) {
-          unresolved.add(entry.entry());
+        long tagId = entry.tagId();
+        if (tagId == 0 || KnownTagCodec.isUndirected(tagId)) {
+          long resolved = KnownTagCodec.directionalKeyOf(entry.tag(), direction);
+          if (resolved > 0 && !KnownTagCodec.isUndirected(resolved)) {
+            unresolved.add(entry.entry());
+          }
         }
       }
       for (TagMap.Entry entry : unresolved) {

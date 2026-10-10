@@ -110,7 +110,58 @@ class DDSpanDirectionalTagsTest extends DDCoreJavaSpecification {
 
     assertNull(storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
     assertNull(storedValue(KnownTags.PEER_PORT_INBOUND_ID));
+    assertEquals(5432, storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
     assertEquals(5432, span.getTag(Tags.PEER_PORT));
+  }
+
+  @Test
+  void aSharedNameBeforeTheSpanHasADirectionIsTheUndirectedTag() {
+    span.setTag(Tags.PEER_PORT, 5432);
+
+    assertEquals(5432, storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
+    assertEquals(5432, span.getTag(Tags.PEER_PORT));
+  }
+
+  @Test
+  void aDirectionsTagSetByIdSupersedesTheUndirectedTag() {
+    span.setTag(Tags.PEER_PORT, 8080);
+
+    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
+
+    assertNull(storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
+    assertEquals(443, storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertEquals(443, span.getTag(Tags.PEER_PORT));
+    assertEquals(1, peerPortCount());
+  }
+
+  @Test
+  void aDirectionsTagSetByIdIsFoundByNameBeforeTheSpanHasADirection() {
+    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
+
+    assertEquals(443, span.getTag(Tags.PEER_PORT));
+  }
+
+  @Test
+  void aSharedNameBeforeTheSpanHasADirectionReplacesADirectionsTagSetById() {
+    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
+
+    span.setTag(Tags.PEER_PORT, 8443);
+
+    assertEquals(8443, storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertNull(storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
+    assertEquals(1, peerPortCount());
+  }
+
+  private int peerPortCount() {
+    int[] count = {0};
+    span.getTags()
+        .forEach(
+            entry -> {
+              if (Tags.PEER_PORT.equals(entry.tag())) {
+                count[0]++;
+              }
+            });
+    return count[0];
   }
 
   private Object storedValue(long tagId) {
