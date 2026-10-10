@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
 import datadog.instrument.fieldinject.KeyWithValue;
@@ -204,7 +204,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         if (!foundField) {
           addStoreField();
         }
-        // first injector to reach here is responsible for adding the generated getter and setter
+        // first injector to reach here is responsible for adding the generated getter and putter
         // for the class - at this point all the other injectors will have recorded their requests
         final BitSet injectedStoreIds = getInjectedContextStores();
         if (null != injectedStoreIds) {

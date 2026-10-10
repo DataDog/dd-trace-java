@@ -58,8 +58,10 @@ public class AgentInstaller {
   static {
     enableByteBuddyRawTypes();
     disableByteBuddyNexus();
-    // register weak map supplier as early as possible
-    WeakMaps.registerAsSupplier();
+    if (InstrumenterConfig.get().isRuntimeContextMapPerStore()) {
+      // register weak map supplier as early as possible
+      WeakMaps.registerAsSupplier();
+    }
     circularityErrorWorkaround();
   }
 
