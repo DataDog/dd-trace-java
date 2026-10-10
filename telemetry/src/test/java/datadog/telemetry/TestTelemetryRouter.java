@@ -370,7 +370,7 @@ class TestTelemetryRouter extends TelemetryRouter {
     }
 
     PayloadAssertions products() {
-      return products(true, false, false);
+      return products(false, false, false);
     }
 
     PayloadAssertions products(boolean appsecEnabled) {

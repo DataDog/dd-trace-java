@@ -31,11 +31,11 @@ import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import datadog.trace.util.ConfigStrings;
 import java.io.IOException;
@@ -646,41 +646,43 @@ class TelemetryServiceTest {
   }
 
   @TableTest({
-    "scenario                              | appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled",
-    "all products enabled                  | 1            | true          | 1               | true             | 1              | true           ",
-    "dynamic instrumentation disabled      | 1            | true          | 1               | true             | 0              | false          ",
-    "profiling disabled                    | 1            | true          | 0               | false            | 1              | true           ",
-    "profiling and dyn instr disabled      | 1            | true          | 0               | false            | 0              | false          ",
-    "all products disabled                 | 0            | false         | 0               | false            | 0              | false          ",
-    "appsec inactive value treated enabled | inactive     | true          | 0               | false            | 0              | false          "
+    "scenario                         | appsecActive | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled",
+    "all products enabled             | true         | 1               | true             | 1              | true           ",
+    "dynamic instrumentation disabled | true         | 1               | true             | 0              | false          ",
+    "profiling disabled               | true         | 0               | false            | 1              | true           ",
+    "profiling and dyn instr disabled | true         | 0               | false            | 0              | false          ",
+    "all products disabled            | false        | 0               | false            | 0              | false          "
   })
   void appStartedMustIncludeActivatedProductsInfo(
-      String appsecConfig,
-      boolean appsecEnabled,
+      boolean appsecActive,
       String profilingConfig,
       boolean profilingEnabled,
       String dynInstrConfig,
       boolean dynInstrEnabled)
       throws IOException {
-    WithConfigExtension.injectEnvConfig(
-        ConfigStrings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig);
-    WithConfigExtension.injectEnvConfig(
-        ConfigStrings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig);
-    WithConfigExtension.injectEnvConfig(
-        ConfigStrings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig);
+    boolean previousAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
+    ActiveSubsystems.APPSEC_ACTIVE = appsecActive;
+    try {
+      WithConfigExtension.injectEnvConfig(
+          ConfigStrings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig);
+      WithConfigExtension.injectEnvConfig(
+          ConfigStrings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig);
 
-    TestTelemetryRouter testHttpClient = new TestTelemetryRouter();
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false);
+      TestTelemetryRouter testHttpClient = new TestTelemetryRouter();
+      TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false);
 
-    // first iteration
-    testHttpClient.expectRequest(SUCCESS);
-    telemetryService.sendAppStartedEvent();
+      // first iteration
+      testHttpClient.expectRequest(SUCCESS);
+      telemetryService.sendAppStartedEvent();
 
-    // app-started
-    testHttpClient
-        .assertRequestBody(APP_STARTED)
-        .assertPayload()
-        .products(appsecEnabled, profilingEnabled, dynInstrEnabled);
-    testHttpClient.assertNoMoreRequests();
+      // app-started
+      testHttpClient
+          .assertRequestBody(APP_STARTED)
+          .assertPayload()
+          .products(appsecActive, profilingEnabled, dynInstrEnabled);
+      testHttpClient.assertNoMoreRequests();
+    } finally {
+      ActiveSubsystems.APPSEC_ACTIVE = previousAppSecActive;
+    }
   }
 }
