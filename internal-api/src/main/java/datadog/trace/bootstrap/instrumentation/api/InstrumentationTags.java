@@ -37,6 +37,13 @@ public class InstrumentationTags {
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
 
+  // Complete resource identity carried by the request.
+  public static final String AWS_TOPIC_ARN = "aws.topic.arn";
+  public static final String AWS_STREAM_ARN = "aws.stream.arn";
+  public static final String AWS_STATE_MACHINE_ARN = "aws.state_machine.arn";
+  public static final String AWS_EXECUTION_ARN = "aws.execution.arn";
+  public static final String AWS_FUNCTION_NAME = "aws.function.name";
+
   // These are temporary keys used for span pointer hash calculation
   public static final String S3_ETAG = "s3.eTag";
   public static final String DYNAMO_PRIMARY_KEY_1 = "dynamodb.primary_key_1";

@@ -15,6 +15,8 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.apache.ApacheHttpClient
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
@@ -26,6 +28,9 @@ import software.amazon.awssdk.services.ec2.Ec2AsyncClient
 import software.amazon.awssdk.services.ec2.Ec2Client
 import software.amazon.awssdk.services.kinesis.KinesisClient
 import software.amazon.awssdk.services.kinesis.model.DeleteStreamRequest
+import software.amazon.awssdk.services.lambda.LambdaAsyncClient
+import software.amazon.awssdk.services.lambda.LambdaClient
+import software.amazon.awssdk.services.lambda.model.InvokeRequest
 import software.amazon.awssdk.services.rds.RdsAsyncClient
 import software.amazon.awssdk.services.rds.RdsClient
 import software.amazon.awssdk.services.rds.model.DeleteOptionGroupRequest
@@ -35,6 +40,10 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.StorageClass
+import software.amazon.awssdk.services.sfn.SfnAsyncClient
+import software.amazon.awssdk.services.sfn.SfnClient
+import software.amazon.awssdk.services.sfn.model.DescribeExecutionRequest
+import software.amazon.awssdk.services.sfn.model.StartExecutionRequest
 import software.amazon.awssdk.services.sns.SnsAsyncClient
 import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sns.model.PublishRequest
@@ -167,8 +176,15 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
+              "aws.topic.arn" "arn:aws:sns::123:some-topic"
               peerServiceFrom("aws.topic.name")
               checkPeerService = true
+            } else if (service == "Sfn" && operation == "StartExecution") {
+              "aws.state_machine.arn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
+            } else if (service == "Sfn" && operation == "DescribeExecution") {
+              "aws.execution.arn" "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"
+            } else if (service == "Lambda") {
+              "aws.function.name" "somefunction"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"
@@ -203,6 +219,9 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "DynamoDb" | "GetItem"           | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }                 | ""
     "DynamoDb" | "UpdateItem"        | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }           | ""
     "Kinesis"  | "DeleteStream"      | "POST" | "/"                   | "UNKNOWN"                              | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                                                         | ""
+    "Sfn"      | "StartExecution"    | "POST" | "/"                   | "UNKNOWN"                              | SfnClient.builder()      | { c -> c.startExecution(StartExecutionRequest.builder().stateMachineArn("arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine").build()) }                                | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","startDate":1.0E9}"""
+    "Sfn"      | "DescribeExecution" | "POST" | "/"                   | "UNKNOWN"                              | SfnClient.builder()      | { c -> c.describeExecution(DescribeExecutionRequest.builder().executionArn("arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution").build()) }         | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","stateMachineArn":"arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine","name":"someexecution","status":"SUCCEEDED","startDate":1.0E9}"""
+    "Lambda"   | "Invoke"            | "POST" | "/2015-03-31/functions/somefunction/invocations" | "UNKNOWN" | LambdaClient.builder()  | { c -> c.invoke(InvokeRequest.builder().functionName("somefunction").build()) }                                                                                 | "{}"
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                                                             | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
@@ -264,6 +283,48 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
           <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
         </DeleteOptionGroupResponse>
         """
+  }
+
+  def "SNS topic ARN comes from TopicArn for #scenario (async=#async)"() {
+    setup:
+    def eventLoopGroup = async ? SdkEventLoopGroup.builder().numberOfThreads(1).build() : null
+    def builder = async ? SnsAsyncClient.builder()
+      .httpClientBuilder(NettyNioAsyncHttpClient.builder().eventLoopGroup(eventLoopGroup)) : SnsClient.builder()
+    def client = builder
+      .endpointOverride(server.address)
+      .region(Region.US_EAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("""<PublishResponse><PublishResult><MessageId>test-message</MessageId></PublishResult></PublishResponse>""")
+    def request = PublishRequest.builder().topicArn(topicArn).targetArn(targetArn).message("test").build()
+
+    when:
+    def response = client.publish(request)
+    if (response instanceof Future) {
+      response.get()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    spans[0].getTag("aws.topic.arn") == topicArn
+    spans[0].getTag("aws.topic.name") == expectedTopicName
+
+    cleanup:
+    client.close()
+    if (eventLoopGroup != null) {
+      eventLoopGroup.eventLoopGroup().shutdownGracefully().syncUninterruptibly()
+    }
+
+    where:
+    scenario      | async | topicArn                                      | targetArn                                                   | expectedTopicName
+    "topic"       | false | "arn:aws:sns:us-east-1:123456789012:test-topic" | null                                                        | "test-topic"
+    "endpoint"    | false | null                                          | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "endpoint/APNS/app/device"
+    "both fields" | false | "arn:aws:sns:us-east-1:123456789012:test-topic" | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "test-topic"
+    "topic"       | true  | "arn:aws:sns:us-east-1:123456789012:test-topic" | null                                                        | "test-topic"
+    "endpoint"    | true  | null                                          | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "endpoint/APNS/app/device"
+    "both fields" | true  | "arn:aws:sns:us-east-1:123456789012:test-topic" | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "test-topic"
   }
 
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {
@@ -334,8 +395,15 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
               "topicname" "some-topic"
+              "aws.topic.arn" "arn:aws:sns::123:some-topic"
               peerServiceFrom("aws.topic.name")
               checkPeerService = true
+            } else if (service == "Sfn" && operation == "StartExecution") {
+              "aws.state_machine.arn" "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"
+            } else if (service == "Sfn" && operation == "DescribeExecution") {
+              "aws.execution.arn" "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"
+            } else if (service == "Lambda") {
+              "aws.function.name" "somefunction"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
               "tablename" "sometable"
@@ -370,6 +438,9 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "DynamoDb" | "UpdateItem"        | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) } | ""
     // Kinesis seems to expect an http2 response which is incompatible with our test server.
     // "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisAsyncClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                          | ""
+    "Sfn"      | "StartExecution"    | "POST" | "/"                   | "UNKNOWN"                              | SfnAsyncClient.builder()      | { c -> c.startExecution(StartExecutionRequest.builder().stateMachineArn("arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine").build()) }                                | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","startDate":1.0E9}"""
+    "Sfn"      | "DescribeExecution" | "POST" | "/"                   | "UNKNOWN"                              | SfnAsyncClient.builder()      | { c -> c.describeExecution(DescribeExecutionRequest.builder().executionArn("arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution").build()) }         | """{"executionArn":"arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution","stateMachineArn":"arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine","name":"someexecution","status":"SUCCEEDED","startDate":1.0E9}"""
+    "Lambda"   | "Invoke"            | "POST" | "/2015-03-31/functions/somefunction/invocations" | "UNKNOWN" | LambdaAsyncClient.builder()  | { c -> c.invoke(InvokeRequest.builder().functionName("somefunction").build()) }                                                                                 | "{}"
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsAsyncClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                              | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
@@ -576,6 +647,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "test-topic"
               "topicname" "test-topic"
+              "aws.topic.arn" "arn:aws:sns::123:test-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "test-table"
               "tablename" "test-table"

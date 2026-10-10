@@ -162,12 +162,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
-    // SNS
+    // SNS. TargetArn may identify a mobile platform endpoint, so only TopicArn is a topic ARN.
     Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-    if (!snsTopicArn.isPresent()) {
-      snsTopicArn = request.getValueForField("TargetArn", String.class);
-    }
-    Optional<String> snsTopicName = snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+    snsTopicArn.ifPresent(arn -> span.setTag(InstrumentationTags.AWS_TOPIC_ARN, arn));
+    Optional<String> snsTargetArn =
+        snsTopicArn.isPresent() ? snsTopicArn : request.getValueForField("TargetArn", String.class);
+    Optional<String> snsTopicName =
+        snsTargetArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
     snsTopicName.ifPresent(topic -> setTopicName(span, topic));
 
     // Kinesis
@@ -177,6 +178,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     Optional<String> kinesisStreamArn = request.getValueForField("StreamARN", String.class);
     kinesisStreamArn.ifPresent(
         streamArn -> {
+          span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
           if (traceConfig().isDataStreamsEnabled()) {
             attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
           }
@@ -188,6 +190,23 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // DynamoDB
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
+
+    // Step Functions. getValueForField matches the API model's member name verbatim, and the
+    // Step Functions model declares its members in lowerCamelCase (unlike SNS "TopicArn" or
+    // DynamoDB "TableName"), so "StateMachineArn" would never match here.
+    request
+        .getValueForField("stateMachineArn", String.class)
+        .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, arn));
+    request
+        .getValueForField("executionArn", String.class)
+        .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, arn));
+
+    // Lambda
+    if ("lambda".equalsIgnoreCase(awsServiceName)) {
+      request
+          .getValueForField("FunctionName", String.class)
+          .ifPresent(name -> span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, name));
+    }
 
     // DSM
     if (traceConfig().isDataStreamsEnabled()) {

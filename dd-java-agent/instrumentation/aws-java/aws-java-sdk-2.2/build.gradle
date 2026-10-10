@@ -43,6 +43,7 @@ dependencies {
   // Also include netty instrumentation because it is used by aws async client
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'netty-nio-client', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 's3', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'rds', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'ec2', version: '2.2.0'
@@ -50,6 +51,8 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'sfn', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'lambda', version: '2.2.0'
   testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
 
   testImplementation libs.testcontainers.localstack
@@ -82,6 +85,7 @@ dependencies {
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'netty-nio-client', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 's3', version: fixedSdkVersion
@@ -91,6 +95,8 @@ dependencies {
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sfn', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'lambda', version: fixedSdkVersion
 }
 
 tasks.withType(Test).configureEach {
