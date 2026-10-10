@@ -44,6 +44,9 @@ import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.FlagValueType;
+import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -417,11 +420,11 @@ public class DDEvaluatorTest {
 
   @Test
   public void legacyExposureApiDispatchesAnExposureWithoutSerialId() {
-    final boolean previous = DDEvaluator.USE_LEGACY_EXPOSURE_API.getAndSet(true);
+    final boolean previous = ExposureLoggingHook.USE_LEGACY_EXPOSURE_API.getAndSet(true);
     try {
       assertNull(exposureFor(7).serial_id);
     } finally {
-      DDEvaluator.USE_LEGACY_EXPOSURE_API.set(previous);
+      ExposureLoggingHook.USE_LEGACY_EXPOSURE_API.set(previous);
     }
   }
 
@@ -453,9 +456,9 @@ public class DDEvaluatorTest {
   @Test
   public void probeAcceptsTheBootstrapOnTheClasspath() {
     assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
-    assertTrue(DDEvaluator.exposureSerialIdSupported(ExposureEvent.class));
+    assertTrue(ExposureLoggingHook.exposureSerialIdSupported(ExposureEvent.class));
     assertTrue(DDEvaluator.SPLIT_SERIAL_ID_SUPPORTED.get());
-    assertFalse(DDEvaluator.USE_LEGACY_EXPOSURE_API.get());
+    assertFalse(ExposureLoggingHook.USE_LEGACY_EXPOSURE_API.get());
   }
 
   @Test
@@ -470,7 +473,7 @@ public class DDEvaluatorTest {
 
   @Test
   public void probeRejectsAnAgentWithoutTheSerialIdConstructor() {
-    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
+    assertFalse(ExposureLoggingHook.exposureSerialIdSupported(LegacyExposureEvent.class));
   }
 
   /**
@@ -481,13 +484,13 @@ public class DDEvaluatorTest {
   @Test
   public void probeKeepsSplitSupportWhenOnlyTheEventConstructorIsMissing() {
     assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
-    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
+    assertFalse(ExposureLoggingHook.exposureSerialIdSupported(LegacyExposureEvent.class));
   }
 
   /**
    * Evaluates a logging allocation whose split carries the given serial id and returns the single
    * dispatched exposure. Span enrichment is off here, as it is by default, so this also pins that
-   * the serial id does not travel via the enrichment-gated evaluation metadata.
+   * exposure metadata is independent of span enrichment.
    */
   private static ExposureEvent exposureFor(final Integer serialId) {
     final List<ExposureEvent> dispatched = new ArrayList<>();
@@ -499,8 +502,27 @@ public class DDEvaluatorTest {
       final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
       final Allocation allocation =
           new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.TRUE);
-      evaluateFlag(
-          new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)), true);
+      final ProviderEvaluation<?> result =
+          evaluateFlag(
+              new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
+              true);
+      final HookContext<Object> context =
+          HookContext.<Object>builder()
+              .flagKey("target")
+              .type(FlagValueType.INTEGER)
+              .defaultValue(0)
+              .ctx(new MutableContext("subject"))
+              .build();
+      new ExposureLoggingHook()
+          .finallyAfter(
+              context,
+              FlagEvaluationDetails.<Object>builder()
+                  .flagKey("target")
+                  .value(result.getValue())
+                  .variant(result.getVariant())
+                  .flagMetadata(result.getFlagMetadata())
+                  .build(),
+              emptyMap());
     } finally {
       FeatureFlaggingGateway.removeExposureListener(listener);
     }
