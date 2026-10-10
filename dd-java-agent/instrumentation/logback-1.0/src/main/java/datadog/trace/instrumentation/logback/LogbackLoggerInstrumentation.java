@@ -9,8 +9,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isBootstrapClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -24,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTracking
@@ -31,6 +34,11 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
 
   public LogbackLoggerInstrumentation() {
     super("logback", "logs-intake", "logs-intake-logback");
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return not(isBootstrapClassLoader());
   }
 
   @Override
@@ -60,7 +68,8 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
     // this can be moved into a always on instrumenter module if one day context tracking can be
     // deactivated by config
-    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
+    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()
+        || InstrumenterConfig.get().isAgentlessLogSubmissionEnabled()) {
       transformer.applyAdvice(
           isMethod()
               .and(isPublic())
