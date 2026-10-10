@@ -2,3 +2,8 @@
 # Use AgentSpan#setServiceName(String, CharSequence) instead to track the source of the service name
 @defaultMessage Use AgentSpan#setServiceName(String, CharSequence) instead to track the source of the service name. The source should typically be the instrumentation name.
 datadog.trace.bootstrap.instrumentation.api.AgentSpan#setServiceName(java.lang.String)
+
+# TagMap.internals() skips checks the tracer core has already made; it is @Restricted to the core
+# (see datadog.apicontract.Restricted). Instrumentation uses TagMap's checked methods.
+@defaultMessage TagMap.internals() is restricted to the tracer core; use TagMap's checked methods instead.
+datadog.trace.api.TagMap#internals()

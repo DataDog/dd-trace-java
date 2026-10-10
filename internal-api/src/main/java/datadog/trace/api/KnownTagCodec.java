@@ -15,19 +15,21 @@ public final class KnownTagCodec {
    * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
    * are RESERVED and always zero here: they are the window the dense tag store uses for its
    * co-occurrence slot coordinate, which arrives with that store. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level); bits 1-0 are reserved. Unknown (string-only)
-   * custom tags are NOT known ids — {@code keyOf} returns 0 for them.
+   * the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and bit 0 is the
+   * SHARED_NAME bit. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
+   * them.
    *
-   * <p>An id says what a tag IS, not how it is SET. Whether the tracer intercepts a tag on the
-   * set-path — routing it to a span field or a sampling directive instead of tag storage — belongs
-   * to TagInterceptor, whose {@code needsIntercept} switch is the authority; mirroring it here as a
-   * classification bit and a serial-range tier only created drift between the two. That
-   * classification returns with the work that consumes it (the id→handler dispatch table that
-   * retires TagInterceptor), and re-adding a bit then is purely additive.
+   * <p>The INTERCEPTED bit marks a tag TagInterceptor may route on the set-path, to a span field or
+   * a sampling directive instead of tag storage. It is a hint, not a decision: the interceptor's
+   * switch decides, and may still store the tag. A setter called with a constant id tests the bit
+   * at JIT time, so the interception path folds away for every tag without it.
    *
    * <p>There is deliberately NO OpenTelemetry-applicability flag: an absent otel-name means
    * pass-through (the tag is emitted under its Datadog name), so today every known tag has an
    * OpenTelemetry name and such a flag would be constant. It returns once a Datadog-only tag exists.
+   *
+   * <p>Serials are assigned at build time and are NOT stable across releases: they follow the tags'
+   * names in order, so adding a tag renumbers others. Never persist or transmit a raw id.
    */
   public static int serialNum(long tagId) {
     return (int) (tagId >>> 48);
@@ -44,6 +46,38 @@ public final class KnownTagCodec {
   /** True if the tagId names a trace-level tag. */
   public static boolean isTraceLevel(long tagId) {
     return (tagId & LEVEL_TRACE) != 0L;
+  }
+
+  /**
+   * INTERCEPTED bit (low-32 carve, bit 1): marks a tag TagInterceptor may route on the set-path.
+   * The tracer overlay, {@code tag-conventions-java.yaml}, lists these tags.
+   */
+  public static final long INTERCEPTED = 1L << 1;
+
+  /** True if the tagId names a tag TagInterceptor may route on the set-path. */
+  public static boolean isIntercepted(long tagId) {
+    return (tagId & INTERCEPTED) != 0L;
+  }
+
+  /**
+   * SHARED_NAME bit (low-32 carve, bit 0): marks one direction of a tag declared once per direction
+   * under a shared Datadog name, such as {@code peer.port}. {@link #keyOf} resolves that name to
+   * neither id, so the name alone cannot find an entry stored under one of them.
+   */
+  public static final long SHARED_NAME = 1L << 0;
+
+  /** True if the tagId is one direction of a tag whose Datadog name is shared across directions. */
+  public static boolean hasSharedName(long tagId) {
+    return (tagId & SHARED_NAME) != 0L;
+  }
+
+  /**
+   * True if {@code tagId} can key a {@link TagMap} entry: a known tag whose name resolves back to
+   * it. A {@link #hasSharedName shared-name} id cannot, until name resolution knows the span's
+   * direction. Like {@link #isKnown}, this folds away for a constant id.
+   */
+  public static boolean isKeyableById(long tagId) {
+    return isKnown(tagId) && !hasSharedName(tagId);
   }
 
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
@@ -114,6 +148,23 @@ public final class KnownTagCodec {
     Resolver resolver = Installed.RESOLVER;
     String otelName = resolver.openTelemetryNameOf(tagId);
     return otelName != null ? otelName : resolver.nameOf(tagId);
+  }
+
+  /**
+   * One past the largest known serial: an array of this length, indexed by {@link #serialNum}, has
+   * a slot for every known tag (slot 0 is no tag).
+   */
+  public static int serialLimit() {
+    return KnownTags.SERIAL_LIMIT;
+  }
+
+  /**
+   * True if {@code tagId} names a known tag. Gives the same answer as {@code nameOf(tagId) !=
+   * null}, but as a range check on the serial, which folds away for a constant id.
+   */
+  public static boolean isKnown(long tagId) {
+    int serial = serialNum(tagId);
+    return serial != 0 && serial < serialLimit(); // serial 0 is no tag
   }
 
   /** The id for {@code name} in any namespace, or 0 when it is not a known tag. */

@@ -8,17 +8,20 @@ import java.util.Locale
 
 /** Emits the Java tag registry and reports in a deterministic order. */
 object TagRegistryGenerator {
-  /** Parses the conventions YAML and writes the full generated tree under [outDir]. */
-  fun generate(tagConventionsFile: File, outDir: File) {
+  /**
+   * Parses the conventions YAML, plus the tracer overlay when there is one, and writes the full
+   * generated tree under [outDir].
+   */
+  fun generate(tagConventionsFile: File, outDir: File, tracerOverlayFile: File? = null) {
     val mapper = ObjectMapper(YAMLFactory())
-    val domain: Map<String, Any?> =
-      tagConventionsFile.inputStream().use {
-        mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {})
-      }
+    fun read(file: File): Map<String, Any?> =
+      file.inputStream().use { mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {}) } ?: emptyMap()
+    val domain = read(tagConventionsFile)
+    val overlay = tracerOverlayFile?.let(::read) ?: emptyMap()
 
     // Validate before touching the destination tree: an invalid domain model must fail loudly,
     // not after the previous (valid) generated output has already been wiped out.
-    val conv = TagConventions.parse(domain)
+    val conv = TagConventions.parse(domain, overlay)
     val reg = TagRegistry.build(conv)
 
     // Remove obsolete generated files when the output changes.
@@ -68,18 +71,19 @@ object TagRegistryGenerator {
       """
       # Tag id assignment.  tags=${reg.tags.size}
 
-      # TAGS     serial lvl id                 required     name
+      # TAGS     serial lvl int id                 required     name
       """.trimIndent()
     )
-    for ((name, _, required, serial, traceLevel, id) in reg.tags) {
+    for (t in reg.tags) {
       appendLine(
-        "  %6d   %s  %-18s %-12s %s".format(
+        "  %6d   %s   %s   %-18s %-12s %s".format(
           Locale.ROOT,
-          serial,
-          if (traceLevel) "T" else "-",
-          "0x%016X".format(Locale.ROOT, id),
-          required,
-          name
+          t.serial,
+          if (t.traceLevel) "T" else "-",
+          if (t.intercepted) "I" else "-",
+          "0x%016X".format(Locale.ROOT, t.id),
+          t.required,
+          t.name
         )
       )
     }
