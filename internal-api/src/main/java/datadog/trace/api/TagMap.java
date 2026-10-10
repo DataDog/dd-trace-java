@@ -1705,7 +1705,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     /*
      * Sets a known tag by id without validating it, unlike TagMap.set(long, ...): the caller has
-     * already checked KnownTagCodec.isKeyableById(tagId).
+     * already checked KnownTagCodec.isKnown(tagId).
      */
     public void setKnown(long tagId, @Nonnull Object value) {
       this.map.putEntry(new Entry(tagId, null, Entry.ANY, 0L, value));
