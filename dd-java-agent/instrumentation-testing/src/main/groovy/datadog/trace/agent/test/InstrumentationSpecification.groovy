@@ -566,7 +566,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
         throw scopeDiagnosticsFailure
       }
     } finally {
-      TestcontainersImageLogging.clearTestName()
+      // The image logging helper requires Logback, which some test suites intentionally exclude.
+      if (LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).class.name == "ch.qos.logback.classic.Logger") {
+        TestcontainersImageLogging.clearTestName()
+      }
       if (scopeDiagnosticsSuiteEnabled()) {
         ScopeDiagnostics.startRecording()
       }
