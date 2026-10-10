@@ -120,6 +120,22 @@ public abstract class CiVisibilityTestUtils {
       List<? extends Map<?, ?>> coverages,
       Collection<String> additionalDynamicPaths,
       List<String> ignoredTags) {
+    generateTemplates(
+        baseTemplatesPath,
+        events,
+        coverages,
+        additionalDynamicPaths,
+        ignoredTags,
+        Collections.emptyList());
+  }
+
+  public static void generateTemplates(
+      String baseTemplatesPath,
+      List<? extends Map<?, ?>> events,
+      List<? extends Map<?, ?>> coverages,
+      Collection<String> additionalDynamicPaths,
+      List<String> ignoredTags,
+      Collection<String> additionalNonUniqueDynamicPaths) {
     List<Map<?, ?>> mutableEvents = new ArrayList<>(events);
     if (!ignoredTags.isEmpty()) {
       mutableEvents = removeTags(mutableEvents, ignoredTags);
@@ -128,6 +144,7 @@ public abstract class CiVisibilityTestUtils {
 
     TemplateGenerator templateGenerator = new TemplateGenerator(new LabelGenerator());
     List<DynamicPath> compiledAdditionalReplacements = compile(additionalDynamicPaths);
+    compiledAdditionalReplacements.addAll(compileNonUnique(additionalNonUniqueDynamicPaths));
 
     try {
       Files.createDirectories(Paths.get(baseTemplatesPath));
@@ -219,6 +236,24 @@ public abstract class CiVisibilityTestUtils {
       Map<String, ?> additionalReplacements,
       List<String> ignoredTags,
       List<String> additionalDynamicPaths) {
+    return assertData(
+        baseTemplatesPath,
+        events,
+        coverages,
+        additionalReplacements,
+        ignoredTags,
+        additionalDynamicPaths,
+        Collections.emptyList());
+  }
+
+  public static Map<String, String> assertData(
+      String baseTemplatesPath,
+      List<? extends Map<?, ?>> events,
+      List<? extends Map<?, ?>> coverages,
+      Map<String, ?> additionalReplacements,
+      List<String> ignoredTags,
+      List<String> additionalDynamicPaths,
+      List<String> additionalNonUniqueDynamicPaths) {
     List<Map<?, ?>> mutableEvents = new ArrayList<>(events);
     mutableEvents.sort(EVENT_RESOURCE_COMPARATOR);
 
@@ -227,6 +262,7 @@ public abstract class CiVisibilityTestUtils {
 
     List<DynamicPath> eventPaths = new ArrayList<>(EVENT_DYNAMIC_PATHS);
     eventPaths.addAll(compile(additionalDynamicPaths));
+    eventPaths.addAll(compileNonUnique(additionalNonUniqueDynamicPaths));
     templateGenerator.generateReplacementMap(mutableEvents, eventPaths);
     Map<String, String> replacementMap =
         templateGenerator.generateReplacementMap(coverages, COVERAGE_DYNAMIC_PATHS);
@@ -508,6 +544,14 @@ public abstract class CiVisibilityTestUtils {
     List<DynamicPath> compiledPaths = new ArrayList<>();
     for (String rawPath : rawPaths) {
       compiledPaths.add(path(rawPath));
+    }
+    return compiledPaths;
+  }
+
+  private static List<DynamicPath> compileNonUnique(Iterable<String> rawPaths) {
+    List<DynamicPath> compiledPaths = new ArrayList<>();
+    for (String rawPath : rawPaths) {
+      compiledPaths.add(path(rawPath, false));
     }
     return compiledPaths;
   }
