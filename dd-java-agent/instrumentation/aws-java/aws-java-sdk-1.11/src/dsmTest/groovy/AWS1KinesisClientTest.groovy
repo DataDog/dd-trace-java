@@ -149,6 +149,7 @@ abstract class AWS1KinesisClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.stream.name" streamName
             "streamname" streamName
+            "aws.stream.arn" streamArn
             "$DDTags.PATHWAY_HASH" { String }
             peerServiceFrom("aws.stream.name")
             defaultTags()
