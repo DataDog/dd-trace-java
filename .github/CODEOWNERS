@@ -12,8 +12,8 @@
 /README.md                 @DataDog/apm-java
 /SECURITY.md               @DataDog/apm-java
 /SUPPORT.md                @DataDog/apm-java
-/tag-conventions.yaml      @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
-/tag-conventions-java.yaml @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+/tag-conventions.yaml      @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
+/tag-conventions-java.yaml @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
 /dd-smoke-tests/README.md  @DataDog/apm-java
 /docs/                     @DataDog/apm-java
 
@@ -102,11 +102,11 @@
 /internal-api/src/test/resources/                      @DataDog/apm-java
 
 # Shared trace protocol
-/utils/test-agent-utils/                                                     @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
-/dd-trace-api/src/**/*ProtocolVersion*                                       @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/**/*TraceMapper*                                          @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/**/datadog/trace/common/writer/ddagent/PayloadVerifiers*  @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/**/datadog/trace/common/writer/ddagent/V1PayloadReader*   @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+/utils/test-agent-utils/                                                     @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
+/dd-trace-api/src/**/*ProtocolVersion*                                       @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/**/*TraceMapper*                                          @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/**/datadog/trace/common/writer/ddagent/PayloadVerifiers*  @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/**/datadog/trace/common/writer/ddagent/V1PayloadReader*   @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
 
 # @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/                      @DataDog/apm-idm-java
@@ -134,41 +134,41 @@
 /.gitlab/        @DataDog/apm-release-platform @DataDog/apm-lang-platform-java
 /.gitlab-ci.yml  @DataDog/apm-release-platform @DataDog/apm-lang-platform-java
 
-# @DataDog/apm-sdk-capabilities-java
-/dd-java-agent/agent-otel                                               @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/custom-systemloader/                                    @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/dynamic-config/                                         @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/java9-modules/                                          @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/log-injection                                           @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/opentelemetry                                           @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/opentracing                                             @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/sample-trace                                            @DataDog/apm-sdk-capabilities-java
-/dd-smoke-tests/tracer-flare                                            @DataDog/apm-sdk-capabilities-java
-/dd-trace-api/src/*/*/datadog/trace/context/                            @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/datadog/trace/common/writer/Otlp*                @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/datadog/trace/common/writer/SpanSamplingWorker*  @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/datadog/trace/common/sampling/                   @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/datadog/trace/core/baggage                       @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/datadog/trace/core/otlp/                         @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/datadog/trace/core/propagation                   @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/datadog/trace/core/scopemanager                  @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/*/*/opentelemetry/proto/                             @DataDog/apm-sdk-capabilities-java
-/dd-trace-ot/                                                           @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/api/flare/                          @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/api/metrics/BaggageMetrics*         @DataDog/apm-sdk-capabilities-java
-/dd-trace-api/src/*/*/datadog/trace/api/PropagationStyle*               @DataDog/apm-sdk-capabilities-java
-/dd-trace-api/src/*/*/datadog/trace/api/TracePropagation*               @DataDog/apm-sdk-capabilities-java
-/dd-trace-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/bootstrap                           @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/api/propagation/                    @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/api/scopemanager/                   @DataDog/apm-sdk-capabilities-java
-/products/metrics/                                                      @DataDog/apm-sdk-capabilities-java
-/dd-trace-api/**/config/OtlpConfig*                                     @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/api/telemetry/Otel*                 @DataDog/apm-sdk-capabilities-java
-/internal-api/src/*/*/datadog/trace/api/telemetry/Otlp*                 @DataDog/apm-sdk-capabilities-java
-/utils/config-utils/                                                    @DataDog/apm-sdk-capabilities-java
-/utils/flare-utils/                                                     @DataDog/apm-sdk-capabilities-java
+# @DataDog/apm-sdk-capabilities
+/dd-java-agent/agent-otel                                               @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/custom-systemloader/                                    @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/dynamic-config/                                         @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/java9-modules/                                          @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/log-injection                                           @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/opentelemetry                                           @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/opentracing                                             @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/sample-trace                                            @DataDog/apm-sdk-capabilities
+/dd-smoke-tests/tracer-flare                                            @DataDog/apm-sdk-capabilities
+/dd-trace-api/src/*/*/datadog/trace/context/                            @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/datadog/trace/common/writer/Otlp*                @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/datadog/trace/common/writer/SpanSamplingWorker*  @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/datadog/trace/common/sampling/                   @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/datadog/trace/core/baggage                       @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/datadog/trace/core/otlp/                         @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/datadog/trace/core/propagation                   @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/datadog/trace/core/scopemanager                  @DataDog/apm-sdk-capabilities
+/dd-trace-core/src/*/*/opentelemetry/proto/                             @DataDog/apm-sdk-capabilities
+/dd-trace-ot/                                                           @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/api/flare/                          @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/api/metrics/BaggageMetrics*         @DataDog/apm-sdk-capabilities
+/dd-trace-api/src/*/*/datadog/trace/api/PropagationStyle*               @DataDog/apm-sdk-capabilities
+/dd-trace-api/src/*/*/datadog/trace/api/TracePropagation*               @DataDog/apm-sdk-capabilities
+/dd-trace-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/bootstrap                           @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/api/propagation/                    @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/api/scopemanager/                   @DataDog/apm-sdk-capabilities
+/products/metrics/                                                      @DataDog/apm-sdk-capabilities
+/dd-trace-api/**/config/OtlpConfig*                                     @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/api/telemetry/Otel*                 @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/api/telemetry/Otlp*                 @DataDog/apm-sdk-capabilities
+/utils/config-utils/                                                    @DataDog/apm-sdk-capabilities
+/utils/flare-utils/                                                     @DataDog/apm-sdk-capabilities
 
 # @DataDog/apm-serverless
 /dd-trace-core/src/*/*/datadog/trace/lambda/                          @DataDog/apm-serverless

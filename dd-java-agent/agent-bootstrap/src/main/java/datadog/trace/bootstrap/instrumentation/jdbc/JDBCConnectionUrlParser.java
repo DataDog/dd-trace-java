@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
+import static datadog.trace.util.IntStringUtils.ALLOW_LEADING_PLUS;
+import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
 import static java.lang.Math.max;
 
 import datadog.trace.api.Pair;
@@ -140,7 +142,7 @@ public enum JDBCConnectionUrlParser {
       final int portLoc = serverName.indexOf(':');
 
       if (portLoc > 1) {
-        port = Integer.parseInt(serverName.substring(portLoc + 1));
+        port = parsePort(serverName, portLoc + 1, serverName.length());
         serverName = serverName.substring(0, portLoc);
       }
 
@@ -221,10 +223,7 @@ public enum JDBCConnectionUrlParser {
 
       if (portLoc > 0) {
         hostEndLoc = portLoc;
-        try {
-          builder.port(Integer.parseInt(jdbcUrl.substring(portLoc + 1, dbLoc)));
-        } catch (final NumberFormatException ignored) {
-        }
+        setPort(builder, parsePort(jdbcUrl, portLoc + 1, dbLoc));
       } else {
         hostEndLoc = dbLoc;
       }
@@ -268,10 +267,7 @@ public enum JDBCConnectionUrlParser {
       if (portLoc > 0) {
         hostEndLoc = portLoc;
         final int portEndLoc = clusterSepLoc > 0 ? clusterSepLoc : dbLoc;
-        try {
-          builder.port(Integer.parseInt(jdbcUrl.substring(portLoc + 1, portEndLoc)));
-        } catch (final NumberFormatException ignored) {
-        }
+        setPort(builder, parsePort(jdbcUrl, portLoc + 1, portEndLoc));
       } else {
         hostEndLoc = clusterSepLoc > 0 ? clusterSepLoc : dbLoc;
       }
@@ -303,7 +299,7 @@ public enum JDBCConnectionUrlParser {
 
       final Matcher portMatcher = PORT_REGEX.matcher(jdbcUrl);
       if (portMatcher.find()) {
-        builder.port(Integer.parseInt(portMatcher.group(1)));
+        setPort(builder, parsePort(portMatcher.group(1)));
       }
 
       final Matcher userMatcher = USER_REGEX.matcher(jdbcUrl);
@@ -390,62 +386,8 @@ public enum JDBCConnectionUrlParser {
 
   ORACLE_CONNECT_INFO() {
     @Override
-    DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
-
-      final String host;
-      final Integer port;
-      final String instance;
-
-      final int hostEnd = jdbcUrl.indexOf(':');
-      final int instanceLoc = jdbcUrl.indexOf('/');
-      if (hostEnd > 0) {
-        host = jdbcUrl.substring(0, hostEnd);
-        final int afterHostEnd = jdbcUrl.indexOf(':', hostEnd + 1);
-        if (afterHostEnd > 0) {
-          port = Integer.parseInt(jdbcUrl.substring(hostEnd + 1, afterHostEnd));
-          instance = jdbcUrl.substring(afterHostEnd + 1);
-        } else {
-          if (instanceLoc > 0) {
-            instance = jdbcUrl.substring(instanceLoc + 1);
-            port = Integer.parseInt(jdbcUrl.substring(hostEnd + 1, instanceLoc));
-          } else {
-            final String portOrInstance = jdbcUrl.substring(hostEnd + 1);
-            Integer parsedPort = null;
-            try {
-              parsedPort = Integer.parseInt(portOrInstance);
-            } catch (final NumberFormatException ignored) {
-            }
-            if (parsedPort == null) {
-              port = null;
-              instance = portOrInstance;
-            } else {
-              port = parsedPort;
-              instance = null;
-            }
-          }
-        }
-      } else {
-        if (instanceLoc > 0) {
-          host = jdbcUrl.substring(0, instanceLoc);
-          port = null;
-          instance = jdbcUrl.substring(instanceLoc + 1);
-        } else {
-          if (jdbcUrl.isEmpty()) {
-            return builder;
-          } else {
-            host = null;
-            port = null;
-            instance = jdbcUrl;
-          }
-        }
-      }
-      if (host != null) {
-        builder.host(host);
-      }
-      if (port != null) {
-        builder.port(port);
-      }
-      return builder.instance(instance);
+    DBInfo.Builder doParse(final String connectInfo, final DBInfo.Builder builder) {
+      return parseOracleConnectInfo(connectInfo, builder, true);
     }
   },
 
@@ -469,17 +411,21 @@ public enum JDBCConnectionUrlParser {
       }
 
       final int hostStart;
+      final int protocolEnd = connectInfo.indexOf("://");
+      // an LDAP name is not EZConnect: it can contain '/', ':' and '?' that are not suffixes
+      final boolean ldap = connectInfo.startsWith("ldap://") || connectInfo.startsWith("ldaps://");
       if (connectInfo.startsWith("//")) {
         hostStart = "//".length();
-      } else if (connectInfo.startsWith("ldap://")) {
-        hostStart = "ldap://".length();
+      } else if (protocolEnd > 0 && protocolEnd == connectInfo.indexOf(':')) {
+        // protocol prefix, e.g. ldap://, tcp://, tcps://
+        hostStart = protocolEnd + "://".length();
       } else {
         hostStart = 0;
       }
       if (user != null) {
         builder.user(user);
       }
-      return ORACLE_CONNECT_INFO.doParse(connectInfo.substring(hostStart), builder);
+      return parseOracleConnectInfo(connectInfo.substring(hostStart), builder, !ldap);
     }
   },
 
@@ -511,7 +457,7 @@ public enum JDBCConnectionUrlParser {
 
       final Matcher portMatcher = PORT_REGEX.matcher(urlPart2);
       if (portMatcher.find()) {
-        builder.port(Integer.parseInt(portMatcher.group(1)));
+        setPort(builder, parsePort(portMatcher.group(1)));
       }
 
       final Matcher instanceMatcher = INSTANCE_REGEX.matcher(urlPart2);
@@ -697,7 +643,7 @@ public enum JDBCConnectionUrlParser {
         final int portLoc = url.indexOf(':');
         if (portLoc > 0) {
           host = url.substring(0, portLoc);
-          builder.port(Integer.parseInt(url.substring(portLoc + 1)));
+          setPort(builder, parsePort(url, portLoc + 1, url.length()));
         } else {
           host = url;
         }
@@ -726,6 +672,10 @@ public enum JDBCConnectionUrlParser {
 
       final int protoLoc = jdbcUrl.indexOf("://");
       final int typeEndLoc = dbInfo.getType().length();
+      if (protoLoc <= typeEndLoc) {
+        // no "jtds:<subtype>://" prefix to parse
+        return builder;
+      }
       final String subtype = jdbcUrl.substring(typeEndLoc + 1, protoLoc);
 
       builder.subtype(subtype);
@@ -740,40 +690,37 @@ public enum JDBCConnectionUrlParser {
         }
       }
 
+      // <server>[:<port>][/<database>][;<property>=<value>[;...]]
       final String details = jdbcUrl.substring(protoLoc + "://".length());
 
-      final int hostEndLoc;
-      final int portLoc = details.indexOf(':', typeEndLoc + 1);
-      final int dbLoc = details.indexOf('/', typeEndLoc);
-      final int paramLoc = details.indexOf(';', dbLoc);
-
-      if (paramLoc > 0) {
+      final int paramLoc = details.indexOf(';');
+      final String address;
+      if (paramLoc >= 0) {
         populateStandardProperties(builder, splitQuery(details.substring(paramLoc + 1), ';'));
-        if (dbLoc > 0) {
-          builder.db(details.substring(dbLoc + 1, paramLoc));
-        }
+        address = details.substring(0, paramLoc);
       } else {
-        if (dbLoc > 0) {
-          builder.db(details.substring(dbLoc + 1));
-        }
+        address = details;
       }
 
-      if (portLoc > 0) {
-        hostEndLoc = portLoc;
-        final int portEndLoc = dbLoc > 0 ? dbLoc : (paramLoc > 0 ? paramLoc : details.length());
-        try {
-          builder.port(Integer.parseInt(details.substring(portLoc + 1, portEndLoc)));
-        } catch (final NumberFormatException ignored) {
-        }
-      } else if (dbLoc > 0) {
-        hostEndLoc = dbLoc;
-      } else if (paramLoc > 0) {
-        hostEndLoc = paramLoc;
+      final int dbLoc = address.indexOf('/');
+      final String hostAndPort;
+      if (dbLoc >= 0) {
+        builder.db(address.substring(dbLoc + 1));
+        hostAndPort = address.substring(0, dbLoc);
       } else {
-        hostEndLoc = details.length();
+        hostAndPort = address;
       }
 
-      builder.host(details.substring(0, hostEndLoc));
+      // skip a bracketed IPv6 literal so its colons are not taken as the port separator
+      final int hostSearchStart =
+          hostAndPort.startsWith("[") ? Math.max(hostAndPort.indexOf(']'), 0) : 0;
+      final int portLoc = hostAndPort.indexOf(':', hostSearchStart);
+      if (portLoc >= 0) {
+        setPort(builder, parsePort(hostAndPort, portLoc + 1, hostAndPort.length()));
+        builder.host(hostAndPort.substring(0, portLoc));
+      } else {
+        builder.host(hostAndPort);
+      }
 
       return builder;
     }
@@ -898,6 +845,124 @@ public enum JDBCConnectionUrlParser {
     }
   }
 
+  /**
+   * Parses an Oracle connect string after any {@code @} and protocol prefix.
+   *
+   * @param ezConnect whether the service may carry EZConnect suffixes to drop
+   */
+  private static DBInfo.Builder parseOracleConnectInfo(
+      final String connectInfo, final DBInfo.Builder builder, final boolean ezConnect) {
+
+    final String host;
+    final Integer port;
+    final String instance;
+
+    // EZConnect Plus parameters (?key=value) are not part of the address
+    final int queryLoc = ezConnect ? connectInfo.indexOf('?') : -1;
+    final String jdbcUrl = queryLoc >= 0 ? connectInfo.substring(0, queryLoc) : connectInfo;
+
+    // skip a bracketed IPv6 literal so its colons are not taken as the port separator
+    final int hostSearchStart = jdbcUrl.startsWith("[") ? Math.max(jdbcUrl.indexOf(']'), 0) : 0;
+    final int instanceLoc = jdbcUrl.indexOf('/', hostSearchStart);
+    final int colonLoc = jdbcUrl.indexOf(':', hostSearchStart);
+    // a ':' after the service name separates the server type, not the port
+    final int hostEnd = instanceLoc >= 0 && colonLoc > instanceLoc ? -1 : colonLoc;
+    if (hostEnd > 0) {
+      host = jdbcUrl.substring(0, hostEnd);
+      final int afterHostEnd = jdbcUrl.indexOf(':', hostEnd + 1);
+      if (afterHostEnd > 0 && (instanceLoc < 0 || afterHostEnd < instanceLoc)) {
+        // host:port:sid
+        port = parsePort(jdbcUrl, hostEnd + 1, afterHostEnd);
+        instance = jdbcUrl.substring(afterHostEnd + 1);
+      } else {
+        if (instanceLoc > 0) {
+          // host:port/service[:server_type][/instance_name]
+          instance = serviceName(jdbcUrl.substring(instanceLoc + 1), ezConnect);
+          port = parsePort(jdbcUrl, hostEnd + 1, instanceLoc);
+        } else {
+          final String portOrInstance = jdbcUrl.substring(hostEnd + 1);
+          final Integer parsedPort = parsePort(portOrInstance);
+          if (parsedPort == null) {
+            port = null;
+            instance = portOrInstance;
+          } else {
+            port = parsedPort;
+            instance = null;
+          }
+        }
+      }
+    } else {
+      if (instanceLoc > 0) {
+        host = jdbcUrl.substring(0, instanceLoc);
+        port = null;
+        instance = serviceName(jdbcUrl.substring(instanceLoc + 1), ezConnect);
+      } else {
+        if (jdbcUrl.isEmpty()) {
+          return builder;
+        } else {
+          host = null;
+          port = null;
+          instance = jdbcUrl;
+        }
+      }
+    }
+    if (host != null) {
+      builder.host(host);
+    }
+    if (port != null) {
+      builder.port(port);
+    }
+    return builder.instance(instance);
+  }
+
+  /**
+   * Drops the optional {@code :server_type} and {@code /instance_name} EZConnect suffixes. Other
+   * forms, such as an LDAP distinguished name, can contain {@code :} and {@code /}, so they are
+   * kept whole.
+   */
+  private static String serviceName(final String service, final boolean ezConnect) {
+    if (!ezConnect) {
+      return service;
+    }
+    int end = service.length();
+    final int serverTypeLoc = service.indexOf(':');
+    if (serverTypeLoc >= 0) {
+      end = serverTypeLoc;
+    }
+    final int instanceNameLoc = service.indexOf('/');
+    if (instanceNameLoc >= 0 && instanceNameLoc < end) {
+      end = instanceNameLoc;
+    }
+    return service.substring(0, end);
+  }
+
+  /**
+   * A leading {@code '+'} is not legal in a port by spec (RFC 3986's {@code port = *DIGIT}), but it
+   * was accepted here through {@link Integer#parseInt}, and drivers that parse ports the same way
+   * connect to {@code +1444} as port 1444. Accepting it keeps the tagged port accurate.
+   *
+   * @return the port, or {@code null} if {@code s[start, end)} is not a valid port number
+   */
+  private static Integer parsePort(final CharSequence s, final int start, final int end) {
+    final int port = parseNonNegativeInt(s, start, end - start, ALLOW_LEADING_PLUS);
+    return port >= 0 ? port : null;
+  }
+
+  /**
+   * @return the port, or {@code null} if {@code s} is null or not a valid port number
+   */
+  private static Integer parsePort(final String s) {
+    final int port = parseNonNegativeInt(s, ALLOW_LEADING_PLUS);
+    return port >= 0 ? port : null;
+  }
+
+  /** Sets the port only when one was parsed, keeping any default already on the builder. */
+  private static void setPort(final DBInfo.Builder builder, final Integer port) {
+    if (port != null) {
+      builder.port(port);
+    }
+  }
+
   // Source: https://stackoverflow.com/a/13592567
   @SuppressForbidden
   private static Map<String, String> splitQuery(final String query, final char separator) {
@@ -956,12 +1021,7 @@ public enum JDBCConnectionUrlParser {
       }
 
       if (props.containsKey("portnumber")) {
-        final String portNumber = (String) props.get("portnumber");
-        try {
-          builder.port(Integer.parseInt(portNumber));
-        } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: {}", portNumber, e);
-        }
+        setPort(builder, parsePort((String) props.get("portnumber")));
       }
       if (props.containsKey("servicename")) {
         // this property is used to specify the db to use for Sybase connection strings
@@ -969,12 +1029,7 @@ public enum JDBCConnectionUrlParser {
       }
 
       if (props.containsKey("portNumber")) {
-        final String portNumber = (String) props.get("portNumber");
-        try {
-          builder.port(Integer.parseInt(portNumber));
-        } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: {}", portNumber, e);
-        }
+        setPort(builder, parsePort((String) props.get("portNumber")));
       }
     }
   }

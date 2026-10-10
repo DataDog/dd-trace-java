@@ -6,6 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -300,10 +303,124 @@ class ClassLatchTest {
     assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(name), String.class, "getClientInfo"));
     assertFalse(
         ClassLatch.isNamedIn(new AbstractMethodError(name + "."), String.class, "getClientInfo"));
+    // no message: String has no abstract getClientInfo, so the error is not attributed to it
     assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(), String.class, "getClientInfo"));
     assertFalse(
         ClassLatch.isNamedIn(
             new AbstractMethodError("something else"), String.class, "getClientInfo"));
+  }
+
+  /** Stands in for a class that never implemented an interface method it declares. */
+  abstract static class Unimplemented {
+    public abstract String m();
+
+    public String implemented() {
+      return "ok";
+    }
+  }
+
+  /** Stands in for a wrapper that implements the method by delegating it. */
+  static class Delegating extends Unimplemented {
+    @Override
+    public String m() {
+      return "delegated";
+    }
+  }
+
+  @Test
+  void attributesAnErrorWithoutAMessageByTheClassItself() {
+    // JDK 8 gives no message once the call site has seen a class that implements the method
+    AbstractMethodError noMessage = new AbstractMethodError();
+    assertTrue(ClassLatch.isNamedIn(noMessage, Unimplemented.class, "m"));
+    // the class implements this method, so an error from it must come from elsewhere
+    assertFalse(ClassLatch.isNamedIn(noMessage, Unimplemented.class, "implemented"));
+    // a delegating wrapper is not blamed for its delegate's error
+    assertFalse(ClassLatch.isNamedIn(noMessage, Delegating.class, "m"));
+    assertFalse(ClassLatch.isNamedIn(noMessage, Unimplemented.class, "missing"));
+  }
+
+  /** Stands in for a type that is missing from the class path at run time. */
+  public static class Missing {}
+
+  /** A class with a public signature that references {@link Missing}. */
+  public static class ReferencesMissing {
+    public Missing m() {
+      return null;
+    }
+  }
+
+  @Test
+  void anUnresolvableSignatureMeansCannotTellNotAnEscapingError() throws Exception {
+    Class<?> type = withoutMissing().loadClass(ReferencesMissing.class.getName());
+    // getMethods() resolves every public signature, so the missing return type fails it
+    assertThrows(NoClassDefFoundError.class, type::getMethods);
+
+    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(), type, "m"));
+    // the answer is cached, so a second failure neither rescans nor throws
+    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(), type, "m"));
+  }
+
+  /** Defines {@link ReferencesMissing} itself, and refuses to load {@link Missing}. */
+  private static ClassLoader withoutMissing() {
+    return new ClassLoader(ClassLatchTest.class.getClassLoader()) {
+      @Override
+      protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        if (name.equals(Missing.class.getName())) {
+          throw new ClassNotFoundException(name);
+        }
+        if (!name.equals(ReferencesMissing.class.getName())) {
+          return super.loadClass(name, resolve);
+        }
+        synchronized (getClassLoadingLock(name)) {
+          Class<?> loaded = findLoadedClass(name);
+          if (loaded == null) {
+            byte[] bytes = classBytes(name);
+            loaded = defineClass(name, bytes, 0, bytes.length);
+          }
+          return loaded;
+        }
+      }
+    };
+  }
+
+  private static byte[] classBytes(String name) throws ClassNotFoundException {
+    try (InputStream in =
+        ClassLatchTest.class
+            .getClassLoader()
+            .getResourceAsStream(name.replace('.', '/') + ".class")) {
+      if (in == null) {
+        throw new ClassNotFoundException(name);
+      }
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      byte[] buffer = new byte[4096];
+      for (int read; (read = in.read(buffer)) != -1; ) {
+        out.write(buffer, 0, read);
+      }
+      return out.toByteArray();
+    } catch (IOException e) {
+      throw new ClassNotFoundException(name, e);
+    }
+  }
+
+  @Test
+  void latchIfNamedLatchesOnAnErrorWithoutAMessage() {
+    final boolean[] result = new boolean[1];
+    ClassLatch<Object, String, RuntimeException> latch =
+        new ClassLatch<Object, String, RuntimeException>() {
+          @Override
+          protected Class<?> keyOf(Object target) {
+            return Unimplemented.class;
+          }
+
+          @Override
+          protected String apply(Object target) {
+            result[0] = latchIfNamed(target, "m", new AbstractMethodError());
+            return "unnamed";
+          }
+        };
+    latch.tryApply("x");
+    assertTrue(result[0]);
+    assertTrue(latch.isLatched("x"));
   }
 
   @Test

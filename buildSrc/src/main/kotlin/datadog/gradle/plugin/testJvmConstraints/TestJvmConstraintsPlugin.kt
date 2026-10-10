@@ -63,7 +63,7 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     project.pluginManager.withPlugin("org.gradle.jacoco") {
       project.tasks.withType<Test>().configureEach {
         configureJacocoForAdditionalTestJvm(
-          testJvmSpec.javaTestLauncher.isPresent,
+          testJvmSpec.javaTestLauncherOverride.isPresent,
           project.rootProject.providers.gradleProperty("checkCoverage").isPresent
         )
       }
@@ -78,13 +78,19 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     testJvmSpec: TestJvmSpec,
     extension: TestJvmConstraintsExtension
   ) {
-    if (testJvmSpec.javaTestLauncher.isPresent) {
-      javaLauncher.set(testJvmSpec.javaTestLauncher)
+    // If `testJvm` is present
+    if (testJvmSpec.requestedTestJvmLauncher.isPresent) {
+      // Only set Test.javaLauncher when required, i.e. when override is present,
+      // it is redundant when `testJvm` and the project toolchain both select the Gradle daemon JVM.
+      if (testJvmSpec.javaTestLauncherOverride.isPresent) {
+        javaLauncher.set(testJvmSpec.javaTestLauncherOverride)
+      }
+      // Constraints still use the explicit testJvm selection when no override is needed.
       onlyIf("Test JDK is allowed or forced JDK") {
         extension.isTestJvmAllowed(testJvmSpec)
       }
       onlyIf("Test JDK is native-image capable") {
-        extension.isNativeImageCapableTestJvm(testJvmSpec.javaTestLauncher.get())
+        extension.isNativeImageCapableTestJvm(testJvmSpec.requestedTestJvmLauncher.get())
       }
     } else {
       onlyIf("Current Daemon JVM within allowed version range") {
