@@ -6,6 +6,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -56,7 +57,7 @@ public class UrlConnectionDecorator extends UriBasedClientDecorator {
 
   public void onURL(@Nonnull final AgentSpan span, @Nonnull final URL url) {
     try {
-      onURI(span, url.toURI());
+      onURI(span, URIUtils.toURI(url));
     } catch (URISyntaxException e) {
       LOGGER.debug("Error tagging url", e);
     }

@@ -3,8 +3,10 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.trace.api.iast.util.PropagationUtils;
+import datadog.trace.util.AdaptiveLatch;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -143,6 +145,162 @@ public class URIUtils {
       LOGGER.debug(EXCLUDE_TELEMETRY, "Unable to parse request uri {}", unparsed, exception);
       return null;
     }
+  }
+
+  /**
+   * Converts a {@link URL} to a {@link URI} like {@link URL#toURI()}, but first percent-encodes the
+   * characters that {@link URI} rejects even though {@link URL} accepts them, so that a common kind
+   * of bad input does not cost a thrown and caught {@link URISyntaxException} on every request.
+   *
+   * <p>These are: a space or control character, any of {@code " < > \ ^ ` { | }}, a {@code [} or
+   * {@code ]} in the path, a {@code %} that is not followed by two hex digits, and a second {@code
+   * #}. Well-formed URLs are converted exactly as {@code url.toURI()} would, with no extra
+   * allocation. Other problems, such as an invalid scheme, still throw {@link URISyntaxException}.
+   *
+   * <p>Bad URLs tend to come from the same application code again and again, so the repair runs
+   * only while they are arriving (see {@link ToURI}); otherwise this is just {@code url.toURI()}.
+   */
+  public static URI toURI(final URL url) throws URISyntaxException {
+    final URI uri = TO_URI.tryApply(url);
+    // null only when the repair could not help: let URI report why
+    return uri != null ? uri : url.toURI();
+  }
+
+  private static final ToURI TO_URI = new ToURI();
+
+  /**
+   * Chooses between {@code url.toURI()} and the repairing conversion: strict while URLs are
+   * well-formed, so they skip the scan; repairing once a bad one arrives, until {@link
+   * #CLOSE_AFTER} well-formed ones in a row.
+   */
+  static final class ToURI extends AdaptiveLatch<URL, URI, URISyntaxException> {
+    /**
+     * The rent-or-buy break-even (see {@link AdaptiveLatch}): a thrown and caught {@link
+     * URISyntaxException} under an HTTP client's stack, against one extra scan of a well-formed
+     * URL. An estimate, not yet measured.
+     */
+    static final int CLOSE_AFTER = 64;
+
+    ToURI() {
+      super(URISyntaxException.class, CLOSE_AFTER);
+    }
+
+    @Override
+    protected URI apply(final URL url) throws URISyntaxException {
+      return url.toURI();
+    }
+
+    @Override
+    protected URI applySafely(final URL url) {
+      final String s = url.toString();
+      final String escaped = escapeIllegalURIChars(s);
+      try {
+        return escaped == null ? new URI(s) : repaired(new URI(escaped));
+      } catch (URISyntaxException e) {
+        return reject(url);
+      }
+    }
+  }
+
+  /** Percent-encodes the characters {@link URI} rejects; returns {@code null} if there are none. */
+  @Nullable
+  private static String escapeIllegalURIChars(final String s) {
+    final int length = s.length();
+    final int pathStart = pathStart(s);
+    int pathEnd = length;
+    for (int i = pathStart; i < length; i++) {
+      final char c = s.charAt(i);
+      if (c == '?' || c == '#') {
+        pathEnd = i;
+        break;
+      }
+    }
+
+    StringBuilder escaped = null;
+    boolean inFragment = false;
+    for (int i = 0; i < length; i++) {
+      final char c = s.charAt(i);
+      final boolean illegal;
+      if (c == '%') {
+        illegal = !isPercentEscape(s, i);
+      } else if (c == '#') {
+        illegal = inFragment; // only the first '#' starts the fragment
+        inFragment = true;
+      } else if (c == '[' || c == ']') {
+        illegal = i >= pathStart && i < pathEnd; // allowed in an IPv6 host, the query and fragment
+      } else {
+        illegal = isIllegalURIChar(c);
+      }
+      if (illegal) {
+        if (escaped == null) {
+          escaped = new StringBuilder(length + 16).append(s, 0, i);
+        }
+        appendPercentEncoded(escaped, c);
+      } else if (escaped != null) {
+        escaped.append(c);
+      }
+    }
+    return escaped == null ? null : escaped.toString();
+  }
+
+  /** Index where the path starts: after the authority of {@code scheme://authority}, or 0. */
+  private static int pathStart(final String s) {
+    final int schemeEnd = s.indexOf("://");
+    if (schemeEnd < 0) {
+      return 0;
+    }
+    for (int i = schemeEnd + 3; i < s.length(); i++) {
+      final char c = s.charAt(i);
+      if (c == '/' || c == '?' || c == '#') {
+        return i;
+      }
+    }
+    return s.length();
+  }
+
+  private static boolean isPercentEscape(final String s, final int i) {
+    return i + 2 < s.length() && isHexDigit(s.charAt(i + 1)) && isHexDigit(s.charAt(i + 2));
+  }
+
+  private static boolean isHexDigit(final char c) {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+  }
+
+  private static boolean isIllegalURIChar(final char c) {
+    if (c <= ' ' || c == 0x7F) {
+      return true;
+    }
+    switch (c) {
+      case '"':
+      case '<':
+      case '>':
+      case '\\':
+      case '^':
+      case '`':
+      case '{':
+      case '|':
+      case '}':
+        return true;
+      default:
+        // URI accepts other non-ASCII characters, but not spaces or control characters
+        return c >= 0x80 && (Character.isSpaceChar(c) || Character.isISOControl(c));
+    }
+  }
+
+  private static void appendPercentEncoded(final StringBuilder sb, final char c) {
+    if (c < 0x80) {
+      appendPercentEncoded(sb, (byte) c);
+    } else {
+      for (final byte b : String.valueOf(c).getBytes(StandardCharsets.UTF_8)) {
+        appendPercentEncoded(sb, b);
+      }
+    }
+  }
+
+  private static void appendPercentEncoded(final StringBuilder sb, final byte b) {
+    sb.append('%')
+        .append(Character.toUpperCase(Character.forDigit((b >> 4) & 0xF, 16)))
+        .append(Character.toUpperCase(Character.forDigit(b & 0xF, 16)));
   }
 
   /**
