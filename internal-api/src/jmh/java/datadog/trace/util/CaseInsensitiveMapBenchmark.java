@@ -1,13 +1,15 @@
 package datadog.trace.util;
 
 import java.util.HashMap;
+import java.util.Random;
 import java.util.TreeMap;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -22,38 +24,45 @@ import org.openjdk.jmh.infra.Blackhole;
  *       allocation-free (case folded inside hash/matches), value stored unboxed
  * </ul>
  *
- * <p><b>Takeaways.</b> FlatHashtable is ~2x the (previously recommended) TreeMap at the same zero
- * allocation, and matches HashMap's look-up throughput <i>without</i> HashMap's per-look-up folded
- * String (which drives the multi-threaded GC pressure). The case-insensitive hash is the
+ * <p><b>Takeaways.</b> FlatHashtable is ~1.8-2x the (previously recommended) TreeMap at the same
+ * zero allocation, but trails HashMap's look-up throughput by ~20-30%; its case is the allocation
+ * win (no per-look-up folded String), not a throughput win. The case-insensitive hash is the
  * consistent-for-all-inputs two-way fold ({@link
  * datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a cheaper ASCII-only fold
  * would recover a few percent for header-name-only hot paths, deliberately not the default. {@code
- * LOW_LOAD_FACTOR} makes no difference here (the fold, not the probe count, dominates), so the
- * default 0.5 is used.
+ * LOW_LOAD_FACTOR} makes no consistent difference here, so the default 0.5 is used.
  *
- * <p>Numbers below: MacBook M1, Zulu 21, per-thread lookup index, @Fork(5). <code>
- * 1 thread
+ * <p>Java 17 results (Zulu 17.0.7, MacBook M1, {@code @Fork(5)}, {@code @Threads(8)}, {@code -prof
+ * gc}) with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch} pollution design and the
+ * {@code CHA_DEFEAT} decoys:
  *
- * Benchmark                                     Mode  Cnt          Score        Error  Units
- * create_flatHashtable                         thrpt   15     2158595.7 ±    73576.7  ops/s
- * create_hashMap                               thrpt   15      944890.9 ±    34398.7  ops/s
- * create_treeMap                               thrpt   15     1285085.3 ±   133648.6  ops/s
+ * <pre>{@code
+ * Benchmark                      M ops/s           B/op
+ * create_baseline                  25.5 ±   0.4    1152
+ * create_flatHashtable             14.4 ±   0.7    1693
+ * create_hashMap                    7.5 ±   0.3    2320
+ * create_treeMap                    7.9 ±   1.0    1840
  *
- * lookup_flatHashtable                         thrpt   15    75350287.4 ±  4128577.5  ops/s
- * lookup_flatHashtable_lowLoad                 thrpt   15    77127204.7 ±  2546322.0  ops/s
- * lookup_hashMap                               thrpt   15    76615721.1 ±  4615488.0  ops/s
- * lookup_treeMap                               thrpt   15    45777645.5 ±  4551223.1  ops/s
- * </code> <code>
- * 8 threads (with -prof gc; alloc = gc.alloc.rate.norm)
+ * lookup_baseline                2772.0 ±  23.5      ~0
+ * lookup_flatHashtable            385.1 ±  51.5      ~0
+ * lookup_flatHashtable_lowLoad    425.5 ±   6.0      ~0
+ * lookup_hashMap                  502.4 ±   7.9    22.5
+ * lookup_treeMap                  214.6 ±  11.8      ~0
+ * }</pre>
  *
- * Benchmark                          Mode  Cnt          Score         Error  Units      alloc
- * lookup_flatHashtable              thrpt   15  537007985.7 ±  21864181.3  ops/s     ~0 B/op
- * lookup_flatHashtable_lowLoad      thrpt   15  540434673.5 ±  20451984.4  ops/s     ~0 B/op
- * lookup_hashMap                    thrpt   15  441875038.1 ± 110408182.2  ops/s   24.0 B/op (129 GCs)
- * lookup_treeMap                    thrpt   15  251195415.1 ±  14662568.3  ops/s     ~0 B/op
- * </code>
+ * <p>Every arm cycles through the same fixed-seed {@code LOOKUP_KEYS} sequence, so all of them see
+ * the same upper/lower-case and hit/miss mix. {@code lookup_hashMap} is steady across all five
+ * forks (483-509 per iteration). {@code lookup_flatHashtable}'s wide interval comes from one fork
+ * that compiled slow (~295 throughout, against ~380-420 for the other four); excluding it, the gap
+ * to {@code hashMap} is ~20%, and including it ~30%. Either way HashMap leads on throughput.
+ *
+ * <p>{@code lookup_hashMap} is the <i>only</i> lookup arm that allocates: 22.5 B/op for the folded
+ * {@code String}, which is the allocation win claimed above. {@code toLowerCase()} returns {@code
+ * this} when a string is already lower-case, so the figure reflects this key set's upper-case share
+ * rather than a fixed per-lookup cost; with the seeded keys it is deterministic (±0.001), where an
+ * earlier unseeded run varied ±4.6. {@code TreeMap} remains the slowest look-up.
  */
-@Fork(2)
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
@@ -77,10 +86,13 @@ public class CaseInsensitiveMapBenchmark {
             return upperPrefixes;
           });
 
+  // Fixed seed so every arm, in every fork, sees the same case and hit/miss mix -- the upper-case
+  // share drives toLowerCase() allocation and suffix NUM_SUFFIXES is a miss, so an unseeded draw
+  // would give each arm a different workload.
   static final String[] LOOKUP_KEYS =
       init(
           () -> {
-            ThreadLocalRandom curRandom = ThreadLocalRandom.current();
+            Random curRandom = new Random(42);
 
             String[] keys = new String[32];
             for (int i = 0; i < keys.length; ++i) {
@@ -100,6 +112,14 @@ public class CaseInsensitiveMapBenchmark {
   // counter's cache-line ping-pong would floor the fastest lookups (the flat probe) at @Threads(8),
   // masking exactly the differences this benchmark compares.
   int lookupIndex = 0;
+
+  // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+  // injects the Blackhole straight into this setup method, so no per-benchmark
+  // scratch state is needed.
+  @Setup(Level.Trial)
+  public void warmUpPollution(Blackhole bh) {
+    BenchmarkUtils.warmUpHashDispatch(bh);
+  }
 
   String nextLookupKey() {
     int localIndex = ++lookupIndex;
