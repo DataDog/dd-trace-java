@@ -1888,35 +1888,64 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     /*
      * Sets a known tag by id without validating it, unlike TagMap.set(long, ...): the caller has
-     * already checked KnownTagCodec.isKnown(tagId).
+     * already checked KnownTagCodec.isKnown(tagId). A slotted tag goes straight to the dense store,
+     * as in set(long, ...), so no Entry is built.
      */
     public void setKnown(long tagId, @Nonnull Object value) {
+      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+        this.map.storeDenseLocal(tagId, value);
+        return;
+      }
       this.map.putEntry(new Entry(tagId, null, Entry.ANY, 0L, value));
     }
 
     public void setKnown(long tagId, @Nonnull CharSequence value) {
+      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+        this.map.storeDenseLocal(tagId, value);
+        return;
+      }
       this.map.putEntry(new Entry(tagId, null, EntryReader.OBJECT, 0L, value));
     }
 
     public void setKnown(long tagId, boolean value) {
+      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+        this.map.storeDenseLocal(tagId, Boolean.valueOf(value));
+        return;
+      }
       this.map.putEntry(
           new Entry(
               tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
     }
 
     public void setKnown(long tagId, int value) {
+      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+        this.map.storeDenseLocal(tagId, Integer.valueOf(value));
+        return;
+      }
       this.map.putEntry(new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value), null));
     }
 
     public void setKnown(long tagId, long value) {
+      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+        this.map.storeDenseLocal(tagId, Long.valueOf(value));
+        return;
+      }
       this.map.putEntry(new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value), null));
     }
 
     public void setKnown(long tagId, float value) {
+      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+        this.map.storeDenseLocal(tagId, Float.valueOf(value));
+        return;
+      }
       this.map.putEntry(new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value), null));
     }
 
     public void setKnown(long tagId, double value) {
+      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+        this.map.storeDenseLocal(tagId, Double.valueOf(value));
+        return;
+      }
       this.map.putEntry(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
     }
   }
