@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,6 +26,8 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
@@ -34,6 +37,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.AllSampler;
 import datadog.trace.common.writer.ListWriter;
@@ -48,6 +52,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.ConfigDefaultsConverter;
 import datadog.trace.test.junit.utils.converter.TagsConverter;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Function;
@@ -904,5 +909,81 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     interceptor.interceptTag(context, Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
 
     verify(context, times(1)).addPropagatedTraceSource(ProductTraceSource.ASM);
+  }
+
+  @Test
+  void exactlyTheTagsWithTheInterceptedBitHaveACase() throws IllegalAccessException {
+    RuleFlags ruleFlags = mock(RuleFlags.class);
+    when(ruleFlags.isEnabled(any())).thenReturn(true);
+    TagInterceptor interceptor =
+        new TagInterceptor(false, "my-service", emptySet(), ruleFlags, false);
+
+    for (Field field : KnownTags.class.getFields()) {
+      if (field.getType() != long.class) {
+        continue;
+      }
+      long tagId = field.getLong(null);
+      DDSpanContext span = mock(DDSpanContext.class);
+      when(span.getServiceName()).thenReturn("");
+
+      // Each case consumes one of these values or acts on the span for it; with no split-by-tags,
+      // the default case does neither.
+      boolean consumed = false;
+      for (Object value : new Object[] {true, 1, "1"}) {
+        consumed |= interceptor.interceptTag(span, tagId, value);
+      }
+
+      boolean hasCase = consumed || !mockingDetails(span).getInvocations().isEmpty();
+      assertEquals(KnownTagCodec.isIntercepted(tagId), hasCase, field.getName());
+      assertEquals(KnownTagCodec.isIntercepted(tagId), interceptor.needsIntercept(tagId));
+    }
+  }
+
+  @TableTest({
+    "scenario                   | configured | tag      ",
+    "configured by Datadog name | db.type    | db.type  ",
+    "configured by OTel name    | db.system  | db.type  ",
+    "set by OTel name           | db.type    | db.system"
+  })
+  void splitByTagsMatchesAKnownTagByIdUnderAnyName(String configured, String tag) {
+    TagInterceptor interceptor = splittingInterceptor(configured);
+    DDSpanContext span = mock(DDSpanContext.class);
+
+    assertTrue(interceptor.needsIntercept(KnownTags.DB_TYPE_ID));
+    assertTrue(interceptor.needsIntercept(tag));
+    assertFalse(interceptor.needsIntercept(KnownTags.COMPONENT_ID));
+    assertTrue(interceptor.interceptTag(span, KnownTags.DB_TYPE_ID, "postgres"));
+    assertTrue(interceptor.interceptTag(span, tag, "mysql"));
+
+    verify(span).setServiceName("postgres", ServiceNameSources.SPLIT_BY_TAGS);
+    verify(span).setServiceName("mysql", ServiceNameSources.SPLIT_BY_TAGS);
+  }
+
+  @Test
+  void splitByTagsMatchesACustomTagByName() {
+    TagInterceptor interceptor = splittingInterceptor("my.custom.tag");
+    DDSpanContext span = mock(DDSpanContext.class);
+
+    assertTrue(interceptor.needsIntercept("my.custom.tag"));
+    assertFalse(interceptor.needsIntercept("other.custom.tag"));
+    assertFalse(interceptor.needsIntercept(KnownTags.COMPONENT_ID));
+    assertTrue(interceptor.interceptTag(span, "my.custom.tag", "split"));
+    assertFalse(interceptor.interceptTag(span, "other.custom.tag", "split"));
+
+    verify(span).setServiceName("split", ServiceNameSources.SPLIT_BY_TAGS);
+  }
+
+  @Test
+  void splitByTagsOnANameDeclaredPerDirectionMatchesEachDirection() {
+    TagInterceptor interceptor = splittingInterceptor(Tags.PEER_PORT);
+
+    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_INBOUND_ID));
+    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertTrue(interceptor.needsIntercept(Tags.PEER_PORT));
+  }
+
+  private static TagInterceptor splittingInterceptor(String splitByTag) {
+    return new TagInterceptor(
+        true, "my-service", Collections.singleton(splitByTag), new RuleFlags(), false);
   }
 }

@@ -17,6 +17,12 @@ abstract class TagRegistryExtension @Inject constructor(
   abstract val tagConventionsFile: RegularFileProperty
 
   /**
+   * Optional tracer overlay: this tracer's set-path routing (intercepted tags, and keys that exist
+   * only to be routed), kept out of the language-agnostic conventions.
+   */
+  abstract val tracerOverlayFile: RegularFileProperty
+
+  /**
    * Destination of the generated sources, by convention under `build/generated/tag-registry`.
    */
   val destinationDirectory: DirectoryProperty = objectFactory.directoryProperty().convention(

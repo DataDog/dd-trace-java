@@ -4,17 +4,15 @@ package datadog.buildlogic.tagRegistry
  * Assigns tag ids from a parsed [TagConventions]. The id encoding mirrors KnownTagCodec: [63-48
  * serial][47-32 reserved][31-0 flags].
  *
- * <p>An id is IDENTITY only: a globally unique serial plus the trace-level classification bit. It
+ * <p>An id is a globally unique serial plus two classification bits: trace-level and intercepted. It
  * carries no storage-layout coordinate -- bits [47-32] are held vacant for the co-occurrence slot
  * that the dense tag store assigns by graph coloring, which lands with the dense store itself.
  * Nothing here needs to know how (or whether) a tag is stored.
  *
- * <p>Nor does anything here know how a tag is SET. Whether the tracer intercepts a tag on the
- * set-path (routing it to a span field or a sampling directive instead of tag storage) is a
- * property of TagInterceptor, not of the tag's identity, and modelling it was the source of a whole
- * class of drift between this registry and the interceptor's actual switch. It arrives with the
- * work that consumes it -- the id->handler dispatch table that retires TagInterceptor -- where the
- * interceptor can be the authority. Re-adding a classification bit then is purely additive.
+ * <p>The intercepted bit marks a tag the tracer may route on the set-path (to a span field or a
+ * sampling directive instead of tag storage), as listed by the tracer overlay. A setter called with
+ * a constant id then folds the interception test away. TagInterceptor's switch stays the authority
+ * on what each tag does; a test there keeps the bit and the switch in agreement.
  */
 class TagRegistry private constructor(val tags: List<Tag>) {
   data class Tag(
@@ -23,6 +21,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val required: String,
     val serial: Int,
     val traceLevel: Boolean,
+    val intercepted: Boolean,
     val id: Long,
     /** The tag's OpenTelemetry name, in [otelDirection] or every direction; null when not renamed. */
     val declaredOtelName: String? = null,
@@ -47,14 +46,30 @@ class TagRegistry private constructor(val tags: List<Tag>) {
   companion object {
     const val FIRST_SERIAL = 1
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
+    const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
+    const val SHARED_NAME = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.SHARED_NAME
 
     /**
-     * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() -- must stay in sync. LEVEL_TRACE at
-     * bit 2, other low bits and the reserved [47-32] window zero.
+     * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
+     * (unknown) and of KnownTagCodec's negative lookup sentinels.
      */
-    fun encode(serial: Int, traceLevel: Boolean): Long {
+    const val SERIAL_CAPACITY = 1 shl 15
+
+    /**
+     * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() + intercepted() -- must stay in sync.
+     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, SHARED_NAME at bit 0, other low bits and the
+     * reserved [47-32] window zero. Every id is made here, and the range check makes each one
+     * positive by construction.
+     */
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, sharedName: Boolean = false): Long {
+      require(serial in FIRST_SERIAL until SERIAL_CAPACITY) {
+        "serial $serial is outside [$FIRST_SERIAL, $SERIAL_CAPACITY): more tags would make tag ids " +
+          "negative, where KnownTagCodec's lookup sentinels live"
+      }
       var id = serial.toLong() shl 48
       if (traceLevel) id = id or LEVEL_TRACE
+      if (intercepted) id = id or INTERCEPTED
+      if (sharedName) id = id or SHARED_NAME
       return id
     }
 
@@ -67,13 +82,15 @@ class TagRegistry private constructor(val tags: List<Tag>) {
         conv.allDeclaredTags().sortedBy { it.name }.mapIndexed { i, t ->
           val serial = FIRST_SERIAL + i
           val isTraceLevel = t.identity in traceLevel
+          val isIntercepted = t.ddName in conv.interceptedNames
           Tag(
             t.identity,
             t.type,
             t.required,
             serial,
             isTraceLevel,
-            id = encode(serial, isTraceLevel),
+            isIntercepted,
+            id = encode(serial, isTraceLevel, isIntercepted, t.identity.direction != null),
             declaredOtelName = renames[t.identity]?.otelName,
             otelDirection = renames[t.identity]?.direction,
           )

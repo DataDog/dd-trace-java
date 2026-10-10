@@ -52,7 +52,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     AgentTracer.forceRegister(ORIGINAL_TRACER)
   }
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   def "test onRequest"() {
     setup:

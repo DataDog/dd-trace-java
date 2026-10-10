@@ -16,6 +16,7 @@ class TagRegistryGeneratorPlugin : Plugin<Project> {
         group = "build"
         description = "Generates the Java tag registry and assignment reports."
         tagConventionsFile.convention(ext.tagConventionsFile)
+        tracerOverlayFile.convention(ext.tracerOverlayFile)
         destinationDirectory.convention(ext.destinationDirectory)
       }
     project.pluginManager.withPlugin("java") {
