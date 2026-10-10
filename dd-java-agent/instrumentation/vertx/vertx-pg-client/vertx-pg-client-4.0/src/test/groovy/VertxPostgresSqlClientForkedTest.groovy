@@ -1,4 +1,5 @@
 import TestDatabases.TestDBInfo
+import datadog.environment.OperatingSystem
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -20,8 +21,8 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@IgnoreIf(reason = "A change in Locale.ROOT that was introduced in JDK 22 is not fixed until vertx-pg-client v4.5.1: https://github.com/eclipse-vertx/vertx-sql-client/pull/1394", value = {
-  JavaVirtualMachine.isJavaVersionAtLeast(22)
+@IgnoreIf(reason = "Requires Linux Testcontainers on Windows; JDK 22 also requires vertx-pg-client 4.5.1", value = {
+  OperatingSystem.isWindows() || JavaVirtualMachine.isJavaVersionAtLeast(22)
 })
 class VertxPostgresSqlClientForkedTest extends InstrumentationSpecification {
   @AutoCleanup

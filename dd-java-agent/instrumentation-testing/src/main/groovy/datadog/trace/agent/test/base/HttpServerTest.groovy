@@ -221,6 +221,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return uri
   }
 
+  String normalizeServerHostname(String value) {
+    value
+  }
+
+  String normalizeServerUrl(String value) {
+    value
+  }
+
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     null
   }
@@ -2649,8 +2657,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           "$Tags.NETWORK_CLIENT_IP" null
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
-        "$Tags.HTTP_HOSTNAME" address.host
-        "$Tags.HTTP_URL" "$expectedUrl"
+        "$Tags.HTTP_HOSTNAME" {
+          normalizeServerHostname(it as String) == normalizeServerHostname(address.host)
+        }
+        "$Tags.HTTP_URL" {
+          normalizeServerUrl(it as String) == normalizeServerUrl("$expectedUrl")
+        }
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
         "$Tags.HTTP_USER_AGENT" String

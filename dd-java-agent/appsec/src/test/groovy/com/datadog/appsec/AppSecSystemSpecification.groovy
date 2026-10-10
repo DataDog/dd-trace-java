@@ -29,6 +29,7 @@ import java.nio.file.Path
 import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
+import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators
 
 class AppSecSystemSpecification extends DDSpecification {
   SubscriptionService subService = Mock()
@@ -55,7 +56,7 @@ class AppSecSystemSpecification extends DDSpecification {
 
     then:
     def exception = thrown(AbortStartupException)
-    exception.cause.toString().contains('/file/that/does/not/exist')
+    normalizePathSeparators(exception.cause.toString()).contains('/file/that/does/not/exist')
   }
 
   void 'system should throw AbortStartupException when config file is not valid JSON'() {

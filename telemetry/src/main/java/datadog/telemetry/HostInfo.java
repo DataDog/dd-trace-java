@@ -40,6 +40,8 @@ public class HostInfo {
       if (OperatingSystem.isMacOs()) {
         // os.name == Mac OS X, while uanme -s == Darwin. We'll hardcode it to Darwin.
         osName = "Darwin";
+      } else if (OperatingSystem.isWindows()) {
+        osName = "Windows";
       } else {
         osName = SystemProperties.get("os.name");
       }

@@ -19,6 +19,7 @@ import com.google.pubsub.v1.PubsubMessage
 import com.google.pubsub.v1.PushConfig
 import com.google.pubsub.v1.SubscriptionName
 import com.google.pubsub.v1.TopicName
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
@@ -37,8 +38,12 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
 import org.testcontainers.containers.PubSubEmulatorContainer
 import org.testcontainers.utility.DockerImageName
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
 

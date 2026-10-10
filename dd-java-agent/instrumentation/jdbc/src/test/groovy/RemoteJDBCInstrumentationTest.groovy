@@ -38,6 +38,7 @@ import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.OracleContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 enum DbType {
@@ -58,6 +59,12 @@ enum DbType {
   }
 }
 
+@IgnoreIf(
+reason = "The Windows CI container does not provide a Docker environment capable of running Testcontainers",
+inherited = true,
+value = {
+  OperatingSystem.isWindows()
+})
 abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   @Shared
   private Map<DbType, String> dbName = [

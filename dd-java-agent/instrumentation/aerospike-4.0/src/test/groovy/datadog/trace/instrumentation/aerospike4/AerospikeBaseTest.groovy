@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
 
 import com.github.dockerjava.api.model.Ulimit
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
@@ -12,8 +13,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class AerospikeBaseTest extends VersionedNamingTestBase {
 
   @Shared

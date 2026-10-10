@@ -1,6 +1,7 @@
 package datadog.trace.agent
 
 import datadog.environment.JavaVirtualMachine
+import datadog.environment.OperatingSystem
 import datadog.test.SimpleAgentMock
 import jvmbootstraptest.InitializationTelemetryCheck
 import spock.lang.IgnoreIf
@@ -8,6 +9,9 @@ import spock.lang.Specification
 import spock.lang.Timeout
 
 @Timeout(30)
+@IgnoreIf(reason = "Uses POSIX file permissions and a Bash telemetry forwarder", value = {
+  OperatingSystem.isWindows()
+})
 class InitializationTelemetryTest extends Specification {
   @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
     JavaVirtualMachine.isJavaVersionAtLeast(24)

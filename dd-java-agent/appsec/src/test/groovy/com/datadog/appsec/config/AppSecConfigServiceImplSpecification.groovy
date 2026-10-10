@@ -122,7 +122,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   void 'no subscription to ASM ASM_DD ASM_DATA if custom rules are provided'() {
     setup:
-    Path p = Paths.get(getClass().classLoader.getResource('test_multi_config_no_action.json').getPath())
+    Path p = Paths.get(getClass().classLoader.getResource('test_multi_config_no_action.json').toURI())
     AppSecSystem.active = false
 
     when:
@@ -142,7 +142,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   void 'can load from a different location'() {
     setup:
-    Path p = Paths.get(getClass().classLoader.getResource('test_multi_config_no_action.json').getPath())
+    Path p = Paths.get(getClass().classLoader.getResource('test_multi_config_no_action.json').toURI())
     String capturedPath = null
 
     when:
