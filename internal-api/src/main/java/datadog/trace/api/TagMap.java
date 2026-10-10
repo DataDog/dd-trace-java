@@ -1625,15 +1625,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
-   * Stores a dense value, replacing it in place when present (returning the prior value as an
-   * Entry, per the Map contract) or appending it. No Entry is retained.
+   * Stores a dense value, replacing it in place when present or appending it, and returns the prior
+   * value, or null when there was none. Dense values are never null. Builds no Entry, so a caller
+   * that discards the result allocates nothing, whether or not the JIT inlines this.
    */
-  private Entry putKnownValue(long denseId, Object value) {
+  private Object storeKnownValue(long denseId, Object value) {
     int i = this.knownIndexOf(denseId);
     if (i >= 0) {
       Object prior = this.knownValues[i];
       this.knownValues[i] = value;
-      return Entry.newAnyEntry(denseId, prior);
+      return prior;
     }
     if (this.knownIds == null) {
       this.knownIds = new long[KNOWN_INIT_CAP];
@@ -1651,13 +1652,22 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return null;
   }
 
-  /** Local dense write: clears any tombstone for the tag, then stores the value. */
-  private Entry putDenseLocal(long denseId, Object value) {
+  /**
+   * Local dense write: clears any tombstone for the tag, then stores the value, returning the prior
+   * value or null. The {@code set(long, ...)} methods use this; it builds no Entry.
+   */
+  private Object storeDenseLocal(long denseId, Object value) {
     this.checkWriteAccess();
     if (this.removedFromParent != null) {
       this.removedFromParent.remove(KnownTagCodec.nameOf(denseId));
     }
-    return this.putKnownValue(denseId, value);
+    return this.storeKnownValue(denseId, value);
+  }
+
+  /** {@link #storeDenseLocal}, returning the prior value as an Entry, per the Map contract. */
+  private Entry putDenseLocal(long denseId, Object value) {
+    Object prior = this.storeDenseLocal(denseId, value);
+    return prior == null ? null : Entry.newAnyEntry(denseId, prior);
   }
 
   /** Removes a dense value (swap with the last), returning it as an Entry, or null. */
@@ -1913,7 +1923,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(long tagId, @Nonnull Object value) {
     if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.putDenseLocal(tagId, value);
+      this.storeDenseLocal(tagId, value);
       return;
     }
     this.putEntry(Entry.newAnyEntry(tagId, value));
@@ -1921,7 +1931,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(long tagId, @Nonnull CharSequence value) {
     if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.putDenseLocal(tagId, value);
+      this.storeDenseLocal(tagId, value);
       return;
     }
     this.putEntry(Entry.newObjectEntry(tagId, value));
@@ -1929,7 +1939,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(long tagId, boolean value) {
     if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.putDenseLocal(tagId, Boolean.valueOf(value));
+      this.storeDenseLocal(tagId, Boolean.valueOf(value));
       return;
     }
     this.putEntry(Entry.newBooleanEntry(tagId, value));
@@ -1937,7 +1947,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(long tagId, int value) {
     if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.putDenseLocal(tagId, Integer.valueOf(value));
+      this.storeDenseLocal(tagId, Integer.valueOf(value));
       return;
     }
     this.putEntry(Entry.newIntEntry(tagId, value));
@@ -1945,7 +1955,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(long tagId, long value) {
     if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.putDenseLocal(tagId, Long.valueOf(value));
+      this.storeDenseLocal(tagId, Long.valueOf(value));
       return;
     }
     this.putEntry(Entry.newLongEntry(tagId, value));
@@ -1953,7 +1963,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(long tagId, float value) {
     if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.putDenseLocal(tagId, Float.valueOf(value));
+      this.storeDenseLocal(tagId, Float.valueOf(value));
       return;
     }
     this.putEntry(Entry.newFloatEntry(tagId, value));
@@ -1961,7 +1971,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(long tagId, double value) {
     if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.putDenseLocal(tagId, Double.valueOf(value));
+      this.storeDenseLocal(tagId, Double.valueOf(value));
       return;
     }
     this.putEntry(Entry.newDoubleEntry(tagId, value));
@@ -2159,7 +2169,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private void putAllMerge(TagMap that) {
     // incoming dense values clobber existing ones, as incoming bucket entries do below
     for (int i = 0; i < that.knownCount; ++i) {
-      this.putKnownValue(that.knownIds[i], that.knownValues[i]);
+      this.storeKnownValue(that.knownIds[i], that.knownValues[i]);
     }
     if (that.size == 0) {
       return; // no bucket entries to merge; leaves shared empty buckets shared
