@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.filter.Filter;
 import ch.qos.logback.core.spi.FilterReply;
@@ -49,16 +50,42 @@ public final class TestcontainersImageLogging {
     appender.setFile(new File(directory, "image-pulls-" + processId + ".log").getPath());
     appender.setAppend(true);
     appender.setEncoder(encoder);
-    appender.addFilter(
+    LazyImageAppender lazyAppender = new LazyImageAppender(appender);
+    lazyAppender.setContext(context);
+    lazyAppender.setName(APPENDER_NAME);
+    lazyAppender.addFilter(
         new Filter<ILoggingEvent>() {
           @Override
           public FilterReply decide(ILoggingEvent event) {
             return isImageEvent(event) ? FilterReply.NEUTRAL : FilterReply.DENY;
           }
         });
-    appender.start();
-    imageLogger.addAppender(appender);
-    context.getLogger("org.testcontainers.images").addAppender(appender);
+    lazyAppender.start();
+    imageLogger.addAppender(lazyAppender);
+    context.getLogger("org.testcontainers.images").addAppender(lazyAppender);
+  }
+
+  private static final class LazyImageAppender extends AppenderBase<ILoggingEvent> {
+    private final FileAppender<ILoggingEvent> delegate;
+
+    private LazyImageAppender(FileAppender<ILoggingEvent> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    protected void append(ILoggingEvent event) {
+      // AppenderBase serializes accepted events; only the first one opens the file.
+      if (!delegate.isStarted()) {
+        delegate.start();
+      }
+      delegate.doAppend(event);
+    }
+
+    @Override
+    public synchronized void stop() {
+      delegate.stop();
+      super.stop();
+    }
   }
 
   static boolean isImageEvent(ILoggingEvent event) {

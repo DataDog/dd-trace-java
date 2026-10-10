@@ -27,6 +27,16 @@ class TestcontainersImageLoggingTest {
       TestcontainersImageLogging.configure(context);
       Logger image = context.getLogger("tc.registry.example/image@sha256:digest");
       image.setLevel(Level.INFO);
+      image.info("Container output: CONTAINER_SENTINEL");
+      try (Stream<Path> logs = Files.list(directory)) {
+        assertEquals(0, logs.count(), "Setup and rejected events must not create log files");
+      }
+      context.reset();
+      TestcontainersImageLogging.configure(context);
+      image.setLevel(Level.INFO);
+      try (Stream<Path> logs = Files.list(directory)) {
+        assertEquals(0, logs.count(), "Resetting an unused appender must not create log files");
+      }
       image.info("Pulling docker image: {}", "registry.example/image@sha256:digest");
       image.info("Starting to pull image");
       image.info(
