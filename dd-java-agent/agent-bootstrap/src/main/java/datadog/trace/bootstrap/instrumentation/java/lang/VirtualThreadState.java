@@ -5,6 +5,7 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.Config;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -36,6 +37,15 @@ public final class VirtualThreadState {
       isJavaVersion(21)
           || !InstrumenterConfig.get().isLegacyContextManagerEnabled()
           || Config.get().isCwsEnabled();
+
+  private static final ClassValue<Boolean> PROPAGATE_CONTEXT =
+      GenericClassValue.of(
+          type -> !type.getName().equals("jdk.internal.net.http.HttpClientImpl$SelectorManager"));
+
+  /** The HTTP selector belongs to its client, not to the request creating the client. */
+  public static boolean shouldPropagateContext(Runnable task) {
+    return PROPAGATE_CONTEXT.get(task.getClass());
+  }
 
   /** The virtual thread's saved context (scope stack snapshot). */
   private Context context;

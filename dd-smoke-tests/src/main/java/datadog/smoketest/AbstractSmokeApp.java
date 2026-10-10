@@ -13,6 +13,7 @@ import static java.util.stream.Collectors.joining;
 import datadog.environment.OperatingSystem;
 import datadog.smoketest.backend.AgentBackend;
 import datadog.smoketest.backend.Traces;
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.test.util.ForkedTestUtils;
 import java.io.File;
@@ -99,11 +100,15 @@ public abstract class AbstractSmokeApp
   private final boolean checkTelemetry;
   private final boolean applyMemoryTuning;
   private final boolean debugLogs;
+  private final boolean checkScopeContinuations;
+  private final ScopeDiagnosticsCheck[] disabledScopeContinuationChecks;
+  private final String disabledScopeContinuationChecksReason;
 
   private final OutputThreads outputThreads = new OutputThreads();
   private Process process;
   private File logFile;
   private boolean telemetryChecked;
+  private ScopeDiagnosticsClient scopeDiagnostics;
 
   protected AbstractSmokeApp(Builder<?, ?> builder) {
     this.name = builder.name;
@@ -123,6 +128,9 @@ public abstract class AbstractSmokeApp
     this.checkTelemetry = builder.checkTelemetry;
     this.applyMemoryTuning = builder.applyMemoryTuning;
     this.debugLogs = builder.debugLogs;
+    this.checkScopeContinuations = builder.scopeContinuationSkipReason == null;
+    this.disabledScopeContinuationChecks = builder.disabledScopeContinuationChecks.clone();
+    this.disabledScopeContinuationChecksReason = builder.disabledScopeContinuationChecksReason;
     this.errorLogFilter =
         builder.errorLogFilter != null
             ? builder.errorLogFilter
@@ -233,17 +241,33 @@ public abstract class AbstractSmokeApp
   public final void beforeAll(ExtensionContext context) throws Exception {
     this.backend.start();
     launch();
+    if (this.scopeDiagnostics != null) {
+      this.scopeDiagnostics.awaitReady(this.process);
+    }
     onStarted();
   }
 
   @Override
   public final void beforeEach(ExtensionContext context) {
     onBeforeEach();
+    if (this.scopeDiagnostics != null) {
+      this.scopeDiagnostics.start(this.process);
+    }
   }
 
   @Override
   public final void afterEach(ExtensionContext context) {
-    onAfterEach();
+    Throwable failure = null;
+    try {
+      onAfterEach();
+    } catch (Throwable problem) {
+      failure = problem;
+    }
+    // A CLI's process-wide recording must survive methods while it is still running.
+    if (this.scopeDiagnostics != null
+        && (!(this instanceof SmokeCliApp) || !this.process.isAlive())) {
+      failure = attempt(failure, () -> this.scopeDiagnostics.finish(this.process));
+    }
     // Check telemetry once, here, while the app and backend are still up as afterAll is too late
     // (the app is killed, and the per-method session clear may have wiped a once-only app-started).
     // Only for an agent-instrumented app on an owned backend (a shared session mixes apps).
@@ -252,26 +276,57 @@ public abstract class AbstractSmokeApp
         && !this.backend.isShared()
         && !this.telemetryChecked) {
       this.telemetryChecked = true;
-      assertTelemetryReceived();
+      failure = attempt(failure, this::assertTelemetryReceived);
     }
+    rethrow(failure);
   }
 
   @Override
   public final void afterAll(ExtensionContext context) {
+    Throwable failure = null;
+    if (this.scopeDiagnostics != null && this.process != null) {
+      failure = attempt(failure, () -> this.scopeDiagnostics.verifyCompleted(this.process));
+    }
+    failure = attempt(failure, this::stopProcess);
+    // Flush captured output before scanning logs, even when diagnostics failed.
+    failure = attempt(failure, this.outputThreads::close);
+    if (!this.backend.isShared()) {
+      failure = attempt(failure, this.backend::close);
+    }
+    if (this.checkErrorLogs) {
+      failure = attempt(failure, this::assertNoErrorLogs);
+    }
+    rethrow(failure);
+  }
+
+  private static Throwable attempt(Throwable first, Runnable action) {
     try {
-      stopProcess();
-    } finally {
-      // Join the output threads first so the log file is fully flushed before we scan it.
-      this.outputThreads.close();
-      try {
-        if (!this.backend.isShared()) {
-          this.backend.close();
-        }
-      } finally {
-        if (this.checkErrorLogs) {
-          assertNoErrorLogs();
-        }
+      action.run();
+    } catch (Throwable problem) {
+      if (first == null) {
+        return problem;
       }
+      first.addSuppressed(problem);
+    }
+    return first;
+  }
+
+  private static void rethrow(Throwable failure) {
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    if (failure instanceof RuntimeException) {
+      throw (RuntimeException) failure;
+    }
+    if (failure != null) {
+      throw new IllegalStateException(failure);
+    }
+  }
+
+  /** Validates the companion's completed CLI report after an explicit process-exit assertion. */
+  protected final void verifyScopeDiagnostics() {
+    if (this.scopeDiagnostics != null) {
+      this.scopeDiagnostics.verifyCompleted(this.process);
     }
   }
 
@@ -291,6 +346,12 @@ public abstract class AbstractSmokeApp
   protected void onAfterEach() {}
 
   private void launch() throws IOException {
+    this.logFile = resolveLogFile();
+    if (this.checkScopeContinuations && this.agentJar != null) {
+      this.scopeDiagnostics =
+          new ScopeDiagnosticsClient(
+              this.logFile.getParentFile().toPath(), this.name, this instanceof SmokeCliApp);
+    }
     List<String> command = javaCommand();
     appendMemoryTuningArguments(command);
     appendLogsArguments(command);
@@ -308,7 +369,6 @@ public abstract class AbstractSmokeApp
     env.putAll(this.extraEnv);
     processBuilder.redirectErrorStream(true);
 
-    this.logFile = resolveLogFile();
     this.process = processBuilder.start();
     this.outputThreads.captureOutput(this.process, this.logFile);
   }
@@ -346,6 +406,11 @@ public abstract class AbstractSmokeApp
   private void appendAgentArguments(List<String> command) {
     if (this.agentJar != null) {
       command.add("-javaagent:" + this.agentJar);
+      if (this.scopeDiagnostics != null) {
+        command.add(
+            this.scopeDiagnostics.javaAgentArgument(
+                this.disabledScopeContinuationChecksReason, this.disabledScopeContinuationChecks));
+      }
       command.add("-Ddd.agent.host=" + this.backend.url().getHost());
       command.add("-Ddd.trace.agent.port=" + this.backend.port());
       command.add("-Ddd.service.name=" + SERVICE_NAME);
@@ -530,6 +595,9 @@ public abstract class AbstractSmokeApp
     private boolean checkTelemetry = true;
     private boolean applyMemoryTuning = true;
     private boolean debugLogs;
+    private String scopeContinuationSkipReason;
+    private ScopeDiagnosticsCheck[] disabledScopeContinuationChecks = new ScopeDiagnosticsCheck[0];
+    private String disabledScopeContinuationChecksReason;
 
     protected Builder(String name) {
       this.name = name;
@@ -770,6 +838,30 @@ public abstract class AbstractSmokeApp
       return self();
     }
 
+    /** Excludes named checks from enforcement while retaining diagnostic recording. */
+    public B disableScopeContinuationChecks(String reason, ScopeDiagnosticsCheck... checks) {
+      if (reason == null || reason.trim().isEmpty()) {
+        throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
+      }
+      this.disabledScopeContinuationChecks = checks.clone();
+      for (ScopeDiagnosticsCheck check : this.disabledScopeContinuationChecks) {
+        if (check == null) {
+          throw new IllegalArgumentException("A disabled scope diagnostic check must not be null");
+        }
+      }
+      this.disabledScopeContinuationChecksReason = reason;
+      return self();
+    }
+
+    /** Disables scope diagnostics for this app; a nonblank explanation is required. */
+    public B skipScopeContinuationCheck(String reason) {
+      if (reason == null || reason.trim().isEmpty()) {
+        throw new IllegalArgumentException("Skipping scope continuation checks requires a reason");
+      }
+      this.scopeContinuationSkipReason = reason;
+      return self();
+    }
+
     /**
      * Disables the default child-JVM heap bounds ({@code -Xmx}/{@code -Xms} from {@link
      * ForkedTestUtils}). You can instead override the values by passing {@code -Xmx}/{@code -Xms}
@@ -804,6 +896,11 @@ public abstract class AbstractSmokeApp
 
     /** Validates common invariants; concrete {@link #build()} implementations must call this. */
     protected void validate() {
+      if (this.scopeContinuationSkipReason != null
+          && this.disabledScopeContinuationChecks.length > 0) {
+        throw new IllegalArgumentException(
+            "Skipping scope diagnostics requires empty disabled checks");
+      }
       if (this.backend == null) {
         throw new IllegalStateException(
             "A AgentBackend is required. Use backend(...) to build your app");

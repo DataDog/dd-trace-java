@@ -10,6 +10,13 @@ abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
   static final String LIB_INJECTION_FORCE_FLAG = 'DD_INJECT_FORCE'
 
   @Override
+  protected String skipScopeContinuationCheckReason() {
+    isLibInjectionEnabled() && !isLibInjectionForced()
+      ? 'The diagnostic companion is an additional agent and changes the injection guardrail being tested'
+      : null
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     def jarPath = System.getProperty('datadog.smoketest.shadowJar.path')
     def command = []

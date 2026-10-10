@@ -1,5 +1,45 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'dd-trace-java.module.testing-support'
+}
+
+sourceSets {
+  smokeAgent {
+    compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+  }
+}
+
+// Reuse the production agent's logging API from the tracer's isolated loader.
+def scopeDiagnosticsPayloadJar = tasks.register('scopeDiagnosticsPayloadJar', ShadowJar) {
+  archiveClassifier = 'scope-diagnostics-payload'
+  configurations = []
+  from(sourceSets.main.output) {
+    include 'datadog/trace/agent/test/scopediag/**'
+    exclude '**/ScopeDiagnosticsExtension*', '**/ScopeDiagnosticsSpock*'
+  }
+  from(sourceSets.smokeAgent.output) {
+    include 'datadog/trace/agent/test/scopediag/**'
+  }
+  relocate 'org.slf4j', 'datadog.slf4j'
+}
+
+tasks.register('scopeDiagnosticsAgentJar', Jar) {
+  archiveClassifier = 'scope-diagnostics-agent'
+  manifest {
+    attributes 'Premain-Class': 'datadog.trace.agent.test.smoke.ScopeDiagnosticsAgent',
+    'Can-Retransform-Classes': 'true', 'Can-Redefine-Classes': 'true'
+  }
+  from(sourceSets.smokeAgent.output) {
+    include 'datadog/trace/agent/test/smoke/**'
+  }
+  into('payload') {
+    from(zipTree(scopeDiagnosticsPayloadJar.flatMap { it.archiveFile })) {
+      include '**/*.class'
+    }
+    rename '(.*)\\.class', '$1.classdata'
+  }
+  dependsOn scopeDiagnosticsPayloadJar
 }
 
 dependencies {

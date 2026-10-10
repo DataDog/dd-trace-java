@@ -3,6 +3,7 @@ package datadog.smoketest
 import static datadog.smoketest.KnownLogExclusion.isKnownFlakyTestLogEntry
 
 import com.google.common.collect.ImmutableSet
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -15,6 +16,31 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 abstract class ProcessManager extends Specification {
+
+  protected static final String SCOPE_DIAGNOSTICS_ARGUMENT = '-Ddatadog.smoketest.scopeDiagnostics.pending=true'
+
+  @Shared
+  private List<ScopeDiagnosticsClient> scopeDiagnostics = []
+
+  /** Return a documented incompatibility; disabling log checks does not disable diagnostics. */
+  protected String skipScopeContinuationCheckReason() {
+    null
+  }
+
+  /** Excludes named checks from enforcement while keeping diagnostic recording. */
+  protected ScopeDiagnosticsCheck[] disabledScopeContinuationChecks() {
+    [] as ScopeDiagnosticsCheck[]
+  }
+
+  /** Explains any selectively disabled checks. */
+  protected String disabledScopeContinuationChecksReason() {
+    null
+  }
+
+  /** Plain smoke applications may finish before the first feature starts. */
+  protected boolean scopeDiagnosticsProcessLifetime() {
+    true
+  }
 
   public static final PROFILING_START_DELAY_SECONDS = 1
   public static final int PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS = 5
@@ -69,12 +95,41 @@ abstract class ProcessManager extends Specification {
   def logFilePath = logFilePaths.length > 0 ? logFilePaths[0] : null
 
   def setup() {
-    testedProcesses.each {
-      assert it.alive: "Process $it is not available on test beginning"
+    testedProcesses.eachWithIndex { process, idx ->
+      if (!scopeDiagnosticsProcessLifetime()) {
+        assert process.alive: "Process $process is not available on test beginning"
+        scopeDiagnostics[idx]?.start(process)
+      }
     }
 
     synchronized (outputThreads.testLogMessages) {
       outputThreads.testLogMessages.clear()
+    }
+  }
+
+  def cleanup() {
+    if (!scopeDiagnosticsProcessLifetime()) {
+      checkScopeDiagnostics()
+    }
+  }
+
+  private void checkScopeDiagnostics() {
+    Throwable firstFailure = null
+    scopeDiagnostics.eachWithIndex { diagnostic, idx ->
+      if (diagnostic != null && testedProcesses[idx] != null) {
+        try {
+          diagnostic.finish(testedProcesses[idx])
+        } catch (Throwable failure) {
+          if (firstFailure == null) {
+            firstFailure = failure
+          } else {
+            firstFailure.addSuppressed(failure)
+          }
+        }
+      }
+    }
+    if (firstFailure != null) {
+      throw firstFailure
     }
   }
 
@@ -92,6 +147,7 @@ abstract class ProcessManager extends Specification {
 
     (0..<numberOfProcesses).each { idx ->
       ProcessBuilder processBuilder = createProcessBuilder(idx)
+      configureScopeDiagnostics(processBuilder, idx)
 
       Map<String, String> env = processBuilder.environment()
       env.put("JAVA_HOME", System.getProperty("java.home"))
@@ -104,6 +160,7 @@ abstract class ProcessManager extends Specification {
       testedProcesses[idx] = p
 
       outputThreads.captureOutput(p, new File(logFilePaths[idx]))
+      scopeDiagnostics[idx]?.awaitReady(p)
     }
     testedProcess = numberOfProcesses == 1 ? testedProcesses[0] : null
 
@@ -127,6 +184,13 @@ abstract class ProcessManager extends Specification {
 
   def cleanupSpec() {
     Throwable firstFailure = null
+    if (scopeDiagnosticsProcessLifetime()) {
+      try {
+        checkScopeDiagnostics()
+      } catch (Throwable failure) {
+        firstFailure = failure
+      }
+    }
     testedProcesses.each { tp ->
       if (tp == null) {
         return  // closure continue — skip null slots
@@ -166,6 +230,47 @@ abstract class ProcessManager extends Specification {
     if (firstFailure != null) {
       throw firstFailure
     }
+  }
+
+  protected final void configureScopeDiagnostics(ProcessBuilder builder, int index) {
+    String reason = skipScopeContinuationCheckReason()
+    ScopeDiagnosticsCheck[] disabledChecks = disabledScopeContinuationChecks()
+    if (reason != null && disabledChecks.length > 0) {
+      throw new IllegalArgumentException('Skipping scope diagnostics requires empty disabled checks')
+    }
+    if (reason != null && reason.trim().isEmpty()) {
+      throw new IllegalArgumentException('Disabling scope continuation diagnostics requires a reason')
+    }
+    ScopeDiagnosticsClient diagnostic = reason == null
+      ? new ScopeDiagnosticsClient(Paths.get(buildDirectory, 'reports'), "${getClass().simpleName}-${index}", scopeDiagnosticsProcessLifetime())
+      : null
+    scopeDiagnostics.add(diagnostic)
+    String argument = diagnostic == null ? '' : diagnostic.javaAgentArgument(disabledScopeContinuationChecksReason(), disabledChecks)
+    boolean found = replaceScopeDiagnosticsArgument(builder, argument)
+    if (diagnostic != null && !found) {
+      throw new IllegalStateException('Smoke launch must include defaultJavaProperties, or document an incompatible launch with skipScopeContinuationCheckReason()')
+    }
+  }
+
+  /** Override for launches that store JVM arguments outside the command and environment. */
+  protected boolean replaceScopeDiagnosticsArgument(ProcessBuilder builder, String argument) {
+    boolean found = false
+    builder.command().replaceAll { String value ->
+      if (value.contains(SCOPE_DIAGNOSTICS_ARGUMENT)) {
+        found = true
+        return value.replace(SCOPE_DIAGNOSTICS_ARGUMENT, argument)
+      }
+      value
+    }
+    builder.command().removeAll { it.isEmpty() }
+    builder.environment().replaceAll { String key, String value ->
+      if (value.contains(SCOPE_DIAGNOSTICS_ARGUMENT)) {
+        found = true
+        return value.replace(SCOPE_DIAGNOSTICS_ARGUMENT, argument)
+      }
+      value
+    }
+    return found
   }
 
   def getProfilingUrl() {
