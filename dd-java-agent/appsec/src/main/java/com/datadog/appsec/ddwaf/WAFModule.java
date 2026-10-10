@@ -60,6 +60,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -96,6 +97,13 @@ public class WAFModule implements AppSecModule {
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final WafHandle ctx;
+
+    /**
+     * Read-held while creating a context from {@link #ctx}; write-held while closing it. Keep the
+     * protected section callback-free: StampedLock is not reentrant. This protects context creation
+     * until libddwaf-java locks and checks the handle itself.
+     */
+    final StampedLock handleLock = new StampedLock();
 
     private CtxAndAddresses(Collection<Address<?>> addressesOfInterest, WafHandle ctx) {
       this.addressesOfInterest = addressesOfInterest;
@@ -208,7 +216,13 @@ public class WAFModule implements AppSecModule {
     }
 
     if (prevContextAndAddresses != null) {
-      prevContextAndAddresses.ctx.close();
+      // Context creation must finish acquiring native ruleset ownership before retiring the handle.
+      long stamp = prevContextAndAddresses.handleLock.writeLock();
+      try {
+        prevContextAndAddresses.ctx.close();
+      } finally {
+        prevContextAndAddresses.handleLock.unlockWrite(stamp);
+      }
     }
 
     reconf.reloadSubscriptions();
@@ -568,8 +582,30 @@ public class WAFModule implements AppSecModule {
         CtxAndAddresses ctxAndAddr,
         GatewayContext gwCtx)
         throws AbstractWafException {
-      WafContext wafContext =
-          reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+      // Existing contexts own their native ruleset, so using one needs no lock.
+      WafContext wafContext = reqCtx.getWafContextIfReady(wafMetricsEnabled, gwCtx.isRasp);
+      if (wafContext == null) {
+        for (; ; ) {
+          long stamp = ctxAndAddr.handleLock.tryReadLock();
+          if (stamp == 0L) {
+            // Avoid waiting for destruction of a retired handle; retry with the current snapshot.
+            ctxAndAddr = ctxAndAddresses.get();
+            continue;
+          }
+          try {
+            // A callback may have captured this snapshot before remote config replaced it; never
+            // create a context from a retired handle.
+            if (ctxAndAddr == ctxAndAddresses.get()) {
+              wafContext =
+                  reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+              break;
+            }
+          } finally {
+            ctxAndAddr.handleLock.unlockRead(stamp);
+          }
+          ctxAndAddr = ctxAndAddresses.get();
+        }
+      }
       if (wafContext == null) {
         // Context closed concurrently with the isWafContextClosed() check in onDataAvailable; skip
         // (APPSEC-69085).

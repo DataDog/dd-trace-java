@@ -393,7 +393,7 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       if (wafContextClosed) {
         return null;
       }
-      if (createMetrics) {
+      if (!metricsReady(createMetrics, isRasp)) {
         if (wafMetrics == null) {
           this.wafMetrics = new WafMetrics();
         }
@@ -408,6 +408,24 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       this.wafContext = curWafContext;
       return curWafContext;
     }
+  }
+
+  /**
+   * Returns the request's open {@link WafContext} without locking, or {@code null} when it does not
+   * exist yet, is closed, or still lacks metrics that {@link #getOrCreateWafContext} would create.
+   * On {@code null}, callers fall back to {@link #getOrCreateWafContext}.
+   */
+  public WafContext getWafContextIfReady(boolean createMetrics, boolean isRasp) {
+    WafContext curWafContext = this.wafContext;
+    if (curWafContext == null || wafContextClosed) {
+      return null;
+    }
+    return metricsReady(createMetrics, isRasp) ? curWafContext : null;
+  }
+
+  /** Whether the metrics a WAF call with these flags needs already exist. */
+  private boolean metricsReady(boolean createMetrics, boolean isRasp) {
+    return !createMetrics || (wafMetrics != null && (!isRasp || raspMetrics != null));
   }
 
   public void closeWafContext() {
