@@ -1,6 +1,8 @@
 package opentelemetry14;
 
 import static datadog.opentelemetry.shim.trace.OtelSpanEventTestHelper.stringifyErrorStack;
+import static datadog.trace.agent.test.assertions.SpanEventMatcher.event;
+import static datadog.trace.agent.test.assertions.SpanLinkMatcher.to;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
@@ -8,14 +10,12 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.api.DDTags.ERROR_MSG;
 import static datadog.trace.api.DDTags.ERROR_STACK;
 import static datadog.trace.api.DDTags.ERROR_TYPE;
-import static datadog.trace.api.DDTags.SPAN_EVENTS;
-import static datadog.trace.api.DDTags.SPAN_LINKS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.SAMPLED_FLAG;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
-import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static io.opentelemetry.api.common.AttributeKey.booleanArrayKey;
 import static io.opentelemetry.api.common.AttributeKey.doubleArrayKey;
@@ -30,9 +30,10 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
-import static java.lang.String.join;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,15 +43,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import datadog.trace.agent.test.assertions.SpanLinkMatcher;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanEvent;
-import datadog.trace.test.junit.utils.assertions.Matcher;
-import datadog.trace.test.junit.utils.assertions.Matchers;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -64,19 +64,17 @@ import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import opentelemetry14.context.propagation.TextMap;
-import org.json.JSONArray;
-import org.json.JSONException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.skyscreamer.jsonassert.JSONAssert;
 
 class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
   private static final String SPAN_KIND_INTERNAL = "internal";
@@ -176,25 +174,22 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     result.addEvent("event");
     result.end();
 
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + eventTimeWithinSpan(result, 0)
-            + ", \"name\": \"event\" }"
-            + "]";
     assertTraces(
         trace(
             span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))
+                .events(event("event"))));
   }
 
   static Stream<Arguments> testAddSingleEventArguments() {
     return Stream.of(
         arguments(
-            "empty attributes", "event1", TIME_MILLIS, MILLISECONDS, Attributes.empty(), null),
+            "empty attributes",
+            "event1",
+            TIME_MILLIS,
+            MILLISECONDS,
+            Attributes.empty(),
+            emptyMap()),
         arguments(
             "scalar attributes",
             "event2",
@@ -207,7 +202,17 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                 .put("boolean-key-true", true)
                 .put("boolean-key-false", false)
                 .build(),
-            "{\"string-key\": \"string-value\", \"long-key\": 123456789, \"double-key\": 1234.5678, \"boolean-key-true\": true, \"boolean-key-false\": false }"),
+            attributes(
+                "string-key",
+                "string-value",
+                "long-key",
+                123456789L,
+                "double-key",
+                1234.5678,
+                "boolean-key-true",
+                true,
+                "boolean-key-false",
+                false)),
         arguments(
             "array attributes",
             "event3",
@@ -219,7 +224,11 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                 .put("double-key-array", 1234.5D, 1234.56D, 1234.567D)
                 .put("boolean-key-array", true, false, true)
                 .build(),
-            "{\"string-key-array\": [ \"string-value1\", \"string-value2\", \"string-value3\" ], \"long-key-array\": [ 123456, 1234567, 12345678 ], \"double-key-array\": [ 1234.5, 1234.56, 1234.567], \"boolean-key-array\": [true, false, true] }"));
+            attributes(
+                "string-key-array", asList("string-value1", "string-value2", "string-value3"),
+                "long-key-array", asList(123456L, 1234567L, 12345678L),
+                "double-key-array", asList(1234.5D, 1234.56D, 1234.567D),
+                "boolean-key-array", asList(true, false, true))));
   }
 
   @ParameterizedTest(name = "[{index}] {0}")
@@ -230,18 +239,8 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
       long timestamp,
       TimeUnit unit,
       Attributes attributes,
-      String expectedAttributes) {
+      Map<String, Object> expectedAttributes) {
     SpanBuilder builder = this.otelTracer.spanBuilder("some-name");
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + unit.toNanos(timestamp)
-            + ", \"name\": \""
-            + name
-            + "\""
-            + (expectedAttributes == null ? "" : ", \"attributes\": " + expectedAttributes)
-            + " }"
-            + "]";
 
     Span result = builder.startSpan();
     result.addEvent(name, attributes, timestamp, unit);
@@ -250,10 +249,8 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     assertTraces(
         trace(
             span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))
+                .events(event(name).time(timestamp, unit).attributes(expectedAttributes))));
   }
 
   @Test
@@ -269,22 +266,15 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
         NANOSECONDS);
     result.end();
 
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + TIME_NANO
-            + ", \"name\": \"event1\" },"
-            + "{ \"time_unix_nano\": "
-            + TIME_NANO
-            + ", \"name\": \"event2\", \"attributes\": {\"string-key\": \"string-value\"} }"
-            + "]";
     assertTraces(
         trace(
             span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))
+                .events(
+                    event("event1").time(TIME_NANO, NANOSECONDS),
+                    event("event2")
+                        .time(TIME_NANO, NANOSECONDS)
+                        .attributes(singletonMap("string-key", "string-value")))));
   }
 
   @Test
@@ -324,9 +314,7 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     writer.waitForTraces(1);
     List<DDSpan> firstTrace = writer.firstTrace();
     assertEquals(1, firstTrace.size());
-    String eventsTag = firstTrace.get(0).getTags().getString(SPAN_EVENTS);
-    JSONArray events = new JSONArray(eventsTag);
-    assertEquals(threadCount * eventsPerThread, events.length());
+    assertEquals(threadCount * eventsPerThread, firstTrace.get(0).getEvents().size());
   }
 
   @Test
@@ -334,15 +322,6 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     String traceId = "1234567890abcdef1234567890abcdef";
     String spanId = "fedcba0987654321";
     TraceState traceState = TraceState.builder().put("string-key", "string-value").build();
-
-    String expectedLinksTag =
-        "["
-            + "{ \"trace_id\": \""
-            + traceId
-            + "\", \"span_id\": \""
-            + spanId
-            + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value\" }"
-            + "]";
 
     Span span =
         this.otelTracer
@@ -355,46 +334,40 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     assertTraces(
         trace(
             span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))
+                .links(
+                    to(DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId))
+                        .traceFlags(SAMPLED_FLAG)
+                        .traceState("string-key=string-value"))));
   }
 
   @Test
   void testMultipleSpanLinks() {
     SpanBuilder spanBuilder = this.otelTracer.spanBuilder("some-name");
 
-    List<String> expectedLinks = new ArrayList<>();
+    List<SpanLinkMatcher> expectedLinks = new ArrayList<>();
     for (int i = 0; i <= 9; i++) {
       String traceId = "1234567890abcdef1234567890abcde" + i;
       String spanId = "fedcba098765432" + i;
       TraceState traceState = TraceState.builder().put("string-key", "string-value" + i).build();
       spanBuilder.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState));
       expectedLinks.add(
-          "{ \"trace_id\": \""
-              + traceId
-              + "\", \"span_id\": \""
-              + spanId
-              + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value"
-              + i
-              + "\" }");
+          to(DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId))
+              .traceFlags(SAMPLED_FLAG)
+              .traceState("string-key=string-value" + i));
     }
     spanBuilder.startSpan().end();
 
-    String expectedLinksTag = "[" + join(",", expectedLinks) + "]";
     assertTraces(
         trace(
             span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))
+                .links(expectedLinks.toArray(new SpanLinkMatcher[0]))));
   }
 
   static Stream<Arguments> testSpanLinkAttributesArguments() {
     return Stream.of(
-        arguments("empty attributes", Attributes.empty(), null),
+        arguments("empty attributes", Attributes.empty(), emptyMap()),
         arguments(
             "scalar attributes",
             Attributes.builder()
@@ -404,7 +377,12 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                 .put("boolean-key-true", true)
                 .put("boolean-key-false", false)
                 .build(),
-            "{ \"string-key\": \"string-value\", \"long-key\": \"123456789\", \"double-key\": \"1234.5678\", \"boolean-key-true\": \"true\", \"boolean-key-false\": \"false\" }"),
+            attributes(
+                "string-key", "string-value",
+                "long-key", "123456789",
+                "double-key", "1234.5678",
+                "boolean-key-true", "true",
+                "boolean-key-false", "false")),
         arguments(
             "array attributes",
             Attributes.builder()
@@ -413,12 +391,25 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                 .put("double-key-array", 1234.5D, 1234.56D, 1234.567D)
                 .put("boolean-key-array", true, false, true)
                 .build(),
-            "{ \"string-key-array.0\": \"string-value1\", \"string-key-array.1\": \"string-value2\", \"string-key-array.2\": \"string-value3\", \"long-key-array.0\": \"123456\", \"long-key-array.1\": \"1234567\", \"long-key-array.2\": \"12345678\", \"double-key-array.0\": \"1234.5\", \"double-key-array.1\": \"1234.56\", \"double-key-array.2\": \"1234.567\", \"boolean-key-array.0\": \"true\", \"boolean-key-array.1\": \"false\", \"boolean-key-array.2\": \"true\" }"));
+            attributes(
+                "string-key-array.0", "string-value1",
+                "string-key-array.1", "string-value2",
+                "string-key-array.2", "string-value3",
+                "long-key-array.0", "123456",
+                "long-key-array.1", "1234567",
+                "long-key-array.2", "12345678",
+                "double-key-array.0", "1234.5",
+                "double-key-array.1", "1234.56",
+                "double-key-array.2", "1234.567",
+                "boolean-key-array.0", "true",
+                "boolean-key-array.1", "false",
+                "boolean-key-array.2", "true")));
   }
 
   @ParameterizedTest(name = "[{index}] {0}")
   @MethodSource("testSpanLinkAttributesArguments")
-  void testSpanLinkAttributes(String scenario, Attributes attributes, String expectedAttributes) {
+  void testSpanLinkAttributes(
+      String scenario, Attributes attributes, Map<String, String> expectedAttributes) {
     String traceId = "1234567890abcdef1234567890abcdef";
     String spanId = "fedcba0987654321";
     TraceState traceState = TraceState.builder().put("string-key", "string-value").build();
@@ -431,29 +422,20 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
             .startSpan();
     span.end();
 
-    String expectedLinksTag =
-        "["
-            + "{ \"trace_id\": \""
-            + traceId
-            + "\", \"span_id\": \""
-            + spanId
-            + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value\""
-            + (expectedAttributes == null ? "" : ", \"attributes\": " + expectedAttributes)
-            + " }"
-            + "]";
-
     assertTraces(
         trace(
             span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))
+                .links(
+                    to(DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId))
+                        .traceFlags(SAMPLED_FLAG)
+                        .traceState("string-key=string-value")
+                        .attributes(SpanAttributes.fromMap(expectedAttributes)))));
   }
 
   static Stream<Arguments> testSpanLinksTraceStateArguments() {
     return Stream.of(
-        arguments("default trace state", TraceState.getDefault(), null),
+        arguments("default trace state", TraceState.getDefault(), ""),
         arguments(
             "single key-value", TraceState.builder().put("key", "value").build(), "key=value"),
         arguments(
@@ -481,26 +463,14 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
             .startSpan();
     span.end();
 
-    String expectedTraceStateJson =
-        expectedTraceState == null ? "" : ", \"tracestate\": \"" + expectedTraceState + "\"";
-    String expectedLinksTag =
-        "["
-            + "{ \"trace_id\": \""
-            + traceId
-            + "\", \"span_id\": \""
-            + spanId
-            + "\", \"flags\": 1"
-            + expectedTraceStateJson
-            + " }"
-            + "]";
-
     assertTraces(
         trace(
             span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))
+                .links(
+                    to(DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId))
+                        .traceFlags(SAMPLED_FLAG)
+                        .traceState(expectedTraceState))));
   }
 
   static Stream<Arguments> testSpanAttributesArguments() {
@@ -747,7 +717,7 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
             null,
             null,
             null,
-            ", \"key\": \"value\""));
+            singletonMap("key", "value")));
   }
 
   @ParameterizedTest(name = "[{index}] {0}")
@@ -759,7 +729,7 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
       String overriddenMessage,
       String overriddenType,
       String overriddenStacktrace,
-      String extraJson) {
+      Map<String, Object> extraAttributes) {
     Span result = this.otelTracer.spanBuilder("some-name").startSpan();
     result.recordException(exception, attributes);
     result.end();
@@ -768,26 +738,14 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     String errorType = overriddenType != null ? overriddenType : exception.getClass().getName();
     String errorStackTrace =
         overriddenStacktrace != null ? overriddenStacktrace : stringifyErrorStack(exception);
-    String expectedAttributes =
-        "{"
-            + "\"exception.message\": \""
-            + errorMessage
-            + "\", \"exception.type\": \""
-            + errorType
-            + "\", \"exception.stacktrace\": \""
-            + errorStackTrace
-            + "\""
-            + (extraJson != null ? extraJson : "")
-            + "}";
-
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + eventTimeWithinSpan(result, 0)
-            + ", \"name\": \"exception\", \"attributes\": "
-            + expectedAttributes
-            + " }"
-            + "]";
+    Map<String, Object> expectedAttributes =
+        attributes(
+            "exception.message", errorMessage,
+            "exception.type", errorType,
+            "exception.stacktrace", errorStackTrace);
+    if (extraAttributes != null) {
+      expectedAttributes.putAll(extraAttributes);
+    }
 
     assertTraces(
         trace(
@@ -799,10 +757,10 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                 .tags(
                     defaultTags(),
                     tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)),
                     tag(ERROR_MSG, is(errorMessage)),
                     tag(ERROR_TYPE, is(errorType)),
-                    tag(ERROR_STACK, is(errorStackTrace)))));
+                    tag(ERROR_STACK, is(errorStackTrace)))
+                .events(event("exception").attributes(expectedAttributes))));
   }
 
   @Test
@@ -825,10 +783,12 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                 .tags(
                     defaultTags(),
                     tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, any()),
                     tag(ERROR_MSG, is(lastException.getMessage())),
                     tag(ERROR_TYPE, is(lastException.getClass().getName())),
-                    tag(ERROR_STACK, is(stringifyErrorStack(lastException))))));
+                    tag(ERROR_STACK, is(stringifyErrorStack(lastException))))
+                .events(
+                    event("exception").attributes(exceptionAttributes(firstException)),
+                    event("exception").attributes(exceptionAttributes(lastException)))));
   }
 
   @Test
@@ -879,27 +839,18 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     return (DDSpan) ((WithAgentSpan) span).asAgentSpan();
   }
 
-  /** Gets the time of the single span event, checking it comes from the same clock as the span. */
-  private static long eventTimeWithinSpan(Span span, int eventIndex) {
-    DDSpan ddSpan = getDDSpan(span);
-    List<DDSpanEvent> events = ddSpan.getEvents();
-    assertTrue(eventIndex < events.size());
-    long eventTime = events.get(eventIndex).timeUnixNano();
-    long startTime = ddSpan.getStartTime();
-    long endTime = startTime + ddSpan.getDurationNano();
-    assertTrue(startTime <= eventTime && eventTime <= endTime, "Event time outside span bounds");
-    return eventTime;
+  private static Map<String, Object> exceptionAttributes(Throwable exception) {
+    return attributes(
+        "exception.message", exception.getMessage(),
+        "exception.type", exception.getClass().getName(),
+        "exception.stacktrace", stringifyErrorStack(exception));
   }
 
-  private static Matcher<String> isJson(String expected) {
-    return Matchers.validates(
-        s -> {
-          try {
-            JSONAssert.assertEquals(expected, s, true);
-            return true;
-          } catch (JSONException e) {
-            return false;
-          }
-        });
+  private static Map<String, Object> attributes(Object... keyValues) {
+    Map<String, Object> attributes = new LinkedHashMap<>();
+    for (int i = 0; i < keyValues.length; i += 2) {
+      attributes.put((String) keyValues[i], keyValues[i + 1]);
+    }
+    return attributes;
   }
 }
