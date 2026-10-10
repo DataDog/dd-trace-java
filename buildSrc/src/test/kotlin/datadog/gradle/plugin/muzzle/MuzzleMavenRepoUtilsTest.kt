@@ -12,8 +12,6 @@ import org.eclipse.aether.util.version.GenericVersionScheme
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -140,31 +138,73 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("Backoff:\n  disabled")
   }
 
-  // The two tests below are mutually exclusive: MAVEN_REPOSITORY_PROXY is read from the real
-  // environment (defaultMuzzleRepos deliberately does not take it as a parameter), so each of
-  // them covers the branch its environment can reach -- unset locally, set in CI.
-
   @Test
-  @DisabledIfEnvironmentVariable(
-    named = "MAVEN_REPOSITORY_PROXY",
-    matches = ".*",
-    disabledReason = "A mirror is configured; the proxy variant of this test covers that case"
-  )
   fun `defaultMuzzleRepos is Maven Central alone when no proxy is configured`() {
-    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos().map { it.id to it.url })
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos(null).map { it.id to it.url })
       .containsExactly("central" to MAVEN_CENTRAL_URL)
   }
 
-  // TODO: Re-enable after removing the temporary Maven Central rate limiting workaround.
   @Test
-  @Disabled("Temporarily using the configured proxy without a Maven Central fallback")
-  @EnabledIfEnvironmentVariable(named = "MAVEN_REPOSITORY_PROXY", matches = ".*")
-  fun `defaultMuzzleRepos queries the configured proxy before Maven Central`() {
-    val proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+  fun `defaultMuzzleRepos prefers the Muzzle proxy over the shared proxy`() {
+    val sharedProxy = "https://maven.example.com/repository/"
+    val muzzleProxy = "https://muzzle.example.com/repository/"
 
-    // Central stays in the list as a fallback, but the proxy is consulted first.
-    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos().map { it.id to it.url })
-      .containsExactly("central-proxy" to proxyUrl, "central" to MAVEN_CENTRAL_URL)
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos(sharedProxy, muzzleProxy).map { it.id to it.url })
+      .containsExactly(
+        "muzzle-proxy" to muzzleProxy,
+        "central-proxy" to sharedProxy
+      )
+  }
+
+  @Test
+  fun `defaultMuzzleRepos preserves the shared proxy when no Muzzle proxy is configured`() {
+    val customProxy = "https://maven.example.com/repository/"
+
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos(customProxy).map { it.id to it.url })
+      .containsExactly("central-proxy" to customProxy)
+  }
+
+  @Test
+  fun `defaultMuzzleRepos allows a Muzzle proxy without a shared proxy`() {
+    val muzzleProxy = "https://muzzle.example.com/repository/"
+
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos(null, muzzleProxy).map { it.id to it.url })
+      .containsExactly("muzzle-proxy" to muzzleProxy)
+  }
+
+  @Test
+  fun `defaultMuzzleRepos ignores blank proxy values`() {
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos("", "  ").map { it.id to it.url })
+      .containsExactly("central" to MAVEN_CENTRAL_URL)
+  }
+
+  @Test
+  fun `defaultMuzzleRepos does not query the same proxy twice`() {
+    val proxy = "https://maven.example.com/repository/"
+
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos(proxy, proxy).map { it.id to it.url })
+      .containsExactly("muzzle-proxy" to proxy)
+  }
+
+  @Test
+  fun `resolveVersionRange uses the shared proxy when the Muzzle proxy has no metadata`() {
+    val sharedRepo = publishAndGetRepo("com.example", "mylib", listOf("1.0.0"))
+    val emptyRepo = MavenRepoFixture(File(tempDir, "empty"))
+    val directive = MuzzleDirective().apply {
+      group = "com.example"
+      module = "mylib"
+      versions = "[1.0,)"
+    }
+
+    val result = MuzzleMavenRepoUtils.resolveVersionRange(
+      directive,
+      system,
+      newSession(),
+      MuzzleMavenRepoUtils.defaultMuzzleRepos(sharedRepo.url, emptyRepo.repoUrl),
+      enableBackoffRetries = false
+    )
+
+    assertThat(result.versions.map { it.toString() }).containsExactly("1.0.0")
   }
 
   @Test
