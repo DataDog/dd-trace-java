@@ -250,34 +250,34 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      */
     @Nullable
     public static final Entry create(@Nonnull String tag, Object value) {
-      return isEmptyValue(value) ? null : TagMap.Entry.newAnyEntry(tag, value);
+      return isEmptyValue(value) ? null : TagMap.anyEntryFor(tag, value);
     }
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
     @Nullable
     public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
-      return isEmptyValue(value) ? null : TagMap.Entry.newObjectEntry(tag, value);
+      return isEmptyValue(value) ? null : TagMap.objectEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, boolean value) {
-      return TagMap.Entry.newBooleanEntry(tag, value);
+      return TagMap.booleanEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, int value) {
-      return TagMap.Entry.newIntEntry(tag, value);
+      return TagMap.intEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, long value) {
-      return TagMap.Entry.newLongEntry(tag, value);
+      return TagMap.longEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, float value) {
-      return TagMap.Entry.newFloatEntry(tag, value);
+      return TagMap.floatEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, double value) {
-      return TagMap.Entry.newDoubleEntry(tag, value);
+      return TagMap.doubleEntryFor(tag, value);
     }
 
     /*
@@ -319,7 +319,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     static Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
-      return newAnyEntry(entry.getKey(), entry.getValue());
+      return anyEntryFor(entry.getKey(), entry.getValue());
     }
 
     static Entry newAnyEntry(String tag, Object value) {
@@ -435,13 +435,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     volatile String strCache = null;
 
+    /**
+     * A custom tag's entry: no registry lookup. A known tag is built from its id instead -- callers
+     * that start from a name resolve it once and pick the id or name factory (see {@code
+     * TagMap.anyEntryFor}).
+     */
     private Entry(String tag, byte type, long prim, Object obj) {
-      /*
-       * Canonicalize known names at the single Entry construction point, so Datadog and
-       * OpenTelemetry spellings use the same TagMap key. The one StringIndex lookup this costs also
-       * yields the tag id, which becomes the tag hash.
-       */
-      this(KnownTagCodec.keyOf(tag), tag, type, prim, obj);
+      this(0L, tag, type, prim, obj);
+      assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; build it from its id";
     }
 
     private Entry(long tagId, byte type, long prim, Object obj) {
@@ -1001,31 +1002,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public Ledger set(String tag, Object value) {
-      return this.recordEntry(Entry.newAnyEntry(tag, value));
+      return this.recordEntry(anyEntryFor(tag, value));
     }
 
     public Ledger set(String tag, CharSequence value) {
-      return this.recordEntry(Entry.newObjectEntry(tag, value));
+      return this.recordEntry(objectEntryFor(tag, value));
     }
 
     public Ledger set(String tag, boolean value) {
-      return this.recordEntry(Entry.newBooleanEntry(tag, value));
+      return this.recordEntry(booleanEntryFor(tag, value));
     }
 
     public Ledger set(String tag, int value) {
-      return this.recordEntry(Entry.newIntEntry(tag, value));
+      return this.recordEntry(intEntryFor(tag, value));
     }
 
     public Ledger set(String tag, long value) {
-      return this.recordEntry(Entry.newLongEntry(tag, value));
+      return this.recordEntry(longEntryFor(tag, value));
     }
 
     public Ledger set(String tag, float value) {
-      return this.recordEntry(Entry.newFloatEntry(tag, value));
+      return this.recordEntry(floatEntryFor(tag, value));
     }
 
     public Ledger set(String tag, double value) {
-      return this.recordEntry(Entry.newDoubleEntry(tag, value));
+      return this.recordEntry(doubleEntryFor(tag, value));
     }
 
     public Ledger set(Entry entry) {
@@ -1494,7 +1495,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Deprecated
   @Override
   public Object put(@Nonnull String tag, Object value) {
-    TagMap.Entry entry = this.getAndSet(Entry.newAnyEntry(tag, value));
+    TagMap.Entry entry = this.getAndSet(anyEntryFor(tag, value));
     return entry == null ? null : entry.objectValue();
   }
 
@@ -1509,32 +1510,106 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
+  /*
+   * Entry factories for callers that start from a name: resolve it once, then build a known tag
+   * from its id or a custom tag from its name. (Entry's own name factories are custom-only.)
+   */
+  static Entry anyEntryFor(String tag, Object value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value);
+  }
+
+  static Entry objectEntryFor(String tag, CharSequence value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newObjectEntry(tagId, value) : Entry.newObjectEntry(tag, value);
+  }
+
+  static Entry booleanEntryFor(String tag, boolean value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newBooleanEntry(tagId, value) : Entry.newBooleanEntry(tag, value);
+  }
+
+  static Entry intEntryFor(String tag, int value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newIntEntry(tagId, value) : Entry.newIntEntry(tag, value);
+  }
+
+  static Entry longEntryFor(String tag, long value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newLongEntry(tagId, value) : Entry.newLongEntry(tag, value);
+  }
+
+  static Entry floatEntryFor(String tag, float value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newFloatEntry(tagId, value) : Entry.newFloatEntry(tag, value);
+  }
+
+  static Entry doubleEntryFor(String tag, double value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value);
+  }
+
   public void set(@Nonnull String tag, @Nonnull Object value) {
-    this.putEntry(Entry.newAnyEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newAnyEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, @Nonnull CharSequence value) {
-    this.putEntry(Entry.newObjectEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newObjectEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, boolean value) {
-    this.putEntry(Entry.newBooleanEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newBooleanEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, int value) {
-    this.putEntry(Entry.newIntEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newIntEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, long value) {
-    this.putEntry(Entry.newLongEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newLongEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, float value) {
-    this.putEntry(Entry.newFloatEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newFloatEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, double value) {
-    this.putEntry(Entry.newDoubleEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newDoubleEntry(tag, value));
+    }
   }
 
   /*
@@ -1658,31 +1733,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
-    return this.getAndSet(Entry.newAnyEntry(tag, value));
+    return this.getAndSet(anyEntryFor(tag, value));
   }
 
   public Entry getAndSet(@Nonnull String tag, CharSequence value) {
-    return this.getAndSet(Entry.newObjectEntry(tag, value));
+    return this.getAndSet(objectEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, boolean value) {
-    return this.getAndSet(Entry.newBooleanEntry(tag, value));
+    return this.getAndSet(booleanEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, int value) {
-    return this.getAndSet(Entry.newIntEntry(tag, value));
+    return this.getAndSet(intEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, long value) {
-    return this.getAndSet(Entry.newLongEntry(tag, value));
+    return this.getAndSet(longEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, float value) {
-    return this.getAndSet(Entry.newFloatEntry(tag, value));
+    return this.getAndSet(floatEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, double value) {
-    return this.getAndSet(Entry.newDoubleEntry(tag, value));
+    return this.getAndSet(doubleEntryFor(tag, value));
   }
 
   public void putAll(Map<? extends String, ? extends Object> map) {
@@ -3166,7 +3241,7 @@ final class EntryReadingHelper implements TagMap.EntryReader {
 
   @Override
   public TagMap.Entry entry() {
-    return TagMap.Entry.newAnyEntry(this.tag, this.value);
+    return TagMap.anyEntryFor(this.tag, this.value);
   }
 
   @Override
