@@ -277,7 +277,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
     // First run - should execute the tasks
     run {
-      val firstRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val firstRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("First run should execute muzzle task")
@@ -289,7 +289,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
     // Second run without changes - assertion tasks should be up-to-date
     run {
-      val secondRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val secondRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("Second run should be up-to-date")
@@ -312,7 +312,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
         """
       )
 
-      val thirdRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val thirdRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("Third run should execute after instrumentation code change")
@@ -341,7 +341,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
     // First run - should execute the tasks
     run {
-      val firstRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val firstRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("First run should execute muzzle task")
@@ -353,7 +353,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
     // Second run without changes - assertion tasks should be up-to-date
     run {
-      val secondRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val secondRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("Second run should be up-to-date")
@@ -376,7 +376,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
         """
       )
 
-      val thirdRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val thirdRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("Third run should execute after tooling classpath change")
@@ -405,7 +405,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
     // First run - should execute the tasks
     run {
-      val firstRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val firstRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("First run should execute muzzle task")
@@ -417,7 +417,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
     // Second run without changes - assertion tasks should be up-to-date
     run {
-      val secondRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val secondRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("Second run should be up-to-date")
@@ -440,7 +440,7 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
         """
       )
 
-      val thirdRun = run(":dd-java-agent:instrumentation:demo:muzzle")
+      val thirdRun = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
 
       assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
         .withFailMessage("Third run should execute after bootstrap classpath change")

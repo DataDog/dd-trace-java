@@ -76,14 +76,80 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     addSubproject("dd-java-agent:instrumentation:other", script(second.repoUrl))
     writeNoopScanPlugin()
 
-    val result = run("muzzle", env = mapOf("MAVEN_REPOSITORY_PROXY" to empty.repoUrl))
+    val environment = mapOf("MAVEN_REPOSITORY_PROXY" to empty.repoUrl)
+    val firstRun = run("muzzle", "--configuration-cache", "--rerun-tasks", env = environment)
+    assertThat(firstRun.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
+    val result = run("muzzle", "--configuration-cache", "--rerun-tasks", env = environment)
 
-    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.output).contains("BUILD SUCCESSFUL", "Reusing configuration cache")
     for ((module, version) in listOf("demo" to "1.0.0", "other" to "2.0.0")) {
       val prefix = ":dd-java-agent:instrumentation:$module:muzzle-AssertPass-com.example.test-shared-lib-"
       assertThat(result.task("$prefix$version")?.outcome).isEqualTo(SUCCESS)
       assertThat(result.tasks.filter { it.path.startsWith(prefix) }).hasSize(1)
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `cached graph is reused and replanned when a version is published`(largeRange: Boolean) {
+    val repository = createMavenRepoFixture()
+    val versions = if (largeRange) (0..30).flatMap { listOf("1.$it.0", "1.$it.1") } else listOf("1.0.0")
+    repository.publishVersions("com.example.test", "cache-lib", versions)
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      repositories { maven { url = uri("${repository.repoUrl}") } }
+      muzzle {
+        pass {
+          group = "com.example.test"
+          module = "cache-lib"
+          versions = "[1.0.0,2.0.0)"
+        }
+      }
+      """
+    )
+    writeNoopScanPlugin()
+    val arguments = arrayOf(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache", "--stacktrace")
+    val environment = mapOf("MAVEN_REPOSITORY_PROXY" to repository.repoUrl)
+    val first = run(*arguments, env = environment)
+    assertThat(first.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
+    val second = run(*arguments, env = environment)
+    assertThat(second.output).contains("BUILD SUCCESSFUL", "Reusing configuration cache")
+    val published = if (largeRange) "1.31.0" else "1.1.0"
+    repository.publishVersions("com.example.test", "cache-lib", listOf(published))
+    val third = run(*arguments, env = environment)
+    assertThat(third.output).contains("BUILD SUCCESSFUL").doesNotContain("Reusing configuration cache")
+    assertThat(third.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-cache-lib-$published")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `late main source sets are compiled and available to muzzle workers`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      tasks.named("muzzle").get()
+      afterEvaluate { sourceSets.create("main_extra") }
+      """
+    )
+    writeFile("dd-java-agent/instrumentation/demo/src/main_extra/resources/late.txt", "late source set")
+    writeScanPlugin(
+      """
+      if (instrumentationClassLoader.getResource("late.txt") == null) {
+        throw new IllegalStateException("Missing late main source set");
+      }
+      """
+    )
+    val result = run(":dd-java-agent:instrumentation:demo:muzzle", "--configuration-cache")
+    assertThat(result.output).contains("BUILD SUCCESSFUL", "Configuration cache entry stored")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:processMain_extraResources")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
   }
 
   @ParameterizedTest

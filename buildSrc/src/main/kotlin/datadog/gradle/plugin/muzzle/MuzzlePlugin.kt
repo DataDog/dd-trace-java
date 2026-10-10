@@ -1,11 +1,15 @@
 package datadog.gradle.plugin.muzzle
 
+import datadog.gradle.plugin.muzzle.planner.MuzzlePlannedVersion
+import datadog.gradle.plugin.muzzle.planner.MuzzlePlanningRequest
+import datadog.gradle.plugin.muzzle.planner.MuzzlePlansValueSource
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
-import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
+import kotlin.random.Random
 import org.eclipse.aether.artifact.Artifact
+import org.eclipse.aether.artifact.DefaultArtifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -14,8 +18,10 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.exclude
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.project
 import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
 
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
@@ -67,6 +73,7 @@ class MuzzlePlugin : Plugin<Project> {
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
+    val extension = project.extensions.getByType<MuzzleExtension>()
     val compileMuzzle = project.tasks.register("compileMuzzle") {
       inputs.files(project.providers.provider { project.allMainSourceSet.map { it.output } })
       dependsOn(bootstrapProject.tasks.named("compileJava"))
@@ -76,23 +83,29 @@ class MuzzlePlugin : Plugin<Project> {
 
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
       description = "Check instrumentation compatibility against the configured dependency versions"
-      this.muzzleBootstrap.set(muzzleBootstrap)
-      this.muzzleTooling.set(muzzleTooling)
+      this.muzzleBootstrap.from(muzzleBootstrap)
+      this.muzzleTooling.from(muzzleTooling)
       dependsOn(compileMuzzle)
+    }
+
+    project.tasks.withType<MuzzleTask>().configureEach {
+      agentClassPath.from(project.providers.provider { project.allMainSourceSet.map { it.runtimeClasspath } })
+      muzzleClassPath.from(project.configurations.named(if (name == "muzzle") "compileClasspath" else name))
     }
 
     project.tasks.register<MuzzleGetReferencesTask>("printReferences") {
       dependsOn(compileMuzzle)
+      classpath.from(project.mainSourceSet.runtimeClasspath)
     }.also {
+      val referenceOutput = it.flatMap { task -> task.outputFile }
       val printReferencesTask = project.tasks.register("actuallyPrintReferences") {
         doLast {
-          println(it.get().outputFile.get().asFile.readText())
+          println(referenceOutput.get().asFile.readText())
         }
       }
       it.configure { finalizedBy(printReferencesTask) }
     }
 
-    val extension = project.extensions.getByType<MuzzleExtension>()
     val runtimeClasspath = project.mainSourceSet.runtimeClasspath
     val report = project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
       reportDirectives.convention(project.providers.provider { extension.directives })
@@ -101,77 +114,86 @@ class MuzzlePlugin : Plugin<Project> {
     }
     project.publishMuzzleReport(report.flatMap { it.versionsFile })
 
-    val relevantTasks = project.gradle.startParameter.taskNames.filter { taskName ->
-      val taskProjectPath = taskName.substringBeforeLast(":", "")
-      val taskNameOnly = taskName.substringAfterLast(":")
-      val isAggregate = taskNameOnly.equals("runMuzzle", ignoreCase = true)
-      val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path ||
-        (isAggregate && project.path.startsWith("$taskProjectPath:"))
+    registerPlanning(project)
+  }
 
-      isRelevantForProject && !taskNameOnly.equals("compileMuzzle", ignoreCase = true) &&
-        taskNameOnly.endsWith("muzzle", ignoreCase = true)
-    }
-    if (relevantTasks.isEmpty()) {
-      // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
-      project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
-      return
-    }
+  private fun hasRelevantTask(project: Project): Boolean = project.gradle.startParameter.taskNames.any { taskName ->
+    val taskProjectPath = taskName.substringBeforeLast(":", "")
+    val taskNameOnly = taskName.substringAfterLast(":")
+    val isAggregate = taskNameOnly.equals("runMuzzle", ignoreCase = true)
+    val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path ||
+      (isAggregate && project.path.startsWith("$taskProjectPath:"))
+    isRelevantForProject && !taskNameOnly.equals("compileMuzzle", ignoreCase = true) &&
+      taskNameOnly.endsWith("muzzle", ignoreCase = true) &&
+      (!isAggregate || project.extensions.getByType<MuzzleExtension>().includeInAggregate.get())
+  }
 
-    // We only get here if we are running muzzle, so let's start timing things
-    val startTime = System.currentTimeMillis()
-
+  private fun registerPlanning(project: Project) {
+    val root = project.rootProject
+    val marker = "datadogMuzzlePlanningRegistered"
+    if (root.extensions.extraProperties.has(marker)) return
+    root.extensions.extraProperties.set(marker, true)
     project.gradle.projectsEvaluated {
-      if (relevantTasks.all { it.substringAfterLast(":").equals("runMuzzle", ignoreCase = true) } &&
-        !extension.includeInAggregate.get()) {
-        project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
-        return@projectsEvaluated
+      val projects = root.allprojects.filter {
+        it.plugins.hasPlugin("dd-trace-java.muzzle") && it.plugins.hasPlugin("java")
+      }.filter {
+        val extension = it.extensions.getByType<MuzzleExtension>()
+        it.tasks.named<MuzzleTask>("muzzle").configure {
+          checkCompileTimeDependencies.set(!extension.directives.any { it.assertPass })
+        }
+        val relevant = hasRelevantTask(it)
+        if (!relevant) {
+          it.logger.info("No muzzle tasks invoked for ${it.path}, skipping muzzle task planification")
+        }
+        relevant
       }
-      // use runAfter to set up task finalizers in version order
-      var runAfter: TaskProvider<MuzzleTask> = muzzleTask
-      val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
-      val directives = project.extensions.getByType<MuzzleExtension>().directives
-      sharedTaskPlanner(project).plan(directives).forEach { plan ->
-        runAfter = registerMuzzleTask(plan.directive, plan.artifact, project, runAfter, muzzleBootstrap, muzzleTooling)
-        muzzleReportTasks.add(runAfter)
-        project.logger.info("configured ${plan.directive}")
+      if (projects.isEmpty()) return@projectsEvaluated
+      val requests = projects.map {
+        MuzzlePlanningRequest(it.path, it.extensions.getByType<MuzzleExtension>().directives.toList())
       }
-
-      if (muzzleReportTasks.isEmpty() && !directives.any { it.assertPass }) {
-        muzzleReportTasks.add(muzzleTask)
-      }
-
-      val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
-        startTimeMs.set(startTime)
-        sourceFile.set(
-          project.projectDir
-            .relativeTo(project.rootProject.projectDir)
-            .invariantSeparatorsPath
-        )
-        muzzleResultFiles.from(muzzleReportTasks.map { it.flatMap { task -> task.result } })
-      }
-      // last muzzle task to run
-      runAfter.configure {
-        finalizedBy(timingTask)
+      // Revalidate selected coordinates when loading a cached task graph.
+      val plans = root.providers.of(MuzzlePlansValueSource::class.java) {
+        parameters.requests.set(requests)
+        parameters.samplingSeed.set(Random.nextLong())
+      }.get().groupBy { it.projectPath }
+      projects.forEachIndexed { index, instrumentation ->
+        configureMuzzlePlan(instrumentation, requests[index].directives, plans[instrumentation.path].orEmpty())
       }
     }
   }
 
-  private fun sharedTaskPlanner(project: Project): MuzzleTaskPlanner {
-    val properties = project.rootProject.extensions.extraProperties
-    val key = "datadogMuzzleTaskPlanners"
-    if (!properties.has(key)) {
-      properties.set(key, mutableMapOf<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>())
+  private fun configureMuzzlePlan(
+    project: Project,
+    directives: List<MuzzleDirective>,
+    plans: List<MuzzlePlannedVersion>
+  ) {
+    val muzzleTask = project.tasks.named<MuzzleTask>("muzzle")
+    val muzzleBootstrap = project.configurations.named("muzzleBootstrap")
+    val muzzleTooling = project.configurations.named("muzzleTooling")
+    var runAfter = muzzleTask
+    val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
+    plans.forEach { plan ->
+      val original = directives[plan.directiveIndex]
+      val directive = if (plan.assertPass == original.assertPass) {
+        original
+      } else {
+        original.inverse(requireNotNull(plan.version))
+      }
+      val artifact = plan.version?.let {
+        DefaultArtifact(directive.group, directive.module, directive.classifier ?: "", "jar", it)
+      }
+      runAfter = registerMuzzleTask(directive, artifact, project, runAfter, muzzleBootstrap, muzzleTooling)
+      muzzleReportTasks.add(runAfter)
+      project.logger.info("configured $directive")
     }
-    @Suppress("UNCHECKED_CAST")
-    val planners = properties.get(key) as MutableMap<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>
-    // Repository IDs can be reused for different URLs, so keep their local metadata separate.
-    val repositories = project.extensions.getByType<MuzzleExtension>().directives
-      .map { it.additionalRepositories.toList() }.distinct()
-    return planners.getOrPut(repositories) {
-      val system = MuzzleMavenRepoUtils.newRepositorySystem()
-      val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-      MuzzleTaskPlanner.from(system, session)
+    if (muzzleReportTasks.isEmpty() && !directives.any { it.assertPass }) {
+      muzzleReportTasks.add(muzzleTask)
     }
+    val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
+      sourceFile.set(project.projectDir.relativeTo(project.rootProject.projectDir).invariantSeparatorsPath)
+      muzzleResultFiles.from(muzzleReportTasks.map { it.flatMap { task -> task.result } })
+    }
+    runAfter.configure { finalizedBy(timingTask) }
   }
 
   companion object {
@@ -257,8 +279,8 @@ class MuzzlePlugin : Plugin<Project> {
 
       val muzzleTask = instrumentationProject.tasks.register<MuzzleTask>(muzzleTaskName) {
         this.muzzleDirective.set(muzzleDirective)
-        this.muzzleBootstrap.set(muzzleBootstrap)
-        this.muzzleTooling.set(muzzleTooling)
+        this.muzzleBootstrap.from(muzzleBootstrap)
+        this.muzzleTooling.from(muzzleTooling)
       }
 
       runAfterTask.configure {
