@@ -12,8 +12,9 @@ package datadog.buildlogic.tagRegistry
  * trace-level tier is its own clique (it lives in a separate TagMap). Tags that never share a clique
  * may share a slot -- a tag declared per direction (peer.port inbound and outbound) typically does --
  * so the slot count stays bounded by the largest clique, small enough for one occupancy `long` in
- * the dense store. Only tags at a required/conditional/recommended level are slotted; the rest get
- * [NO_SLOT] and are stored by hash.
+ * the dense store. Every tag resolved onto a span type, or trace-level, is slotted whatever its
+ * requirement level; a tag on no modeled span type (the tracer overlay's routing-only keys, tags of
+ * unmodeled span types) gets [NO_SLOT], and the dense store gives those one shared presence bit.
  *
  * <p>The intercepted bit marks a tag the tracer may route on the set-path (to a span field or a
  * sampling directive instead of tag storage), as listed by the tracer overlay. A setter called with
@@ -59,10 +60,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     const val SLOT_SHIFT = 32 // slot window [47-32]; mirrors KnownTagCodec.SLOT_SHIFT
     const val NO_SLOT = 0xFFFF // all-ones slot: stored by hash; mirrors KnownTagCodec.NO_SLOT
-    const val MAX_SLOTS = 64 // one occupancy long in the dense store
+    const val MAX_SLOTS = 63 // one occupancy long in the dense store; bit 63 is shared by unslotted tags
 
-    /** Requirement levels whose tags get a dense-store slot. */
-    val SLOTTED_LEVELS = setOf("required", "conditional", "recommended")
 
     /**
      * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
@@ -132,9 +131,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     private fun colorSlots(conv: TagConventions): Map<TagConventions.TagIdentity, Int> {
       val cliques = ArrayList<Set<TagConventions.TagIdentity>>()
       for (type in conv.concreteTypes()) {
-        cliques.add(conv.resolve(type).filter { it.required in SLOTTED_LEVELS }.map { it.identity }.toSet())
+        cliques.add(conv.resolve(type).map { it.identity }.toSet())
       }
-      cliques.add(conv.traceLevelTags().filter { it.required in SLOTTED_LEVELS }.map { it.identity }.toSet())
+      cliques.add(conv.traceLevelTags().map { it.identity }.toSet())
 
       val neighbors = HashMap<TagConventions.TagIdentity, MutableSet<TagConventions.TagIdentity>>()
       for (clique in cliques) {

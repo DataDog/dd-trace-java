@@ -143,11 +143,12 @@ class TagMapDenseFuzzForkedTest {
         dense = r.nextBoolean();
     }
     if (dense) {
-      return SLOTTED.get(r.nextInt(SLOTTED.size()));
+      // every known tag is dense, slotted or not
+      return r.nextInt(4) == 0
+          ? UNSLOTTED.get(r.nextInt(UNSLOTTED.size()))
+          : SLOTTED.get(r.nextInt(SLOTTED.size()));
     }
-    return r.nextInt(4) == 0
-        ? UNSLOTTED.get(r.nextInt(UNSLOTTED.size()))
-        : "custom-" + r.nextInt(CUSTOM_SPACE);
+    return "custom-" + r.nextInt(CUSTOM_SPACE);
   }
 
   private static String randomValue() {

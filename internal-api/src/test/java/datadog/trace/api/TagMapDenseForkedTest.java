@@ -37,6 +37,7 @@ class TagMapDenseForkedTest {
   static final String BASE_SERVICE = KnownTags.DD_BASE_SERVICE_NAME;
   // known, no slot
   static final String DB_POOL_NAME = KnownTags.DB_POOL_NAME;
+  static final String UNSLOTTED_KNOWN = KnownTags.RESOURCE_NAME; // on no span type: no slot
   // custom
   static final String CUSTOM_A = "custom.tag.a";
   static final String CUSTOM_B = "custom.tag.b";
@@ -51,7 +52,7 @@ class TagMapDenseForkedTest {
     assertTrue(Config.get().isTraceDenseTagsEnabled(), "dense store must be on in this JVM");
     assertTrue(KnownTagCodec.hasSlot(KnownTags.COMPONENT_ID));
     assertTrue(KnownTagCodec.hasSlot(KnownTags.DD_BASE_SERVICE_ID));
-    assertFalse(KnownTagCodec.hasSlot(KnownTags.DB_POOL_NAME_ID), "db.pool.name has no slot");
+    assertFalse(KnownTagCodec.hasSlot(KnownTags.RESOURCE_NAME_ID), "resource.name has no slot");
 
     Map<Integer, Long> bySlot = new HashMap<>();
     for (Field field : KnownTags.class.getFields()) {
@@ -106,14 +107,14 @@ class TagMapDenseForkedTest {
   }
 
   @Test
-  void customAndUnslottedTagsStayInBuckets() {
+  void customTagsStayInBucketsAndUnslottedKnownTagsAreDense() {
     TagMap map = TagMap.create();
     map.set(CUSTOM_A, "alpha");
-    map.set(DB_POOL_NAME, "pool-1");
+    map.set(UNSLOTTED_KNOWN, "pool-1"); // a known tag with no slot
 
-    assertEquals(0, knownCount(map));
+    assertEquals(1, knownCount(map));
     assertEquals("alpha", map.getObject(CUSTOM_A));
-    assertEquals("pool-1", map.getObject(DB_POOL_NAME));
+    assertEquals("pool-1", map.getObject(UNSLOTTED_KNOWN));
     assertEquals(2, map.size());
     map.checkIntegrity();
   }

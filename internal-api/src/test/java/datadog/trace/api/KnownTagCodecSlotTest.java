@@ -46,8 +46,15 @@ class KnownTagCodecSlotTest {
   }
 
   @Test
-  void anOptionalTagIsStoredByHash() {
-    assertFalse(KnownTagCodec.hasSlot(KnownTags.PEER_PORT_OUTBOUND_ID));
+  void anOptionalTagOnASpanTypeHasASlot() {
+    assertTrue(KnownTagCodec.hasSlot(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertTrue(KnownTagCodec.hasSlot(KnownTags.DB_POOL_NAME_ID));
+  }
+
+  @Test
+  void aTagOnNoSpanTypeHasNoSlot() {
+    // the tracer overlay's routing-only keys appear on no modeled span type
+    assertFalse(KnownTagCodec.hasSlot(KnownTags.RESOURCE_NAME_ID));
   }
 
   @Test
@@ -58,5 +65,12 @@ class KnownTagCodecSlotTest {
     assertEquals(KnownTags.HTTP_METHOD_NAME, KnownTagCodec.nameOf(tagId));
     assertTrue(KnownTagCodec.isIntercepted(tagId));
     assertFalse(KnownTagCodec.isTraceLevel(tagId));
+  }
+
+  @Test
+  void anUnslottedTagSharesTheReservedTopBit() {
+    // TagMap.slotBit relies on the long shift masking NO_SLOT (0xFFFF) down to 63
+    assertEquals(1L << 63, TagMap.slotBit(KnownTags.RESOURCE_NAME_ID));
+    assertTrue(KnownTagCodec.slotCount() < 63, "real slots must stay below the shared bit 63");
   }
 }

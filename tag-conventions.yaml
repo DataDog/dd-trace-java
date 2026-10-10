@@ -55,9 +55,8 @@
 # interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
 # span-kind still requires it.
 # Storage layout is NOT authored here. dd-trace-java's generator derives a dense-store slot for each
-# required/conditional/recommended tag by graph coloring: tags resolved onto one concrete span type
-# (or both trace-level) get distinct slots, and tags that never appear together may share one. The
-# rest are stored by hash.
+# tag by graph coloring: tags resolved onto one concrete span type (or both trace-level) get
+# distinct slots, and tags that never appear together may share one.
 # ---------------------------------------------------------------------------
 
 # Trace-level tier: its own TagMap on the TraceSegment. Set once per trace, not per span.

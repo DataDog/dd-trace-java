@@ -1598,15 +1598,22 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   // ---- dense known-tag store (see the class-level note above the fields) ----
 
   /**
-   * The id to store densely for {@code tagHash} (an Entry's tag hash, or a tag id), or 0 when it
-   * stays in the buckets: a custom tag, a known tag with no slot, or the dense store disabled.
+   * The id to store densely for {@code tagHash} (an Entry's tag hash, or a tag id), or 0 for a
+   * custom tag, which stays in the buckets. Every known tag is dense, slotted or not, so an
+   * id-keyed write never reaches the hash path.
    */
   private static long denseIdOf(long tagHash) {
     // a known tag's hash is its id (upper 32 bits nonzero); a custom tag's upper 32 bits are zero
-    return (tagHash >>> 32) != 0 && KnownTagCodec.hasSlot(tagHash) ? tagHash : 0L;
+    return (tagHash >>> 32) != 0 ? tagHash : 0L;
   }
 
-  private static long slotBit(long denseId) {
+  /**
+   * A dense id's occupancy bit. The bit only rules a tag out quickly; the scan decides, so ids may
+   * share one. No branch for a tag without a slot: a long shift uses only the low 6 bits of its
+   * count, so {@code NO_SLOT} (0xFFFF) lands on bit 63, which the generator reserves (real slots
+   * stay below 63) and every unslotted tag shares.
+   */
+  static long slotBit(long denseId) {
     return 1L << KnownTagCodec.slotOf(denseId);
   }
 
@@ -1656,8 +1663,25 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * Local dense write: clears any tombstone for the tag, then stores the value, returning the prior
    * value or null. The {@code set(long, ...)} methods use this; it builds no Entry.
    */
+  /**
+   * {@code tagId}, when it names a known tag; the checked id-keyed setters reject anything else.
+   */
+  private static long requireKnownId(long tagId) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
+    }
+    return tagId;
+  }
+
   private Object storeDenseLocal(long denseId, Object value) {
     this.checkWriteAccess();
+    if (KnownTagCodec.hasSharedName(denseId)) {
+      // One direction of a tag declared per direction, written by id, supersedes a value written
+      // under the shared name alone (before a span knew its direction), so the map never holds
+      // both. Folds away for a constant id.
+      String sharedName = KnownTagCodec.nameOf(denseId);
+      this.removeLocal(sharedName, Entry.customHash(sharedName));
+    }
     if (this.removedFromParent != null) {
       this.removedFromParent.remove(KnownTagCodec.nameOf(denseId));
     }
@@ -1892,7 +1916,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * as in set(long, ...), so no Entry is built.
      */
     public void setKnown(long tagId, @Nonnull Object value) {
-      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      if (DenseStore.ENABLED) {
         this.map.storeDenseLocal(tagId, value);
         return;
       }
@@ -1900,7 +1924,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public void setKnown(long tagId, @Nonnull CharSequence value) {
-      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      if (DenseStore.ENABLED) {
         this.map.storeDenseLocal(tagId, value);
         return;
       }
@@ -1908,7 +1932,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public void setKnown(long tagId, boolean value) {
-      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      if (DenseStore.ENABLED) {
         this.map.storeDenseLocal(tagId, Boolean.valueOf(value));
         return;
       }
@@ -1918,7 +1942,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public void setKnown(long tagId, int value) {
-      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      if (DenseStore.ENABLED) {
         this.map.storeDenseLocal(tagId, Integer.valueOf(value));
         return;
       }
@@ -1926,7 +1950,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public void setKnown(long tagId, long value) {
-      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      if (DenseStore.ENABLED) {
         this.map.storeDenseLocal(tagId, Long.valueOf(value));
         return;
       }
@@ -1934,7 +1958,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public void setKnown(long tagId, float value) {
-      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      if (DenseStore.ENABLED) {
         this.map.storeDenseLocal(tagId, Float.valueOf(value));
         return;
       }
@@ -1942,7 +1966,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public void setKnown(long tagId, double value) {
-      if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
+      if (DenseStore.ENABLED) {
         this.map.storeDenseLocal(tagId, Double.valueOf(value));
         return;
       }
@@ -1951,56 +1975,56 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(long tagId, @Nonnull Object value) {
-    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.storeDenseLocal(tagId, value);
+    if (DenseStore.ENABLED) {
+      this.storeDenseLocal(requireKnownId(tagId), value);
       return;
     }
     this.putEntry(Entry.newAnyEntry(tagId, value));
   }
 
   public void set(long tagId, @Nonnull CharSequence value) {
-    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.storeDenseLocal(tagId, value);
+    if (DenseStore.ENABLED) {
+      this.storeDenseLocal(requireKnownId(tagId), value);
       return;
     }
     this.putEntry(Entry.newObjectEntry(tagId, value));
   }
 
   public void set(long tagId, boolean value) {
-    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.storeDenseLocal(tagId, Boolean.valueOf(value));
+    if (DenseStore.ENABLED) {
+      this.storeDenseLocal(requireKnownId(tagId), Boolean.valueOf(value));
       return;
     }
     this.putEntry(Entry.newBooleanEntry(tagId, value));
   }
 
   public void set(long tagId, int value) {
-    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.storeDenseLocal(tagId, Integer.valueOf(value));
+    if (DenseStore.ENABLED) {
+      this.storeDenseLocal(requireKnownId(tagId), Integer.valueOf(value));
       return;
     }
     this.putEntry(Entry.newIntEntry(tagId, value));
   }
 
   public void set(long tagId, long value) {
-    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.storeDenseLocal(tagId, Long.valueOf(value));
+    if (DenseStore.ENABLED) {
+      this.storeDenseLocal(requireKnownId(tagId), Long.valueOf(value));
       return;
     }
     this.putEntry(Entry.newLongEntry(tagId, value));
   }
 
   public void set(long tagId, float value) {
-    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.storeDenseLocal(tagId, Float.valueOf(value));
+    if (DenseStore.ENABLED) {
+      this.storeDenseLocal(requireKnownId(tagId), Float.valueOf(value));
       return;
     }
     this.putEntry(Entry.newFloatEntry(tagId, value));
   }
 
   public void set(long tagId, double value) {
-    if (DenseStore.ENABLED && denseIdOf(tagId) != 0) {
-      this.storeDenseLocal(tagId, Double.valueOf(value));
+    if (DenseStore.ENABLED) {
+      this.storeDenseLocal(requireKnownId(tagId), Double.valueOf(value));
       return;
     }
     this.putEntry(Entry.newDoubleEntry(tagId, value));

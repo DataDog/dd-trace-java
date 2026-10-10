@@ -60,7 +60,7 @@ class TagRegistryGeneratorTest {
     assertThat(first.getValue("tag-assignment.txt"))
       .contains("tags=6", "test.name", "service.name")
     assertThat(first.getValue("java/datadog/trace/api/KnownTags.java"))
-      .contains("ENV_ID = 0x0001FFFF00000004L", "TEST_NAME", "http.request.method")
+      .contains("ENV_ID = 0x0001000000000004L", "TEST_NAME", "http.request.method")
   }
 
   @TableTest(
@@ -604,17 +604,17 @@ class TagRegistryGeneratorTest {
 
     TagRegistryGenerator.generate(yaml, output)
 
-    // service is on both span types, so it takes slot 0; http.route and db.type never share a span
-    // type, so both take slot 1; env is trace-level (its own TagMap) and reuses slot 0; db.user is
-    // optional, so it is stored by hash (no slot, 0xFFFF).
+    // service is on both span types, so it takes slot 0; db.type and db.user share db.client, so
+    // they take distinct slots, and http.route -- never on a span type with either -- reuses one of
+    // them; env is trace-level (its own TagMap) and reuses slot 0. Every level is slotted.
     assertThat(contents(output).getValue("java/datadog/trace/api/KnownTags.java"))
       .contains(
         "DB_TYPE_ID = 0x0001000100000000L",
-        "DB_USER_ID = 0x0002FFFF00000000L",
+        "DB_USER_ID = 0x0002000200000000L",
         "ENV_ID = 0x0003000000000004L",
         "HTTP_ROUTE_ID = 0x0004000100000000L",
         "SERVICE_ID = 0x0005000000000000L",
-        "public static final int SLOT_COUNT = 2;"
+        "public static final int SLOT_COUNT = 3;"
       )
   }
 
