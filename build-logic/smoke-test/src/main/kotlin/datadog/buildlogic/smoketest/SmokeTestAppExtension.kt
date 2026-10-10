@@ -312,7 +312,7 @@ abstract class GradleAppSpec @Inject constructor() : ApplicationSpec() {
    */
   abstract val buildCacheEnabled: Property<Boolean>
 
-  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  /** Timeout, in seconds, for each shutdown wait. See [NestedGradleBuild.stopTimeoutSeconds]. */
   abstract val stopTimeoutSeconds: Property<Long>
 }
 
