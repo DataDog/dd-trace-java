@@ -494,11 +494,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (name == null) {
         throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
       }
-      if (KnownTagCodec.hasSharedName(tagId)) {
-        // Name-keyed access hashes the shared name as a custom tag, so it could never find an entry
-        // keyed by this id; set the tag by name until resolution knows the span's direction.
-        throw new IllegalArgumentException("tag id has a shared name, set it by name: " + name);
-      }
       return name;
     }
 
@@ -1538,7 +1533,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Deprecated
   @Override
   public Object put(@Nonnull String tag, Object value) {
-    TagMap.Entry entry = this.getAndSet(anyEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    TagMap.Entry entry =
+        this.getAndSet(
+            tagId != 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value));
     return entry == null ? null : entry.objectValue();
   }
 
@@ -1557,6 +1555,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * Entry factories for callers that start from a name: resolve it once, then build a known tag
    * from its id or a custom tag from its name. (Entry's own name factories are custom-only.)
    */
+  /**
+   * The id a write by name stores under: the tag's id, 0 for a custom tag, or -- for a Datadog name
+   * shared by a tag per direction ({@code peer.port}) -- whichever of those tags this map already
+   * holds. When it holds neither, the write stays a custom tag under the name, which a span re-keys
+   * once it knows its direction.
+   */
+  private long writeKeyOf(String tag) {
+    long tagId = KnownTagCodec.keyOrSharedName(tag);
+    if (tagId != KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL) {
+      return tagId;
+    }
+    for (int direction = KnownTagCodec.DIRECTION_INBOUND;
+        direction <= KnownTagCodec.DIRECTION_NONE;
+        direction++) {
+      long sharingId = KnownTagCodec.directionalKeyOf(tag, direction);
+      if (sharingId > 0 && this.getEntry(tag, sharingId) != null) {
+        return sharingId;
+      }
+    }
+    return 0L;
+  }
+
   static Entry anyEntryFor(String tag, Object value) {
     long tagId = KnownTagCodec.keyOf(tag);
     return tagId != 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value);
@@ -1593,7 +1613,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, @Nonnull Object value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = this.writeKeyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
     } else {
@@ -1602,7 +1622,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, @Nonnull CharSequence value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = this.writeKeyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
     } else {
@@ -1611,7 +1631,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, boolean value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = this.writeKeyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
     } else {
@@ -1620,7 +1640,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, int value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = this.writeKeyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
     } else {
@@ -1629,7 +1649,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, long value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = this.writeKeyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
     } else {
@@ -1638,7 +1658,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, float value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = this.writeKeyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
     } else {
@@ -1647,7 +1667,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void set(@Nonnull String tag, double value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = this.writeKeyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
     } else {
@@ -1724,6 +1744,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private Entry putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
 
+    long newTagHash = newEntry.tagHash;
+    if ((newTagHash >>> 32) != 0 && KnownTagCodec.hasSharedName(newTagHash)) {
+      // One direction of a tag declared per direction, written by id, supersedes a value written
+      // under the shared name alone (before a span knew its direction), so the map never holds
+      // both.
+      this.removeLocal(newEntry.tag, Entry.customHash(newEntry.tag));
+    }
+
     // Re-setting a key clears any read-through tombstone for it (the new value overrides the
     // removal). Gated on the lazy field, so this is a no-op for the common no-tombstone case.
     if (this.removedFromParent != null) {
@@ -1776,31 +1804,45 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
-    return this.getAndSet(anyEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    return this.getAndSet(
+        tagId != 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value));
   }
 
   public Entry getAndSet(@Nonnull String tag, CharSequence value) {
-    return this.getAndSet(objectEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    return this.getAndSet(
+        tagId != 0 ? Entry.newObjectEntry(tagId, value) : Entry.newObjectEntry(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, boolean value) {
-    return this.getAndSet(booleanEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    return this.getAndSet(
+        tagId != 0 ? Entry.newBooleanEntry(tagId, value) : Entry.newBooleanEntry(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, int value) {
-    return this.getAndSet(intEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    return this.getAndSet(
+        tagId != 0 ? Entry.newIntEntry(tagId, value) : Entry.newIntEntry(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, long value) {
-    return this.getAndSet(longEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    return this.getAndSet(
+        tagId != 0 ? Entry.newLongEntry(tagId, value) : Entry.newLongEntry(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, float value) {
-    return this.getAndSet(floatEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    return this.getAndSet(
+        tagId != 0 ? Entry.newFloatEntry(tagId, value) : Entry.newFloatEntry(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, double value) {
-    return this.getAndSet(doubleEntryFor(tag, value));
+    long tagId = this.writeKeyOf(tag);
+    return this.getAndSet(
+        tagId != 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value));
   }
 
   public void putAll(Map<? extends String, ? extends Object> map) {

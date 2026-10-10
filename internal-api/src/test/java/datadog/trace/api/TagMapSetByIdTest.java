@@ -74,12 +74,34 @@ class TagMapSetByIdTest {
   }
 
   @Test
-  void rejectsSharedNameIds() {
+  void aSharedNameIdIsFoundByItsSharedName() {
     TagMap map = TagMap.create();
-    assertThrows(IllegalArgumentException.class, () -> map.set(KnownTags.PEER_PORT_INBOUND_ID, 80));
-    assertThrows(
-        IllegalArgumentException.class, () -> map.set(KnownTags.PEER_PORT_OUTBOUND_ID, 443));
-    assertThrows(
-        IllegalArgumentException.class, () -> map.getEntry(KnownTags.PEER_PORT_OUTBOUND_ID));
+    map.set(KnownTags.PEER_PORT_INBOUND_ID, 80);
+
+    assertEquals(80, map.getEntry(KnownTags.PEER_PORT_INBOUND_ID).intValue());
+    assertEquals(80, map.getEntry("peer.port").intValue());
+  }
+
+  @Test
+  void aWriteBySharedNameReplacesTheHeldDirectionsTag() {
+    TagMap map = TagMap.create();
+    map.set(KnownTags.PEER_PORT_INBOUND_ID, 80);
+
+    map.set("peer.port", 81);
+
+    assertEquals(1, map.size());
+    assertEquals(81, map.getEntry(KnownTags.PEER_PORT_INBOUND_ID).intValue());
+  }
+
+  @Test
+  void aWriteByIdSupersedesAValueSetUnderTheSharedNameAlone() {
+    TagMap map = TagMap.create();
+    map.set("peer.port", 8080); // no direction known: stored under the name
+
+    map.set(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
+
+    assertEquals(1, map.size());
+    assertEquals(443, map.getEntry("peer.port").intValue());
+    assertEquals(443, map.getEntry(KnownTags.PEER_PORT_OUTBOUND_ID).intValue());
   }
 }

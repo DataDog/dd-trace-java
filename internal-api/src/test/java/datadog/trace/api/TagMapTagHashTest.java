@@ -2,8 +2,8 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -143,10 +143,7 @@ class TagMapTagHashTest {
     List<Long> tagIds = new ArrayList<>();
     for (Field field : KnownTags.class.getFields()) {
       if (field.getType() == long.class && Modifier.isStatic(field.getModifiers())) {
-        long tagId = field.getLong(null);
-        if (KnownTagCodec.isKeyableById(tagId)) {
-          tagIds.add(tagId);
-        }
+        tagIds.add(field.getLong(null));
       }
     }
     return tagIds;

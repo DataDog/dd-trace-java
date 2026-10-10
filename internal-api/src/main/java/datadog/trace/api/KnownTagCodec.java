@@ -64,22 +64,13 @@ public final class KnownTagCodec {
   /**
    * SHARED_NAME bit (low-32 carve, bit 0): marks one direction of a tag declared once per direction
    * under a shared Datadog name, such as {@code peer.port}. {@link #keyOf} resolves that name to
-   * neither id, so the name alone cannot find an entry stored under one of them.
+   * neither id; TagMap reads and writes by that name check each direction's id instead.
    */
   public static final long SHARED_NAME = 1L << 0;
 
   /** True if the tagId is one direction of a tag whose Datadog name is shared across directions. */
   public static boolean hasSharedName(long tagId) {
     return (tagId & SHARED_NAME) != 0L;
-  }
-
-  /**
-   * True if {@code tagId} can key a {@link TagMap} entry: a known tag whose name resolves back to
-   * it. A {@link #hasSharedName shared-name} id cannot, until name resolution knows the span's
-   * direction. Like {@link #isKnown}, this folds away for a constant id.
-   */
-  public static boolean isKeyableById(long tagId) {
-    return isKnown(tagId) && !hasSharedName(tagId);
   }
 
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */

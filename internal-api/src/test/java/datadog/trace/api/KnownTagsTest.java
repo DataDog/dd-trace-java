@@ -175,8 +175,6 @@ class KnownTagsTest {
     assertNotEquals(KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID);
     assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_INBOUND_ID));
     assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertFalse(KnownTagCodec.isKeyableById(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertTrue(KnownTagCodec.isKeyableById(KnownTags.PEER_HOSTNAME_ID));
     assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
   }
 

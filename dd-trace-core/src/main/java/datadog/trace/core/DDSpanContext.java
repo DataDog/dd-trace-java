@@ -1146,13 +1146,13 @@ public class DDSpanContext
   }
 
   /**
-   * Removes a known tag by id rather than by its name. An id the id-keyed setters ignore is ignored
-   * here too.
+   * Removes a known tag by id rather than by its name. An id that names no known tag is ignored,
+   * like the id-keyed setters do.
    *
    * @param tagId a {@code KnownTags.*_ID} constant
    */
   public void removeTag(long tagId) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagId == KnownTags.SPAN_KIND_ID) {
@@ -1210,11 +1210,10 @@ public class DDSpanContext
   /*
    * Id-keyed setters, mirroring the String setters above. With a constant id, the
    * KnownTagCodec.INTERCEPTED test folds, leaving only the split-by-tags table load; an id set never
-   * takes the custom-tag path. An id that names no known tag, or whose name is shared across
-   * directions (see KnownTagCodec#isKeyableById), is ignored, like a null tag.
+   * takes the custom-tag path. An id that names no known tag is ignored, like a null tag.
    */
   public void setTag(final long tagId, final Object value) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (null == value) {
@@ -1228,7 +1227,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final CharSequence value) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (null == value) {
@@ -1242,7 +1241,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final boolean value) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1255,7 +1254,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final int value) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1268,7 +1267,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final long value) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1281,7 +1280,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final float value) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
@@ -1294,7 +1293,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final double value) {
-    if (!KnownTagCodec.isKeyableById(tagId)) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
