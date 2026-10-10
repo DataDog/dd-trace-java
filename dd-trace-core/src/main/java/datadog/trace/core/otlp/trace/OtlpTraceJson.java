@@ -192,12 +192,15 @@ public final class OtlpTraceJson {
 
   public static class MetaWriter implements MetadataConsumer {
     private final JsonWriter writer;
+    private final OtlpSpanTags spanTags;
 
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
-    public MetaWriter(JsonWriter writer) {
+    /** {@code spanTags} is owned by the collector so its cache survives across payloads. */
+    MetaWriter(JsonWriter writer, OtlpSpanTags spanTags) {
       this.writer = writer;
+      this.spanTags = spanTags;
     }
 
     /** Call this to ensure process tags are written out for the next span. */
@@ -247,7 +250,7 @@ public final class OtlpTraceJson {
         writeSpanTag(writer, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      metadata.getTags().forEach(writer, OtlpTraceJson::writeSpanTag);
+      spanTags.forEach(metadata.getTags(), writer, OtlpTraceJson::writeSpanTag);
 
       // reset for next span
       includeProcessTags = false;

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -190,6 +191,47 @@ class TagMapReadThroughTest {
     assertEquals(3, out.size());
     assertEquals("parent-a", out.get("a"));
     assertEquals("child-c", out.get("c"));
+  }
+
+  @Test
+  void forEachLocalSkipsParentEntries() {
+    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
+    child.set("b", "child-b"); // shadows parent "b"
+    child.set("c", "child-c");
+    child.remove("a"); // tombstone only affects parent entries
+
+    Map<String, Object> out = new HashMap<>();
+    child.forEachLocal(out, (m, e) -> m.put(e.tag(), e.objectValue()));
+    assertEquals(2, out.size());
+    assertEquals("child-b", out.get("b"));
+    assertEquals("child-c", out.get("c"));
+  }
+
+  @Test
+  void readsThroughToParentUnlessShadowedOrRemoved() {
+    TagMap parent = frozenParent(); // {a, b}
+    TagMap child = TagMap.createFromParent(parent);
+    child.set("c", "child-c");
+    child.set(parent.getEntry("b")); // local copy sharing the parent's Entry instance
+
+    assertTrue(child.readsThroughToParent("a"));
+    assertFalse(child.readsThroughToParent("b")); // shadowed locally, even by the same Entry
+    assertFalse(child.readsThroughToParent("c")); // local only
+    assertTrue(child.readsThroughToParent("missing")); // would fall through, parent lacks it
+
+    child.remove("a"); // tombstone
+    assertFalse(child.readsThroughToParent("a"));
+    assertFalse(parent.readsThroughToParent("a")); // no parent
+  }
+
+  @Test
+  void parentExposesAttachedParent() {
+    TagMap parent = frozenParent();
+    TagMap child = TagMap.createFromParent(parent);
+
+    assertSame(parent, child.parent());
+    assertNull(parent.parent());
+    assertNull(TagMap.createFromParent(TagMap.create().freeze()).parent()); // empty is dropped
   }
 
   @Test
