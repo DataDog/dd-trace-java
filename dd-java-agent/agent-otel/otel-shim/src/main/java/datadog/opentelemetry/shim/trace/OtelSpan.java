@@ -3,8 +3,8 @@ package datadog.opentelemetry.shim.trace;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applySpanEventExceptionAttributesAsTags;
-import static datadog.opentelemetry.shim.trace.OtelConventions.setEventsAsTag;
 import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_SPAN_EVENT_NAME;
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.eventAttributes;
 import static datadog.opentelemetry.shim.trace.OtelSpanEvent.initializeExceptionAttributes;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
@@ -26,7 +26,6 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -36,15 +35,6 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
   private StatusCode statusCode = UNSET;
   private volatile boolean recording = true;
-
-  /**
-   * Span events ({@code null} until an event is added).
-   *
-   * <p>Volatile so {@link #onSpanFinished()} can skip the lock in common no-events case; writes and
-   * the rare non-null read synchronize on {@code this} to guard against concurrent recording from
-   * another thread.
-   */
-  private volatile List<OtelSpanEvent> events;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
@@ -89,7 +79,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes) {
     if (this.recording) {
-      doAddEvent(new OtelSpanEvent(name, attributes));
+      this.delegate.addEvent(name, eventAttributes(attributes));
     }
     return this;
   }
@@ -97,17 +87,9 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     if (this.recording) {
-      doAddEvent(new OtelSpanEvent(name, attributes, timestamp, unit));
+      this.delegate.addEvent(name, eventAttributes(attributes), timestamp, unit);
     }
     return this;
-  }
-
-  private synchronized void doAddEvent(OtelSpanEvent event) {
-    List<OtelSpanEvent> eventsSnapshot = this.events;
-    if (eventsSnapshot == null) {
-      this.events = eventsSnapshot = new ArrayList<>();
-    }
-    eventsSnapshot.add(event);
   }
 
   @Override
@@ -131,7 +113,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
     if (this.recording) {
       additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
       applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
-      doAddEvent(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
+      this.delegate.addEvent(EXCEPTION_SPAN_EVENT_NAME, eventAttributes(additionalAttributes));
     }
     return this;
   }
@@ -182,16 +164,6 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public void onSpanFinished() {
     applyNamingConvention(this.delegate);
-    // Fast path: skip the lock when there are no events (the common case)
-    if (this.events != null) {
-      List<OtelSpanEvent> eventsSnapshot;
-      synchronized (this) {
-        // detach events for serialization
-        eventsSnapshot = this.events;
-        this.events = null;
-      }
-      setEventsAsTag(this.delegate, eventsSnapshot);
-    }
   }
 
   private static class NoopSpan implements Span {

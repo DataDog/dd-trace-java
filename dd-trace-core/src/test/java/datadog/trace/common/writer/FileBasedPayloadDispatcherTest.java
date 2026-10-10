@@ -1,5 +1,6 @@
 package datadog.trace.common.writer;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,7 +53,7 @@ class FileBasedPayloadDispatcherTest {
     FileBasedPayloadDispatcher dispatcher =
         new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
 
-    dispatcher.addTrace(Collections.emptyList());
+    dispatcher.addTrace(emptyList());
     dispatcher.flush();
 
     assertTrue(listFiles(outputDir).isEmpty());
@@ -314,7 +315,8 @@ class FileBasedPayloadDispatcherTest {
             0,
             null,
             null,
-            null);
+            emptyList(),
+            emptyList());
     doAnswer(
             inv -> {
               MetadataConsumer consumer = inv.getArgument(0);

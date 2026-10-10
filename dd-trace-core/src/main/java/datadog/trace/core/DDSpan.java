@@ -5,6 +5,9 @@ import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -35,10 +38,12 @@ import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -118,8 +123,16 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
    */
   private volatile int longRunningVersion = 0;
 
-  private static final List<AgentSpanLink> EMPTY = Collections.emptyList();
+  private static final List<AgentSpanLink> NO_LINK = emptyList();
   protected volatile List<AgentSpanLink> links;
+
+  private static final List<DDSpanEvent> NO_EVENT = emptyList();
+
+  /**
+   * Span events, appended under the span lock until the span is finished. Volatile to check for no
+   * event without locking.
+   */
+  protected volatile List<DDSpanEvent> events = NO_EVENT;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -148,7 +161,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       context.getTraceCollector().touch(); // external clock: explicitly update lastReferenced
     }
 
-    this.links = links == null || links.isEmpty() ? EMPTY : new CopyOnWriteArrayList<>(links);
+    this.links = links == null || links.isEmpty() ? NO_LINK : new CopyOnWriteArrayList<>(links);
   }
 
   public boolean isFinished() {
@@ -803,14 +816,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
-  public void processTagsAndBaggageWithStructuredLinks(final MetadataConsumer consumer) {
-    context.processTagsAndBaggageWithStructuredLinks(consumer, longRunningVersion, this);
+  public void processTagsAndBaggageWithStructuredLinksAndEvents(final MetadataConsumer consumer) {
+    context.processTagsAndBaggageWithStructuredLinksAndEvents(consumer, longRunningVersion, this);
   }
 
   @Override
-  public void processTagsAndBaggageWithStructuredLinks(
+  public void processTagsAndBaggageWithStructuredLinksAndEvents(
       final MetadataConsumer consumer, final boolean firstInChunk) {
-    context.processTagsAndBaggageWithStructuredLinks(
+    context.processTagsAndBaggageWithStructuredLinksAndEvents(
         consumer, longRunningVersion, this, firstInChunk);
   }
 
@@ -925,8 +938,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     return context.getTraceCollector().getTraceConfig();
   }
 
+  /**
+   * Get the span links for serializing purpose only.
+   *
+   * @return The span links for serialization purpose only.
+   */
   public List<? extends AgentSpanLink> getLinks() {
-    return this.links;
+    List<AgentSpanLink> links = this.links;
+    return links.isEmpty() ? links : unmodifiableList(links);
   }
 
   @Override
@@ -951,18 +970,59 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     // CopyOnWriteArrayList containing the newly added link
 
     List<AgentSpanLink> links = this.links;
-    if (links != EMPTY) {
+    if (links != NO_LINK) {
       links.add(link);
       return;
     }
 
     synchronized (this) {
       links = this.links;
-      if (links != EMPTY) {
+      if (links != NO_LINK) {
         links.add(link);
       } else {
-        this.links = new CopyOnWriteArrayList<>(Collections.singletonList(link));
+        this.links = new CopyOnWriteArrayList<>(singletonList(link));
       }
+    }
+  }
+
+  /**
+   * Get the span events for serializing purpose only. The collection is shared once the span is
+   * finished, as no more events can be added, and defensively-copied otherwise.
+   *
+   * @return The span events for serialization purpose only.
+   */
+  public List<DDSpanEvent> getEvents() {
+    if (this.events == NO_EVENT) {
+      return NO_EVENT;
+    }
+    synchronized (this) {
+      return isFinished() ? this.events : new ArrayList<>(this.events);
+    }
+  }
+
+  @Override
+  public void addEvent(String name, Map<String, ?> attributes) {
+    addEvent(new DDSpanEvent(name, context.getTraceCollector().getCurrentTimeNano(), attributes));
+  }
+
+  @Override
+  public void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit) {
+    addEvent(new DDSpanEvent(name, unit.toNanos(timestamp), attributes));
+  }
+
+  private void addEvent(DDSpanEvent event) {
+    // Append under lock rather than copy-on-write: events can be numerous, and are read once
+    synchronized (this) {
+      // Ignore events once finished, so getEvents() can share the event list without copying it
+      if (isFinished()) {
+        return;
+      }
+      List<DDSpanEvent> events = this.events;
+      if (events == NO_EVENT) {
+        events = new ArrayList<>();
+        this.events = events;
+      }
+      events.add(event);
     }
   }
 

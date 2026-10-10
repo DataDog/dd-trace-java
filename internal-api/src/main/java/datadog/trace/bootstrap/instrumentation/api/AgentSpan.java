@@ -15,6 +15,7 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -225,6 +226,26 @@ public interface AgentSpan
   TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);
+
+  /**
+   * Adds an event to the span.
+   *
+   * @param name The event name.
+   * @param attributes The event attributes, with values being {@link String}, {@link Boolean},
+   *     {@link Long}, {@link Double}, or a {@link java.util.List} of them.
+   */
+  void addEvent(String name, Map<String, ?> attributes);
+
+  /**
+   * Adds an event to the span.
+   *
+   * @param name The event name.
+   * @param attributes The event attributes, with values being {@link String}, {@link Boolean},
+   *     {@link Long}, {@link Double}, or a {@link java.util.List} of them.
+   * @param timestamp The event time since the Unix epoch.
+   * @param unit The event time unit.
+   */
+  void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit);
 
   AgentSpan setMetaStruct(final String field, final Object value);
 

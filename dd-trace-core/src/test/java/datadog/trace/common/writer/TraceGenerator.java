@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.DDSpanEvent;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.SpanKindFilter;
@@ -196,6 +197,7 @@ public class TraceGenerator {
           samplingPriority,
           statusCode,
           origin,
+          emptyList(),
           emptyList());
     }
 
@@ -216,7 +218,8 @@ public class TraceGenerator {
         int samplingPriority,
         int statusCode,
         CharSequence origin,
-        List<AgentSpanLink> spanLinks) {
+        List<AgentSpanLink> spanLinks,
+        List<DDSpanEvent> spanEvents) {
       this.serviceName = UTF8BytesString.create(serviceName);
       this.operationName = UTF8BytesString.create(operationName);
       this.resourceName = UTF8BytesString.create(resourceName);
@@ -244,7 +247,8 @@ public class TraceGenerator {
               0,
               ProcessTags.getTagsForSerialization(),
               UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
-              spanLinks);
+              spanLinks,
+              spanEvents);
     }
 
     @Override

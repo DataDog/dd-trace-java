@@ -6,6 +6,8 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
+import static datadog.trace.core.TestSpanEvents.typedAttributes;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -403,16 +405,12 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void serializeTraceWithJsonSpanEventsV1() throws Exception {
+  void serializeTraceWithSpanEventsAsStructuredEventsOnlyV1() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
-    context.setTag(
-        SPAN_EVENTS,
-        "[{\"time_unix_nano\":1234567890,\"name\":\"event.one\","
-            + "\"attributes\":{\"str\":\"value\",\"int\":42,\"double\":12.5,"
-            + "\"bool\":true,\"arr\":[\"x\",7,2.5,false]}},"
-            + "{\"time_unix_nano\":1234567891,\"name\":\"event.two\"}]");
     DDSpan span = DDSpan.create("test", 0, context, null);
+    span.addEvent("event.one", typedAttributes(), 1234567890L, NANOSECONDS);
+    span.addEvent("event.two", Collections.emptyMap(), 1234567891L, NANOSECONDS);
 
     V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
 
@@ -434,17 +432,30 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     tracer.close();
   }
 
-  @Test
-  void serializeTraceWithMalformedJsonSpanEventsAsEmptyV1() throws Exception {
+  @TableTest({
+    "protocol",
+    "v0.4    ",
+    "v0.5    "
+  })
+  void serializeTraceWithSpanEventsAsEventsTag(String protocol) throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
-    context.setTag(SPAN_EVENTS, "[{");
     DDSpan span = DDSpan.create("test", 0, context, null);
+    span.addEvent("event.one", typedAttributes(), 1234567890L, NANOSECONDS);
+    span.addEvent("event \"two\"", Collections.emptyMap(), 1234567891L, NANOSECONDS);
 
-    V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
+    List<DDSpan> trace = Collections.singletonList(span);
+    Map<String, ?> metadata =
+        "v0.4".equals(protocol)
+            ? serializeV04Metadata(trace).get(0)
+            : serializeV05Metadata(trace).get(0);
 
-    assertFalse(payload.getAttributes().containsKey(SPAN_EVENTS));
-    assertEquals(Collections.emptyList(), payload.getEvents());
+    assertEquals(
+        "[{\"time_unix_nano\":1234567890,\"name\":\"event.one\",\"attributes\":"
+            + "{\"str\":\"value\",\"int\":42,\"double\":12.5,\"bool\":true,"
+            + "\"arr\":[\"x\",7,2.5,false]}},"
+            + "{\"time_unix_nano\":1234567891,\"name\":\"event \\\"two\\\"\"}]",
+        metadata.get(SPAN_EVENTS));
     tracer.close();
   }
 

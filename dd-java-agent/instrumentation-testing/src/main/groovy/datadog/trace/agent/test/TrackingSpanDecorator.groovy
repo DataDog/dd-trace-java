@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.core.DDSpan
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.annotation.Nonnull
 
 /**
@@ -402,6 +403,16 @@ class TrackingSpanDecorator implements AgentSpan {
   @Override
   void addLink(AgentSpanLink link) {
     delegate.addLink(link)
+  }
+
+  @Override
+  void addEvent(String name, Map<String, ?> attributes) {
+    delegate.addEvent(name, attributes)
+  }
+
+  @Override
+  void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit) {
+    delegate.addEvent(name, attributes, timestamp, unit)
   }
 
   @Override
