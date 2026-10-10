@@ -1,9 +1,11 @@
 package datadog.trace.test.logging;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.LoggingEvent;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.filter.Filter;
@@ -15,13 +17,25 @@ import java.lang.management.ManagementFactory;
 public final class TestcontainersImageLogging {
   private static final String APPENDER_NAME = "TESTCONTAINERS_IMAGES";
   private static final Object CONFIGURATION_LOCK = new Object();
+  private static final String UNKNOWN_TEST =
+      "unavailable (specification initialization or shared setup)";
+  private static volatile String currentTestName = UNKNOWN_TEST;
 
   private TestcontainersImageLogging() {}
 
   public static void configure(LoggerContext context) {
+    configure(context, null);
+  }
+
+  public static void configure(LoggerContext context, String testName) {
     synchronized (CONFIGURATION_LOCK) {
+      currentTestName = testName == null ? UNKNOWN_TEST : testName;
       configureAppender(context);
     }
+  }
+
+  public static void clearTestName() {
+    currentTestName = UNKNOWN_TEST;
   }
 
   private static void configureAppender(LoggerContext context) {
@@ -67,6 +81,7 @@ public final class TestcontainersImageLogging {
 
   private static final class LazyImageAppender extends AppenderBase<ILoggingEvent> {
     private final FileAppender<ILoggingEvent> delegate;
+    private String lastRecordedTest;
 
     private LazyImageAppender(FileAppender<ILoggingEvent> delegate) {
       this.delegate = delegate;
@@ -77,6 +92,18 @@ public final class TestcontainersImageLogging {
       // AppenderBase serializes accepted events; only the first one opens the file.
       if (!delegate.isStarted()) {
         delegate.start();
+      }
+      String currentTest = currentTestName;
+      if (!currentTest.equals(lastRecordedTest)) {
+        delegate.doAppend(
+            new LoggingEvent(
+                TestcontainersImageLogging.class.getName(),
+                ((LoggerContext) getContext()).getLogger("tc"),
+                Level.INFO,
+                "Image event test context: {}",
+                null,
+                new Object[] {currentTest}));
+        lastRecordedTest = currentTest;
       }
       delegate.doAppend(event);
     }

@@ -23,21 +23,24 @@ class TestcontainersImageLoggingTest {
     LoggerContext context = new LoggerContext();
     System.setProperty("testcontainers.image.log.dir", directory.toString());
     try {
-      TestcontainersImageLogging.configure(context);
-      TestcontainersImageLogging.configure(context);
+      TestcontainersImageLogging.configure(context, "JdbcTest :: first test");
+      TestcontainersImageLogging.configure(context, "JdbcTest :: first test");
       Logger image = context.getLogger("tc.registry.example/image@sha256:digest");
       image.setLevel(Level.INFO);
       image.info("Container output: CONTAINER_SENTINEL");
+      TestcontainersImageLogging.clearTestName();
       try (Stream<Path> logs = Files.list(directory)) {
         assertEquals(0, logs.count(), "Setup and rejected events must not create log files");
       }
       context.reset();
-      TestcontainersImageLogging.configure(context);
+      TestcontainersImageLogging.configure(context, "JdbcTest :: first test");
       image.setLevel(Level.INFO);
       try (Stream<Path> logs = Files.list(directory)) {
         assertEquals(0, logs.count(), "Resetting an unused appender must not create log files");
       }
       image.info("Pulling docker image: {}", "registry.example/image@sha256:digest");
+      image.info("Starting to pull image");
+      TestcontainersImageLogging.configure(context, "JdbcTest :: second test");
       image.info("Starting to pull image");
       image.info(
           "Pulling image layers: {} pending, {} downloaded, {} extracted, ({}/{})",
@@ -70,7 +73,11 @@ class TestcontainersImageLoggingTest {
         log = paths[0];
       }
       String text = new String(Files.readAllBytes(log), StandardCharsets.UTF_8);
-      assertEquals(1, text.split("Starting to pull image", -1).length - 1);
+      assertEquals(2, text.split("Starting to pull image", -1).length - 1);
+      assertTrue(text.indexOf("JdbcTest :: first test") < text.indexOf("Pulling docker image:"));
+      assertTrue(text.contains("Image event test context: JdbcTest :: second test"));
+      assertTrue(text.contains("Image event test context: unavailable"));
+      assertEquals(1, text.split("JdbcTest :: first test", -1).length - 1);
       assertTrue(text.contains("1 pending, 2 downloaded"));
       assertTrue(text.contains("Retrying pull for image"));
       assertTrue(text.contains("has not made progress"));
@@ -82,6 +89,7 @@ class TestcontainersImageLoggingTest {
       assertFalse(text.contains("CONTAINER_SENTINEL"));
       assertFalse(text.contains("COMMAND_SENTINEL"));
     } finally {
+      TestcontainersImageLogging.clearTestName();
       context.stop();
       if (previous == null) {
         System.clearProperty("testcontainers.image.log.dir");

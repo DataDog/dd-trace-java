@@ -298,7 +298,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   @SuppressForbidden
-  private static void configureLoggingLevels() {
+  private static void configureLoggingLevels(String imageTestName = null) {
     def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
 
     // Check logger class by name to avoid NoClassDefFoundError at runtime for tests without Logback.
@@ -321,7 +321,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
     // Image pull progress uses tc.<image>, outside org.testcontainers.
     ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("tc")).setLevel(Level.INFO)
-    TestcontainersImageLogging.configure(rootLogger.getLoggerContext())
+    TestcontainersImageLogging.configure(rootLogger.getLoggerContext(), imageTestName)
   }
 
   def codeOriginSetup() {
@@ -470,7 +470,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     InstrumentationErrors.resetErrors() // reset for each test
 
-    configureLoggingLevels()
+    configureLoggingLevels(getClass().name + " :: " + specificationContext.currentFeature.name)
 
     assertThreadsEachCleanup = false
 
@@ -566,6 +566,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
         throw scopeDiagnosticsFailure
       }
     } finally {
+      TestcontainersImageLogging.clearTestName()
       if (scopeDiagnosticsSuiteEnabled()) {
         ScopeDiagnostics.startRecording()
       }

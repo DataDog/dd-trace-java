@@ -137,6 +137,9 @@ appear in captured test output. Cache decisions remain under
 Instrumentation tests in modules using `dd-trace-java.testcontainers` also save these image events in
 `build/reports/docker-images/<test-task>/image-pulls-<worker-pid>.log`.
 These files use UTC timestamps and survive test retries and logging resets.
+Files are created only when an image event is recorded. A header identifies the
+specification class and feature name; another header marks a change of test.
+Events before per-test setup identify the test context as unavailable.
 GitLab publishes them as individual artifacts as well as inside `reports.tar`.
 The dedicated files exclude container output, Docker command arguments,
 authentication diagnostics and exception bodies.
