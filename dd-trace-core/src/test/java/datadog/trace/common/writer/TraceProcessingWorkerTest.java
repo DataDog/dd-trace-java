@@ -23,6 +23,7 @@ import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -145,6 +146,57 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertTrue(flushed);
       assertEquals(1, flushCount.get());
       assertTrue(worker.getPrimaryQueue().isEmpty());
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Test 3b: a flush should dispatch the secondary queue before completing
+  // -------------------------------------------------------------------------
+
+  /**
+   * The flush marker is only offered to the primary queue, so a trace on the secondary queue has to
+   * be swept into the dispatcher before the flush completes — otherwise {@code close()} interrupts
+   * the serializer thread and the trace is never dispatched. Sampled-out APM traces can afford
+   * that, but with APM tracing disabled the dropped trace also carries the LLM Observability spans.
+   */
+  @Test
+  void testAFlushShouldDispatchTheSecondaryQueueBeforeCompleting() {
+    List<String> calls = Collections.synchronizedList(new ArrayList<>());
+    PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
+    doAnswer(
+            inv -> {
+              calls.add("addTrace");
+              return null;
+            })
+        .when(dispatcher)
+        .addTrace(any());
+    doAnswer(
+            inv -> {
+              calls.add("flush");
+              return null;
+            })
+        .when(dispatcher)
+        .flush();
+
+    try (TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            mock(HealthMetrics.class),
+            dispatcher,
+            () -> false,
+            FAST_LANE,
+            100,
+            TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
+            null)) {
+      List<DDSpan> trace = Collections.singletonList(mock(DDSpan.class));
+      worker.getSecondaryQueue().offer(trace);
+      worker.start();
+      boolean flushed = worker.flush(10, TimeUnit.SECONDS);
+
+      assertTrue(flushed);
+      assertTrue(worker.getSecondaryQueue().isEmpty());
+      // the trace reached the dispatcher, and it did so before the flush was reported complete
+      assertEquals(Arrays.asList("addTrace", "flush"), calls);
     }
   }
 

@@ -77,12 +77,21 @@ public class SamplingMechanism {
   /**
    * Returns true if sampling priority lock can be avoided for the given mechanism and priority
    *
+   * <p>With APM tracing disabled, the {@link #DEFAULT} drop overrides an already-set priority (e.g.
+   * {@code manual.keep}), so the trace isn't kept as APM. Traces marked for ASM or AI Guard never
+   * reach the sampler. The drop is not exempt when Data Jobs is enabled, so it can't overwrite a
+   * {@link #DATA_JOBS} keep.
+   *
    * @param priority the sampling priority
    * @param mechanism the sampling mechanism
    * @return {@code true} if the sampling priority lock can be avoided, {@code false} otherwise
    */
   public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
-    return (!Config.get().isApmTracingEnabled() && mechanism == SamplingMechanism.APPSEC)
+    return (!Config.get().isApmTracingEnabled()
+            && (mechanism == SamplingMechanism.APPSEC
+                || (mechanism == DEFAULT
+                    && priority == SAMPLER_DROP
+                    && !Config.get().isDataJobsEnabled())))
         || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS);
   }
 

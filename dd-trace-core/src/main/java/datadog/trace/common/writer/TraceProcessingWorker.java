@@ -128,6 +128,11 @@ public class TraceProcessingWorker implements AutoCloseable {
     return primaryQueue;
   }
 
+  @VisibleForTesting
+  MessagePassingBlockingQueue<Object> getSecondaryQueue() {
+    return secondaryQueue;
+  }
+
   private static MessagePassingBlockingQueue<Object> createQueue(int capacity) {
     return Queues.mpscBlockingConsumerArrayQueue(capacity);
   }
@@ -195,6 +200,9 @@ public class TraceProcessingWorker implements AutoCloseable {
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           payloadDispatcher.addTrace(trace);
         } else if (event instanceof FlushEvent) {
+          // The flush marker only goes to the primary queue, so drain the secondary queue too:
+          // sampled-out traces can carry LLM Observability spans that must still be sent.
+          consumeFromSecondaryQueue();
           payloadDispatcher.flush();
           ((FlushEvent) event).sync();
         }
