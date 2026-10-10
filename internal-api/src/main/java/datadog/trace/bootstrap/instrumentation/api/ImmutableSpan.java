@@ -62,6 +62,20 @@ public abstract class ImmutableSpan implements AgentSpan {
     return this;
   }
 
+  /** Skips the extractor: its tags would be discarded, so its work and side effects are wasted. */
+  @Override
+  public <T> AgentSpan setTagsFrom(T source, TagExtractor<T> extractor) {
+    return this;
+  }
+
+  /**
+   * Skips the contributor: its tags would be discarded, so its work and side effects are wasted.
+   */
+  @Override
+  public AgentSpan setTagsFrom(TagContributor contributor) {
+    return this;
+  }
+
   @Override
   public AgentSpan setTag(String key, Number value) {
     return this;
