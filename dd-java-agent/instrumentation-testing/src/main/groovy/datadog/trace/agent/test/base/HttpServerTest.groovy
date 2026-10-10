@@ -2461,6 +2461,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (traceStarter && Config.get().isWebsocketMessagesSeparateTraces()) {
         parent()
+      } else if (!Config.get().isWebsocketMessagesSeparateTraces()) {
+        childOf(handshake)
       } else {
         if (parentSpan != null) {
           childOf(parentSpan)
@@ -2469,7 +2471,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
       spanType(DDSpanTypes.WEBSOCKET)
-      if (Config.get().isWebsocketMessagesSeparateTraces() || !traceStarter) {
+      if (Config.get().isWebsocketMessagesSeparateTraces()) {
         links {
           link(handshake, linkFlags, linkAttributes)
         }
