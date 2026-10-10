@@ -112,6 +112,11 @@ public final class ContinuableScopeManager {
       final byte source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
+    if (span == null) {
+      log.debug(SEND_TELEMETRY, "Attempted to activate a null span.  Returning NoopScope.");
+      return INVALID_SCOPE;
+    }
+
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top;
@@ -129,8 +134,6 @@ public final class ContinuableScopeManager {
         return INVALID_SCOPE;
       }
     }
-
-    assert span != null;
 
     // Inherit the async propagation from the active scope unless the value is overridden
     boolean asyncPropagation =
