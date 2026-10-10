@@ -39,7 +39,7 @@ class MuzzlePlugin : Plugin<Project> {
    */
   override fun apply(project: Project) {
     // create extension first, if java plugin is applied after muzzle
-    project.extensions.create<MuzzleExtension>("muzzle", project.objects)
+    project.extensions.create<MuzzleExtension>("muzzle", project.objects, project.providers)
 
     // Configure muzzle only when java plugin is applied, because this plugin requires
     // the project's SourceSetContainer, which created by the java plugin (via the JvmEcosystemPlugin)
@@ -149,7 +149,8 @@ class MuzzlePlugin : Plugin<Project> {
       }
       if (projects.isEmpty()) return@projectsEvaluated
       val requests = projects.map {
-        MuzzlePlanningRequest(it.path, it.extensions.getByType<MuzzleExtension>().directives.toList())
+        val extension = it.extensions.getByType<MuzzleExtension>()
+        MuzzlePlanningRequest(it.path, extension.minimumDependencyAgeHours.get(), extension.directives.toList())
       }
       // Revalidate selected coordinates when loading a cached task graph.
       val plans = root.providers.of(MuzzlePlansValueSource::class.java) {
