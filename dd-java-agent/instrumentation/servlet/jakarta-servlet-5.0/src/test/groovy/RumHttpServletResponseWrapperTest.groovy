@@ -181,6 +181,183 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
     1 * mockTelemetryCollector.onInjectionFailed(SERVLET_VERSION, null)
   }
 
+  void 'flushBuffer drains and resets a partial marker'() {
+    setup:
+    def downstream = new StringWriter()
+    def writer = attachWriter(downstream)
+
+    when:
+    writer.write("</he")
+    wrapper.flushBuffer()
+
+    then:
+    downstream.toString() == "</he"
+    1 * mockResponse.flushBuffer()
+
+    when:
+    writer.write("ad>")
+    wrapper.commit()
+
+    then:
+    downstream.toString() == "</head>"
+    0 * mockTelemetryCollector.onInjectionSucceed(_)
+  }
+
+  void 'resetBuffer discards content and re-arms injection'() {
+    setup:
+    def downstream = new StringWriter()
+    def writer = attachWriter(downstream)
+
+    when:
+    writer.write("</he")
+    wrapper.resetBuffer()
+    writer.write("</head>")
+    wrapper.commit()
+
+    then:
+    !downstream.toString().startsWith("</he")
+    downstream.toString() == "<script></script></head>"
+    1 * mockResponse.resetBuffer()
+    1 * mockTelemetryCollector.onInjectionSucceed(SERVLET_VERSION)
+  }
+
+  void 'reset retires the old writer and restores injection for a new writer'() {
+    setup:
+    def downstream = new StringWriter()
+    def oldWriter = attachWriter(downstream)
+
+    when:
+    oldWriter.write("</he")
+    wrapper.reset()
+    attachWriter(downstream).write("</head>")
+    wrapper.commit()
+
+    then:
+    !downstream.toString().startsWith("</he")
+    downstream.toString() == "<script></script></head>"
+    1 * mockResponse.reset()
+    1 * mockTelemetryCollector.onInjectionSucceed(SERVLET_VERSION)
+  }
+
+  void 'reset does not reactivate a retired nested wrapper'() {
+    setup:
+    wrapper.stopFiltering()
+    def outerWrapper = new RumHttpServletResponseWrapper(mockRequest, wrapper)
+
+    when:
+    outerWrapper.reset()
+
+    then:
+    !wrapper.@shouldInject
+    outerWrapper.@shouldInject
+    1 * mockResponse.reset()
+  }
+
+  void 'sendError discards buffered content and stops filtering'() {
+    setup:
+    def downstream = new StringWriter()
+    def writer = attachWriter(downstream)
+
+    when:
+    writer.write("</he")
+    wrapper.sendError(500)
+    writer.write("ad>")
+    wrapper.commit()
+
+    then:
+    downstream.toString() == "ad>"
+    1 * mockResponse.sendError(500)
+    0 * mockTelemetryCollector.onInjectionSucceed(_)
+  }
+
+  void 'sendError discards buffered content when the delegate throws'() {
+    setup:
+    def downstream = new StringWriter()
+    attachWriter(downstream).write("</he")
+
+    when:
+    wrapper.sendError(500)
+
+    then:
+    thrown(IOException)
+    1 * mockResponse.sendError(500) >> { throw new IOException("error response failed") }
+
+    when:
+    wrapper.commit()
+
+    then:
+    downstream.toString().isEmpty()
+  }
+
+  void 'sendError preserves buffered content when the delegate rejects the call'() {
+    setup:
+    def downstream = new StringWriter()
+    attachWriter(downstream).write("</he")
+
+    when:
+    wrapper.sendError(500)
+
+    then:
+    thrown(IllegalStateException)
+    1 * mockResponse.sendError(500) >> { throw new IllegalStateException("already committed") }
+
+    when:
+    wrapper.commit()
+
+    then:
+    downstream.toString() == "</he"
+  }
+
+  void 'sendRedirect discards buffered content and stops filtering'() {
+    setup:
+    def downstream = new StringWriter()
+    def writer = attachWriter(downstream)
+
+    when:
+    writer.write("</he")
+    wrapper.sendRedirect("/other")
+    writer.write("ad>")
+    wrapper.commit()
+
+    then:
+    downstream.toString() == "ad>"
+    1 * mockResponse.sendRedirect("/other")
+    0 * mockTelemetryCollector.onInjectionSucceed(_)
+  }
+
+  void 'sendRedirect discards buffered content when the delegate throws'() {
+    setup:
+    def downstream = new StringWriter()
+    attachWriter(downstream).write("</he")
+
+    when:
+    wrapper.sendRedirect("/other")
+
+    then:
+    thrown(IOException)
+    1 * mockResponse.sendRedirect("/other") >> { throw new IOException("redirect failed") }
+
+    when:
+    wrapper.commit()
+
+    then:
+    downstream.toString().isEmpty()
+  }
+
+  private PrintWriter attachWriter(StringWriter downstream) {
+    def pipe = new InjectingPipeWriter(
+      downstream,
+      "</head>".toCharArray(),
+      "<script></script>".toCharArray(),
+      wrapper.&onInjected,
+      null,
+      null)
+    def writer = new PrintWriter(pipe)
+    wrapper.@wrappedPipeWriter = pipe
+    wrapper.@printWriter = writer
+    return writer
+  }
+
   // Callback is created in the RumHttpServletResponseWrapper and passed to InjectingPipeOutputStream via WrappedServletOutputStream.
   // When the stream is closed, the callback is called with the number of bytes written to the stream and the time taken to write the injection content.
   void 'response sizes are reported to the telemetry collector via the WrappedServletOutputStream callback'() {

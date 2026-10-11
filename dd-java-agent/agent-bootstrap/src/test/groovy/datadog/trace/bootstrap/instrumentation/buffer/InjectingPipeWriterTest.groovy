@@ -211,6 +211,57 @@ class InjectingPipeWriterTest extends DDSpecification {
     downstream.toString() == "abc<script></script></head>0123456789</head>"
   }
 
+  def 'should drain and reset a partial match on commit'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
+
+    when:
+    piped.write("</he".toCharArray())
+    piped.commit()
+    piped.write("ad>".toCharArray())
+    piped.close()
+
+    then:
+    downstream.toString() == "</head>"
+  }
+
+  def 'should drain a partial match before flushing'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
+
+    when:
+    piped.write("</he".toCharArray())
+    piped.flush()
+
+    then:
+    downstream.toString() == "</he"
+
+    when:
+    piped.write("ad>".toCharArray())
+    piped.close()
+
+    then:
+    downstream.toString() == "</head>"
+  }
+
+  def 'should discard buffered content and matching state'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
+
+    when:
+    piped.write("discarded</he".toCharArray())
+    downstream.buffer.setLength(0)
+    piped.discard()
+    piped.write("kept</head>".toCharArray())
+    piped.close()
+
+    then:
+    downstream.toString() == "kept<script></script></head>"
+  }
+
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {
     setup:
     def downstream = new StringWriter()
