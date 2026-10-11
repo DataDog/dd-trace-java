@@ -471,7 +471,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; build it from its id";
     }
 
-    private Entry(long tagId, byte type, long prim, Object obj) {
+    Entry(long tagId, byte type, long prim, Object obj) {
       // Resolve the name once: it both validates the id and names the entry.
       super(requireKnownName(tagId));
       this.tagHash = tagId;
@@ -482,7 +482,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
     }
 
     /** {@code tagId} is a known id, or 0 for the custom tag {@code customTag}. */
-    private Entry(long tagId, String customTag, byte type, long prim, Object obj) {
+    Entry(long tagId, String customTag, byte type, long prim, Object obj) {
       super(tagId != 0 ? KnownTagCodec.nameOf(tagId) : customTag);
       this.tagHash = tagId != 0 ? tagId : customHash(customTag);
 
@@ -996,11 +996,11 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
     int nextPos = 0;
     boolean containsRemovals = false;
 
-    private Ledger() {
+    Ledger() {
       this(8);
     }
 
-    private Ledger(int size) {
+    Ledger(int size) {
       this.entryChanges = new EntryChange[size];
     }
 
@@ -1725,7 +1725,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
   public static final class Internals {
     private final TagMap map;
 
-    private Internals(TagMap map) {
+    Internals(TagMap map) {
       this.map = map;
     }
 
