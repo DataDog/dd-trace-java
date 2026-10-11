@@ -84,6 +84,15 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
   }
 
   /**
+   * Creates a mutable TagMap whose dense store is sized per-operation from {@code hint} (see {@link
+   * SizingHintTable}). A {@code null} hint behaves exactly like {@link #create()}; the hash-only
+   * implementation ignores the hint.
+   */
+  public static final TagMap create(@Nullable SizingHint hint) {
+    return TagMapFactory.INSTANCE.create(null, hint);
+  }
+
+  /**
    * Creates a fresh, mutable TagMap that reads through to {@code parent} on local misses. The
    * parent must be frozen and is fixed for the life of the returned map (no re-parenting), so
    * read-through relies on a stable parent rather than an unenforced convention. Level-split phase
@@ -98,6 +107,19 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
    * local miss/removal for no benefit.
    */
   public static final TagMap createFromParent(TagMap parent) {
+    return createFromParent(parent, null);
+  }
+
+  /**
+   * Read-through variant of {@link #create(SizingHint)}: reads through to {@code parent} on local
+   * misses AND sizes the LOCAL dense store from {@code hint}. The two are orthogonal — the parent
+   * supplies inherited reads, while locally-set known tags live in this map's own dense array,
+   * whose initial capacity the hint tunes. So the common child / shared-parent path (a non-null
+   * read-through parent) still gets per-operation sizing; without this the local store would fall
+   * back to the fixed default. A {@code null} hint behaves exactly like {@link
+   * #createFromParent(TagMap)}.
+   */
+  public static final TagMap createFromParent(TagMap parent, @Nullable SizingHint hint) {
     if (parent != null) {
       if (!parent.frozen) {
         throw new IllegalStateException("read-through parent must be frozen");
@@ -110,7 +132,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
         parent = null;
       }
     }
-    return TagMapFactory.INSTANCE.create(parent);
+    return TagMapFactory.INSTANCE.create(parent, hint);
   }
 
   /** Creates a new TagMap.Ledger */
@@ -1336,6 +1358,22 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
   int knownCount() {
     return 0;
   }
+
+  /**
+   * Feeds this map's final dense-entry count back to {@code hint} (call at a terminal point, e.g.
+   * serialization), so future maps of the same operation are sized correctly. A no-op for a map
+   * without a dense store, and for a {@code null} hint.
+   *
+   * <p>Best-effort max, not a strict monotonic max: the read-compare-write is unsynchronized, so
+   * two spans of the same operation finishing concurrently can both read the same old size and the
+   * later write can lower it (a 10-tag span then a 5-tag span settles at 5). And the size is a
+   * plain field, so a fresh update isn't promptly visible to span-creation threads. Both are
+   * deliberately tolerated: a stale or lowered hint only mis-sizes a later span's dense array (one
+   * extra grow-copy), never corrupts tag data — so it stays lock- and atomic-free, and the next
+   * heavy span of the operation nudges it back up. A CAS/atomic max would buy exactness at the cost
+   * of contention on this terminal path, which isn't worth it for a sizing hint.
+   */
+  public void recordSize(@Nullable SizingHint hint) {}
 
   /**
    * The number of {@code ancestor}'s dense values visible from this leaf; 0 for a map without a

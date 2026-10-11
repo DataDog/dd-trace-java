@@ -42,6 +42,8 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
+import datadog.trace.api.SizingHint;
+import datadog.trace.api.SizingHintTable;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
@@ -2328,6 +2330,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         requestContextDataIast = builderRequestContextDataIast;
       }
 
+      // Per-operation dense-store sizing: an entry (local-root) span carries the trace-metadata /
+      // enriching tags a child doesn't, so pick the lane by whether we have a local parent. A
+      // resolved hint sizes the span's TagMap and self-tunes at serialization; null (dense store
+      // off, or no operation name) falls back to the generic default capacity. hintFor tests the
+      // dense-store flag first, so with it off -- the default -- this constant-folds to null and
+      // the default span-creation path does no lookup (do no harm).
+      final SizingHint sizingHint =
+          SizingHintTable.hintFor(
+              operationName, !(resolvedParentSpanContext instanceof DDSpanContext));
+
       // some attributes are inherited from the parent
       context =
           new DDSpanContext(
@@ -2356,7 +2368,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
               tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags,
+              sizingHint);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:

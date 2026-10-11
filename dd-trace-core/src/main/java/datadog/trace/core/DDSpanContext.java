@@ -13,6 +13,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -52,6 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,6 +166,15 @@ public class DDSpanContext
    * then be wrapped around bulk operations to minimize the costly atomic operations.
    */
   private final TagMap unsafeTags;
+
+  /**
+   * Per-operation sizing hint (from SizingHintTable, keyed by operation name) this span's dense
+   * store was sized from, if any. Held so the span can feed its final dense-store size back at
+   * serialization (recordDenseSize) -- the self-tuning loop that lets the reused hint converge to
+   * the operation's real known-tag high-water mark. Null when unsized, which is always the case
+   * with the dense store off.
+   */
+  @Nullable private final SizingHint sizingHint;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -403,6 +414,64 @@ public class DDSpanContext
       final boolean injectBaggageAsTags,
       final boolean injectLinksAsTags,
       final TagMap readThroughParent) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceNameSource,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        w3cBaggage,
+        errorFlag,
+        spanType,
+        tagsSize,
+        traceCollector,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        CiVisibilityContextData,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        profilingContextIntegration,
+        injectBaggageAsTags,
+        injectLinksAsTags,
+        readThroughParent,
+        null);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final CharSequence serviceNameSource,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final Baggage w3cBaggage,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final TraceCollector traceCollector,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final Object CiVisibilityContextData,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration,
+      final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags,
+      final TagMap readThroughParent,
+      @Nullable final SizingHint sizingHint) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -433,8 +502,9 @@ public class DDSpanContext
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags =
         readThroughParent != null
-            ? TagMap.createFromParent(readThroughParent)
-            : TagMap.create(capacity);
+            ? TagMap.createFromParent(readThroughParent, sizingHint)
+            : sizingHint != null ? TagMap.create(sizingHint) : TagMap.create(capacity);
+    this.sizingHint = sizingHint;
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -1655,6 +1725,27 @@ public class DDSpanContext
         firstInChunk ? getPropagationTags() : null);
   }
 
+  /**
+   * Feeds this span's final dense-store size back into the sizing hint it was created from (if
+   * any), so a reused hint self-tunes to the operation's observed known-tag high-water mark and
+   * later spans of the operation are sized correctly.
+   *
+   * <p>Called from {@link #processTagsAndBaggage} at serialization — the one terminal point that
+   * (a) runs for every serialized span regardless of finish mode (plain {@code finish()} AND {@code
+   * phasedFinish()}+{@code publish()}, which the async gRPC/Netty/WebFlux paths use and which never
+   * enter {@code finishAndAddToTrace}), and (b) runs AFTER the lazy tag post-processors have
+   * appended their serialization-time tags ({@code _dd.integration}, host, ...), so the recorded
+   * count is the span's true final footprint rather than an underestimate. The caller already holds
+   * {@code synchronized (unsafeTags)}, so the {@code knownCount} read is consistent; the hint write
+   * itself is best-effort racy by design (see {@link TagMap#recordSize}). With the dense store off
+   * the hint is always null, so this is a single null check.
+   */
+  void recordDenseSize() {
+    if (sizingHint != null) {
+      unsafeTags.recordSize(sizingHint);
+    }
+  }
+
   void processTagsAndBaggage(
       final MetadataConsumer consumer,
       int longRunningVersion,
@@ -1678,6 +1769,10 @@ public class DDSpanContext
           unsafeTags.set(SPAN_LINKS, linksTag);
         }
       }
+
+      // Self-tune the per-operation sizing hint now that every tag (incl. the just-appended
+      // serialization-time tags) is present -- the terminal point shared by all finish modes.
+      recordDenseSize();
 
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;

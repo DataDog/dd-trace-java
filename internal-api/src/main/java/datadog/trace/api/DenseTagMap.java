@@ -52,7 +52,10 @@ final class DenseTagMap extends TagMap {
   /** Shared all-null buckets (length 16) that maps start on. */
   private static final Object[] EMPTY_BUCKETS = new Object[1 << 4];
 
-  /** Initial capacity of the dense arrays; the largest span type resolves about this many tags. */
+  /**
+   * Initial capacity of the dense arrays when no {@link SizingHint} presized them; the largest span
+   * type resolves about this many tags.
+   */
   private static final int KNOWN_INIT_CAP = 12;
 
   /**
@@ -74,6 +77,22 @@ final class DenseTagMap extends TagMap {
     super(parent, EMPTY_BUCKETS);
   }
 
+  /**
+   * Like {@link #DenseTagMap(TagMap)}, with the dense arrays presized from {@code hint} (see {@link
+   * SizingHintTable}). A {@code null} hint, or one not yet seeded (a racy reader can see 0), keeps
+   * the shared empty arrays, so the first dense tag allocates at {@link #KNOWN_INIT_CAP}.
+   */
+  DenseTagMap(TagMap parent, SizingHint hint) {
+    super(parent, EMPTY_BUCKETS);
+    if (hint != null) {
+      int cap = hint.size; // read the racy field once
+      if (cap > 0) {
+        this.knownIds = new long[cap];
+        this.knownValues = new Object[cap];
+      }
+    }
+  }
+
   DenseTagMap(Object[] buckets, int size) {
     super(buckets, size);
   }
@@ -81,6 +100,18 @@ final class DenseTagMap extends TagMap {
   @Override
   int knownCount() {
     return this.knownCount;
+  }
+
+  @Override
+  public void recordSize(SizingHint hint) {
+    // Capped hints (the heterogeneous shared overflow) are fixed -- don't let unlike sharers grow
+    // them. Best-effort racy max (see TagMap#recordSize); benign plain-int write.
+    if (hint != null && !hint.capped) {
+      int count = this.knownCount;
+      if (count > hint.size) {
+        hint.size = count;
+      }
+    }
   }
 
   @Override
@@ -532,9 +563,10 @@ final class DenseTagMap extends TagMap {
   }
 
   /**
-   * Makes room for one more dense tag. A map's first dense tag allocates its own arrays -- a plain
-   * allocation, since on fresh spans this runs once per span and is compiled inline. A full map
-   * grows once, in {@link #growKnown}.
+   * Makes room for one more dense tag. A map's first dense tag on the shared empty arrays allocates
+   * its own at {@link #KNOWN_INIT_CAP} -- a plain allocation, since on fresh unhinted spans this
+   * runs once per span and is compiled inline. A map presized from a {@link SizingHint} skips that
+   * step. A full map grows in {@link #growKnown}.
    */
   private void spillKnown() {
     if (this.knownIds.length == 0) {
@@ -546,12 +578,16 @@ final class DenseTagMap extends TagMap {
   }
 
   /**
-   * Grows full dense arrays once, straight to the hard bound: a map holds each known tag at most
-   * once, so {@link KnownTagCodec#serialLimit()} entries always suffice. Rare, so the copying stays
-   * out of the write.
+   * Grows full dense arrays by doubling, never below one more slot than they hold, and bounded by
+   * {@link KnownTagCodec#serialLimit()}: a map holds each known tag at most once, so that many
+   * entries always suffice. Doubling rather than jumping straight to the bound keeps a span that
+   * outgrows a small {@link SizingHint} seed from paying for a full-bound array; the hint then
+   * tunes up so later spans of the operation are presized. Rare, so the copying stays out of the
+   * write.
    */
   private void growKnown() {
-    int newCap = Math.max(KnownTagCodec.serialLimit(), this.knownIds.length << 1);
+    int length = this.knownIds.length;
+    int newCap = Math.max(Math.min(length << 1, KnownTagCodec.serialLimit()), length + 1);
     this.knownIds = Arrays.copyOf(this.knownIds, newCap);
     this.knownValues = Arrays.copyOf(this.knownValues, newCap);
   }

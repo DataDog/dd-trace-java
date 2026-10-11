@@ -18,6 +18,12 @@ abstract class TagMapFactory {
   /** A fresh mutable map that reads through to {@code parent} (may be null). */
   abstract TagMap create(TagMap parent);
 
+  /**
+   * A fresh mutable map that reads through to {@code parent} (may be null), with its dense store
+   * presized from {@code hint} (may be null; ignored by the hash-only map).
+   */
+  abstract TagMap create(TagMap parent, SizingHint hint);
+
   /** The shared frozen empty map. */
   abstract TagMap empty();
 }
@@ -32,6 +38,11 @@ final class HashTagMapFactory extends TagMapFactory {
   @Override
   TagMap create(TagMap parent) {
     return new HashTagMap(parent);
+  }
+
+  @Override
+  TagMap create(TagMap parent, SizingHint hint) {
+    return new HashTagMap(parent); // no dense store to size
   }
 
   @Override
@@ -50,6 +61,11 @@ final class DenseTagMapFactory extends TagMapFactory {
   @Override
   TagMap create(TagMap parent) {
     return new DenseTagMap(parent);
+  }
+
+  @Override
+  TagMap create(TagMap parent, SizingHint hint) {
+    return new DenseTagMap(parent, hint);
   }
 
   @Override
