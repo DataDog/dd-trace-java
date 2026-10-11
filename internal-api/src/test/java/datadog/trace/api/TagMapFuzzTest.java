@@ -898,7 +898,7 @@ public final class TagMapFuzzTest {
   }
 
   public static final TagMap makeTagMap(List<MapAction> actions) {
-    TagMap map = new TagMap();
+    TagMap map = TagMap.create();
     for (MapAction action : actions) {
       action.applyToTestMap(map);
     }
@@ -909,7 +909,7 @@ public final class TagMapFuzzTest {
     List<MapAction> actions = test.actions();
 
     Map<String, Object> hashMap = new HashMap<>();
-    TagMap tagMap = new TagMap();
+    TagMap tagMap = TagMap.create();
 
     int actionIndex = 0;
     try {
@@ -1100,7 +1100,7 @@ public final class TagMapFuzzTest {
   }
 
   static final TagMap tagMapOf(String... keysAndValues) {
-    TagMap map = new TagMap();
+    TagMap map = TagMap.create();
     for (int i = 0; i < keysAndValues.length; i += 2) {
       String key = keysAndValues[i];
       String value = keysAndValues[i + 1];

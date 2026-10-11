@@ -48,12 +48,12 @@ import javax.annotation.Nullable;
  *   <li>adaptive collision
  * </ul>
  */
-public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader> {
+public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
-  // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
-  // reads no statics, so this is safe to build directly during TagMap's <clinit>.
-  public static final TagMap EMPTY = new TagMap(new Object[1], 0);
+  // would fail with ArrayIndexOutOfBoundsException, size 1 works). Built by the factory, so it is
+  // the one TagMap implementation this JVM loads; the constructor reads no TagMap statics.
+  public static final TagMap EMPTY = TagMapFactory.INSTANCE.empty();
 
   // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
   // tag, so it cannot represent "not computed".
@@ -76,11 +76,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public static final TagMap create() {
-    return new TagMap();
+    return TagMapFactory.INSTANCE.create(null);
   }
 
   public static final TagMap create(int size) {
-    return new TagMap();
+    return TagMapFactory.INSTANCE.create(null);
   }
 
   /**
@@ -110,7 +110,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         parent = null;
       }
     }
-    return new TagMap(parent);
+    return TagMapFactory.INSTANCE.create(parent);
   }
 
   /** Creates a new TagMap.Ledger */
@@ -1236,7 +1236,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
 
   /** Holder for the dense-store flag, read once from Config so the JIT folds it. */
-  private static final class DenseStore {
+  static final class DenseStore {
     static final boolean ENABLED = Config.get().isTraceDenseTagsEnabled();
   }
 
@@ -1285,16 +1285,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
   private Set<String> removedFromParent;
 
-  public TagMap() {
-    this((TagMap) null);
-  }
-
   /**
    * Fresh mutable map that reads through to {@code parent} (may be null). The parent is set here at
    * construction and never re-pointed (only detached to null by {@link #clear()}), so read-through
    * optimizations can treat it as fixed.
    */
-  private TagMap(TagMap parent) {
+  TagMap(TagMap parent) {
     // needs to be a power of 2 for bucket masking calculation to work as intended. With the dense
     // store on, start on the shared empty buckets; the first bucket write copies them.
     this.buckets = DenseStore.ENABLED ? EMPTY_BUCKETS : new Object[1 << 4];
@@ -1304,7 +1300,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /** Used for inexpensive immutable */
-  private TagMap(Object[] buckets, int size) {
+  TagMap(Object[] buckets, int size) {
     this.buckets = buckets;
     this.size = size;
     this.frozen = true;
@@ -2616,7 +2612,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // Construct with the same (frozen, shared) parent up front — the parent is fixed at
     // construction. putAll then clones this map's own (local) buckets + size. The copy stays
     // independently mutable (writes land on its local buckets, never the shared parent).
-    TagMap copy = new TagMap(this.parent);
+    TagMap copy = TagMapFactory.INSTANCE.create(this.parent);
     copy.putAllIntoEmptyMap(this);
     if (this.removedFromParent != null) {
       copy.removedFromParent = new HashSet<>(this.removedFromParent);

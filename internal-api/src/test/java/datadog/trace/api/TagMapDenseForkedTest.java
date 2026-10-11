@@ -91,6 +91,16 @@ class TagMapDenseForkedTest {
   }
 
   @Test
+  void onlyTheDenseImplementationIsLoaded() {
+    TagMap map = TagMap.create();
+    map.set(KnownTags.COMPONENT_ID, "okhttp");
+
+    assertSame(DenseTagMap.class, map.getClass());
+    assertSame(DenseTagMap.class, TagMap.EMPTY.getClass());
+    assertFalse(TagMapImplementations.isLoaded("datadog.trace.api.HashTagMap"));
+  }
+
+  @Test
   void aSlottedKnownTagIsStoredDenselyAndRoundTrips() {
     TagMap map = TagMap.create();
     map.set(COMPONENT, "spring-web");

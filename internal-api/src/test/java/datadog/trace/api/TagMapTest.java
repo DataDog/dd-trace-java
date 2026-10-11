@@ -924,7 +924,7 @@ public class TagMapTest {
   @ParameterizedTest
   @ValueSource(ints = {0, 5, 25, 125})
   public void _toInternalString(int size) {
-    TagMap tagMap = new TagMap();
+    TagMap tagMap = TagMap.create();
     fillMap(tagMap, size);
 
     String str = tagMap.toInternalString();
