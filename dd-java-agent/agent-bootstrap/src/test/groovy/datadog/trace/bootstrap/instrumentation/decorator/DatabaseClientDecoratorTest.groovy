@@ -12,7 +12,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 
 class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   def "test afterStart"() {
     setup:

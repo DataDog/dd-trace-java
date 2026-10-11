@@ -36,7 +36,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   static class MapCarrierVisitor
   implements AgentPropagation.ContextVisitor<Map> {
