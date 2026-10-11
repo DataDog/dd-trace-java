@@ -239,9 +239,12 @@ final class DenseTagMap extends TagMap {
   void putAllIntoEmptyMap(TagMap that) {
     DenseTagMap dense = (DenseTagMap) that;
     if (dense.knownCount > 0) {
-      // dense values are immutable objects, so the copy can share them
-      this.knownIds = Arrays.copyOf(dense.knownIds, dense.knownIds.length);
-      this.knownValues = Arrays.copyOf(dense.knownValues, dense.knownValues.length);
+      // dense values are immutable objects, so the copy can share them. Sized to what the source
+      // holds, not its capacity: a source that grew to the bound would otherwise hand every copy
+      // a full-bound array.
+      int cap = Math.max(dense.knownCount, KNOWN_INIT_CAP);
+      this.knownIds = Arrays.copyOf(dense.knownIds, cap);
+      this.knownValues = Arrays.copyOf(dense.knownValues, cap);
       this.knownCount = dense.knownCount;
       this.knownOccupancy = dense.knownOccupancy;
       this.knownTraceLevel = dense.knownTraceLevel;
