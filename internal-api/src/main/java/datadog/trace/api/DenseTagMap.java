@@ -201,6 +201,31 @@ final class DenseTagMap extends TagMap {
   }
 
   @Override
+  void setKnownTrusted(long tagId, @Nonnull Boolean value) {
+    this.storeDenseTrusted(tagId, value);
+  }
+
+  @Override
+  void setKnownTrusted(long tagId, @Nonnull Integer value) {
+    this.storeDenseTrusted(tagId, value);
+  }
+
+  @Override
+  void setKnownTrusted(long tagId, @Nonnull Long value) {
+    this.storeDenseTrusted(tagId, value);
+  }
+
+  @Override
+  void setKnownTrusted(long tagId, @Nonnull Float value) {
+    this.storeDenseTrusted(tagId, value);
+  }
+
+  @Override
+  void setKnownTrusted(long tagId, @Nonnull Double value) {
+    this.storeDenseTrusted(tagId, value);
+  }
+
+  @Override
   void putAllMerge(TagMap that) {
     DenseTagMap dense = (DenseTagMap) that;
     // incoming dense values clobber existing ones, as incoming bucket entries do

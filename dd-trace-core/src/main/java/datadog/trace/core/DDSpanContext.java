@@ -1250,11 +1250,11 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
-      this.setBox(tagId, value);
-    } else {
+    // Boxed once: the interceptor and the store share the box.
+    final Boolean box = value;
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1263,11 +1263,11 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
-      this.setBox(tagId, value);
-    } else {
+    // Boxed once: the interceptor and the store share the box.
+    final Integer box = value;
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1276,11 +1276,11 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
-      this.setBox(tagId, value);
-    } else {
+    // Boxed once: the interceptor and the store share the box.
+    final Long box = value;
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1289,11 +1289,11 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
-      this.setBox(tagId, value);
-    } else {
+    // Boxed once: the interceptor and the store share the box.
+    final Float box = value;
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1302,11 +1302,11 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
-      this.setBox(tagId, value);
-    } else {
+    // Boxed once: the interceptor and the store share the box.
+    final Double box = value;
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1341,14 +1341,6 @@ public class DDSpanContext
    * The TagMap isn't optimized and will need to box the primitive regardless of
    * tag interception
    */
-  private void setBox(long tagId, Object box) {
-    if (!tagInterceptor.interceptTag(this, tagId, box)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
-      }
-    }
-  }
-
   public void setTag(final String tag, final boolean value) {
     if (null == tag) {
       return;

@@ -1763,6 +1763,31 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       this.map.setKnownTrusted(tagId, value);
     }
 
+    /*
+     * Boxed variants, for a caller that has already boxed the value (to hand it to the
+     * interceptor): the box is stored as is, so the value is boxed once. The tag keeps its
+     * primitive type.
+     */
+    public void setKnown(long tagId, @Nonnull Boolean value) {
+      this.map.setKnownTrusted(tagId, value);
+    }
+
+    public void setKnown(long tagId, @Nonnull Integer value) {
+      this.map.setKnownTrusted(tagId, value);
+    }
+
+    public void setKnown(long tagId, @Nonnull Long value) {
+      this.map.setKnownTrusted(tagId, value);
+    }
+
+    public void setKnown(long tagId, @Nonnull Float value) {
+      this.map.setKnownTrusted(tagId, value);
+    }
+
+    public void setKnown(long tagId, @Nonnull Double value) {
+      this.map.setKnownTrusted(tagId, value);
+    }
+
     /**
      * The value of a known tag, boxed if necessary, or null: {@code getEntry(tagId)}'s value,
      * including read-through, without building an Entry for a local dense value.
@@ -1804,6 +1829,33 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
 
   void setKnownTrusted(long tagId, double value) {
     this.putEntryLocal(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
+  }
+
+  /** The boxed {@code setKnownTrusted}s: a typed Entry that keeps the caller's box. */
+  void setKnownTrusted(long tagId, @Nonnull Boolean value) {
+    this.putEntryLocal(
+        new Entry(
+            tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value.booleanValue()), value));
+  }
+
+  void setKnownTrusted(long tagId, @Nonnull Integer value) {
+    this.putEntryLocal(
+        new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value.intValue()), value));
+  }
+
+  void setKnownTrusted(long tagId, @Nonnull Long value) {
+    this.putEntryLocal(
+        new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value.longValue()), value));
+  }
+
+  void setKnownTrusted(long tagId, @Nonnull Float value) {
+    this.putEntryLocal(
+        new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value.floatValue()), value));
+  }
+
+  void setKnownTrusted(long tagId, @Nonnull Double value) {
+    this.putEntryLocal(
+        new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value.doubleValue()), value));
   }
 
   /** {@code getEntry(tagId)}'s value, or null; see {@link Internals#getKnownValue}. */
