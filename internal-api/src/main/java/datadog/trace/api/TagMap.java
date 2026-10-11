@@ -491,7 +491,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       this.rawObj = obj;
     }
 
-    private static String requireKnownName(long tagId) {
+    static String requireKnownName(long tagId) {
       String name = tagId == 0 ? null : KnownTagCodec.nameOf(tagId);
       if (name == null) {
         throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
@@ -941,7 +941,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       return this.tag.equals(that.tag) && this.objectValue().equals(that.objectValue());
     }
 
-    private static long boolean2Prim(boolean value) {
+    static long boolean2Prim(boolean value) {
       return value ? 1L : 0L;
     }
 
@@ -949,7 +949,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       return (prim != 0L);
     }
 
-    private static long int2Prim(int value) {
+    static long int2Prim(int value) {
       return value;
     }
 
@@ -957,7 +957,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       return (int) prim;
     }
 
-    private static long long2Prim(long value) {
+    static long long2Prim(long value) {
       return value;
     }
 
@@ -965,7 +965,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       return prim;
     }
 
-    private static long float2Prim(float value) {
+    static long float2Prim(float value) {
       return Float.floatToIntBits(value);
     }
 
@@ -973,7 +973,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       return Float.intBitsToFloat((int) prim);
     }
 
-    private static long double2Prim(double value) {
+    static long double2Prim(double value) {
       return Double.doubleToRawLongBits(value);
     }
 
@@ -1535,7 +1535,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
    * that level's same-index bucket, so each nearer level is probed at one bucket using {@code
    * parentEntry}'s cached hash (no re-hash, no full-map probe).
    */
-  private boolean parentEntryVisible(Entry parentEntry, TagMap fromAncestor) {
+  boolean parentEntryVisible(Entry parentEntry, TagMap fromAncestor) {
     int hash = parentEntry.hash();
     String tag = parentEntry.tag;
     for (TagMap nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
