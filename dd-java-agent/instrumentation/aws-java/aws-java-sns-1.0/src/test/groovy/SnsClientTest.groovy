@@ -1,9 +1,12 @@
+import com.amazonaws.AmazonClientException
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sns.AmazonSNSClient
 import com.amazonaws.services.sns.AmazonSNSClientBuilder
 import com.amazonaws.services.sns.model.MessageAttributeValue
+import com.amazonaws.services.sns.model.PublishBatchRequest
+import com.amazonaws.services.sns.model.PublishBatchRequestEntry
 import com.amazonaws.services.sns.model.PublishRequest
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
@@ -234,6 +237,15 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
     then:
     noExceptionThrown()
+  }
+
+  def "SNS batch without topic ARN doesn't leak exception"() {
+    when:
+    snsClient.publishBatch(new PublishBatchRequest()
+      .withPublishBatchRequestEntries(new PublishBatchRequestEntry().withId("1").withMessage('sometext')))
+
+    then:
+    thrown(AmazonClientException)
   }
 }
 

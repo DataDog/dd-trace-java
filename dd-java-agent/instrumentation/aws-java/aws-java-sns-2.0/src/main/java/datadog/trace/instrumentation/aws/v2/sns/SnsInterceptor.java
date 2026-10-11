@@ -81,6 +81,9 @@ public class SnsInterceptor implements ExecutionInterceptor {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
       // Get topic name for DSM
       String snsTopicArn = request.topicArn();
+      if (null == snsTopicArn) {
+        return request; // no topic to attribute the batch to, leave it untouched
+      }
       String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
       SdkBytes value = this.getMessageAttributeValueToInject(executionAttributes, snsTopicName);
