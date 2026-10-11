@@ -1246,12 +1246,20 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   /** Initial capacity of the dense arrays; the largest span type resolves about this many tags. */
   private static final int KNOWN_INIT_CAP = 12;
 
+  /**
+   * Shared empty dense arrays a map starts on (and returns to on clear), so that one full-capacity
+   * test covers a map's first dense tag too. Never written: a full map spills to its own arrays.
+   */
+  private static final long[] EMPTY_KNOWN_IDS = new long[0];
+
+  private static final Object[] EMPTY_KNOWN_VALUES = new Object[0];
+
   private Object[] buckets;
   private int size;
   private boolean frozen;
 
-  private long[] knownIds;
-  private Object[] knownValues;
+  private long[] knownIds = EMPTY_KNOWN_IDS;
+  private Object[] knownValues = EMPTY_KNOWN_VALUES;
   private int knownCount;
   private long knownOccupancy;
   private boolean knownTraceLevel;
@@ -1669,17 +1677,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.knownValues[i] = value;
       return prior;
     }
-    if (this.knownIds == null) {
-      this.knownIds = new long[KNOWN_INIT_CAP];
-      this.knownValues = new Object[KNOWN_INIT_CAP];
-    } else if (this.knownCount == this.knownIds.length) {
-      int newCap = this.knownIds.length << 1;
-      this.knownIds = Arrays.copyOf(this.knownIds, newCap);
-      this.knownValues = Arrays.copyOf(this.knownValues, newCap);
+    int idx = this.knownCount;
+    if (idx == this.knownIds.length) {
+      this.spillKnown();
     }
-    int idx = this.knownCount++;
     this.knownIds[idx] = denseId;
     this.knownValues[idx] = value;
+    this.knownCount = idx + 1;
     this.knownOccupancy |= slotBit(denseId);
     this.knownTraceLevel |= KnownTagCodec.isTraceLevel(denseId);
     return null;
@@ -1696,13 +1700,43 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
+   * Makes room for one more dense tag. A map's first dense tag allocates its own arrays -- a plain
+   * allocation, since on fresh spans this runs once per span and is compiled inline. A full map
+   * grows once, in {@link #growKnown}.
+   */
+  private void spillKnown() {
+    if (this.knownIds.length == 0) {
+      this.knownIds = new long[KNOWN_INIT_CAP];
+      this.knownValues = new Object[KNOWN_INIT_CAP];
+    } else {
+      this.growKnown();
+    }
+  }
+
+  /**
+   * Grows full dense arrays once, straight to the hard bound: a map holds each known tag at most
+   * once, so {@link KnownTagCodec#serialLimit()} entries always suffice. Rare, so the copying stays
+   * out of the write.
+   */
+  private void growKnown() {
+    int newCap = Math.max(KnownTagCodec.serialLimit(), this.knownIds.length << 1);
+    this.knownIds = Arrays.copyOf(this.knownIds, newCap);
+    this.knownValues = Arrays.copyOf(this.knownValues, newCap);
+  }
+
+  /** Clears a read-through tombstone for a dense tag being set; out of line, as it is rare. */
+  private void clearDenseTombstone(long denseId) {
+    this.removedFromParent.remove(KnownTagCodec.nameOf(denseId));
+  }
+
+  /**
    * Local dense write: clears any tombstone for the tag, then stores the value, returning the prior
    * value or null. The {@code set(long, ...)} methods use this; it builds no Entry.
    */
   private Object storeDenseLocal(long denseId, Object value) {
     this.checkWriteAccess();
     if (this.removedFromParent != null) {
-      this.removedFromParent.remove(KnownTagCodec.nameOf(denseId));
+      this.clearDenseTombstone(denseId);
     }
     return this.storeKnownValue(denseId, value);
   }
@@ -2812,8 +2846,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       Arrays.fill(this.buckets, null);
     }
     this.size = 0;
-    this.knownIds = null;
-    this.knownValues = null;
+    this.knownIds = EMPTY_KNOWN_IDS;
+    this.knownValues = EMPTY_KNOWN_VALUES;
     this.knownCount = 0;
     this.knownOccupancy = 0L;
     this.knownTraceLevel = false;
@@ -2835,7 +2869,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void checkWriteAccess() {
-    if (this.frozen) throw new IllegalStateException("TagMap frozen");
+    if (this.frozen) throw frozenError();
+  }
+
+  /** Built out of line, so every write's access check stays a field test and a branch. */
+  private static IllegalStateException frozenError() {
+    return new IllegalStateException("TagMap frozen");
   }
 
   void checkIntegrity() {
