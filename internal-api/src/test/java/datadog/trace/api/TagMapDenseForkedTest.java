@@ -72,7 +72,7 @@ class TagMapDenseForkedTest {
 
   private static int knownCount(TagMap map) {
     try {
-      Field f = TagMap.class.getDeclaredField("knownCount");
+      Field f = DenseTagMap.class.getDeclaredField("knownCount");
       f.setAccessible(true);
       return f.getInt(map);
     } catch (ReflectiveOperationException e) {
@@ -80,14 +80,20 @@ class TagMapDenseForkedTest {
     }
   }
 
+  /** A field of DenseTagMap, or of TagMap for the shared bucket state. */
   private static Object field(Object target, String name) {
-    try {
-      Field f = TagMap.class.getDeclaredField(name);
-      f.setAccessible(true);
-      return f.get(target);
-    } catch (ReflectiveOperationException e) {
-      throw new AssertionError(e);
+    for (Class<?> c = DenseTagMap.class; c != null; c = c.getSuperclass()) {
+      try {
+        Field f = c.getDeclaredField(name);
+        f.setAccessible(true);
+        return f.get(target);
+      } catch (NoSuchFieldException e) {
+        // look in the superclass
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
+    throw new AssertionError("no field " + name);
   }
 
   @Test
@@ -494,5 +500,26 @@ class TagMapDenseForkedTest {
     assertEquals(3, union.size());
     assertEquals("middle", union.get(COMPONENT));
     assertFalse(union.containsKey(BASE_SERVICE));
+  }
+
+  @Test
+  void theCoresKnownValueReadMatchesGetEntry() {
+    TagMap child = TagMap.createFromParent(frozenParent());
+    child.set(HTTP_ROUTE, "/users/{id}"); // dense
+    child.set(COMPONENT, "child"); // dense, shadows the parent's
+    child.remove(BASE_SERVICE); // tombstones the parent's
+
+    // local hit, no Entry built
+    assertEquals("/users/{id}", child.internals().getKnownValue(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("child", child.internals().getKnownValue(KnownTags.COMPONENT_ID));
+    // read-through parent hit, then a tombstoned one and a plain miss
+    TagMap reader = TagMap.createFromParent(frozenParent());
+    assertEquals("web", reader.internals().getKnownValue(KnownTags.COMPONENT_ID));
+    assertEquals("billing", reader.internals().getKnownValue(KnownTags.DD_BASE_SERVICE_ID));
+    assertNull(child.internals().getKnownValue(KnownTags.DD_BASE_SERVICE_ID));
+    assertNull(child.internals().getKnownValue(KnownTags.DB_TYPE_ID));
+    // a known tag without a slot, held in the dense store all the same
+    child.set(UNSLOTTED_KNOWN, "GET /users");
+    assertEquals("GET /users", child.internals().getKnownValue(KnownTags.RESOURCE_NAME_ID));
   }
 }

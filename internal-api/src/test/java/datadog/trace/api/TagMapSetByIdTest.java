@@ -123,4 +123,26 @@ class TagMapSetByIdTest {
     assertEquals(new HashMap<>(checked), new HashMap<>(trusted));
     assertEquals(KnownTags.HTTP_ROUTE_ID, trusted.getEntry(KnownTags.HTTP_ROUTE_NAME).tagId());
   }
+
+  @Test
+  void theCoresKnownValueReadMatchesGetEntry() {
+    TagMap parent = TagMap.create();
+    parent.set(KnownTags.HTTP_ROUTE_ID, "/parent");
+    parent.set(KnownTags.HTTP_METHOD_ID, "GET");
+    parent.set(KnownTags.PEER_HOSTNAME_ID, "db.internal");
+    TagMap child = TagMap.createFromParent(parent.freeze());
+    child.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
+    child.set(KnownTags.HTTP_ROUTE_ID, "/child");
+    child.remove(KnownTags.PEER_HOSTNAME_NAME);
+
+    // local hit, boxed
+    assertEquals(200, child.internals().getKnownValue(KnownTags.HTTP_STATUS_CODE_ID));
+    // local shadows the parent
+    assertEquals("/child", child.internals().getKnownValue(KnownTags.HTTP_ROUTE_ID));
+    // read-through parent hit
+    assertEquals("GET", child.internals().getKnownValue(KnownTags.HTTP_METHOD_ID));
+    // tombstoned parent value and plain miss
+    assertNull(child.internals().getKnownValue(KnownTags.PEER_HOSTNAME_ID));
+    assertNull(child.internals().getKnownValue(KnownTags.DB_INSTANCE_ID));
+  }
 }

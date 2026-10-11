@@ -69,8 +69,8 @@ class KnownTagCodecSlotTest {
 
   @Test
   void anUnslottedTagSharesTheReservedTopBit() {
-    // TagMap.slotBit relies on the long shift masking NO_SLOT (0xFFFF) down to 63
-    assertEquals(1L << 63, TagMap.slotBit(KnownTags.RESOURCE_NAME_ID));
+    // DenseTagMap.slotBit relies on the long shift masking NO_SLOT (0xFFFF) down to 63
+    assertEquals(1L << 63, DenseTagMap.slotBit(KnownTags.RESOURCE_NAME_ID));
     assertTrue(KnownTagCodec.slotCount() < 63, "real slots must stay below the shared bit 63");
   }
 }

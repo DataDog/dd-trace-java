@@ -6,7 +6,7 @@ package datadog.trace.api;
  */
 final class HashTagMap extends TagMap {
   HashTagMap(TagMap parent) {
-    super(parent);
+    super(parent, new Object[1 << 4]);
   }
 
   HashTagMap(Object[] buckets, int size) {
