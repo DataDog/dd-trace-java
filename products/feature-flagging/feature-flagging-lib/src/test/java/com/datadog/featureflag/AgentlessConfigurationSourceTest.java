@@ -138,6 +138,22 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void generatesCliffordV1ApiKeyFingerprints() {
+    assertEquals(
+        "rijn_RZwTDmWjELXeEmMEb0eIIegKayGGUPNsuJweEPhlXi5",
+        AgentlessConfigurationSource.apiKeyFingerprint(""));
+    assertEquals(
+        "rijn_SddeOoHbx2gFQTblESRn88xKs2B9zEA9ii1CclRfD6s",
+        AgentlessConfigurationSource.apiKeyFingerprint("7b58e278012eec8316224b052d87e6e8b2ba9e49"));
+    assertEquals(
+        "rijn_eFLHeyLxwaiNs2hY16pjkjNjVSHWRgf2rlveKc8YA1K",
+        AgentlessConfigurationSource.apiKeyFingerprint("!@#$%^𐍈한€हИ£"));
+    assertEquals(
+        "rijn_053ybBRXypQt9AC6UIlqH1YCFYSV1rQl8HCDIcBZs3D",
+        AgentlessConfigurationSource.apiKeyFingerprint("padding-171"));
+  }
+
+  @Test
   void realHttpClientDoesNotSendApiKeyOverHttp() throws Exception {
     try (JavaTestHttpServer server =
         JavaTestHttpServer.httpServer(
@@ -162,6 +178,7 @@ class AgentlessConfigurationSourceTest {
         assertEquals("etag-b", response.etag);
         assertEquals(emptyConfig(), new String(response.body, UTF_8));
         assertNull(server.getLastRequest().getHeader("DD-API-KEY"));
+        assertNull(server.getLastRequest().getHeader("DD-API-KEY-FINGERPRINT"));
         assertEquals("etag-a", server.getLastRequest().getHeader("If-None-Match"));
         assertEquals("java", server.getLastRequest().getHeader("Datadog-Meta-Lang"));
         assertEquals("gzip", server.getLastRequest().getHeader("Accept-Encoding"));
@@ -182,6 +199,9 @@ class AgentlessConfigurationSourceTest {
     client.fetch(endpoint, config(), null);
 
     assertEquals("test-api-key", requests.get(0).header("DD-API-KEY"));
+    assertEquals(
+        "rijn_i8Jug5ocjALL7JZiV1a8HzXqkwDRKcE7hK9IouPQwio",
+        requests.get(0).header("DD-API-KEY-FINGERPRINT"));
   }
 
   @Test
@@ -198,6 +218,7 @@ class AgentlessConfigurationSourceTest {
     client.fetch(endpoint, config, null);
 
     assertNull(requests.get(0).header("DD-API-KEY"));
+    assertNull(requests.get(0).header("DD-API-KEY-FINGERPRINT"));
   }
 
   @Test
@@ -210,6 +231,7 @@ class AgentlessConfigurationSourceTest {
     client.fetch(endpoint, config(), null);
 
     assertNull(requests.get(0).header("DD-API-KEY"));
+    assertNull(requests.get(0).header("DD-API-KEY-FINGERPRINT"));
   }
 
   @Test
