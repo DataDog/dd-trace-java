@@ -413,4 +413,9 @@ class TrackingSpanDecorator implements AgentSpan {
   boolean isOutbound() {
     return delegate.isOutbound()
   }
+
+  @Override
+  boolean isFinished() {
+    return delegate.isFinished()
+  }
 }
