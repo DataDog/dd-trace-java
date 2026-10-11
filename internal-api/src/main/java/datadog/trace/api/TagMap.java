@@ -477,7 +477,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.rawObj = obj;
     }
 
-    private static String requireKnownName(long tagId) {
+    static String requireKnownName(long tagId) {
       String name = tagId == 0 ? null : KnownTagCodec.nameOf(tagId);
       if (name == null) {
         throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
@@ -927,7 +927,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.tag.equals(that.tag) && this.objectValue().equals(that.objectValue());
     }
 
-    private static long boolean2Prim(boolean value) {
+    static long boolean2Prim(boolean value) {
       return value ? 1L : 0L;
     }
 
@@ -935,7 +935,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return (prim != 0L);
     }
 
-    private static long int2Prim(int value) {
+    static long int2Prim(int value) {
       return value;
     }
 
@@ -943,7 +943,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return (int) prim;
     }
 
-    private static long long2Prim(long value) {
+    static long long2Prim(long value) {
       return value;
     }
 
@@ -951,7 +951,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return prim;
     }
 
-    private static long float2Prim(float value) {
+    static long float2Prim(float value) {
       return Float.floatToIntBits(value);
     }
 
@@ -959,7 +959,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return Float.intBitsToFloat((int) prim);
     }
 
-    private static long double2Prim(double value) {
+    static long double2Prim(double value) {
       return Double.doubleToRawLongBits(value);
     }
 
@@ -1189,7 +1189,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * removed from the collision chain.
    */
 
-  private final Object[] buckets;
+  final Object[] buckets;
   private int size;
   private boolean frozen;
 
@@ -1481,7 +1481,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * that level's same-index bucket, so each nearer level is probed at one bucket using {@code
    * parentEntry}'s cached hash (no re-hash, no full-map probe).
    */
-  private boolean parentEntryVisible(Entry parentEntry, TagMap fromAncestor) {
+  boolean parentEntryVisible(Entry parentEntry, TagMap fromAncestor) {
     int hash = parentEntry.hash();
     String tag = parentEntry.tag;
     for (TagMap nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
@@ -1741,7 +1741,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * for a prior-value lookup they discard; {@link #getAndSet(Entry)} layers the parent fallback on
    * top.
    */
-  private Entry putEntry(@Nonnull Entry newEntry) {
+  Entry putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
 
     // Re-setting a key clears any read-through tombstone for it (the new value overrides the
