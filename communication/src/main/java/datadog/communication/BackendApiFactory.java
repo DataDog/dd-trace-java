@@ -1,5 +1,8 @@
 package datadog.communication;
 
+import static datadog.communication.http.OkHttpUtils.appendPath;
+import static java.util.Collections.emptyList;
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
@@ -15,13 +18,29 @@ import org.slf4j.LoggerFactory;
 public class BackendApiFactory {
 
   private static final Logger log = LoggerFactory.getLogger(BackendApiFactory.class);
+  private static final int MAX_DNS_LABEL_LENGTH = 63;
+  private static final int MAX_DNS_HOST_LENGTH = 253;
 
   private final Config config;
   private final SharedCommunicationObjects sharedCommunicationObjects;
+  private final boolean sendOnce;
 
   public BackendApiFactory(Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+    this(config, sharedCommunicationObjects, false);
+  }
+
+  /**
+   * Creates a backend factory with optional send-once transport semantics.
+   *
+   * <p>When {@code sendOnce} is true, both the explicit HTTP retry policy and OkHttp's automatic
+   * connection retry are disabled. This is required for event payloads that do not carry an
+   * idempotency key.
+   */
+  public BackendApiFactory(
+      Config config, SharedCommunicationObjects sharedCommunicationObjects, boolean sendOnce) {
     this.config = config;
     this.sharedCommunicationObjects = sharedCommunicationObjects;
+    this.sendOnce = sendOnce;
   }
 
   public @Nullable BackendApi createBackendApi(Intake intake) {
@@ -67,7 +86,9 @@ public class BackendApiFactory {
         apiKey,
         traceId,
         retryPolicyFactory(),
-        directIntakeHttpClient(sharedCommunicationObjects.getIntakeHttpClient(), followRedirects),
+        configureHttpClient(
+            directIntakeHttpClient(
+                sharedCommunicationObjects.getIntakeHttpClient(), followRedirects)),
         responseCompression);
   }
 
@@ -87,11 +108,14 @@ public class BackendApiFactory {
   }
 
   static HttpUrl buildEventPlatformIntakeUrl(String site) {
-    if (site == null || site.isEmpty()) {
+    if (!isValidDnsSuffix(site)) {
       throw new IllegalArgumentException("Invalid Datadog site");
     }
 
     String expectedHost = Intake.EVENT_PLATFORM.getUrlPrefix() + "." + site;
+    if (expectedHost.length() > MAX_DNS_HOST_LENGTH) {
+      throw new IllegalArgumentException("Invalid Datadog site");
+    }
     HttpUrl url =
         new HttpUrl.Builder()
             .scheme("https")
@@ -104,6 +128,38 @@ public class BackendApiFactory {
       throw new IllegalArgumentException("Invalid Datadog site");
     }
     return url;
+  }
+
+  private static boolean isValidDnsSuffix(@Nullable String site) {
+    if (site == null || site.isEmpty()) {
+      return false;
+    }
+
+    int labelLength = 0;
+    for (int i = 0; i < site.length(); i++) {
+      final char character = site.charAt(i);
+      if (character == '.') {
+        if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || site.charAt(i - 1) == '-') {
+          return false;
+        }
+        labelLength = 0;
+      } else {
+        if ((!isAsciiLetterOrDigit(character) && character != '-')
+            || (labelLength == 0 && character == '-')) {
+          return false;
+        }
+        labelLength++;
+      }
+    }
+    return labelLength > 0
+        && labelLength <= MAX_DNS_LABEL_LENGTH
+        && site.charAt(site.length() - 1) != '-';
+  }
+
+  private static boolean isAsciiLetterOrDigit(final char character) {
+    return (character >= 'a' && character <= 'z')
+        || (character >= 'A' && character <= 'Z')
+        || (character >= '0' && character <= '9');
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
@@ -119,32 +175,87 @@ public class BackendApiFactory {
   /** Creates an API client that sends data through a compatible local EVP proxy. */
   public @Nullable BackendApi createEvpProxyApi(
       Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, false, emptyList());
+  }
+
+  /**
+   * Creates an EVP proxy client after Agent discovery, optionally forcing a fresh discovery and
+   * requiring the Agent to advertise every specified forwarding header.
+   *
+   * <p>Callers supply the forwarding capabilities their event protocol requires.
+   *
+   * <p>The {@code forceDiscovery} form is intended for bounded unavailable-route recovery probes.
+   */
+  public @Nullable BackendApi createEvpProxyApi(
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      boolean forceDiscovery,
+      Iterable<String> requiredProxyHeaders) {
+    String endpoint = discoverEvpProxyEndpoint(forceDiscovery, requiredProxyHeaders);
+    return endpoint == null
+        ? null
+        : createEvpProxyApi(intake, responseCompression, retryPolicyFactory, endpoint);
+  }
+
+  /**
+   * Discovers a capability-validated endpoint that related senders can share without re-probing.
+   */
+  public @Nullable String discoverEvpProxyEndpoint(
+      boolean forceDiscovery, Iterable<String> requiredProxyHeaders) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
-    featuresDiscovery.discoverIfOutdated();
-    if (!featuresDiscovery.supportsEvpProxy()) {
-      return null;
+    if (forceDiscovery) {
+      featuresDiscovery.discover();
+    } else {
+      featuresDiscovery.discoverIfOutdated();
     }
     String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
+    if (evpProxyEndpoint != null
+        && !featuresDiscovery.supportsEvpProxyHeaders(requiredProxyHeaders)) {
+      evpProxyEndpoint = null;
+    }
+    return evpProxyEndpoint;
+  }
 
+  /** Creates a client for a fixed compatibility or previously discovered endpoint, without I/O. */
+  public BackendApi createEvpProxyApiForEndpoint(
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      String evpProxyEndpoint) {
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, evpProxyEndpoint);
+  }
+
+  private BackendApi createEvpProxyApi(
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      String evpProxyEndpoint) {
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     log.debug(
         "Creating EVP proxy client for {} using endpoint {} with responseCompression={}",
         intake,
         evpProxyEndpoint,
         responseCompression);
-    HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
+    HttpUrl evpProxyUrl = appendPath(sharedCommunicationObjects.agentUrl, evpProxyEndpoint);
     String subdomain = intake.getUrlPrefix();
     return new EvpProxyApi(
         traceId,
         evpProxyUrl,
         subdomain,
-        retryPolicyFactory,
-        sharedCommunicationObjects.agentHttpClient,
+        sendOnce ? HttpRetryPolicy.Factory.NEVER_RETRY : retryPolicyFactory,
+        configureHttpClient(sharedCommunicationObjects.agentHttpClient),
         responseCompression);
   }
 
-  private static HttpRetryPolicy.Factory retryPolicyFactory() {
-    return new HttpRetryPolicy.Factory(5, 100, 2.0, true);
+  OkHttpClient configureHttpClient(final OkHttpClient httpClient) {
+    return sendOnce ? httpClient.newBuilder().retryOnConnectionFailure(false).build() : httpClient;
+  }
+
+  private HttpRetryPolicy.Factory retryPolicyFactory() {
+    return sendOnce
+        ? HttpRetryPolicy.Factory.NEVER_RETRY
+        : new HttpRetryPolicy.Factory(5, 100, 2.0, true);
   }
 }

@@ -40,6 +40,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class OkHttpUtils {
+  /** Appends a relative endpoint while preserving the configured Agent URL's path prefix. */
+  public static HttpUrl appendPath(final HttpUrl baseUrl, final String path) {
+    int firstCharacter = 0;
+    while (firstCharacter < path.length() && path.charAt(firstCharacter) == '/') {
+      firstCharacter++;
+    }
+    return baseUrl.newBuilder().addPathSegments(path.substring(firstCharacter)).build();
+  }
+
   private static final Logger log = LoggerFactory.getLogger(OkHttpUtils.class);
 
   private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";

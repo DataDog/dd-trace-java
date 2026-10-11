@@ -7,7 +7,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.shutdown.ShutdownHelper;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -15,7 +17,7 @@ import net.bytebuddy.asm.Advice;
  * before the shutdown hooks are called.<br>
  */
 @AutoService(InstrumenterModule.class)
-public class ShutdownInstrumentation extends InstrumenterModule.Tracing
+public class ShutdownInstrumentation extends InstrumenterModule
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ShutdownInstrumentation() {
@@ -25,6 +27,14 @@ public class ShutdownInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String instrumentedType() {
     return "java.lang.Shutdown";
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // Preserve tracing's historical hook and include Feature Flagging's bounded final drains even
+    // when tracing is disabled. Do not instrument shutdown when both consumers are disabled.
+    return enabledSystems.contains(TargetSystem.TRACING)
+        || Config.get().isFeatureFlaggingProviderEnabled();
   }
 
   @Override

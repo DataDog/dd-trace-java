@@ -7,32 +7,43 @@ import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sends Feature Flag events through a local EVP proxy, with a safe direct intake fallback. */
+/** Sends Feature Flag events through the process-wide Agentless EVP route selector. */
 final class AgentlessFeatureFlagBackendApi implements BackendApi {
 
   private static final Logger LOGGER =
       LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
 
-  private final BackendApi proxyApi;
+  private final FeatureFlagRouteSelector routeSelector;
+  private final Supplier<String> proxyEndpointSupplier;
+  private final Function<String, BackendApi> proxyApiFactory;
   private final Supplier<BackendApi> directApiSupplier;
   private final String eventType;
-  private volatile BackendApi activeApi;
+  private BackendApi proxyApi;
+  private FeatureFlagRouteSelector.LocalRoute proxyRoute;
+  private volatile BackendApi directApi;
   private volatile boolean directApiCreationAttempted;
 
   AgentlessFeatureFlagBackendApi(
-      final BackendApi proxyApi,
+      @Nullable final BackendApi directApi,
+      final Supplier<String> proxyEndpointSupplier,
+      final Function<String, BackendApi> proxyApiFactory,
       final Supplier<BackendApi> directApiSupplier,
-      final String eventType) {
-    this.proxyApi = proxyApi;
+      final String eventType,
+      final FeatureFlagRouteSelector routeSelector) {
+    this.directApi = directApi;
+    this.proxyEndpointSupplier = proxyEndpointSupplier;
+    this.proxyApiFactory = proxyApiFactory;
     this.directApiSupplier = directApiSupplier;
     this.eventType = eventType;
-    this.activeApi = proxyApi;
+    this.routeSelector = routeSelector;
+    this.directApiCreationAttempted = directApi != null;
   }
 
   @Override
@@ -43,59 +54,103 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       @Nullable final OkHttpUtils.CustomListener requestListener,
       final boolean requestCompression)
       throws IOException {
-    final BackendApi selectedApi = activeApi;
+    final SelectedApi selected = selectApi();
     try {
-      return selectedApi.post(
+      return selected.api.post(
           uri, requestBody, responseParser, requestListener, requestCompression);
     } catch (final IOException exception) {
-      if (selectedApi != proxyApi || !isDefinitiveRejection(exception)) {
+      if (selected.localRoute == null) {
         throw exception;
       }
 
-      final BackendApi directApi = getOrCreateDirectApi();
-      if (directApi == null) {
+      final BackendApi fallbackApi = getOrCreateDirectApi();
+      // Route selection governs future batches; replay permission applies only to this batch.
+      // DIRECT is intentionally terminal, even for a transient or ambiguous local failure.
+      routeSelector.localFailure(selected.localRoute, fallbackApi != null);
+      if (fallbackApi == null || !isSafeToReplayDirectly(exception)) {
         throw exception;
       }
-      return directApi.post(uri, requestBody, responseParser, requestListener, requestCompression);
+      return fallbackApi.post(
+          uri, requestBody, responseParser, requestListener, requestCompression);
     }
+  }
+
+  private SelectedApi selectApi() throws IOException {
+    if (routeSelector.tryBeginLocalRecovery()) {
+      routeSelector.localRecoveryFinished(discoverProxyEndpoint());
+    }
+
+    final FeatureFlagRouteSelector.LocalRoute localRoute = routeSelector.localRoute();
+    if (localRoute != null) {
+      return new SelectedApi(getOrCreateProxyApi(localRoute), localRoute);
+    }
+
+    if (routeSelector.current() == FeatureFlagRouteSelector.Route.DIRECT) {
+      final BackendApi selectedDirectApi = getOrCreateDirectApi();
+      if (selectedDirectApi != null) {
+        return new SelectedApi(selectedDirectApi, null);
+      }
+    }
+    throw unavailableRoute();
+  }
+
+  @Nullable
+  private String discoverProxyEndpoint() {
+    try {
+      return proxyEndpointSupplier.get();
+    } catch (final RuntimeException exception) {
+      LOGGER.debug("Could not discover the local Feature Flagging {} route", eventType, exception);
+      return null;
+    }
+  }
+
+  private synchronized BackendApi getOrCreateProxyApi(
+      final FeatureFlagRouteSelector.LocalRoute localRoute) {
+    if (proxyRoute != localRoute) {
+      // Client construction uses the shared validated endpoint; it performs no discovery.
+      proxyApi = proxyApiFactory.apply(localRoute.endpoint);
+      proxyRoute = localRoute;
+    }
+    return proxyApi;
   }
 
   @Nullable
   private BackendApi getOrCreateDirectApi() {
-    final BackendApi selectedApi = activeApi;
-    if (selectedApi != proxyApi) {
-      return selectedApi;
+    if (directApiCreationAttempted) {
+      return directApi;
     }
-
     synchronized (this) {
-      final BackendApi currentApi = activeApi;
-      if (currentApi != proxyApi) {
-        return currentApi;
+      if (!directApiCreationAttempted) {
+        directApi = directApiSupplier.get();
+        directApiCreationAttempted = true;
       }
-      if (directApiCreationAttempted) {
-        return null;
-      }
-
-      final BackendApi directApi = directApiSupplier.get();
-      if (directApi != null) {
-        LOGGER.debug(
-            "Switching Feature Flagging {} delivery from the local EVP proxy to direct intake",
-            eventType);
-        activeApi = directApi;
-      }
-      directApiCreationAttempted = true;
       return directApi;
     }
   }
 
-  private static boolean isDefinitiveRejection(final IOException exception) {
+  private IOException unavailableRoute() {
+    return new IOException("No Feature Flagging " + eventType + " delivery route is available");
+  }
+
+  private static boolean isSafeToReplayDirectly(final IOException exception) {
     if (exception instanceof ConnectException) {
       return true;
     }
     if (exception instanceof HttpResponseException) {
       final int statusCode = ((HttpResponseException) exception).getStatusCode();
-      return statusCode == 403 || statusCode == 404 || statusCode == 405;
+      return statusCode == 404 || statusCode == 405;
     }
     return false;
+  }
+
+  private static final class SelectedApi {
+    private final BackendApi api;
+    private final FeatureFlagRouteSelector.LocalRoute localRoute;
+
+    private SelectedApi(
+        final BackendApi api, @Nullable final FeatureFlagRouteSelector.LocalRoute localRoute) {
+      this.api = api;
+      this.localRoute = localRoute;
+    }
   }
 }

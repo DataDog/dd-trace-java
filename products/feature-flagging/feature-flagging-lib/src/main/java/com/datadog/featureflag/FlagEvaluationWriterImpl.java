@@ -109,6 +109,20 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   }
 
   FlagEvaluationWriterImpl(
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final FeatureFlagRouteSelector routeSelector) {
+    this(
+        DEFAULT_CAPACITY,
+        FLUSH_INTERVAL_SECONDS,
+        SECONDS,
+        new FeatureFlagBackendApiFactory(
+                config, sco, FeatureFlagEventType.FLAG_EVALUATION, routeSelector)
+            ::create,
+        config);
+  }
+
+  FlagEvaluationWriterImpl(
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,
