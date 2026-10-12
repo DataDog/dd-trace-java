@@ -109,10 +109,9 @@ class TestShardBalancerTest {
 
   @Test
   fun `bundled weights file is parsed`() {
-    assertThat(WEIGHTS).hasSize(36)
+    assertThat(WEIGHTS).hasSize(49)
     assertThat(WEIGHTS.values).allSatisfy { weight -> assertThat(weight).isPositive() }
-    // docs/ci-test-shard-weights.md names the two heaviest projects
-    assertThat(heaviestProjects(2)).containsExactly(JDBC, LETTUCE_5_0)
+    assertThat(heaviestProjects(2)).containsExactly(LETTUCE_5_0, AKKA_HTTP_10_0)
   }
 
   @Test
@@ -139,8 +138,8 @@ class TestShardBalancerTest {
 
   companion object {
     private const val INSTRUMENTATION_PREFIX = ":dd-java-agent:instrumentation:"
-    private const val JDBC = ":dd-java-agent:instrumentation:jdbc"
     private const val LETTUCE_5_0 = ":dd-java-agent:instrumentation:lettuce:lettuce-5.0"
+    private const val AKKA_HTTP_10_0 = ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0"
 
     private val WEIGHTS = loadDefaultWeights()
 

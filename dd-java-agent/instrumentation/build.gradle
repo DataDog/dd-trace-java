@@ -83,7 +83,26 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
 }
 
 instrumentationNaming {
-  exclusions = ["org-json-20230227"] // org-json does not use semver
+  // CI-only virtual projects delegate to the JDBC module's existing test tasks.
+  exclusions = [
+    // org-json does not use semver
+    "org-json-20230227",
+    "jdbc-test",
+    "jdbc-remote-test",
+    "jdbc-old-h2-test",
+    "jdbc-remote-old-h2-test",
+    "jdbc-old-postgres-test",
+    "jdbc-remote-old-postgres-test",
+    "jdbc-dbm-forked-tests",
+    "jdbc-decorator-forked-tests",
+    "jdbc-instrumentation-forked-tests",
+    "jdbc-oracle-forked-tests",
+    "jdbc-sql-server-forked-tests",
+    "jdbc-remote-dbm-forked-test",
+    "jdbc-remote-dbm-prepared-forked-test",
+    "jdbc-remote-instrumentation-forked-test",
+    "jdbc-other-forked-tests",
+  ]
   suffixes = ["-common", "-stubs", "-iast"]
 }
 

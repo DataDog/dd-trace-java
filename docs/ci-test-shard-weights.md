@@ -38,7 +38,8 @@ Weights come from Datadog CI Visibility test events at the **module** level, ove
 4. Divide each project's total by the pipeline count, and convert from nanoseconds to seconds. The result is a mean
    per pipeline, not a median.
 
-For example, `jdbc` summed to 548,323.5 seconds over 491 pipelines, giving a weight of `1116.7`.
+For example, `jdbc` summed to 548,323.5 seconds over 491 pipelines, giving a weight of `1116.7`
+before its test suites were split into independent CI shard projects.
 
 Measure every project listed in `settings.gradle.kts` one by one (e.g. `@test.module:lettuce-5.0_*`) instead of
 reading a single grouped aggregation or guessing family prefixes:
@@ -59,6 +60,23 @@ date in `_comment`, update the expected entry count in `TestShardBalancerTest`, 
 heaviest projects land in different shards, and that the modeled instrumentation shards stay balanced, with a
 max/min load ratio of at most 1.25. That ratio is computed from the weights, not measured, see below.
 
+## JDBC suite shards
+
+The JDBC instrumentation keeps one Gradle source module, but its `test_inst` work is exposed through 15 virtual
+child projects so the balancer can assign its existing suites to different shards. The child projects delegate to
+test tasks in the parent project; they do not copy tests or change dependencies. Local `allTests` and `check` still
+run every suite from the JDBC project as before.
+
+Pipeline `144158285` provided a coverage-complete measurement of the refined split on JVM 11: 46 suites and 1,814
+passing tests. It showed that the remote database suites dominate several tasks. The three regular version tasks
+therefore expose `RemoteJDBCInstrumentationV0Test` separately from their remaining suites, and the three remote
+forked classes each have their own virtual project. The remaining forked tasks form exhaustive, disjoint groups
+across all 22 concrete forked classes; an unweighted catch-all keeps newly added forked classes covered.
+
+The largest measured JDBC unit after this split is the old H2 remote suite at 321.831 s, down 71.18% from the
+original 1116.7-second JDBC project. The next largest units are the remote DBM fork at 310.736 s and the remote
+instrumentation fork at 279.971 s. The checked-in weights come directly from that pipeline's suite durations.
+
 ## Known limitation: the heaviest project sets a floor
 
 A project's tests always run in a single shard, and tests run in parallel within a shard. The balancer only adds up
@@ -66,22 +84,23 @@ seconds, so it cannot see that a shard dominated by one large project finishes l
 spread over many small projects. In the first pipeline using this balancer, shards 1/8 and 4/8 ran almost the same
 total test time (2312 s and 2292 s), yet took 39 and 24 minutes: shard 1/8 held `jdbc`.
 
-The two heaviest projects per pipeline are currently:
+Before the JDBC suite split, the two heaviest projects per pipeline were:
 
 - `:dd-java-agent:instrumentation:jdbc`: 1116.7 s, about 18.6 minutes;
 - `:dd-java-agent:instrumentation:lettuce:lettuce-5.0`: 978.1 s, about 16.3 minutes.
 
-The slowest shard can therefore never be faster than the heaviest single project, plus job setup. A project's
-wall-clock span is also longer than its summed test time: in that first pipeline, the `jdbc` tests (20.5 minutes of
-summed test time) spanned 27.6 minutes, starting about 10 minutes into the job, so its shard took 39 minutes. Under
-the previous hash-based assignment, the `jdbc` shard was already the slowest one.
+After the split, JDBC no longer sets that floor; `lettuce-5.0` is the heaviest remaining project. The slowest shard
+can never be faster than the heaviest single project, plus job setup. A project's wall-clock span is also longer
+than its summed test time: in that first pipeline, the `jdbc` tests (20.5 minutes of summed test time) spanned 27.6
+minutes, starting about 10 minutes into the job, so its shard took 39 minutes. Under the previous hash-based
+assignment, the `jdbc` shard was already the slowest one.
 
 The modeled max/min ratio is optimistic whenever one project approaches the target shard time, so treat the 1.25
 bound as a check of the model rather than a guarantee for wall-clock time.
 
-The two heaviest projects must not share a shard, otherwise their floors stack. Capping weights would not help:
-under-weighting `jdbc` makes the model look balanced while letting more work pile onto the `jdbc` shard. Lowering the
-floor needs finer-grained sharding than whole projects.
+The two heaviest projects must not share a shard, otherwise their floors stack. Capping weights only makes the model
+look balanced while letting more work pile onto the affected shard. Lowering the floor requires splitting the work
+into independently scheduled units, as the JDBC suite shards do above.
 
 ## When to refresh
 
