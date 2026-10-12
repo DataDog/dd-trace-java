@@ -1,0 +1,1 @@
+// CI-only virtual project; its allTests task is registered by the parent Lettuce 5 project.

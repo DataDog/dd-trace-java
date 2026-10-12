@@ -77,6 +77,18 @@ The largest measured JDBC unit after this split is the old H2 remote suite at 32
 original 1116.7-second JDBC project. The next largest units are the remote DBM fork at 310.736 s and the remote
 instrumentation fork at 279.971 s. The checked-in weights come directly from that pipeline's suite durations.
 
+## Lettuce 5 suite shards
+
+The Lettuce 5 instrumentation uses six virtual child projects for its main `test_inst` suites: base, forked, 5.1,
+6.0, 6.1, and 6.2. Each child delegates to the existing task in `lettuce-5.0`; all suites retain their Redis
+container limit. The separate `allLatestDepTests` path remains on the parent project and continues to run
+`latestDepTest` and `latestDepForkedTest` unchanged.
+
+The measured project weight is 978.1 s. Available suite aggregates give 147 s for the base task and 470 s for the
+three 6.x tasks. The initial weights assign 156.7 s, 156.7 s, and 156.6 s to 6.0, 6.1, and 6.2; 147 s to 5.1; and
+the remaining 214.1 s to the forked task. Replace these provisional weights with direct suite measurements after
+the first coverage-complete CI run.
+
 ## Known limitation: the heaviest project sets a floor
 
 A project's tests always run in a single shard, and tests run in parallel within a shard. The balancer only adds up
@@ -89,9 +101,9 @@ Before the JDBC suite split, the two heaviest projects per pipeline were:
 - `:dd-java-agent:instrumentation:jdbc`: 1116.7 s, about 18.6 minutes;
 - `:dd-java-agent:instrumentation:lettuce:lettuce-5.0`: 978.1 s, about 16.3 minutes.
 
-After the split, JDBC no longer sets that floor; `lettuce-5.0` is the heaviest remaining project. The slowest shard
-can never be faster than the heaviest single project, plus job setup. A project's wall-clock span is also longer
-than its summed test time: in that first pipeline, the `jdbc` tests (20.5 minutes of summed test time) spanned 27.6
+After the JDBC and Lettuce splits, their largest independently scheduled units are 316.5 s and 214.1 s. The largest
+remaining project is `akka-http-10.0` at 612.3 s. A project's wall-clock span is also longer than its summed test
+time: in the first duration-aware pipeline, the unsplit `jdbc` tests (20.5 minutes of summed test time) spanned 27.6
 minutes, starting about 10 minutes into the job, so its shard took 39 minutes. Under the previous hash-based
 assignment, the `jdbc` shard was already the slowest one.
 
@@ -100,7 +112,7 @@ bound as a check of the model rather than a guarantee for wall-clock time.
 
 The two heaviest projects must not share a shard, otherwise their floors stack. Capping weights only makes the model
 look balanced while letting more work pile onto the affected shard. Lowering the floor requires splitting the work
-into independently scheduled units, as the JDBC suite shards do above.
+into independently scheduled units, as the JDBC and Lettuce suite shards do above.
 
 ## When to refresh
 

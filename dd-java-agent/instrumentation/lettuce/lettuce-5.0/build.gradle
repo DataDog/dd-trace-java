@@ -49,3 +49,31 @@ dependencies {
     usesService(testcontainersLimit)
   }
 }
+
+// In sharded CI, virtual child projects expose each version suite independently. The latest
+// dependency suites stay on this project and continue to run through allLatestDepTests.
+if (rootProject.providers.gradleProperty("slot").isPresent()) {
+  tasks.named("allTests") {
+    setDependsOn([])
+  }
+}
+
+def ciTestShards = [
+  'lettuce-base-test': tasks.named('test'),
+  'lettuce-forked-tests': tasks.named('forkedTest'),
+  'lettuce-51-test': tasks.named('lettuce51Test'),
+  'lettuce-60-test': tasks.named('lettuce60Test'),
+  'lettuce-61-test': tasks.named('lettuce61Test'),
+  'lettuce-62-test': tasks.named('lettuce62Test'),
+]
+
+def ciShardProjectPaths = rootProject.extensions.extraProperties.get('ciShardProjectPaths') as Map
+ciTestShards.each { childName, testTask ->
+  def childPath = ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:$childName"
+  ciShardProjectPaths[testTask.get().path] = childPath
+  project(childPath) {
+    tasks.register("allTests") {
+      dependsOn(testTask)
+    }
+  }
+}

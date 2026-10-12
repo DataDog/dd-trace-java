@@ -102,6 +102,12 @@ instrumentationNaming {
     "jdbc-remote-dbm-prepared-forked-test",
     "jdbc-remote-instrumentation-forked-test",
     "jdbc-other-forked-tests",
+    "lettuce-base-test",
+    "lettuce-forked-tests",
+    "lettuce-51-test",
+    "lettuce-60-test",
+    "lettuce-61-test",
+    "lettuce-62-test",
   ]
   suffixes = ["-common", "-stubs", "-iast"]
 }
