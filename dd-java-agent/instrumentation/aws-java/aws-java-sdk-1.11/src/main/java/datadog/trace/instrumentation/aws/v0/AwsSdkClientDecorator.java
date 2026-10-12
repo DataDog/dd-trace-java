@@ -198,7 +198,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if ("AWSLambda".equalsIgnoreCase(awsServiceName)) {
       String functionName = access.getFunctionName(originalRequest);
       if (null != functionName) {
-        span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, functionName);
+        setFunctionIdentity(span, functionName);
       }
     }
 
@@ -262,6 +262,39 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
       }
     }
+  }
+
+  /**
+   * Normalizes a Lambda {@code FunctionName} request value. {@code aws.function.name} is always the
+   * bare function name (account, {@code function:} prefix and {@code :qualifier} suffix stripped),
+   * and {@code aws.function.arn} is set only when the value is a full ARN. A partial ARN ({@code
+   * account:function:name}) yields the name but no ARN, because its Region and partition are
+   * unknown and must not be invented.
+   */
+  private static void setFunctionIdentity(AgentSpan span, String functionName) {
+    if (functionName == null || functionName.isEmpty()) {
+      return;
+    }
+    if (functionName.startsWith("arn:")) {
+      // arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
+      span.setTag(InstrumentationTags.AWS_FUNCTION_ARN, functionName);
+    }
+    span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, lambdaFunctionName(functionName));
+  }
+
+  /** Extracts the bare function name from any accepted {@code FunctionName} form. */
+  static String lambdaFunctionName(String functionName) {
+    String[] parts = functionName.split(":");
+    // Full ARN: arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
+    if (parts.length >= 7 && "arn".equals(parts[0]) && "function".equals(parts[5])) {
+      return parts[6];
+    }
+    // Partial ARN: <account>:function:<name>[:<qualifier>]
+    if (parts.length >= 3 && "function".equals(parts[1])) {
+      return parts[2];
+    }
+    // Bare name, optionally with a :alias or :version qualifier (parts[0] is the name).
+    return parts[0];
   }
 
   public void onServiceResponse(

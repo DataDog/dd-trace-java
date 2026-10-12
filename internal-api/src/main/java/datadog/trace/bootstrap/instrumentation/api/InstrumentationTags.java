@@ -43,6 +43,7 @@ public class InstrumentationTags {
   public static final String AWS_STATE_MACHINE_ARN = "aws.state_machine.arn";
   public static final String AWS_EXECUTION_ARN = "aws.execution.arn";
   public static final String AWS_FUNCTION_NAME = "aws.function.name";
+  public static final String AWS_FUNCTION_ARN = "aws.function.arn";
 
   // These are temporary keys used for span pointer hash calculation
   public static final String S3_ETAG = "s3.eTag";

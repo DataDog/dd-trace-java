@@ -201,11 +201,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         .getValueForField("executionArn", String.class)
         .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, arn));
 
-    // Lambda
+    // Lambda. FunctionName accepts a bare name, name:qualifier, partial ARN
+    // (account:function:name) or full ARN, and cross-account/cross-Region invokes require a full
+    // ARN, so pass-through would fragment aws.function.name across forms. Normalize the name and
+    // only emit aws.function.arn when the request carries a full ARN. A separate Qualifier field
+    // never changes the resource name.
     if ("lambda".equalsIgnoreCase(awsServiceName)) {
       request
           .getValueForField("FunctionName", String.class)
-          .ifPresent(name -> span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, name));
+          .ifPresent(name -> setFunctionIdentity(span, name));
     }
 
     // DSM
@@ -326,6 +330,39 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_TABLE_NAME, name);
     span.setTag(InstrumentationTags.TABLE_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
+  }
+
+  /**
+   * Normalizes a Lambda {@code FunctionName} request value. {@code aws.function.name} is always the
+   * bare function name (account, {@code function:} prefix and {@code :qualifier} suffix stripped),
+   * and {@code aws.function.arn} is set only when the value is a full ARN. A partial ARN ({@code
+   * account:function:name}) yields the name but no ARN, because its Region and partition are
+   * unknown and must not be invented.
+   */
+  private static void setFunctionIdentity(AgentSpan span, String functionName) {
+    if (functionName == null || functionName.isEmpty()) {
+      return;
+    }
+    if (functionName.startsWith("arn:")) {
+      // arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
+      span.setTag(InstrumentationTags.AWS_FUNCTION_ARN, functionName);
+    }
+    span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, lambdaFunctionName(functionName));
+  }
+
+  /** Extracts the bare function name from any accepted {@code FunctionName} form. */
+  static String lambdaFunctionName(String functionName) {
+    String[] parts = functionName.split(":");
+    // Full ARN: arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
+    if (parts.length >= 7 && "arn".equals(parts[0]) && "function".equals(parts[5])) {
+      return parts[6];
+    }
+    // Partial ARN: <account>:function:<name>[:<qualifier>]
+    if (parts.length >= 3 && "function".equals(parts[1])) {
+      return parts[2];
+    }
+    // Bare name, optionally with a :alias or :version qualifier (parts[0] is the name).
+    return parts[0];
   }
 
   public void onSdkResponse(
