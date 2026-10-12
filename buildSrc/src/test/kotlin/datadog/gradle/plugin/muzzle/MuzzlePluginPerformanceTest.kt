@@ -46,6 +46,36 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
   }
 
   @Test
+  fun `aggregate does not plan an excluded module`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle {
+        pass {
+          group = "does.not.exist"
+          module = "must-not-resolve"
+          versions = "[1.0,2.0)"
+        }
+      }
+      """
+    )
+    writeRootProject(
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+
+    val result = run(":runMuzzle", "-x", ":dd-java-agent:instrumentation:demo:muzzle", "--offline")
+
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.tasks).noneMatch { it.path.startsWith(":dd-java-agent:instrumentation:demo:") }
+    assertThat(result.output).doesNotContain("muzzle-Assert", "muzzle-end")
+  }
+
+  @Test
   fun `aggregate skips excluded plans but explicit muzzle still checks them`() {
     writeProject(
       """

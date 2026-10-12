@@ -7,10 +7,10 @@ import org.junit.jupiter.api.Test
 
 class MuzzleValidationTasksTest {
   @Test
-  fun `registration is deferred and repeated lookups reuse the tasks`() {
+  fun `registration is deferred and repeated provider queries reuse the tasks`() {
     val project = ProjectBuilder.builder().build()
     var attempts = 0
-    val validationTasks = MuzzleValidationTasks {
+    val validationTasks = MuzzleValidationTasks(project.providers) {
       attempts++
       setOf(project.tasks.register("validation").get())
     }
@@ -18,8 +18,8 @@ class MuzzleValidationTasksTest {
     assertThat(attempts).isZero()
     assertThat(project.tasks.names).doesNotContain("validation")
 
-    val first = validationTasks.getDependencies(null)
-    val second = validationTasks.getDependencies(project.tasks.named("validation").get())
+    val first = validationTasks.tasks.get()
+    val second = validationTasks.tasks.get()
 
     assertThat(attempts).isEqualTo(1)
     assertThat(first).containsExactly(project.tasks.named("validation").get())
@@ -31,14 +31,14 @@ class MuzzleValidationTasksTest {
     val project = ProjectBuilder.builder().build()
     val failure = IllegalStateException("Registration failed")
     var attempts = 0
-    val validationTasks = MuzzleValidationTasks {
+    val validationTasks = MuzzleValidationTasks(project.providers) {
       attempts++
       project.tasks.register("partiallyRegistered")
       throw failure
     }
 
     repeat(2) {
-      assertThatThrownBy { validationTasks.getDependencies(null) }.isSameAs(failure)
+      assertThatThrownBy { validationTasks.tasks.get() }.isSameAs(failure)
     }
 
     assertThat(attempts).isEqualTo(1)

@@ -101,7 +101,7 @@ class MuzzlePlugin : Plugin<Project> {
     }
     project.publishMuzzleReport(report.flatMap { it.versionsFile })
 
-    val validationTasks = MuzzleValidationTasks {
+    val validationTasks = MuzzleValidationTasks(project.providers) {
       val startTime = System.currentTimeMillis()
       val system = MuzzleMavenRepoUtils.newRepositorySystem()
       val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
@@ -138,7 +138,7 @@ class MuzzlePlugin : Plugin<Project> {
       setOf(executionChain.first().get())
     }
     muzzleTask.configure {
-      finalizedBy(validationTasks)
+      finalizedBy(validationTasks.tasks)
     }
   }
 
