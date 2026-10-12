@@ -779,6 +779,9 @@ muzzle-dep-report:
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
+    # CI pull policy: allow slow image fetching without overriding local file-based settings.
+    TESTCONTAINERS_PULL_TIMEOUT: "240"
+    TESTCONTAINERS_PULL_PAUSE_TIMEOUT: "60"
     JETTY_AVAILABLE_PROCESSORS: 4 # Jetty incorrectly calculates processor count in containers
   script:
     - *gitlab_base_ref_params
