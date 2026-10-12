@@ -6,17 +6,21 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.ConfiguredResponseStatusExceptions;
+import datadog.trace.bootstrap.instrumentation.decorator.MappedExceptionStatus;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
+import javax.ws.rs.WebApplicationException;
 
 public class JaxRsAnnotationsDecorator extends BaseDecorator {
   public static JaxRsAnnotationsDecorator DECORATE = new JaxRsAnnotationsDecorator();
@@ -39,6 +43,36 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   @Override
   protected CharSequence component() {
     return JAX_RS_CONTROLLER;
+  }
+
+  @Override
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    // If the mapped status isn't one of the configured "server error" statuses, this isn't really
+    // an error from the caller's point of view (e.g. a 404 NotFoundException), even though a Java
+    // exception was thrown to get there.
+    Integer status = extractResponseStatus(throwable);
+    if (status == null) {
+      status = ConfiguredResponseStatusExceptions.extractStatus(throwable);
+    }
+    if (MappedExceptionStatus.flagIfPresent(
+        span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR, status)) {
+      return;
+    }
+    super.doOnError(span, throwable, errorPriority);
+  }
+
+  // Walk the cause chain looking for a WebApplicationException, which carries the response the
+  // framework will actually send.
+  private static Integer extractResponseStatus(final Throwable throwable) {
+    Throwable current = throwable;
+    for (int depth = 0;
+        current != null && depth < MappedExceptionStatus.MAX_CAUSE_CHAIN_DEPTH;
+        depth++, current = current.getCause()) {
+      if (current instanceof WebApplicationException) {
+        return ((WebApplicationException) current).getResponse().getStatus();
+      }
+    }
+    return null;
   }
 
   public void onJaxRsSpan(
