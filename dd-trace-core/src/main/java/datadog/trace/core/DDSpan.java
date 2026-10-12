@@ -165,6 +165,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
         wrapper.onSpanFinished();
       }
       this.metrics.onSpanFinished();
+      // every finished span tunes its operation's sizing hint, serialized or not
+      context.recordDenseSize();
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
