@@ -242,10 +242,10 @@ abstract class ProcessManager extends Specification {
       throw new IllegalArgumentException('Disabling scope continuation diagnostics requires a reason')
     }
     ScopeDiagnosticsClient diagnostic = reason == null
-      ? new ScopeDiagnosticsClient(Paths.get(buildDirectory, 'reports'), "${getClass().simpleName}-${index}", scopeDiagnosticsProcessLifetime())
+      ? new ScopeDiagnosticsClient(Paths.get(buildDirectory, 'reports'), "${getClass().simpleName}-${index}", scopeDiagnosticsProcessLifetime(), disabledScopeContinuationChecksReason(), disabledChecks)
       : null
     scopeDiagnostics.add(diagnostic)
-    String argument = diagnostic == null ? '' : diagnostic.javaAgentArgument(disabledScopeContinuationChecksReason(), disabledChecks)
+    String argument = diagnostic == null ? '' : diagnostic.javaAgentArgument()
     boolean found = replaceScopeDiagnosticsArgument(builder, argument)
     if (diagnostic != null && !found) {
       throw new IllegalStateException('Smoke launch must include defaultJavaProperties, or document an incompatible launch with skipScopeContinuationCheckReason()')

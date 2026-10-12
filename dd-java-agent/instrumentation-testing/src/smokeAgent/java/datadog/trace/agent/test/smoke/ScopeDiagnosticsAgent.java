@@ -1,37 +1,41 @@
 package datadog.trace.agent.test.smoke;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URLDecoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 /** File-controlled companion agent used only by smoke-test child processes. */
 public final class ScopeDiagnosticsAgent {
+  private static final AtomicLong REPORT_IDS = new AtomicLong();
+
   private ScopeDiagnosticsAgent() {}
 
   public static void premain(String arguments, Instrumentation instrumentation) throws Exception {
     if (arguments == null || arguments.isEmpty()) {
       throw new IllegalArgumentException("Scope diagnostics require a control directory");
     }
-    Properties options = parseArguments(arguments);
-    Path directory = Paths.get(options.getProperty("directory")).toAbsolutePath();
+    File directory = new File(arguments).getAbsoluteFile();
     try {
-      Properties config = read(directory.resolve("config"));
+      Properties config = read(new File(directory, "config"));
       String mode = config.getProperty("mode");
       if (!"server".equals(mode) && !"cli".equals(mode)) {
         throw new IllegalArgumentException("Unknown scope diagnostics mode: " + mode);
@@ -58,8 +62,8 @@ public final class ScopeDiagnosticsAgent {
               null,
               instrumentation,
               payload,
-              options.getProperty("disabledChecks", ""),
-              options.getProperty("reason", ""));
+              config.getProperty("disabledChecks", ""),
+              config.getProperty("reason", ""));
       Method start = bridge.getMethod("start");
       Method finish = bridge.getMethod("finish");
       if (cli) {
@@ -70,7 +74,7 @@ public final class ScopeDiagnosticsAgent {
                     () -> {
                       try {
                         publish(
-                            directory.resolve("final"),
+                            new File(directory, "final"),
                             response(0, (Properties) finish.invoke(null)));
                       } catch (Throwable failure) {
                         publishFailure(directory, "final", 0, failure);
@@ -84,7 +88,7 @@ public final class ScopeDiagnosticsAgent {
       controller.start();
       Properties ready = new Properties();
       ready.setProperty("protocol", "1");
-      publish(directory.resolve("ready"), ready);
+      publish(new File(directory, "ready"), ready);
     } catch (Throwable failure) {
       publishFailure(directory, "error", 0, failure);
       throw new IllegalStateException(
@@ -92,38 +96,12 @@ public final class ScopeDiagnosticsAgent {
     }
   }
 
-  private static Properties parseArguments(String arguments) throws Exception {
-    Properties options = new Properties();
-    if (!arguments.startsWith("directory=")) {
-      options.setProperty("directory", arguments);
-      return options;
-    }
-    for (String entry : arguments.split("&", -1)) {
-      int separator = entry.indexOf('=');
-      if (separator < 0) {
-        throw new IllegalArgumentException("Expected key=value diagnostic option: " + entry);
-      }
-      String key = entry.substring(0, separator);
-      if (!"directory".equals(key) && !"disabledChecks".equals(key) && !"reason".equals(key)) {
-        throw new IllegalArgumentException("Unknown scope diagnostic option: " + key);
-      }
-      if (options.setProperty(key, URLDecoder.decode(entry.substring(separator + 1), "UTF-8"))
-          != null) {
-        throw new IllegalArgumentException("Duplicate scope diagnostic option: " + key);
-      }
-    }
-    if (options.getProperty("directory").isEmpty()) {
-      throw new IllegalArgumentException("Scope diagnostics require a control directory");
-    }
-    return options;
-  }
-
-  private static void control(Path directory, Method start, Method finish, boolean cli) {
-    Path commandFile = directory.resolve("command");
+  private static void control(File directory, Method start, Method finish, boolean cli) {
+    File commandFile = new File(directory, "command");
     long previous = Long.MIN_VALUE;
     while (!Thread.currentThread().isInterrupted()) {
       try {
-        if (Files.exists(commandFile)) {
+        if (commandFile.exists()) {
           Properties command = read(commandFile);
           long seq = Long.parseLong(command.getProperty("seq"));
           if (seq != previous) {
@@ -146,7 +124,7 @@ public final class ScopeDiagnosticsAgent {
               } else {
                 throw new IllegalArgumentException("Unknown diagnostic command: " + action);
               }
-              publish(directory.resolve("response-" + seq), response(seq, result));
+              publish(new File(directory, "response-" + seq), response(seq, result));
             } catch (Throwable failure) {
               publishFailure(directory, "response-" + seq, seq, failure);
             }
@@ -163,15 +141,15 @@ public final class ScopeDiagnosticsAgent {
   }
 
   private static Map<String, byte[]> payload() throws Exception {
-    Path ownJar =
-        Paths.get(
+    File ownJar =
+        new File(
             ScopeDiagnosticsAgent.class
                 .getProtectionDomain()
                 .getCodeSource()
                 .getLocation()
                 .toURI());
     Map<String, byte[]> classes = new LinkedHashMap<>();
-    try (JarFile jar = new JarFile(ownJar.toFile())) {
+    try (JarFile jar = new JarFile(ownJar)) {
       Enumeration<JarEntry> entries = jar.entries();
       while (entries.hasMoreElements()) {
         JarEntry entry = entries.nextElement();
@@ -196,9 +174,9 @@ public final class ScopeDiagnosticsAgent {
     return classes;
   }
 
-  private static Properties read(Path path) throws Exception {
+  private static Properties read(File file) throws Exception {
     Properties properties = new Properties();
-    try (InputStream input = Files.newInputStream(path)) {
+    try (InputStream input = new FileInputStream(file)) {
       properties.load(input);
     }
     return properties;
@@ -212,26 +190,62 @@ public final class ScopeDiagnosticsAgent {
     return result;
   }
 
-  private static void publish(Path target, Properties data) throws Exception {
-    Path temporary = Files.createTempFile(target.getParent(), ".scope-diagnostics-", ".tmp");
+  private static void publish(File target, Properties data) throws IOException {
+    // File.createTempFile initializes SecureRandom, whose security configuration can use NIO.
+    File temporary =
+        new File(
+            target.getParentFile(), ".scope-diagnostics-" + REPORT_IDS.incrementAndGet() + ".tmp");
+    if (!temporary.createNewFile()) {
+      throw new IOException("Cannot create scope diagnostic report: " + temporary);
+    }
     try {
-      try (OutputStream output = Files.newOutputStream(temporary)) {
-        data.store(output, "Smoke-test scope diagnostics");
+      // Properties.store formats a date header, which can initialize locale providers and NIO.
+      try (Writer writer =
+          new BufferedWriter(
+              new OutputStreamWriter(new FileOutputStream(temporary), StandardCharsets.US_ASCII))) {
+        // Protocol field names are fixed ASCII keys; only values need escaping.
+        for (String key : data.stringPropertyNames()) {
+          writer.write(key);
+          writer.write('=');
+          writePropertyValue(writer, data.getProperty(key));
+          writer.write('\n');
+        }
       }
-      Files.move(
-          temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+      // Publish by same-directory rename; never fall back to copying an incomplete report.
+      if (!temporary.renameTo(target)) {
+        throw new IOException("Cannot publish scope diagnostic report: " + target);
+      }
     } finally {
-      Files.deleteIfExists(temporary);
+      if (temporary.exists() && !temporary.delete()) {
+        temporary.deleteOnExit();
+      }
+    }
+  }
+
+  private static void writePropertyValue(Writer writer, String value) throws IOException {
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c == '\\' || c == ' ') {
+        writer.write('\\');
+        writer.write(c);
+      } else if (c < 0x20 || c > 0x7e) {
+        writer.write("\\u");
+        for (int shift = 12; shift >= 0; shift -= 4) {
+          writer.write(Character.forDigit((c >>> shift) & 0xf, 16));
+        }
+      } else {
+        writer.write(c);
+      }
     }
   }
 
   @SuppressForbidden // Last-resort stderr when writing the diagnostic report fails.
-  private static void publishFailure(Path directory, String file, long seq, Throwable failure) {
+  private static void publishFailure(File directory, String file, long seq, Throwable failure) {
     Properties result = new Properties();
     result.setProperty("status", "error");
     result.setProperty("detail", unwrap(failure).toString());
     try {
-      publish(directory.resolve(file), response(seq, result));
+      publish(new File(directory, file), response(seq, result));
     } catch (Exception writingFailure) {
       System.err.println("Cannot publish scope diagnostic failure: " + writingFailure);
       failure.printStackTrace(System.err);

@@ -350,7 +350,11 @@ public abstract class AbstractSmokeApp
     if (this.checkScopeContinuations && this.agentJar != null) {
       this.scopeDiagnostics =
           new ScopeDiagnosticsClient(
-              this.logFile.getParentFile().toPath(), this.name, this instanceof SmokeCliApp);
+              this.logFile.getParentFile().toPath(),
+              this.name,
+              this instanceof SmokeCliApp,
+              this.disabledScopeContinuationChecksReason,
+              this.disabledScopeContinuationChecks);
     }
     List<String> command = javaCommand();
     appendMemoryTuningArguments(command);
@@ -407,9 +411,7 @@ public abstract class AbstractSmokeApp
     if (this.agentJar != null) {
       command.add("-javaagent:" + this.agentJar);
       if (this.scopeDiagnostics != null) {
-        command.add(
-            this.scopeDiagnostics.javaAgentArgument(
-                this.disabledScopeContinuationChecksReason, this.disabledScopeContinuationChecks));
+        command.add(this.scopeDiagnostics.javaAgentArgument());
       }
       command.add("-Ddd.agent.host=" + this.backend.url().getHost());
       command.add("-Ddd.trace.agent.port=" + this.backend.port());

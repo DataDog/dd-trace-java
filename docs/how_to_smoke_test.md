@@ -69,19 +69,18 @@ reason is required, and selective exclusions cannot be combined with a full reco
 All other checks retain the instrumentation diagnostic's enforcement policy. Reports distinguish
 enforced, advisory, and excluded findings and retain the full timeline and exclusion reason.
 
-Custom launchers can pass options directly to the companion:
+Custom launchers pass the control directory to the companion:
 
 ```text
--javaagent:/path/scope-diagnostics-agent.jar=directory=/path/control&disabledChecks=LEAKED,NEVER_CLOSED&reason=known+fixture
+-javaagent:/path/scope-diagnostics-agent.jar=/path/control
 ```
 
-The control directory still contains the `config` file with `mode=cli` or `mode=server`. Option values
-use UTF-8 URL encoding; encode spaces as `+`, a literal `+` as `%2B`, and `&` as `%26`.
-Supported checks are `LEAKED`, `LATE_FINISH`, `DOUBLE_FINISH`, `ACTIVATE_AFTER_RESOLVE`,
-`CLOSE_WRONG_THREAD`, and `NEVER_CLOSED`. Unknown checks and missing exclusion reasons fail
-installation. Passing only the control directory remains supported and selects all checks.
-`ScopeDiagnosticsClient.javaAgentArgument(reason, checks...)` constructs these options for custom
-launchers.
+The directory contains a `config` Java properties file with `mode=cli` or `mode=server`.
+Optional `disabledChecks=LEAKED,NEVER_CLOSED` and `reason=known fixture` entries configure exclusions.
+Unknown checks and missing exclusion reasons fail installation. Supported checks are `LEAKED`,
+`LATE_FINISH`, `DOUBLE_FINISH`, `ACTIVATE_AFTER_RESOLVE`, `CLOSE_WRONG_THREAD`, and `NEVER_CLOSED`.
+`ScopeDiagnosticsClient(reportsDirectory, name, cli, reason, checks...)` writes this configuration;
+`javaAgentArgument()` returns the launch argument. Values need no URL encoding.
 
 ## Your first smoke test
 

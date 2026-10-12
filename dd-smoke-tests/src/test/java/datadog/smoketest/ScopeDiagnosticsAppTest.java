@@ -60,6 +60,9 @@ class ScopeDiagnosticsAppTest {
     return SmokeCliApp.named("scope-" + mode)
         .mainClass(ScopeDiagnosticsTestApp.class)
         .args(mode)
+        // Keep hostname discovery from starting an unrelated subprocess in this short fixture.
+        .env("HOSTNAME", "scope-diagnostics-test")
+        .env("COMPUTERNAME", "scope-diagnostics-test")
         .backend(AgentBackend.mockAgent())
         .jvmArgs("-Ddd.telemetry.enabled=false", "-Ddd.remote_config.enabled=false")
         .skipTelemetryCheck();

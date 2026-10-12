@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.scopediag;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.is;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -76,9 +77,9 @@ final class ScopeContinuationTransformer {
     if (transformer != null) {
       return;
     }
+    ClassLoader loader = ScopeContinuationTransformer.class.getClassLoader();
     try {
       // Related core types can otherwise load these targets reentrantly while they are transformed.
-      ClassLoader loader = ScopeContinuationTransformer.class.getClassLoader();
       for (String target :
           new String[] {
             ".scopemanager.ScopeContinuation",
@@ -123,7 +124,7 @@ final class ScopeContinuationTransformer {
             .disableClassFormatChanges()
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
-            .type(named(corePackage + ".scopemanager.ScopeContinuation"))
+            .type(named(corePackage + ".scopemanager.ScopeContinuation"), is(loader))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder
@@ -154,7 +155,7 @@ final class ScopeContinuationTransformer {
                                                 .or(named("cancelFromContinuedScopeClose")))
                                         .and(takesArguments(0))
                                         .and(returns(void.class)))))
-            .type(named(corePackage + ".PendingTrace"))
+            .type(named(corePackage + ".PendingTrace"), is(loader))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder.visit(
@@ -164,7 +165,7 @@ final class ScopeContinuationTransformer {
                                     .and(named("write"))
                                     .and(takesArguments(boolean.class))
                                     .and(returns(int.class)))))
-            .type(named(corePackage + ".scopemanager.ContinuableScope"))
+            .type(named(corePackage + ".scopemanager.ContinuableScope"), is(loader))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder
@@ -182,7 +183,7 @@ final class ScopeContinuationTransformer {
                                         .and(named("close"))
                                         .and(takesArguments(0))
                                         .and(returns(void.class)))))
-            .type(named(corePackage + ".scopemanager.ScopeStack"))
+            .type(named(corePackage + ".scopemanager.ScopeStack"), is(loader))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder.visit(
@@ -196,7 +197,7 @@ final class ScopeContinuationTransformer {
                                             0,
                                             named(corePackage + ".scopemanager.ContinuableScope")))
                                     .and(returns(void.class)))))
-            .type(named(corePackage + ".scopemanager.ContinuableScopeManager"))
+            .type(named(corePackage + ".scopemanager.ContinuableScopeManager"), is(loader))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder.visit(

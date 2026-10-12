@@ -38,6 +38,9 @@ allprojects { Project subProj ->
     def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
     def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
     dependsOn agentTaskRef, diagnosticsTaskRef
+    inputs.file(diagnosticsTaskRef.flatMap { it.archiveFile })
+    .withPropertyName('scopeDiagnosticsAgent')
+    .withPathSensitivity(PathSensitivity.NONE)
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"

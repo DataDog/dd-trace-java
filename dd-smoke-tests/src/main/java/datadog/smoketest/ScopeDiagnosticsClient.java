@@ -7,8 +7,6 @@ import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,12 +27,39 @@ public final class ScopeDiagnosticsClient {
 
   public ScopeDiagnosticsClient(Path reportsDirectory, String name, boolean cli)
       throws IOException {
-    this(reportsDirectory, name, cli, configuredAgent(), 30_000);
+    this(reportsDirectory, name, cli, "");
+  }
+
+  /** Excludes named checks from enforcement, keeping their events in the report. */
+  public ScopeDiagnosticsClient(
+      Path reportsDirectory,
+      String name,
+      boolean cli,
+      String reason,
+      ScopeDiagnosticsCheck... disabledChecks)
+      throws IOException {
+    this(reportsDirectory, name, cli, configuredAgent(), 30_000, reason, disabledChecks);
   }
 
   ScopeDiagnosticsClient(
-      Path reportsDirectory, String name, boolean cli, Path agent, long timeoutMillis)
+      Path reportsDirectory,
+      String name,
+      boolean cli,
+      Path agent,
+      long timeoutMillis,
+      String reason,
+      ScopeDiagnosticsCheck... disabledChecks)
       throws IOException {
+    if (disabledChecks.length > 0 && (reason == null || reason.trim().isEmpty())) {
+      throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
+    }
+    StringJoiner names = new StringJoiner(",");
+    for (ScopeDiagnosticsCheck check : disabledChecks) {
+      if (check == null) {
+        throw new IllegalArgumentException("A disabled scope diagnostic check must not be null");
+      }
+      names.add(check.name());
+    }
     if (!Files.isRegularFile(agent)) {
       throw new IllegalArgumentException("Scope diagnostics agent jar does not exist: " + agent);
     }
@@ -49,6 +74,8 @@ public final class ScopeDiagnosticsClient {
             .toAbsolutePath();
     Properties config = new Properties();
     config.setProperty("mode", cli ? "cli" : "server");
+    config.setProperty("disabledChecks", names.toString());
+    config.setProperty("reason", reason == null ? "" : reason);
     write("config", config);
   }
 
@@ -57,37 +84,7 @@ public final class ScopeDiagnosticsClient {
   }
 
   public String javaAgentArgument() {
-    return javaAgentArgument("", new ScopeDiagnosticsCheck[0]);
-  }
-
-  /** Excludes named checks from enforcement, keeping their events in the report. */
-  public String javaAgentArgument(String reason, ScopeDiagnosticsCheck... disabledChecks) {
-    String argument = "-javaagent:" + agent + "=";
-    if (disabledChecks.length == 0) {
-      return argument + directory;
-    }
-    if (reason == null || reason.trim().isEmpty()) {
-      throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
-    }
-    StringJoiner names = new StringJoiner(",");
-    for (ScopeDiagnosticsCheck check : disabledChecks) {
-      names.add(check.name());
-    }
-    return argument
-        + "directory="
-        + encode(directory.toString())
-        + "&disabledChecks="
-        + names
-        + "&reason="
-        + encode(reason);
-  }
-
-  private static String encode(String value) {
-    try {
-      return URLEncoder.encode(value, "UTF-8");
-    } catch (UnsupportedEncodingException impossible) {
-      throw new AssertionError(impossible);
-    }
+    return "-javaagent:" + agent + "=" + directory;
   }
 
   public void awaitReady(Process process) {

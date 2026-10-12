@@ -6,12 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +39,33 @@ class ScopeDiagnosticsAgentTest {
       Properties result = result(diagnostics.directory().resolve("final"));
       assertTrue(Integer.parseInt(result.getProperty("eventCount")) > 0);
       assertTrue(result.getProperty("timeline").contains("diagnostic-resolved"));
+    } finally {
+      child.destroyForcibly();
+    }
+  }
+
+  @Test
+  void startupFileOperationsDoNotInitializeDefaultFileSystem() throws Exception {
+    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "filesystem", true);
+    ProcessBuilder builder = processBuilder(diagnostics, "resolved");
+    // Isolate the companion's file I/O from production-agent startup.
+    builder.command().remove(1);
+    builder
+        .command()
+        .add(
+            1,
+            "-Djava.nio.file.spi.DefaultFileSystemProvider=datadog.smoketest.MissingFileSystemProvider");
+    Process child = builder.start();
+    try {
+      AssertionError failure =
+          assertThrows(AssertionError.class, () -> diagnostics.awaitReady(child));
+      assertTrue(
+          failure.getMessage().replace('/', '.').contains("datadog.trace.bootstrap.Agent"),
+          failure.getMessage());
+      assertTrue(child.waitFor(30, SECONDS));
+      assertTrue(child.exitValue() != 0);
+      Properties report = result(diagnostics.directory().resolve("error"));
+      assertEquals("error", report.getProperty("status"));
     } finally {
       child.destroyForcibly();
     }
@@ -89,24 +117,18 @@ class ScopeDiagnosticsAgentTest {
   }
 
   @TableTest({
-    "Scenario                           | Checks              | Mode              | Status  ",
-    "excluded leak remains recorded     | LEAKED              | leak              | ok      ",
-    "double finish remains enforced     | LEAKED              | double            | problems",
-    "unclosed scope remains enforced    | LEAKED              | unclosed          | problems",
-    "multiple checks can be excluded    | LEAKED,NEVER_CLOSED | leak-and-unclosed | ok      ",
-    "excluding leak does not hide scope | LEAKED              | leak-and-unclosed | problems"
+    "Scenario                           | Checks                 | Mode              | Status  ",
+    "excluded leak remains recorded     | [LEAKED]               | leak              | ok      ",
+    "double finish remains enforced     | [LEAKED]               | double            | problems",
+    "unclosed scope remains enforced    | [LEAKED]               | unclosed          | problems",
+    "multiple checks can be excluded    | [LEAKED, NEVER_CLOSED] | leak-and-unclosed | ok      ",
+    "excluding leak does not hide scope | [LEAKED]               | leak-and-unclosed | problems"
   })
-  void agentArgumentsSelectEnforcement(String checks, String mode, String status) throws Exception {
-    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, mode, true);
-    String argument =
-        "-javaagent:"
-            + System.getProperty("datadog.smoketest.scopeDiagnostics.agent.path")
-            + "=directory="
-            + URLEncoder.encode(diagnostics.directory().toString(), "UTF-8")
-            + "&disabledChecks="
-            + checks
-            + "&reason=known+test+fixture";
-    Process child = launch(diagnostics, mode, argument);
+  void agentConfigurationSelectsEnforcement(
+      ScopeDiagnosticsCheck[] checks, String mode, String status) throws Exception {
+    ScopeDiagnosticsClient diagnostics =
+        new ScopeDiagnosticsClient(reports, mode, true, "known test fixture", checks);
+    Process child = launch(diagnostics, mode);
     try {
       diagnostics.awaitReady(child);
       assertTrue(child.waitFor(30, SECONDS));
@@ -132,21 +154,22 @@ class ScopeDiagnosticsAgentTest {
   }
 
   @TableTest({
-    "Scenario        | Options                                  | Error                ",
-    "missing reason  | disabledChecks=LEAKED                    | requires a reason    ",
-    "unknown check   | disabledChecks=MISSPELLED&reason=fixture | MISSPELLED           ",
-    "empty list item | disabledChecks=LEAKED%2C&reason=fixture  | ScopeDiagnosticsCheck"
+    "Scenario        | Checks     | Reason  | Error                ",
+    "missing reason  | LEAKED     | ''      | requires a reason    ",
+    "unknown check   | MISSPELLED | fixture | MISSPELLED           ",
+    "empty list item | 'LEAKED,'  | fixture | ScopeDiagnosticsCheck"
   })
-  void invalidExclusionsFailInstallation(String options, String error) throws Exception {
+  void invalidExclusionsFailInstallation(String checks, String reason, String error)
+      throws Exception {
     ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "invalid", true);
-    String argument =
-        "-javaagent:"
-            + System.getProperty("datadog.smoketest.scopeDiagnostics.agent.path")
-            + "=directory="
-            + URLEncoder.encode(diagnostics.directory().toString(), "UTF-8")
-            + "&"
-            + options;
-    Process child = launch(diagnostics, "resolved", argument);
+    Path configFile = diagnostics.directory().resolve("config");
+    Properties config = result(configFile);
+    config.setProperty("disabledChecks", checks);
+    config.setProperty("reason", reason);
+    try (OutputStream output = Files.newOutputStream(configFile)) {
+      config.store(output, null);
+    }
+    Process child = launch(diagnostics, "resolved");
     try {
       AssertionError failure =
           assertThrows(AssertionError.class, () -> diagnostics.awaitReady(child));
@@ -161,12 +184,13 @@ class ScopeDiagnosticsAgentTest {
   @Test
   void serverExclusionsApplyToEveryWindowWithoutHidingOtherViolations() throws Exception {
     ScopeDiagnosticsClient diagnostics =
-        new ScopeDiagnosticsClient(reports, "selective-server", false);
-    Process child =
-        launch(
-            diagnostics,
-            "server",
-            diagnostics.javaAgentArgument("Known fixture & cleanup=expected; café + path", LEAKED));
+        new ScopeDiagnosticsClient(
+            reports,
+            "selective-server",
+            false,
+            " Known fixture & cleanup=expected; café + path\t\\\n ",
+            LEAKED);
+    Process child = launch(diagnostics, "server");
     try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
         BufferedReader output =
             new BufferedReader(
@@ -177,7 +201,8 @@ class ScopeDiagnosticsAgentTest {
       diagnostics.finish(child);
       Properties first = result(diagnostics.directory().resolve("response-2"));
       assertTrue(first.getProperty("detail").contains("LEAKED"));
-      assertEquals("Known fixture & cleanup=expected; café + path", first.getProperty("reason"));
+      assertEquals(
+          " Known fixture & cleanup=expected; café + path\t\\\n ", first.getProperty("reason"));
       assertTrue(first.getProperty("timeline").contains("diagnostic-leak"));
       diagnostics.start(child);
       exercise(input, output, "double");
@@ -192,10 +217,10 @@ class ScopeDiagnosticsAgentTest {
   }
 
   private Process launch(ScopeDiagnosticsClient diagnostics, String mode) throws Exception {
-    return launch(diagnostics, mode, diagnostics.javaAgentArgument());
+    return processBuilder(diagnostics, mode).start();
   }
 
-  private Process launch(ScopeDiagnosticsClient diagnostics, String mode, String argument)
+  private ProcessBuilder processBuilder(ScopeDiagnosticsClient diagnostics, String mode)
       throws Exception {
     String classes =
         Paths.get(
@@ -205,20 +230,24 @@ class ScopeDiagnosticsAgentTest {
                     .getLocation()
                     .toURI())
             .toString();
-    return new ProcessBuilder(
-            Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
-            "-javaagent:" + System.getProperty("datadog.smoketest.agent.shadowJar.path"),
-            argument,
-            "-Ddd.trace.enabled=true",
-            "-Ddd.telemetry.enabled=false",
-            "-Ddd.remote_config.enabled=false",
-            "-Ddd.trace.startup.logs=false",
-            "-cp",
-            classes,
-            ScopeDiagnosticsTestApp.class.getName(),
-            mode)
-        .redirectError(reports.resolve("child-" + mode + ".log").toFile())
-        .start();
+    ProcessBuilder builder =
+        new ProcessBuilder(
+                Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
+                "-javaagent:" + System.getProperty("datadog.smoketest.agent.shadowJar.path"),
+                diagnostics.javaAgentArgument(),
+                "-Ddd.trace.enabled=true",
+                "-Ddd.telemetry.enabled=false",
+                "-Ddd.remote_config.enabled=false",
+                "-Ddd.trace.startup.logs=false",
+                "-cp",
+                classes,
+                ScopeDiagnosticsTestApp.class.getName(),
+                mode)
+            .redirectError(reports.resolve("child-" + mode + ".log").toFile());
+    // Keep hostname discovery from starting an unrelated subprocess in these short fixtures.
+    builder.environment().put("HOSTNAME", "scope-diagnostics-test");
+    builder.environment().put("COMPUTERNAME", "scope-diagnostics-test");
+    return builder;
   }
 
   private static void exercise(Writer input, BufferedReader output, String action)

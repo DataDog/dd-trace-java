@@ -7,12 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -150,22 +150,19 @@ class ScopeDiagnosticsClientTest {
   }
 
   @Test
-  void selectiveArgumentsPreservePathsAndReasons() throws Exception {
-    ScopeDiagnosticsClient client = client(true);
-    String argument =
-        client.javaAgentArgument("fixture & cleanup=expected; café + path", LEAKED, NEVER_CLOSED);
-    Properties options = new Properties();
-    for (String option : argument.substring(argument.indexOf("=directory=") + 1).split("&")) {
-      int separator = option.indexOf('=');
-      options.setProperty(
-          option.substring(0, separator),
-          URLDecoder.decode(option.substring(separator + 1), "UTF-8"));
-    }
-    assertEquals(client.directory().toString(), options.getProperty("directory"));
-    assertEquals("LEAKED,NEVER_CLOSED", options.getProperty("disabledChecks"));
-    assertEquals("fixture & cleanup=expected; café + path", options.getProperty("reason"));
-    assertThrows(IllegalArgumentException.class, () -> client.javaAgentArgument("  ", LEAKED));
-    assertThrows(IllegalArgumentException.class, () -> client.javaAgentArgument(null, LEAKED));
+  void configurationPreservesPathsAndReasons() throws Exception {
+    ScopeDiagnosticsClient client =
+        client(true, "fixture & cleanup=expected; café + path", LEAKED, NEVER_CLOSED);
+    Properties config = read(client, "config");
+    assertEquals("cli", config.getProperty("mode"));
+    assertEquals("LEAKED,NEVER_CLOSED", config.getProperty("disabledChecks"));
+    assertEquals("fixture & cleanup=expected; café + path", config.getProperty("reason"));
+    assertTrue(client.javaAgentArgument().endsWith("=" + client.directory()));
+    assertThrows(IllegalArgumentException.class, () -> client(true, "  ", LEAKED));
+    assertThrows(IllegalArgumentException.class, () -> client(true, null, LEAKED));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> client(true, "fixture", (ScopeDiagnosticsCheck) null));
   }
 
   @Test
@@ -200,11 +197,16 @@ class ScopeDiagnosticsClientTest {
   }
 
   private ScopeDiagnosticsClient client(boolean cli) throws IOException {
+    return client(cli, "");
+  }
+
+  private ScopeDiagnosticsClient client(boolean cli, String reason, ScopeDiagnosticsCheck... checks)
+      throws IOException {
     Path jar = temporary.resolve("companion.jar");
     if (Files.notExists(jar)) {
       Files.createFile(jar);
     }
-    return new ScopeDiagnosticsClient(temporary, "test app", cli, jar, 25);
+    return new ScopeDiagnosticsClient(temporary, "test app", cli, jar, 25, reason, checks);
   }
 
   private static void response(ScopeDiagnosticsClient client, String file, int seq, String status)

@@ -8,7 +8,7 @@ class ScopeDiagnosticsLegacySmokeTest extends AbstractSmokeTest {
   @Override
   ProcessBuilder createProcessBuilder() {
     String classes = Paths.get(ScopeDiagnosticsTestApp.protectionDomain.codeSource.location.toURI()).toString()
-    new ProcessBuilder([
+    ProcessBuilder builder = new ProcessBuilder([
       javaPath(),
       *defaultJavaProperties,
       '-Ddd.profiling.enabled=false',
@@ -19,6 +19,10 @@ class ScopeDiagnosticsLegacySmokeTest extends AbstractSmokeTest {
       ScopeDiagnosticsTestApp.name,
       'resolved'
     ] as String[])
+    // Keep hostname discovery from starting an unrelated subprocess in this short fixture.
+    builder.environment().put('HOSTNAME', 'scope-diagnostics-test')
+    builder.environment().put('COMPUTERNAME', 'scope-diagnostics-test')
+    builder
   }
 
   def 'completed CLI is checked even when it exits before the feature'() {
