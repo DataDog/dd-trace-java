@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -61,6 +62,17 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    ElementMatcher.Junction<TypeDescription> promiseTask =
+        nameEndsWith(".netty.util.concurrent.PromiseTask");
+    ElementMatcher.Junction<TypeDescription> scheduledTask =
+        nameEndsWith(".netty.util.concurrent.ScheduledFutureTask");
+    ElementMatcher.Junction<TypeDescription> legacyPromiseTask =
+        promiseTask.and(not(declaresMethod(named("runTask"))));
+    ElementMatcher.Junction<TypeDescription> taskWithRunTask =
+        hasSuperType(declaresMethod(named("runTask")));
+    ElementMatcher.Junction<MethodDescription> run =
+        isMethod().and(named("run")).and(takesNoArguments());
+
     transformer.applyAdvice(
         isMethod()
             .and(named("cancel"))
@@ -71,30 +83,16 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
         isMethod()
             .and(named("setUncancellableInternal"))
             .and(takesNoArguments())
-            .and(isDeclaredBy(not(declaresMethod(named("runTask"))))),
+            .and(isDeclaredBy(legacyPromiseTask)),
         getClass().getName() + "$ExecutionDecision");
     transformer.applyAdvice(
         isMethod().and(named("runTask")).and(takesNoArguments()),
         getClass().getName() + "$RunTask");
     transformer.applyAdvice(
-        isMethod()
-            .and(named("run"))
-            .and(takesNoArguments())
-            .and(
-                isDeclaredBy(
-                    nameEndsWith(".netty.util.concurrent.PromiseTask")
-                        .or(
-                            nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
-                                .and(hasSuperType(declaresMethod(named("runTask"))))))),
+        run.and(isDeclaredBy(promiseTask.or(scheduledTask.and(taskWithRunTask)))),
         getClass().getName() + "$Run");
     transformer.applyAdvice(
-        isMethod()
-            .and(named("run"))
-            .and(takesNoArguments())
-            .and(
-                isDeclaredBy(
-                    nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
-                        .and(not(hasSuperType(declaresMethod(named("runTask"))))))),
+        run.and(isDeclaredBy(scheduledTask.and(not(taskWithRunTask)))),
         getClass().getName() + "$LegacyRun");
   }
 

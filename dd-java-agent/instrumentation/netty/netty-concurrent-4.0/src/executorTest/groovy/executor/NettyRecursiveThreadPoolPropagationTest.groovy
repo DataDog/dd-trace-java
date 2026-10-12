@@ -1,10 +1,12 @@
 package executor
 
+import static executor.NettyRecursiveTask.Dispatch.EXECUTE
+import static executor.NettyRecursiveTask.Dispatch.MIXED
+import static executor.NettyRecursiveTask.Dispatch.SUBMIT
+import static executor.NettyTestExecutors.shutdown
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
-import executor.recursive.RecursiveThreadPoolExecution
-import executor.recursive.RecursiveThreadPoolMixedSubmissionAndExecution
-import executor.recursive.RecursiveThreadPoolSubmission
 import io.netty.channel.DefaultEventLoopGroup
 import spock.lang.Shared
 
@@ -12,11 +14,11 @@ import spock.lang.Shared
 class NettyRecursiveThreadPoolPropagationTest extends InstrumentationSpecification {
 
   @Shared
-  def recursiveSubmission = { executor, depth -> executor.submit(new RecursiveThreadPoolSubmission(executor, depth, 0)) }
+  def recursiveSubmission = { executor, depth -> executor.submit(new NettyRecursiveTask(executor, depth, 0, SUBMIT)) }
   @Shared
-  def recursiveExecution = { executor, depth -> executor.submit(new RecursiveThreadPoolExecution(executor, depth, 0)) }
+  def recursiveExecution = { executor, depth -> executor.submit(new NettyRecursiveTask(executor, depth, 0, EXECUTE)) }
   @Shared
-  def mixedSubmissionAndExecution = { executor, depth -> executor.submit(new RecursiveThreadPoolMixedSubmissionAndExecution(executor, depth, 0)) }
+  def mixedSubmissionAndExecution = { executor, depth -> executor.submit(new NettyRecursiveTask(executor, depth, 0, MIXED)) }
 
   def "propagate context in #executor.class.name with #parallelism threads #depth times"() {
     when:
@@ -25,7 +27,7 @@ class NettyRecursiveThreadPoolPropagationTest extends InstrumentationSpecificati
     assertTrace(depth)
 
     cleanup:
-    executor.shutdownNow()
+    shutdown(executor)
 
     where:
     depth | parallelism                             | test                        | executor

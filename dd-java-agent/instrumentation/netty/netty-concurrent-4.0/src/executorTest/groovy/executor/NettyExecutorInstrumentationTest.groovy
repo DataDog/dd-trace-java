@@ -1,5 +1,7 @@
 package executor
 
+import static executor.NettyTestExecutors.shutdown
+
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 import datadog.environment.OperatingSystem
@@ -16,7 +18,6 @@ import java.util.concurrent.Callable
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
-import runnable.JavaAsyncChild
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 
@@ -39,6 +40,16 @@ class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
   NioEventLoopGroup nioEventLoopGroup = new NioEventLoopGroup(4)
   @Shared
   LocalEventLoopGroup localEventLoopGroup = new LocalEventLoopGroup(4)
+
+  def cleanupSpec() {
+    [
+      epollEventLoopGroup,
+      defaultEventExecutorGroup,
+      defaultEventLoopGroup,
+      nioEventLoopGroup,
+      localEventLoopGroup
+    ].each { shutdown(it) }
+  }
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
@@ -70,9 +81,9 @@ class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
         @Trace(operationName = "parent")
         void run() {
           // this child will have a span
-          m(pool, new JavaAsyncChild())
+          m(pool, new NettyAsyncChild())
           // this child won't
-          m(pool, new JavaAsyncChild(false, false))
+          m(pool, new NettyAsyncChild(false, false))
           blockUntilChildSpansFinished(1)
         }
       }.run()
@@ -209,7 +220,7 @@ class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll
     def pool = poolImpl
     def m = method
-    List<JavaAsyncChild> children = new ArrayList<>()
+    List<NettyAsyncChild> children = new ArrayList<>()
     List<Future> jobFutures = new ArrayList<>()
 
     new Runnable() {
@@ -218,7 +229,7 @@ class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
         void run() {
           try {
             for (int i = 0; i < 20; ++i) {
-              final JavaAsyncChild child = new JavaAsyncChild(false, true)
+              final NettyAsyncChild child = new NettyAsyncChild(false, true)
               children.add(child)
               try {
                 Future f = m(pool, child)
@@ -233,7 +244,7 @@ class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
           for (Future f : jobFutures) {
             f.cancel(false)
           }
-          for (JavaAsyncChild child : children) {
+          for (NettyAsyncChild child : children) {
             child.unblock()
           }
         }
@@ -244,6 +255,9 @@ class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
     expect:
     // FIXME: we should improve this test to make sure continuations are actually closed
     TEST_WRITER.size() == 1
+
+    cleanup:
+    children?.each { it.unblock() }
 
     where:
     name                     | method              | poolImpl

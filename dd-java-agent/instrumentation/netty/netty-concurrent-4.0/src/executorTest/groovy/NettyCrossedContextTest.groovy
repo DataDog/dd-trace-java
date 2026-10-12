@@ -5,7 +5,8 @@ import io.netty.channel.ThreadPerChannelEventLoop
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.oio.OioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutor
-import runnable.Descendant
+import executor.NettyDescendant
+import static executor.NettyTestExecutors.shutdown
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutorService
@@ -48,7 +49,7 @@ class NettyCrossedContextTest extends InstrumentationSpecification {
       pool.execute({
         String threadName = Thread.currentThread().getName()
         runUnderTrace(threadName) {
-          fn(sut, new Descendant(threadName))
+          fn(sut, new NettyDescendant(threadName))
         }
       })
     }
@@ -65,7 +66,7 @@ class NettyCrossedContextTest extends InstrumentationSpecification {
     }
 
     cleanup:
-    executor.shutdownNow()
+    shutdown(executor)
 
     where:
     executor                                                                                          | action       | function
@@ -93,7 +94,7 @@ class NettyCrossedContextTest extends InstrumentationSpecification {
       pool.execute({
         String threadName = Thread.currentThread().getName()
         runUnderTrace(threadName) {
-          pool.execute(new Descendant(threadName))
+          pool.execute(new NettyDescendant(threadName))
         }
       })
     }
@@ -108,6 +109,9 @@ class NettyCrossedContextTest extends InstrumentationSpecification {
       assert null != child
       assert child.getOperationName().toString().startsWith(parent.getOperationName().toString())
     }
+
+    cleanup:
+    shutdown(executor)
 
     where:
     executor << [

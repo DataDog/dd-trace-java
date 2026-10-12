@@ -1,12 +1,13 @@
 package executor
 
+import static executor.NettyTestExecutors.shutdown
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.core.DDSpan
 import executor.rejectedexecutionhandler.NettySwallowingRejectedExecutionHandler
 import io.netty.util.concurrent.DefaultEventExecutor
 import io.netty.util.concurrent.DefaultThreadFactory
-import runnable.JavaAsyncChild
 import java.util.concurrent.CountDownLatch
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -28,12 +29,16 @@ class NettyRejectedExecutionTest extends InstrumentationSpecification {
     runUnderTrace("parent") {
       // must be rejected because the queue will be full until some
       // time after the first task is released
-      executor.submit((Runnable) new JavaAsyncChild(true, false))
+      executor.submit((Runnable) new NettyAsyncChild(true, false))
       latch.countDown()
     }
 
     then:
     expectParentChildTrace()
+
+    cleanup:
+    latch?.countDown()
+    shutdown(executor)
 
     where:
     handler << [new NettySwallowingRejectedExecutionHandler()]

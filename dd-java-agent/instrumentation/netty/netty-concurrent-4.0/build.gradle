@@ -40,7 +40,6 @@ addForkedTestTask('legacyNettyTest')
 }
 
 dependencies {
-  executorTestImplementation testFixtures(project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8'))
   executorTestImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
 
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'

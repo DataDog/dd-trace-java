@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'java-test-fixtures'
 }
 
 muzzle {
@@ -16,8 +15,6 @@ tasks.named("compileJava") {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testFixturesImplementation project(':dd-java-agent:instrumentation-testing')
-
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation libs.guava
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'
