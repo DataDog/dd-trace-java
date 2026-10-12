@@ -184,6 +184,7 @@ class TraceGenerator {
               0,
               getTagsForSerialization(),
               UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
+              emptyList(),
               emptyList());
     }
 

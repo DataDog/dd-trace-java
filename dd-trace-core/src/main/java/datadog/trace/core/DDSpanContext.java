@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.PARENT_ID;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
@@ -1330,6 +1331,7 @@ public class DDSpanContext
         longRunningVersion,
         restrictedSpan,
         injectLinksAsTags,
+        true, // injectEventsAsTags
         injectBaggageAsTags,
         propagationTags);
   }
@@ -1344,26 +1346,28 @@ public class DDSpanContext
         longRunningVersion,
         restrictedSpan,
         injectLinksAsTags,
+        true, // injectEventsAsTags
         injectBaggageAsTags,
         firstInChunk ? getPropagationTags() : null);
   }
 
   /**
-   * Serialize span links as first-class structured data rather than tags. While baggage tag
-   * injection keeps following the tracer configuration.
+   * Serialize span links and span events as first-class structured data rather than tags. While
+   * baggage tag injection keeps following the tracer configuration.
    */
-  void processTagsAndBaggageWithStructuredLinks(
+  void processTagsAndBaggageWithStructuredLinksAndEvents(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
     processTagsAndBaggage(
         consumer,
         longRunningVersion,
         restrictedSpan,
         false, // injectLinksAsTags
+        false, // injectEventsAsTags
         injectBaggageAsTags,
         propagationTags);
   }
 
-  void processTagsAndBaggageWithStructuredLinks(
+  void processTagsAndBaggageWithStructuredLinksAndEvents(
       final MetadataConsumer consumer,
       int longRunningVersion,
       DDSpan restrictedSpan,
@@ -1373,6 +1377,7 @@ public class DDSpanContext
         longRunningVersion,
         restrictedSpan,
         false, // injectLinksAsTags
+        false, // injectEventsAsTags
         injectBaggageAsTags,
         firstInChunk ? getPropagationTags() : null);
   }
@@ -1382,10 +1387,11 @@ public class DDSpanContext
       int longRunningVersion,
       DDSpan restrictedSpan,
       boolean injectLinksAsTags,
+      boolean injectEventsAsTags,
       boolean injectBaggageAsTags,
       PropagationTags serializedPropagationTags) {
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
-    // links
+    // links and events
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
@@ -1398,6 +1404,15 @@ public class DDSpanContext
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
           unsafeTags.set(SPAN_LINKS, linksTag);
+        }
+      }
+
+      // Events
+      List<DDSpanEvent> events = restrictedSpan.getEvents();
+      if (injectEventsAsTags) {
+        String eventsTag = spanEventsToTag(events);
+        if (eventsTag != null) {
+          unsafeTags.set(SPAN_EVENTS, eventsTag);
         }
       }
 
@@ -1433,8 +1448,102 @@ public class DDSpanContext
               longRunningVersion,
               ProcessTags.getTagsForSerialization(),
               Config.get().isOtlpTracesExportEnabled() ? OTLP_EXPORT_TRUE : OTLP_EXPORT_FALSE,
-              restrictedSpan.getLinks()));
+              restrictedSpan.getLinks(),
+              events));
     }
+  }
+
+  /**
+   * Encodes span events into a {@link DDTags#SPAN_EVENTS} tag value.
+   *
+   * @param events The span events to encode.
+   * @return The encoded tag value, {@code null} if no events.
+   */
+  private static String spanEventsToTag(List<DDSpanEvent> events) {
+    if (events.isEmpty()) {
+      return null;
+    }
+    StringBuilder builder = new StringBuilder("[");
+    for (DDSpanEvent event : events) {
+      if (builder.length() > 1) {
+        builder.append(',');
+      }
+      builder.append("{\"time_unix_nano\":").append(event.timeUnixNano()).append(",\"name\":");
+      appendJsonString(builder, event.name());
+      Map<String, ?> attributes = event.attributes();
+      if (!attributes.isEmpty()) {
+        builder.append(",\"attributes\":{");
+        int attributesStart = builder.length();
+        for (Map.Entry<String, ?> attribute : attributes.entrySet()) {
+          if (builder.length() > attributesStart) {
+            builder.append(',');
+          }
+          appendJsonString(builder, attribute.getKey());
+          builder.append(':');
+          appendJsonValue(builder, attribute.getValue());
+        }
+        builder.append('}');
+      }
+      builder.append('}');
+    }
+    return builder.append(']').toString();
+  }
+
+  private static void appendJsonValue(StringBuilder builder, Object value) {
+    if (value instanceof String) {
+      appendJsonString(builder, (String) value);
+    } else if (value instanceof List) {
+      List<?> values = (List<?>) value;
+      builder.append('[');
+      for (int i = 0; i < values.size(); i++) {
+        if (i > 0) {
+          builder.append(',');
+        }
+        appendJsonValue(builder, values.get(i));
+      }
+      builder.append(']');
+    } else if (value instanceof Number || value instanceof Boolean) {
+      builder.append(value);
+    } else {
+      builder.append("null"); // null for unsupported types
+    }
+  }
+
+  private static void appendJsonString(StringBuilder builder, String value) {
+    if (value == null) {
+      builder.append("null");
+      return;
+    }
+    builder.append('"');
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '\\':
+          builder.append("\\\\");
+          break;
+        case '"':
+          builder.append("\\\"");
+          break;
+        case '\b':
+          builder.append("\\b");
+          break;
+        case '\f':
+          builder.append("\\f");
+          break;
+        case '\n':
+          builder.append("\\n");
+          break;
+        case '\r':
+          builder.append("\\r");
+          break;
+        case '\t':
+          builder.append("\\t");
+          break;
+        default:
+          builder.append(c);
+      }
+    }
+    builder.append('"');
   }
 
   void injectW3CBaggageTags(Map<String, String> baggageItemsWithPropagationTags) {

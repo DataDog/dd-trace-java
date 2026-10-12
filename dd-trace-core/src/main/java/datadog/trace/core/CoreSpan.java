@@ -104,19 +104,19 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   /**
    * Variant of {@link #processTagsAndBaggage(MetadataConsumer)} for protocols that serialize span
-   * links as first-class structured data rather than tags. Baggage tag injection still follows the
-   * tracer configuration.
+   * links and span events as first-class structured data rather than tags. Baggage tag injection
+   * still follows the tracer configuration.
    *
    * <p>To simplify tests, by default delegating to {@link
    * #processTagsAndBaggage(MetadataConsumer)}.
    */
-  default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer) {
+  default void processTagsAndBaggageWithStructuredLinksAndEvents(MetadataConsumer consumer) {
     processTagsAndBaggage(consumer);
   }
 
-  default void processTagsAndBaggageWithStructuredLinks(
+  default void processTagsAndBaggageWithStructuredLinksAndEvents(
       MetadataConsumer consumer, boolean firstInChunk) {
-    processTagsAndBaggageWithStructuredLinks(consumer);
+    processTagsAndBaggageWithStructuredLinksAndEvents(consumer);
   }
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
