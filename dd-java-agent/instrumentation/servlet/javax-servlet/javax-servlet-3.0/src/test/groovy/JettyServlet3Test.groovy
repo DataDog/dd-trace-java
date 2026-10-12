@@ -28,6 +28,7 @@ import javax.servlet.annotation.WebServlet
 import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import javax.servlet.http.HttpSession
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -569,6 +570,32 @@ class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
 }
 
 class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
+
+  void 'getSession tolerates a null servlet context'() {
+    setup:
+    final module = Mock(ApplicationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final session = Mock(HttpSession)
+    final delegate = Mock(HttpServletRequest)
+    final request = new CustomRequest(request: delegate)
+
+    when:
+    final result = request.getSession()
+
+    then:
+    result.is(session)
+    1 * delegate.getSession() >> session
+    1 * delegate.getServletContext() >> null
+    0 * module._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
+  }
+
+  private static class CustomRequest implements HttpServletRequest {
+    @Delegate
+    private HttpServletRequest request
+  }
 
   @Override
   Class<Servlet> servlet() {

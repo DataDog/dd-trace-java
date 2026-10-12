@@ -47,8 +47,25 @@ This mechanism exists to make sure either java agent state or static data are re
 
 ### Flaky Tests
 
-If a test runs unreliably, or doesn't have a fully deterministic behavior, this will lead to recurrent unexpected errors in continuous integration.
-In order to identify such tests and avoid the continuous integration to fail, they are marked as _flaky_ and must be annotated with the `@Flaky` annotation.
+Mark unreliable test methods or classes with `@Flaky` in both JUnit and Spock.
+
+All tests run by default. Use `-PskipFlakyTests` to skip flaky tests or `-PrunFlakyTests` to run only flaky tests.
+
+If a JUnit test is flaky only in certain environments, use `conditionMethod` to reference a static,
+no-argument method that returns `true` when the test is flaky:
+
+```java
+@Test
+@Flaky(conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm")
+void testOnSupportedJvms() {
+  // ...
+}
+```
+
+Use `suites = {"SomeSubclass"}` to limit the annotation to the concrete class executing the test,
+such as a subclass that inherits the annotated method. Simple and canonical class names are
+supported. Matching is exact, so subclasses and nested classes must each be listed. When both
+`suites` and a condition are specified, both must match.
 
 > [!TIP]
 > In case your pull request checks failed due to some unexpected flaky tests, you can retry the continuous 
@@ -120,8 +137,34 @@ If a fix cannot be included immediately, quarantine the Spock test with `@Flaky`
 `@Flaky` is not yet supported for JUnit tests.
 Keep continuation tracking enabled so the diagnostic evidence is preserved.
 
-Disable tracking with `@TrackScopeContinuations(enabled = false, reason = "...")` only for a proven incompatibility with the diagnostic itself, never for an unresolved leak.
-Keep the opt-out narrow and document the incompatibility and its removal condition.
+`@TrackScopeContinuations` records every detected lifecycle condition by default. Use `disabledChecks`
+to exclude checks from enforcement:
+
+```java
+// Exclude an enforced check only for a proven diagnostic incompatibility.
+@TrackScopeContinuations(
+    disabledChecks = ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+    reason = "the synthetic fixture models failed activation without a real continuation; remove with ABC-123")
+```
+
+An empty `disabledChecks` list keeps all checks active, including checks added in the future. A
+nonempty list excludes only the listed checks and includes future checks automatically. A method
+annotation replaces the class configuration; exclusion lists are not merged.
+
+`enabled = false` stops recording entirely and requires an empty `disabledChecks` list. A reason is
+required whenever `enabled = false` or `disabledChecks` is nonempty. Document the incompatibility
+and its removal condition.
+
+With recording enabled, all conditions remain recorded and reported even when every check is
+excluded. Excluding checks changes enforcement only; it does not disable recording, classification,
+or the bounded wait for asynchronous cleanup.
+
+The diagnostic policy determines which findings fail a test and which are advisory. Excluding a
+check affects enforcement without removing its diagnostic evidence. Reports distinguish findings
+that caused a failure from those retained for context.
+
+Disable recording or individual checks only for a proven incompatibility with the diagnostic itself,
+never to hide an unresolved lifecycle bug.
 Strict trace writes remain enabled.
 
 ## Running Tests

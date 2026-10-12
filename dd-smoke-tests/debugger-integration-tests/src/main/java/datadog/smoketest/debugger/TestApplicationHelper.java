@@ -50,6 +50,11 @@ public class TestApplicationHelper {
 
   public static String waitForInstrumentation(String logFileName, String className, String fromLine)
       throws IOException {
+    return waitForInstrumentation(logFileName, className, fromLine, Duration.ofSeconds(TIMEOUT_S));
+  }
+
+  public static String waitForInstrumentation(
+      String logFileName, String className, String fromLine, Duration timeout) throws IOException {
     AtomicBoolean generatingByteCode = new AtomicBoolean();
     return waitForSpecificLogLine(
         Paths.get(logFileName),
@@ -72,7 +77,7 @@ public class TestApplicationHelper {
         },
         () -> {},
         Duration.ofMillis(SLEEP_MS),
-        Duration.ofSeconds(TIMEOUT_S));
+        timeout);
   }
 
   public static String waitForReTransformation(

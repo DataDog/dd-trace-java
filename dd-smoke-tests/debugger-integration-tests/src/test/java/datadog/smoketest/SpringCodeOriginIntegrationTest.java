@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static datadog.smoketest.debugger.TestApplicationHelper.waitForInstrumentation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
@@ -39,11 +40,12 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
     registerTraceListener(this::receiveGreetingTrace);
     String httpPort = startSpringApp(Collections.emptyList());
     sendRequest(httpPort, "/greeting"); // trigger CodeOriginProbe instrumentation
-    waitForSpecificLogLine(
-        logFilePath,
-        "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done",
-        Duration.ofMillis(100),
-        Duration.ofSeconds(30)); // wait for instrumentation to be done
+    // Ignore retransformation of other methods, including constructors instrumented at startup.
+    waitForInstrumentation(
+        logFilePath.toString(),
+        "datadog.smoketest.debugger.controller.WebController",
+        "Instrumenting method: datadog.smoketest.debugger.controller.WebController.greeting(",
+        Duration.ofSeconds(30));
     sendRequest(httpPort, "/greeting"); // generate first span with tags
     processRequests(
         () -> traceReceived, () -> String.format("Timeout! traceReceived=%s", traceReceived));
@@ -58,11 +60,12 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
     registerTraceListener(this::receiveProcessTrace);
     String httpPort = startSpringApp(Collections.emptyList());
     sendRequest(httpPort, "/process"); // trigger CodeOriginProbe instrumentation
-    waitForSpecificLogLine(
-        logFilePath,
-        "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done",
-        Duration.ofMillis(100),
-        Duration.ofSeconds(30)); // wait for instrumentation to be done
+    // The controller's constructor can already have been instrumented during startup.
+    waitForInstrumentation(
+        logFilePath.toString(),
+        "datadog.smoketest.debugger.controller.InterfacedController",
+        "Instrumenting method: datadog.smoketest.debugger.controller.InterfacedController.process(",
+        Duration.ofSeconds(30));
     sendRequest(httpPort, "/process"); // generate first span with tags
     processRequests(
         () -> traceReceived, () -> String.format("Timeout! traceReceived=%s", traceReceived));
