@@ -1,0 +1,1 @@
+// CI-only virtual project; its allTests task is registered by the parent JDBC project.

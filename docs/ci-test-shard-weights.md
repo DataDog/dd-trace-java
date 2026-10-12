@@ -62,15 +62,16 @@ max/min load ratio of at most 1.25. That ratio is computed from the weights, not
 
 ## JDBC suite shards
 
-The JDBC instrumentation keeps one Gradle source module, but its `test_inst` work is exposed through six virtual
+The JDBC instrumentation keeps one Gradle source module, but its `test_inst` work is exposed through nine virtual
 child projects so the balancer can assign its existing suites to different shards. The child projects delegate to
 the original test tasks; they do not copy tests, change dependencies, or skip coverage. Local `allTests` and `check`
 still run every suite from the JDBC project as before.
 
 The measured suite weights are 208 s for `test`, 215 s for `oldH2Test`, 209 s for `oldPostgresTest`, and 504 s for
-`forkedTest`. The forked suite is further divided by its three source groups. Its provisional weights are allocated
-by forked JVM count (four DBM classes, three Oracle classes, and two SQL Server classes) and should be replaced with
-direct measurements after the first observation window.
+`forkedTest`. The forked suite is further divided into six exhaustive, disjoint groups. Its provisional weights are
+allocated across all 22 concrete forked test classes. A catch-all group currently contains the three `Remote*`
+classes and ensures future forked tests remain covered. Replace these provisional weights with direct measurements
+after the first observation window.
 
 ## Known limitation: the heaviest project sets a floor
 

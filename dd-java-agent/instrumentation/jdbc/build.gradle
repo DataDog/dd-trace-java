@@ -96,18 +96,48 @@ tasks.named("latestDepJava11Test", Test) {
 }
 
 def ciForkedTestGroups = [
-  jdbcDbmForkedTest: '**/DBM*ForkedTest*',
-  jdbcOracleForkedTest: '**/Oracle*ForkedTest*',
-  jdbcSqlServerForkedTest: '**/SQLServer*ForkedTest*',
+  jdbcDbmForkedTest: [
+    includes: ['**/DBM*ForkedTest*'],
+  ],
+  jdbcDecoratorForkedTest: [
+    includes: ['**/JDBCDecorator*ForkedTest*'],
+  ],
+  jdbcInstrumentationForkedTest: [
+    includes: [
+      '**/DriverInstrumentation*ForkedTest*',
+      '**/JDBCInstrumentation*ForkedTest*',
+    ],
+  ],
+  jdbcOracleForkedTest: [
+    includes: ['**/Oracle*ForkedTest*'],
+  ],
+  jdbcSqlServerForkedTest: [
+    includes: ['**/SQLServer*ForkedTest*'],
+  ],
+  // Keep a catch-all so newly added forked tests remain covered. This group currently contains the
+  // Remote* suites, which use database containers.
+  jdbcOtherForkedTest: [
+    includes: ['**/*ForkedTest*'],
+    excludes: [
+      '**/DBM*ForkedTest*',
+      '**/DriverInstrumentation*ForkedTest*',
+      '**/JDBCDecorator*ForkedTest*',
+      '**/JDBCInstrumentation*ForkedTest*',
+      '**/Oracle*ForkedTest*',
+      '**/SQLServer*ForkedTest*',
+    ],
+    usesContainers: true,
+  ],
 ]
 
-ciForkedTestGroups.each { taskName, includePattern ->
+ciForkedTestGroups.each { taskName, groupConfig ->
   tasks.register(taskName, Test) {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     useJUnitPlatform()
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    setIncludes([includePattern])
+    setIncludes(groupConfig.includes)
+    setExcludes(groupConfig.excludes ?: [])
   }
 }
 
@@ -127,7 +157,7 @@ tasks.withType(GroovyCompile).configureEach {
 }
 
 tasks.withType(Test).configureEach {
-  if (!ciForkedTestGroups.containsKey(name)) {
+  if (!ciForkedTestGroups.containsKey(name) || ciForkedTestGroups[name].usesContainers) {
     usesService(testcontainersLimit)
   }
 }
@@ -145,8 +175,11 @@ def ciTestShards = [
   'jdbc-old-h2-test': tasks.named('oldH2Test'),
   'jdbc-old-postgres-test': tasks.named('oldPostgresTest'),
   'jdbc-dbm-forked-tests': tasks.named('jdbcDbmForkedTest'),
+  'jdbc-decorator-forked-tests': tasks.named('jdbcDecoratorForkedTest'),
+  'jdbc-instrumentation-forked-tests': tasks.named('jdbcInstrumentationForkedTest'),
   'jdbc-oracle-forked-tests': tasks.named('jdbcOracleForkedTest'),
   'jdbc-sql-server-forked-tests': tasks.named('jdbcSqlServerForkedTest'),
+  'jdbc-other-forked-tests': tasks.named('jdbcOtherForkedTest'),
 ]
 
 ciTestShards.each { childName, testTask ->

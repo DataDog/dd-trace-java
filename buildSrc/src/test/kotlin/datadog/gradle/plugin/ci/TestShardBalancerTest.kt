@@ -109,7 +109,7 @@ class TestShardBalancerTest {
 
   @Test
   fun `bundled weights file is parsed`() {
-    assertThat(WEIGHTS).hasSize(41)
+    assertThat(WEIGHTS).hasSize(44)
     assertThat(WEIGHTS.values).allSatisfy { weight -> assertThat(weight).isPositive() }
     assertThat(heaviestProjects(2)).containsExactly(LETTUCE_5_0, AKKA_HTTP_10_0)
   }

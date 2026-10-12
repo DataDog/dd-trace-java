@@ -91,8 +91,11 @@ instrumentationNaming {
     "jdbc-old-h2-test",
     "jdbc-old-postgres-test",
     "jdbc-dbm-forked-tests",
+    "jdbc-decorator-forked-tests",
+    "jdbc-instrumentation-forked-tests",
     "jdbc-oracle-forked-tests",
     "jdbc-sql-server-forked-tests",
+    "jdbc-other-forked-tests",
   ]
   suffixes = ["-common", "-stubs", "-iast"]
 }
