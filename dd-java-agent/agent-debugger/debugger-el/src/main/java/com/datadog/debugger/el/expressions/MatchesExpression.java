@@ -1,15 +1,93 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvalContext;
+import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PrettyPrintVisitor;
+import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.StringValue;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.util.regex.Pattern;
 
-public class MatchesExpression extends StringPredicateExpression {
+public class MatchesExpression implements BooleanExpression {
+  private final ValueExpression<?> sourceString;
+  private final StringValue str;
+  private final Pattern pattern;
+
   public MatchesExpression(ValueExpression<?> sourceString, StringValue str) {
-    super(sourceString, str, String::matches, "matches");
+    this.sourceString = sourceString;
+    this.str = str;
+    pattern = str != null && str.getValue() != null ? Pattern.compile(str.getValue()) : null;
   }
 
   @Override
   public <R> R accept(Visitor<R> visitor) {
     return visitor.visit(this);
+  }
+
+  @Override
+  public Boolean evaluate(EvalContext evalContext) {
+    Value<?> sourceValue =
+        sourceString != null ? sourceString.evaluate(evalContext) : Value.nullValue();
+    if (sourceValue.isUndefined()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+    }
+    if (sourceValue.isNull()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+    }
+    if (pattern != null && sourceValue.getValue() instanceof String) {
+      String sourceStr = (String) sourceValue.getValue();
+      TimeoutCharSequence timeoutCharSequence =
+          new TimeoutCharSequence(evalContext.getTimeoutChecker(), this, sourceStr);
+      boolean result = pattern.matcher(timeoutCharSequence).matches();
+      ExpressionHelper.checkTimeout(evalContext.getTimeoutChecker(), this);
+      return result;
+    }
+    return Boolean.FALSE;
+  }
+
+  public ValueExpression<?> getSourceString() {
+    return sourceString;
+  }
+
+  public StringValue getStr() {
+    return str;
+  }
+
+  /** Wraps a String to check the timeout on each char access while the regex is matching. */
+  private static class TimeoutCharSequence implements CharSequence {
+    private final TimeoutChecker timeoutChecker;
+    private final MatchesExpression matchesExpression;
+    private final String s;
+
+    TimeoutCharSequence(
+        TimeoutChecker timeoutChecker, MatchesExpression matchesExpression, String s) {
+      this.timeoutChecker = timeoutChecker;
+      this.matchesExpression = matchesExpression;
+      this.s = s;
+    }
+
+    @Override
+    public int length() {
+      return s.length();
+    }
+
+    @Override
+    public char charAt(int index) {
+      ExpressionHelper.checkTimeout(timeoutChecker, matchesExpression);
+      return s.charAt(index);
+    }
+
+    @Override
+    public CharSequence subSequence(int start, int end) {
+      return s.subSequence(start, end);
+    }
+
+    @Override
+    public String toString() {
+      return s;
+    }
   }
 }
