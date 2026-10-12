@@ -103,10 +103,7 @@ def ciForkedTestGroups = [
     includes: ['**/JDBCDecorator*ForkedTest*'],
   ],
   jdbcInstrumentationForkedTest: [
-    includes: [
-      '**/DriverInstrumentation*ForkedTest*',
-      '**/JDBCInstrumentation*ForkedTest*',
-    ],
+    includes: ['**/DriverInstrumentation*ForkedTest*', '**/JDBCInstrumentation*ForkedTest*',],
   ],
   jdbcOracleForkedTest: [
     includes: ['**/Oracle*ForkedTest*'],
@@ -182,13 +179,17 @@ def ciTestShards = [
   'jdbc-other-forked-tests': tasks.named('jdbcOtherForkedTest'),
 ]
 
+def ciShardProjectPaths = [:]
 ciTestShards.each { childName, testTask ->
-  project(":dd-java-agent:instrumentation:jdbc:$childName") {
+  def childPath = ":dd-java-agent:instrumentation:jdbc:$childName"
+  ciShardProjectPaths[testTask.get().path] = childPath
+  project(childPath) {
     tasks.register("allTests") {
       dependsOn(testTask)
     }
   }
 }
+rootProject.extensions.extraProperties.set('ciShardProjectPaths', ciShardProjectPaths)
 
 tasks.named("latestDepJava11Test", Test) {
   testJvmConstraints {

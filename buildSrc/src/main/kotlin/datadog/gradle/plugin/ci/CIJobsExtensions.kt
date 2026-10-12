@@ -5,6 +5,8 @@ import org.gradle.api.Task
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.extra
 
+const val CI_SHARD_PROJECT_PATHS = "ciShardProjectPaths"
+
 /**
  * Determines if the current project is in the selected slot.
  *
