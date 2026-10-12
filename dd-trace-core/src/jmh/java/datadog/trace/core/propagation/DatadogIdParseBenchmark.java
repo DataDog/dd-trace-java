@@ -1,0 +1,135 @@
+package datadog.trace.core.propagation;
+
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import datadog.trace.api.Config;
+import datadog.trace.api.DD64bTraceId;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.DynamicConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Cost of parsing an {@code x-datadog-trace-id} header value, valid and invalid, with the throwing
+ * {@link DD64bTraceId#from(String)} and the non-throwing {@link DD64bTraceId#fromOrNull(String)},
+ * and of a full Datadog-style extraction carrying that value.
+ *
+ * <p>The invalid values are the two shapes behind the highest-volume propagation entries in Error
+ * Tracking: a value past the unsigned 64 bit range ({@code numberFormatOutOfLongRange}) and a value
+ * that is not decimal at all. Valid values cover both the 18 digit path and the 19 digit path,
+ * where most randomly generated 63 bit ids fall.
+ *
+ * <p><b>Results.</b> Invalid ids cost 20-43 ns per extraction instead of 840-880 ns, because no
+ * exception is built. The benchmark's stack is shallow; a real server's is much deeper, so the
+ * saving in production is larger. Overflow (24 ns to parse) is slower than not-decimal (3 ns)
+ * because all 20 digits are read before the overflow shows. Valid ids parse about 9 ns faster than
+ * with {@code Long.parseLong}. Before this change, valid-id extraction varied between forks (the 19
+ * digit case ran 119-598 ns); after, every fork is within a few ns. Numbers are the median of 5
+ * forks, ns/op, with the per-fork range; "before" is the same benchmark on the parent commit,
+ * without the {@code fromOrNull} arm. <code>
+ * Apple M1 Max, 10 CPUs - macOS/aarch64 - JDK 25
+ * arm           trace id header         before                after
+ * extract       18 digits                153  (152-153)        107  (100-109)
+ * extract       19 digits                149  (119-598)        109  (108-110)
+ * extract       unsigned max + 1         840  (821-947)         43   (42-43)
+ * extract       not decimal              882  (760-884)         21   (21-21)
+ * fromThrowing  18 digits                 31   (31-31)          22   (22-23)
+ * fromThrowing  19 digits                 32   (32-33)          24   (23-24)
+ * fromThrowing  unsigned max + 1         875  (771-953)        919  (915-926)
+ * fromThrowing  not decimal              815  (804-836)        804  (792-809)
+ * fromOrNull    18 digits                   -                   22   (22-23)
+ * fromOrNull    19 digits                   -                   24   (24-24)
+ * fromOrNull    unsigned max + 1            -                   24   (23-24)
+ * fromOrNull    not decimal                 -                    3    (3-3)
+ * </code>
+ */
+@State(Scope.Benchmark)
+@Warmup(iterations = 3, time = 2, timeUnit = SECONDS)
+@Measurement(iterations = 5, time = 2, timeUnit = SECONDS)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(NANOSECONDS)
+@Fork(5)
+public class DatadogIdParseBenchmark {
+  @Param({
+    "123456789012345678", // valid, 18 digits
+    "8217536438929873290", // valid, 19 digits
+    "18446744073709551616", // invalid, unsigned max + 1
+    "1a2b3c4d5e6f" // invalid, not decimal
+  })
+  String traceIdHeader;
+
+  HttpCodec.Extractor extractor;
+  Map<String, String> headers;
+
+  @Setup
+  public void setUp() {
+    // The test logback.xml on the JMH classpath sets the root logger to DEBUG. Production runs at
+    // INFO by default, and per-request debug output would swamp the invalid-header arms.
+    ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.INFO);
+
+    DynamicConfig dynamicConfig =
+        DynamicConfig.create()
+            .setHeaderTags(Collections.emptyMap())
+            .setBaggageMapping(Collections.emptyMap())
+            .apply();
+    extractor = DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+
+    headers = new LinkedHashMap<>();
+    headers.put(DatadogHttpCodec.TRACE_ID_KEY, traceIdHeader);
+    headers.put(DatadogHttpCodec.SPAN_ID_KEY, "2345678901234567890");
+    headers.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "1");
+    headers.put("user-agent", "benchmark");
+  }
+
+  @Benchmark
+  public DDTraceId fromThrowing() {
+    try {
+      return DD64bTraceId.from(traceIdHeader);
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  @Benchmark
+  public DDTraceId fromOrNull() {
+    return DD64bTraceId.fromOrNull(traceIdHeader);
+  }
+
+  @Benchmark
+  public TagContext extract() {
+    return extractor.extract(headers, MAP_VISITOR);
+  }
+
+  private static final AgentPropagation.ContextVisitor<Map<String, String>> MAP_VISITOR =
+      new MapContextVisitor();
+
+  private static final class MapContextVisitor
+      implements AgentPropagation.ContextVisitor<Map<String, String>> {
+    @Override
+    public void forEachKey(Map<String, String> carrier, AgentPropagation.KeyClassifier classifier) {
+      for (Map.Entry<String, String> entry : carrier.entrySet()) {
+        if (!classifier.accept(entry.getKey(), entry.getValue())) {
+          return;
+        }
+      }
+    }
+  }
+}
