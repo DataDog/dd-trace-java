@@ -85,7 +85,8 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
 instrumentationNaming {
   // CI-only virtual projects delegate to the JDBC module's existing test tasks.
   exclusions = [
-    "org-json-20230227", // org-json does not use semver
+    // org-json does not use semver
+    "org-json-20230227",
     "jdbc-test",
     "jdbc-old-h2-test",
     "jdbc-old-postgres-test",
