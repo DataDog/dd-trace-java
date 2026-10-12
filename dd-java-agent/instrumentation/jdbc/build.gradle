@@ -123,8 +123,7 @@ def ciForkedTestGroups = [
     includes: ['**/RemoteJDBCInstrumentationV1ForkedTest.class'],
     usesContainers: true,
   ],
-  // Keep a catch-all so newly added forked tests remain covered. This group currently contains the
-  // forked suites not assigned above.
+  // Keep an empty catch-all so newly added forked tests remain covered.
   jdbcOtherForkedTest: [
     includes: ['**/*ForkedTest*'],
     excludes: [
@@ -139,6 +138,7 @@ def ciForkedTestGroups = [
       '**/SQLServer*ForkedTest*',
     ],
     usesContainers: true,
+    allowNoTests: true,
   ],
 ]
 
@@ -150,6 +150,9 @@ ciForkedTestGroups.each { taskName, groupConfig ->
     classpath = sourceSets.test.runtimeClasspath
     setIncludes(groupConfig.includes)
     setExcludes(groupConfig.excludes ?: [])
+    if (groupConfig.allowNoTests) {
+      failOnNoDiscoveredTests = false
+    }
   }
 }
 

@@ -67,15 +67,15 @@ child projects so the balancer can assign its existing suites to different shard
 test tasks in the parent project; they do not copy tests or change dependencies. Local `allTests` and `check` still
 run every suite from the JDBC project as before.
 
-Pipeline `144153574` provided the first coverage-complete measurement of the split on JVM 11: 46 suites and 1,814
+Pipeline `144158285` provided a coverage-complete measurement of the refined split on JVM 11: 46 suites and 1,814
 passing tests. It showed that the remote database suites dominate several tasks. The three regular version tasks
 therefore expose `RemoteJDBCInstrumentationV0Test` separately from their remaining suites, and the three remote
 forked classes each have their own virtual project. The remaining forked tasks form exhaustive, disjoint groups
 across all 22 concrete forked classes; an unweighted catch-all keeps newly added forked classes covered.
 
-The largest modeled JDBC unit after this split is the base version's remote suite at 316.5 s, down 71.7% from the
-original 1116.7-second JDBC project. The next largest units are the remote DBM fork at 293.7 s and the old H2 remote
-suite at 288.5 s. The checked-in weights come directly from that pipeline's suite durations.
+The largest measured JDBC unit after this split is the old H2 remote suite at 321.831 s, down 71.18% from the
+original 1116.7-second JDBC project. The next largest units are the remote DBM fork at 310.736 s and the remote
+instrumentation fork at 279.971 s. The checked-in weights come directly from that pipeline's suite durations.
 
 ## Known limitation: the heaviest project sets a floor
 
