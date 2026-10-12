@@ -35,6 +35,9 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   /** Deque of endpoint hashes ordered by access time. Oldest is always first. */
   private final Deque<Long> accessDeque;
 
+  /** Guards map/deque updates together; preliminary map lookups remain lock-free. */
+  private final Object accessLock = new Object();
+
   private final long expirationTimeInMs;
   private final int capacity;
   private final TimeSource timeSource;
@@ -132,24 +135,26 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   }
 
   private boolean updateApiAccessIfExpired(final long hash) {
-    final long currentTime = timeSource.getCurrentTimeMillis();
+    synchronized (accessLock) {
+      final long currentTime = timeSource.getCurrentTimeMillis();
 
-    Long lastAccess = accessMap.get(hash);
-    if (lastAccess != null && currentTime - lastAccess < expirationTimeInMs) {
-      return false;
+      Long lastAccess = accessMap.get(hash);
+      if (lastAccess != null && currentTime - lastAccess < expirationTimeInMs) {
+        return false;
+      }
+
+      if (accessMap.put(hash, currentTime) == null) {
+        accessDeque.addLast(hash);
+        // If we added a new entry, we perform purging.
+        cleanupExpiredEntries(currentTime);
+      } else {
+        // This is now the most recently accessed entry.
+        accessDeque.remove(hash);
+        accessDeque.addLast(hash);
+      }
+
+      return true;
     }
-
-    if (accessMap.put(hash, currentTime) == null) {
-      accessDeque.addLast(hash);
-      // If we added a new entry, we perform purging.
-      cleanupExpiredEntries(currentTime);
-    } else {
-      // This is now the most recently accessed entry.
-      accessDeque.remove(hash);
-      accessDeque.addLast(hash);
-    }
-
-    return true;
   }
 
   private boolean isApiAccessExpired(final long hash) {
@@ -158,6 +163,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     return lastAccess == null || currentTime - lastAccess >= expirationTimeInMs;
   }
 
+  /** Called with accessLock held. */
   private void cleanupExpiredEntries(final long currentTime) {
     // Purge all expired entries.
     while (!accessDeque.isEmpty()) {
