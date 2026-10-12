@@ -322,7 +322,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       account = arn.account();
       span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
     } else {
-      account = callerAccount(attributes);
+      account = dynamoDbOwnerAccountFromCredentials(attributes);
     }
     if (account != null) {
       span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
@@ -330,11 +330,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   /**
-   * Account owning the credentials that sign this request, when the SDK exposes it
-   * (AwsCredentialsIdentity.accountId(), SDK 2.26+, populated by the STS, SSO, profile, process and
-   * container providers). Absent on older SDKs and for providers that do not resolve it.
+   * Owner of a bare-name DynamoDB table, obtained from the signing credentials only because
+   * DynamoDB guarantees that a bare name addresses a table in the requestor's own account. This is
+   * not a general caller-account source and must not be reused for services that support
+   * cross-account resource addressing. The account is absent on older SDKs and for providers that
+   * do not expose {@code AwsCredentialsIdentity.accountId()}.
    */
-  private static String callerAccount(final ExecutionAttributes attributes) {
+  private static String dynamoDbOwnerAccountFromCredentials(final ExecutionAttributes attributes) {
     AwsCredentials credentials =
         attributes.getAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS);
     return credentials == null ? null : credentialsAccountId(credentials);
