@@ -3,7 +3,6 @@ package datadog.gradle.plugin.muzzle
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
 import org.gradle.kotlin.dsl.newInstance
-import org.gradle.kotlin.dsl.property
 import java.util.Locale
 import javax.inject.Inject
 
@@ -11,9 +10,6 @@ import javax.inject.Inject
  * Muzzle extension containing all pass and fail directives.
  */
 abstract class MuzzleExtension @Inject constructor(private val objectFactory: ObjectFactory) {
-    /** Whether aggregate runMuzzle invocations should plan checks for this project. */
-    val includeInAggregate = objectFactory.property<Boolean>().convention(true)
-
     val directives: MutableList<MuzzleDirective> = ArrayList()
     private val additionalRepositories: MutableList<Triple<String, String, String>> = ArrayList()
 
