@@ -3,6 +3,7 @@ package datadog.trace.api;
 import static datadog.trace.api.ClassloaderConfigurationOverrides.CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT;
 import static datadog.trace.api.ClassloaderConfigurationOverrides.addContextualInfo;
 import static datadog.trace.api.ClassloaderConfigurationOverrides.maybeEnrichSpan;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -104,6 +105,6 @@ class ClassloaderConfigurationOverridesTest {
     addContextualInfo(Thread.currentThread().getContextClassLoader(), null);
     assertNull(ClassloaderConfigurationOverrides.maybeGetContextualInfo());
 
-    maybeEnrichSpan(span);
+    assertDoesNotThrow(() -> maybeEnrichSpan(span));
   }
 }
