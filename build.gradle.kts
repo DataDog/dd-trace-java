@@ -29,6 +29,8 @@ val isCI = providers.environmentVariable("CI")
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
 
+apply(from = rootDir.resolve("gradle/open-java-format.gradle"))
+
 spotless {
   // only resolve the spotless dependencies once in the build
   predeclareDeps()
@@ -37,10 +39,9 @@ spotless {
 with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
-    removeUnusedImports()
     forbidWildcardImports()
 
-    googleJavaFormat(libs.versions.google.java.format.get())
+    addStep(project.extra["openJavaFormatStep"] as com.diffplug.spotless.FormatterStep)
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {

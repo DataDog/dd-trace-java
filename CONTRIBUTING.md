@@ -55,13 +55,15 @@ For IntelliJ IDEA, we suggest the following settings and plugin.
     * `Use single class import`: checked
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
-    * Use the following import layout to ensure consistency with google-java-format:
+    * Use the following import layout to ensure consistency with open-java-format:
       ![import layout](https://user-images.githubusercontent.com/734411/43430811-28442636-94ae-11e8-86f1-f270ddcba023.png)
   * top right Settings icon -> `Settings...` ->`Editor` > `Code Style` > `Groovy` > `Imports`
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
 * To run test in a specific JDK use the `testJvm` property, e.g. `-PtestJvm=11`
-* Install the [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format) plugin
+* The [open-java-format plugin](https://openjavaformat.dev/get-started/intellij/) can format Java in IntelliJ.
+  Use Gradle's `spotlessApply` for the repository's exact output: it disables string reflow and runs
+  TableTest formatting after Java formatting.
 
 ### Static imports
 

@@ -14,6 +14,7 @@ allprojects {
 
   apply(from = "$sharedConfigDirectory/repositories.gradle")
   apply(plugin = "com.diffplug.spotless")
+  apply(from = "$sharedConfigDirectory/open-java-format.gradle")
 
   // Apply a simple spotless config here.
   // Using the dd-trace-java's plugin scripts, adds a step with grecplipse that
@@ -35,9 +36,8 @@ allprojects {
     spotless {
       java {
         target("src/**/*.java")
-        removeUnusedImports()
         forbidWildcardImports()
-        googleJavaFormat(libs.versions.google.java.format.get())
+        addStep(project.extra["openJavaFormatStep"] as com.diffplug.spotless.FormatterStep)
       }
     }
   }
