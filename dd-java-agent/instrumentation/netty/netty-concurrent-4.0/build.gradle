@@ -11,6 +11,9 @@ muzzle {
   }
 }
 
+// These executor tests require Netty 4.1 APIs.
+addTestSuite('executorTest')
+
 addTestSuiteForDir('latestDep4Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 addForkedTestTask('latestDep4Test')
@@ -37,6 +40,9 @@ addForkedTestTask('legacyNettyTest')
 }
 
 dependencies {
+  executorTestImplementation testFixtures(project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8'))
+  executorTestImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
+
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
 
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
