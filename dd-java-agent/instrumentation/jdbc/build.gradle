@@ -95,6 +95,28 @@ tasks.named("latestDepJava11Test", Test) {
   }
 }
 
+def ciForkedTestGroups = [
+  jdbcDbmForkedTest: '**/DBM*ForkedTest*',
+  jdbcOracleForkedTest: '**/Oracle*ForkedTest*',
+  jdbcSqlServerForkedTest: '**/SQLServer*ForkedTest*',
+]
+
+ciForkedTestGroups.each { taskName, includePattern ->
+  tasks.register(taskName, Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    setIncludes([includePattern])
+  }
+}
+
+// The generated forkedTest task is replaced by the disjoint tasks above. This keeps local check and
+// allTests coverage unchanged while allowing CI to schedule each group independently.
+tasks.named("forkedTest", Test) {
+  enabled = false
+}
+
 tasks.withType(GroovyCompile).configureEach {
   configureCompiler(
     it,
@@ -105,7 +127,34 @@ tasks.withType(GroovyCompile).configureEach {
 }
 
 tasks.withType(Test).configureEach {
-  usesService(testcontainersLimit)
+  if (!ciForkedTestGroups.containsKey(name)) {
+    usesService(testcontainersLimit)
+  }
+}
+
+// In sharded CI, the virtual child projects below own the default JDBC suites. Outside sharded CI,
+// allTests retains the convention plugin's normal dependencies and remains the single local entry point.
+if (rootProject.providers.gradleProperty("slot").isPresent()) {
+  tasks.named("allTests") {
+    setDependsOn([])
+  }
+}
+
+def ciTestShards = [
+  'jdbc-test': tasks.named('test'),
+  'jdbc-old-h2-test': tasks.named('oldH2Test'),
+  'jdbc-old-postgres-test': tasks.named('oldPostgresTest'),
+  'jdbc-dbm-forked-tests': tasks.named('jdbcDbmForkedTest'),
+  'jdbc-oracle-forked-tests': tasks.named('jdbcOracleForkedTest'),
+  'jdbc-sql-server-forked-tests': tasks.named('jdbcSqlServerForkedTest'),
+]
+
+ciTestShards.each { childName, testTask ->
+  project(":dd-java-agent:instrumentation:jdbc:$childName") {
+    tasks.register("allTests") {
+      dependsOn(testTask)
+    }
+  }
 }
 
 tasks.named("latestDepJava11Test", Test) {
