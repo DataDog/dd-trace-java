@@ -3144,8 +3144,8 @@ class ConfigTest {
     assertNull(newConfig(withPropertiesOverride(properties)).getCiVisibilityDynamicAtrBuckets());
   }
 
-  static class ClassThrowsExceptionForValueOfMethod {
-    static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) throws Throwable {
+  public static class ClassThrowsExceptionForValueOfMethod {
+    public static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) throws Throwable {
       throw new Throwable();
     }
   }
