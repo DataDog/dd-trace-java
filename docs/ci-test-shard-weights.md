@@ -11,8 +11,10 @@ packs projects by test duration rather than by project count, so that shards fin
 maps Gradle project paths to the seconds of test execution each project costs per pipeline run in the `test_inst`
 job. Only the `weights` object is read; `_comment` and `_metadata` document where the numbers come from.
 
-Projects absent from the file get `TestShardBalancer.DEFAULT_WEIGHT_SECONDS` (18 seconds). The file therefore
-only needs to list the projects whose tests are much heavier than average.
+Projects absent from the file get `TestShardBalancer.DEFAULT_WEIGHT_SECONDS` (20.6 seconds, the mean weight of the
+measured projects that are left out of the file). The file therefore only needs to list the projects whose tests are
+much heavier than average, but it must not miss any of the heaviest ones: a heavy project that falls back to the
+default weight can overload whichever shard it lands in.
 
 Projects are then placed heaviest first (ties broken by project path) into the least loaded shard (ties broken by
 lowest shard index). The assignment is computed from all project paths, so it does not depend on which shard is
@@ -33,20 +35,53 @@ Weights come from Datadog CI Visibility test events at the **module** level, ove
    `settings.gradle.kts`, e.g. `jdbc` to `:dd-java-agent:instrumentation:jdbc`. Watch out for project names that
    contain underscores, such as `spark_2.12`.
 3. Count the observed pipelines with `cardinality(@ci.pipeline.id)` over the same query.
-4. Divide each project's total by the pipeline count, and convert from nanoseconds to seconds.
+4. Divide each project's total by the pipeline count, and convert from nanoseconds to seconds. The result is a mean
+   per pipeline, not a median.
 
 For example, `jdbc` summed to 548,323.5 seconds over 491 pipelines, giving a weight of `1116.7`.
 
-Keep the projects that clearly dominate the total, update `_metadata` (`generated`, `pipelines_observed`,
-`projects_measured`) and the window end date in `_comment`, update the expected entry count in
-`TestShardBalancerTest`, then run the buildSrc tests:
+Measure every project listed in `settings.gradle.kts` one by one (e.g. `@test.module:lettuce-5.0_*`) instead of
+reading a single grouped aggregation or guessing family prefixes:
+
+- grouped aggregations can silently return only the first few buckets;
+- a prefix that matches nothing (e.g. `aws-sdk*` when the projects are named `aws-java-sdk-*`) means the prefix is
+  wrong, not that the project is light.
+
+Keep the projects that clearly dominate the total, and set `DEFAULT_WEIGHT_SECONDS` to the mean weight of the
+projects left out. Update `_metadata` (`generated`, `pipelines_observed`, `projects_measured`) and the window end
+date in `_comment`, update the expected entry count in `TestShardBalancerTest`, then run the buildSrc tests:
 
 ```shell
 ./gradlew :buildSrc:test -PrunBuildSrcTests
 ```
 
-`TestShardBalancerTest` checks that the instrumentation shards stay balanced, with a max/min load ratio of at most
-1.25.
+`TestShardBalancerTest` checks that every weighted path is a project from `settings.gradle.kts`, that the two
+heaviest projects land in different shards, and that the modeled instrumentation shards stay balanced, with a
+max/min load ratio of at most 1.25. That ratio is computed from the weights, not measured, see below.
+
+## Known limitation: the heaviest project sets a floor
+
+A project's tests always run in a single shard, and tests run in parallel within a shard. The balancer only adds up
+seconds, so it cannot see that a shard dominated by one large project finishes later than a shard with the same total
+spread over many small projects. In the first pipeline using this balancer, shards 1/8 and 4/8 ran almost the same
+total test time (2312 s and 2292 s), yet took 39 and 24 minutes: shard 1/8 held `jdbc`.
+
+The two heaviest projects per pipeline are currently:
+
+- `:dd-java-agent:instrumentation:jdbc`: 1116.7 s, about 18.6 minutes;
+- `:dd-java-agent:instrumentation:lettuce:lettuce-5.0`: 978.1 s, about 16.3 minutes.
+
+The slowest shard can therefore never be faster than the heaviest single project, plus job setup. A project's
+wall-clock span is also longer than its summed test time: in that first pipeline, the `jdbc` tests (20.5 minutes of
+summed test time) spanned 27.6 minutes, starting about 10 minutes into the job, so its shard took 39 minutes. Under
+the previous hash-based assignment, the `jdbc` shard was already the slowest one.
+
+The modeled max/min ratio is optimistic whenever one project approaches the target shard time, so treat the 1.25
+bound as a check of the model rather than a guarantee for wall-clock time.
+
+The two heaviest projects must not share a shard, otherwise their floors stack. Capping weights would not help:
+under-weighting `jdbc` makes the model look balanced while letting more work pile onto the `jdbc` shard. Lowering the
+floor needs finer-grained sharding than whole projects.
 
 ## When to refresh
 
@@ -55,4 +90,5 @@ Keep the projects that clearly dominate the total, update `_metadata` (`generate
 
 Stale weights only make the balance worse. They never drop test coverage: every project is always assigned to exactly
 one shard, and projects missing from the file (including new or renamed ones) fall back to the default weight.
-Weights for projects that no longer exist are ignored.
+After renaming or removing a weighted project, update its entry: `TestShardBalancerTest` fails on weights for paths
+that are not projects.

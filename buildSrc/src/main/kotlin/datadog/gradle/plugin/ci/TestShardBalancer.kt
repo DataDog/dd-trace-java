@@ -12,7 +12,7 @@ internal object TestShardBalancer {
   const val WEIGHTS_RESOURCE = "/datadog/gradle/plugin/ci/test-shard-weights.json"
 
   /** Weight, in seconds, of a project that is absent from the weights map. */
-  const val DEFAULT_WEIGHT_SECONDS = 18.0
+  const val DEFAULT_WEIGHT_SECONDS = 20.6
 
   /** Parses the `weights` object of a weights file; other top-level keys are ignored. */
   fun loadWeights(json: String): Map<String, Double> {

@@ -56,13 +56,22 @@ class TestShardBalancerTest {
     assertThat(loads.max() / loads.min()).isLessThanOrEqualTo(1.25)
   }
 
+  @ParameterizedTest(name = "{0} slots")
+  @ValueSource(ints = [2, 4, 6, 8, 12])
+  fun `two heaviest projects never share a slot`(totalSlots: Int) {
+    // Each one sets a floor on its shard's duration, so sharing a slot would stack the floors
+    val (heaviest, secondHeaviest) = heaviestProjects(2)
+
+    val assignment = assignSlots(PROJECT_PATHS, totalSlots, WEIGHTS)
+
+    assertThat(assignment.getValue(heaviest)).isNotEqualTo(assignment.getValue(secondHeaviest))
+  }
+
   @Test
   fun `heaviest projects land in different slots`() {
     val assignment = assignSlots(PROJECT_PATHS, 8, WEIGHTS)
 
-    assertThat(assignment[JDBC]).isNotEqualTo(assignment[AKKA_HTTP_10_0])
-    val heaviest = WEIGHTS.entries.sortedByDescending { it.value }.take(8).map { it.key }
-    assertThat(heaviest.map { assignment[it] }).doesNotHaveDuplicates()
+    assertThat(heaviestProjects(8).map { assignment.getValue(it) }).doesNotHaveDuplicates()
   }
 
   @Test
@@ -100,8 +109,15 @@ class TestShardBalancerTest {
 
   @Test
   fun `bundled weights file is parsed`() {
-    assertThat(WEIGHTS).hasSize(24).containsKeys(JDBC, AKKA_HTTP_10_0)
+    assertThat(WEIGHTS).hasSize(36)
     assertThat(WEIGHTS.values).allSatisfy { weight -> assertThat(weight).isPositive() }
+    // docs/ci-test-shard-weights.md names the two heaviest projects
+    assertThat(heaviestProjects(2)).containsExactly(JDBC, LETTUCE_5_0)
+  }
+
+  @Test
+  fun `every weighted path is an included project`() {
+    assertThat(INCLUDED_PATHS).containsAll(WEIGHTS.keys)
   }
 
   @Test
@@ -124,23 +140,30 @@ class TestShardBalancerTest {
   companion object {
     private const val INSTRUMENTATION_PREFIX = ":dd-java-agent:instrumentation:"
     private const val JDBC = ":dd-java-agent:instrumentation:jdbc"
-    private const val AKKA_HTTP_10_0 = ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0"
+    private const val LETTUCE_5_0 = ":dd-java-agent:instrumentation:lettuce:lettuce-5.0"
 
     private val WEIGHTS = loadDefaultWeights()
 
-    /** Project paths included by the repository settings, plus the implicit parent projects Gradle creates. */
-    private val PROJECT_PATHS: List<String> = run {
+    /** Project paths included by the repository settings. */
+    private val INCLUDED_PATHS: List<String> = run {
       val settings = File(System.getProperty("user.dir")).parentFile.resolve("settings.gradle.kts")
       val includePattern = Regex("\"(:[^\"]+)\"")
-      val paths = TreeSet(listOf(":"))
       settings.readLines()
         .filterNot { it.trimStart().startsWith("//") }
         .flatMap { line -> includePattern.findAll(line).map { it.groupValues[1] }.toList() }
-        .forEach { include ->
-          val segments = include.removePrefix(":").split(":")
-          segments.indices.forEach { i -> paths.add(":" + segments.subList(0, i + 1).joinToString(":")) }
-        }
+    }
+
+    /** Included project paths, plus the implicit parent projects Gradle creates. */
+    private val PROJECT_PATHS: List<String> = run {
+      val paths = TreeSet(listOf(":"))
+      INCLUDED_PATHS.forEach { include ->
+        val segments = include.removePrefix(":").split(":")
+        segments.indices.forEach { i -> paths.add(":" + segments.subList(0, i + 1).joinToString(":")) }
+      }
       paths.toList()
     }
+
+    private fun heaviestProjects(count: Int): List<String> =
+      WEIGHTS.entries.sortedByDescending { it.value }.take(count).map { it.key }
   }
 }
