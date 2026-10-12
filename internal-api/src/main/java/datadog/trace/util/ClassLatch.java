@@ -263,12 +263,13 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * Whether a public method named {@code methodName} is still abstract on {@code type}, as an
-   * interface method that a concrete class never implemented is. This attributes the error to the
-   * class just as a message naming it would: a wrapper that delegates the method has a concrete
-   * implementation, so an error raised by its delegate is not attributed to it. Overloads are not
-   * told apart. Each class is scanned once, whatever the answer, so a class that keeps failing
-   * without being latched does not repeat the reflection.
+   * Whether every public method named {@code methodName} is abstract on {@code type}, as an
+   * interface method that a concrete class never implemented is. A concrete instance method of any
+   * signature makes the result false because overloads are not told apart. This attributes the
+   * error to the class just as a message naming it would: a wrapper that delegates the method has a
+   * concrete implementation, so an error raised by its delegate is not attributed to it. Each class
+   * is scanned once, whatever the answer, so a class that keeps failing without being latched does
+   * not repeat the reflection.
    */
   static boolean lacksImplementation(Class<?> type, String methodName) {
     for (final String abstractMethod : ABSTRACT_METHOD_NAMES.get(type)) {
@@ -282,8 +283,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   private static final String[] NO_NAMES = new String[0];
 
   /**
-   * Per class, the names of its public methods that are still abstract. Only computed for classes
-   * that failed without a message. The value is a JDK type, like {@link #latched}'s.
+   * Per class, the names that have an abstract public method and no concrete public instance
+   * method. Only computed for classes that failed without a message. The value is a JDK type, like
+   * {@link #latched}'s.
    */
   private static final ClassValue<String[]> ABSTRACT_METHOD_NAMES =
       new ClassValue<String[]>() {
@@ -296,6 +298,19 @@ public abstract class ClassLatch<T, R, E extends Exception> {
             for (final Method method : methods) {
               if (Modifier.isAbstract(method.getModifiers())) {
                 names[count++] = method.getName();
+              }
+            }
+            for (final Method method : methods) {
+              final int modifiers = method.getModifiers();
+              if (!Modifier.isAbstract(modifiers) && !Modifier.isStatic(modifiers)) {
+                final String name = method.getName();
+                for (int i = 0; i < count; ) {
+                  if (name.equals(names[i])) {
+                    names[i] = names[--count];
+                  } else {
+                    i++;
+                  }
+                }
               }
             }
             return count == 0 ? NO_NAMES : Arrays.copyOf(names, count);
