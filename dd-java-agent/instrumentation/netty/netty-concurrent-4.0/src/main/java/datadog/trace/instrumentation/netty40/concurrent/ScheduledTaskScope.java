@@ -8,9 +8,17 @@ import datadog.context.ContextScope;
 public final class ScheduledTaskScope {
   public static final ThreadLocal<ScheduledTaskScope> CURRENT = new ThreadLocal<>();
 
-  public ContextScope scope;
+  private ContextScope scope;
   // Track activations separately: resuming the same context can reuse the outer scope instance.
-  public int depth;
+  private int depth;
+
+  public ContextScope scope() {
+    return scope;
+  }
+
+  public int depth() {
+    return depth;
+  }
 
   public static void activate(ContextScope scope) {
     if (scope != null) {

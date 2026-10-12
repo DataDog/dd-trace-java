@@ -134,8 +134,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
     public static ContextScope before(@Advice.Local("depth") int depth) {
       ScheduledTaskScope state = ScheduledTaskScope.CURRENT.get();
       if (state != null) {
-        depth = state.depth;
-        return state.scope;
+        depth = state.depth();
+        return state.scope();
       }
       return null;
     }
@@ -156,8 +156,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
       ScheduledTaskScope state = ScheduledTaskScope.CURRENT.get();
       ContextScope previous = null;
       if (state != null) {
-        previous = state.scope;
-        depth = state.depth;
+        previous = state.scope();
+        depth = state.depth();
       }
       // Periodic tasks remain cancellable; legacy Netty invokes their Callable directly in run().
       if (periodNanos != 0) {
