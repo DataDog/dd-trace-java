@@ -7,8 +7,18 @@ import java.util.Map;
 public class FeatureFlaggingShutdownProbe {
   public static void main(String[] args) throws Exception {
     final Class<?> gateway = type("FeatureFlaggingGateway");
-    gateway.getMethod("activate").invoke(null);
-    final Object writer = gateway.getMethod("getFlagEvalWriter").invoke(null);
+    // Agent installation can finish asynchronously on Java 8. This probe tests shutdown after
+    // activation, not provider initialization timing.
+    final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+    Object writer;
+    do {
+      gateway.getMethod("activate").invoke(null);
+      writer = gateway.getMethod("getFlagEvalWriter").invoke(null);
+      if (writer != null) {
+        break;
+      }
+      Thread.sleep(10);
+    } while (System.nanoTime() < deadline);
     if (writer == null) {
       throw new AssertionError("Provider activation did not start the evaluation writer");
     }
