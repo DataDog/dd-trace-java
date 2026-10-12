@@ -33,17 +33,6 @@ public class MavenInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MavenTestExecution",
-      packageName + ".MavenUtils",
-      packageName + ".MavenExecutionListener",
-      packageName + ".MavenProjectConfigurator",
-      packageName + ".MavenLifecycleParticipant",
-    };
-  }
-
-  @Override
   public boolean isEnabled() {
     return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }

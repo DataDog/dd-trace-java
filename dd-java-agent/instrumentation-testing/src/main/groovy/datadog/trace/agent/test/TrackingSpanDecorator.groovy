@@ -31,14 +31,13 @@ class TrackingSpanDecorator implements AgentSpan {
 
   TrackingSpanDecorator(AgentSpan delegate,
   ConcurrentHashMap<AgentSpan, List<Exception>> spanFinishLocations,
-  ConcurrentHashMap<AgentSpan, AgentSpan> originalToTrackingSpan,
-  boolean useStrictTraceWrites) {
+  ConcurrentHashMap<AgentSpan, AgentSpan> originalToTrackingSpan) {
     this.delegate = delegate
     this.spanFinishLocations = spanFinishLocations
     this.originalToTrackingSpan = originalToTrackingSpan
 
     RequestContext requestContext = delegate.getRequestContext()
-    this.spiedRequestContext = new ValidatingRequestContextDecorator(requestContext, this, useStrictTraceWrites)
+    this.spiedRequestContext = new ValidatingRequestContextDecorator(requestContext, this)
   }
 
   @Override

@@ -79,8 +79,13 @@ the shared build logic continues to evolve behind the plugin.
 
 ## Muzzle
 
-Muzzle directives are applied at build time from the `build.gradle` file.
-OpenTelemetry provides some [Muzzle documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/docs/contributing/muzzle.md).
+### Muzzle checks
+
+`muzzle` validates instrumentation compatibility against library versions.
+
+The compatibility is checked against _Muzzle directives_ that are applied
+at build time from the `build.gradle` file. OpenTelemetry provides some
+[Muzzle documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/docs/contributing/muzzle.md).
 Muzzle directives check for a range of framework versions that are safe to load the instrumentation.
 
 See this excerpt as an example from [rediscala](../dd-java-agent/instrumentation/rediscala-1.8/build.gradle):
@@ -122,6 +127,25 @@ To run muzzle on your instrumentation, run:
 By default, all the muzzle directives are checked against all the instrumentations included in a module.
 However, there can be situations in which it's only needed to check one specific directive on an instrumentation.
 At this point the instrumentation should override the method `muzzleDirective()` by returning the name of the directive to execute.
+
+### Muzzle Dependency Range Reports
+
+The _Muzzle directives_ are also used to produce a report summarizing
+dependency version ranges; to aggregate all instrumentation reports run
+`./gradlew :dd-java-agent:instrumentation:aggregateMuzzleReports`.
+
+The report will be written to `dd-java-agent/instrumentation/build/muzzle-deps-results/dd-java-agent_instrumentation.csv`.
+
+**Example content:**
+
+```csv
+instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion
+aerospike,com.aerospike,aerospike-client,4.0.0,7.2.3
+akka-http,com.typesafe.akka,akka-http_2.12,10.0.0,10.5.3
+amqp,com.rabbitmq,amqp-client,2.7.0,5.37.0
+apache-httpclient,org.apache.httpcomponents.client5,httpclient5,5.0,5.7-alpha1
+```
+
 
 ### Identifying Breaking Changes with JApiCmp
 

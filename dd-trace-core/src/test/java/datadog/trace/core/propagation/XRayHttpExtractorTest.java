@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -127,6 +128,25 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
+  }
+
+  @Test
+  void extractTraceHeaderAlsoCapturesMappedHeaderTag() {
+    // the trace header is consumed as X-Ray context, and must also honour a header tag mapped onto
+    // it without that costing the extracted ids
+    this.extractor.cleanup();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create().setHeaderTags(singletonMap(X_AMZN_TRACE_ID, SOME_TAG)).apply();
+    this.extractor = XRayHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+
+    String traceHeader = "Root=1-00000000-00000000" + zeroPadId("1") + ";Parent=" + zeroPadId("2");
+
+    TagContext context =
+        this.extractor.extract(headers(X_AMZN_TRACE_ID, traceHeader), stringValuesMap());
+
+    assertEquals(traceHeader, context.getTags().getString(SOME_TAG));
+    assertEquals(zeroPadId("1"), context.getTraceId().toHexStringPadded(16));
+    assertEquals(zeroPadId("2"), DDSpanId.toHexStringPadded(context.getSpanId()));
   }
 
   @Test

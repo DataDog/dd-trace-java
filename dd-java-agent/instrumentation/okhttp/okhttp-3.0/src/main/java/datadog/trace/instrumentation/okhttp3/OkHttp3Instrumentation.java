@@ -26,16 +26,6 @@ public class OkHttp3Instrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RequestBuilderInjectAdapter",
-      packageName + ".OkHttpClientDecorator",
-      packageName + ".TracingInterceptor",
-      packageName + ".AppSecInterceptor",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("okhttp3.OkHttpClient$Builder"))),

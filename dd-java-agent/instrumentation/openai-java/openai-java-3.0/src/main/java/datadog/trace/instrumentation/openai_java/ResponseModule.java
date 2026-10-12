@@ -13,23 +13,6 @@ public class ResponseModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CommonTags",
-      packageName + ".TokenUsage",
-      packageName + ".ResponseDecorator",
-      packageName + ".FunctionCallOutputExtractor",
-      packageName + ".OpenAiDecorator",
-      packageName + ".JsonValueUtils",
-      packageName + ".HttpResponseWrapper",
-      packageName + ".HttpStreamResponseWrapper",
-      packageName + ".HttpStreamResponseStreamWrapper",
-      packageName + ".ToolCallExtractor",
-      packageName + ".ToolCallExtractor$1"
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new ResponseServiceAsyncInstrumentation(), new ResponseServiceInstrumentation());

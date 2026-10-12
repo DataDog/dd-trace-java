@@ -19,21 +19,6 @@ public final class SprayHttpServerInstrumentation extends InstrumenterModule.Tra
     return "spray.routing.HttpServiceBase$class";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SprayHeaders",
-      packageName + ".SprayHeaders$Request",
-      packageName + ".SprayHeaders$Response",
-      packageName + ".SprayHelper",
-      packageName + ".SprayHelper$",
-      packageName + ".SprayHelper$$anonfun$wrapRequestContext$1",
-      packageName + ".SprayHelper$$anonfun$wrapRoute$1",
-      packageName + ".SprayHttpServerDecorator",
-      packageName + ".SprayURIAdapter"
-    };
-  }
-
   /**
    * Spray has 'nested' function called runSealedRoute that runs route with all handlers wrapped
    * around it. This gives us access to a 'final' response that we can use to get all data for the

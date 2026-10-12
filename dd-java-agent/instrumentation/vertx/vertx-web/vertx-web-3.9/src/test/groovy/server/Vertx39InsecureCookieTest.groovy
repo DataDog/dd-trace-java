@@ -21,6 +21,9 @@ class Vertx39InsecureCookieTest extends IastVertx39Server {
     response.code() == 200
     response.body().string() == 'Cookie Set'
     1 * module.onHeader('Set-Cookie', 'user-id=7')
+
+    and: 'the server-side request lifecycle completes before test cleanup'
+    TEST_WRITER.waitForTraces(1)
   }
 
   void 'test secure Cookie'(){
@@ -37,5 +40,8 @@ class Vertx39InsecureCookieTest extends IastVertx39Server {
     response.code() == 200
     response.body().string() == 'Cookie Set'
     1 * module.onHeader('Set-Cookie', 'user-id=7; Secure')
+
+    and: 'the server-side request lifecycle completes before test cleanup'
+    TEST_WRITER.waitForTraces(1)
   }
 }

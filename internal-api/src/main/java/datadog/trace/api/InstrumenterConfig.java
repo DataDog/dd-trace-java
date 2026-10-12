@@ -100,6 +100,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
+import static java.util.Collections.singletonList;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingEnablement;
@@ -142,6 +143,15 @@ public class InstrumenterConfig {
           ConfigInversionMetricCollectorImpl.getInstance());
     }
   }
+
+  /**
+   * Name of the opt-in Scala Promise integration that gives the context completing a {@code
+   * Promise} priority over the context that registered callbacks on it. Defined here so that the
+   * instrumentations enabling this mode and the ones that have to compensate for it cannot drift
+   * apart.
+   */
+  private static final String SCALA_PROMISE_COMPLETION_PRIORITY =
+      "scala_promise_completion_priority";
 
   private final ConfigProvider configProvider;
 
@@ -231,6 +241,7 @@ public class InstrumenterConfig {
 
   private final boolean appLogsCollectionEnabled;
   private final boolean legacyContextManagerEnabled;
+  private final boolean scalaPromiseCompletionPriorityEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -400,6 +411,9 @@ public class InstrumenterConfig {
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
     legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
+
+    scalaPromiseCompletionPriorityEnabled =
+        isIntegrationEnabled(singletonList(SCALA_PROMISE_COMPLETION_PRIORITY), false);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -451,6 +465,20 @@ public class InstrumenterConfig {
       }
     }
     return anyEnabled;
+  }
+
+  /**
+   * Whether the Scala Promise instrumentation gives the context completing a {@code Promise}
+   * priority over the context that registered callbacks on it.
+   *
+   * <p>This mode associates the completing context with the resolved {@code Try} itself, so it is
+   * also read by instrumentations that must keep such an association from reaching a framework
+   * callback.
+   *
+   * @return {@code true} if completion-priority propagation is enabled, else {@code false}
+   */
+  public boolean isScalaPromiseCompletionPriorityEnabled() {
+    return scalaPromiseCompletionPriorityEnabled;
   }
 
   public boolean isIntegrationShortcutMatchingEnabled(
@@ -882,6 +910,8 @@ public class InstrumenterConfig {
         + apiSecurityEndpointCollectionEnabled
         + ", legacyContextManagerEnabled="
         + legacyContextManagerEnabled
+        + ", scalaPromiseCompletionPriorityEnabled="
+        + scalaPromiseCompletionPriorityEnabled
         + '}';
   }
 }

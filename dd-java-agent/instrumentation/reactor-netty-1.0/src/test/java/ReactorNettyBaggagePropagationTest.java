@@ -88,7 +88,9 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
         HttpClient.create()
             .get()
             .uri(baseUrl + "/capture")
-            .response()
+            .responseContent()
+            .aggregate()
+            .asString()
             .block(Duration.ofSeconds(10));
       }
     } finally {

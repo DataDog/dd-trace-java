@@ -15,6 +15,7 @@ The project leverages different types of tests:
 2. A variant of unit tests is **instrumented tests**.  
    Their purpose is similar to unit tests, but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running.
    They extend the Spock specification `datadog.trace.agent.test.InstrumentationSpecification` which produces traces and metrics for testing.
+   Instrumentation test harnesses always use strict trace writes so unfinished asynchronous work fails visibly instead of producing an incomplete trace.
 
 3. The third type of tests is **Muzzle checks**.  
    Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
@@ -46,8 +47,25 @@ This mechanism exists to make sure either java agent state or static data are re
 
 ### Flaky Tests
 
-If a test runs unreliably, or doesn't have a fully deterministic behavior, this will lead to recurrent unexpected errors in continuous integration.
-In order to identify such tests and avoid the continuous integration to fail, they are marked as _flaky_ and must be annotated with the `@Flaky` annotation.
+Mark unreliable test methods or classes with `@Flaky` in both JUnit and Spock.
+
+All tests run by default. Use `-PskipFlakyTests` to skip flaky tests or `-PrunFlakyTests` to run only flaky tests.
+
+If a JUnit test is flaky only in certain environments, use `conditionMethod` to reference a static,
+no-argument method that returns `true` when the test is flaky:
+
+```java
+@Test
+@Flaky(conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm")
+void testOnSupportedJvms() {
+  // ...
+}
+```
+
+Use `suites = {"SomeSubclass"}` to limit the annotation to the concrete class executing the test,
+such as a subclass that inherits the annotated method. Simple and canonical class names are
+supported. Matching is exact, so subclasses and nested classes must each be listed. When both
+`suites` and a condition are specified, both must match.
 
 > [!TIP]
 > In case your pull request checks failed due to some unexpected flaky tests, you can retry the continuous 
@@ -108,6 +126,46 @@ The plugin automatically creates an image configuration for each `*Implementatio
 configuration. For example, `integrationTestImplementation` gets
 `integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
 for inheritance and shared configuration examples.
+
+## Continuation lifecycle failures
+
+Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out.
+Do not replace the harness tracer or introduce another way to disable strict writes.
+
+Fix continuation leaks when possible.
+If a fix cannot be included immediately, quarantine the Spock test with `@Flaky` and a useful reason or tracked issue so the failure remains visible.
+`@Flaky` is not yet supported for JUnit tests.
+Keep continuation tracking enabled so the diagnostic evidence is preserved.
+
+`@TrackScopeContinuations` records every detected lifecycle condition by default. Use `disabledChecks`
+to exclude checks from enforcement:
+
+```java
+// Exclude an enforced check only for a proven diagnostic incompatibility.
+@TrackScopeContinuations(
+    disabledChecks = ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+    reason = "the synthetic fixture models failed activation without a real continuation; remove with ABC-123")
+```
+
+An empty `disabledChecks` list keeps all checks active, including checks added in the future. A
+nonempty list excludes only the listed checks and includes future checks automatically. A method
+annotation replaces the class configuration; exclusion lists are not merged.
+
+`enabled = false` stops recording entirely and requires an empty `disabledChecks` list. A reason is
+required whenever `enabled = false` or `disabledChecks` is nonempty. Document the incompatibility
+and its removal condition.
+
+With recording enabled, all conditions remain recorded and reported even when every check is
+excluded. Excluding checks changes enforcement only; it does not disable recording, classification,
+or the bounded wait for asynchronous cleanup.
+
+The diagnostic policy determines which findings fail a test and which are advisory. Excluding a
+check affects enforcement without removing its diagnostic evidence. Reports distinguish findings
+that caused a failure from those retained for context.
+
+Disable recording or individual checks only for a proven incompatibility with the diagnostic itself,
+never to hide an unresolved lifecycle bug.
+Strict trace writes remain enabled.
 
 ## Running Tests
 

@@ -29,13 +29,6 @@ public class ArmeriaHttpConnectionInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(), getClass().getName() + "$JettyHttpChannelCaptureAdvice");
