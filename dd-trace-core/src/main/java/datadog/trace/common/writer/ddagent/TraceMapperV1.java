@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
@@ -324,6 +325,9 @@ public final class TraceMapperV1 implements TraceMapper {
     boolean writeTopLevel = meta.topLevel();
     int tagCount = 0;
     for (TagMap.EntryReader entry : tags) {
+      if (SPAN_EVENTS.equals(entry.tag())) {
+        continue;
+      }
       tagCount += getFlatAttributeCount(entry);
     }
 
@@ -345,6 +349,9 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     for (TagMap.EntryReader entry : tags) {
+      if (SPAN_EVENTS.equals(entry.tag())) {
+        continue;
+      }
       writeFlattenedTagAttribute(writable, entry);
     }
     if (writeHttpStatus) {
