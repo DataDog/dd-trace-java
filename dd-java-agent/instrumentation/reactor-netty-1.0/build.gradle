@@ -16,7 +16,7 @@ muzzle {
   }
 }
 
-addTestSuite('latestDepTest')
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.projectreactor.netty', name: 'reactor-netty-http', version: '1.0.0'
