@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent.runnable;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -87,18 +85,28 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
                             .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    // Netty 4.1.44+ separates delayed scheduling in run() from execution in runTask().
+    // Netty owns activation and cleanup, using its execution decision for one-shot tasks.
     transformer.applyAdvice(
         isMethod()
             .and(named("run"))
             .and(
                 not(
                     isDeclaredBy(
-                        nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
-                            .and(hasSuperType(declaresMethod(named("runTask"))))))),
+                        nameEndsWith(".netty.util.concurrent.PromiseTask")
+                            .or(nameEndsWith(".netty.util.concurrent.ScheduledFutureTask"))))),
         getClass().getName() + "$Run");
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("cancel", "set", "setException")),
+        isMethod()
+            .and(
+                namedOneOf("set", "setException")
+                    .or(
+                        named("cancel")
+                            .and(
+                                not(
+                                    isDeclaredBy(
+                                        extendsClass(
+                                            nameEndsWith(
+                                                ".netty.util.concurrent.PromiseTask"))))))),
         getClass().getName() + "$Cancel");
   }
 

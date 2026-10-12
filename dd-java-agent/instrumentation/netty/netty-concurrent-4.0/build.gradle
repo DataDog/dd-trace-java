@@ -17,11 +17,21 @@ addForkedTestTask('latestDep4Test')
 addForkedTestTask('latestDepTest')
 addTestSuiteForDir('netty4144Test', 'test')
 addTestSuiteForDir('legacyNettyTest', 'test')
+addForkedTestTask('netty4144Test')
+addForkedTestTask('legacyNettyTest')
 
 ['netty4144Test', 'legacyNettyTest'].each { name ->
   tasks.named(name, Test) {
     filter {
       includeTestsMatching 'executor.NettyScheduledFutureTaskContextPropagationTest'
+    }
+  }
+}
+
+['netty4144TestForkedTest', 'legacyNettyTestForkedTest'].each { name ->
+  tasks.named(name, Test) {
+    filter {
+      includeTestsMatching 'executor.NettyScheduledFutureTaskCancellationForkedTest'
     }
   }
 }
