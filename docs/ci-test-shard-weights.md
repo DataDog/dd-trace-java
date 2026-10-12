@@ -84,10 +84,10 @@ The Lettuce 5 instrumentation uses six virtual child projects for its main `test
 container limit. The separate `allLatestDepTests` path remains on the parent project and continues to run
 `latestDepTest` and `latestDepForkedTest` unchanged.
 
-The measured project weight is 978.1 s. Available suite aggregates give 147 s for the base task and 470 s for the
-three 6.x tasks. The initial weights assign 156.7 s, 156.7 s, and 156.6 s to 6.0, 6.1, and 6.2; 147 s to 5.1; and
-the remaining 214.1 s to the forked task. Replace these provisional weights with direct suite measurements after
-the first coverage-complete CI run.
+Pipeline `144154452` provided a coverage-complete JVM 11 measurement: 35 suites and 314 passing tests. Its measured
+task weights are 318.271 s for 6.2, 290.357 s for 5.1, 253.057 s for 6.0, 244.848 s for the base task, 222.911 s
+for 6.1, and 180.254 s for the forked task. The largest independently scheduled Lettuce unit is therefore 67.5%
+smaller than the original 978.1-second project.
 
 ## Known limitation: the heaviest project sets a floor
 
@@ -101,7 +101,7 @@ Before the JDBC suite split, the two heaviest projects per pipeline were:
 - `:dd-java-agent:instrumentation:jdbc`: 1116.7 s, about 18.6 minutes;
 - `:dd-java-agent:instrumentation:lettuce:lettuce-5.0`: 978.1 s, about 16.3 minutes.
 
-After the JDBC and Lettuce splits, their largest independently scheduled units are 316.5 s and 214.1 s. The largest
+After the JDBC and Lettuce splits, their largest independently scheduled units are 321.831 s and 318.271 s. The largest
 remaining project is `akka-http-10.0` at 612.3 s. A project's wall-clock span is also longer than its summed test
 time: in the first duration-aware pipeline, the unsplit `jdbc` tests (20.5 minutes of summed test time) spanned 27.6
 minutes, starting about 10 minutes into the job, so its shard took 39 minutes. Under the previous hash-based
