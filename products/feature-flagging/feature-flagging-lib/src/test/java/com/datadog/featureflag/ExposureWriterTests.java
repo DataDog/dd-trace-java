@@ -7,13 +7,16 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -22,6 +25,8 @@ import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.IntakeApi;
@@ -342,7 +347,7 @@ class ExposureWriterTests {
         .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
     assertFalse(
         interruptedDuringPost.get(),
-        "The final HTTP request must not inherit the interrupt used to wake queue polling");
+        "The final HTTP request must not run on an interrupted thread");
     assertFalse(writer.isSerializerThreadAlive());
   }
 
@@ -382,6 +387,53 @@ class ExposureWriterTests {
       releasePost.countDown();
     }
     poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testCloseDoesNotWaitForProducerAlreadyInsideAccept() throws Exception {
+    CountDownLatch offerStarted = new CountDownLatch(1);
+    CountDownLatch releaseOffer = new CountDownLatch(1);
+    MessagePassingBlockingQueue<ExposureEvent> delegate = Queues.mpscBlockingConsumerArrayQueue(16);
+    MessagePassingBlockingQueue<ExposureEvent> queue =
+        mock(MessagePassingBlockingQueue.class, delegatesTo(delegate));
+    doAnswer(
+            invocation -> {
+              offerStarted.countDown();
+              releaseOffer.await();
+              return delegate.offer(invocation.getArgument(0));
+            })
+        .when(queue)
+        .offer(any(ExposureEvent.class));
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            queue,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            () -> mock(BackendApi.class),
+            mockConfig("paused-producer-service"),
+            ExposureWriterImpl.SHUTDOWN_TIMEOUT_MILLIS);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      writer.init();
+      Future<?> producer = executor.submit(() -> writer.accept(buildExposure()));
+      assertTrue(offerStarted.await(5, SECONDS));
+
+      // The producer has passed the closed check but cannot finish its offer. Shutdown must not
+      // wait for that producer, even though its event can miss the final best-effort drain.
+      Future<?> closing = executor.submit(writer::close);
+      closing.get(2, SECONDS);
+      assertFalse(producer.isDone());
+      assertFalse(writer.isSerializerThreadAlive());
+
+      releaseOffer.countDown();
+      producer.get(5, SECONDS);
+    } finally {
+      releaseOffer.countDown();
+      executor.shutdownNow();
+      assertTrue(executor.awaitTermination(5, SECONDS));
+      writer.close();
+    }
   }
 
   @Test
