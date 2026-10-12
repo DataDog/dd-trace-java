@@ -6,7 +6,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 
 @AutoService(InstrumenterModule.class)
-public class MakeTaintableInstrumentation extends InstrumenterModule.Iast
+public class MakeTaintableInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public MakeTaintableInstrumentation() {
     super("akka-http");

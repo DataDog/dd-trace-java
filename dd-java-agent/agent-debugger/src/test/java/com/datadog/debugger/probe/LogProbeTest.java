@@ -44,6 +44,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Assertions;
@@ -73,6 +74,17 @@ public class LogProbeTest {
     Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.sampling(0.25).build();
     assertEquals(0.25, snapshotProbe.getSampling().getEventsPerSecond(), 0.01);
+  }
+
+  @Test
+  public void coordinatedSamplingEmitsProbeOnceConcurrently() {
+    LogProbe.CoordinatedSamplingState state =
+        new LogProbe.CoordinatedSamplingState(LogProbe.CoordinatedSamplingState.Status.EMIT);
+
+    long emitted =
+        IntStream.range(0, 1_000).parallel().filter(i -> state.tryEmit("probe-id")).count();
+
+    assertEquals(1, emitted);
   }
 
   @Test
@@ -160,8 +172,8 @@ public class LogProbeTest {
       LogProbe logProbe = builder.build();
       logProbe.initSamplers();
 
-      CapturedContext entryContext = capturedContext(span, logProbe);
-      CapturedContext exitContext = capturedContext(span, logProbe);
+      CapturedContext entryContext = capturedContext(span, logProbe, MethodLocation.ENTRY);
+      CapturedContext exitContext = capturedContext(span, logProbe, MethodLocation.EXIT);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
@@ -206,8 +218,8 @@ public class LogProbeTest {
 
       LogProbe logProbe = builder.build();
 
-      CapturedContext entryContext = capturedContext(span, logProbe);
-      CapturedContext exitContext = capturedContext(span, logProbe);
+      CapturedContext entryContext = capturedContext(span, logProbe, MethodLocation.ENTRY);
+      CapturedContext exitContext = capturedContext(span, logProbe, MethodLocation.EXIT);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
@@ -216,14 +228,11 @@ public class LogProbeTest {
     }
   }
 
-  private static CapturedContext capturedContext(AgentSpan span, ProbeDefinition probeDefinition) {
+  private static CapturedContext capturedContext(
+      AgentSpan span, ProbeDefinition probeDefinition, MethodLocation methodLocation) {
     CapturedContext context = new CapturedContext();
     context.evaluate(
-        probeDefinition,
-        "Log Probe test",
-        System.currentTimeMillis(),
-        MethodLocation.DEFAULT,
-        false);
+        probeDefinition, "Log Probe test", System.currentTimeMillis(), methodLocation, false);
     return context;
   }
 
@@ -380,8 +389,8 @@ public class LogProbeTest {
                           "greeting", new ValueScript(DSL.value("hello"), "'hello'"), null)))
               .build();
       logProbe.initSamplers();
-      CapturedContext entryContext = capturedContext(span, logProbe);
-      CapturedContext exitContext = capturedContext(span, logProbe);
+      CapturedContext entryContext = capturedContext(span, logProbe, MethodLocation.ENTRY);
+      CapturedContext exitContext = capturedContext(span, logProbe, MethodLocation.EXIT);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
       Snapshot snapshot = new Snapshot(currentThread(), logProbe, 3);
@@ -398,6 +407,61 @@ public class LogProbeTest {
     } finally {
       ProbeRateLimiter.setSamplerSupplier(null);
     }
+  }
+
+  @Test
+  public void coordinatedSamplingActiveSessionOverridesCachedDrop() {
+    DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    AgentSpan span = tracer.startSpan("coordinated sampling debug session testing", "test span");
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
+      // every real sampling decision drops, so the first full-snapshot probe caches a DROP
+      // decision for the whole trace before any debug session is active.
+      ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
+
+      LogProbe ordinaryProbeBefore =
+          createLog(null)
+              .probeId(ProbeId.newId())
+              .captureSnapshot(true)
+              .evaluateAt(MethodLocation.EXIT)
+              .build();
+      LogStatus statusBefore = evaluateOnce(ordinaryProbeBefore, MethodLocation.EXIT);
+      Assertions.assertFalse(statusBefore.isSampled());
+
+      // the debug session becomes active: a probe belonging to it must emit unconditionally...
+      span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
+      LogProbe activeSessionProbe =
+          createLog(null)
+              .probeId(ProbeId.newId())
+              .captureSnapshot(true)
+              .evaluateAt(MethodLocation.EXIT)
+              .tags(format("session_id:%s", DEBUG_SESSION_ID))
+              .build();
+      LogStatus activeStatus = evaluateOnce(activeSessionProbe, MethodLocation.EXIT);
+      assertTrue(activeStatus.isSampled());
+      assertTrue(activeStatus.shouldSend());
+
+      // ...and must not leave the earlier cached DROP in place, or every ordinary full-snapshot
+      // probe evaluated afterwards on this trace would keep being suppressed by it.
+      LogProbe ordinaryProbeAfter =
+          createLog(null)
+              .probeId(ProbeId.newId())
+              .captureSnapshot(true)
+              .evaluateAt(MethodLocation.EXIT)
+              .build();
+      LogStatus statusAfter = evaluateOnce(ordinaryProbeAfter, MethodLocation.EXIT);
+      assertTrue(statusAfter.isSampled());
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+  }
+
+  private LogStatus evaluateOnce(LogProbe logProbe, MethodLocation methodLocation) {
+    CapturedContext context = new CapturedContext();
+    context.evaluate(logProbe, "", 0, methodLocation, false);
+    return (LogStatus) context.getStatus(logProbe.getProbeId().getEncodedId());
   }
 
   @Test

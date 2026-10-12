@@ -56,6 +56,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -412,6 +416,54 @@ public class ConfigurationUpdaterTest {
     verify(inst).removeTransformer(any());
     verify(inst, times(2)).retransformClasses(any());
     Assertions.assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
+  }
+
+  @Test
+  public void acceptMustAppliedAtomically() throws Exception {
+    // Regression test: ConfigurationUpdater::accept must apply the whole read-modify-write
+    // sequence (definitionSources.put + createConfiguration + applyNewConfiguration) under a
+    // single lock, otherwise concurrent accept() calls from different sources can race on the
+    // shared EnumMap and cause one source's definitions to be lost when currentConfiguration is
+    // overwritten with a configuration snapshot that doesn't yet reflect the other source's put.
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    ConfigurationAcceptor.Source[] sources = ConfigurationAcceptor.Source.values();
+    ExecutorService executor = Executors.newFixedThreadPool(sources.length);
+    try {
+      int iterations = 100;
+      for (int i = 0; i < iterations; i++) {
+        CyclicBarrier barrier = new CyclicBarrier(sources.length);
+        List<ProbeId> expectedProbeIds = new ArrayList<>();
+        List<Future<?>> futures = new ArrayList<>();
+        for (ConfigurationAcceptor.Source source : sources) {
+          ProbeId probeId = new ProbeId("probe-" + source + "-" + i, i);
+          expectedProbeIds.add(probeId);
+          LogProbe probe =
+              LogProbe.builder().probeId(probeId).where("java.lang.String", "concat").build();
+          futures.add(
+              executor.submit(
+                  () -> {
+                    barrier.await();
+                    configurationUpdater.accept(source, singletonList(probe));
+                    return null;
+                  }));
+        }
+        for (Future<?> future : futures) {
+          future.get();
+        }
+        Map<String, ProbeDefinition> appliedDefinitions =
+            configurationUpdater.getAppliedDefinitions();
+        assertEquals(
+            sources.length,
+            appliedDefinitions.size(),
+            "Lost definition(s) from a concurrent source update at iteration " + i);
+        for (ProbeId expectedProbeId : expectedProbeIds) {
+          assertTrue(appliedDefinitions.containsKey(expectedProbeId.getEncodedId()));
+        }
+      }
+    } finally {
+      executor.shutdown();
+    }
   }
 
   @Test

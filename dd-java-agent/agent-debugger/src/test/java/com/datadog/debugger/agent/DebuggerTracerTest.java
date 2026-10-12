@@ -38,9 +38,11 @@ class DebuggerTracerTest {
     assertEquals(0, underlyingSpan.getDurationNano());
     assertEquals(
         "dd.dynamic.span",
-        ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getSpanName());
+        AgentSpan.fromScope(((DebuggerTracer.DebuggerSpanImpl) span).currentScope).getSpanName());
     assertEquals(
-        "a-span", ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getResourceName());
+        "a-span",
+        AgentSpan.fromScope(((DebuggerTracer.DebuggerSpanImpl) span).currentScope)
+            .getResourceName());
     span.finish();
     assertNotEquals(0, underlyingSpan.getDurationNano());
     verify(probeStatusSink).addEmitting(eq(SPAN_ID.getEncodedId()));

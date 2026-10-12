@@ -160,6 +160,8 @@ public class TracingRequestHandler extends RequestHandler2 {
             DECORATE.onError(span, e);
           }
         } else {
+          // service errors (non-2xx) have no response, the status code is on the exception
+          DECORATE.onServiceError(span, e);
           DECORATE.onError(span, e);
         }
         DECORATE.beforeFinish(span);

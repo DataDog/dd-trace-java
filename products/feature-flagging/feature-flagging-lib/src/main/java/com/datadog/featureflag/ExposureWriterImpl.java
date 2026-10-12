@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EXPOSURE_PROCESSOR;
+import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -24,14 +25,14 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExposureWriterImpl implements ExposureWriter {
+public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExposureWriterImpl.class);
   private static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
   private static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
   private static final String EXPOSURES_ROUTE = "exposures";
-  static final long SHUTDOWN_TIMEOUT_MILLIS = SECONDS.toMillis(5);
+  static final long SHUTDOWN_TIMEOUT_MILLIS = THREAD_JOIN_TIMOUT_MS;
 
   private final MessagePassingBlockingQueue<ExposureEvent> queue;
   private final ExposureSerializingHandler serializer;
@@ -39,10 +40,6 @@ public class ExposureWriterImpl implements ExposureWriter {
   private final ReentrantReadWriteLock lifecycleLock = new ReentrantReadWriteLock();
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final long shutdownTimeoutMillis;
-
-  public ExposureWriterImpl(final SharedCommunicationObjects sco, final Config config) {
-    this(DEFAULT_CAPACITY, DEFAULT_FLUSH_INTERVAL_IN_SECONDS, SECONDS, sco, config);
-  }
 
   ExposureWriterImpl(
       final SharedCommunicationObjects sco,
@@ -121,7 +118,13 @@ public class ExposureWriterImpl implements ExposureWriter {
 
   @Override
   public void close() {
-    final boolean workerRunning;
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(shutdownTimeoutMillis);
+    requestShutdown();
+    awaitTermination(deadline);
+  }
+
+  @Override
+  public void requestShutdown() {
     lifecycleLock.writeLock().lock();
     try {
       if (!closed.compareAndSet(false, true)) {
@@ -129,26 +132,16 @@ public class ExposureWriterImpl implements ExposureWriter {
       }
       // Exclude all producers before asking the single consumer to perform its final drain.
       FeatureFlaggingGateway.removeExposureListener(this);
-      workerRunning = this.serializerThread.isAlive();
-      if (workerRunning) {
-        serializer.requestShutdown();
-        this.serializerThread.interrupt();
-      }
+      // Polling wakes within 100 ms. An interrupt can race with, or abort, the final POST.
+      serializer.requestShutdown();
     } finally {
       lifecycleLock.writeLock().unlock();
     }
+  }
 
-    // start() failure invokes close() from the serializer itself. It cannot join itself, and no
-    // final flush is possible when no backend route was created.
-    if (!workerRunning || Thread.currentThread() == this.serializerThread) {
-      return;
-    }
-    try {
-      // Bound application shutdown even if the final best-effort network request does not return.
-      this.serializerThread.join(shutdownTimeoutMillis);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
+  @Override
+  public void awaitTermination(final long deadlineNanos) {
+    FeatureFlagEventWriter.awaitThread(serializerThread, deadlineNanos);
   }
 
   @Override
@@ -225,9 +218,7 @@ public class ExposureWriterImpl implements ExposureWriter {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       } finally {
-        // close() interrupts this thread to wake queue.poll(). OkHttp fails fast when the calling
-        // thread is interrupted, so clear the flag for the final best-effort drain and restore it
-        // only after the final send-once attempt has completed.
+        // Preserve an unrelated interrupt without passing it into OkHttp's final best-effort send.
         final boolean wasInterrupted = Thread.interrupted();
         try {
           drainAndFlush();
@@ -296,6 +287,8 @@ public class ExposureWriterImpl implements ExposureWriter {
       }
       try {
         evpPublisher.post(EXPOSURES_ROUTE, payload);
+      } catch (AgentlessFeatureFlagBackendApi.UnavailableRouteException ignored) {
+        // The shared selector reports unavailable/recovered transitions once for both writers.
       } catch (Exception e) {
         LOGGER.debug("Could not submit exposures", e);
       } finally {

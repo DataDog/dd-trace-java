@@ -179,6 +179,12 @@ public class SnapshotSerializationTest {
                 new CapturedStackFrame("f2", 23),
                 new CapturedStackFrame("f3", 34)),
             null));
+    captures.addCaughtException(
+        new CapturedContext.CapturedThrowable(
+            NullPointerException.class.getTypeName(),
+            "illegal argument",
+            Collections.emptyList(),
+            null));
     String buffer = adapter.toJson(snapshot);
     System.out.println("roundTripCaughtException: " + buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);

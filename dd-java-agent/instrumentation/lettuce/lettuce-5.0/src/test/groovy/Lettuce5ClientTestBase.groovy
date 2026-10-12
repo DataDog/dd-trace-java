@@ -1,3 +1,5 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import com.redis.testcontainers.RedisContainer
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
@@ -11,8 +13,6 @@ import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   public static final int DB_INDEX = 0
@@ -33,7 +33,9 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String dbUriNonExistent
   String embeddedDbUri
 
-  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
+  RedisContainer redisServer = new RedisContainer(
+  DockerImageName.parse(System.getProperty("test.redis.image"))
+  .asCompatibleSubstituteFor("redis"))
   .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient

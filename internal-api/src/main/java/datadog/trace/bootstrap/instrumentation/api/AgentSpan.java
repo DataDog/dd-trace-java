@@ -46,6 +46,16 @@ public interface AgentSpan
   }
 
   /**
+   * Extracts the span from the given {@link ContextScope}.
+   *
+   * @param scope the context scope to extract the span from.
+   * @return the span if existing, {@code null} otherwise.
+   */
+  static AgentSpan fromScope(ContextScope scope) {
+    return scope == null ? null : scope.context().get(SPAN_KEY);
+  }
+
+  /**
    * Creates a span wrapper from a span context.
    *
    * <p>Creating such span will not create a tracing span to complete a local root trace. It gives a

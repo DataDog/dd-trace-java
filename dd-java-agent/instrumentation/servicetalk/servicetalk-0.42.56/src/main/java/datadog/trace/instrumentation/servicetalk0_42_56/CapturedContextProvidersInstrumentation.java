@@ -39,12 +39,4 @@ public class CapturedContextProvidersInstrumentation extends InstrumenterModule.
       loadedProviders = providers;
     }
   }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatadogCapturedContextProvider",
-      packageName + ".DatadogCapturedContextProvider$WithDatadogCapturedContext",
-    };
-  }
 }

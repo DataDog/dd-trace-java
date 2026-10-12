@@ -49,9 +49,10 @@ public class BackendApiFactory {
   /**
    * Creates a backend factory with per-request headers and optional send-once transport semantics.
    *
-   * <p>When {@code sendOnce} is true, both the explicit HTTP retry policy and OkHttp's automatic
-   * connection retry are disabled. This is required for event payloads that do not carry an
-   * idempotency key.
+   * <p>When {@code sendOnce} is true, automatic connection retries and redirects are disabled, and
+   * the default HTTP retry policy is {@link HttpRetryPolicy.Factory#NEVER_RETRY}. Explicit caller
+   * policies may retry proven pre-send failures, but must not replay an ambiguously accepted event
+   * payload without an idempotency key.
    */
   public BackendApiFactory(
       Config config,
@@ -213,6 +214,17 @@ public class BackendApiFactory {
       HttpRetryPolicy.Factory retryPolicyFactory,
       boolean forceDiscovery,
       Iterable<String> requiredProxyHeaders) {
+    String endpoint = discoverEvpProxyEndpoint(forceDiscovery, requiredProxyHeaders);
+    return endpoint == null
+        ? null
+        : createEvpProxyApi(intake, responseCompression, retryPolicyFactory, endpoint);
+  }
+
+  /**
+   * Discovers a capability-validated endpoint that related senders can share without re-probing.
+   */
+  public @Nullable String discoverEvpProxyEndpoint(
+      boolean forceDiscovery, Iterable<String> requiredProxyHeaders) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     if (forceDiscovery) {
@@ -225,14 +237,10 @@ public class BackendApiFactory {
         && !featuresDiscovery.supportsEvpProxyHeaders(requiredProxyHeaders)) {
       evpProxyEndpoint = null;
     }
-    if (evpProxyEndpoint == null) {
-      return null;
-    }
-
-    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, evpProxyEndpoint);
+    return evpProxyEndpoint;
   }
 
-  /** Creates an EVP proxy client for a fixed compatibility endpoint without Agent discovery. */
+  /** Creates a client for a fixed compatibility or previously discovered endpoint, without I/O. */
   public BackendApi createEvpProxyApiForEndpoint(
       Intake intake,
       boolean responseCompression,
@@ -252,23 +260,15 @@ public class BackendApiFactory {
         intake,
         evpProxyEndpoint,
         responseCompression);
-    HttpUrl evpProxyUrl = appendPath(sharedCommunicationObjects.agentUrl, evpProxyEndpoint);
+    HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
     String subdomain = intake.getUrlPrefix();
     return new EvpProxyApi(
         traceId,
         evpProxyUrl,
         subdomain,
-        sendOnce ? HttpRetryPolicy.Factory.NEVER_RETRY : retryPolicyFactory,
+        retryPolicyFactory,
         configureHttpClient(sharedCommunicationObjects.agentHttpClient),
         responseCompression);
-  }
-
-  static HttpUrl appendPath(final HttpUrl baseUrl, final String path) {
-    int firstCharacter = 0;
-    while (firstCharacter < path.length() && path.charAt(firstCharacter) == '/') {
-      firstCharacter++;
-    }
-    return baseUrl.newBuilder().addPathSegments(path.substring(firstCharacter)).build();
   }
 
   OkHttpClient configureHttpClient(final OkHttpClient httpClient) {
@@ -277,7 +277,7 @@ public class BackendApiFactory {
     }
     final OkHttpClient.Builder builder = httpClient.newBuilder();
     if (sendOnce) {
-      builder.retryOnConnectionFailure(false);
+      builder.retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false);
     }
     if (!requestHeaders.isEmpty()) {
       builder.addInterceptor(

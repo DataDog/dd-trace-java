@@ -29,11 +29,6 @@ public class SqlConnectionBaseInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".PrepareHandlerWrapper"};
-  }
-
-  @Override
   public String instrumentedType() {
     return "io.vertx.sqlclient.impl.SqlConnectionBase";
   }

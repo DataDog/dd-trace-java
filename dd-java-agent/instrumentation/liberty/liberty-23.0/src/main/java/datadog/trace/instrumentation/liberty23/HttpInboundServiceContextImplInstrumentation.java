@@ -52,14 +52,6 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
     return "com.ibm.ws.http.channel.internal.inbound.HttpInboundServiceContextImpl";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LibertyBlockingHelper",
-      packageName + ".LibertyBlockingHelper$WsByteBufferImpl",
-    };
-  }
-
   /**
    * @see HttpInboundServiceContextImpl#sendResponseBody(WsByteBuffer[])
    * @see HttpInboundServiceContextImpl#finishResponseMessage(WsByteBuffer[])

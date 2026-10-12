@@ -1,10 +1,12 @@
 package datadog.trace.agent.tooling.bytebuddy.iast;
 
+import static datadog.trace.util.CollectionUtils.appendToArray;
+import static datadog.trace.util.CollectionUtils.arrayContains;
+
 import datadog.trace.api.iast.Taintable;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import javax.annotation.Nullable;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -22,10 +24,9 @@ import net.bytebuddy.utility.OpenedClassReader;
 public class TaintableVisitor implements AsmVisitorWrapper {
 
   public static volatile boolean DEBUG = false;
-  static volatile boolean ENABLED = true;
 
-  private static final String INTERFACE_NAME = "datadog/trace/api/iast/Taintable";
-  private static final String SOURCE_CLASS_NAME = "L" + INTERFACE_NAME + "$Source;";
+  private static final String TAINTABLE = "datadog/trace/api/iast/Taintable";
+  private static final String SOURCE_CLASS_NAME = "L" + TAINTABLE + "$Source;";
   private static final String FIELD_NAME = "$$DD$source";
   private static final String GETTER_NAME = "$$DD$getSource";
   private static final String SETTER_NAME = "$$DD$setSource";
@@ -56,28 +57,16 @@ public class TaintableVisitor implements AsmVisitorWrapper {
       final MethodList<?> methods,
       final int writerFlags,
       final int readerFlags) {
-    if (ENABLED) {
-      return types.contains(instrumentedType.getName())
-          ? new AddTaintableInterfaceVisitor(classVisitor)
-          : classVisitor;
-    } else {
-      return NoOp.INSTANCE.wrap(
-          instrumentedType,
-          classVisitor,
-          implementationContext,
-          typePool,
-          fields,
-          methods,
-          writerFlags,
-          readerFlags);
-    }
+    return types.contains(instrumentedType.getName())
+        ? new AddTaintableInterfaceVisitor(classVisitor)
+        : classVisitor;
   }
 
   private static class AddTaintableInterfaceVisitor extends ClassVisitor {
 
     private String owner;
 
-    private boolean addTaintable = true;
+    private boolean addTaintable = false;
 
     protected AddTaintableInterfaceVisitor(final ClassVisitor classVisitor) {
       super(OpenedClassReader.ASM_API, classVisitor);
@@ -88,25 +77,18 @@ public class TaintableVisitor implements AsmVisitorWrapper {
         final int version,
         final int access,
         final String name,
-        final String signature,
+        String signature,
         final String superName,
-        final String[] interfaces) {
+        String[] interfaces) {
       owner = name;
-      if (interfaces != null) {
-        for (final String iface : interfaces) {
-          if (INTERFACE_NAME.equals(iface)) {
-            addTaintable = false;
-            break;
-          }
+      if (!arrayContains(interfaces, TAINTABLE)) {
+        interfaces = appendToArray(interfaces, TAINTABLE);
+        if (signature != null) {
+          signature += 'L' + TAINTABLE + ';';
         }
+        addTaintable = true;
       }
-      super.visit(
-          version,
-          access,
-          name,
-          signature,
-          superName,
-          addTaintable ? addInterface(interfaces) : interfaces);
+      super.visit(version, access, name, signature, superName, interfaces);
     }
 
     @Override
@@ -119,17 +101,6 @@ public class TaintableVisitor implements AsmVisitorWrapper {
         } else {
           addSetterDebug();
         }
-      }
-    }
-
-    private String[] addInterface(@Nullable final String[] interfaces) {
-      if (interfaces == null || interfaces.length == 0) {
-        return new String[] {INTERFACE_NAME};
-      } else {
-        final String[] newInterfaces = new String[interfaces.length + 1];
-        System.arraycopy(interfaces, 0, newInterfaces, 0, interfaces.length);
-        newInterfaces[newInterfaces.length - 1] = INTERFACE_NAME;
-        return newInterfaces;
       }
     }
 

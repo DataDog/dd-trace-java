@@ -158,7 +158,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
       final Request request =
-          prepareRequest(appendPath(agentBaseUrl, "info"), emptyMap()).get().build();
+          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
       try (Response response = client.newCall(request).execute()) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
@@ -208,7 +208,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       try (Response response =
           client
               .newCall(
-                  prepareRequest(appendPath(agentBaseUrl, candidate), emptyMap())
+                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
                       .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .build())
               .execute()) {
@@ -436,7 +436,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public HttpUrl buildUrl(String endpoint) {
-    return appendPath(agentBaseUrl, endpoint);
+    return agentBaseUrl.resolve(endpoint);
   }
 
   public boolean supportsDataStreams() {
@@ -491,13 +491,5 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsTelemetryProxy() {
     return discoveryState.telemetryProxyEndpoint != null;
-  }
-
-  private static HttpUrl appendPath(final HttpUrl baseUrl, final String path) {
-    int firstCharacter = 0;
-    while (firstCharacter < path.length() && path.charAt(firstCharacter) == '/') {
-      firstCharacter++;
-    }
-    return baseUrl.newBuilder().addPathSegments(path.substring(firstCharacter)).build();
   }
 }

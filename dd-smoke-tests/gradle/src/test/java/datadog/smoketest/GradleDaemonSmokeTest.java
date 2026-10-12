@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -144,14 +145,91 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @TableTest({
-    "scenario           | gradleVersion | projectName              | expectedTraces",
-    "robolectric-latest | latest        | test-succeed-robolectric | 7             "
+    "scenario       | gradleVersion | emptySelection | disableInstrumentation | failAfterTests | configurationCache | expectedStatus | expectedTests",
+    "empty-8.3      | 8.3           | true           | false                  | false          | false              | skip           | 0            ",
+    "empty-latest   | latest        | true           | false                  | false          | {false, true}      | skip           | 0            ",
+    "nonempty       | latest        | false          | false                  | false          | false              | pass           | 2            ",
+    "uninstrumented | latest        | false          | true                   | false          | false              | pass           | 0            ",
+    "empty-failure  | latest        | true           | false                  | true           | false              | fail           | 0            "
   })
   @ParameterizedTest
-  void testRobolectric(String gradleVersion, String projectName, int expectedTraces)
+  void testEmptyTestExecution(
+      String gradleVersion,
+      boolean emptySelection,
+      boolean disableInstrumentation,
+      boolean failAfterTests,
+      boolean configurationCache,
+      String expectedStatus,
+      int expectedTests)
+      throws IOException {
+    gradleVersion = resolveVersion(gradleVersion);
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
+    givenGradleProjectFiles("test-succeed-junit-5");
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    List<String> arguments =
+        new ArrayList<>(Arrays.asList("test", "--stacktrace", "--rerun-tasks"));
+    if (emptySelection) {
+      arguments.add("-PemptyTestSelection");
+    }
+    if (disableInstrumentation) {
+      arguments.add("-PdisableTestInstrumentation");
+    }
+    if (failAfterTests) {
+      arguments.add("-PfailAfterTests");
+    }
+    if (configurationCache) {
+      arguments.add("--configuration-cache");
+    }
+
+    for (int run = 0; run < (configurationCache ? 2 : 1); run++) {
+      mockBackend.reset();
+      BuildResult result = runGradle(gradleVersion, arguments, !failAfterTests);
+      assertNotNull(result.task(":test"));
+      assertEquals(
+          failAfterTests ? TaskOutcome.FAILED : TaskOutcome.SUCCESS,
+          result.task(":test").getOutcome());
+      List<? extends Map<?, ?>> events = mockBackend.waitForEvents(expectedTests == 0 ? 2 : 5);
+      long actualTests = events.stream().filter(event -> "test".equals(event.get("type"))).count();
+      assertEquals(expectedTests, actualTests);
+      int parents = 0;
+      for (Map<?, ?> event : events) {
+        String type = (String) event.get("type");
+        if ("test_session_end".equals(type) || "test_module_end".equals(type)) {
+          parents++;
+          Map<?, ?> content = (Map<?, ?>) event.get("content");
+          Map<?, ?> meta = (Map<?, ?>) content.get("meta");
+          assertEquals(expectedStatus, meta.get(Tags.TEST_STATUS));
+          if ("skip".equals(expectedStatus) && "test_module_end".equals(type)) {
+            assertEquals("No tests were executed by Gradle", meta.get(Tags.TEST_SKIP_REASON));
+          }
+        }
+      }
+      assertEquals(2, parents);
+      if (configurationCache && run == 1) {
+        assertTrue(result.getOutput().contains("Reusing configuration cache."));
+      }
+    }
+  }
+
+  @TableTest({
+    "scenario           | gradleVersion | robolectricVersion | expectedVersion | projectName              | expectedTraces",
+    "robolectric-4.16   | latest        | 4.16.1             | 4.16.1          | test-succeed-robolectric | 7             ",
+    "robolectric-latest | latest        | +                  | any             | test-succeed-robolectric | 7             "
+  })
+  @ParameterizedTest
+  void testRobolectric(
+      String gradleVersion,
+      String robolectricVersion,
+      String expectedVersion,
+      String projectName,
+      int expectedTraces)
       throws IOException {
     Assumptions.assumeTrue(
-        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric 4.16 supports JDK 17-21");
+        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric supports JDK 17-21");
     Assumptions.assumeFalse(
         OperatingSystem.architecture().isArm64(),
         "Robolectric does not support arm64 (missing native runtime binaries, follow https://github.com/robolectric/robolectric/issues/9166)");
@@ -163,15 +241,43 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleProjectProperties();
     ensureDependenciesDownloaded(gradleVersion);
 
-    BuildResult buildResult = runGradleTests(gradleVersion, true, false);
+    Map<String, String> additionalEnvVars =
+        Collections.singletonMap("SMOKE_TEST_ROBOLECTRIC_VERSION", robolectricVersion);
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false, additionalEnvVars);
     assertBuildSuccessful(buildResult);
 
+    List<? extends Map<?, ?>> events = mockBackend.waitForEvents(expectedTraces);
+    assertRobolectricVersion(events, expectedVersion);
     verifyEventsAndCoverages(
         projectName,
         "gradle",
         gradleVersion,
-        mockBackend.waitForEvents(expectedTraces),
-        mockBackend.waitForCoverages(0));
+        events,
+        mockBackend.waitForCoverages(0),
+        Collections.singletonList("content.meta.['test.android.robolectric.version']"));
+  }
+
+  private static void assertRobolectricVersion(
+      List<? extends Map<?, ?>> events, String expectedVersion) {
+    int taggedEvents = 0;
+    for (Map<?, ?> event : events) {
+      Object content = event.get("content");
+      if (!(content instanceof Map)) {
+        continue;
+      }
+      Object meta = ((Map<?, ?>) content).get("meta");
+      if (!(meta instanceof Map)) {
+        continue;
+      }
+      Object version = ((Map<?, ?>) meta).get("test.android.robolectric.version");
+      if (version != null) {
+        if (!"any".equals(expectedVersion)) {
+          assertEquals(expectedVersion, version);
+        }
+        taggedEvents++;
+      }
+    }
+    assertEquals(2, taggedEvents);
   }
 
   @TableTest({
@@ -371,6 +477,16 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private BuildResult runGradleTests(
       String gradleVersion, boolean successExpected, boolean configurationCache)
       throws IOException {
+    return runGradleTests(
+        gradleVersion, successExpected, configurationCache, Collections.emptyMap());
+  }
+
+  private BuildResult runGradleTests(
+      String gradleVersion,
+      boolean successExpected,
+      boolean configurationCache,
+      Map<String, String> additionalEnvVars)
+      throws IOException {
     List<String> arguments = new java.util.ArrayList<>(Arrays.asList("test", "--stacktrace"));
     if (gradleVersion.compareTo("4.5") > 0) {
       // warning mode available starting from Gradle 4.5
@@ -379,7 +495,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     if (configurationCache) {
       arguments.addAll(Arrays.asList("--configuration-cache", "--rerun-tasks"));
     }
-    return runGradle(gradleVersion, arguments, successExpected);
+    return runGradle(gradleVersion, arguments, successExpected, additionalEnvVars);
   }
 
   /**
@@ -417,6 +533,15 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
+    return runGradle(gradleVersion, arguments, successExpected, Collections.emptyMap());
+  }
+
+  private BuildResult runGradle(
+      String gradleVersion,
+      List<String> arguments,
+      boolean successExpected,
+      Map<String, String> additionalEnvVars)
+      throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
     buildEnv.put("GRADLE_ARGS", "");
     buildEnv.put("GRADLE_OPTS", "");
@@ -425,6 +550,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     buildEnv.put(
         GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,
         GradleDistribution.uriFor(gradleVersion).toString());
+    buildEnv.putAll(additionalEnvVars);
 
     String mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY");
     if (mavenRepositoryProxy != null) {

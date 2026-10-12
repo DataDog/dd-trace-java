@@ -56,6 +56,18 @@ mechanism is certain or the severity is catastrophic.
   cannot render a performance verdict from a code read. Every finding routes into
   **Benchmark → Profile → Improve → Guard**. Phrase each as *"this looks like X;
   verify with Y"* — never "this is slow."
+- **Check for shipped evidence before raising *any* flag-as-measure finding —
+  not just the contestable-tradeoff nudge.** Before asking the reader to verify a
+  JIT/GC-dependent cost (J1 escape elision, J4/J7 GC pressure, J5/J11 aggregator
+  cardinality, etc.), check whether the diff itself already ships the answer: a JMH
+  benchmark or profiler run whose stated purpose is exactly this mechanism (e.g. a
+  benchmark class's Javadoc saying "run with `-Pjmh.profilers=gc` to confirm X is
+  scalar-replaced"), or evidence already recorded in the PR/commit history that the
+  same question was measured. If that evidence directly covers the mechanism, don't
+  re-flag it as open — move it to **Correctly suppressed** / **Checked, no issue**
+  and cite the benchmark/evidence by name. Only raise a finding over it if the
+  evidence doesn't actually cover the claimed mechanism (wrong JVM, wrong code path,
+  never actually run) or is stale relative to the current diff.
 - **Confidence axis on every finding:**
   - **flag-with-confidence** — the cost is *mechanism-determined* and visible in the
     code: allocation, boxing, copying, unbounded growth, a native crossing. State it

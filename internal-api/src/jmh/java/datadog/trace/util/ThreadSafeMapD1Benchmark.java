@@ -84,11 +84,10 @@ public class ThreadSafeMapD1Benchmark {
   }
 
   static final class D1Entry extends ConcurrentHashtable.D1.Entry<String> {
-    final long value;
+    volatile long value;
 
     D1Entry(String key) {
       super(key);
-      this.value = 1L;
     }
   }
 
@@ -110,7 +109,7 @@ public class ThreadSafeMapD1Benchmark {
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
       for (int i = 0; i < N_KEYS; ++i) {
-        table.tryGetOrCreateOrNull(KEYS[i], D1Entry::new);
+        table.tryGetOrCreateOrNull(KEYS[i], D1Entry::new).value = i;
         concurrentHashMap.put(KEYS[i], (long) i);
         skipListMap.put(KEYS[i], (long) i);
         synchronizedHashMap.put(KEYS[i], (long) i);

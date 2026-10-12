@@ -30,13 +30,6 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RumHttpServletResponseWrapper", packageName + ".WrappedServletOutputStream",
-    };
-  }
-
-  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
   }

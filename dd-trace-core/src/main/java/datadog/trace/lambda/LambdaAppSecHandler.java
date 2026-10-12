@@ -5,7 +5,6 @@ import static datadog.trace.lambda.LambdaEventParser.MAX_EVENT_SIZE;
 import static datadog.trace.lambda.LambdaEventParser.buildFullPath;
 import static datadog.trace.lambda.LambdaEventParser.findHeader;
 import static datadog.trace.lambda.LambdaEventParser.parseEvent;
-import static datadog.trace.lambda.LambdaEventParser.parseJsonValue;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 
 import datadog.logging.RatelimitedLogger;
@@ -38,7 +37,6 @@ import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -145,7 +143,9 @@ public class LambdaAppSecHandler {
     }
 
     RequestContext requestContext = span.getRequestContext();
-    if (requestContext != null) {
+    Object rawAppSecCtx =
+        requestContext != null ? requestContext.getData(RequestContextSlot.APPSEC) : null;
+    if (rawAppSecCtx != null) {
       AgentTracer.TracerAPI tracer = AgentTracer.get();
       BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
           tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestEnded());
@@ -159,7 +159,6 @@ public class LambdaAppSecHandler {
       // GatewayBridge propagates ASM_KEEP based on WAF attack events, but not on
       // isManuallyKept(), which is set by trace-tagging rules that produce no events.
       // Apply it here so those traces are not silently dropped.
-      Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
       AppSecContext appSecCtx =
           rawAppSecCtx instanceof AppSecContext ? (AppSecContext) rawAppSecCtx : null;
       if (appSecCtx != null && appSecCtx.isManuallyKept()) {
@@ -185,6 +184,16 @@ public class LambdaAppSecHandler {
       return;
     }
 
+    // Only process response for known HTTP trigger types.
+    LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
+    if (triggerType == null || !triggerType.isHttp()) {
+      return;
+    }
+
+    RequestContext requestContext = span.getRequestContext();
+    boolean hasAppSecContext =
+        requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null;
+
     try {
       byte[] bytes = ((ByteArrayOutputStream) result).toByteArray();
       if (bytes.length == 0 || bytes.length > MAX_EVENT_SIZE) {
@@ -195,48 +204,26 @@ public class LambdaAppSecHandler {
         return;
       }
 
-      String json = new String(bytes, StandardCharsets.UTF_8);
-      LambdaResponseData responseData = parseResponse(json);
+      String rawResponse = new String(bytes, StandardCharsets.UTF_8);
+      LambdaResponseData responseData = parseResponse(rawResponse, triggerType);
 
-      // Only process responses for known HTTP trigger types
-      LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
-      if (triggerType == null || !triggerType.isHttp()) {
-        return;
-      }
-
-      if (responseData == null || responseData.statusCode == 0) {
-        // No statusCode means this is not an API-GW formatted response, or JSON parsing failed.
-        if (responseData == null || (responseData.headers.isEmpty() && responseData.body == null)) {
-          // Parse failed or response has no API-GW structure (plain JSON body).
-          // Treat the full response as the body
-          Object fallbackBody;
-          String fallbackContentType;
-          try {
-            fallbackBody = parseJsonValue(json);
-            fallbackContentType = "application/json";
-          } catch (Exception e) {
-            fallbackBody = json;
-            fallbackContentType = "text/plain";
-          }
-          Map<String, String> fallbackHeaders =
-              Collections.singletonMap("content-type", fallbackContentType);
-          responseData = new LambdaResponseData(0, fallbackHeaders, fallbackBody);
-        }
-        // else: responseData has explicit headers/body fields — keep them, just skip
-        // responseStarted
-        // (statusCode remains 0, so the responseStarted guard below will not fire).
-      }
+      // A missing or non-positive status is not one the client can have seen, so it is published
+      // neither to the span nor to the WAF.
+      Integer statusCode = responseData.statusCode;
+      boolean hasUsableStatus = statusCode != null && statusCode > 0;
 
       // The only HTTP tag set on the exit path: the status does not exist at span creation.
-      if (responseData.statusCode > 0) {
-        span.setHttpStatusCode(responseData.statusCode);
-        boolean isError = Config.get().getHttpServerErrorStatuses().get(responseData.statusCode);
+      if (hasUsableStatus) {
+        span.setHttpStatusCode(statusCode);
+        boolean isError = Config.get().getHttpServerErrorStatuses().get(statusCode);
         span.setError(isError, ErrorPriorities.HTTP_SERVER_DECORATOR);
       }
 
-      RequestContext requestContext = span.getRequestContext();
-      if (requestContext == null) {
-        log.debug("Span has no RequestContext, skipping response processing");
+      // http.status_code is a tracing tag and is published above whether or not AppSec ran: a
+      // failure inside processRequestStart must not also cost the span its status. The WAF
+      // callbacks below, in contrast, have nowhere to deliver without an AppSec request context.
+      if (!hasAppSecContext) {
+        log.debug("Span has no AppSec request context, skipping response WAF callbacks");
         return;
       }
 
@@ -246,17 +233,18 @@ public class LambdaAppSecHandler {
       // Fire response gateway events. Flow results are intentionally ignored: blocking on response
       // is not supported for Lambda because remote config is unavailable in that environment.
 
-      // Fire responseStarted
-      if (responseData.statusCode > 0) {
+      // Fire responseStarted only for usable HTTP statuses: an unusable one must not unlock
+      // publication of the response status and headers to the WAF.
+      if (hasUsableStatus) {
         BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCb =
             cbp.getCallback(EVENTS.responseStarted());
         if (responseStartedCb != null) {
-          responseStartedCb.apply(requestContext, responseData.statusCode);
+          responseStartedCb.apply(requestContext, statusCode);
         }
       }
 
       // Fire responseHeader for each allowed header
-      if (responseData.headers != null && !responseData.headers.isEmpty()) {
+      if (!responseData.headers.isEmpty()) {
         TriConsumer<RequestContext, String, String> responseHeaderCb =
             cbp.getCallback(EVENTS.responseHeader());
         if (responseHeaderCb != null) {
@@ -338,6 +326,8 @@ public class LambdaAppSecHandler {
    * tags, {@code span.kind} and {@code http.fragment}.
    */
   static void applyHttpTags(TagContext ctx, LambdaRequestData req, LambdaURIDataAdapter url) {
+    ctx.putTag(Tags.COMPONENT, "aws-lambda");
+
     // The synthetic "WEBSOCKET" method stays inside the AppSec path; none is fabricated here.
     if (req.method != null && req.triggerType != LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET) {
       ctx.putTag(Tags.HTTP_METHOD, req.method);

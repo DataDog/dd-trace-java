@@ -17,6 +17,9 @@ excludedClassesCoverage += [
   'com.datadog.debugger.agent.DebuggerAgent.ShutdownHook',
   'com.datadog.debugger.agent.DebuggerAgent',
   'com.datadog.debugger.agent.DebuggerAgent.DebuggerReporter',
+  // only used for smoke tests with
+  // dd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true
+  'com.datadog.debugger.agent.DebuggerAgent.1SynchronousSourceFileTrackingTransformer',
   // too old for this coverage (JDK 1.2)
   'antlr.*',
   // only static classes
@@ -74,6 +77,8 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-debugger:debugger-test-scala')
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-installer')
+  testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
+  testImplementation group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.1.1'
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
 

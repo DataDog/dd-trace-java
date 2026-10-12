@@ -1,12 +1,15 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public final class NoopScope implements AgentScope {
+import datadog.context.Context;
+import datadog.context.ContextScope;
+
+public final class NoopScope implements ContextScope {
   public static final NoopScope INSTANCE = new NoopScope();
 
   private NoopScope() {}
 
   @Override
-  public AgentSpan span() {
+  public Context context() {
     return NoopSpan.INSTANCE;
   }
 

@@ -151,7 +151,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   private static void removeServerContext(
       final ChannelHandlerContext ctx, final ServerRequestContext serverContext) {
     if (serverContext == null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(null);
     } else {
       ServerRequestContext.remove(ctx.channel(), serverContext);
     }

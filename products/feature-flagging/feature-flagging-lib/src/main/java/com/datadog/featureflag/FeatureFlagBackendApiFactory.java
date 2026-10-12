@@ -15,9 +15,11 @@ import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
+import java.net.ConnectException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +28,37 @@ final class FeatureFlagBackendApiFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagBackendApiFactory.class);
   private static final Map<String, String> REQUEST_HEADERS = requestHeaders();
+
+  /** Retries connection refusal only; automatic retries and redirects remain disabled. */
+  static final HttpRetryPolicy.Factory PRE_SEND_RETRY =
+      new HttpRetryPolicy.Factory(3, 100, 2.0) {
+        @Override
+        public HttpRetryPolicy create() {
+          return new PreSendRetryPolicy();
+        }
+      };
+
+  private static final class PreSendRetryPolicy extends HttpRetryPolicy {
+    private int attemptsLeft = 3;
+
+    private PreSendRetryPolicy() {
+      super(3, 100, 2.0, false);
+    }
+
+    @Override
+    public boolean shouldRetry(final Exception exception) {
+      if (exception instanceof ConnectException && attemptsLeft > 0) {
+        attemptsLeft--;
+        return true;
+      }
+      return false;
+    }
+
+    @Override
+    public boolean shouldRetry(@Nullable final Response response) {
+      return false;
+    }
+  }
 
   private final Config config;
   private final BackendApiFactory backendApiFactory;
@@ -74,39 +107,41 @@ final class FeatureFlagBackendApiFactory {
     final boolean agentless =
         CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource());
     if (!agentless) {
-      // Preserve the historical Agent-backed client: fixed EVP v2, no /info discovery, no direct
-      // credentials, and no Agentless route state.
+      // Remote Config stays Agent-only. Fixed v2 intentionally replaces Java's previous
+      // discovered endpoint; only connection refusal retains a bounded retry.
       return backendApiFactory.createEvpProxyApiForEndpoint(
           Intake.EVENT_PLATFORM,
           eventType.responseCompressionEnabled(),
-          HttpRetryPolicy.Factory.NEVER_RETRY,
+          PRE_SEND_RETRY,
           V2_EVP_PROXY_ENDPOINT);
     }
 
-    final BackendApi proxyApi = createProxyApi(false);
     final BackendApi directApi = createDirectApi();
-    if (proxyApi == null && directApi == null) {
-      LOGGER.warn(
-          "Feature Flagging {} delivery is waiting for a compatible local EVP proxy because direct intake credentials are unavailable",
-          eventType.logName());
-    }
+    routeSelector.initialize(() -> discoverProxyEndpoint(false), directApi != null);
     return new AgentlessFeatureFlagBackendApi(
-        proxyApi,
         directApi,
-        () -> createProxyApi(true),
+        () -> discoverProxyEndpoint(true),
+        endpoint ->
+            backendApiFactory.createEvpProxyApiForEndpoint(
+                Intake.EVENT_PLATFORM,
+                eventType.responseCompressionEnabled(),
+                HttpRetryPolicy.Factory.NEVER_RETRY,
+                endpoint),
         this::createDirectApi,
         eventType.logName(),
         routeSelector);
   }
 
   @Nullable
-  private BackendApi createProxyApi(final boolean forceDiscovery) {
-    return backendApiFactory.createEvpProxyApi(
-        Intake.EVENT_PLATFORM,
-        eventType.responseCompressionEnabled(),
-        HttpRetryPolicy.Factory.NEVER_RETRY,
-        forceDiscovery,
-        asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+  private String discoverProxyEndpoint(final boolean forceDiscovery) {
+    try {
+      // A local route must preserve the identity headers that this sender emits on every batch.
+      return backendApiFactory.discoverEvpProxyEndpoint(
+          forceDiscovery, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+    } catch (final RuntimeException exception) {
+      LOGGER.debug("Could not discover the local Feature Flagging route", exception);
+      return null;
+    }
   }
 
   private static Map<String, String> requestHeaders() {

@@ -87,8 +87,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] PAGENT_NAME = "pagent_name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PAGENT_SPAN_ID = "pagent_span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] AGENT_MANIFEST_KEY =
-      "agent_manifest".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PROMPT = "prompt".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPAN_KIND = "span.kind".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPANS = "spans".getBytes(StandardCharsets.UTF_8);
@@ -111,6 +109,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       "tool_results".getBytes(StandardCharsets.UTF_8);
   private static final byte[] LLM_TOOL_RESULT_RESULT = "result".getBytes(StandardCharsets.UTF_8);
 
+  private static final String TRACE_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "trace_id";
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
   private static final String SESSION_ID_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
@@ -138,6 +137,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       Collections.unmodifiableSet(
           new HashSet<>(
               Arrays.asList(
+                  TRACE_ID_TAG_INTERNAL_FULL,
                   PARENT_ID_TAG_INTERNAL_FULL,
                   SAMPLING_DECISION_TAG_INTERNAL_FULL,
                   SAMPLE_RATE_TAG_INTERNAL_FULL,
@@ -214,6 +214,22 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String samplingDecision = stamped ? (String) rawSamplingDecision : SAMPLING_DECISION_SAMPLED;
       String sampleRate = stamped ? (String) rawSampleRate : SAMPLE_RATE_ALL;
 
+      // The LLMObs trace id, which is not the APM trace id: a span that inherited its LLMObs
+      // context from another service reports the caller's id so the LLMObs trace stays whole
+      // across a boundary that starts a fresh APM trace. DDLLMObsSpan stamps it on every span it
+      // creates, seeded from the APM trace id at the root, so the two agree for a trace that
+      // never leaves this process. The fallback covers a span that reached the mapper without the
+      // tag, and renders the APM trace id the way LLMObsTraceId.format does — hex above 2^64,
+      // unsigned decimal below it, matching dd-trace-py and dd-trace-js. Inlined rather than
+      // shared because that class lives in agent-llmobs, which dd-trace-core does not depend on.
+      Object rawLLMObsTraceId = span.getTag(TRACE_ID_TAG_INTERNAL_FULL);
+      String llmObsTraceId =
+          rawLLMObsTraceId instanceof String && !((String) rawLLMObsTraceId).isEmpty()
+              ? (String) rawLLMObsTraceId
+              : span.getTraceId().toHighOrderLong() != 0
+                  ? span.getTraceId().toHexString()
+                  : span.getTraceId().toString();
+
       writable.startMap(hasSessionId ? 12 : 11);
       // 1
       writable.writeUTF8(SPAN_ID);
@@ -221,7 +237,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 2
       writable.writeUTF8(TRACE_ID);
-      writable.writeString(span.getTraceId().toHexString(), null);
+      writable.writeString(llmObsTraceId, null);
 
       // 3
       writable.writeUTF8(PARENT_ID);
@@ -249,7 +265,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
       writable.writeUTF8(TRACE_ID);
-      writable.writeString(span.getTraceId().toHexString(), null);
+      writable.writeString(llmObsTraceId, null);
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
       writable.writeUTF8(SAMPLING_DECISION);
@@ -398,7 +414,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
                     LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
                     LLMOBS_TAG_PREFIX + LLMObsTags.METADATA,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST,
                     PAGENT_SPAN_ID_TAG_INTERNAL_FULL,
                     PAGENT_NAME_TAG_INTERNAL_FULL)));
 
@@ -616,14 +631,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.startMap(metadataMap.size());
           for (Map.Entry<String, Object> entry : metadataMap.entrySet()) {
             writable.writeString(entry.getKey(), null);
-            writable.writeObject(entry.getValue(), null);
-          }
-        } else if (key.equals(LLMObsTags.AGENT_MANIFEST) && val instanceof Map) {
-          Map<?, ?> manifestMap = (Map<?, ?>) val;
-          writable.writeUTF8(AGENT_MANIFEST_KEY);
-          writable.startMap(manifestMap.size());
-          for (Map.Entry<?, ?> entry : manifestMap.entrySet()) {
-            writable.writeString(String.valueOf(entry.getKey()), null);
             writable.writeObject(entry.getValue(), null);
           }
         } else {

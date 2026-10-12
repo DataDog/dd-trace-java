@@ -8,9 +8,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.ClientCall;
 import net.bytebuddy.asm.Advice;
@@ -80,7 +80,7 @@ public class ArmeriaMessageDeframerInstrumentation
   public static final class ActivateSpan {
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ArmeriaMessageDeframer messageDeframer) {
+    public static ContextScope before(@Advice.This ArmeriaMessageDeframer messageDeframer) {
       ClientCall clientCall =
           InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
               .get(messageDeframer);
@@ -95,7 +95,7 @@ public class ArmeriaMessageDeframerInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }

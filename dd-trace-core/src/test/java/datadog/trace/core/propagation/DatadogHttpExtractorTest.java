@@ -12,6 +12,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.otBaggageHeaders;
+import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 import static datadog.trace.test.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -117,6 +118,35 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
     String expectedHeader = "my-interesting-info";
     assertEquals(expectedHeader, context.getTags().getString(SOME_TAG));
+  }
+
+  @Test
+  void extractHeaderTagMappedOnAwsTraceHeader() {
+    // X-Amzn-Trace-Id is consumed as AWS X-Ray context, but a header tag mapped onto it must still
+    // be honoured. This is the load-balancer header example from the AWS documentation: it carries
+    // a Self field and is not in the padded format this codec extracts ids from, so only the tag
+    // is expected from it.
+    this.extractor.cleanup();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create().setHeaderTags(singletonMap(X_AMZN_TRACE_ID, SOME_TAG)).apply();
+    this.extractor = DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+
+    String awsTraceHeader =
+        "Self=1-67891233-12456789abcdef012345678;Root=1-67891233-abcdef012345678912345678";
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "1",
+        SPAN_ID_KEY, "2",
+        X_AMZN_TRACE_ID, awsTraceHeader
+    );
+    // spotless:on
+
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(awsTraceHeader, context.getTags().getString(SOME_TAG));
+    assertEquals(DDTraceId.from("1"), context.getTraceId());
+    assertEquals(DDSpanId.from("2"), context.getSpanId());
   }
 
   @ParameterizedTest

@@ -37,11 +37,6 @@ shadowJar {
   }
 }
 
-// Use Java 11 to build application
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
-}
-
 dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.0'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-graphql', version: '2.7.0'

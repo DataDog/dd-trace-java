@@ -162,9 +162,12 @@ class LogCollectorTest {
     try {
       drainThread.start();
       await(bucketDetached);
+      // Capacity for the detached entry is released before its consumer runs, so the writer's
+      // lock-free isFull() check sees room and then waits for the table lock while the drain
+      // consumer remains paused.
       writerThread.start();
       new PollingConditions(TIMEOUT_SECONDS)
-          .eventually(() -> assertThat(writerThread.getState()).isEqualTo(Thread.State.BLOCKED));
+          .eventually(() -> assertThat(writerThread.getState()).isEqualTo(Thread.State.WAITING));
     } finally {
       releaseDrain.countDown();
     }

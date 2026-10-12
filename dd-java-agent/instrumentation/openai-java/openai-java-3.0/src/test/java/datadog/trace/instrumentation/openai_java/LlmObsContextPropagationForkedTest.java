@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.openai_java;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -9,16 +10,23 @@ import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.credential.BearerTokenCredential;
 import com.openai.models.ChatModel;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.embeddings.EmbeddingCreateParams;
+import com.openai.models.embeddings.EmbeddingModel;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.Config;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -36,9 +44,24 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
   protected static HttpServer mockServer;
   protected static OpenAIClient openAiClient;
 
+  private static final String CHAT_COMPLETION_BODY =
+      "{\"id\":\"chatcmpl-test\",\"object\":\"chat.completion\",\"created\":1,"
+          + "\"model\":\"gpt-4o-mini-2024-07-18\","
+          + "\"choices\":[{\"index\":0,\"finish_reason\":\"stop\",\"logprobs\":null,"
+          + "\"message\":{\"role\":\"assistant\",\"content\":\"hi\"}}],"
+          + "\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18,"
+          + "\"prompt_tokens_details\":{\"cached_tokens\":4}}}";
+
+  private static final String EMBEDDING_BODY =
+      "{\"object\":\"list\",\"model\":\"text-embedding-ada-002\","
+          + "\"data\":[{\"object\":\"embedding\",\"index\":0,\"embedding\":[0.1,0.2]}],"
+          + "\"usage\":{\"prompt_tokens\":5,\"total_tokens\":5}}";
+
   @BeforeAll
   static void setupMockOpenAi() throws IOException {
     mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    mockServer.createContext("/v1/chat/completions", jsonHandler(CHAT_COMPLETION_BODY));
+    mockServer.createContext("/v1/embeddings", jsonHandler(EMBEDDING_BODY));
     mockServer.createContext(
         "/v1/",
         exchange -> {
@@ -68,11 +91,29 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
     openAiClient = null;
   }
 
+  private static HttpHandler jsonHandler(String body) {
+    return exchange -> {
+      byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, bytes.length);
+      try (OutputStream out = exchange.getResponseBody()) {
+        out.write(bytes);
+      }
+    };
+  }
+
   protected static ChatCompletionCreateParams buildMinimalChatParams() {
     return ChatCompletionCreateParams.builder()
         .model(ChatModel.GPT_4O_MINI)
         .addSystemMessage("")
         .addUserMessage("")
+        .build();
+  }
+
+  protected static EmbeddingCreateParams buildMinimalEmbeddingParams() {
+    return EmbeddingCreateParams.builder()
+        .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
+        .input("")
         .build();
   }
 
@@ -96,9 +137,8 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
  * <p>Runs at the default sample rate of 1.0. Drop-side coverage lives in {@link
  * LlmObsZeroSampleRateForkedTest}.
  *
- * <p>The mock OpenAI backend returns a minimal 200 response — the test asserts on the span tag set
- * by OpenAiDecorator.afterStart(), which runs before the HTTP response is parsed, so the response
- * body shape doesn't matter for what's being tested.
+ * <p>The tests assert on span tags set by OpenAiDecorator.afterStart(), which runs before the HTTP
+ * response is parsed, so the mock response body doesn't matter for what's being tested.
  */
 @WithConfig(key = "llmobs.enabled", value = "true")
 class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest {
@@ -111,12 +151,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
       try (ContextScope ignored2 =
           LLMObsContext.attach(parentSpan.spanContext(), expectedSessionId)) {
-        try {
-          openAiClient.chat().completions().create(buildMinimalChatParams());
-        } catch (Exception ignored) {
-          // Mock server returns no body — the SDK may throw on parse. The span we care about
-          // is already created by the instrumentation advice before this point.
-        }
+        openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
       parentSpan.finish();
@@ -130,12 +165,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
 
   @Test
   void openAiRequestSpanHasNoSessionIdWhenNoLlmObsContext() throws Exception {
-    try {
-      openAiClient.chat().completions().create(buildMinimalChatParams());
-    } catch (Exception ignored) {
-      // Mock server returns no body — the SDK may throw on parse. The span we care about
-      // is already created by the instrumentation advice before this point.
-    }
+    openAiClient.chat().completions().create(buildMinimalChatParams());
 
     writer.waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
@@ -151,12 +181,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
       try (ContextScope ignored2 =
           LLMObsContext.attach(parentSpan.spanContext(), null, expectedAgentVersion)) {
-        try {
-          openAiClient.chat().completions().create(buildMinimalChatParams());
-        } catch (Exception ignored) {
-          // Mock server returns no body — the SDK may throw on parse. The span we care about
-          // is already created by the instrumentation advice before this point.
-        }
+        openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
       parentSpan.finish();
@@ -177,14 +202,13 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
               parentSpan.spanContext(),
               null,
               null,
+              null,
+              null,
               "0.25",
               LLMObsContext.SAMPLING_DECISION_DROPPED,
               null,
               null)) {
-        try {
-          openAiClient.chat().completions().create(buildMinimalChatParams());
-        } catch (Exception ignored) {
-        }
+        openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
       parentSpan.finish();
@@ -208,14 +232,13 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
               parentSpan.spanContext(),
               null,
               null,
+              null,
+              null,
               "1",
               LLMObsContext.SAMPLING_DECISION_SAMPLED,
               null,
               null)) {
-        try {
-          openAiClient.chat().completions().create(buildMinimalChatParams());
-        } catch (Exception ignored) {
-        }
+        openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
       parentSpan.finish();
@@ -232,10 +255,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
 
   @Test
   void openAiRequestSpanComputesItsOwnSamplingDecisionWhenNoLlmObsContext() throws Exception {
-    try {
-      openAiClient.chat().completions().create(buildMinimalChatParams());
-    } catch (Exception ignored) {
-    }
+    openAiClient.chat().completions().create(buildMinimalChatParams());
 
     // No verdict to inherit, so the span is the root of its own LLMObs trace and decides for
     // itself. The rate of 1.0 retains every trace ID, so the verdict is deterministic without
@@ -250,6 +270,105 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   }
 
   @Test
+  void openAiRequestSpanStaysInTheParentsAdoptedLlmObsTrace() throws Exception {
+    // A parent that continued a trace from another service carries that service's LLMObs trace id,
+    // which is not the local APM trace id. The LLM span must report the parent's id, or it lands
+    // in a different LLMObs trace from its parent.
+    String adoptedTraceId = "6ab41f6e00000000fea4f6b7295bd5e9";
+
+    AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(
+              parentSpan.spanContext(),
+              adoptedTraceId,
+              null,
+              null,
+              null,
+              "1",
+              LLMObsContext.SAMPLING_DECISION_SAMPLED,
+              null,
+              null)) {
+        openAiClient.chat().completions().create(buildMinimalChatParams());
+      }
+    } finally {
+      parentSpan.finish();
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertNotEquals(adoptedTraceId, openAiSpan.getTraceId().toHexString());
+    assertEquals(adoptedTraceId, openAiSpan.getTag("_ml_obs_tag.trace_id"));
+  }
+
+  @Test
+  void openAiRequestSpanInheritsMlAppFromActiveContext() throws Exception {
+    String expectedMlApp = "upstream-app";
+
+    AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(
+              parentSpan.spanContext(),
+              null,
+              expectedMlApp,
+              null,
+              null,
+              "1",
+              LLMObsContext.SAMPLING_DECISION_SAMPLED,
+              null,
+              null)) {
+        openAiClient.chat().completions().create(buildMinimalChatParams());
+      }
+    } finally {
+      parentSpan.finish();
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertEquals(expectedMlApp, openAiSpan.getTag("_ml_obs_tag.ml_app"));
+  }
+
+  @Test
+  void openAiRequestSpanUsesServiceDefaultsWithoutLlmObsContext() throws Exception {
+    openAiClient.chat().completions().create(buildMinimalChatParams());
+
+    // No parent: no trace_id tag, so the mapper seeds it from the APM trace id, and ml_app is the
+    // configured default.
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertNull(openAiSpan.getTag("_ml_obs_tag.trace_id"));
+    assertEquals(Config.get().getLlmObsMlApp(), openAiSpan.getTag("_ml_obs_tag.ml_app"));
+  }
+
+  @Test
+  void openAiRequestSpanRecordsNoSamplingDecisionWhenItsParentHasNone() throws Exception {
+    // The parent continued a trace whose caller sent no verdict, so it has none. The LLM span must
+    // not roll its own: below a rate of 1 that could drop the span while its parent is kept.
+    AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(
+              parentSpan.spanContext(), null, null, null, null, null, null, null, null)) {
+        openAiClient.chat().completions().create(buildMinimalChatParams());
+      }
+    } finally {
+      parentSpan.finish();
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertEquals(
+        String.valueOf(parentSpan.getSpanId()), openAiSpan.getTag("_ml_obs_tag.parent_id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+  }
+
+  @Test
   void openAiRequestSpanInheritsNothingFromStaleCrossTraceContext() throws Exception {
     // Simulates a stale LLMObsContext leaked across an async boundary: the context is attached,
     // but its span is never made the active tracer span, so the openai.request call below starts
@@ -258,16 +377,15 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     try (ContextScope ignored =
         LLMObsContext.attach(
             staleParent.spanContext(),
+            null,
+            null,
             "stale-session",
             "stale-version",
             "0.25",
             LLMObsContext.SAMPLING_DECISION_DROPPED,
             "stale-agent-span-id",
             "stale-agent")) {
-      try {
-        openAiClient.chat().completions().create(buildMinimalChatParams());
-      } catch (Exception ignored2) {
-      }
+      openAiClient.chat().completions().create(buildMinimalChatParams());
     } finally {
       staleParent.finish();
     }
@@ -304,10 +422,7 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
 
   @Test
   void parentlessOpenAiRequestSpanIsDroppedAtZeroSampleRate() throws Exception {
-    try {
-      openAiClient.chat().completions().create(buildMinimalChatParams());
-    } catch (Exception ignored) {
-    }
+    openAiClient.chat().completions().create(buildMinimalChatParams());
 
     writer.waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
@@ -316,5 +431,70 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
         LLMObsContext.SAMPLING_DECISION_DROPPED,
         openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
     assertEquals("0", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+  }
+}
+
+/**
+ * Verifies the gen_ai.* attributes an openai.request span carries with LLM Observability disabled:
+ * operation, model, provider, application and token usage, but no conversation id and none of the
+ * LLM Observability tags.
+ */
+@WithConfig(key = "llmobs.enabled", value = "false")
+class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
+
+  @Test
+  void chatCompletionEmitsTheGenAiAttributesAvailableWithoutLlmObs() {
+    openAiClient.chat().completions().create(buildMinimalChatParams());
+
+    DDSpan openAiSpan = awaitOpenAiSpan("/v1/chat/completions");
+
+    assertEquals("llm", openAiSpan.getTag("gen_ai.operation.name"));
+    assertEquals("gpt-4o-mini-2024-07-18", openAiSpan.getTag("gen_ai.request.model"));
+    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
+    assertNotNull(openAiSpan.getTag("gen_ai.application.name"));
+    assertEquals("true", openAiSpan.getTag(GenAiApmTags.ARTIFICIAL_TAGS));
+
+    assertEquals(11.0, openAiSpan.getTag("gen_ai.usage.input_tokens"));
+    assertEquals(7.0, openAiSpan.getTag("gen_ai.usage.output_tokens"));
+    assertEquals(18.0, openAiSpan.getTag("gen_ai.usage.total_tokens"));
+    assertEquals(4.0, openAiSpan.getTag("gen_ai.usage.cache_read_input_tokens"));
+
+    assertNull(openAiSpan.getTag("gen_ai.conversation.id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.span.kind"));
+    assertNull(openAiSpan.getTag("_ml_obs_metric.input_tokens"));
+  }
+
+  @Test
+  void embeddingMapsToTheEmbeddingOperation() {
+    openAiClient.embeddings().create(buildMinimalEmbeddingParams());
+
+    DDSpan openAiSpan = awaitOpenAiSpan("/v1/embeddings");
+
+    assertEquals("embedding", openAiSpan.getTag("gen_ai.operation.name"));
+    assertEquals(
+        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
+    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
+
+    assertEquals(5.0, openAiSpan.getTag("gen_ai.usage.input_tokens"));
+    assertEquals(5.0, openAiSpan.getTag("gen_ai.usage.total_tokens"));
+    assertNull(openAiSpan.getTag("gen_ai.usage.output_tokens"));
+  }
+
+  // Both tests here produce an openai.request span, so match on the endpoint rather than take the
+  // first one written: a trace arriving late from the sibling test would otherwise be picked up.
+  private DDSpan awaitOpenAiSpan(String endpoint) {
+    blockUntilTracesMatch(traces -> findOpenAiSpan(traces, endpoint) != null);
+    DDSpan span = findOpenAiSpan(writer, endpoint);
+    assertNotNull(span, "openai.request span for " + endpoint + " should have been created");
+    return span;
+  }
+
+  private static DDSpan findOpenAiSpan(List<List<DDSpan>> traces, String endpoint) {
+    return traces.stream()
+        .flatMap(List::stream)
+        .filter(span -> "openai.request".equals(span.getOperationName().toString()))
+        .filter(span -> endpoint.equals(span.getTag("openai.request.endpoint")))
+        .findFirst()
+        .orElse(null);
   }
 }

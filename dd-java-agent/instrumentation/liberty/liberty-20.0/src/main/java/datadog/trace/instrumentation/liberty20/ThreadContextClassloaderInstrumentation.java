@@ -25,13 +25,6 @@ public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BundleNameHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(), getClass().getName() + "$ThreadContextClassloaderAdvice");
