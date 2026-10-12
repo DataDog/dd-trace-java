@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +36,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
   private final MessagePassingBlockingQueue<ExposureEvent> queue;
   private final ExposureSerializingHandler serializer;
   private final Thread serializerThread;
-  private final ReentrantReadWriteLock lifecycleLock = new ReentrantReadWriteLock();
+  private final Object lifecycleLock = new Object();
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final long shutdownTimeoutMillis;
 
@@ -89,7 +88,24 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
       final Supplier<BackendApi> backendApiSupplier,
       final Config config,
       final long shutdownTimeoutMillis) {
-    this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
+    this(
+        Queues.mpscBlockingConsumerArrayQueue(capacity),
+        flushInterval,
+        timeUnit,
+        backendApiSupplier,
+        config,
+        shutdownTimeoutMillis);
+  }
+
+  @VisibleForTesting
+  ExposureWriterImpl(
+      final MessagePassingBlockingQueue<ExposureEvent> queue,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final Supplier<BackendApi> backendApiSupplier,
+      final Config config,
+      final long shutdownTimeoutMillis) {
+    this.queue = queue;
     this.serializer =
         new ExposureSerializingHandler(
             backendApiSupplier,
@@ -104,15 +120,12 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
 
   @Override
   public void init() {
-    lifecycleLock.writeLock().lock();
-    try {
+    synchronized (lifecycleLock) {
       if (closed.get()) {
         return;
       }
       FeatureFlaggingGateway.addExposureListener(this);
       this.serializerThread.start();
-    } finally {
-      lifecycleLock.writeLock().unlock();
     }
   }
 
@@ -125,17 +138,14 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
 
   @Override
   public void requestShutdown() {
-    lifecycleLock.writeLock().lock();
-    try {
+    synchronized (lifecycleLock) {
       if (!closed.compareAndSet(false, true)) {
         return;
       }
-      // Exclude all producers before asking the single consumer to perform its final drain.
+      // Stop accepting new dispatches without waiting for producers already inside accept().
       FeatureFlaggingGateway.removeExposureListener(this);
       // Polling wakes within 100 ms. An interrupt can race with, or abort, the final POST.
       serializer.requestShutdown();
-    } finally {
-      lifecycleLock.writeLock().unlock();
     }
   }
 
@@ -146,16 +156,11 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
 
   @Override
   public void accept(final ExposureEvent event) {
-    // Multiple producers may still enqueue concurrently under the read lock. close() takes the
-    // write lock, so every accepted event is in the queue before the worker's final drain begins,
-    // while stale CopyOnWriteArrayList dispatch snapshots are rejected after shutdown starts.
-    lifecycleLock.readLock().lock();
-    try {
-      if (!closed.get()) {
-        queue.offer(event);
-      }
-    } finally {
-      lifecycleLock.readLock().unlock();
+    // Keep producers lock-free, like flag evaluations. Shutdown is best effort: an offer that
+    // passes this check can race past the final drain and be dropped. Stale gateway dispatches
+    // entering after shutdown starts are rejected without extending the shutdown wait.
+    if (!closed.get()) {
+      queue.offer(event);
     }
   }
 
