@@ -62,16 +62,20 @@ max/min load ratio of at most 1.25. That ratio is computed from the weights, not
 
 ## JDBC suite shards
 
-The JDBC instrumentation keeps one Gradle source module, but its `test_inst` work is exposed through nine virtual
+The JDBC instrumentation keeps one Gradle source module, but its `test_inst` work is exposed through 15 virtual
 child projects so the balancer can assign its existing suites to different shards. The child projects delegate to
-the original test tasks; they do not copy tests, change dependencies, or skip coverage. Local `allTests` and `check`
-still run every suite from the JDBC project as before.
+test tasks in the parent project; they do not copy tests or change dependencies. Local `allTests` and `check` still
+run every suite from the JDBC project as before.
 
-The measured suite weights are 208 s for `test`, 215 s for `oldH2Test`, 209 s for `oldPostgresTest`, and 504 s for
-`forkedTest`. The forked suite is further divided into six exhaustive, disjoint groups. Its provisional weights are
-allocated across all 22 concrete forked test classes. A catch-all group currently contains the three `Remote*`
-classes and ensures future forked tests remain covered. Replace these provisional weights with direct measurements
-after the first observation window.
+Pipeline `144153574` provided the first coverage-complete measurement of the split on JVM 11: 46 suites and 1,814
+passing tests. It showed that the remote database suites dominate several tasks. The three regular version tasks
+therefore expose `RemoteJDBCInstrumentationV0Test` separately from their remaining suites, and the three remote
+forked classes each have their own virtual project. The remaining forked tasks form exhaustive, disjoint groups
+across all 22 concrete forked classes; an unweighted catch-all keeps newly added forked classes covered.
+
+The largest modeled JDBC unit after this split is the base version's remote suite at 316.5 s, down 71.7% from the
+original 1116.7-second JDBC project. The next largest units are the remote DBM fork at 293.7 s and the old H2 remote
+suite at 288.5 s. The checked-in weights come directly from that pipeline's suite durations.
 
 ## Known limitation: the heaviest project sets a floor
 
