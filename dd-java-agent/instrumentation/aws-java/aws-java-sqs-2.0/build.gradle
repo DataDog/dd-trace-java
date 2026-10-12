@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.HostPlatform
+
 plugins {
   id 'dd-trace-java.module.instrumentation'
 }
@@ -15,6 +17,12 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+tasks.withType(Test).configureEach {
+  onlyIf('Embedded ElasticMQ tests exceed the task timeout in the Windows CI container') {
+    !HostPlatform.isWindows()
+  }
+}
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'

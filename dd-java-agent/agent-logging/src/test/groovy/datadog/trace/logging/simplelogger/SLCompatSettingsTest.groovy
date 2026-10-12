@@ -138,9 +138,8 @@ class SLCompatSettingsTest extends Specification {
 
   def "test log file creation stderr fallback"() {
     setup:
-    def dir = File.createTempDir()
-    dir.setWritable(false, true)
-    def file = new File(dir, "log")
+    def parent = File.createTempFile("not-a-directory", ".tmp")
+    def file = new File(parent, "log")
     def props = new Properties()
     props.setProperty(SLCompatSettings.Keys.LOG_FILE, file.getAbsolutePath())
     def settings = new SLCompatSettings(props)
@@ -150,8 +149,7 @@ class SLCompatSettingsTest extends Specification {
     ((PrintStreamWrapper) settings.printStream).getOriginalPrintStream() == System.err
 
     cleanup:
-    dir.setWritable(true, true)
-    dir.delete()
+    parent.delete()
   }
 
   def "test logNameForName"() {

@@ -15,6 +15,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostHostname
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostUrl
 
 class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
@@ -31,6 +33,16 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   @Override
   String expectedOperationName() {
     "netty.request"
+  }
+
+  @Override
+  String normalizeServerHostname(String value) {
+    normalizeLocalhostHostname(value)
+  }
+
+  @Override
+  String normalizeServerUrl(String value) {
+    normalizeLocalhostUrl(value)
   }
 
   @Override
@@ -138,7 +150,10 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.PEER_HOST_IPV4" "127.0.0.1" // This span ignores "x-forwards-from".
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" String
-        "$Tags.HTTP_HOSTNAME" "${address.host}"
+        "$Tags.HTTP_HOSTNAME" {
+          normalizeLocalhostHostname(it as String) ==
+            normalizeLocalhostHostname("${address.host}")
+        }
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer
         "$Tags.HTTP_ROUTE" String

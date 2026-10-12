@@ -43,7 +43,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.OS;
 
 @EnabledForJreRange(min = JAVA_16)
 public class TunnelingJdkSocketTest {
@@ -235,6 +237,7 @@ public class TunnelingJdkSocketTest {
   }
 
   @Test
+  @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Requires the Unix lsof command")
   public void testFileDescriptorLeak() throws Exception {
     long initialCount = getFileDescriptorCount();
 

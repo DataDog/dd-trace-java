@@ -152,20 +152,20 @@ class DatadogClassLoaderTest {
         spacedJar.toPath());
 
     URL spacedJarUrl = spacedJar.toURI().toURL();
-    DatadogClassLoader ddLoader = new DatadogClassLoader(spacedJarUrl, null);
+    try (DatadogClassLoader ddLoader = new DatadogClassLoader(spacedJarUrl, null)) {
+      URL resource = ddLoader.findResource("a/A.class");
+      assertNotNull(resource, "findResource should locate a/A.class in the test jar");
 
-    URL resource = ddLoader.findResource("a/A.class");
-    assertNotNull(resource, "findResource should locate a/A.class in the test jar");
-
-    String expectedPrefix = "jar:" + spacedJarUrl + "!/";
-    assertTrue(
-        resource.toString().startsWith(expectedPrefix),
-        () ->
-            "resource URL ("
-                + resource
-                + ") should start with the agent jar URL prefix ("
-                + expectedPrefix
-                + ") — pre-fix code derives the prefix from JarFile.getName(),"
-                + " which leaves the space unencoded and on Windows produces a malformed URL.");
+      String expectedPrefix = "jar:" + spacedJarUrl + "!/";
+      assertTrue(
+          resource.toString().startsWith(expectedPrefix),
+          () ->
+              "resource URL ("
+                  + resource
+                  + ") should start with the agent jar URL prefix ("
+                  + expectedPrefix
+                  + ") — pre-fix code derives the prefix from JarFile.getName(),"
+                  + " which leaves the space unencoded and on Windows produces a malformed URL.");
+    }
   }
 }

@@ -30,6 +30,7 @@ import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.appsec.api.blocking.BlockingContentType
+import datadog.environment.OperatingSystem
 import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
@@ -48,6 +49,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.stacktrace.StackTraceEvent
 import okio.Okio
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.Unroll
 
@@ -1192,6 +1194,9 @@ class WAFModuleSpecification extends DDSpecification {
     0 * _
   }
 
+  @IgnoreIf(reason = "libddwaf 2.0.1 does not preserve config override precedence on Windows", value = {
+    OperatingSystem.isWindows()
+  })
   void 'rule toggling data given through configuration'() {
     ChangeableFlow flow = Mock()
     initialRuleAdd()

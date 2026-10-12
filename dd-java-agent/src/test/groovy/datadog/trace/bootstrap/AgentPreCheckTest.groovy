@@ -3,9 +3,12 @@ package datadog.trace.bootstrap
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
+import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class AgentPreCheckTest extends Specification {
   def 'parse java.version of #version as #expected'() {
@@ -63,7 +66,7 @@ class AgentPreCheckTest extends Specification {
     when:
     boolean compatible = AgentPreCheck.compatible(javaVersion, "/Library/$javaVersion", logStream)
     String log = output.toString()
-    def logLines = log.isEmpty() ? [] : Arrays.asList(log.split('\n'))
+    def logLines = log.readLines()
 
     then:
     compatible == expectedCompatible
@@ -92,6 +95,7 @@ class AgentPreCheckTest extends Specification {
 
   def 'send hardcoded bootstrap telemetry for unsupported java'() {
     setup:
+    assumeTrue(FileSystems.default.supportedFileAttributeViews().contains('posix'))
     Path path = Files.createTempFile('test-forwarder', '.sh', PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString('rwxr--r--')))
     File forwarderFile = path.toFile()
     forwarderFile.deleteOnExit()

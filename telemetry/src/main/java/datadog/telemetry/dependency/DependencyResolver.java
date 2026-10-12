@@ -68,14 +68,13 @@ public class DependencyResolver {
     if (path.startsWith("file:")) {
       // Old style nested dependencies, as seen in Spring Boot 2 and others.
       // These look like jar:file:/path/to.jar!/path/to/nested.jar!/
-      path = path.substring("file:".length());
       final int sepIdx = path.indexOf("!/");
       if (sepIdx == -1) {
         // JBoss may use the "jar:file" format to reference jar files instead of nested jars.
         // These look like: jar:file:/path/to.jar!/
-        return JarReader.readJarFile(path);
+        return JarReader.readJarFile(new File(URI.create(path)).getPath());
       }
-      final String outerPath = path.substring(0, sepIdx);
+      final String outerPath = new File(URI.create(path.substring(0, sepIdx))).getPath();
       final String innerPath = path.substring(sepIdx + 2);
       return JarReader.readNestedJarFile(outerPath, innerPath);
     } else if (path.startsWith("nested:")) {

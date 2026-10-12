@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import com.redis.testcontainers.RedisContainer
 import com.redis.testcontainers.RedisServer
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -13,6 +16,9 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
   @Shared

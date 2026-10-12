@@ -1,5 +1,6 @@
 include:
   - local: ".gitlab/one-pipeline.locked.yml"
+  - local: ".gitlab/windows-tests.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
@@ -39,6 +40,7 @@ stages:
   - benchmarks
   - tests
   - tests-arm64
+  - tests-windows
   - test-summary
   - exploration-tests
   - ci-visibility-tests
