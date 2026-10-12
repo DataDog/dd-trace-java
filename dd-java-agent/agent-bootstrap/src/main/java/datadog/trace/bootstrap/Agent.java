@@ -671,6 +671,10 @@ public class Agent {
         throw new UndeclaredThrowableException(e);
       }
 
+      if (Config.get().isFeatureFlaggingSpanEnrichmentEnabled()) {
+        // Application code caches this gate, so publish it before execute() can be deferred.
+        publishFeatureFlaggingSpanEnrichmentConfiguration(AGENT_CLASSLOADER);
+      }
       installDatadogMeter(initTelemetry);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
@@ -1291,6 +1295,21 @@ public class Agent {
       }
 
       StaticEventLogger.end("Feature Flagging");
+    }
+  }
+
+  static void publishFeatureFlaggingSpanEnrichmentConfiguration(
+      final ClassLoader agentClassLoader) {
+    if (agentClassLoader == null) {
+      return;
+    }
+    try {
+      final Class<?> ffSysClass =
+          agentClassLoader.loadClass("com.datadog.featureflag.FeatureFlaggingSystem");
+      final Method publishMethod = ffSysClass.getMethod("publishSpanEnrichmentConfiguration");
+      publishMethod.invoke(null);
+    } catch (final Throwable e) {
+      log.warn("Unable to publish Feature Flagging span enrichment configuration", e);
     }
   }
 

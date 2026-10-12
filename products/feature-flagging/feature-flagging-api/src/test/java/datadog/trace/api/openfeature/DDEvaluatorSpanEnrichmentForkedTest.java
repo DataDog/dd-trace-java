@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
@@ -23,15 +24,14 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Drives the span-enrichment branch of {@link DDEvaluator}, which the ordinary test task cannot
- * reach: the gate is read once into a static final field at class load. The property is set here
- * rather than through {@code @WithConfig} because that extension rewrites {@code Config.INSTANCE},
- * which this module does not use, and the forked task gives this class its own JVM where nothing
- * has loaded the evaluator yet.
+ * reach: the gate is read once into a static final field at class load. The gateway is configured
+ * here, and the forked task gives this class its own JVM where nothing has loaded the evaluator
+ * yet.
  */
 class DDEvaluatorSpanEnrichmentForkedTest {
 
   static {
-    System.setProperty("dd.experimental.flagging.provider.span.enrichment.enabled", "true");
+    FeatureFlaggingGateway.setSpanEnrichmentEnabled(true);
   }
 
   @Test

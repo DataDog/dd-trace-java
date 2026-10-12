@@ -745,6 +745,7 @@ import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
@@ -1259,6 +1260,7 @@ public class Config {
   private final int remoteConfigMaxExtraServices;
 
   private final boolean featureFlaggingProviderEnabled;
+  private final boolean featureFlaggingSpanEnrichmentEnabled;
   private final String featureFlaggingConfigurationSource;
   private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
   private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
@@ -2977,6 +2979,8 @@ public class Config {
           resolvedFeatureFlaggingConfiguration.getSource());
     }
     featureFlaggingProviderEnabled = resolvedFeatureFlaggingConfiguration.isEnabled();
+    featureFlaggingSpanEnrichmentEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
     featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
@@ -4941,6 +4945,10 @@ public class Config {
 
   public boolean isFeatureFlaggingProviderEnabled() {
     return featureFlaggingProviderEnabled;
+  }
+
+  public boolean isFeatureFlaggingSpanEnrichmentEnabled() {
+    return featureFlaggingSpanEnrichmentEnabled;
   }
 
   public String getFeatureFlaggingConfigurationSource() {
@@ -6917,6 +6925,8 @@ public class Config {
         + remoteConfigIntegrityCheckEnabled
         + ", featureFlaggingProviderEnabled="
         + featureFlaggingProviderEnabled
+        + ", featureFlaggingSpanEnrichmentEnabled="
+        + featureFlaggingSpanEnrichmentEnabled
         + ", featureFlaggingConfigurationSource="
         + featureFlaggingConfigurationSource
         + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="

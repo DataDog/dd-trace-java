@@ -143,6 +143,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude("datadog.opentracing.resolver.*")
     exclude("%regex[datadog/trace/api/(?!Functions|Endpoint)[^/]*]")
     exclude("datadog.trace.api.config.*")
+    exclude("datadog.trace.api.featureflag.config.*")
     exclude("datadog.trace.api.experimental.*")
     exclude("datadog.trace.api.interceptor.*")
     exclude("datadog.trace.api.internal.*")

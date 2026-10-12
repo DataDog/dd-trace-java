@@ -1,5 +1,7 @@
 package datadog.trace.api.featureflag;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -31,6 +33,7 @@ class FeatureFlaggingGatewayTest {
     secondConfiguration = mock(ServerConfiguration.class);
     firstExposure = mock(ExposureEvent.class);
     secondExposure = mock(ExposureEvent.class);
+    FeatureFlaggingGateway.setSpanEnrichmentEnabled(false);
   }
 
   @AfterEach
@@ -41,6 +44,7 @@ class FeatureFlaggingGatewayTest {
     FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    FeatureFlaggingGateway.setSpanEnrichmentEnabled(false);
   }
 
   @Test
@@ -107,6 +111,15 @@ class FeatureFlaggingGatewayTest {
 
     verify(spanEnrichmentListener).accept(secondEvent);
     verifyNoMoreInteractions(spanEnrichmentListener);
+  }
+
+  @Test
+  void testSpanEnrichmentGate() {
+    assertFalse(FeatureFlaggingGateway.isSpanEnrichmentEnabled());
+
+    FeatureFlaggingGateway.setSpanEnrichmentEnabled(true);
+
+    assertTrue(FeatureFlaggingGateway.isSpanEnrichmentEnabled());
   }
 
   private static void clearCurrentServerConfiguration() {

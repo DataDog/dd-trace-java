@@ -10,23 +10,27 @@ class AgentFeatureFlaggingLifecycleTest {
 
   @BeforeEach
   void reset() {
+    FakeFeatureFlaggingSystem.publishSpanEnrichmentConfigurationCalls.set(0);
     FakeFeatureFlaggingSystem.stopCalls.set(0);
   }
 
   @Test
-  void shutdownInvokesFeatureFlaggingSystemStopThroughAgentClassLoader() {
-    final ClassLoader classLoader =
-        new ClassLoader(null) {
-          @Override
-          public Class<?> loadClass(final String name) throws ClassNotFoundException {
-            if ("com.datadog.featureflag.FeatureFlaggingSystem".equals(name)) {
-              return FakeFeatureFlaggingSystem.class;
-            }
-            return super.loadClass(name);
-          }
-        };
+  void publishesSpanEnrichmentConfigurationThroughAgentClassLoader() {
+    Agent.publishFeatureFlaggingSpanEnrichmentConfiguration(featureFlaggingClassLoader());
 
-    Agent.shutdownFeatureFlagging(classLoader);
+    assertEquals(1, FakeFeatureFlaggingSystem.publishSpanEnrichmentConfigurationCalls.get());
+  }
+
+  @Test
+  void publishingSpanEnrichmentConfigurationIsNoopBeforeAgentClassLoaderExists() {
+    Agent.publishFeatureFlaggingSpanEnrichmentConfiguration(null);
+
+    assertEquals(0, FakeFeatureFlaggingSystem.publishSpanEnrichmentConfigurationCalls.get());
+  }
+
+  @Test
+  void shutdownInvokesFeatureFlaggingSystemStopThroughAgentClassLoader() {
+    Agent.shutdownFeatureFlagging(featureFlaggingClassLoader());
 
     assertEquals(1, FakeFeatureFlaggingSystem.stopCalls.get());
   }
@@ -38,8 +42,26 @@ class AgentFeatureFlaggingLifecycleTest {
     assertEquals(0, FakeFeatureFlaggingSystem.stopCalls.get());
   }
 
+  private static ClassLoader featureFlaggingClassLoader() {
+    return new ClassLoader(null) {
+      @Override
+      public Class<?> loadClass(final String name) throws ClassNotFoundException {
+        if ("com.datadog.featureflag.FeatureFlaggingSystem".equals(name)) {
+          return FakeFeatureFlaggingSystem.class;
+        }
+        return super.loadClass(name);
+      }
+    };
+  }
+
   public static final class FakeFeatureFlaggingSystem {
+    private static final AtomicInteger publishSpanEnrichmentConfigurationCalls =
+        new AtomicInteger();
     private static final AtomicInteger stopCalls = new AtomicInteger();
+
+    public static void publishSpanEnrichmentConfiguration() {
+      publishSpanEnrichmentConfigurationCalls.incrementAndGet();
+    }
 
     public static void stop() {
       stopCalls.incrementAndGet();

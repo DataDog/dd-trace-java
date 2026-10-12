@@ -62,6 +62,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.VERSION
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS
@@ -3589,6 +3590,23 @@ class ConfigTest extends DDSpecification {
     then:
     config.featureFlaggingConfigurationSourcePollIntervalSeconds == 60
     config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == 4
+  }
+
+  def "feature flag span enrichment is disabled by default"() {
+    expect:
+    !new Config().featureFlaggingSpanEnrichmentEnabled
+  }
+
+  def "feature flag span enrichment reads configured value"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, "true")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingSpanEnrichmentEnabled
   }
 
   def "feature flag configuration source normalizes #value to #expected"() {
