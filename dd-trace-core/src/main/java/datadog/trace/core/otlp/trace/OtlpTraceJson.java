@@ -27,6 +27,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -159,12 +160,16 @@ public final class OtlpTraceJson {
     writer.endObject();
   }
 
-  private static void writeSpanTag(JsonWriter writer, TagMap.EntryReader tagEntry) {
+  private static void writeSpanTag(
+      JsonWriter writer, Integer direction, TagMap.EntryReader tagEntry) {
     // OTLP is the OpenTelemetry wire format, but the rename itself is opt-in: emit the
     // OpenTelemetry-namespace name only when OTel semantics are enabled, else the entry's own
-    // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in.
+    // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in. A few
+    // OpenTelemetry names depend on the span's direction (peer.port is server.port on a client).
     String key =
-        Config.get().isTraceOtelSemanticsEnabled() ? tagEntry.openTelemetryTag() : tagEntry.tag();
+        Config.get().isTraceOtelSemanticsEnabled()
+            ? SpanTags.openTelemetryTagOf(tagEntry, direction)
+            : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
         writeAttribute(writer, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
@@ -247,7 +252,10 @@ public final class OtlpTraceJson {
         writeSpanTag(writer, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      metadata.getTags().forEach(writer, OtlpTraceJson::writeSpanTag);
+      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
+      TagMap tags = metadata.getTags();
+      Integer direction = SpanTags.directionOf(tags);
+      tags.forEach(writer, direction, OtlpTraceJson::writeSpanTag);
 
       // reset for next span
       includeProcessTags = false;
