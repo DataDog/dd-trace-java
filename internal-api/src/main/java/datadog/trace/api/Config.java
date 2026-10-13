@@ -1258,7 +1258,6 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final boolean featureFlaggingProviderEnabled;
   private final String featureFlaggingConfigurationSource;
   private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
   private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
@@ -2976,7 +2975,6 @@ public class Config {
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
           resolvedFeatureFlaggingConfiguration.getSource());
     }
-    featureFlaggingProviderEnabled = resolvedFeatureFlaggingConfiguration.isEnabled();
     featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
@@ -4940,7 +4938,7 @@ public class Config {
   }
 
   public boolean isFeatureFlaggingProviderEnabled() {
-    return featureFlaggingProviderEnabled;
+    return instrumenterConfig.isFeatureFlaggingEnabled();
   }
 
   public String getFeatureFlaggingConfigurationSource() {
@@ -6916,7 +6914,7 @@ public class Config {
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
         + ", featureFlaggingProviderEnabled="
-        + featureFlaggingProviderEnabled
+        + isFeatureFlaggingProviderEnabled()
         + ", featureFlaggingConfigurationSource="
         + featureFlaggingConfigurationSource
         + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
