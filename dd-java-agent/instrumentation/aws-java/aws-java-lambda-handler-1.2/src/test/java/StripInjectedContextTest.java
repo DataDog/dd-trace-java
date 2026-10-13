@@ -11,8 +11,11 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -373,6 +376,100 @@ class StripInjectedContextTest extends DDJavaSpecification {
     // readAllBytes() inside replaceInputStream() must mark/reset, not drain, the original stream
     String originalJson = new String(readAll(original), StandardCharsets.UTF_8);
     assertTrue(originalJson.contains("_datadog"), "original stream must still be fully readable");
+  }
+
+  @Test
+  @WithConfig(key = GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT, value = "true")
+  void replaceInputStreamDoesNotReadUnsupportedStreams() {
+    byte[] payload = bytes("{\"a\":1,\"_datadog\":{\"t\":\"1\"}}");
+    AtomicInteger reads = new AtomicInteger();
+    InputStream failsAfterPrefix =
+        new InputStream() {
+          private int pos;
+
+          @Override
+          public int read() throws IOException {
+            reads.incrementAndGet();
+            if (pos >= 5) {
+              throw new IOException("stream failed after a prefix");
+            }
+            return payload[pos++];
+          }
+        };
+
+    assertNull(StripInjectedContext.replaceInputStream(failsAfterPrefix));
+    assertEquals(0, reads.get(), "an unsupported stream must be passed through unread");
+  }
+
+  @Test
+  void doesNotRewriteObjectKeysThatLookLikeEncodedJson() {
+    // {"{\"_datadog\":{}}":1,"{}":2} must not become {"{}":1,"{}":2}
+    byte[] input = bytes("{\"{\\\"_datadog\\\":{}}\":1,\"{}\":2}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+
+    assertArrayEquals(input, result, "object keys must never be rewritten: " + toUtf8(result));
+  }
+
+  @Test
+  void keepsPayloadWithInvalidUtf8Untouched() {
+    // byte 6 is the 'X' value; 0xFF is never valid in UTF-8
+    byte[] input = bytes("{\"a\":\"X\",\"_datadog\":{}}");
+    input[6] = (byte) 0xFF;
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @Test
+  void keepsPayloadWithLiteralReplacementCharacterUntouched() {
+    // A raw U+FFFD can't be told apart from a decoded invalid byte, so the payload is kept as is.
+    byte[] input = bytes("{\"a\":\"\uFFFD\",\"_datadog\":{}}");
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @Test
+  void stillStripsPayloadWithEscapedReplacementCharacter() {
+    String result =
+        toUtf8(StripInjectedContext.stripInternal(bytes("{\"a\":\"\\uFFFD\",\"_datadog\":{}}")));
+
+    assertEquals("{\"a\":\"\\uFFFD\"}", result);
+  }
+
+  @Test
+  void stillStripsPayloadWithValidMultiByteUtf8() {
+    String result =
+        toUtf8(
+            StripInjectedContext.stripInternal(bytes("{\"a\":\"\u00e9\u4e2d\",\"_datadog\":{}}")));
+
+    assertEquals("{\"a\":\"\u00e9\u4e2d\"}", result);
+  }
+
+  @Test
+  void doesNotTreatFreeTextStartingWithBraceAsEncodedJson() {
+    byte[] input = bytes("{\"note\":\"{ pasted \\\"_datadog\\\":{x} here\"}");
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @Test
+  void stillStripsEncodedJsonWithSurroundingWhitespace() {
+    String result =
+        toUtf8(
+            StripInjectedContext.stripInternal(
+                bytes("{\"m\":\" {\\\"a\\\":1,\\\"_datadog\\\":{}} \"}")));
+
+    assertEquals("{\"m\":\" {\\\"a\\\":1} \"}", result);
+  }
+
+  @Test
+  void stripsEncodedValueButKeepsEncodedLookingKeyInSameObject() {
+    String key = "\"{\\\"_datadog\\\":{}}\"";
+    byte[] input = bytes("{" + key + ":\"{\\\"a\\\":1,\\\"_datadog\\\":{\\\"t\\\":\\\"1\\\"}}\"}");
+
+    String result = toUtf8(StripInjectedContext.stripInternal(input));
+
+    assertEquals("{" + key + ":\"{\\\"a\\\":1}\"}", result);
   }
 
   @Test

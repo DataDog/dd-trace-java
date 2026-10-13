@@ -4,7 +4,6 @@ import datadog.json.JsonMapper;
 import datadog.json.JsonReader;
 import datadog.trace.api.Config;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -18,10 +17,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Carriers are cut out of the JSON text instead of parsing and re-serializing the payload, so
  * numbers, key order and formatting of customer data are kept. Carriers inside string-encoded JSON
- * (an SNS {@code Message}, an SQS {@code body}) are handled by decoding that string, stripping it
- * recursively up to {@link #MAX_DEPTH} levels, and re-encoding it. A {@code _datadog} key whose
- * value is not an object is customer data and is kept. Fail-open: on any error the original payload
- * is used.
+ * values (an SNS {@code Message}, an SQS {@code body}) are handled by decoding that string,
+ * stripping it recursively up to {@link #MAX_DEPTH} levels, and re-encoding it. Object keys are
+ * never rewritten, and a {@code _datadog} key whose value is not an object is customer data and is
+ * kept. Fail-open: on any error the original payload is used.
  */
 public final class StripInjectedContext {
 
@@ -39,18 +38,16 @@ public final class StripInjectedContext {
 
   private StripInjectedContext() {}
 
-  /** Reads {@code in} fully, strips "_datadog", and returns a new stream over the result. */
+  /**
+   * Returns a stream over the stripped payload, or {@code null} to keep {@code in}. Like the other
+   * Lambda event consumers, only {@link ByteArrayInputStream} is supported, because it can be read
+   * with mark/reset without consuming the customer's input.
+   */
   public static ByteArrayInputStream replaceInputStream(InputStream in) {
-    if (in == null) {
+    if (!(in instanceof ByteArrayInputStream)) {
       return null;
     }
-    byte[] original;
-    try {
-      original = readAllBytes(in);
-    } catch (IOException e) {
-      log.debug("Unable to read Lambda payload for _datadog stripping", e);
-      return null;
-    }
+    byte[] original = readAllBytes((ByteArrayInputStream) in);
     try {
       return new ByteArrayInputStream(strip(original));
     } catch (RuntimeException e) {
@@ -73,14 +70,18 @@ public final class StripInjectedContext {
       return payload;
     }
     String json = new String(payload, StandardCharsets.UTF_8);
+    // Invalid UTF-8 decodes to U+FFFD and would be re-encoded as such, so keep the payload as is.
+    if (json.indexOf('\uFFFD') >= 0) {
+      return payload;
+    }
     String stripped = stripJson(json, 0);
     return stripped.equals(json) ? payload : stripped.getBytes(StandardCharsets.UTF_8);
   }
 
   /**
    * Walks the string tokens of {@code json} once. A {@code "_datadog"} key with an object value is
-   * cut out; any other string containing {@code _datadog} is treated as encoded JSON and stripped
-   * recursively. Returns {@code json} itself when nothing changed.
+   * cut out; any other string value containing {@code _datadog} is treated as encoded JSON and
+   * stripped recursively. Returns {@code json} itself when nothing changed.
    */
   private static String stripJson(String json, int depth) {
     StringBuilder out = null;
@@ -109,7 +110,7 @@ public final class StripInjectedContext {
         out.append(json, copyFrom, carrier[0]);
         copyFrom = carrier[1];
         end = carrier[1];
-      } else if (nextKey < end && depth < MAX_DEPTH) {
+      } else if (nextKey < end && depth < MAX_DEPTH && !isKey(json, end)) {
         String replacement = stripEncodedJson(json.substring(start, end), depth);
         if (replacement != null) {
           if (out == null) {
@@ -162,8 +163,9 @@ public final class StripInjectedContext {
   }
 
   /**
-   * Decodes the JSON string literal {@code literal}, strips it if it holds a JSON object, and
-   * returns the re-encoded literal, or {@code null} if nothing changed.
+   * Decodes the JSON string literal {@code literal}, strips it if it looks like a JSON object
+   * (starts with '{' and ends with '}'), and returns the re-encoded literal, or {@code null} if
+   * nothing changed.
    */
   private static String stripEncodedJson(String literal, int depth) {
     String decoded;
@@ -174,6 +176,10 @@ public final class StripInjectedContext {
     }
     int first = skipWhitespace(decoded, 0);
     if (first >= decoded.length() || decoded.charAt(first) != '{') {
+      return null;
+    }
+    int last = skipWhitespaceBackward(decoded, decoded.length() - 1);
+    if (decoded.charAt(last) != '}') {
       return null;
     }
     String stripped = stripJson(decoded, depth + 1);
@@ -213,6 +219,12 @@ public final class StripInjectedContext {
     return -1;
   }
 
+  /** Object keys are customer property names and are never rewritten. */
+  private static boolean isKey(String json, int stringEnd) {
+    int next = skipWhitespace(json, stringEnd);
+    return next < json.length() && json.charAt(next) == ':';
+  }
+
   private static int skipWhitespace(String json, int i) {
     while (i < json.length() && isWhitespace(json.charAt(i))) {
       i++;
@@ -244,23 +256,12 @@ public final class StripInjectedContext {
     return false;
   }
 
-  /** Reads all bytes from {@code in}, restoring its position first if it's a byte stream. */
-  private static byte[] readAllBytes(InputStream in) throws IOException {
-    if (in instanceof ByteArrayInputStream) {
-      // mark/reset instead of draining, in case the stream is read again elsewhere.
-      ByteArrayInputStream bais = (ByteArrayInputStream) in;
-      bais.mark(Integer.MAX_VALUE);
-      byte[] bytes = new byte[bais.available()];
-      int read = bais.read(bytes);
-      bais.reset();
-      return (read == bytes.length) ? bytes : Arrays.copyOf(bytes, Math.max(read, 0));
-    }
-    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-    byte[] chunk = new byte[8192];
-    int n;
-    while ((n = in.read(chunk)) != -1) {
-      buffer.write(chunk, 0, n);
-    }
-    return buffer.toByteArray();
+  /** Reads all bytes from {@code in} and restores its position, so the stream is not consumed. */
+  private static byte[] readAllBytes(ByteArrayInputStream in) {
+    in.mark(Integer.MAX_VALUE);
+    byte[] bytes = new byte[in.available()];
+    int read = in.read(bytes, 0, bytes.length);
+    in.reset();
+    return read == bytes.length ? bytes : Arrays.copyOf(bytes, Math.max(read, 0));
   }
 }
