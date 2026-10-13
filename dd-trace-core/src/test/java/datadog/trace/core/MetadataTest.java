@@ -63,6 +63,7 @@ class MetadataTest {
         0,
         null,
         null,
+        emptyList(),
         emptyList());
   }
 }

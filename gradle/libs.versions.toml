@@ -43,7 +43,7 @@ scala33 = "3.3.0"
 autoservice = "1.1.1"
 asm = "9.10.1"
 byte-buddy = "1.18.12"
-instrument-java = "0.0.5"
+instrument-java = "0.0.6"
 
 # Benchmarks
 jmh = "1.37"
@@ -64,7 +64,7 @@ commons = "3.2"
 guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
-lz4 = "1.11.1"
+lz4 = "1.11.4"
 re2j = "1.8"
 
 # Logging

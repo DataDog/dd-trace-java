@@ -4,7 +4,10 @@ import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.OutputStream;
@@ -55,11 +58,20 @@ public class GrizzlyBlockingHelper {
       Map<String, String> extraHeaders,
       String securityResponseId,
       Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
     if (GET_OUTPUT_STREAM == null) {
+      if (span != null) {
+        RequestContext reqCtx = span.getRequestContext();
+        if (reqCtx != null) {
+          Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+          if (rawAppSecCtx instanceof AppSecContext) {
+            ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+          }
+        }
+      }
       return false;
     }
 
-    AgentSpan span = AgentSpan.fromContext(context);
     try {
       OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
       response.setStatus(BlockingActionHelper.getHttpCode(statusCode));
@@ -79,13 +91,34 @@ public class GrizzlyBlockingHelper {
       }
       os.close();
       response.finish();
+    } catch (Throwable e) {
+      log.info("Error committing blocking response", e);
+      if (span != null) {
+        // the response commit was attempted and failed; report it even though this method still
+        // returns true below (see known gap: the boolean contract can't signal this today)
+        RequestContext reqCtx = span.getRequestContext();
+        if (reqCtx != null) {
+          Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+          if (rawAppSecCtx instanceof AppSecContext) {
+            ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+          }
+        }
+        DECORATE.onError(span, e);
+        DECORATE.beforeFinish(context);
+        span.finish();
+      }
+      return true;
+    }
 
+    try {
       if (span != null) {
         span.getRequestContext().getTraceSegment().effectivelyBlocked();
       }
       SpanClosingListener.LISTENER.onAfterService(request);
     } catch (Throwable e) {
-      log.info("Error committing blocking response", e);
+      // the response was already committed successfully; this is a finalization error, not a
+      // commit failure, so it must not be reported as a block failure
+      log.info("Error finalizing blocked request", e);
       if (span != null) {
         DECORATE.onError(span, e);
         DECORATE.beforeFinish(context);
