@@ -3,9 +3,8 @@ name: fix-continuation-leakage
 description: >
   Diagnose and fix scope or continuation lifecycle failures in dd-trace-java instrumentation
   tests. Use when a test reports a continuation leak, double resolution, activation after resolve,
-  or an unclosed scope, or when strictTraceWrites(false) appears to hide one. Reads the automatic
-  diagnostic timeline, finds the broken lifecycle edge, fixes it, and explains it with a compact
-  Mermaid diagram.
+  or an unclosed scope. Reads the automatic diagnostic timeline, finds the broken lifecycle edge,
+  fixes it, and explains it with a compact Mermaid diagram.
 user-invocable: true
 context: fork
 allowed-tools:
@@ -69,11 +68,12 @@ set -o pipefail
    separately from trace-count or arrival-order assertions; fixing a leak may expose an unrelated
    flaky assertion.
 
-## Fixture setup failures
+## Fixture failures
 
-Automatic recording may start after `setupSpec()` or equivalent fixture initialization. For an
-initialization error or a trace wait inside setup, temporarily record around that setup block and
-remove the diagnostic scaffolding after finding the owner.
+Automatic recording covers Spock `setupSpec()` / `cleanupSpec()` and JUnit `@BeforeAll` /
+`@AfterAll`, in addition to per-test setup and cleanup. The failure output identifies whether the
+problem belongs to suite setup, one test, or suite cleanup. Code that runs before the
+instrumentation-test harness initializes the tracer remains outside this window.
 
 Apply process-wide configuration before starting servers, actor systems, executors, or other
 long-lived fixtures. Use a forked test or recreate the fixture when its static state cannot be
@@ -81,11 +81,17 @@ reset safely.
 
 ## Do not hide evidence
 
-Do not make the test green with `strictTraceWrites(false)` or
-`@TrackScopeContinuations(enabled=false, reason="...")`. Those hide evidence. The opt-out requires
-a reason and is only for a proven diagnostic incompatibility. If the failure is genuinely
-intermittent, treat that as a flaky-test finding, keep diagnostics enabled, and link the `@Flaky`
-annotation to a tracked issue.
+Instrumentation tests always use strict trace writes; there is no harness opt-out. Do not replace
+the harness tracer or add a new escape hatch to weaken that invariant.
+
+Fix the continuation lifecycle when possible. If it cannot be fixed in the current change,
+quarantine the test with `@Flaky` and a useful reason or tracked issue instead of weakening strict
+trace writes. Keep continuation tracking enabled so the failure remains diagnosable.
+
+Use `@TrackScopeContinuations(enabled = false, reason = "...")` only when the diagnostic itself is
+incompatible with the test, not when it has found a real unresolved leak. Scope the opt-out as
+narrowly as possible. The reason must describe the incompatibility and when the opt-out can be
+removed; strict trace writes remain enabled.
 
 ## Assess production impact
 

@@ -80,6 +80,13 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".PairList", packageName + ".SpringBlockingHelper",
+    };
+  }
+
+  @Override
   public Advice.PostProcessor.Factory postProcessor() {
     return postProcessorFactory;
   }
@@ -160,11 +167,14 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                 Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
                 BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
                 if (brf != null) {
-                  brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                  boolean success =
+                      SpringBlockingHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+                  if (success) {
+                    t =
+                        new BlockingException(
+                            "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
+                  }
                 }
-                t =
-                    new BlockingException(
-                        "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
               }
             }
           }

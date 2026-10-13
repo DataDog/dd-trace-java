@@ -2,6 +2,8 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.api.internal.util.LongStringUtils.isUnsignedLongZero;
+import static datadog.trace.api.internal.util.LongStringUtils.parseUnsignedLongOrSentinel;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
 import datadog.context.propagation.CarrierSetter;
@@ -329,11 +331,14 @@ public class HttpCodec {
     }
 
     private void cacheDatadogSpanId(String key, String value) {
-      if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-        try {
-          // Parse numeric header value to format it as 16 hexadecimal character format
-          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
-        } catch (NumberFormatException ignored) {
+      if (SPAN_ID_KEY.equalsIgnoreCase(key) && value != null) {
+        // Parse numeric header value to format it as 16 hexadecimal character format. Same
+        // non-throwing parse as DatadogHttpCodec, so malformed ids cost no exception and both agree
+        // on which ids are valid.
+        int len = value.length();
+        long spanId = parseUnsignedLongOrSentinel(value, 0, len, DDSpanId.ZERO);
+        if (spanId != DDSpanId.ZERO || isUnsignedLongZero(value, 0, len)) {
+          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(spanId);
         }
       }
     }
