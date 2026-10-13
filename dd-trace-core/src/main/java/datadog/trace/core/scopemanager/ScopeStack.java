@@ -95,6 +95,17 @@ class ScopeStack {
     scope.afterActivated();
   }
 
+  /** Adds a reference to the top scope; returns false if it's no longer the live top scope */
+  boolean retainTop(final ContinuableScope top) {
+    top.incrementReferences();
+    return true;
+  }
+
+  /** Removes a reference from the scope; returns true if the scope is still alive */
+  boolean releaseScope(final ContinuableScope scope) {
+    return scope.decrementReferences();
+  }
+
   /** Fast check to see if the expectedScope is on top */
   boolean checkTop(final ContinuableScope expectedScope) {
     return expectedScope.equals(top);

@@ -123,6 +123,21 @@ final class SharedScopeStack extends ScopeStack {
   }
 
   @Override
+  synchronized boolean retainTop(ContinuableScope expectedTop) {
+    // another thread may have closed or replaced the top scope since it was read
+    if (expectedTop != top || !expectedTop.alive()) {
+      return false;
+    }
+    expectedTop.incrementReferences();
+    return true;
+  }
+
+  @Override
+  synchronized boolean releaseScope(ContinuableScope scope) {
+    return scope.decrementReferences();
+  }
+
+  @Override
   boolean checkTop(ContinuableScope expectedScope) {
     // only a fast check; closing re-checks the stack under the lock during cleanup
     return expectedScope.equals(liveTop);

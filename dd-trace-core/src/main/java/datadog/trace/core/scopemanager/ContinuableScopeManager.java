@@ -120,8 +120,7 @@ public final class ContinuableScopeManager {
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top();
-    if (top != null && span.equals(top.span())) {
-      top.incrementReferences();
+    if (top != null && span.equals(top.span()) && scopeStack.retainTop(top)) {
       return top;
     }
 
@@ -155,8 +154,7 @@ public final class ContinuableScopeManager {
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top();
-    if (top != null && top.context.equals(context)) {
-      top.incrementReferences();
+    if (top != null && top.context.equals(context) && scopeStack.retainTop(top)) {
       return top;
     }
 
@@ -195,8 +193,7 @@ public final class ContinuableScopeManager {
     // optimization: if the top scope is already keeping the same span alive
     // then re-use that scope (avoids allocation) and cancel the continuation
     final ContinuableScope top = scopeStack.top();
-    if (top != null && top.context.equals(context)) {
-      top.incrementReferences();
+    if (top != null && top.context.equals(context) && scopeStack.retainTop(top)) {
       if (continuation != null) {
         continuation.cancelFromContinuedScopeClose();
       }

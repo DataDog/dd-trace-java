@@ -1,8 +1,10 @@
 package datadog.trace.core.scopemanager;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
@@ -132,6 +134,51 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
           Context original = scopeManager.swap(shared);
           assertSame(base, scopeManager.currentContext());
           assertEquals(1, scopeManager.scopeStack().depth());
+          scopeManager.swap(original);
+        });
+  }
+
+  @Test
+  void threadsCanReuseTheSameScopeAtTheSameTime() throws Exception {
+    Context shared = scopeManager.sharedContextStack(base);
+    int iterations = 100_000;
+    CyclicBarrier start = new CyclicBarrier(2);
+    Runnable reattachBase =
+        () -> {
+          Context original = scopeManager.swap(shared);
+          try {
+            start.await();
+            for (int i = 0; i < iterations; i++) {
+              // reuses the seed scope, adding and removing a reference each time
+              scopeManager.attach(base).close();
+            }
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          } finally {
+            scopeManager.swap(original);
+          }
+        };
+    Thread first = new Thread(reattachBase, "first");
+    Thread second = new Thread(reattachBase, "second");
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    first.setUncaughtExceptionHandler((t, e) -> failure.set(e));
+    second.setUncaughtExceptionHandler((t, e) -> failure.set(e));
+    first.start();
+    second.start();
+    first.join();
+    second.join();
+    assertNull(failure.get());
+
+    runOnNewThread(
+        () -> {
+          Context original = scopeManager.swap(shared);
+          assertSame(base, scopeManager.currentContext());
+          assertEquals(1, scopeManager.scopeStack().depth());
+          // the seed scope still holds exactly its original reference
+          ContinuableScope seed = scopeManager.scopeStack().top();
+          assertTrue(seed.alive());
+          assertFalse(seed.decrementReferences());
+          seed.incrementReferences();
           scopeManager.swap(original);
         });
   }

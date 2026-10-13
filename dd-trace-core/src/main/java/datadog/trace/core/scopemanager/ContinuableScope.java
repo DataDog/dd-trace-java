@@ -60,7 +60,7 @@ class ContinuableScope implements ContextScope {
       }
     }
 
-    final boolean alive = decrementReferences();
+    final boolean alive = scopeStack.releaseScope(this);
     scopeManager.healthMetrics.onCloseScope();
     if (!alive) {
       scopeState.close();
