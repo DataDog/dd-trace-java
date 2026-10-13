@@ -154,10 +154,12 @@ class ScopeDiagnosticsAgentTest {
   }
 
   @TableTest({
-    "Scenario        | Checks     | Reason  | Error                ",
-    "missing reason  | LEAKED     | ''      | requires a reason    ",
-    "unknown check   | MISSPELLED | fixture | MISSPELLED           ",
-    "empty list item | 'LEAKED,'  | fixture | ScopeDiagnosticsCheck"
+    "Scenario       | Checks                 | Reason  | Error                ",
+    "missing reason | LEAKED                 | ''      | requires a reason    ",
+    "unknown check  | MISSPELLED             | fixture | MISSPELLED           ",
+    "trailing empty | 'LEAKED,'              | fixture | ScopeDiagnosticsCheck",
+    "leading empty  | ',LEAKED'              | fixture | ScopeDiagnosticsCheck",
+    "middle empty   | 'LEAKED,,NEVER_CLOSED' | fixture | ScopeDiagnosticsCheck"
   })
   void invalidExclusionsFailInstallation(String checks, String reason, String error)
       throws Exception {

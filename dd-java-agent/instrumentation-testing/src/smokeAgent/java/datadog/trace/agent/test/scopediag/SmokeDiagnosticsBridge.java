@@ -26,8 +26,16 @@ public final class SmokeDiagnosticsBridge {
       if (reason.trim().isEmpty()) {
         throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
       }
-      for (String check : disabledChecks.split(",", -1)) {
+      int start = 0;
+      while (true) {
+        int comma = disabledChecks.indexOf(',', start);
+        String check =
+            comma < 0 ? disabledChecks.substring(start) : disabledChecks.substring(start, comma);
         checks.remove(ScopeDiagnosticsCheck.valueOf(check.trim()));
+        if (comma < 0) {
+          break;
+        }
+        start = comma + 1;
       }
     }
     enabledChecks = checks;

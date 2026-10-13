@@ -21,6 +21,9 @@ def scopeDiagnosticsPayloadJar = tasks.register('scopeDiagnosticsPayloadJar', Sh
   from(sourceSets.smokeAgent.output) {
     include 'datadog/trace/agent/test/scopediag/**'
   }
+  from(project(':dd-java-agent:testing').sourceSets.main.output) {
+    include 'datadog/trace/agent/test/scopediag/ScopeDiagnosticsCheck.class'
+  }
   relocate 'org.slf4j', 'datadog.slf4j'
 }
 
