@@ -182,14 +182,6 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
             };
     final EvaluationResult<?> result =
         core.evaluate(configuration.get(), (Class) coreType(target), key, defaultValue, adapted);
-    final ImmutableMetadata.ImmutableMetadataBuilder metadata = ImmutableMetadata.builder();
-    for (final Map.Entry<String, Object> entry : result.getFlagMetadata().values().entrySet()) {
-      final Object value = entry.getValue();
-      if (value instanceof Boolean) metadata.addBoolean(entry.getKey(), (Boolean) value);
-      else if (value instanceof Integer) metadata.addInteger(entry.getKey(), (Integer) value);
-      else if (value instanceof Long) metadata.addLong(entry.getKey(), (Long) value);
-      else metadata.addString(entry.getKey(), (String) value);
-    }
     final T value =
         result.getValue() == defaultValue ? defaultValue : mapValue(target, result.getValue());
     final ProviderEvaluation<T> evaluation =
@@ -202,7 +194,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
                     ? null
                     : ErrorCode.valueOf(result.getErrorCode().name()))
             .errorMessage(result.getErrorMessage())
-            .flagMetadata(metadata.build())
+            .flagMetadata(result.getFlagMetadata())
             .build();
     if (result.isLogExposure()) {
       dispatchExposure(key, evaluation, result.getSerialId(), context);

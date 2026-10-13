@@ -16,6 +16,7 @@ import com.datadog.openfeature.internal.ufc.ShardRange;
 import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
+import dev.openfeature.sdk.ImmutableMetadata;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -168,8 +169,8 @@ public final class FlagEvaluator {
     }
   }
 
-  private static EvaluationMetadata consentMetadata(final boolean observeFullEvaluationData) {
-    return EvaluationMetadata.builder()
+  private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
+    return ImmutableMetadata.builder()
         .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
         .build();
   }
@@ -434,8 +435,8 @@ public final class FlagEvaluator {
 
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
     // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
-    final EvaluationMetadata.EvaluationMetadataBuilder metadataBuilder =
-        EvaluationMetadata.builder()
+    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
+        ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key)
