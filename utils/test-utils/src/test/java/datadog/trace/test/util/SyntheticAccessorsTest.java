@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class SyntheticAccessorsTest {
@@ -28,6 +29,13 @@ class SyntheticAccessorsTest {
   @Test
   void acceptsPackagePrivateMembersAndLambdas() {
     SyntheticAccessors.assertNone(WithoutAccessors.class);
+  }
+
+  @Test
+  void readsNestsFromJars() {
+    // Assertions comes from the junit-jupiter-api jar, so this lists its nest from jar entries.
+    assertTrue(Assertions.class.getResource("Assertions.class").getProtocol().equals("jar"));
+    SyntheticAccessors.find(Assertions.class);
   }
 
   @Test
