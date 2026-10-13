@@ -31,6 +31,9 @@ class LambdaFunctionNameTest {
     "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:my-function, my-function",
     // bare name that literally contains 'function', with a qualifier (regression)
     "my-function-handler:PROD, my-function-handler",
+    // colon-only values split to an empty array; must not throw, returned unchanged (regression)
+    "':', ':'",
+    "'::', '::'",
   })
   void normalizesFunctionNameToBareName(String functionName, String expectedName) {
     assertEquals(expectedName, AwsSdkClientDecorator.lambdaFunctionName(functionName));
