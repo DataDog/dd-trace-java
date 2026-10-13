@@ -3,7 +3,9 @@ package datadog.trace.core;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
@@ -12,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 /**
  * A direction-dependent name ({@code peer.port}, {@code server.address}) must hold one value per
@@ -69,6 +72,52 @@ class DDSpanDirectionalTagConsistencyTest extends DDCoreJavaSpecification {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
 
     assertEquals("new.example", span.getTag(Tags.PEER_HOSTNAME));
+  }
+
+  @TableTest({
+    "scenario                         | kindFirst | kind   | direction | first          | second        ",
+    "client: tag then alias, pre-kind | false     | client | 1         | peer.hostname  | server.address",
+    "client: alias then tag, pre-kind | false     | client | 1         | server.address | peer.hostname ",
+    "client: alias overwrites tag     | true      | client | 1         | peer.hostname  | server.address",
+    "client: tag overwrites alias     | true      | client | 1         | server.address | peer.hostname ",
+    "server: tag then alias, pre-kind | false     | server | 0         | http.hostname  | server.address",
+    "server: alias then tag, pre-kind | false     | server | 0         | server.address | http.hostname ",
+    "server: alias overwrites tag     | true      | server | 0         | http.hostname  | server.address",
+    "server: tag overwrites alias     | true      | server | 0         | server.address | http.hostname "
+  })
+  void theLastWriteWinsBetweenATagAndItsAlias(
+      boolean kindFirst, String kind, int direction, String first, String second) {
+    String tag = first.equals("server.address") ? second : first;
+    if (kindFirst) {
+      span.setTag(Tags.SPAN_KIND, kind);
+    }
+    span.setTag(first, "first.example");
+    span.setTag(second, "second.example");
+    if (!kindFirst) {
+      span.setTag(Tags.SPAN_KIND, kind);
+    }
+
+    assertEquals("second.example", span.getTag(tag));
+    assertEquals("second.example", span.getTag("server.address"));
+
+    // And when the span is emitted: the pending alias, if any, is folded into the tag.
+    TagMap emitted = span.getTags().copy();
+    SpanTags.resolveScopedNames(emitted, direction);
+    assertEquals("second.example", emitted.getObject(tag));
+    assertNull(emitted.getObject("server.address"));
+  }
+
+  /**
+   * The accepted corner (see SpanTags): a pre-kind write of either possible tag drops the alias.
+   */
+  @Test
+  void aPreKindWriteOfTheOtherPossibleTagDropsAPendingAlias() {
+    span.setTag("server.address", "scoped.example");
+    span.setTag(Tags.PEER_HOSTNAME, "peer.example");
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+
+    assertNull(span.getTag(Tags.HTTP_HOSTNAME));
+    assertEquals("peer.example", span.getTag(Tags.PEER_HOSTNAME));
   }
 
   @Test

@@ -666,7 +666,7 @@ public class DDSpanContext
               return;
             }
             if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-              ctx.unsafeTags.set(tagEntry);
+              ctx.storeEntry(tagEntry);
             }
           });
     }
@@ -975,25 +975,25 @@ public class DDSpanContext
 
   public void setMetric(final CharSequence key, final int value) {
     synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+      storeTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final long value) {
     synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+      storeTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final float value) {
     synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+      storeTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final double value) {
     synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+      storeTag(key.toString(), value);
     }
   }
 
@@ -1003,40 +1003,94 @@ public class DDSpanContext
     }
 
     synchronized (unsafeTags) {
-      unsafeTags.set(entry);
+      storeEntry(entry);
     }
   }
 
   /*
-   * Store a tag that interception let through, as written: a direction-dependent name is resolved
-   * when it is read or emitted (see SpanTags), never here. Call while holding the unsafeTags lock.
+   * Store a tag that interception let through. A direction-dependent name goes through SpanTags,
+   * which applies last-write-wins between a tag and its direction-scoped alias without ordering
+   * state; every other name costs one small map probe. Known corner, accepted: before the span has
+   * a kind, writing an alias and then either of its possible tags drops the alias, even when the
+   * eventual kind maps it to the other tag (see SpanTags). Call while holding the unsafeTags lock.
    */
   private void storeTag(String tag, Object value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
   }
 
   private void storeTag(String tag, CharSequence value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
   }
 
   private void storeTag(String tag, boolean value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
   }
 
   private void storeTag(String tag, int value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
   }
 
   private void storeTag(String tag, long value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
   }
 
   private void storeTag(String tag, float value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
   }
 
   private void storeTag(String tag, double value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
+  }
+
+  /** {@link #storeTag} for an entry, by id or by name. */
+  private void storeEntry(TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    if (tagId != 0) {
+      SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+      unsafeTags.set(entry);
+      return;
+    }
+    long aliasedId = SpanTags.prepareWrite(unsafeTags, entry.tag(), tagDirection());
+    if (aliasedId != 0) {
+      unsafeTags.set(aliasedId, entry.objectValue());
+    } else {
+      unsafeTags.set(entry);
+    }
   }
 
   public void removeTag(String tag) {
@@ -1126,6 +1180,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, value);
       }
     }
@@ -1140,6 +1195,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, value);
       }
     }
@@ -1153,6 +1209,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, value);
       }
     }
@@ -1166,6 +1223,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, value);
       }
     }
@@ -1179,6 +1237,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, value);
       }
     }
@@ -1192,6 +1251,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, value);
       }
     }
@@ -1205,6 +1265,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, value);
       }
     }
@@ -1218,7 +1279,7 @@ public class DDSpanContext
     // the interceptor prechecks the entry, to avoid boxing
     if (!tagInterceptor.interceptTag(this, entry)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(entry);
+        storeEntry(entry);
       }
     }
   }
@@ -1238,6 +1299,7 @@ public class DDSpanContext
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
         unsafeTags.set(tagId, box);
       }
     }
@@ -1336,11 +1398,11 @@ public class DDSpanContext
             this,
             (ctx, tagEntry) -> {
               if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-                ctx.unsafeTags.set(tagEntry);
+                ctx.storeEntry(tagEntry);
               }
             });
       } else {
-        unsafeTags.putAll(map);
+        map.forEach(this, (ctx, tagEntry) -> ctx.storeEntry(tagEntry));
       }
     }
   }
@@ -1363,7 +1425,7 @@ public class DDSpanContext
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
           if (!tagInterceptor.interceptTag(this, entry)) {
-            unsafeTags.set(entry);
+            storeEntry(entry);
           }
         }
       }
@@ -1387,19 +1449,24 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    unsafeTags.set(tag, value);
+    storeTag(tag, value);
   }
 
   void unsafeSetTag(final String tag, final CharSequence value) {
-    unsafeTags.set(tag, value);
+    storeTag(tag, value);
   }
 
   void unsafeSetTag(final String tag, final byte value) {
-    unsafeTags.set(tag, value);
+    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
+    if (tagId != 0) {
+      unsafeTags.set(tagId, value);
+    } else {
+      unsafeTags.set(tag, value);
+    }
   }
 
   void unsafeSetTag(final String tag, final double value) {
-    unsafeTags.set(tag, value);
+    storeTag(tag, value);
   }
 
   Object getTag(final String key) {

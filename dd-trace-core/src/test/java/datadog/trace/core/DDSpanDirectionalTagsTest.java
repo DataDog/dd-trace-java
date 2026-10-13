@@ -91,13 +91,14 @@ class DDSpanDirectionalTagsTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void theTagWinsOverItsDirectionScopedName() {
+  void aDirectionScopedNameWrittenLastOverwritesItsTag() {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     span.setTag(Tags.PEER_HOSTNAME, "tag.example");
     span.setTag("server.address", "scoped.example");
 
-    assertEquals("tag.example", span.getTag(Tags.PEER_HOSTNAME));
-    assertEquals("tag.example", span.getTag("server.address"));
+    assertEquals("scoped.example", span.getTag(Tags.PEER_HOSTNAME));
+    assertEquals("scoped.example", span.getTag("server.address"));
+    assertEquals("scoped.example", storedValue(KnownTags.PEER_HOSTNAME_ID));
   }
 
   @Test

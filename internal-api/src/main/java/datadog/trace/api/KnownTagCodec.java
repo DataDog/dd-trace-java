@@ -273,26 +273,53 @@ public final class KnownTagCodec {
     if (direction == DIRECTION_UNKNOWN) {
       return null;
     }
-    Long tagId = DirectionScoped.TAG_IDS.get(ddName);
-    return tagId == null ? null : directionScopedNameOf(tagId, direction);
+    long role = directionRoleOf(ddName);
+    return role > 0 ? directionScopedNameOf(role, direction) : null;
   }
 
-  /** The tags renamed in some directions only, by Datadog name; built once from the registry. */
-  private static final class DirectionScoped {
-    static final Map<String, Long> TAG_IDS = directionScopedTagIds();
+  /** What {@link #directionRoleOf} returns for a name that does not depend on direction. */
+  static final long NOT_DIRECTION_DEPENDENT = -1L;
 
-    private static Map<String, Long> directionScopedTagIds() {
-      Map<String, Long> tagIds = new HashMap<>();
+  /**
+   * How {@code name} takes part in direction-scoped naming: 0 for a direction-scoped OpenTelemetry
+   * name ({@code server.address}); the id of a tag that has one ({@code peer.hostname}); or {@link
+   * #NOT_DIRECTION_DEPENDENT} for every other name. One small map probe.
+   */
+  static long directionRoleOf(String name) {
+    Long role = DirectionScoped.ROLES.get(name);
+    return role == null ? NOT_DIRECTION_DEPENDENT : role;
+  }
+
+  /** True if {@code tagId} has a direction-scoped OpenTelemetry name; an array load. */
+  static boolean hasDirectionScopedName(long tagId) {
+    int serial = serialNum(tagId);
+    boolean[] bySerial = DirectionScoped.BY_SERIAL;
+    return serial < bySerial.length && bySerial[serial];
+  }
+
+  /**
+   * The names that depend on direction, built once from the registry: each direction-scoped
+   * OpenTelemetry name, and each tag that has one.
+   */
+  private static final class DirectionScoped {
+    static final boolean[] BY_SERIAL = new boolean[serialLimit()];
+    static final Map<String, Long> ROLES = directionRoles();
+
+    private static Map<String, Long> directionRoles() {
+      Map<String, Long> roles = new HashMap<>();
       for (int serial = 1; serial < serialLimit(); serial++) {
         String name = nameOf(makeTagId(serial));
         long tagId = keyOf(name);
         for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
-          if (directionScopedNameOf(tagId, direction) != null) {
-            tagIds.put(name, tagId);
+          String scopedName = directionScopedNameOf(tagId, direction);
+          if (scopedName != null) {
+            BY_SERIAL[serial] = true;
+            roles.put(name, tagId);
+            roles.put(scopedName, 0L);
           }
         }
       }
-      return tagIds;
+      return roles;
     }
   }
 
