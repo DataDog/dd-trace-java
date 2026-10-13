@@ -1,5 +1,6 @@
 package datadog.communication.serialization;
 
+import datadog.trace.api.function.BackgroundOnly;
 import java.nio.charset.StandardCharsets;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -10,7 +11,9 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * <p>NOTE: The aim of this cache is to reduce allocation overhead -- not CPU overhead. Using the
  * cache has higher CPU overhead than simply calling {@link
- * String#getBytes(java.nio.charset.Charset)}.
+ * String#getBytes(java.nio.charset.Charset)}. That trade only pays off on a serializer thread, so
+ * the cache is {@link BackgroundOnly}: on an application thread, the extra CPU becomes request
+ * latency.
  *
  * <p>The cache is thread safe.
  */
@@ -43,6 +46,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * a LFU: least frequently used eviction policy is used to free up a slot.
  */
 @ThreadSafe
+@BackgroundOnly
 public final class SimpleUtf8Cache implements EncodingCache {
   static final int MAX_CAPACITY = 1024;
 
