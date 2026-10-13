@@ -174,7 +174,8 @@ demanding it only adds setup allocation. Having one key class per benchmark is n
 a real `Map<String, V>` call site is monotyped too. Erasure is what makes the *internal* site
 megamorphic, not variety at the caller.
 
-PR #12298 measured both sides: `FlatHashtableIteratorBenchmark`'s strategy dispatch fell 37.9 → 18.1
+A one-off measurement made while working on #12298 (not recorded in a committed benchmark) showed
+both sides: `FlatHashtableIteratorBenchmark`'s strategy dispatch fell 37.9 → 18.1
 M ops/s (2.1x) when its profile was poisoned, because the strategy is an interface with four loaded
 implementors; the `String`-keyed map benchmarks in the same module were unaffected, and
 LogCompilation confirmed the dispatch was resolved statically. Check that `@Setup` calls
