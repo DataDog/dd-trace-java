@@ -15,6 +15,7 @@ import static org.mockito.Mockito.mock;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Feature;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
@@ -39,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -230,19 +232,21 @@ class ExposureHookTest {
     final ImmutableMetadata metadata = details.getFlagMetadata();
     assertEquals(
         Collections.singletonMap("holdout.key", "q4-global"),
-        DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_FEATURE_PREFIX));
+        SplitFeatureMetadata.featuresWithPrefix(metadata, DDEvaluator.METADATA_FEATURE_PREFIX));
     final Map<String, Object> exposureFeatures = new HashMap<>();
     exposureFeatures.put("bandit.arm", "a");
     exposureFeatures.put("bandit.policy_id", "p2");
     assertEquals(
         exposureFeatures,
-        DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX));
+        SplitFeatureMetadata.featuresWithPrefix(
+            metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX));
     final Map<String, Object> evaluationFeatures = new HashMap<>();
     evaluationFeatures.put("experiment.tag", "pricing");
     evaluationFeatures.put("bandit.policy_id", "p2");
     assertEquals(
         evaluationFeatures,
-        DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX));
+        SplitFeatureMetadata.featuresWithPrefix(
+            metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX));
     assertEquals(
         Collections.singletonMap("holdout.key", "q4-global"), evaluations.get(0).getFeatures());
     assertEquals(exposureFeatures, sentToDatadog.get(0).features);
@@ -263,11 +267,31 @@ class ExposureHookTest {
     assertEquals(
         Collections.singletonMap("holdout.key", "q4-global"), evaluations.get(0).getFeatures());
     assertTrue(
-        DDEvaluator.featuresWithPrefix(
+        SplitFeatureMetadata.featuresWithPrefix(
                 details.getFlagMetadata(), DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)
             .isEmpty(),
         "the repeated feature's EXPOSURE destination is ignored with it");
     assertNull(sentToDatadog.get(0).features);
+  }
+
+  @Test
+  void sendsEvaluationFeaturesForAnAllocationThatDoesNotLogExposures() throws Exception {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    FeatureFlaggingGateway.setFlagEvalWriter(capturingWriter(captured));
+    try {
+      start(
+          true,
+          configuration(
+              Boolean.FALSE,
+              singletonList(new Feature("bandit.policy_id", "p2", singletonList("EVALUATION")))));
+
+      evaluate("user-1");
+
+      assertEquals(Collections.singletonMap("bandit.policy_id", "p2"), captured.get().features);
+      assertTrue(sentToDatadog.isEmpty(), "the allocation does not log exposures");
+    } finally {
+      FeatureFlaggingGateway.setFlagEvalWriter(null);
+    }
   }
 
   @Test
@@ -528,5 +552,31 @@ class ExposureHookTest {
     flags.put(
         "flag", new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation)));
     return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
+    return new FlagEvaluationWriter() {
+      @Override
+      public void enqueue(final FlagEvalEvent event) {
+        ref.set(event);
+      }
+
+      @Override
+      public boolean hasCapacityForEnqueue() {
+        return true;
+      }
+
+      @Override
+      public void countPreQueueOverflow() {}
+
+      @Override
+      public void countContextTruncated(final String reason) {}
+
+      @Override
+      public void start() {}
+
+      @Override
+      public void close() {}
+    };
   }
 }

@@ -184,7 +184,14 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // Features come from the flag configuration, not the evaluation context, so they are sent
       // whatever the consent.
       final Map<String, Object> features =
-          DDEvaluator.featuresWithPrefix(metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX);
+          metadata != null
+                  && Boolean.TRUE.equals(
+                      metadata
+                          .asUnmodifiableMap()
+                          .get(DDEvaluator.METADATA_HAS_EVALUATION_FEATURES))
+              ? SplitFeatureMetadata.featuresWithPrefix(
+                  metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX)
+              : Collections.<String, Object>emptyMap();
       w.enqueue(
           features.isEmpty() || !FEATURES_SUPPORTED.get()
               ? new FlagEvalEvent(

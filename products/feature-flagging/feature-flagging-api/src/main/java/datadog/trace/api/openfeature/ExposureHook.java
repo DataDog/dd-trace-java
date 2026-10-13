@@ -136,7 +136,7 @@ public final class ExposureHook implements Hook<Object> {
      * none.
      */
     public Map<String, Object> getFeatures() {
-      return DDEvaluator.featuresWithPrefix(
+      return SplitFeatureMetadata.featuresWithPrefix(
           details.getFlagMetadata(), DDEvaluator.METADATA_FEATURE_PREFIX);
     }
   }

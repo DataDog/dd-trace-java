@@ -79,7 +79,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
                 variantKey,
                 context,
                 serialId,
-                DDEvaluator.featuresWithPrefix(
+                SplitFeatureMetadata.featuresWithPrefix(
                     metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)));
       }
     } catch (LinkageError e) {

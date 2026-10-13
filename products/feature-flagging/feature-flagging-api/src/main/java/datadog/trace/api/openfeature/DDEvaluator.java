@@ -192,6 +192,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final String METADATA_FEATURE_PREFIX = "__dd_feature.";
   static final String METADATA_EXPOSURE_FEATURE_PREFIX = "__dd_exposure_feature.";
   static final String METADATA_EVALUATION_FEATURE_PREFIX = "__dd_evaluation_feature.";
+  // Present only when the split routes a feature to EVALUATION, so FlagEvalLoggingHook can skip
+  // scanning the metadata on every other evaluation.
+  static final String METADATA_HAS_EVALUATION_FEATURES = "__dd_evaluation_features";
 
   static final String FEATURE_DESTINATION_HOOK = "HOOK";
   static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
@@ -696,6 +699,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return;
     }
     Set<String> seenKeys = null;
+    boolean evaluationFeatures = false;
     for (final Object item : split.features) {
       if (!(item instanceof Feature)) {
         continue;
@@ -714,11 +718,15 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         final String prefix = metadataPrefix(destination);
         if (prefix != null) {
           addFeature(metadataBuilder, prefix + feature.key, feature.value);
+          evaluationFeatures |= prefix.equals(METADATA_EVALUATION_FEATURE_PREFIX);
         } else if (WARNED_FEATURE_DESTINATIONS.size() < MAX_WARNED_FEATURE_DESTINATIONS
             && WARNED_FEATURE_DESTINATIONS.add(destination)) {
           log.warn("Ignoring unknown feature destination {}", destination);
         }
       }
+    }
+    if (evaluationFeatures) {
+      metadataBuilder.addBoolean(METADATA_HAS_EVALUATION_FEATURES, true);
     }
   }
 
@@ -746,29 +754,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     } else if (value instanceof Number) {
       metadataBuilder.addDouble(key, ((Number) value).doubleValue());
     }
-  }
-
-  /**
-   * The features stored in the metadata under {@code prefix}, keyed without the prefix. Empty when
-   * there are none; allocates nothing in that case.
-   */
-  static Map<String, Object> featuresWithPrefix(
-      final ImmutableMetadata metadata, final String prefix) {
-    if (metadata == null) {
-      return Collections.emptyMap();
-    }
-    Map<String, Object> features = null;
-    for (final Map.Entry<String, Object> entry : metadata.asUnmodifiableMap().entrySet()) {
-      if (entry.getKey().startsWith(prefix)) {
-        if (features == null) {
-          features = new HashMap<>();
-        }
-        features.put(entry.getKey().substring(prefix.length()), entry.getValue());
-      }
-    }
-    return features == null
-        ? Collections.<String, Object>emptyMap()
-        : Collections.unmodifiableMap(features);
   }
 
   /** The serial id an exposure carries: none when the agent's exposure event predates it. */

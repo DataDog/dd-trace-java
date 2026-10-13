@@ -161,6 +161,7 @@ class FlagEvalLoggingHookTest {
                 .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
                 .addString(
                     DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX + "bandit.policy_id", "p2")
+                .addBoolean(DDEvaluator.METADATA_HAS_EVALUATION_FEATURES, true)
                 .addString(DDEvaluator.METADATA_FEATURE_PREFIX + "holdout.key", "q4-global")
                 .addString(DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX + "bandit.arm", "a")
                 .build()),
@@ -189,6 +190,7 @@ class FlagEvalLoggingHookTest {
                   .addString("allocationKey", "alloc-1")
                   .addString(
                       DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX + "bandit.policy_id", "p2")
+                  .addBoolean(DDEvaluator.METADATA_HAS_EVALUATION_FEATURES, true)
                   .build()),
           Collections.emptyMap());
     } finally {
