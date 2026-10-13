@@ -26,6 +26,8 @@ import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.regex.Pattern.compile;
 import static java.util.regex.Pattern.quote;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -506,6 +508,80 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertTrue(endpoint.messageSpans.get(0).isError());
     assertEquals("handler failed", endpoint.messageSpans.get(0).getTag("error.message"));
     assertNull(activeSpan());
+  }
+
+  @TableTest({
+    "scenario                  | endpoint | last  | fail ",
+    "full success              | full     | true  | false",
+    "full failure              | full     | true  | true ",
+    "partial final success     | partial  | true  | false",
+    "partial final failure     | partial  | true  | true ",
+    "partial non-final success | partial  | false | false",
+    "partial non-final failure | partial  | false | true "
+  })
+  void terminationWaitsForActiveTextHandler(
+      NativeEndpoints.EndpointEvents endpoint, boolean last, boolean fail) throws Exception {
+    CompletableFuture<DDSpan> handlerEntered = new CompletableFuture<>();
+    CompletableFuture<Void> releaseHandler = new CompletableFuture<>();
+    endpoint.onMessage =
+        () -> {
+          handlerEntered.complete((DDSpan) activeSpan());
+          assertDoesNotThrow(() -> releaseHandler.get(5, SECONDS), "Text handler was not released");
+          if (fail) {
+            throw new IllegalStateException("handler failed after close");
+          }
+        };
+    JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
+    openFrameHandler(frameHandler);
+    Callback.Completable message = new Callback.Completable();
+    ExecutorService executor = newSingleThreadExecutor();
+    try {
+      CompletableFuture<Void> handling =
+          CompletableFuture.runAsync(
+              () -> {
+                frameHandler.onFrame(new Frame(OpCode.TEXT, "hello").setFin(last), message);
+                assertNull(activeSpan());
+              },
+              executor);
+      DDSpan receive = handlerEntered.get(5, SECONDS);
+      assertNotNull(receive);
+
+      Callback.Completable closed = new Callback.Completable();
+      frameHandler.onClosed(new CloseStatus(CloseStatus.NORMAL, "bye"), closed);
+      closed.get(5, SECONDS);
+      boolean finishedDuringHandler = receive.isFinished();
+
+      releaseHandler.complete(null);
+      handling.get(5, SECONDS);
+      if (fail) {
+        ExecutionException failure =
+            assertThrows(ExecutionException.class, () -> message.get(5, SECONDS));
+        assertEquals("handler failed after close", failure.getCause().getMessage());
+      } else {
+        message.get(5, SECONDS);
+      }
+      assertAll(
+          () -> assertFalse(finishedDuringHandler, "Receive span finished before handler exit"),
+          () -> assertTrue(receive.isFinished(), "Receive span unfinished after handler exit"),
+          () -> assertEquals(fail, receive.isError()),
+          () ->
+              assertEquals(
+                  fail ? "handler failed after close" : null, receive.getTag("error.message")));
+      DDSpan handshake = handshake();
+      TagsMatcher[] errorTags =
+          fail
+              ? new TagsMatcher[] {error(IllegalStateException.class, "handler failed after close")}
+              : new TagsMatcher[0];
+      assertTraces(
+          trace(handshakeSpan()),
+          trace(receiveSpan(handshake, "text", 5, 1, errorTags).error(fail)),
+          trace(closeSpan(handshake)));
+      assertSame(receive, writer.get(2).get(0));
+    } finally {
+      releaseHandler.complete(null);
+      executor.shutdownNow();
+      assertTrue(executor.awaitTermination(5, SECONDS));
+    }
   }
 
   @TableTest({

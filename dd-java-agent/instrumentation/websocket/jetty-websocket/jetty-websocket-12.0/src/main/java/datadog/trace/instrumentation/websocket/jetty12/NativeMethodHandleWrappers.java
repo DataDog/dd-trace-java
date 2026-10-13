@@ -33,7 +33,7 @@ public class NativeMethodHandleWrappers {
           NativeMethodHandleWrappers.class,
           "onText",
           MethodHandle.class,
-          HandlerContext.Receiver.class,
+          ReceiveContexts.class,
           boolean.class,
           String.class,
           boolean.class);
@@ -123,14 +123,17 @@ public class NativeMethodHandleWrappers {
 
   public static void onText(
       MethodHandle delegate,
-      HandlerContext.Receiver context,
+      ReceiveContexts contexts,
       boolean partial,
       String payload,
       boolean last)
       throws Throwable {
+    HandlerContext.Receiver context;
     boolean finish = last;
     ContextScope scope;
-    synchronized (context) {
+    synchronized (contexts) {
+      context = contexts.text;
+      contexts.activeTextHandlers++;
       scope = startMessage(context, payload, partial);
     }
     try (ContextScope ignored = scope) {
@@ -138,16 +141,16 @@ public class NativeMethodHandleWrappers {
         delegate.invokeExact(payload, last);
       } catch (Throwable t) {
         finish = true;
-        synchronized (context) {
+        synchronized (contexts) {
           DECORATE.onError(context.getWebsocketSpan(), t);
         }
         throw t;
       }
     } finally {
-      if (finish) {
-        synchronized (context) {
-          DECORATE.onFrameEnd(context);
-        }
+      synchronized (contexts) {
+        contexts.activeTextHandlers--;
+        contexts.textFinishRequested |= finish;
+        contexts.finishTextIfIdle();
       }
     }
   }
@@ -207,6 +210,8 @@ public class NativeMethodHandleWrappers {
     private final AgentSpan handshakeSpan;
     private final String sessionId;
     private HandlerContext.Receiver text;
+    private int activeTextHandlers;
+    private boolean textFinishRequested;
     private BinaryMessage currentBinary;
 
     public ReceiveContexts(AgentSpan span, CoreSession session) {
@@ -221,15 +226,12 @@ public class NativeMethodHandleWrappers {
       if (text == null) {
         text = new HandlerContext.Receiver(handshakeSpan, sessionId);
       }
-      return insertArguments(TEXT, 0, delegate, text, partial);
+      return insertArguments(TEXT, 0, delegate, this, partial);
     }
 
     public synchronized void finish() {
-      if (text != null) {
-        synchronized (text) {
-          DECORATE.onFrameEnd(text);
-        }
-      }
+      textFinishRequested = true;
+      finishTextIfIdle();
       // Callbacks own completed messages; only the unfinished fragment sequence needs closing.
       BinaryMessage message = currentBinary;
       currentBinary = null;
@@ -238,6 +240,15 @@ public class NativeMethodHandleWrappers {
         if (message.pendingCallbacks == 0) {
           DECORATE.onFrameEnd(message);
         }
+      }
+    }
+
+    /** Must be called with this instance's monitor held. */
+    private void finishTextIfIdle() {
+      // Connection close may run while a text handler still owns the receive span.
+      if (textFinishRequested && activeTextHandlers == 0) {
+        textFinishRequested = false;
+        DECORATE.onFrameEnd(text);
       }
     }
   }

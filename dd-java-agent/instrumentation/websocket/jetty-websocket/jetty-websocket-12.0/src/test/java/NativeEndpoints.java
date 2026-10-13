@@ -51,12 +51,16 @@ public class NativeEndpoints {
     boolean failCallback;
     boolean failAfterCallback;
     Callback pendingCallback;
+    Runnable onMessage;
     int closeCode;
     String closeReason;
 
     void recordMessage(String message) {
       messages.add(message);
       messageSpans.add(activeSpan());
+      if (onMessage != null) {
+        onMessage.run();
+      }
       if (echoMessages) {
         session.sendText(message, Callback.NOOP);
       }
