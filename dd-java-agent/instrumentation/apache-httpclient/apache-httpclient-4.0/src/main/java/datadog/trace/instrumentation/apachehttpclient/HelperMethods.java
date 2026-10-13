@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDec
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -40,8 +41,16 @@ public class HelperMethods {
     final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
     final ContextScope scope = activateSpan(span);
 
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
+    try {
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, request);
+    } catch (BlockingException e) {
+      DECORATE.onError(span, e);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      throw e;
+    }
 
     return scope;
   }

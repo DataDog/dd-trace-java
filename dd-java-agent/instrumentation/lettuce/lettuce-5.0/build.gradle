@@ -1,6 +1,7 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
   id 'dd-trace-java.jmh-conventions'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -22,6 +23,7 @@ addTestSuiteForDir('lettuce62Test', 'test')
 dependencies {
   compileOnly group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
   jmh group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
+  testContainerImage(image('redis:6.2.6', 'test.redis.image'))
 
   testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
   testImplementation libs.testcontainers

@@ -59,8 +59,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <ul>
  *   <li>{@code ConcurrentHashtable} is ~44% faster than {@code ConcurrentHashMap} on {@code get}
- *       (2647.5 vs 1837.1 ops/us); avoids the hash-to-segment translation CHM pays even on its fast
- *       path.
+ *       (2647.5 vs 1837.1 ops/us).
  *   <li>{@code ConcurrentSkipListMap} is ~9× slower than {@code ConcurrentHashMap} — tree traversal
  *       cost is high even under lock-free CAS. Its error bar is wide (±36.3 on a 203.4 mean), so
  *       treat that multiple as approximate.

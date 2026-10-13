@@ -152,6 +152,16 @@ public final class CombiningTransformerBuilder
     muzzle = new MuzzleCheck(module, instrumentationId);
   }
 
+  /** Allocates a fresh transformation id not known at build-time, growing storage as needed. */
+  private int allocateRuntimeTransformationId() {
+    int transformationId = nextRuntimeTransformationId++;
+    if (transformers.length <= transformationId) {
+      int newLen = Math.max(transformationId + 1, transformers.length + (transformers.length >> 1));
+      transformers = Arrays.copyOf(transformers, newLen);
+    }
+    return transformationId;
+  }
+
   /** Builds a type-specific transformer, controlled by one or more matchers. */
   private void buildTypeInstrumentation(Instrumenter member) {
 
@@ -162,10 +172,7 @@ public final class CombiningTransformerBuilder
     if (transformationId < 0) {
       // this is a non-indexed transformation configured at runtime, e.g. "dd.trace.methods"
       // allocate a distinct runtime id to each extra transformation for matching purposes
-      transformationId = nextRuntimeTransformationId++;
-      if (transformers.length <= transformationId) {
-        transformers = Arrays.copyOf(transformers, transformationId + 1);
-      }
+      transformationId = allocateRuntimeTransformationId();
     }
 
     buildTypeMatcher(member, transformationId);
@@ -222,30 +229,63 @@ public final class CombiningTransformerBuilder
     }
 
     matchers.add(new MatchRecorder.NarrowLocation(transformationId, muzzle));
+
+    // preserve structural change, unless we're going to split it out in buildTypeAdvice
+    if (member instanceof Instrumenter.WithStructuralChange
+        && !(member instanceof Instrumenter.HasMethodAdvice)) {
+      addStructuralNarrowing((Instrumenter.WithStructuralChange) member, transformationId);
+    }
   }
 
   private void buildTypeAdvice(Instrumenter member, int transformationId) {
-
     if (null != helperTransformer) {
       advice.add(helperTransformer);
     }
-
     if (null != contextRequestRewriter) {
       registerContextStoreInjection(member, contextStore);
       // rewrite context store access to call FieldBackedContextStores with assigned store-id
       advice.add(contextRequestRewriter);
     }
 
-    if (member instanceof Instrumenter.HasTypeAdvice) {
+    // a structural change may contain method advice that works with and without the change
+    // we split out the structural change to its own transformation so it can't accidentally
+    // turn off the method advice when it's skipped
+    boolean splitOutStructuralChange =
+        member instanceof Instrumenter.WithStructuralChange
+            && member instanceof Instrumenter.HasMethodAdvice;
+
+    if (member instanceof Instrumenter.HasTypeAdvice && !splitOutStructuralChange) {
       ((Instrumenter.HasTypeAdvice) member).typeAdvice(this);
     }
     if (member instanceof Instrumenter.HasMethodAdvice) {
       ((Instrumenter.HasMethodAdvice) member).methodAdvice(this);
     }
+    finishAdviceStack(transformationId);
 
-    // record the advice collected for this transformationId
+    if (splitOutStructuralChange) {
+      Instrumenter.WithStructuralChange structuralChange =
+          (Instrumenter.WithStructuralChange) member;
+
+      // reuse the type match already computed for transformationId instead of rebuilding it
+      int structuralTransformationId = allocateRuntimeTransformationId();
+      matchers.add(new MatchRecorder.CopyMatch(transformationId, structuralTransformationId));
+      addStructuralNarrowing(structuralChange, structuralTransformationId);
+      structuralChange.typeAdvice(this);
+      finishAdviceStack(structuralTransformationId);
+    }
+  }
+
+  /** Narrows a transformation away from already-loaded types missing the structural marker. */
+  private void addStructuralNarrowing(
+      Instrumenter.WithStructuralChange member, int transformationId) {
+    matchers.add(
+        new MatchRecorder.PreserveLoadedStructure(
+            transformationId, member.structuralChangeMarker()));
+  }
+
+  /** Records the advice collected so far as the stack for this transformationId. */
+  private void finishAdviceStack(int transformationId) {
     transformers[transformationId] = new AdviceStack(advice);
-
     advice.clear(); // reset for next transformationId
   }
 

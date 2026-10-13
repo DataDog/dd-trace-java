@@ -31,11 +31,6 @@ public final class Dbcp2SharedPoolDataSourceInstrumentation extends Instrumenter
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".PoolWaitingDecorator"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getPooledConnectionAndInfo"),

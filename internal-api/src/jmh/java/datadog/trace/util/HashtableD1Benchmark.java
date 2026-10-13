@@ -77,14 +77,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * explain a drop on either side. The JDK and machine were held constant, so what remains is
  * uncontrolled run-to-run variation.
  *
- * <p>The other candidate — that {@code warmUpHashDispatch}'s own heavy pre-measurement allocation
- * shifts GC state for the trial — has since been <b>tested and ruled out</b>. Pollution used to run
- * once per thread, so at {@code @Threads(8)} it did eight times the work; it now runs once per JVM.
- * Re-measuring across that 8x reduction moved nothing: {@code update_hashMap} 686.0 to 689.6,
- * {@code update_hashtable} 2770.7 to 2796.3, {@code iterate_hashMap} 19.83 to 19.84, all well
- * inside their intervals. Setup allocation is therefore not what moved these numbers. The
- * <b>relative</b> conclusion (D1 dominates {@code update}, is roughly comparable on {@code add},
- * ties on {@code iterate}) is unchanged throughout.
+ * <p>The other candidate is that {@code warmUpHashDispatch}'s own heavy pre-measurement allocation
+ * shifts GC state for the trial. Pollution used to run once per thread, so at {@code @Threads(8)}
+ * it did eight times the work; it now runs once per JVM. Re-measuring across that 8x reduction
+ * moved nothing: {@code update_hashMap} 686.0 to 689.6, {@code update_hashtable} 2770.7 to 2796.3,
+ * {@code iterate_hashMap} 19.83 to 19.84, all well inside their intervals. So the <i>amount</i> of
+ * setup allocation isn't a factor at this scale; whether a single pass affects the trial at all was
+ * not tested, since both runs include one. The <b>relative</b> conclusion (D1 dominates {@code
+ * update}, is roughly comparable on {@code add}, ties on {@code iterate}) is unchanged throughout.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged; JMH
  * auto-detected the cheap "compiler" Blackhole mode here, unlike JDK 8, so absolute numbers below
@@ -108,17 +108,35 @@ import org.openjdk.jmh.infra.Blackhole;
  * hashtable's {@code update} and {@code iterate} paths allocate nothing at all, which is the point
  * of the design.
  *
- * <p>Within this single run (so the cross-JDK Blackhole-mode confound doesn't apply to the ratios),
- * {@code update_hashtable} wins by ~4.0x — down from ~14x on JDK 8, because Java 17's allocator/GC
- * absorbs {@code update_hashMap}'s per-call {@code Long} boxing far better than JDK 8 did
- * (update_hashMap itself got ~5x faster; update_hashtable only ~1.5x faster). {@code
- * iterate_hashtable} also now clearly wins (~4.0x), flipping from JDK 8's "wash" — HashMap's {@code
- * entrySet()} iterator does more per-entry work than a modern JIT's allocation improvements erase.
- * {@code add} is the one case that flips the other way: {@code add_hashMap} edges out {@code
- * add_hashtable} slightly (1502.6 vs 1377.3). Net takeaway: {@code Hashtable} is a strong
- * substitute for {@code HashMap} particularly for simple counter/tally use cases with a primitive
- * value, where avoiding the per-update boxing allocation pays off even on a JVM with much better
- * allocation handling than JDK 8 had.
+ * <p>Within this run, {@code update_hashtable} wins by ~4.0x and {@code iterate_hashtable} by
+ * ~4.1x. {@code add_hashMap} leads on the means (1658.6 vs 1358.0), but the error bars overlap, so
+ * treat {@code add} as undecided rather than a HashMap win.
+ *
+ * <p>The {@code update} ratio depends heavily on the collector, so it is not a fixed property of
+ * the two structures. A controlled follow-up on the same Zulu 17 build, with the Blackhole mode
+ * forced to {@code FULL_DONTINLINE} for every configuration (separate invocations, so allow ~20%
+ * run-to-run spread):
+ *
+ * <pre>{@code
+ * Configuration              update_hashMap   update_hashtable   ratio
+ * G1 (default)                522.4 ±  42.1     1408.0 ±  90.0    2.7x
+ * G1, -XX:-EliminateAutoBox   536.5 ±  24.5     1689.6 ±  46.2    3.1x
+ * -XX:+UseParallelGC          129.2 ±  36.8     1634.2 ±  19.3   12.6x
+ * }</pre>
+ *
+ * <p>Disabling autobox elimination changes nothing for {@code update_hashMap} (still 24 B/op): the
+ * {@code Long} escapes into the map, so there is no box to eliminate. Switching to ParallelGC cuts
+ * {@code update_hashMap} ~4x while leaving the allocation-free {@code update_hashtable} where it
+ * was, so the collector governs how expensive the per-update box is. The mechanism isn't isolated:
+ * total {@code gc.time} is similar under both collectors (1106 vs 1226 ms) despite ParallelGC
+ * running ~3x as many collections, so reported pause time alone doesn't account for the gap. The
+ * forced Blackhole mode also compresses the ratios relative to the table above (2.7x vs 4.0x on
+ * {@code update}, 1.5x vs 4.1x on {@code iterate}), since every arm pays a non-inlined call per
+ * {@code consume}; the default-mode table is the one to quote.
+ *
+ * <p>Net takeaway: {@code Hashtable} is a strong substitute for {@code HashMap} for simple
+ * counter/tally use cases with a primitive value. Avoiding the per-update boxing allocation wins
+ * under G1, and wins by a much larger margin on a throughput collector.
  *
  * <p>Rerun on the capped/{@code State}-backed table (5 forks, 15 datapoints/method, Zulu 17.0.7
  * AArch64, 8 threads). <b>Not comparable to the table above:</b> JMH auto-detected the {@code full

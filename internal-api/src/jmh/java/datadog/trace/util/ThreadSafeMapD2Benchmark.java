@@ -341,8 +341,8 @@ public class ThreadSafeMapD2Benchmark {
   }
 
   /**
-   * get-first pattern for ConcurrentSkipListMap — manual get-then-putIfAbsent since CSLM has no
-   * computeIfAbsent. Two traversals on miss; one on hit.
+   * Get-first pattern for {@link ConcurrentSkipListMap}: hits use one {@code get}; misses also call
+   * {@code putIfAbsent} to handle concurrent insertion.
    */
   @Benchmark
   public Long getOrCreate_concurrentSkipListMap(SharedState s, ThreadState t) {

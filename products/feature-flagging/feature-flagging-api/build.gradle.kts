@@ -47,6 +47,10 @@ dependencies {
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  // SpanEnrichmentGate resolves FeatureFlaggingConfig at runtime. Without it on the test
+  // classpath the gate swallows a NoClassDefFoundError and reads as off, so the enrichment
+  // branch cannot be driven.
+  testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)

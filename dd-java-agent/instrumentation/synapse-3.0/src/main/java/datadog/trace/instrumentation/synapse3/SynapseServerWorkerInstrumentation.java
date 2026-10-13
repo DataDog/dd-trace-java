@@ -36,16 +36,6 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".SynapseServerDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()

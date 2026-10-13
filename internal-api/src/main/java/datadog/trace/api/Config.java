@@ -1089,7 +1089,8 @@ public class Config {
 
   private final ProfilingEnablement profilingEnabled;
   private final boolean profilingAgentless;
-  private final boolean isDatadogProfilerEnabled;
+  private final boolean isDatadogProfilerSafeAndConfigured;
+  private final boolean otelThreadContextEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -2413,7 +2414,7 @@ public class Config {
     profilingEnabled = ProfilingEnablement.of(value);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
-    isDatadogProfilerEnabled =
+    isDatadogProfilerSafeAndConfigured =
         !isDatadogProfilerEnablementOverridden()
             && configProvider.getBoolean(
                 PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment())
@@ -2657,6 +2658,12 @@ public class Config {
         traceResourceRenamingExplicit != null
             ? traceResourceRenamingExplicit
             : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+
+    // No dedicated flag: kill switch is DD_PROFILING_ENABLED / DD_APPSEC_ENABLED.
+    this.otelThreadContextEnabled =
+        isDatadogProfilerSafeAndConfigured()
+            && (isProfilingEnabled()
+                || instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED);
 
     this.traceResourceRenamingAlwaysSimplifiedEndpoint =
         configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
@@ -4266,8 +4273,28 @@ public class Config {
     return profilingRecordExceptionMessage;
   }
 
+  /**
+   * Means "profiling is enabled AND the ddprof engine is allowed to run", not "currently
+   * recording".
+   */
   public boolean isDatadogProfilerEnabled() {
-    return isProfilingEnabled() && isDatadogProfilerEnabled;
+    return isProfilingEnabled() && isDatadogProfilerSafeAndConfigured;
+  }
+
+  /**
+   * The raw ddprof env-safety/explicit-flag predicate, without the {@link #isProfilingEnabled()}
+   * AND-prefix: reused by {@link #isOtelThreadContextEnabled()}.
+   */
+  public boolean isDatadogProfilerSafeAndConfigured() {
+    return isDatadogProfilerSafeAndConfigured;
+  }
+
+  /**
+   * Whether the OTel thread/process context should be exposed through the Datadog profiler native
+   * library for external consumers such as eBPF/CWS.
+   */
+  public boolean isOtelThreadContextEnabled() {
+    return otelThreadContextEnabled;
   }
 
   public static boolean isDatadogProfilerEnablementOverridden() {
@@ -6868,6 +6895,8 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", otelThreadContextEnabled="
+        + otelThreadContextEnabled
         + ", crashTrackingTags="
         + crashTrackingTags
         + ", crashTrackingAgentless="

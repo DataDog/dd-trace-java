@@ -31,15 +31,6 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ScalatestUtils",
-      packageName + ".RunContext",
-      packageName + ".DatadogReporter",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("org.scalatest.Filter", packageName + ".RunContext");
   }

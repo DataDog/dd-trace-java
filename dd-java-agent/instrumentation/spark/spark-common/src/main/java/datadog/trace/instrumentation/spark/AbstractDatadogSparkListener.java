@@ -351,12 +351,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
+    // In YARN cluster mode SparkContext can stop before the Python driver exits. Wait for
+    // ApplicationMaster.finish() to report the exit code instead of finishing successfully here.
+    boolean finishOnApplicationEnd =
+        finishTraceOnApplicationEnd
+            && !("yarn".equals(sparkConf.get("spark.master", ""))
+                && "cluster".equals(sparkConf.get("spark.submit.deployMode", "")));
     log.info(
         "Received spark application end event, finish trace on this event: {}",
-        finishTraceOnApplicationEnd);
+        finishOnApplicationEnd);
     notifyOl(x -> openLineageSparkListener.onApplicationEnd(x), applicationEnd);
 
-    if (finishTraceOnApplicationEnd) {
+    if (finishOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
     }
   }
@@ -487,7 +493,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
             .withTag("details", queryStart.details())
-            .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
@@ -941,7 +946,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
-    sqlQueries.remove(sqlEnd.executionId());
+    SparkListenerSQLExecutionStart queryStart = sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
 
     if (span != null) {
@@ -950,6 +955,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
       notifyOl(x -> openLineageSparkListener.onOtherEvent(x), sqlEnd);
 
+      // Set right before finish so long-running heartbeats of the running span don't carry the
+      // plan
+      span.setTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription());
       span.finish(sqlEnd.time() * 1000);
     }
   }

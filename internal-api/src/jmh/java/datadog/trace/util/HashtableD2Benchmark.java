@@ -88,12 +88,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * is built at the call site with {@code new Key2(...)}, so C2 has an exact type either way and
  * devirtualizes {@code hashCode()}/{@code equals()} without consulting the polluted profile.
  * Pollution therefore cannot explain a move on either side. With the JDK and machine held constant,
- * what remains is uncontrolled run-to-run variation. The other candidate — that {@code
- * warmUpHashDispatch}'s own heavy pre-measurement allocation shifts GC state for the trial — has
- * since been tested and ruled out; see {@link HashtableD1Benchmark} for the 8x-to-1x comparison
- * that moved nothing. Treat these two runs as not directly comparable on absolute numbers. The
- * <b>relative</b> conclusion (D2 dominates {@code update}, leads {@code add} on JDK 8 by avoiding
- * the {@code Key2} allocation, ties on {@code iterate}) is unchanged either way.
+ * what remains is uncontrolled run-to-run variation. The comparison in {@link HashtableD1Benchmark}
+ * reduced setup from eight passes to one without a detectable throughput change. Both runs still
+ * included a pass, so its effect on GC state or throughput remains untested. Treat these two runs
+ * as not directly comparable on absolute numbers. The <b>relative</b> conclusion (D2 dominates
+ * {@code update}, leads {@code add} on JDK 8 by avoiding the {@code Key2} allocation, ties on
+ * {@code iterate}) is unchanged either way.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged).
  * JMH auto-detected the cheap "compiler" Blackhole mode on Java 17 (its log explicitly warns that

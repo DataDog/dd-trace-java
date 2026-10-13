@@ -22,11 +22,6 @@ class TimerTaskContinuationTest extends InstrumentationSpecification {
   CountDownLatch runLatch = new CountDownLatch(1)
 
   @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
-  @Override
   def setup() {
     timerTask = new TimerTask() {
         @Override

@@ -286,6 +286,7 @@ public final class FlatHashtable {
      * @return the existing or created entry, or {@code null} when a fixed table is full and {@code
      *     key} is absent
      */
+    @StrategyConsumer
     @Nullable
     public TEntry tryGetOrCreateOrNull(
         @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
@@ -495,6 +496,7 @@ public final class FlatHashtable {
      * @return the existing or created entry, or {@code null} when a fixed table is full and the key
      *     pair is absent
      */
+    @StrategyConsumer
     @Nullable
     public TEntry tryGetOrCreateOrNull(
         @Nullable K1 key1,
@@ -1092,6 +1094,8 @@ public final class FlatHashtable {
 
   /** General iterator: strategy held in a field, so {@code hashOf} stays a virtual call. */
   private static final class StrategyHashIterator<E> extends HashIterator<E> {
+    // Dynamic dispatch on purpose: general iterator fallback partner to EntryHashIterator
+    // (see Strategy's Checker contract).
     private final HashStrategy<E> hashStrat;
 
     StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {

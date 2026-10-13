@@ -15,59 +15,35 @@ import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Shared setup helpers for JMH benchmarks in this module.
+ * Prepares shared collection code for benchmarks that run in separate JMH forks.
  *
- * <p>These exist to compensate for forking. JMH runs each benchmark method in a fresh JVM, which is
- * right for measurement -- one arm cannot contaminate another's numbers -- but it means every arm
- * is compiled inside a process that has only ever executed that one code path, with that one arm's
- * key types and that one arm's branch outcomes. Production is the reverse: a single JVM runs
- * everything. So the harness hands C2 a maximally specialized view of the world, and the
- * compilation that results can be better than anything achievable in a real application. Put
- * another way, JMH forks to eliminate cross-benchmark profile pollution, but profile pollution
- * <i>is</i> the production condition.
- *
- * <p>That surfaces three ways. This class addresses the first two partially and the third not at
- * all:
+ * <p>Forking isolates benchmark methods, so their receiver types, loaded implementations and branch
+ * outcomes can differ from those in an application. This helper broadens receiver-type profiles and
+ * loads decoy implementations; it does not reproduce a production workload or guarantee a
+ * particular compiled dispatch shape.
  *
  * <ul>
- *   <li><b>Receiver-type profiles</b> collapse toward a single key type, so shared JDK dispatch
- *       sites look monomorphic. {@link #warmUpHashDispatch} drives several key classes through
- *       them.
- *   <li><b>Class-hierarchy analysis</b> sees only the implementations one arm happens to load, so
- *       C2 can devirtualize calls a real application leaves polymorphic. Loading the decoy
- *       collections widens the hierarchy.
- *   <li><b>Branch profiles</b> go one-sided, because only one arm's outcomes ever occur. Nothing
- *       here addresses that.
+ *   <li>Receiver-type profiles record the key classes seen at shared collection call sites. {@link
+ *       #warmUpHashDispatch(Blackhole)} exercises those sites with several classes.
+ *   <li>Class-hierarchy analysis uses loaded implementations to resolve virtual calls. Extra decoy
+ *       classes can prevent an assumption that only one implementation exists.
+ *   <li>Branch profiles record which paths execute. A pre-populated, hit-only benchmark may never
+ *       exercise insertion; this helper does not broaden those profiles.
  * </ul>
  *
- * <p>{@link Blackhole} is orthogonal to all of this. It stops the JIT proving a result is dead, and
- * says nothing about whether the surrounding code was compiled realistically -- a benchmark can
- * consume every result through a {@code Blackhole} and still measure a devirtualized fast path that
- * cannot occur in production.
+ * <p>{@link Blackhole} prevents unused results from being eliminated, but does not make the
+ * surrounding type and branch profiles representative of application traffic.
  *
- * <p>One-sided branch profiles also interact with escape analysis in a way that can silently
- * flatter a benchmark. When a branch is never taken during profiling, C2 prunes it as an {@code
- * unstable_if} uncommon trap; if that pruned branch held the only store of an object, the object
- * becomes provably non-escaping and escape analysis scalar-replaces an allocation that production
- * would keep. The case measured in this module is {@code map.get(key)} followed by a guarded {@code
- * computeIfAbsent(key, ...)}: with every key pre-installed by {@code @Setup} the absent branch
- * never runs, so a composite key costs nothing at all. A real cache records its population-phase
- * misses in that same branch profile -- MDO counters accumulate from interpretation onward and are
- * never reset -- so the profile is two-sided, nothing is pruned, and the key is allocated on every
- * lookup. See {@code ThreadSafeMapD2Benchmark} for the measurement, and {@code
- * HashtableD2Benchmark} for the contrasting shape, where {@code merge} keeps the present/absent
- * decision inside the callee and leaves no caller-visible branch to prune.
+ * <p>C2 may replace an unobserved miss branch with an uncommon trap, leaving miss handling outside
+ * the optimized path. If that branch was the only path retaining a temporary key, escape analysis
+ * can then eliminate the allocation on hits. {@code ThreadSafeMapD2Benchmark} reports this for a
+ * guarded {@code computeIfAbsent}; {@code HashtableD2Benchmark} reports a retained wrapper for
+ * {@code merge}. Different traffic may change those decisions, so application allocation costs
+ * require representative misses and compiler or allocation profiling.
  *
- * <p>The more complete approach is to exercise every benchmark arm during setup, across each of its
- * outcomes, so that each fork's profiles reflect the whole class rather than the one arm it is
- * about to measure. That is what restores the mix the fork removed.
- *
- * <p>Such a helper should drive the arms in a shuffled order rather than a fixed round-robin, since
- * compilation can trigger part-way through a warmup and would otherwise see whichever arm dominates
- * that point in the sequence; a regular pattern also gives the hardware branch predictor an
- * unrealistically easy time. Seeding the shuffle keeps it irregular but reproducible. A {@code
- * warmUpArms} along those lines is planned as a follow-on, because adopting it changes benchmark
- * setup and requires re-measuring whatever adopts it.
+ * <p>A planned follow-up will exercise each benchmark variant and its relevant outcomes in a
+ * reproducible shuffled order. Compilation can start during setup, so a fixed order may favour
+ * whichever variants run first. Adopting that setup requires remeasuring affected benchmarks.
  */
 public final class BenchmarkUtils {
   private BenchmarkUtils() {}
@@ -120,13 +96,16 @@ public final class BenchmarkUtils {
    * Comparator}-based call sites.
    *
    * <p>The benchmark's own collection call sites are not invoked here and remain free to specialize
-   * for their receiver types. A call site's recorded type profile isn't threatened by which key
-   * type happens to dominate traffic during or after warmup -- once HotSpot has recorded multiple
-   * receiver types there, it stays megamorphic regardless of later call frequency. The risk this
-   * class guards against is a statically deducible receiver type bypassing the profile entirely:
-   * loading extra classes here defeats class-hierarchy analysis (optimization based on which
-   * implementations are actually loaded), and {@link #distinctEqualCopy}'s {@code DONT_INLINE}
-   * stops the JIT from tracing a decoy key's type back to its origin through static inference.
+   * for their receiver types. This broadens the shared internal profiles; it does not guarantee
+   * that C2 treats them as megamorphic. Receiver counts still matter: C2 can inline both receivers
+   * of a bimorphic profile, or a dominant receiver behind a type guard, and the benchmark's own
+   * warmup traffic keeps adding to those counts until the compile happens -- so a single key type
+   * can come to dominate an internal site this method touched. Only call sites confirmed in the
+   * compiled benchmark (e.g. via {@code -XX:+PrintInlining} or {@code LogCompilation}) should be
+   * described as megamorphic. Loading extra classes here also defeats class-hierarchy analysis
+   * (optimization based on which implementations are actually loaded), and {@link
+   * #distinctEqualCopy}'s {@code DONT_INLINE} stops the JIT from tracing a decoy key's type back to
+   * its origin through static inference.
    */
   public static void warmUpHashDispatch(Blackhole bh) {
     if (!WARMED_UP.compareAndSet(false, true)) {

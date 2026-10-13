@@ -35,18 +35,6 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".LibertyDecorator",
-      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
-      packageName + ".RequestURIDataAdapter",
-    };
-  }
-
-  @Override
   public String instrumentedType() {
     return "com.ibm.ws.webcontainer.srt.SRTServletResponse";
   }

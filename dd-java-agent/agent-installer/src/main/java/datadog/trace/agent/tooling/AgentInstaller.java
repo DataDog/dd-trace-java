@@ -6,9 +6,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
-import datadog.instrument.fieldinject.GlobalObjectStore;
+import datadog.instrument.fieldinject.KeyWithValue;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
-import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
@@ -19,7 +18,6 @@ import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.IntegrationsCollector;
-import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
 import datadog.trace.util.AgentTaskScheduler;
@@ -56,8 +54,6 @@ public class AgentInstaller {
 
   private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
-
-  private static final long GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS = 1;
 
   static {
     enableByteBuddyRawTypes();
@@ -162,11 +158,10 @@ public class AgentInstaller {
     agentBuilder =
         agentBuilder
             .disableClassFormatChanges()
-            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
+            .assureReadEdgeTo(inst, KeyWithValue.class)
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
-            .with(redefinitionStrategyListener(enabledSystems))
             .with(AgentStrategies.locationStrategy())
             .with(AgentStrategies.poolStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
@@ -183,7 +178,6 @@ public class AgentInstaller {
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
               .with(AgentStrategies.rediscoveryStrategy())
-              .with(redefinitionStrategyListener(enabledSystems))
               .with(new RedefinitionLoggingListener())
               .with(new TransformLoggingListener());
     }
@@ -268,15 +262,6 @@ public class AgentInstaller {
               IntegrationsCollector.get().update(instrumentationNames, true);
             }
           });
-    }
-
-    if (!InstrumenterConfig.get().isRuntimeContextMapPerStore()) {
-      AgentTaskScheduler.get()
-          .scheduleAtFixedRate(
-              GlobalObjectStore::removeStaleEntries,
-              GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
-              GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
-              TimeUnit.SECONDS);
     }
 
     InstrumenterState.resetDefaultState();
@@ -395,15 +380,6 @@ public class AgentInstaller {
       } else {
         SystemProperties.set(key, savedPropertyValue);
       }
-    }
-  }
-
-  private static AgentBuilder.RedefinitionStrategy.Listener redefinitionStrategyListener(
-      final Set<InstrumenterModule.TargetSystem> enabledSystems) {
-    if (enabledSystems.contains(InstrumenterModule.TargetSystem.IAST)) {
-      return TaintableRedefinitionStrategyListener.INSTANCE;
-    } else {
-      return AgentBuilder.RedefinitionStrategy.Listener.NoOp.INSTANCE;
     }
   }
 

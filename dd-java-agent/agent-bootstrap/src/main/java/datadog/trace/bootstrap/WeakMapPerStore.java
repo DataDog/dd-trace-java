@@ -13,12 +13,12 @@ import java.util.function.Function;
 public final class WeakMapPerStore<K, V> {
 
   /** Injection helper that immediately delegates to the weak-map for the given context store. */
-  public static Object get(final Object key, final int storeId) {
+  public static Object weakGet(final Object key, final int storeId) {
     return getContextStore(storeId).weakStore().get(key);
   }
 
   /** Injection helper that immediately delegates to the weak-map for the given context store. */
-  public static void put(final Object key, final int storeId, final Object context) {
+  public static void weakPut(final Object key, final int storeId, final Object context) {
     getContextStore(storeId).weakStore().put(key, context);
   }
 

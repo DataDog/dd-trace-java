@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import datadog.trace.util.ClassLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -268,16 +269,31 @@ public final class JMSDecorator extends MessagingClientDecorator {
     return joiner.apply(destinationName);
   }
 
+  /**
+   * {@code getDestination} is {@code >= 1.1}; latched per class rather than ignored outright
+   * because the {@code <=1.1} fallback costs an extra {@code instanceOf}.
+   */
+  private static final ClassLatch<MessageProducer, Destination, JMSException>
+      GET_DESTINATION_LATCH =
+          new ClassLatch<MessageProducer, Destination, JMSException>() {
+            @Override
+            protected Destination apply(MessageProducer target) throws JMSException {
+              return handleAbstractMethod(
+                  target, "getDestination", MessageProducer::getDestination);
+            }
+
+            @Override
+            protected Destination fallback(MessageProducer target) throws JMSException {
+              // <=1.1 getDestination is not available so we need to pay an additional instanceOf
+              if (target instanceof QueueSender) {
+                return ((QueueSender) target).getQueue();
+              }
+              return ((TopicPublisher) target).getTopic();
+            }
+          };
+
   public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
-    try {
-      return messageProducer.getDestination(); // >= 1.1
-    } catch (AbstractMethodError ignored) {
-      // <=1.1 getDestination is not available so we need to pay an additional instanceOf
-      if (messageProducer instanceof QueueSender) {
-        return ((QueueSender) messageProducer).getQueue();
-      }
-      return ((TopicPublisher) messageProducer).getTopic();
-    }
+    return GET_DESTINATION_LATCH.tryApply(messageProducer);
   }
 
   public String getDestinationName(Destination destination) {

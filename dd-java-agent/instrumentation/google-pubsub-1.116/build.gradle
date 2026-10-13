@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -16,6 +17,8 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 
 dependencies {
+  testContainerImage(image('gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators', 'test.pubsub.image'))
+
   compileOnly group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'
   testImplementation group: 'org.testcontainers', name: 'gcloud', version: libs.versions.testcontainers.get()
   testImplementation group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'

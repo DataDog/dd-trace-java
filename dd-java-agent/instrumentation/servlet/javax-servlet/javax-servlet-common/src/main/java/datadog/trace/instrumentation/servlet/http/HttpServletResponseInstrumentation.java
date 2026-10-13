@@ -40,14 +40,6 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.servlet.ServletRequestSetter",
-      packageName + ".HttpServletResponseDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("sendError", "sendRedirect"),

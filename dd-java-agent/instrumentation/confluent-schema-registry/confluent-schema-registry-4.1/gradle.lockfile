@@ -2,7 +2,7 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1:dependencies --write-locks
-at.yawk.lz4:lz4-java:1.11.1=latestDepTestRuntimeClasspath
+at.yawk.lz4:lz4-java:1.11.4=latestDepTestRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -71,7 +71,7 @@ commons-fileupload:commons-fileupload:1.5=latestDepTestCompileClasspath,latestDe
 commons-io:commons-io:2.11.0=testCompileClasspath,testRuntimeClasspath
 commons-io:commons-io:2.20.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 commons-io:commons-io:2.21.0=spotbugs
-de.thetaphi:forbiddenapis:3.10=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+de.thetaphi:forbiddenapis:3.11=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.confluent:common-config:4.1.0=compileClasspath
 io.confluent:common-utils:4.1.0=compileClasspath
 io.confluent:common-utils:7.4.0=testCompileClasspath,testRuntimeClasspath

@@ -33,16 +33,6 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "org.jboss.modules.ModuleLinkageHelper",
-      "org.jboss.modules.ModuleLinkageHelper$1",
-      "org.jboss.modules.ModuleLinkageHelper$2",
-      packageName + ".ModuleNameHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

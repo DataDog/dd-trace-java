@@ -1,12 +1,12 @@
 import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.*
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.initialization.Settings
 import java.net.URI
 
-// Requires Gradle 6.8+ and assumes project repositories are allowed by the target build.
-
+// Requires Gradle 6.8+ for Settings.providers and Settings.dependencyResolutionManagement.
 gradle.beforeSettings(Action<Settings> {
   val gradlePluginProxy = providers.gradleProperty("gradlePluginProxy").orNull
   val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
@@ -23,6 +23,8 @@ gradle.beforeSettings(Action<Settings> {
     withType(MavenArtifactRepository::class.java).configureEach {
       // A repository declared without a URL has a null one until Gradle validates it; leave it be
       // so the nested build reports that itself instead of failing inside this init script.
+      // See https://github.com/gradle/gradle/issues/37612
+      @Suppress("UNNECESSARY_SAFE_CALL")
       val repositoryUrl = url?.toString()?.trimEnd('/')
       if (repositoryUrl != null && repositoryUrl in mavenCentralUrls) {
         url = URI(proxy)
@@ -33,6 +35,8 @@ gradle.beforeSettings(Action<Settings> {
 
   fun RepositoryHandler.removeDuplicateMavenProxy() {
     val proxyUrl = mavenRepositoryProxy?.takeIf { it.isNotBlank() }?.trimEnd('/') ?: return
+    // see https://github.com/gradle/gradle/issues/37612
+    @Suppress("UNNECESSARY_SAFE_CALL")
     val proxies = withType(MavenArtifactRepository::class.java)
       .filter { it.url?.toString()?.trimEnd('/') == proxyUrl }
     // Keep the injected repository: it is the only one known to be unrestricted, since a declared
@@ -92,7 +96,7 @@ gradle.beforeSettings(Action<Settings> {
     }
   })
 
-  gradle.afterProject(Action<Project> {
+  gradle.afterProject(Action {
     repositories.removeDuplicateMavenProxy()
   })
 })

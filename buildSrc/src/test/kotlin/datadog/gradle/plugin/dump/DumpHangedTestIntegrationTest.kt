@@ -1,15 +1,23 @@
 package datadog.gradle.plugin.dump
 
 import datadog.gradle.plugin.GradleFixture
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import java.io.File
+import java.util.Properties
 
 class DumpHangedTestIntegrationTest : GradleFixture() {
+  companion object {
+    /** A `jcmd <pid> Thread.print`, excluding the all-JVM `jcmd 0` sweep. */
+    private val PER_PROCESS_THREAD_PRINT = Regex("""jcmd [1-9]\d* Thread\.print""")
+  }
+
   @Test
   fun `should not take dumps`() {
     val output = runGradleTest(testSleepMillis = 1000)
@@ -20,6 +28,48 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
 
     assertTrue(buildDir.exists()) // Assert build happened.
     assertFalse(buildFile("dumps").exists()) // Assert no dumps created.
+  }
+
+  @Test
+  fun `should recognize IBM JVM vendor`() {
+    // `JavaInstallationMetadata.getVendor()` reports the display name, `java.vendor` the raw one.
+    assertTrue(isIbmJvmVendor("IBM"))
+    assertTrue(isIbmJvmVendor("IBM Corporation"))
+    assertTrue(isIbmJvmVendor("ibm corporation"))
+    assertFalse(isIbmJvmVendor("Eclipse Adoptium"))
+    assertFalse(isIbmJvmVendor("Oracle Corporation"))
+  }
+
+  @Test
+  fun `should not configure IBM javacore directory on non-IBM JVM`() {
+    assumeTrue(!isIbmJvmVendor(System.getProperty("java.vendor")), "needs a non-IBM JVM")
+
+    val output = runGradleTest(testSleepMillis = 1000, assertNoIbmJavaCoreDir = true)
+
+    // The generated assertion only counts if the build ran it and it passed.
+    assertTrue(output.any { it.startsWith("BUILD SUCCESSFUL") }, output.joinToString("\n"))
+    assertEquals(listOf("ibmJavaCoreDirIsNotSet", "test"), testCaseNames().sorted())
+  }
+
+  @Test
+  @EnabledOnOs(OS.LINUX, OS.MAC)
+  fun `should collect javacore dumps on IBM JVM`() {
+    val ibmJdk = findIbmJdk()
+    assumeTrue(ibmJdk != null, "needs a locally installed IBM JVM")
+
+    val output = runGradleTest(testSleepMillis = 25_000, ibmJdk = ibmJdk)
+
+    // `kill -3` replaces the per-process `jcmd Thread.print`, and no heap dump is attempted.
+    assertTrue(output.any { it.startsWith("Starting dump command for :test:") && it.contains("kill -3") })
+    assertFalse(output.any { PER_PROCESS_THREAD_PRINT.containsMatchIn(it) })
+    assertFalse(output.any { it.contains("GC.heap_dump") })
+
+    // Landing here proves IBM_JAVACOREDIR reached the forked JVM; the default is its working dir.
+    val dumps = buildFile("dumps").listFiles().orEmpty()
+    assertTrue(
+      dumps.any { it.name.startsWith("javacore.") && it.name.endsWith(".txt") },
+      "no javacore in ${dumps.map { it.name }}"
+    )
   }
 
   @Test
@@ -96,18 +146,56 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
     assertTrue(lastThreadDump >= 0 && firstHeapDump > lastThreadDump)
   }
 
+  /** Runs a Gradle build of a single-test project under the dump plugin. */
   private fun runGradleTest(
     testSleepMillis: Long,
     env: Map<String, String> = emptyMap(),
     timeoutSeconds: Long = 20,
-    dumpOffset: Long? = 5
+    dumpOffset: Long? = 5,
+    ibmJdk: IbmJdk? = null,
+    assertNoIbmJavaCoreDir: Boolean = false
   ): List<String> {
+    val javaCoreDirImport = if (assertNoIbmJavaCoreDir) {
+      "import static org.junit.jupiter.api.Assertions.assertNull;"
+    } else {
+      ""
+    }
+    val javaCoreDirTest = if (assertNoIbmJavaCoreDir) {
+      """
+      @Test
+      public void ibmJavaCoreDirIsNotSet() {
+          assertNull(System.getenv("IBM_JAVACOREDIR"));
+      }
+      """
+    } else {
+      ""
+    }
+
+    if (ibmJdk != null) {
+      writeGradleProperties(
+        "org.gradle.java.installations.paths=${ibmJdk.home.absolutePath}",
+        append = true
+      )
+    }
+    val ibmToolchain = ibmJdk?.let {
+      """
+      java {
+        toolchain {
+          languageVersion.set(JavaLanguageVersion.of(${it.majorVersion}))
+          vendor.set(JvmVendorSpec.IBM)
+        }
+      }
+      """
+    }.orEmpty()
+
     writeSettings("""rootProject.name = "test-project"""")
 
     writeRootProject(
       """
       import java.time.Duration
       import org.gradle.api.tasks.testing.Test
+      import org.gradle.jvm.toolchain.JavaLanguageVersion
+      import org.gradle.jvm.toolchain.JvmVendorSpec
 
       plugins {
         id("java")
@@ -115,6 +203,8 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
       }
 
       group = "datadog.dump.test"
+
+      $ibmToolchain
 
       repositories {
         mavenCentral()
@@ -141,9 +231,12 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
     writeJavaSource(
       "SimpleTest",
       """
+      $javaCoreDirImport
       import org.junit.jupiter.api.Test;
 
       public class SimpleTest {
+          $javaCoreDirTest
+
           @Test
           public void test() throws InterruptedException {
               Thread.sleep($testSleepMillis);
@@ -154,5 +247,43 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
     )
 
     return run("test", env = env, forwardOutput = true).output.lines()
+  }
+
+  /** Names of the test cases the generated project reported, from its JUnit XML report. */
+  private fun testCaseNames(): List<String> {
+    val report = buildFile("test-results/test/TEST-SimpleTest.xml")
+    assertTrue(report.isFile, "missing test report $report")
+    val testCases = parseXml(report).getElementsByTagName("testcase")
+    return (0 until testCases.length)
+      .map { testCases.item(it).attributes.getNamedItem("name").nodeValue.removeSuffix("()") }
+  }
+
+  /** A locally installed IBM JVM, as resolved from its `release` file. */
+  private data class IbmJdk(val home: File, val majorVersion: Int)
+
+  /** Newest installed IBM JVM, from the CI `JAVA_<dist><version>_HOME` vars or the platform JVM dirs. */
+  private fun findIbmJdk(): IbmJdk? {
+    val candidates = mutableListOf<File>()
+    System.getenv()
+      .filterKeys { it.matches(Regex("JAVA_(IBM|SEMERU)\\d+_HOME")) }
+      .values.mapTo(candidates, ::File)
+    for (root in listOf("/Library/Java/JavaVirtualMachines", "/usr/lib/jvm")) {
+      for (jvm in File(root).listFiles().orEmpty()) {
+        candidates += File(jvm, "Contents/Home") // macOS bundle layout
+        candidates += jvm
+      }
+    }
+    return candidates.mapNotNull { it.toIbmJdk() }.maxByOrNull { it.majorVersion }
+  }
+
+  private fun File.toIbmJdk(): IbmJdk? {
+    val release = File(this, "release").takeIf { it.isFile } ?: return null
+    val properties = Properties().apply { release.inputStream().use { load(it) } }
+    // Values in `release` are quoted, e.g. IMPLEMENTOR="IBM Corporation".
+    fun property(name: String) = properties.getProperty(name).orEmpty().trim('"')
+
+    if (!isIbmJvmVendor(property("IMPLEMENTOR"))) return null
+    val major = property("JAVA_VERSION").removePrefix("1.").substringBefore('.').toIntOrNull()
+    return major?.let { IbmJdk(this, it) }
   }
 }

@@ -1,8 +1,8 @@
 package datadog.trace.util;
 
 import java.util.HashMap;
+import java.util.Random;
 import java.util.TreeMap;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -24,48 +24,45 @@ import org.openjdk.jmh.infra.Blackhole;
  *       allocation-free (case folded inside hash/matches), value stored unboxed
  * </ul>
  *
- * <p><b>Takeaways.</b> FlatHashtable is ~1.8x the (previously recommended) TreeMap at the same zero
- * allocation, but — see the revised takeaway below — trails HashMap's look-up throughput; its case
- * is the allocation win (no per-look-up folded String, which drives the multi-threaded GC pressure
- * HashMap pays), not a throughput win. The case-insensitive hash is the consistent-for-all-inputs
- * two-way fold ({@link datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a
- * cheaper ASCII-only fold would recover a few percent for header-name-only hot paths, deliberately
- * not the default. {@code LOW_LOAD_FACTOR} makes no difference here (the fold, not the probe count,
- * dominates), so the default 0.5 is used.
+ * <p><b>Takeaways.</b> FlatHashtable is ~1.8-2x the (previously recommended) TreeMap at the same
+ * zero allocation, but trails HashMap's look-up throughput by ~20-30%; its case is the allocation
+ * win (no per-look-up folded String), not a throughput win. The case-insensitive hash is the
+ * consistent-for-all-inputs two-way fold ({@link
+ * datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a cheaper ASCII-only fold
+ * would recover a few percent for header-name-only hot paths, deliberately not the default. {@code
+ * LOW_LOAD_FACTOR} makes no consistent difference here, so the default 0.5 is used.
  *
- * <p>Java 17 results (MacBook M1, {@code @Fork(5)}, {@code @Threads(8)}) with the front-loaded
- * {@link BenchmarkUtils#warmUpHashDispatch} pollution design (M ops/s):
+ * <p>Java 17 results (Zulu 17.0.7, MacBook M1, {@code @Fork(5)}, {@code @Threads(8)}, {@code -prof
+ * gc}) with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch} pollution design and the
+ * {@code CHA_DEFEAT} decoys:
  *
  * <pre>{@code
- * create_baseline        25.2    create_flatHashtable    15.3
- * create_hashMap          7.3    create_treeMap           8.4
+ * Benchmark                      M ops/s           B/op
+ * create_baseline                  25.5 ±   0.4    1152
+ * create_flatHashtable             14.4 ±   0.7    1693
+ * create_hashMap                    7.5 ±   0.3    2320
+ * create_treeMap                    7.9 ±   1.0    1840
  *
- * lookup_baseline       2760.8   lookup_flatHashtable    380.3
- * lookup_flatHashtable_lowLoad  430.7  lookup_hashMap    488.5
- * lookup_treeMap         214.7
+ * lookup_baseline                2772.0 ±  23.5      ~0
+ * lookup_flatHashtable            385.1 ±  51.5      ~0
+ * lookup_flatHashtable_lowLoad    425.5 ±   6.0      ~0
+ * lookup_hashMap                  502.4 ±   7.9    22.5
+ * lookup_treeMap                  214.6 ±  11.8      ~0
  * }</pre>
  *
- * <p>{@code lookup_flatHashtable}/{@code lookup_hashMap}/{@code lookup_treeMap} carry error bars of
- * ~13-17% of their means at {@code @Fork(5)} (down from 44-66% at {@code @Fork(2)}, which wasn't
- * decisive) — tight enough that {@code hashMap}'s lead over {@code flatHashtable} (488.5 vs 380.3,
- * ~28%) is a real, if not perfectly clean-cut, result rather than noise.
+ * <p>Every arm cycles through the same fixed-seed {@code LOOKUP_KEYS} sequence, so all of them see
+ * the same upper/lower-case and hit/miss mix. {@code lookup_hashMap} is steady across all five
+ * forks (483-509 per iteration). {@code lookup_flatHashtable}'s wide interval comes from one fork
+ * that compiled slow (~295 throughout, against ~380-420 for the other four); excluding it, the gap
+ * to {@code hashMap} is ~20%, and including it ~30%. Either way HashMap leads on throughput.
  *
- * <p>Measured with {@code -prof gc}: {@code lookup_hashMap} is the <i>only</i> lookup arm that
- * allocates, at 25.5 ± 4.6 B/op for the folded {@code String}, against ≈0 for {@code
- * flatHashtable}, {@code flatHashtable_lowLoad}, {@code treeMap} and the baseline. That quantifies
- * the allocation win claimed above. The variance is itself informative: {@code toLowerCase()}
- * returns {@code this} when a string is already lower-case, so the figure tracks the mixed-case
- * fraction of the key set rather than a fixed per-lookup cost. Allocation came from a later run
- * than the throughput table, so the two are not a matched pair.
- *
- * <p><b>Takeaway, revised.</b> {@code HashMap} keyed on {@code toLowerCase()} is faster than {@code
- * FlatHashtable} for this lookup shape, not merely comparable to it as earlier (noisier) runs
- * suggested. {@code FlatHashtable} still wins on allocation — it is the zero-allocation option, and
- * that stays true regardless of the throughput ordering — but the throughput case for it over
- * {@code HashMap} on case-insensitive lookups does not hold up under this rerun. {@code TreeMap}
- * remains the slowest of the three at every fork count measured.
+ * <p>{@code lookup_hashMap} is the <i>only</i> lookup arm that allocates: 22.5 B/op for the folded
+ * {@code String}, which is the allocation win claimed above. {@code toLowerCase()} returns {@code
+ * this} when a string is already lower-case, so the figure reflects this key set's upper-case share
+ * rather than a fixed per-lookup cost; with the seeded keys it is deterministic (±0.001), where an
+ * earlier unseeded run varied ±4.6. {@code TreeMap} remains the slowest look-up.
  */
-@Fork(2)
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
@@ -89,10 +86,13 @@ public class CaseInsensitiveMapBenchmark {
             return upperPrefixes;
           });
 
+  // Fixed seed so every arm, in every fork, sees the same case and hit/miss mix -- the upper-case
+  // share drives toLowerCase() allocation and suffix NUM_SUFFIXES is a miss, so an unseeded draw
+  // would give each arm a different workload.
   static final String[] LOOKUP_KEYS =
       init(
           () -> {
-            ThreadLocalRandom curRandom = ThreadLocalRandom.current();
+            Random curRandom = new Random(42);
 
             String[] keys = new String[32];
             for (int i = 0; i < keys.length; ++i) {
@@ -248,6 +248,47 @@ public class CaseInsensitiveMapBenchmark {
   // allocates nor captures; the value is unused. Kept static/non-capturing to avoid per-call cost.
   static final FlatHashtable.CreateStrategy<CIEntry, String> CI_CREATE =
       key -> new CIEntry(key, CaseInsensitiveKeyStrategy.INSTANCE.hashKey(key), 0);
+
+  // Unused decoys, loaded only so CaseInsensitiveStringStrategy<CIEntry> has a second concrete
+  // subtype by the time lookup_flatHashtable warms up -- otherwise CaseInsensitiveKeyStrategy is
+  // the *only* implementor ever loaded, and C2 devirtualizes matches()/hashOf() off a CHA
+  // dependency (abstract_with_unique_concrete_subtype) rather than the exact-type propagation the
+  // benchmark is meant to be exercising. Mirrors the CHA_DEFEAT pattern in
+  // SingleThreadedMapBenchmark. Each decoy overrides a different method so both call sites lose
+  // their CHA guarantee.
+  static final class DecoyMatchStrategy
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+    static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
+
+    @Override
+    public boolean matches(CIEntry entry, String key) {
+      return false;
+    }
+
+    @Override
+    public long hashOf(CIEntry entry) {
+      return entry.hash;
+    }
+  }
+
+  static final class DecoyHashStrategy
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+    static final DecoyHashStrategy INSTANCE = new DecoyHashStrategy();
+
+    @Override
+    public boolean matches(CIEntry entry, String key) {
+      return key.equalsIgnoreCase(entry.key);
+    }
+
+    @Override
+    public long hashOf(CIEntry entry) {
+      return 0L;
+    }
+  }
+
+  static final Object[] CHA_DEFEAT = {
+    CaseInsensitiveKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashStrategy.INSTANCE
+  };
 
   static CIEntry[] _create_flat(float loadFactor) {
     // 16 distinct case-insensitive keys (foo-0..quux-3).

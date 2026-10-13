@@ -37,11 +37,6 @@ public class RedisClusterClientInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".ClusterConnectionContextFunction"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

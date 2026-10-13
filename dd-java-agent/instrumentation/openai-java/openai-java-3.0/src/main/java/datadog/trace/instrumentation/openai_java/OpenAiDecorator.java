@@ -116,9 +116,9 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.INTEGRATION, INTEGRATION);
 
       // Resolve the LLMObs parent context, gated on trace-id consistency: a stale context
-      // from a different trace (e.g. async boundary leakage) must not contribute parent_id,
-      // session_id, agent_version, agent attribution, or a sampling verdict to this span.
-      // Matches DDLLMObsSpan's manual-span gate. One flag drives every inherited value, so a
+      // from a different trace (e.g. async boundary leakage) must not contribute trace_id, ml_app,
+      // parent_id, session_id, agent_version, agent attribution, or a sampling verdict to this
+      // span. Matches DDLLMObsSpan's manual-span gate. One flag drives every inherited value, so a
       // new propagated tag cannot accidentally ship with a weaker gate of its own.
       AgentSpanContext parent = LLMObsContext.current();
       boolean inheritable = parent != null && parent.getTraceId().equals(span.getTraceId());
@@ -128,6 +128,17 @@ public class OpenAiDecorator extends ClientDecorator {
       String sampleRate = null;
       if (inheritable) {
         parentSpanId = String.valueOf(parent.getSpanId());
+
+        // Stay in the parent's LLMObs trace and application. The parent may have adopted both
+        // from another service, so the APM trace id and the service default can differ from them.
+        String traceId = LLMObsContext.currentTraceId();
+        if (traceId != null && !traceId.isEmpty()) {
+          span.setTag(CommonTags.TRACE_ID, traceId);
+        }
+        String mlApp = LLMObsContext.currentMlApp();
+        if (mlApp != null && !mlApp.isEmpty()) {
+          span.setTag(CommonTags.ML_APP, mlApp);
+        }
 
         // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
         // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
@@ -161,18 +172,20 @@ public class OpenAiDecorator extends ClientDecorator {
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
 
-      // Compute the sampling decision if none was inherited (no LLMObs parent), which makes this
-      // span the root of its own LLMObs trace. Unlike the tags above, this cannot be skipped when
-      // there is nothing to inherit: an unstamped span is retained at any configured rate.
-      if (samplingDecision == null || sampleRate == null) {
+      // Roll a decision only when this span is the root of its own LLMObs trace. A parent with no
+      // decision continued a trace whose caller sent none, so this span leaves both tags unset
+      // too, as DDLLMObsSpan does; a local roll here could drop the span while its parent is kept.
+      if (!inheritable) {
         sampleRate = sampler.formattedRate();
         samplingDecision =
             sampler.sample(span.getTraceId().toLong())
                 ? LLMObsContext.SAMPLING_DECISION_SAMPLED
                 : LLMObsContext.SAMPLING_DECISION_DROPPED;
       }
-      span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
-      span.setTag(CommonTags.SAMPLE_RATE, sampleRate);
+      if (samplingDecision != null && sampleRate != null) {
+        span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
+        span.setTag(CommonTags.SAMPLE_RATE, sampleRate);
+      }
     }
     super.doAfterStart(span);
   }
