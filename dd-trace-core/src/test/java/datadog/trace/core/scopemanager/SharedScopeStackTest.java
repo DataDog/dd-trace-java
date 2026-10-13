@@ -169,18 +169,59 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
     second.join();
     assertNull(failure.get());
 
+    assertSeedHoldsOnlyItsOriginalReference(shared);
+  }
+
+  @Test
+  void scopeCanBeClosedFromAnotherStackWhileItsReused() throws Exception {
+    Context shared = scopeManager.sharedContextStack(base);
+    int references = 20_000;
+    List<ContextScope> extraReferences = new ArrayList<>();
     runOnNewThread(
         () -> {
           Context original = scopeManager.swap(shared);
-          assertSame(base, scopeManager.currentContext());
-          assertEquals(1, scopeManager.scopeStack().depth());
-          // the seed scope still holds exactly its original reference
-          ContinuableScope seed = scopeManager.scopeStack().top();
-          assertTrue(seed.alive());
-          assertFalse(seed.decrementReferences());
-          seed.incrementReferences();
+          for (int i = 0; i < references; i++) {
+            extraReferences.add(scopeManager.attach(base));
+          }
           scopeManager.swap(original);
         });
+    CyclicBarrier start = new CyclicBarrier(2);
+    Thread reuser =
+        new Thread(
+            () -> {
+              Context original = scopeManager.swap(shared);
+              try {
+                start.await();
+                for (int i = 0; i < references; i++) {
+                  scopeManager.attach(base).close();
+                }
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              } finally {
+                scopeManager.swap(original);
+              }
+            });
+    // closes the extra references on its own stack, while the other thread reuses the same scope
+    Thread closer =
+        new Thread(
+            () -> {
+              try {
+                start.await();
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+              extraReferences.forEach(ContextScope::close);
+            });
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    reuser.setUncaughtExceptionHandler((t, e) -> failure.set(e));
+    closer.setUncaughtExceptionHandler((t, e) -> failure.set(e));
+    reuser.start();
+    closer.start();
+    reuser.join();
+    closer.join();
+    assertNull(failure.get());
+
+    assertSeedHoldsOnlyItsOriginalReference(shared);
   }
 
   @Test
@@ -281,6 +322,20 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
     assertSame(parent, activeSpans.get(0));
     assertSame(child, activeSpans.get(1));
     assertSame(parent, activeSpans.get(2), "parent reactivated");
+  }
+
+  private void assertSeedHoldsOnlyItsOriginalReference(Context shared) throws Exception {
+    runOnNewThread(
+        () -> {
+          Context original = scopeManager.swap(shared);
+          assertSame(base, scopeManager.currentContext());
+          assertEquals(1, scopeManager.scopeStack().depth());
+          ContinuableScope seed = scopeManager.scopeStack().top();
+          assertTrue(seed.alive());
+          // releasing the original reference closes it, so there are no extra references left
+          assertFalse(seed.release());
+          scopeManager.swap(original);
+        });
   }
 
   private static void runOnNewThread(Runnable task) throws Exception {

@@ -24,6 +24,7 @@ final class SharedScopeStack extends ScopeStack {
 
   /** Seeds the stack with an initial scope, before it is shared with other threads. */
   void seed(ContinuableScope scope) {
+    scope.markShared();
     publishTop(scope);
   }
 
@@ -112,6 +113,7 @@ final class SharedScopeStack extends ScopeStack {
   // copies ScopeStack.push(), so listeners see the new top when it's activated
   @Override
   synchronized void push(ContinuableScope scope) {
+    scope.markShared();
     scope.beforeActivated();
     if (top != null) {
       stack.push(top);
@@ -120,21 +122,6 @@ final class SharedScopeStack extends ScopeStack {
     }
     publishTop(scope);
     scope.afterActivated();
-  }
-
-  @Override
-  synchronized boolean retainTop(ContinuableScope expectedTop) {
-    // another thread may have closed or replaced the top scope since it was read
-    if (expectedTop != top || !expectedTop.alive()) {
-      return false;
-    }
-    expectedTop.incrementReferences();
-    return true;
-  }
-
-  @Override
-  synchronized boolean releaseScope(ContinuableScope scope) {
-    return scope.decrementReferences();
   }
 
   @Override

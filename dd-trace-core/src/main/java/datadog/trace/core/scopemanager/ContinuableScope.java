@@ -27,6 +27,9 @@ class ContinuableScope implements ContextScope {
 
   private short referenceCount = 1;
 
+  // set when pushed onto a coroutine's shared scope stack, which other threads can also update
+  private boolean shared;
+
   private final Stateful scopeState;
 
   ContinuableScope(
@@ -60,7 +63,7 @@ class ContinuableScope implements ContextScope {
       }
     }
 
-    final boolean alive = scopeStack.releaseScope(this);
+    final boolean alive = release();
     scopeManager.healthMetrics.onCloseScope();
     if (!alive) {
       scopeState.close();
@@ -105,12 +108,35 @@ class ContinuableScope implements ContextScope {
     }
   }
 
-  final void incrementReferences() {
-    ++referenceCount;
+  final void markShared() {
+    shared = true;
   }
 
-  /** Decrements ref count -- returns true if the scope is still alive */
-  final boolean decrementReferences() {
+  /** Adds a reference to a live scope -- returns false if the scope was already closed */
+  final boolean retain() {
+    if (shared) {
+      return retainShared();
+    }
+    ++referenceCount;
+    return true;
+  }
+
+  private synchronized boolean retainShared() {
+    // another thread may have closed the scope since it was read from the shared stack
+    if (referenceCount <= 0) {
+      return false;
+    }
+    ++referenceCount;
+    return true;
+  }
+
+  /** Removes a reference -- returns true if the scope is still alive */
+  final boolean release() {
+    return shared ? releaseShared() : --referenceCount > 0;
+  }
+
+  private synchronized boolean releaseShared() {
+    // the scope may be closed on any thread, whichever stack that thread has swapped in
     return --referenceCount > 0;
   }
 
