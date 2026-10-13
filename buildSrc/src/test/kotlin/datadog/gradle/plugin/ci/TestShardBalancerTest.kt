@@ -109,9 +109,9 @@ class TestShardBalancerTest {
 
   @Test
   fun `bundled weights file is parsed`() {
-    assertThat(WEIGHTS).hasSize(54)
+    assertThat(WEIGHTS).hasSize(63)
     assertThat(WEIGHTS.values).allSatisfy { weight -> assertThat(weight).isPositive() }
-    assertThat(heaviestProjects(2)).containsExactly(AKKA_HTTP_10_0, SPRING_WEBFLUX_5_0)
+    assertThat(heaviestProjects(2)).containsExactly(KAFKA_CLIENTS_0_11, JDBC_REMOTE_OLD_H2_TEST)
   }
 
   @Test
@@ -138,9 +138,10 @@ class TestShardBalancerTest {
 
   companion object {
     private const val INSTRUMENTATION_PREFIX = ":dd-java-agent:instrumentation:"
-    private const val AKKA_HTTP_10_0 = ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0"
-    private const val SPRING_WEBFLUX_5_0 =
-      ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0"
+    private const val KAFKA_CLIENTS_0_11 =
+      ":dd-java-agent:instrumentation:kafka:kafka-clients-0.11"
+    private const val JDBC_REMOTE_OLD_H2_TEST =
+      ":dd-java-agent:instrumentation:jdbc:jdbc-remote-old-h2-test"
 
     private val WEIGHTS = loadDefaultWeights()
 

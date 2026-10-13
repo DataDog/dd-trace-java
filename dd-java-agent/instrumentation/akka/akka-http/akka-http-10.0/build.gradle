@@ -183,3 +183,32 @@ tasks.named("compileVersion102Scala213TestGroovy", GroovyCompile) {
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
+
+// Split the large Akka HTTP project into independently scheduled CI units. Existing test tasks
+// remain unchanged for local builds; only sharded CI delegates them through virtual projects.
+if (rootProject.providers.gradleProperty("slot").isPresent()) {
+  tasks.named("allTests") {
+    setDependsOn([])
+  }
+}
+
+def ciAkkaTestShards = [
+  'akka-http-base-tests': [tasks.named('baseTest'), tasks.named('lagomTest')],
+  'akka-http-base-forked-tests': [tasks.named('baseTestForkedTest'), tasks.named('iastTest')],
+  'akka-http-version-101-tests': [tasks.named('version101Test'), tasks.named('version101IastTest')],
+  'akka-http-version-101-forked-tests': [tasks.named('version101ForkedTest'), tasks.named('version102IastTest')],
+  'akka-http-version-102-tests': [tasks.named('version102Scala213Test')],
+]
+
+def ciShardProjectPaths = rootProject.extensions.extraProperties.get('ciShardProjectPaths') as Map
+ciAkkaTestShards.each { childName, testTasks ->
+  def childPath = ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:$childName"
+  testTasks.each { testTask ->
+    ciShardProjectPaths[testTask.get().path] = childPath
+  }
+  project(childPath) {
+    tasks.register("allTests") {
+      dependsOn(testTasks)
+    }
+  }
+}

@@ -137,3 +137,76 @@ tasks.named("latestDepTest", Test) {
   dependsOn "latestBoot24Test"
   dependsOn "latestBoot2LatestTest"
 }
+
+def ciWebfluxBaseGroups = [
+  webfluxClientATest: [
+    '**/SpringWebfluxHttpClientBasicTest.class',
+    '**/SpringWebfluxHttpClientBuilderReuseTest.class',
+  ],
+  webfluxClientBTest: [
+    '**/SpringWebfluxHttpClientDoAfterTerminateTest.class',
+    '**/SpringWebfluxHttpClientDoOnSuccessTest.class',
+  ],
+  webfluxClientCTest: [
+    '**/SpringWebfluxHttpClientDoOnTerminateTest.class',
+    '**/SpringWebfluxHttpClientFilterBuilderReuseTest.class',
+  ],
+  webfluxClientDTest: [
+    '**/SpringWebfluxHttpClientFilterTest.class',
+    '**/SpringWebfluxHttpClientFiltersRemovedTest.class',
+  ],
+]
+
+ciWebfluxBaseGroups.each { taskName, includes ->
+  tasks.register(taskName, Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    setIncludes(includes)
+    onlyIf("CI sharding is enabled") { rootProject.providers.gradleProperty("slot").isPresent() }
+  }
+}
+
+tasks.register('webfluxClientOtherTest', Test) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  useJUnitPlatform()
+  testClassesDirs = sourceSets.test.output.classesDirs
+  classpath = sourceSets.test.runtimeClasspath
+  ciWebfluxBaseGroups.values().flatten().each { pattern -> exclude pattern }
+  failOnNoDiscoveredTests = false
+  onlyIf("CI sharding is enabled") { rootProject.providers.gradleProperty("slot").isPresent() }
+}
+
+// In sharded CI, replace the original base task with disjoint class groups and expose every group
+// through a virtual child project. Local allTests and check retain their normal behavior.
+if (rootProject.providers.gradleProperty("slot").isPresent()) {
+  tasks.named("allTests") {
+    setDependsOn([])
+  }
+  tasks.named("test", Test) {
+    enabled = false
+  }
+}
+
+def ciWebfluxTestShards = [
+  'webflux-client-a-test': [tasks.named('webfluxClientATest')],
+  'webflux-client-b-test': [tasks.named('webfluxClientBTest')],
+  'webflux-client-c-test': [tasks.named('webfluxClientCTest')],
+  'webflux-client-d-test': [tasks.named('webfluxClientDTest')],
+  'webflux-client-other-test': [tasks.named('webfluxClientOtherTest')],
+  'webflux-forked-iast-tests': [tasks.named('forkedTest'), tasks.named('iastTest')],
+]
+
+def ciShardProjectPaths = rootProject.extensions.extraProperties.get('ciShardProjectPaths') as Map
+ciWebfluxTestShards.each { childName, testTasks ->
+  def childPath = ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0:$childName"
+  testTasks.each { testTask ->
+    ciShardProjectPaths[testTask.get().path] = childPath
+  }
+  project(childPath) {
+    tasks.register("allTests") {
+      dependsOn(testTasks)
+    }
+  }
+}
