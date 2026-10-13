@@ -60,7 +60,7 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     "partial text   | false  | true   ",
     "partial binary | true   | true   "
   })
-  void clientSendsWithoutParentAreNotTraced(boolean binary, boolean partial) throws Exception {
+  void clientSendsWithoutParentCreateRootSpans(boolean binary, boolean partial) throws Exception {
     Connection connection = new Connection(true, Behavior.CLIENT);
     RecordingCallback callback = new RecordingCallback();
 
@@ -68,10 +68,10 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     connection.callbacks.get(0).succeeded();
     callback.get(5, SECONDS);
 
-    assertNull(connection.spans.get(0));
-    assertNull(callback.span);
+    assertNotNull(connection.spans.get(0));
+    assertSame(connection.spans.get(0), callback.span);
     assertNull(activeSpan());
-    assertTraces(trace(handshakeSpan()));
+    assertTraces(trace(handshakeSpan()), trace(sendSpan(connection, binary, 5, 1).root()));
   }
 
   @TableTest({
@@ -135,6 +135,52 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().operationName("application").root(),
             sendSpan(connection, binary, 11, 2).childOfPrevious()));
+  }
+
+  @TableTest({
+    "scenario | binary",
+    "text     | false ",
+    "binary   | true  "
+  })
+  void clientPartialSendWithoutInitialParentKeepsRootSpan(boolean binary) throws Exception {
+    Connection connection = new Connection(true, Behavior.CLIENT);
+    RecordingCallback callback = new RecordingCallback();
+
+    assertNull(activeSpan());
+    connection.send(binary, true, "hello ", false, null);
+    connection.callbacks.get(0).succeeded();
+
+    runUnderTrace(
+        "application",
+        () -> {
+          AgentSpan parent = activeSpan();
+          connection.send(binary, true, "world", true, callback);
+          assertSame(parent, activeSpan());
+          return null;
+        });
+    connection.callbacks.get(1).succeeded();
+    callback.get(5, SECONDS);
+
+    assertNotNull(connection.spans.get(0));
+    assertSame(connection.spans.get(0), connection.spans.get(1));
+    assertSame(connection.spans.get(0), callback.span);
+    assertNull(activeSpan());
+
+    runUnderTrace(
+        "next",
+        () -> {
+          connection.send(binary, true, "again", true, null);
+          return null;
+        });
+    connection.callbacks.get(2).succeeded();
+    assertTraces(
+        trace(handshakeSpan()),
+        trace(sendSpan(connection, binary, 11, 2).root()),
+        trace(span().operationName("application").root()),
+        trace(
+            SORT_BY_START_TIME,
+            span().operationName("next").root(),
+            sendSpan(connection, binary, 5, 1).childOfPrevious()));
   }
 
   @TableTest({

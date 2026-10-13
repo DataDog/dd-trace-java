@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.websocket.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
@@ -19,7 +18,6 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 public class NativeSendContext {
   private final AgentSpan handshakeSpan;
   private final String sessionId;
-  private final boolean client;
   private Message partialMessage;
   private boolean closed;
 
@@ -27,8 +25,7 @@ public class NativeSendContext {
     if (Config.get().isWebsocketMessagesInheritSampling()) {
       span.forceSamplingDecision();
     }
-    client = session.getBehavior() == Behavior.CLIENT;
-    handshakeSpan = client ? span : span.getLocalRootSpan();
+    handshakeSpan = session.getBehavior() == Behavior.CLIENT ? span : span.getLocalRootSpan();
     sessionId = Integer.toHexString(System.identityHashCode(session));
   }
 
@@ -44,10 +41,6 @@ public class NativeSendContext {
             : binary ? ((ByteBuffer) payload).remaining() : ((String) payload).length();
     Message message = partial ? partialMessage : null;
     if (message == null || !type.equals(message.getMessageType())) {
-      // Later fragments keep the span created under the first fragment's parent.
-      if (client && activeSpan() == null) {
-        return null;
-      }
       message = new Message(handshakeSpan, sessionId);
     }
     AgentSpan span = DECORATE.startOutboundFrameSpan(message, type, size);
