@@ -53,9 +53,11 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -158,6 +160,37 @@ class FlagEvaluationWriterImplTest {
     writer.start();
 
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
+  }
+
+  @Test
+  void unavailableBackendClosesWriterFromItsOwnWorker() throws Exception {
+    final AtomicReference<Thread> worker = new AtomicReference<>();
+    final CompletableFuture<Throwable> failure = new CompletableFuture<>();
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(
+            16,
+            Long.MAX_VALUE,
+            TimeUnit.NANOSECONDS,
+            () -> {
+              worker.set(Thread.currentThread());
+              worker.get().setUncaughtExceptionHandler((thread, error) -> failure.complete(error));
+              return null;
+            },
+            cfg());
+    try {
+      writer.start();
+      final Throwable error = failure.get(5, TimeUnit.SECONDS);
+      assertEquals(IllegalArgumentException.class, error.getClass());
+      assertEquals("EVP Proxy not available", error.getMessage());
+      worker.get().join(5000);
+      assertFalse(worker.get().isAlive());
+      assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
+
+      writer.startForTest();
+      assertEquals(Thread.State.TERMINATED, worker.get().getState());
+    } finally {
+      writer.close();
+    }
   }
 
   @Test
@@ -412,9 +445,9 @@ class FlagEvaluationWriterImplTest {
 
   @Test
   void finalFlushRunsWithoutTheInterruptFlagSet() throws Exception {
-    // close() interrupts the worker to break it out of poll(). The final flush does socket I/O,
-    // and OkHttp fails fast on an interrupted thread, so the flag must be clear by the time the
-    // publisher is called. A mock publisher ignores the flag, so assert on it directly.
+    // close() signals shutdown without interrupting the worker. The final flush does socket I/O,
+    // and OkHttp fails fast on an interrupted thread. A mock publisher ignores the flag, so assert
+    // on it directly.
     final java.util.concurrent.CountDownLatch posted = new java.util.concurrent.CountDownLatch(1);
     final boolean[] interruptedDuringPost = {true};
     final BackendApi mockEvp = mock(BackendApi.class);
