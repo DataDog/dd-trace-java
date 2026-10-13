@@ -1149,6 +1149,19 @@ public class DDSpanContext
     }
   }
 
+  /**
+   * Removes the pending aliases a write of {@code tagId} supersedes. Called by {@link
+   * TagInterceptor} for a tag with {@link KnownTagCodec#HAS_SCOPED_ALIAS}, which it routes like an
+   * intercepted tag, so the id setters' fast path carries no alias handling at all. The tag itself
+   * is stored right after, under its own lock acquisition; a concurrent write of the alias from
+   * another thread in between has no defined order anyway.
+   */
+  public void supersedeAliases(long tagId) {
+    synchronized (unsafeTags) {
+      SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+    }
+  }
+
   /*
    * Id-keyed setters, mirroring the String setters above. With a constant id, the
    * KnownTagCodec.INTERCEPTED test folds, leaving only the split-by-tags table load; an id set never
@@ -1163,9 +1176,6 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1180,9 +1190,6 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1196,9 +1203,6 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1212,9 +1216,6 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1228,9 +1229,6 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1244,9 +1242,6 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1260,9 +1255,6 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1296,9 +1288,6 @@ public class DDSpanContext
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        if (KnownTagCodec.hasScopedAlias(tagId)) {
-          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-        }
         unsafeTags.set(tagId, box);
       }
     }
