@@ -366,9 +366,9 @@ public final class ContinuableScopeManager {
 
     ScopeStack newStack;
     ContinuableScope newScope;
-    if (context instanceof ScopeContext) {
+    if (context instanceof ScopeStackContext) {
       // restore previously swapped context stack
-      newStack = ((ScopeContext) context).restore(profilingContextIntegration);
+      newStack = ((ScopeStackContext) context).restore(profilingContextIntegration);
       newScope = newStack.top();
     } else if (context != Context.root()) {
       // start a new stack and record the new context as active

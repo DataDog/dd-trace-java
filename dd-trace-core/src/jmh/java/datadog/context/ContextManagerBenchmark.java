@@ -237,8 +237,8 @@ public class ContextManagerBenchmark {
    *
    * <p>Note: GCProfiler will show allocation asymmetry here by design. {@link
    * ContinuableScopeManager} swap allocates a {@code ScopeStack}, a {@code ContinuableScope}, and a
-   * {@code ScopeContext} per invocation; {@link ThreadLocalContextManager} swap is a plain field
-   * write. That asymmetry is the real cost of each manager's swap operation, not scaffolding.
+   * {@code SavedScopeContext} per invocation; {@link ThreadLocalContextManager} swap is a plain
+   * field write. That asymmetry is the real cost of each manager's swap operation, not scaffolding.
    */
   @Benchmark
   public void swapContexts(ThreadState thread) {

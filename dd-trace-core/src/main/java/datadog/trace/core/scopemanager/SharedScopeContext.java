@@ -6,11 +6,10 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import javax.annotation.Nullable;
 
 /** Swaps the same {@link SharedScopeStack} onto every thread, instead of a copy. */
-final class SharedScopeContext extends ScopeContext {
+final class SharedScopeContext extends ScopeStackContext {
   private final SharedScopeStack sharedStack;
 
   SharedScopeContext(SharedScopeStack sharedStack) {
-    super(sharedStack);
     this.sharedStack = sharedStack;
   }
 

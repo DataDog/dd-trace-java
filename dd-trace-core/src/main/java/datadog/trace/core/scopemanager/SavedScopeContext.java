@@ -6,28 +6,25 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import javax.annotation.Nullable;
 
 /** Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later. */
-class ScopeContext implements Context {
+final class SavedScopeContext extends ScopeStackContext {
   private final Thread originalThread = Thread.currentThread();
   private final ScopeStack scopeStack;
   private final ContinuableScope parent;
   private final ContinuableScope active;
   private final Context context;
 
-  ScopeContext(ScopeStack scopeStack) {
+  SavedScopeContext(ScopeStack scopeStack) {
     this(scopeStack, contextOf(scopeStack.top()));
   }
 
-  private ScopeContext(ScopeStack scopeStack, Context context) {
+  private SavedScopeContext(ScopeStack scopeStack, Context context) {
     this.scopeStack = scopeStack;
     this.parent = scopeStack.parent();
     this.active = scopeStack.active();
     this.context = context;
   }
 
-  static Context contextOf(@Nullable ContinuableScope scope) {
-    return scope != null ? scope.context : Context.root();
-  }
-
+  @Override
   ScopeStack restore(ProfilingContextIntegration profilingContextIntegration) {
     // restore full stack on original thread, for other threads restore shallow copy
     if (Thread.currentThread() == originalThread) {

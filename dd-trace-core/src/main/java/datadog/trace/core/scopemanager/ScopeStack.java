@@ -137,8 +137,8 @@ class ScopeStack {
   }
 
   /** Returns a context that swaps this stack back in. */
-  ScopeContext swappedOut() {
-    return new ScopeContext(this);
+  ScopeStackContext swappedOut() {
+    return new SavedScopeContext(this);
   }
 
   // DQH - regrettably needed for pre-existing tests

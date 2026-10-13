@@ -57,7 +57,7 @@ final class SharedScopeStack extends ScopeStack {
   }
 
   @Override
-  ScopeContext swappedOut() {
+  ScopeStackContext swappedOut() {
     // the shared handle always reads the live stack, so there's no snapshot to take
     return handle;
   }
