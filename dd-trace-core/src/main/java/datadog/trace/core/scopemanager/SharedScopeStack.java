@@ -11,7 +11,8 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  */
 final class SharedScopeStack extends ScopeStack {
   private volatile ContinuableScope liveTop;
-  private volatile int liveDepth;
+  // written before liveTop, so it's visible to readers that read top() first
+  private int liveDepth;
 
   /** Swaps this stack in on any thread; also returned when this stack is swapped out. */
   final SharedScopeContext handle;
@@ -24,8 +25,8 @@ final class SharedScopeStack extends ScopeStack {
   /** Seeds the stack with an initial scope, before it is shared with other threads. */
   void seed(ContinuableScope scope) {
     top = scope;
-    liveTop = scope;
     liveDepth = 1;
+    liveTop = scope;
   }
 
   @Override
@@ -78,15 +79,15 @@ final class SharedScopeStack extends ScopeStack {
   @Override
   synchronized void cleanup() {
     super.cleanup();
-    liveTop = top;
     liveDepth = super.depth();
+    liveTop = top;
   }
 
   @Override
   synchronized void push(ContinuableScope scope) {
     super.push(scope);
-    liveTop = top;
     liveDepth = super.depth();
+    liveTop = top;
   }
 
   @Override
@@ -109,7 +110,7 @@ final class SharedScopeStack extends ScopeStack {
   @Override
   synchronized void clear() {
     super.clear();
-    liveTop = null;
     liveDepth = 0;
+    liveTop = null;
   }
 }
