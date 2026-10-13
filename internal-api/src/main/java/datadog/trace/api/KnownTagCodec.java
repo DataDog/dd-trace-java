@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+
 /**
  * Resolves generated tag IDs and names. {@link KnownTags} owns the lookup tables; this class owns
  * the ID layout and namespace naming policy.
@@ -95,6 +97,31 @@ public final class KnownTagCodec {
 
   /** Internal spans, which have no other end. */
   public static final int DIRECTION_NONE = 2;
+
+  /** The direction of a span with these tags, from its {@code span.kind}. */
+  public static int directionOf(TagMap tags) {
+    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND_ID);
+    return kind == null ? DIRECTION_UNKNOWN : directionOfKind(kind.stringValue());
+  }
+
+  /** The direction of a span of {@code kind}; brokers and custom kinds have none. */
+  public static int directionOfKind(String kind) {
+    if (kind == null) {
+      return DIRECTION_UNKNOWN;
+    }
+    switch (kind) {
+      case Tags.SPAN_KIND_SERVER:
+      case Tags.SPAN_KIND_CONSUMER:
+        return DIRECTION_INBOUND;
+      case Tags.SPAN_KIND_CLIENT:
+      case Tags.SPAN_KIND_PRODUCER:
+        return DIRECTION_OUTBOUND;
+      case Tags.SPAN_KIND_INTERNAL:
+        return DIRECTION_NONE;
+      default:
+        return DIRECTION_UNKNOWN;
+    }
+  }
 
   /** The registry's tables. Generated as {@code KnownTags.RESOLVER}; this class owns the policy. */
   public interface Resolver {

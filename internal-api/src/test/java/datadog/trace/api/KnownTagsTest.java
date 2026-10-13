@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Checks the generated registry's name resolution and tag ID encoding. Datadog and OpenTelemetry
@@ -178,6 +179,20 @@ class KnownTagsTest {
     assertEquals(
         Tags.PEER_PORT,
         KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_NONE));
+  }
+
+  @TableTest({
+    "scenario | kind     | direction",
+    "server   | server   | 0        ",
+    "consumer | consumer | 0        ",
+    "client   | client   | 1        ",
+    "producer | producer | 1        ",
+    "internal | internal | 2        ",
+    "broker   | broker   | -1       ",
+    "custom   | custom   | -1       "
+  })
+  void theDirectionOfASpanFollowsItsKind(String kind, int direction) {
+    assertEquals(direction, KnownTagCodec.directionOfKind(kind));
   }
 
   @Test
