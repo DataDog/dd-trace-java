@@ -1,5 +1,7 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import dev.openfeature.sdk.ImmutableMetadata;
+
 /** A resolved value plus product metadata. Transport and SDK adapters consume this result. */
 public final class EvaluationResult<T> {
   public enum ErrorCode {
@@ -26,7 +28,7 @@ public final class EvaluationResult<T> {
   private final String variant;
   private final ErrorCode errorCode;
   private final String errorMessage;
-  private final EvaluationMetadata metadata;
+  private final ImmutableMetadata metadata;
   private final boolean logExposure;
   private final Integer serialId;
 
@@ -61,7 +63,7 @@ public final class EvaluationResult<T> {
     return errorMessage;
   }
 
-  public EvaluationMetadata getFlagMetadata() {
+  public ImmutableMetadata getFlagMetadata() {
     return metadata;
   }
 
@@ -86,7 +88,7 @@ public final class EvaluationResult<T> {
     private String variant;
     private ErrorCode errorCode;
     private String errorMessage;
-    private EvaluationMetadata metadata;
+    private ImmutableMetadata metadata;
     private boolean logExposure;
     private Integer serialId;
 
@@ -115,7 +117,7 @@ public final class EvaluationResult<T> {
       return this;
     }
 
-    public Builder<T> flagMetadata(EvaluationMetadata metadata) {
+    public Builder<T> flagMetadata(ImmutableMetadata metadata) {
       this.metadata = metadata;
       return this;
     }
