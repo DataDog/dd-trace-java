@@ -198,4 +198,21 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
     span.finish();
     tracer.close();
   }
+
+  @Test
+  void testPropagateContextOverridesApmTracingDisabled() {
+    // APM tracing is off, but propagate.context forces context to keep flowing downstream
+    injectSysConfig("apm.tracing.enabled", "false");
+    injectSysConfig("propagate.context", "true");
+    CoreTracer tracer = tracerBuilder().build();
+    AgentSpan span = tracer.buildSpan("test", "operation").start();
+
+    Map<String, String> carrier = new HashMap<>();
+    Propagators.defaultPropagator().inject(span, carrier, Map::put);
+
+    assertNotNull(carrier.get("traceparent"), "traceparent missing: " + carrier);
+
+    span.finish();
+    tracer.close();
+  }
 }
