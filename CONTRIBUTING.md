@@ -34,6 +34,9 @@ We have automatic code formatting enabled in Gradle configuration using [Spotles
 Our main goal is to avoid extensive reformatting caused by different IDEs with different opinions about how things should
 be formatted by establishing a single _point of truth_.
 
+Java sources use [Prince of Space](https://github.com/agustafson/prince-of-space) with two-space indentation and a
+100-character line width.
+
 To reformat all the files that need reformatting:
 
 ```bash
@@ -55,13 +58,15 @@ For IntelliJ IDEA, we suggest the following settings and plugin.
     * `Use single class import`: checked
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
-    * Use the following import layout to ensure consistency with google-java-format:
+    * Use the following import layout:
       ![import layout](https://user-images.githubusercontent.com/734411/43430811-28442636-94ae-11e8-86f1-f270ddcba023.png)
   * top right Settings icon -> `Settings...` ->`Editor` > `Code Style` > `Groovy` > `Imports`
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
 * To run test in a specific JDK use the `testJvm` property, e.g. `-PtestJvm=11`
-* Install the [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format) plugin
+* Install the [Prince of Space](https://github.com/agustafson/prince-of-space/releases) IntelliJ plugin from its release ZIP
+  * Under `Settings` > `Tools` > `Prince of Space`, use a two-space indent, a 100-character line length, balanced wrapping,
+    no trailing commas, no closing parenthesis on a new line, and the project language level
 
 ### Static imports
 
