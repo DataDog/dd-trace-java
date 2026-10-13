@@ -7,12 +7,12 @@ import datadog.smoketest.SmokeCliApp;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-class VirtualThreadStartupSmokeTest {
+class VirtualThreadTimeoutStartupSmokeTest {
   @RegisterExtension
   static final SmokeCliApp app =
-      SmokeCliApp.named("virtual-thread-startup")
+      SmokeCliApp.named("virtual-thread-timeout-startup")
           .mainClass(
-              "datadog.smoketest.concurrent.VirtualThreadStartup",
+              "datadog.smoketest.concurrent.VirtualThreadTimeoutStartup",
               System.getProperty("datadog.smoketest.shadowJar.path"))
           .jvmArgs(
               "-Djdk.virtualThreadScheduler.parallelism=1",
@@ -22,7 +22,7 @@ class VirtualThreadStartupSmokeTest {
           .build();
 
   @Test
-  void startsVirtualThreadWithoutActiveContext() {
+  void coldStartVirtualThreadCanParkAndResume() {
     app.assertCompletesWithValue(30, SECONDS, 0);
   }
 }

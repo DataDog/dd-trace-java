@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
@@ -46,10 +47,14 @@ public final class ScheduledForkJoinTaskInstrumentation extends InstrumenterModu
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureContext(
         @Advice.This ForkJoinTask<?> task,
+        @Advice.FieldValue("runnable") Runnable runnable,
         @Advice.FieldValue("nextDelay") long nextDelay,
         @Advice.FieldValue("isImmediate") boolean isImmediate) {
-      // Periodic tasks must not retain their creator; immediate tasks are internal timeout actions.
-      if (nextDelay == 0 && !isImmediate) {
+      // Periodic tasks must not retain their creator; immediate tasks and virtual-thread timeout
+      // callbacks need no context.
+      if (nextDelay == 0
+          && !isImmediate
+          && (runnable == null || VirtualThreadState.shouldPropagateContext(runnable))) {
         capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
     }
