@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
@@ -15,6 +16,7 @@ import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.AbstractCoroutine;
 import kotlinx.coroutines.Job;
 import kotlinx.coroutines.ThreadContextElement;
+import kotlinx.coroutines.internal.ScopeCoroutine;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
 public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
@@ -28,6 +30,15 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
 
   private static final boolean LEGACY_CONTEXT_MANAGER =
       InstrumenterConfig.get().isLegacyContextManagerEnabled();
+
+  /** Coroutines built by coroutineScope, withContext, etc. that their caller waits for. */
+  private static final ClassValue<Boolean> SCOPED_COROUTINE =
+      GenericClassValue.of(
+          type ->
+              ScopeCoroutine.class.isAssignableFrom(type)
+                  // older timeout coroutines are scoped but don't extend ScopeCoroutine
+                  || (AbstractCoroutine.class.isAssignableFrom(type)
+                      && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
 
   /** Gives each new coroutine its own element, so coroutines never share Datadog context. */
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
@@ -66,7 +77,13 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   @Nullable
   private AgentTraceCollector traceKeptOpenFor(@Nullable Job job) {
     // structured children complete before their parent, which keeps its trace open until then
-    return job != null && job == owner ? traceKeptOpen : null;
+    return job != null && (job == owner || isScopedBy(job)) ? traceKeptOpen : null;
+  }
+
+  /** Scoped coroutines share their caller's element and complete before the caller does. */
+  private boolean isScopedBy(Job job) {
+    return SCOPED_COROUTINE.get(job.getClass())
+        && ((AbstractCoroutine<?>) job).getContext().get(DATADOG_KEY) == this;
   }
 
   @Nonnull

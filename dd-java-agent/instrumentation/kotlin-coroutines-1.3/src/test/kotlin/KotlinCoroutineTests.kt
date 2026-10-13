@@ -36,6 +36,9 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
   override fun structuredChildrenOutliveSeedSpan(): Int = super.structuredChildrenOutliveSeedSpan()
 
   @Trace
+  override fun structuredChildrenOfScopedCoroutines(): Int = super.structuredChildrenOfScopedCoroutines()
+
+  @Trace
   override fun childWithReplacedJob(supervisor: Boolean): Int = super.childWithReplacedJob(supervisor)
 
   @Trace

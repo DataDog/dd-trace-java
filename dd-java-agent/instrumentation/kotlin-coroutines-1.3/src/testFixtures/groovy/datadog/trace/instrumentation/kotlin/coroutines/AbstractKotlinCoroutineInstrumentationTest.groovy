@@ -454,6 +454,24 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
+  def "children of scoped coroutines keep the trace open #dispatcherName"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.structuredChildrenOfScopedCoroutines()
+    kotlinTest.finishDetached()
+    TEST_WRITER.waitForTraces(1)
+    List<DDSpan> trace = TEST_WRITER.get(0)
+
+    expect:
+    TEST_WRITER.size() == 1
+    trace.size() == expectedNumberOfSpans
+    findSpan(trace, "scope-child").spanContext().getParentId() == findSpan(trace, "seed").spanContext().getSpanId()
+    findSpan(trace, "context-child").spanContext().getParentId() == findSpan(trace, "seed").spanContext().getSpanId()
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
   def "structured child keeps the trace open when its parent started without one #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)

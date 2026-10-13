@@ -431,6 +431,30 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     return 4
   }
 
+  /** Children launched with the context of scoped coroutines inside their parent. */
+  @Trace
+  open fun structuredChildrenOfScopedCoroutines(): Int {
+    runTest {
+      detached = launch(Job() + jobName("detached")) {
+        childSpan("seed").activateAndUse {
+          coroutineScope {
+            launch(coroutineContext + jobName("scope-child")) {
+              gate.await()
+              childSpan("scope-child").finish()
+            }
+          }
+          withContext(jobName("with-context")) {
+            launch(coroutineContext + jobName("context-child")) {
+              gate.await()
+              childSpan("context-child").finish()
+            }
+          }
+        }
+      }
+    }
+    return 4
+  }
+
   /** A child launched with its parent's context, when the parent started without a trace. */
   open fun structuredChildOfUntracedCoroutine(): Int {
     runTest {
