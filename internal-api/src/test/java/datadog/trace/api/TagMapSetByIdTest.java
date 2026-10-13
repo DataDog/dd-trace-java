@@ -72,4 +72,23 @@ class TagMapSetByIdTest {
     assertThrows(IllegalArgumentException.class, () -> map.set(0L, "value"));
     assertThrows(IllegalArgumentException.class, () -> map.set(KnownTagCodec.makeTagId(9999), 1));
   }
+
+  @Test
+  void theCoresTrustedSetsStoreWhatTheCheckedSetsStore() {
+    TagMap checked = TagMap.create();
+    checked.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
+    checked.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
+    checked.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
+    checked.set(KnownTags.DD_PROFILING_ENABLED_ID, true);
+
+    TagMap trusted = TagMap.create();
+    trusted.internals().setKnown(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
+    trusted.internals().setKnown(KnownTags.HTTP_STATUS_CODE_ID, 200);
+    trusted.internals().setKnown(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
+    trusted.internals().setKnown(KnownTags.DD_PROFILING_ENABLED_ID, true);
+
+    assertEquals(new HashMap<>(checked), new HashMap<>(trusted));
+    assertEquals(KnownTags.HTTP_ROUTE_ID, trusted.getEntry(KnownTags.HTTP_ROUTE_NAME).tagId());
+  }
+
 }
