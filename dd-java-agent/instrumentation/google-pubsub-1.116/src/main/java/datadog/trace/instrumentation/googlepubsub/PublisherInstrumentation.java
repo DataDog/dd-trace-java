@@ -8,6 +8,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.JAVA_PUBSUB;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
@@ -16,11 +17,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.pubsub.v1.PubsubMessage;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -42,7 +43,7 @@ public final class PublisherInstrumentation
 
   public static final class Wrap {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(@Advice.This Publisher publisher) {
+    public static ContextScope before(@Advice.This Publisher publisher) {
       final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_PRODUCE);
 
       final CharSequence topicName = PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString());
@@ -54,11 +55,11 @@ public final class PublisherInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
     }
   }
 

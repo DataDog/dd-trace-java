@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -27,6 +28,7 @@ addTestSuiteForDir('mongo410ForkedTest', 'test')
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.0'
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.0'
+  testContainerImage(image('mongo:4.4.29', 'test.mongo.image'))
 
   implementation(project(':dd-java-agent:instrumentation:mongo:mongo-common')) {
     transitive = false

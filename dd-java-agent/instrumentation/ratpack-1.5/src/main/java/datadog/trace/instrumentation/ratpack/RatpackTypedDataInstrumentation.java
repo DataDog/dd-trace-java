@@ -30,13 +30,6 @@ public class RatpackTypedDataInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GetTextCharSequenceSupplier",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getBuffer")

@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_FIND_OBJECT;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.JAVA_DATANUCLEUS;
@@ -13,9 +14,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -75,7 +76,7 @@ public class ExecutionContextInstrumentation
 
   public static class MultiObjectActionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope startMethod(
+    public static ContextScope startMethod(
         @Advice.This final ExecutionContext executionContext,
         @Advice.Origin("datanucleus.#m") final String operationName) {
 
@@ -87,13 +88,13 @@ public class ExecutionContextInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
 
       if (scope == null) {
         return;
       }
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
 
@@ -104,7 +105,7 @@ public class ExecutionContextInstrumentation
 
   public static class SingleObjectActionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope startMethod(
+    public static ContextScope startMethod(
         @Advice.Origin("datanucleus.#m") final String operationName,
         @Advice.Argument(0) Object entity) {
 
@@ -120,7 +121,7 @@ public class ExecutionContextInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(0) Object entity) {
 
@@ -128,7 +129,7 @@ public class ExecutionContextInstrumentation
         return;
       }
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       DECORATE.onError(span, throwable);
       DECORATE.onOperation(span, entity);
       DECORATE.beforeFinish(span);
@@ -140,7 +141,7 @@ public class ExecutionContextInstrumentation
 
   public static class FindWithStringClassnameAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope startMethod() {
+    public static ContextScope startMethod() {
 
       final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
@@ -150,7 +151,7 @@ public class ExecutionContextInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(0) Object id,
         @Advice.Argument(3) String objectClassName) {
@@ -159,7 +160,7 @@ public class ExecutionContextInstrumentation
         return;
       }
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       DECORATE.setResourceFromIdOrClass(span, id, objectClassName);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
@@ -171,7 +172,7 @@ public class ExecutionContextInstrumentation
 
   public static class FindWithClassAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope startMethod() {
+    public static ContextScope startMethod() {
 
       final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
@@ -181,7 +182,7 @@ public class ExecutionContextInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(0) Object id,
         @Advice.Argument(2) Class cls) {
@@ -190,7 +191,7 @@ public class ExecutionContextInstrumentation
         return;
       }
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       DECORATE.setResourceFromIdOrClass(span, id, cls == null ? null : cls.getName());
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);

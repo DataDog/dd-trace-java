@@ -23,9 +23,15 @@ idea {
 
 // Set test compile task to use JDK 21 to use the virtual threads API
 tasks.named("compileTestJava", JavaCompile) {
-  configureCompiler(it, 21)
+  configureCompiler(it, JavaVersion.VERSION_21)
 }
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+}
+
+tasks.named('forkedTest', Test) {
+  jvmArgs '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+    '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+    '--add-opens=java.net.http/jdk.internal.net.http=ALL-UNNAMED'
 }

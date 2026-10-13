@@ -1,15 +1,21 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.PARENT_ID;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
+import static datadog.trace.core.CoreSpan.STRUCTURED_LINKS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
@@ -20,6 +26,7 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -46,7 +53,6 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -70,6 +76,9 @@ public class DDSpanContext
   public static final String SPAN_SAMPLING_MECHANISM_TAG = "_dd.span_sampling.mechanism";
   public static final String SPAN_SAMPLING_RULE_RATE_TAG = "_dd.span_sampling.rule_rate";
   public static final String SPAN_SAMPLING_MAX_PER_SECOND_TAG = "_dd.span_sampling.max_per_second";
+
+  private static final UTF8BytesString OTLP_EXPORT_TRUE = UTF8BytesString.create("true");
+  private static final UTF8BytesString OTLP_EXPORT_FALSE = UTF8BytesString.create("false");
 
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
@@ -160,11 +169,6 @@ public class DDSpanContext
   private volatile boolean measured;
 
   private volatile boolean topLevel;
-
-  private static final AtomicIntegerFieldUpdater<DDSpanContext> SAMPLING_PRIORITY_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(DDSpanContext.class, "samplingPriority");
-
-  private volatile int samplingPriority = PrioritySampling.UNSET;
 
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
@@ -667,10 +671,6 @@ public class DDSpanContext
   }
 
   private void forceKeepThisSpan(byte samplingMechanism) {
-    // if the user really wants to keep this trace chunk, we will let them,
-    // even if the old sampling priority and mechanism have already propagated
-    SAMPLING_PRIORITY_UPDATER.set(this, PrioritySampling.USER_KEEP);
-    // record force keep decision for future distributed trace propagation
     propagationTags.forceKeep(samplingMechanism);
   }
 
@@ -710,24 +710,41 @@ public class DDSpanContext
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
-    if (SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism)) {
-      SAMPLING_PRIORITY_UPDATER.set(this, newPriority);
-      propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
-      return true;
-    }
-    if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, PrioritySampling.UNSET, newPriority)) {
+    boolean updated =
+        propagationTags.tryUpdateTraceSamplingPriority(
+            newPriority,
+            newMechanism,
+            SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
+    if (!updated) {
       if (log.isDebugEnabled()) {
         log.debug(
             "samplingPriority locked at priority: {}. Refusing to set to priority: {} mechanism: {}",
-            samplingPriority,
+            propagationTags.getSamplingPriority(),
             newPriority,
             newMechanism);
       }
       return false;
     }
-    // set trace level sampling priority tag propagationTags
-    propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
     return true;
+  }
+
+  public boolean setSamplingPriority(
+      final int newPriority,
+      final int newMechanism,
+      final double sampleRate,
+      final long traceIdLowOrderBits,
+      final boolean rateLimiterRejected) {
+    DDSpanContext spanContext = getRootSpanContextOrThis();
+    if (!spanContext.validateSamplingPriority(newPriority, newMechanism)) {
+      return false;
+    }
+    return spanContext.propagationTags.tryUpdateProbabilitySamplingDecision(
+        newPriority,
+        newMechanism,
+        sampleRate,
+        rateLimiterRejected,
+        traceIdLowOrderBits,
+        SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
   }
 
   private boolean validateSamplingPriority(final int newPriority, final int newMechanism) {
@@ -758,7 +775,7 @@ public class DDSpanContext
 
   @Override
   public int getSamplingPriority() {
-    return getRootSpanContextOrThis().samplingPriority;
+    return getRootSpanContextOrThis().propagationTags.getSamplingPriority();
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
@@ -790,7 +807,7 @@ public class DDSpanContext
       return rootSpan.spanContext().lockSamplingPriority();
     }
 
-    return SAMPLING_PRIORITY_UPDATER.get(this) != PrioritySampling.UNSET;
+    return propagationTags.getSamplingPriority() != PrioritySampling.UNSET;
   }
 
   public CharSequence getOrigin() {
@@ -1226,6 +1243,7 @@ public class DDSpanContext
         // maintain previously observable type of the thread name :|
         return threadName.toString();
       case Tags.HTTP_STATUS:
+      case KnownTags.HTTP_STATUS_CODE_OTEL_NAME:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
       case Tags.SPAN_KIND:
         return getSpanKindString();
@@ -1258,8 +1276,11 @@ public class DDSpanContext
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
       tags.put(DDTags.THREAD_NAME, threadName.toString());
-      if (samplingPriority != PrioritySampling.UNSET) {
-        tags.put(SAMPLE_RATE_KEY, samplingPriority);
+      int currentSamplingPriority = getSamplingPriority();
+      // add _sample_rate tag only on the root/local span owning the decision
+      if (getRootSpanContextIfDifferent() == null
+          && currentSamplingPriority != PrioritySampling.UNSET) {
+        tags.put(SAMPLE_RATE_KEY, currentSamplingPriority);
       }
       if (httpStatusCode != 0) {
         tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);
@@ -1307,69 +1328,28 @@ public class DDSpanContext
     }
   }
 
-  void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        injectLinksAsTags,
-        injectBaggageAsTags,
-        propagationTags);
-  }
-
-  void processTagsAndBaggage(
-      final MetadataConsumer consumer,
-      int longRunningVersion,
-      DDSpan restrictedSpan,
-      boolean firstInChunk) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        injectLinksAsTags,
-        injectBaggageAsTags,
-        firstInChunk ? getPropagationTags() : null);
-  }
-
   /**
-   * Serialize span links as first-class structured data rather than tags. While baggage tag
-   * injection keeps following the tracer configuration.
+   * Processes the span tags and baggage, and hands the resulting {@link Metadata} to the consumer.
+   *
+   * @param consumer The consumer of the span metadata.
+   * @param longRunningVersion The long-running version of the span.
+   * @param restrictedSpan The span to read links and events from.
+   * @param options The {@link CoreSpan} options describing what the serialization protocol needs.
    */
-  void processTagsAndBaggageWithStructuredLinks(
-      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        false, // injectLinksAsTags
-        injectBaggageAsTags,
-        propagationTags);
-  }
-
-  void processTagsAndBaggageWithStructuredLinks(
-      final MetadataConsumer consumer,
-      int longRunningVersion,
-      DDSpan restrictedSpan,
-      boolean firstInChunk) {
-    processTagsAndBaggage(
-        consumer,
-        longRunningVersion,
-        restrictedSpan,
-        false, // injectLinksAsTags
-        injectBaggageAsTags,
-        firstInChunk ? getPropagationTags() : null);
-  }
-
   void processTagsAndBaggage(
-      final MetadataConsumer consumer,
-      int longRunningVersion,
-      DDSpan restrictedSpan,
-      boolean injectLinksAsTags,
-      boolean injectBaggageAsTags,
-      PropagationTags serializedPropagationTags) {
+      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan, int options) {
+    boolean injectLinksAsTags = this.injectLinksAsTags && (options & STRUCTURED_LINKS) == 0;
+    boolean injectEventsAsTags = (options & STRUCTURED_EVENTS) == 0;
+    PropagationTags serializedPropagationTags;
+    if ((options & ROOT_PROPAGATION_TAGS) != 0) {
+      serializedPropagationTags = getPropagationTags();
+    } else if ((options & OWN_PROPAGATION_TAGS) != 0) {
+      serializedPropagationTags = this.propagationTags;
+    } else {
+      serializedPropagationTags = null;
+    }
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
-    // links
+    // links and events
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
@@ -1385,9 +1365,18 @@ public class DDSpanContext
         }
       }
 
+      // Events
+      List<DDSpanEvent> events = restrictedSpan.getEvents();
+      if (injectEventsAsTags) {
+        String eventsTag = spanEventsToTag(events);
+        if (eventsTag != null) {
+          unsafeTags.set(SPAN_EVENTS, eventsTag);
+        }
+      }
+
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
-      if (injectBaggageAsTags) {
+      if (this.injectBaggageAsTags) {
         baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
         if (w3cBaggage != null) {
           injectW3CBaggageTags(baggageItemsWithPropagationTags);
@@ -1408,7 +1397,7 @@ public class DDSpanContext
               threadName,
               unsafeTags,
               baggageItemsWithPropagationTags,
-              samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
+              getSamplingPriority(),
               measured,
               topLevel,
               httpStatusCode,
@@ -1416,8 +1405,103 @@ public class DDSpanContext
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization(),
-              restrictedSpan.getLinks()));
+              Config.get().isOtlpTracesExportEnabled() ? OTLP_EXPORT_TRUE : OTLP_EXPORT_FALSE,
+              restrictedSpan.getLinks(),
+              events));
     }
+  }
+
+  /**
+   * Encodes span events into a {@link DDTags#SPAN_EVENTS} tag value.
+   *
+   * @param events The span events to encode.
+   * @return The encoded tag value, {@code null} if no events.
+   */
+  private static String spanEventsToTag(List<DDSpanEvent> events) {
+    if (events.isEmpty()) {
+      return null;
+    }
+    StringBuilder builder = new StringBuilder("[");
+    for (DDSpanEvent event : events) {
+      if (builder.length() > 1) {
+        builder.append(',');
+      }
+      builder.append("{\"time_unix_nano\":").append(event.timeUnixNano()).append(",\"name\":");
+      appendJsonString(builder, event.name());
+      Map<String, ?> attributes = event.attributes();
+      if (!attributes.isEmpty()) {
+        builder.append(",\"attributes\":{");
+        int attributesStart = builder.length();
+        for (Map.Entry<String, ?> attribute : attributes.entrySet()) {
+          if (builder.length() > attributesStart) {
+            builder.append(',');
+          }
+          appendJsonString(builder, attribute.getKey());
+          builder.append(':');
+          appendJsonValue(builder, attribute.getValue());
+        }
+        builder.append('}');
+      }
+      builder.append('}');
+    }
+    return builder.append(']').toString();
+  }
+
+  private static void appendJsonValue(StringBuilder builder, Object value) {
+    if (value instanceof String) {
+      appendJsonString(builder, (String) value);
+    } else if (value instanceof List) {
+      List<?> values = (List<?>) value;
+      builder.append('[');
+      for (int i = 0; i < values.size(); i++) {
+        if (i > 0) {
+          builder.append(',');
+        }
+        appendJsonValue(builder, values.get(i));
+      }
+      builder.append(']');
+    } else if (value instanceof Number || value instanceof Boolean) {
+      builder.append(value);
+    } else {
+      builder.append("null"); // null for unsupported types
+    }
+  }
+
+  private static void appendJsonString(StringBuilder builder, String value) {
+    if (value == null) {
+      builder.append("null");
+      return;
+    }
+    builder.append('"');
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '\\':
+          builder.append("\\\\");
+          break;
+        case '"':
+          builder.append("\\\"");
+          break;
+        case '\b':
+          builder.append("\\b");
+          break;
+        case '\f':
+          builder.append("\\f");
+          break;
+        case '\n':
+          builder.append("\\n");
+          break;
+        case '\r':
+          builder.append("\\r");
+          break;
+        case '\t':
+          builder.append("\\t");
+          break;
+        default:
+          builder.append(c);
+      }
+    }
+    builder.append('"');
   }
 
   void injectW3CBaggageTags(Map<String, String> baggageItemsWithPropagationTags) {
@@ -1546,6 +1630,11 @@ public class DDSpanContext
 
   public PropagationTags getPropagationTags() {
     return getRootSpanContextOrThis().propagationTags;
+  }
+
+  @Override
+  public LLMObsPropagationValues getExtractedLLMObsValues() {
+    return getPropagationTags().getExtractedLLMObsValues();
   }
 
   /** TraceSegment Implementation */

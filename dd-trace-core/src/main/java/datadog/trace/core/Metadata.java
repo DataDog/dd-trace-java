@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
-import static java.util.Collections.emptyList;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.RadixTreeCache;
@@ -23,7 +22,9 @@ public final class Metadata {
   private final CharSequence origin;
   private final int longRunningVersion;
   private final UTF8BytesString processTags;
+  private final UTF8BytesString otlpExportMarker;
   private final List<? extends AgentSpanLink> spanLinks;
+  private final List<DDSpanEvent> spanEvents;
 
   public Metadata(
       long threadId,
@@ -37,7 +38,9 @@ public final class Metadata {
       CharSequence origin,
       int longRunningVersion,
       UTF8BytesString processTags,
-      List<? extends AgentSpanLink> spanLinks) {
+      UTF8BytesString otlpExportMarker,
+      List<? extends AgentSpanLink> spanLinks,
+      List<DDSpanEvent> spanEvents) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -49,7 +52,9 @@ public final class Metadata {
     this.origin = origin;
     this.longRunningVersion = longRunningVersion;
     this.processTags = processTags;
-    this.spanLinks = spanLinks == null ? emptyList() : spanLinks;
+    this.otlpExportMarker = otlpExportMarker;
+    this.spanLinks = spanLinks;
+    this.spanEvents = spanEvents;
   }
 
   /**
@@ -121,7 +126,15 @@ public final class Metadata {
     return processTags;
   }
 
+  public UTF8BytesString otlpExportMarker() {
+    return otlpExportMarker;
+  }
+
   public List<? extends AgentSpanLink> getSpanLinks() {
     return spanLinks;
+  }
+
+  public List<DDSpanEvent> getSpanEvents() {
+    return spanEvents;
   }
 }

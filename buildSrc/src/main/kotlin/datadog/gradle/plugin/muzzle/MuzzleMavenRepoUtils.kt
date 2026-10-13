@@ -1,6 +1,8 @@
 package datadog.gradle.plugin.muzzle
 
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils
+import org.eclipse.aether.DefaultRepositorySystemSession
+import org.eclipse.aether.DefaultSessionData
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
@@ -8,6 +10,7 @@ import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory
 import org.eclipse.aether.repository.LocalRepository
 import org.eclipse.aether.repository.RemoteRepository
+import org.eclipse.aether.repository.RepositoryPolicy
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
@@ -155,17 +158,32 @@ internal object MuzzleMavenRepoUtils {
     var attemptCount = 0
     var range: VersionRangeResult? = null
     var failure: VersionRangeResolutionException? = null
+    val resultExceptions = mutableListOf<Pair<Int, List<Exception>>>()
     fun attemptResolve(): VersionRangeResult? {
       attemptCount++
-      return try {
-        range = system.resolveVersionRange(session, rangeRequest)
+      val resolutionSession = if (attemptCount == 1) {
+        session
+      } else {
+        // Aether caches failed update checks both in the local repository and in SessionData.
+        // Bypass both caches so each Muzzle retry performs a real remote request.
+        DefaultRepositorySystemSession(session).apply {
+          data = DefaultSessionData()
+          updatePolicy = RepositoryPolicy.UPDATE_POLICY_ALWAYS
+          setReadOnly()
+        }
+      }
+      val result = try {
         failure = null
-        range?.takeIf { it.hasBounds() }
+        system.resolveVersionRange(resolutionSession, rangeRequest)
       } catch (e: VersionRangeResolutionException) {
         failure = e
-        range = e.result ?: range
-        null
+        e.result ?: return null
       }
+      range = result
+      if (result.exceptions.isNotEmpty()) {
+        resultExceptions += attemptCount to result.exceptions.toList()
+      }
+      return result.takeIf { failure == null && it.hasBounds() }
     }
 
     repeat(4) {
@@ -195,6 +213,7 @@ internal object MuzzleMavenRepoUtils {
         rangeRequest.repositories,
         range,
         failure,
+        resultExceptions,
         attemptCount,
         waitedSeconds,
         enableBackoffRetries
@@ -275,6 +294,7 @@ internal object MuzzleMavenRepoUtils {
     repositories: List<RemoteRepository>,
     range: VersionRangeResult?,
     failure: VersionRangeResolutionException?,
+    resultExceptions: List<Pair<Int, List<Exception>>>,
     attemptCount: Int,
     waitedSeconds: Long,
     enableBackoffRetries: Boolean
@@ -303,6 +323,15 @@ internal object MuzzleMavenRepoUtils {
         appendLine("  highestVersion=${range.highestVersion ?: "<missing>"}")
         appendLine("  versionCount=${range.versions.size}")
       }
+      if (resultExceptions.isNotEmpty()) {
+        appendLine("Resolution result exceptions:")
+        resultExceptions.forEach { (attempt, exceptions) ->
+          appendLine("  Attempt $attempt:")
+          exceptions.forEach { exception ->
+            appendException(exception, "    ")
+          }
+        }
+      }
       if (failure != null) {
         appendLine("Last resolution failure:")
         appendLine("  ${failure.javaClass.name}: ${failure.message ?: "<no message>"}")
@@ -311,6 +340,20 @@ internal object MuzzleMavenRepoUtils {
       appendLine("Maven metadata resolution may have returned an incomplete range, especially through a proxy.")
       appendLine("Restart the job later if the repositories above are reachable.")
     }.trimEnd()
+  }
+
+  private fun StringBuilder.appendException(exception: Throwable, indent: String) {
+    var current: Throwable? = exception
+    var currentIndent = indent
+    var depth = 0
+    while (current != null && depth < 10) {
+      val prefix = if (depth == 0) "" else "Caused by: "
+      appendLine("$currentIndent$prefix${current.javaClass.name}: ${current.message ?: "<no message>"}")
+      val cause = current.cause
+      current = cause?.takeUnless { it === current }
+      currentIndent += "  "
+      depth++
+    }
   }
 
   private fun artifactCoordinates(artifact: Artifact): String {

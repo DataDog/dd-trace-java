@@ -75,6 +75,7 @@ abstract class HazelcastTest extends VersionedNamingTestBase {
 
   @Override
   def cleanupSpec() {
+    client.shutdown()
     Hazelcast.shutdownAll()
   }
 

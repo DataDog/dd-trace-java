@@ -13,18 +13,6 @@ public class EmbeddingModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CommonTags",
-      packageName + ".EmbeddingDecorator",
-      packageName + ".OpenAiDecorator",
-      packageName + ".HttpResponseWrapper",
-      packageName + ".HttpStreamResponseWrapper",
-      packageName + ".HttpStreamResponseStreamWrapper",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Collections.singletonList(new EmbeddingServiceInstrumentation());
   }

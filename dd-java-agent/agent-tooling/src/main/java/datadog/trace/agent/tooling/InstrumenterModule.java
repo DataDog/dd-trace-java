@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.iast.Taintable;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -104,7 +105,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     String muzzleClass = instrumentationClass + "$Muzzle";
     try {
       // Muzzle class contains static references captured at build-time
-      // see datadog.trace.agent.tooling.muzzle.MuzzleGenerator
+      // see datadog.trace.agent.tooling.muzzle.MuzzleGenerationProcessor
       return (ReferenceMatcher) classLoader.loadClass(muzzleClass).getMethod("create").invoke(null);
     } catch (Throwable e) {
       log.warn("Failed to load - muzzle.class={}", muzzleClass, e);
@@ -113,7 +114,11 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /**
-   * @return Class names of helpers to inject into the user's classloader.
+   * @return Class names of helpers to inject into the user's classloader. A non-empty list is used
+   *     exactly as declared; an empty list means helpers will be inferred from method advice at
+   *     build-time by following bytecode references. Helpers loaded only through reflection or
+   *     class name strings may not be discovered. Modules needing these undiscoverable helpers must
+   *     declare the complete helper list - declared and inferred helpers are not merged.
    *     <p><b>NOTE:</b> The order of the returned helper classes matters. If a muzzle check fails
    *     with a NoClassDefFoundError, as logged in build/reports/muzzle-*.txt, it is likely that one
    *     helper class depends on another that appears later in the list. In this case, the returned
@@ -122,6 +127,11 @@ public abstract class InstrumenterModule implements Instrumenter {
    */
   public String[] helperClassNames() {
     return NO_HELPERS;
+  }
+
+  /** Override this to claim classes from other sources as helpers. */
+  public boolean isHelperClass(String className) {
+    return false;
   }
 
   /**
@@ -305,6 +315,18 @@ public abstract class InstrumenterModule implements Instrumenter {
 
     protected boolean isOptOutEnabled() {
       return false;
+    }
+  }
+
+  /** Parent class for IAST instrumentations that restructure classes to add {@link Taintable}. */
+  public abstract static class TaintableIast extends Iast implements WithStructuralChange {
+    public TaintableIast(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public final Class<?> structuralChangeMarker() {
+      return Taintable.class;
     }
   }
 

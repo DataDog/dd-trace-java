@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
+import static utils.InstrumentationTestHelper.installTracerInstrumentation;
 import static utils.InstrumentationTestHelper.loadClass;
 import static utils.TestClassFileHelper.getClassFileBytes;
 import static utils.TestHelper.getFixtureContent;
@@ -72,6 +73,7 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -1838,26 +1840,33 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void tracerInstrumentedClass() throws Exception {
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
-    TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "createResource", null);
-    // load a class file that was previously instrumented by the DD tracer as JAX-RS resource
-    Class<?> testClass =
-        loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
-    Object result =
-        Reflect.onClass(testClass)
-            .create()
-            .call("createResource", (Object) null, (Object) null, 1)
-            .get();
-    Snapshot snapshot = assertOneSnapshot(listener);
-    Map<String, CapturedContext.CapturedValue> arguments =
-        snapshot.getCaptures().getEntry().getArguments();
-    // it's important there is no null key in this map, as Jackson is not happy about it
-    // it's means here that argument names are not resolved correctly
-    Assertions.assertFalse(arguments.containsKey(null));
-    assertEquals(4, arguments.size());
-    assertTrue(arguments.containsKey("this"));
-    assertTrue(arguments.containsKey("apiKey"));
-    assertTrue(arguments.containsKey("uriInfo"));
-    assertTrue(arguments.containsKey("value"));
+    // compile the JAX-RS resource fixture and weave it with the real tracer JAX-RS
+    // instrumentation, so this test exercises argument-name resolution against the same
+    // bytecode shape the tracer actually produces
+    ClassFileTransformer jaxRsTransformer = installTracerInstrumentation(instr);
+    Class<?> testClass;
+    try {
+      TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "createResource", null);
+      testClass = compileAndLoadClass(CLASS_NAME);
+      Object result =
+          Reflect.onClass(testClass)
+              .create()
+              .call("createResource", (Object) null, (Object) null, 1)
+              .get();
+      Snapshot snapshot = assertOneSnapshot(listener);
+      Map<String, CapturedContext.CapturedValue> arguments =
+          snapshot.getCaptures().getEntry().getArguments();
+      // it's important there is no null key in this map, as Jackson is not happy about it
+      // it's means here that argument names are not resolved correctly
+      Assertions.assertFalse(arguments.containsKey(null));
+      assertEquals(4, arguments.size());
+      assertTrue(arguments.containsKey("this"));
+      assertTrue(arguments.containsKey("apiKey"));
+      assertTrue(arguments.containsKey("uriInfo"));
+      assertTrue(arguments.containsKey("value"));
+    } finally {
+      instr.removeTransformer(jaxRsTransformer);
+    }
   }
 
   @Test

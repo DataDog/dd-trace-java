@@ -96,7 +96,7 @@ class SamplingMechanismTest extends DDSpecification {
     EXTERNAL_OVERRIDE | userKeepX    | false
   }
 
-  void 'Test canAvoidSamplingPriorityLock'(){
+  void 'Test canAvoidSamplingPriorityLock'() {
     setup:
     injectSysConfig("dd.apm.tracing.enabled", "false")
 

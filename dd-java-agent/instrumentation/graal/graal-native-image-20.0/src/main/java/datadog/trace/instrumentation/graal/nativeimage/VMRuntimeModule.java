@@ -35,11 +35,6 @@ public final class VMRuntimeModule extends AbstractNativeImageModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.agent.tooling.nativeimage.TracerActivation"};
-  }
-
-  @Override
   public boolean injectHelperDependencies() {
     return true;
   }

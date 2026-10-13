@@ -26,6 +26,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -59,6 +60,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   Map<String, String> capturedHeaders;
   Object capturedBody;
   boolean appSecEnded;
+  int appSecEndCount;
 
   Integer capturedResponseStatus;
   Map<String, String> capturedResponseHeaders;
@@ -82,6 +84,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     capturedHeaders = new HashMap<>();
     capturedBody = null;
     appSecEnded = false;
+    appSecEndCount = 0;
     capturedResponseStatus = null;
     capturedResponseHeaders = new HashMap<>();
     capturedResponseBody = null;
@@ -121,6 +124,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
         (BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
             (ctx2, spanInfo) -> {
               appSecEnded = true;
+              appSecEndCount++;
               return Flow.ResultFlow.empty();
             });
 
@@ -185,6 +189,33 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   }
 
   @Test
+  void serverlessInvocationSpanResourceResetWhenAppSecEndThrows() throws IOException {
+    String eventJson =
+        "{" + "\"path\": \"/\"," + "\"requestContext\": {\"httpMethod\": \"GET\"}" + "}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output =
+        new ByteArrayOutputStream() {
+          @Override
+          public synchronized byte[] toByteArray() {
+            throw new AssertionError("response processing failed");
+          }
+        };
+
+    new HandlerStreamingSimulatesHttpFrameworkResource().handleRequest(input, output, newContext());
+
+    assertFalse(InstrumentationErrors.noErrors());
+    InstrumentationErrors.resetErrors();
+    assertTrue(appSecEnded);
+    assertTraces(
+        trace(
+            span()
+                .resourceName(name -> operation().equals(name.toString()))
+                .type(DDSpanTypes.SERVERLESS)
+                .error(false)));
+  }
+
+  @Test
   void testStreamingHandlerWithError() {
     ByteArrayInputStream input = new ByteArrayInputStream("Hello".getBytes(StandardCharsets.UTF_8));
     ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -201,6 +232,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.unsupported_event_type", is(1)),
                     error(Error.class, "Some error"))));
   }
 
@@ -366,10 +398,11 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   }
 
   @Test
-  void responseCallbacksApplyFallbackForLambdaUrlWithNonApiGatewayResponse() throws IOException {
-    // A Lambda Function URL handler returning plain JSON (no statusCode/headers/body structure)
-    // should trigger the fallback: no responseStarted (status unknown), content-type:
-    // application/json, full JSON as body.
+  void responseCallbacksTreatLambdaUrlResponseWithoutStatusCodeAsImplicitSuccess()
+      throws IOException {
+    // A Lambda Function URL return value carrying no statusCode is not a response the gateway
+    // honours: it serialises the whole value as the body of a 200 with content-type
+    // application/json, which is what the callbacks must report.
     String eventJson =
         "{"
             + "\"version\": \"2.0\","
@@ -389,7 +422,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     new HandlerStreamingWithRawJson().handleRequest(input, output, newContext());
 
-    assertNull(capturedResponseStatus); // no responseStarted for status-less fallback
+    assertEquals(200, (int) capturedResponseStatus);
     assertEquals("application/json", capturedResponseHeaders.get("content-type"));
     assertTrue(capturedResponseBody instanceof Map);
     assertEquals("hello", ((Map<?, ?>) capturedResponseBody).get("result"));
@@ -486,7 +519,24 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                     tag(Tags.HTTP_USER_AGENT, is("test-agent")),
                     tag(Tags.HTTP_ROUTE, is("/api/users/{id}")),
                     tag(Tags.HTTP_HOSTNAME, is("api.example.com")),
+                    tag(Tags.COMPONENT, is("aws-lambda")),
                     tag(Tags.HTTP_STATUS, is(200)))));
+  }
+
+  @Test
+  void nestedHandlerFinalizesAppSecRequestOnce() throws IOException {
+    String eventJson =
+        "{" + "\"path\": \"/api/nested\"," + "\"requestContext\": {\"httpMethod\": \"GET\"}" + "}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    new HandlerStreamingNested().handleRequest(input, output, newContext());
+
+    assertTrue(appSecStarted);
+    assertTrue(appSecEnded);
+    assertEquals(1, appSecEndCount);
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -554,13 +604,21 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
 
   @Test
   void responseCallbacksReceiveNoDataWhenHandlerThrows() {
-    ByteArrayInputStream input = new ByteArrayInputStream("Hello".getBytes(StandardCharsets.UTF_8));
+    String eventJson =
+        "{" + "\"path\": \"/api/failure\"," + "\"requestContext\": {\"httpMethod\": \"GET\"}" + "}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     assertThrows(
         Error.class,
-        () -> new HandlerStreamingWithError().handleRequest(input, output, newContext()));
+        () ->
+            new HandlerStreamingWritesResponseThenThrows()
+                .handleRequest(input, output, newContext()));
 
+    assertTrue(appSecStarted, "request callbacks should run before the handler throws");
+    assertTrue(appSecEnded, "requestEnded should run after the handler throws");
+    assertEquals(1, appSecEndCount);
     assertNull(capturedResponseStatus, "response status should not be set when handler throws");
     assertNull(capturedResponseBody, "response body should not be set when handler throws");
     assertTraces(
@@ -571,6 +629,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag(Tags.HTTP_METHOD, is("GET")),
+                    tag(Tags.COMPONENT, is("aws-lambda")),
                     error(Error.class, "Some error"))));
   }
 

@@ -13,6 +13,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Membership over a small, fixed, read-only string set shared across threads — split into hit and
@@ -44,49 +45,46 @@ import org.openjdk.jmh.annotations.Warmup;
  *       indirection cost of the wrapper.
  * </ul>
  *
- * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
- * and never present.
- *
- * <p>JDK 17 results (Apple M1, quiet machine, {@code @Fork(5)}, {@code @Threads(8)}; M ops/s =
- * millions):
- *
- * <pre>{@code
- * Structure                           hit    miss
- * stringIndex_embedded (static)      2320    2159    (fastest)
- * hashSet                            2198    2134
- * stringIndex (inst)                 2098  1548 *    (* miss bimodal -- see caveat)
- * tracerImmutableSet                 1914    1663    (Set.copyOf / SetN)
- * array                               941     589
- * sortedArray                         685     610
- * treeSet                             657     610
- * }</pre>
- *
- * <p>Key findings:
+ * <p>Lookup variants:
  *
  * <ul>
- *   <li>The static {@code EmbeddingSupport} path is the fastest — it beats {@code HashSet} on hit
- *       and miss and crushes the scan/search/tree forms.
- *   <li>{@code stringIndex} (the instance wrapper) trails {@code EmbeddingSupport} by the
- *       field-load indirection (~10% on hit), landing near {@code HashSet} — fine off the hot path,
- *       prefer {@code EmbeddingSupport} on it.
- *   <li>{@link java.util.Set#copyOf} ({@code SetN}, the agent's compact fixed-set form) is ~1.2x
- *       behind {@code EmbeddingSupport} on hit but the most <i>compact</i> (~27% smaller — no
- *       cached hashes, no 2x table). So StringIndex's edge over {@code SetN} is speed + the {@code
- *       indexOf}-&gt;parallel-array capability, not footprint; over {@code HashSet} it wins both.
- *   <li>{@code array} / {@code sortedArray} / {@code treeSet} trail the hashed structures, most on
- *       miss.
+ *   <li>{@code hit} reuses the inserted interned strings, exercising identity fast paths where
+ *       available.
+ *   <li>{@code hitFresh} reuses equal, non-interned copies created before measurement, avoiding
+ *       identity matches without allocating per lookup; only hash-based structures have this case.
+ *   <li>{@code miss} reuses non-interned strings that are not in the set.
  * </ul>
  *
- * <p><b>Caveat — the instance {@code stringIndex} miss is bimodal across forks</b> (confirmed at
- * {@code @Fork(10)}: 6 forks fast, 4 slow, nothing between). ~60% of forks compile to a fast mode
- * (~2000, ≈ {@code stringIndex_embedded_miss} — the wrapper indirection is then free) and ~40% to a
- * slow mode (~1070, ~half); each fork locks one at warmup. So the {@code 1548 ±27%} above is a
- * mode-mix, not noise. Cause: C2 hoists the instance field-loads ({@code this.hashes}/{@code
- * names}) out of the miss-path probe loop only in the fast mode; the static {@code
- * EmbeddingSupport} path const-folds those refs and is never bimodal ({@code
- * stringIndex_embedded_miss} ±0.3%). Prefer {@code EmbeddingSupport} where miss latency matters.
+ * <p>For hash-based lookups, warmup populates the reused strings' cached hashes; these cases do not
+ * measure repeated string hashing from characters.
+ *
+ * <p>Java 17 results on an Apple M1 with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch}
+ * pollution design, {@code @Fork(5)}, {@code @Threads(8)} (M ops/s):
+ *
+ * <pre>{@code
+ * Structure                    hit   hitFresh    miss
+ * stringIndex_embedded        2231.9   1663.2   2207.7
+ * hashSet                     2172.8   1359.2   2252.9
+ * tracerImmutableSet          2045.4   1394.9   1711.8
+ * stringIndex (inst)          2037.6   1505.7   2060.7
+ * array                        967.4        -    611.0
+ * sortedArray                  691.4        -    598.6
+ * treeSet                      657.2        -    607.2
+ * }</pre>
+ *
+ * <p>In this run:
+ *
+ * <ul>
+ *   <li>{@code stringIndex} is slightly better than {@code hashSet} on {@code hitFresh}, but not
+ *       uniformly ahead across all three lookup variants the way earlier runs suggested; the two
+ *       trade the lead depending on the variant.
+ *   <li>The embedded {@code StringIndex} form remains at or near the front for all three lookup
+ *       variants, and is now about as fast as the instance wrapper rather than clearly ahead of it.
+ *   <li>{@code tracerImmutableSet} ({@code SetN}) is competitive with the hash-based structures on
+ *       {@code hit}/{@code hitFresh} but falls behind on {@code miss}.
+ * </ul>
  */
-@Fork(5) // 5 forks settle the bimodal stringIndex_miss / interface-dispatch arms (see header)
+@Fork(5) // extra forks needed historically to settle bimodal JIT behavior on some arms
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
@@ -99,6 +97,17 @@ public class ImmutableSetBenchmark {
 
   /** Distinct String instances that are never present, for the miss path. */
   static final String[] MISSES = newMisses();
+
+  /** Equal, non-interned copies of {@link #STRINGS} used to exercise equality. */
+  static final String[] FRESH_STRINGS = newFreshStrings();
+
+  static String[] newFreshStrings() {
+    String[] fresh = new String[STRINGS.length];
+    for (int i = 0; i < STRINGS.length; ++i) {
+      fresh[i] = new String(STRINGS[i]);
+    }
+    return fresh;
+  }
 
   static String[] newMisses() {
     String[] misses = new String[STRINGS.length * 4];
@@ -144,7 +153,16 @@ public class ImmutableSetBenchmark {
   @State(Scope.Thread)
   public static class Cursor {
     int hitIndex = 0;
+    int hitFreshIndex = 0;
     int missIndex = 0;
+
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
 
     String nextHit() {
       int i = hitIndex + 1;
@@ -153,6 +171,16 @@ public class ImmutableSetBenchmark {
       }
       hitIndex = i;
       return STRINGS[i];
+    }
+
+    /** See {@code hitFresh} in the class javadoc. */
+    String nextHitFresh() {
+      int i = hitFreshIndex + 1;
+      if (i >= FRESH_STRINGS.length) {
+        i = 0;
+      }
+      hitFreshIndex = i;
+      return FRESH_STRINGS[i];
     }
 
     String nextMiss() {
@@ -200,6 +228,11 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean hashSet_hitFresh(Cursor cursor) {
+    return hashSet.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean hashSet_miss(Cursor cursor) {
     return hashSet.contains(cursor.nextMiss());
   }
@@ -220,6 +253,11 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean tracerImmutableSet_hitFresh(Cursor cursor) {
+    return tracerImmutableSet.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean tracerImmutableSet_miss(Cursor cursor) {
     return tracerImmutableSet.contains(cursor.nextMiss());
   }
@@ -230,17 +268,27 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean stringIndex_hitFresh(Cursor cursor) {
+    return stringIndex.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean stringIndex_miss(Cursor cursor) {
     return stringIndex.contains(cursor.nextMiss());
   }
 
   @Benchmark
   public boolean stringIndex_embedded_hit(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextHit()) >= 0;
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHit());
+  }
+
+  @Benchmark
+  public boolean stringIndex_embedded_hitFresh(Cursor cursor) {
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHitFresh());
   }
 
   @Benchmark
   public boolean stringIndex_embedded_miss(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextMiss()) >= 0;
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextMiss());
   }
 }

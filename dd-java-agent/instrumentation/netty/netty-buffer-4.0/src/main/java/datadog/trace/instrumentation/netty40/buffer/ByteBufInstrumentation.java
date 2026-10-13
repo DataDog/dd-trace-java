@@ -6,7 +6,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 
 @AutoService(InstrumenterModule.class)
-public class ByteBufInstrumentation extends InstrumenterModule.Iast
+public class ByteBufInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

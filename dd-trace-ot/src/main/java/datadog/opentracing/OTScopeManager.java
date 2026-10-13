@@ -1,7 +1,8 @@
 package datadog.opentracing;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
@@ -35,7 +36,7 @@ class OTScopeManager implements ScopeManager {
     }
 
     final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = tracer.activateManualSpan(agentSpan);
+    final ContextScope agentScope = tracer.activateManualSpan(agentSpan);
 
     return converter.toScope(agentScope, finishSpanOnClose);
   }
@@ -57,12 +58,14 @@ class OTScopeManager implements ScopeManager {
   }
 
   static class OTScope implements Scope, TraceScope {
-    private final AgentScope delegate;
+    private final ContextScope delegate;
     private final boolean finishSpanOnClose;
     private final TypeConverter converter;
 
     OTScope(
-        final AgentScope delegate, final boolean finishSpanOnClose, final TypeConverter converter) {
+        final ContextScope delegate,
+        final boolean finishSpanOnClose,
+        final TypeConverter converter) {
       this.delegate = delegate;
       this.finishSpanOnClose = finishSpanOnClose;
       this.converter = converter;
@@ -73,13 +76,13 @@ class OTScopeManager implements ScopeManager {
       delegate.close();
 
       if (finishSpanOnClose) {
-        delegate.span().finish();
+        AgentSpan.fromScope(delegate).finish();
       }
     }
 
     @Override
     public Span span() {
-      return converter.toSpan(delegate.span());
+      return converter.toSpan(AgentSpan.fromScope(delegate));
     }
 
     @Override
@@ -91,12 +94,12 @@ class OTScopeManager implements ScopeManager {
         return false;
       }
       final OTScope otScope = (OTScope) o;
-      return delegate.span().equals(otScope.delegate.span());
+      return AgentSpan.fromScope(delegate).equals(AgentSpan.fromScope(otScope.delegate));
     }
 
     @Override
     public int hashCode() {
-      return delegate.span().hashCode();
+      return AgentSpan.fromScope(delegate).hashCode();
     }
 
     boolean isFinishSpanOnClose() {
@@ -104,7 +107,7 @@ class OTScopeManager implements ScopeManager {
     }
   }
 
-  private final class FakeScope implements AgentScope {
+  private final class FakeScope implements ContextScope {
     private final AgentSpan agentSpan;
 
     FakeScope(AgentSpan agentSpan) {
@@ -112,7 +115,7 @@ class OTScopeManager implements ScopeManager {
     }
 
     @Override
-    public AgentSpan span() {
+    public Context context() {
       return agentSpan;
     }
 

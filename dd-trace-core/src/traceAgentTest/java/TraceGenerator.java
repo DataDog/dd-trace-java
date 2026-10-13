@@ -6,6 +6,7 @@ import static java.lang.Thread.currentThread;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -182,6 +183,8 @@ class TraceGenerator {
               null,
               0,
               getTagsForSerialization(),
+              UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
+              emptyList(),
               emptyList());
     }
 
@@ -348,7 +351,7 @@ class TraceGenerator {
     public void processServiceTags() {}
 
     @Override
-    public void processTagsAndBaggage(MetadataConsumer consumer) {
+    public void processTagsAndBaggage(MetadataConsumer consumer, int options) {
       consumer.accept(metadata);
     }
 

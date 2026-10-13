@@ -306,6 +306,23 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
     @Generated
     @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      CaptureExpression that = (CaptureExpression) o;
+      return Objects.equals(name, that.name)
+          && Objects.equals(expr, that.expr)
+          && Objects.equals(capture, that.capture);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(name, expr, capture);
+    }
+
+    @Generated
+    @Override
     public String toString() {
       return "CaptureExpression{"
           + "name='"
@@ -1181,6 +1198,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         && Objects.equals(template, that.template)
         && Objects.equals(segments, that.segments)
         && Objects.equals(captureSnapshot, that.captureSnapshot)
+        && Objects.equals(captureExpressions, that.captureExpressions)
         && Objects.equals(probeCondition, that.probeCondition)
         && Objects.equals(capture, that.capture)
         && Objects.equals(sampling, that.sampling);
@@ -1200,6 +1218,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
             template,
             segments,
             captureSnapshot,
+            captureExpressions,
             probeCondition,
             capture,
             sampling);

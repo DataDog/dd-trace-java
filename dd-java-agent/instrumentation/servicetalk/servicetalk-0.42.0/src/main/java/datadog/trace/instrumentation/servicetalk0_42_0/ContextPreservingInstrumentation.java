@@ -3,10 +3,10 @@ package datadog.trace.instrumentation.servicetalk0_42_0;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.servicetalk.context.api.ContextMap;
@@ -53,7 +53,7 @@ public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
 
   public static final class Wrapper {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.FieldValue("saved") final ContextMap contextMap) {
+    public static ContextScope enter(@Advice.FieldValue("saved") final ContextMap contextMap) {
       AgentSpan parent =
           InstrumentationContext.get(ContextMap.class, AgentSpan.class).get(contextMap);
       if (parent != null) {
@@ -63,7 +63,7 @@ public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope agentScope) {
+    public static void exit(@Advice.Enter final ContextScope agentScope) {
       if (agentScope != null) {
         agentScope.close();
       }

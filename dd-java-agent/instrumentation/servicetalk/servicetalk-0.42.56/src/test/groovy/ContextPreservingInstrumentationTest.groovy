@@ -17,7 +17,6 @@ class ContextPreservingInstrumentationTest extends InstrumentationSpecification 
 
     when:
     runInSeparateThread {
-      parent.capturedContext.attachContext()
       try (def _ = parent.capturedContext.attachContext()) {
         childSpan()
       }
