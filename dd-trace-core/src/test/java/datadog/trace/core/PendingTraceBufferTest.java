@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -180,7 +181,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     doAnswer(
             invocation -> {
               List<DDSpan> spans = invocation.getArgument(0);
-              spans.get(0).processTagsAndBaggage(metadataChecker);
+              spans.get(0).processTagsAndBaggage(metadataChecker, OWN_PROPAGATION_TAGS);
               return null;
             })
         .when(tracer)

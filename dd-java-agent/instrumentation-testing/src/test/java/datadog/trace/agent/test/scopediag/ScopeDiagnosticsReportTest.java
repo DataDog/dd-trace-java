@@ -3,10 +3,12 @@ package datadog.trace.agent.test.scopediag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,11 @@ class ScopeDiagnosticsReportTest {
     return new ContinuationRecord(
         seq, trace, 7L, "op", (byte) 0, false, event(ScopeEvent.Type.CAPTURE, "main", 1000));
   }
+
+  @TrackScopeContinuations(
+      disabledChecks = ScopeDiagnosticsCheck.LEAKED,
+      reason = "synthetic report tests exclusion")
+  private static class ExcludeLeaks {}
 
   @Test
   void firstResumeTimingUsesEarliestTimestampRegardlessOfRecordingOrder() {
@@ -61,7 +68,7 @@ class ScopeDiagnosticsReportTest {
     assertEquals(0, report.doubleCount());
     assertEquals(ContinuationStatus.FINISHED, r.status());
     assertTrue(r.threadHandoff());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -72,7 +79,7 @@ class ScopeDiagnosticsReportTest {
 
     assertEquals(1, report.leakCount());
     assertEquals(ContinuationStatus.LEAKED, r.status());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
     assertTrue(report.renderSummary().contains("LEAKED"));
     assertTrue(report.renderSummary().contains("Worker.java:42"));
   }
@@ -105,7 +112,53 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), rootWritten);
 
     assertEquals(1, report.lateCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
+    assertFalse(report.hasViolations(EnumSet.of(ScopeDiagnosticsCheck.LATE_FINISH)));
+  }
+
+  @Test
+  void enabledChecksSelectEnforcementWithoutChangingFindings() {
+    ContinuationRecord r = record(0, DDTraceId.from(121));
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertTrue(report.hasViolations(EnumSet.of(ScopeDiagnosticsCheck.LEAKED)));
+    assertFalse(report.hasViolations(EnumSet.of(ScopeDiagnosticsCheck.DOUBLE_FINISH)));
+    assertEquals(1, report.leakCount());
+    assertTrue(report.hasFindings());
+    assertTrue(report.renderSummary().contains("LEAKED"));
+  }
+
+  @Test
+  void assertionSeparatesEnforcedAdvisoryAndExcludedFindings() {
+    DDTraceId trace = DDTraceId.from(122);
+    ContinuationRecord leaked = record(0, trace);
+    ContinuationRecord doubled = record(1, trace);
+    doubled.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "main", 3000));
+    doubled.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "main", 4000));
+    Map<DDTraceId, Long> rootWritten = map();
+    rootWritten.put(trace, 2000L);
+    List<ContinuationRecord> records = list(leaked);
+    records.add(doubled);
+    ScopeDiagnosticsReport report = report(records, rootWritten);
+    TrackScopeContinuations config =
+        ExcludeLeaks.class.getAnnotation(TrackScopeContinuations.class);
+
+    AssertionError failure =
+        assertThrows(
+            AssertionError.class, () -> ScopeDiagnostics.assertNoViolations(report, config));
+    String message = failure.getMessage();
+    assertTrue(message.contains("[DOUBLE_FINISH] #1"));
+    assertTrue(message.contains("[LATE_FINISH] #1"));
+    assertTrue(message.contains("[LEAKED] #0"));
+    int advisory = message.indexOf("Advisory findings (not enforced)");
+    int excluded = message.indexOf("Excluded findings (not enforced)");
+    assertTrue(message.indexOf("[DOUBLE_FINISH] #1") < advisory);
+    assertTrue(message.indexOf("[LATE_FINISH] #1") > advisory);
+    assertTrue(message.indexOf("[LATE_FINISH] #1") < excluded);
+    assertTrue(message.indexOf("[LEAKED] #0") > excluded);
+    assertEquals(1, report.leakCount());
+    assertEquals(1, report.doubleCount());
+    assertTrue(report.renderTimeline().contains("LEAKED"));
   }
 
   @Test
@@ -118,7 +171,7 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), map());
 
     assertEquals(1, report.doubleCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
   }
 
   @Test
@@ -134,7 +187,7 @@ class ScopeDiagnosticsReportTest {
     assertEquals(ContinuationStatus.FINISHED, report.records().get(0).status());
     assertEquals(0, report.activateAfterResolveCount());
     assertEquals(0, report.doubleCount());
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
   }
 
   @Test
@@ -146,7 +199,7 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), map());
 
     assertEquals(1, report.activateAfterResolveCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasViolations());
   }
 
   @Test
@@ -157,7 +210,7 @@ class ScopeDiagnosticsReportTest {
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
-    assertFalse(report.hasProblems());
+    assertFalse(report.hasViolations());
     assertTrue(report.renderSummary().contains("(none)"));
 
     String timeline = report.renderTimeline();

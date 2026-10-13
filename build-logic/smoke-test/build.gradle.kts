@@ -44,6 +44,10 @@ testing {
       }
       targets.configureEach {
         testTask.configure {
+          // Nested Gradle 8.x builds use the test JVM and do not support Java 25.
+          javaLauncher.set(javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+          })
           // The gradle-test-kit runner shells out to a Gradle daemon, which can be slow on a
           // cold cache. Surface stdout/stderr to make CI failures debuggable.
           testLogging {

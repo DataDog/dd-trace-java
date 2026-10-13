@@ -5,8 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty9.ExtractAdapter;
 import java.lang.reflect.InvocationTargetException;
@@ -74,6 +76,11 @@ public class JettyCommitResponseHelper {
         _committed.set(true);
         requestContext.getTraceSegment().effectivelyBlocked();
         return true;
+      } else {
+        Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+        if (rawAppSecCtx instanceof AppSecContext) {
+          ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+        }
       }
     }
 

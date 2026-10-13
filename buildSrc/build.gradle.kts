@@ -29,6 +29,10 @@ gradlePlugin {
       id = "dd-trace-java.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
+    create("muzzle-report-aggregation-plugin") {
+      id = "dd-trace-java.muzzle-report-aggregation"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzleReportAggregationPlugin"
+    }
     create("call-site-instrumentation-plugin") {
       id = "dd-trace-java.call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
@@ -104,6 +108,7 @@ dependencies {
   implementation(libs.asm)
   implementation(libs.asm.tree)
 
+  // Keep aligned with build-logic/tag-registry, which shares these Jackson classes.
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
