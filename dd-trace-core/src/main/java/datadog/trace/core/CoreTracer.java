@@ -33,6 +33,7 @@ import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.api.statsd.StatsDClient;
+import datadog.perfcontract.NoSyntheticAccessors;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -144,6 +145,7 @@ import org.slf4j.LoggerFactory;
  * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
  * reporting, and propagating traces
  */
+@NoSyntheticAccessors
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
 
@@ -161,7 +163,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final long clockSyncPeriod;
 
   /** If the tracer can create inferred services */
-  private final boolean allowInferredServices;
+  final boolean allowInferredServices;
 
   /** Last time (in nanosecond ticks) the clock was checked for drift */
   private volatile long lastSyncTicks;
@@ -213,7 +215,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
-  private volatile LocalRootSpanTags localRootSpanTags;
+  volatile LocalRootSpanTags localRootSpanTags;
 
   /**
    * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
@@ -222,9 +224,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final boolean apmTracingEnabled;
 
   /** A set of tags that are added to every span */
-  private final TagMap defaultSpanTags;
+  final TagMap defaultSpanTags;
 
-  private final boolean defaultSpanTagsNeedsIntercept;
+  final boolean defaultSpanTagsNeedsIntercept;
 
   /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
@@ -233,15 +235,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   private final HealthMetrics healthMetrics;
   private final Recording traceWriteTimer;
-  private final IdGenerationStrategy idGenerationStrategy;
+  final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
-  private final DataStreamsMonitoring dataStreamsMonitoring;
+  final DataStreamsMonitoring dataStreamsMonitoring;
   private final ExternalAgentLauncher externalAgentLauncher;
-  private final boolean disableSamplingMechanismValidation;
+  final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
-  private final ProfilingContextIntegration profilingContextIntegration;
-  private final boolean injectBaggageAsTags;
-  private final boolean injectLinksAsTags;
+  final ProfilingContextIntegration profilingContextIntegration;
+  final boolean injectBaggageAsTags;
+  final boolean injectLinksAsTags;
   private final boolean flushOnClose;
   private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
 
@@ -255,7 +257,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
    * to be concurrent.
    */
-  private final TagInterceptor tagInterceptor;
+  final TagInterceptor tagInterceptor;
 
   private final TraceInterceptors interceptors = new TraceInterceptors();
 
@@ -266,7 +268,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final CallbackProvider callbackProviderIast;
   private final CallbackProvider universalCallbackProvider;
 
-  private final PropagationTags.Factory propagationTagsFactory;
+  final PropagationTags.Factory propagationTagsFactory;
 
   // DQH - storing into a static constant, so value will constant propagate and dead code eliminate
   // the other branch in singleSpanBuilder
@@ -276,7 +278,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   // Instance field (not static final) so it honors per-tracer config, e.g. an embedded tracer
   // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
   // singleton. See the tag-ordering block in buildSpanContext.
-  private final boolean builderTagsPrecedence;
+  final boolean builderTagsPrecedence;
 
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
@@ -649,7 +651,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   // These field names must be stable to ensure the builder api is stable.
-  private CoreTracer(
+  CoreTracer(
       final Config config,
       final String serviceName,
       SharedCommunicationObjects sharedCommunicationObjects,
@@ -1672,7 +1674,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return traceWriteTimer.start();
   }
 
-  private static <K, V> Map<V, K> invertMap(Map<K, V> map) {
+  static <K, V> Map<V, K> invertMap(Map<K, V> map) {
     Map<V, K> inverted = new HashMap<>(map.size());
     for (Map.Entry<K, V> entry : map.entrySet()) {
       inverted.put(entry.getValue(), entry.getKey());
@@ -2573,7 +2575,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static class ShutdownHook extends Thread {
     private final WeakReference<CoreTracer> reference;
 
-    private ShutdownHook(final CoreTracer tracer) {
+    ShutdownHook(final CoreTracer tracer) {
       super(AGENT_THREAD_GROUP, "dd-tracer-shutdown-hook");
       reference = new WeakReference<>(tracer);
     }
