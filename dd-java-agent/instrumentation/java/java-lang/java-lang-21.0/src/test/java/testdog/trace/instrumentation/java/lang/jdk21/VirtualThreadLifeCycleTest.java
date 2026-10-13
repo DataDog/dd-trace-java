@@ -4,13 +4,20 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Trace;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -27,6 +34,26 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
   @Test
   void testContextPathSelectedForRuntime() {
     assertEquals(isJavaVersion(21), VirtualThreadState.usePerMountContext());
+  }
+
+  @Test
+  void propagationDoesNotDependOnInheritableThreadLocals() throws InterruptedException {
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope ignored = activateSpan(parent)) {
+      for (boolean inheritThreadLocals : new boolean[] {true, false}) {
+        AtomicReference<AgentSpan> inherited = new AtomicReference<>();
+        Thread child =
+            Thread.ofVirtual()
+                .inheritInheritableThreadLocals(inheritThreadLocals)
+                .start(() -> inherited.set(activeSpan()));
+        assertTrue(child.join(TIMEOUT));
+        assertSame(parent, inherited.get());
+        assertSame(parent, activeSpan());
+      }
+    } finally {
+      parent.finish();
+    }
+    assertTraces(trace(span().root().operationName("parent")));
   }
 
   @DisplayName("test context restored after virtual thread remounts")

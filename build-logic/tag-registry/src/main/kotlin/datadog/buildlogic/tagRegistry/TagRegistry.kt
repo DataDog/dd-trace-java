@@ -18,14 +18,31 @@ package datadog.buildlogic.tagRegistry
  */
 class TagRegistry private constructor(val tags: List<Tag>) {
   data class Tag(
-    val name: String,
+    val identity: TagConventions.TagIdentity,
     val type: String,
     val required: String,
     val serial: Int,
     val traceLevel: Boolean,
     val id: Long,
-    val otelName: String? = null,
-  )
+    /** The tag's OpenTelemetry name, in [otelDirection] or every direction; null when not renamed. */
+    val declaredOtelName: String? = null,
+    /**
+     * The one direction [declaredOtelName] applies in, or null when it applies in every direction. A
+     * tag has one declaration, so its rename covers either every direction or exactly one.
+     */
+    val otelDirection: TagConventions.Direction? = null,
+  ) {
+    /** The identity's label, as reports and constant names show it. */
+    val name: String = identity.label
+    val ddName: String = identity.ddName
+    val sharedNameDirection: TagConventions.Direction? = identity.direction
+
+    /**
+     * The rename included in the direction-free lookup tables, or null when absent or scoped
+     * to one direction. Scoped renames remain in `declaredOtelName` for later resolution.
+     */
+    val otelName: String? = declaredOtelName.takeIf { otelDirection == null }
+  }
 
   companion object {
     const val FIRST_SERIAL = 1
@@ -42,21 +59,23 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     }
 
     fun build(conv: TagConventions): TagRegistry {
-      val traceNames = conv.traceLevelTags().map { it.name }.toSet()
+      val traceLevel = conv.traceLevelTags().map { it.identity }.toSet()
+      val renames = conv.otelMappings().associateBy { it.tag }
 
       // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
       val tags =
         conv.allDeclaredTags().sortedBy { it.name }.mapIndexed { i, t ->
           val serial = FIRST_SERIAL + i
-          val traceLevel = t.name in traceNames
+          val isTraceLevel = t.identity in traceLevel
           Tag(
-            t.name,
+            t.identity,
             t.type,
             t.required,
             serial,
-            traceLevel,
-            id = encode(serial, traceLevel),
-            otelName = t.otelName
+            isTraceLevel,
+            id = encode(serial, isTraceLevel),
+            declaredOtelName = renames[t.identity]?.otelName,
+            otelDirection = renames[t.identity]?.direction,
           )
         }
 
@@ -65,21 +84,25 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     }
 
     /**
-     * An OpenTelemetry name must be unambiguous: it may not collide with any canonical tag name, nor
-     * be claimed by two different tags. Otherwise keyOf(otelName) would have no single right answer.
-     * Fail the build loudly rather than silently pick a winner.
+     * Rejects OpenTelemetry names that collide with any Datadog name. Within each direction,
+     * a rename must also belong to a single tag. Direction-free renames reserve their name
+     * in every direction. Scoped renames may share a name across directions: `server.address`
+     * maps to `http.hostname` inbound and `peer.hostname` outbound.
      */
     private fun validateOtelNames(tags: List<Tag>) {
-      val canonical = tags.map { it.name }.toSet()
-      val owner = HashMap<String, String>()
+      val canonical = tags.map { it.ddName }.toSet()
+      val owner = HashMap<Pair<TagConventions.Direction, String>, String>()
       for (t in tags) {
-        val otel = t.otelName ?: continue
-        require(otel !in canonical) {
-          "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
-        }
-        val prev = owner.put(otel, t.name)
-        require(prev == null) {
-          "OpenTelemetry name '$otel' is claimed by both '$prev' and '${t.name}'"
+        val otel = t.declaredOtelName ?: continue
+        for (direction in t.otelDirection?.let { listOf(it) } ?: TagConventions.Direction.entries) {
+          require(otel !in canonical) {
+            "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
+          }
+          val prev = owner.put(direction to otel, t.name)
+          require(prev == null) {
+            "OpenTelemetry name '$otel' is claimed by both '$prev' and '${t.name}' on " +
+              "${direction.yamlKey} spans"
+          }
         }
       }
     }
