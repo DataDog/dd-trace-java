@@ -34,6 +34,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.AllSampler;
 import datadog.trace.common.writer.ListWriter;
@@ -289,29 +290,59 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
 
   /**
    * A server decorator's own identity tags -- {@code component} and {@code language} -- can both be
-   * split-by-tags candidates. The decorator applies them together (e.g. via a single {@code
-   * SpanPrototype}), so {@code component} must win over {@code language} for the service name
-   * regardless of which order they happen to be processed in -- matching the old, sequential {@code
-   * setTag} calls that used to set language before component unconditionally.
+   * split-by-tags candidates. A single {@code SpanPrototype} application intercepts them in no
+   * particular order, so {@code component} must still win, matching the old sequential {@code
+   * setTag} calls that set language before component.
    */
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void splitByTagsComponentWinsOverLanguageRegardlessOfOrder(boolean componentFirst) {
+  @Test
+  void splitByTagsComponentWinsOverLanguageWithinOnePrototypeApplication() {
     CoreTracer tracer =
         createSplittingTracer(
             new HashSet<>(Arrays.asList(Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY)));
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").start();
-    if (componentFirst) {
-      span.setTag(Tags.COMPONENT, "my-component");
-      span.setTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
-    } else {
-      span.setTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
-      span.setTag(Tags.COMPONENT, "my-component");
-    }
+    span.applyOverwriting(
+        SpanPrototype.builder()
+            .initComponentAndIntegration("my-component")
+            .initTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE)
+            .build());
     span.finish();
 
     assertEquals("my-component", span.getServiceName());
+  }
+
+  /**
+   * The component-over-language precedence is scoped to one prototype application: a candidate set
+   * at construction (e.g. from {@code dd.trace.span.tags}) is still overwritten by the decorator's
+   * later {@code component}, as it was before decorators applied prototypes.
+   */
+  @Test
+  void splitByTagsDecoratorComponentOverwritesCandidateSetAtConstruction() {
+    CoreTracer tracer =
+        createSplittingTracer(new HashSet<>(Arrays.asList("tenant", Tags.COMPONENT)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").withTag("tenant", "acme").start();
+    assertEquals("acme", span.getServiceName());
+    span.applyOverwriting(
+        SpanPrototype.builder().initComponentAndIntegration("my-component").build());
+    span.finish();
+
+    assertEquals("my-component", span.getServiceName());
+  }
+
+  /** Separate tag writes stay last-writer-wins, whichever split-by-tags candidate they set. */
+  @Test
+  void splitByTagsSeparateWritesAreLastWriterWins() {
+    CoreTracer tracer =
+        createSplittingTracer(
+            new HashSet<>(Arrays.asList(Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").start();
+    span.setTag(Tags.COMPONENT, "my-component");
+    span.setTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+    span.finish();
+
+    assertEquals(DDTags.LANGUAGE_TAG_VALUE, span.getServiceName());
   }
 
   @Test

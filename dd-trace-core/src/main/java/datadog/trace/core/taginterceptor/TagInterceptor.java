@@ -11,6 +11,7 @@ import static datadog.trace.api.KnownTags.HTTP_URL_OTEL_NAME;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
@@ -35,7 +36,6 @@ import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.bootstrap.instrumentation.api.SplitByTagsPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -54,6 +54,12 @@ public class TagInterceptor {
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
   private final String inferredServiceName;
+
+  /** Decorator identity tags in split-by-tags precedence order, highest first. */
+  private static final String[] PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE = {
+    Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY
+  };
+
   private final Set<String> splitServiceTags;
 
   private final boolean shouldSet404ResourceName;
@@ -258,9 +264,33 @@ public class TagInterceptor {
     }
   }
 
+  /**
+   * Re-applies the split-by-tags service name from the highest-precedence identity tag in a
+   * decorator prototype that was just applied to {@code span}. The prototype's tags are intercepted
+   * in no particular order, so without this {@code language} could overwrite {@code component}. The
+   * precedence ({@code component} over {@code language}) mirrors the old sequential {@code setTag}
+   * calls in {@code ServerDecorator}/{@code BaseDecorator}. It is scoped to the one application:
+   * separate tag writes, before or after, stay last-writer-wins. ({@code span.kind} is not listed:
+   * its interception never reaches the split-by-tags check.)
+   */
+  public void resolveSplitByTagsPrecedence(DDSpanContext span, TagMap prototypeTags) {
+    if (splitServiceTags.isEmpty()) {
+      return;
+    }
+    for (String tag : PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE) {
+      if (splitServiceTags.contains(tag)) {
+        Object value = prototypeTags.getObject(tag);
+        if (value != null) {
+          span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
+          return;
+        }
+      }
+    }
+  }
+
   private boolean intercept(DDSpanContext span, String tag, Object value) {
     if (splitServiceTags.contains(tag)) {
-      span.setSplitByTagsServiceName(String.valueOf(value), SplitByTagsPriorities.of(tag));
+      span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
       return true;
     }
     return false;

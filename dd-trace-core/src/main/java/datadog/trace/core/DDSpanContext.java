@@ -5,7 +5,6 @@ import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
-import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
 import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
@@ -38,7 +37,6 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
-import datadog.trace.bootstrap.instrumentation.api.SplitByTagsPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -156,13 +154,6 @@ public class DDSpanContext
   private volatile CharSequence resourceName;
 
   private volatile byte resourceNamePriority = ResourceNamePriorities.DEFAULT;
-
-  /**
-   * Tracks the highest-priority {@code trace.split-by-tags} candidate applied so far, so that e.g.
-   * {@code component} always wins over {@code language} regardless of which order they're processed
-   * in when several land on the span together. See {@link SplitByTagsPriorities}.
-   */
-  private volatile byte splitByTagsPriority = SplitByTagsPriorities.UNSET;
 
   /** Each span have an operation name describing the current span */
   private volatile CharSequence operationName;
@@ -520,20 +511,6 @@ public class DDSpanContext
     setServiceNameSource(Objects.requireNonNull(source));
   }
 
-  /**
-   * Sets the service name from a {@code trace.split-by-tags} candidate tag, but only if {@code
-   * priority} is at least as high as the last such candidate that won -- see {@link
-   * SplitByTagsPriorities}. Guards against split-by-tags candidates that land on the span together
-   * (e.g. {@code component} and {@code language} via a single {@code SpanPrototype} application)
-   * from overwriting each other in whatever order they happen to be processed.
-   */
-  public void setSplitByTagsServiceName(String serviceName, byte priority) {
-    if (priority >= this.splitByTagsPriority) {
-      this.splitByTagsPriority = priority;
-      setServiceName(serviceName, SPLIT_BY_TAGS);
-    }
-  }
-
   public CharSequence getServiceNameSource() {
     return serviceNameSource;
   }
@@ -670,7 +647,9 @@ public class DDSpanContext
     if (spanType != null) {
       setSpanType(spanType);
     }
-    setAllTags(prototype.tags(), true);
+    final TagMap tags = prototype.tags();
+    setAllTags(tags, true);
+    tagInterceptor.resolveSplitByTagsPrecedence(this, tags);
     final CharSequence integrationName = prototype.integrationName();
     if (integrationName != null) {
       setIntegrationName(integrationName);
