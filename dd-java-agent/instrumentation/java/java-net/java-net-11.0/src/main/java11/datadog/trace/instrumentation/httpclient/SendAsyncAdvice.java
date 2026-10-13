@@ -22,6 +22,7 @@ public class SendAsyncAdvice {
   public static ContextScope methodEnter(
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
       @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
+    ContextScope scope = null;
     try {
       if (DECORATE.isAgentRequest(httpRequest)) {
         return null;
@@ -36,7 +37,7 @@ public class SendAsyncAdvice {
       }
       DECORATE.allowContextInjection();
       final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-      final ContextScope scope = activateSpan(span);
+      scope = activateSpan(span);
       if (bodyHandler != null) {
         // Pass span directly — BodyHandlerWrapper captures the continuation lazily in apply(),
         // only once response headers arrive. This avoids leaking a continuation when the
@@ -52,6 +53,16 @@ public class SendAsyncAdvice {
     } catch (BlockingException e) {
       CallDepthThreadLocalMap.reset(HttpClient.class);
       DECORATE.blockContextInjection();
+      if (scope != null) {
+        final AgentSpan span = spanFromScope(scope);
+        try {
+          DECORATE.onError(span, e);
+          DECORATE.beforeFinish(span);
+        } finally {
+          scope.close();
+          span.finish();
+        }
+      }
       // re-throw blocking exceptions
       throw e;
     }

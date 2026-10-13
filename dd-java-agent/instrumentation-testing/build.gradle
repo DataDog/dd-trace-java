@@ -23,6 +23,7 @@ dependencies {
   testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'
   // test instrumenting java 1.1 bytecode
   testImplementation group: 'net.sf.jt400', name: 'jt400', version: '6.1'
+  testImplementation libs.bundles.mockito
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor libs.autoservice.processor

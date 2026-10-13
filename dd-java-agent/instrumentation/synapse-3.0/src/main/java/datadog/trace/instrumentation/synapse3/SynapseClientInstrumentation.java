@@ -44,13 +44,6 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TargetRequestInjectAdapter", packageName + ".SynapseClientDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()

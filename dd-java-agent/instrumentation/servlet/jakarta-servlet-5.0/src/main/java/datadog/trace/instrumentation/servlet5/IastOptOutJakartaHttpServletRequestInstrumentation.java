@@ -84,6 +84,11 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
         return;
       }
       final ServletContext context = request.getServletContext();
+      if (context == null) {
+        // some request copies (e.g. Wicket or Atmosphere websocket requests) have no servlet
+        // context
+        return;
+      }
 
       if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context)
           != null) {

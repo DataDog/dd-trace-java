@@ -11,6 +11,7 @@ muzzle {
   }
 }
 
+addTestSuiteForDir('latest7Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -33,4 +34,14 @@ dependencies {
 
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '+'
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-junit', version: '+'
+
+  latest7TestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '7.+'
+  latest7TestImplementation group: 'io.cucumber', name: 'cucumber-junit', version: '7.+'
+}
+
+// cucumber 8.0.0+ requires Java 17
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
 }

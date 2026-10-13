@@ -319,12 +319,6 @@ Available settings:
 |--------------------------------|----------------|--------------------------------------|
 | `idGenerationStrategy(String)` | `"SEQUENTIAL"` | Span ID generation strategy          |
 
-Keep strict trace writes enabled in instrumentation tests; disabling them is not a supported way to
-resolve a lifecycle failure. Production buffering can publish finished spans despite unresolved
-continuations, so a successful trace assertion alone does not prove cleanup. See
-[continuation effects](how_instrumentations_work.md#continuation-effects) and the
-[continuation investigation skill](../.agents/skills/fix-continuation-leakage/SKILL.md).
-
 ### Basic test
 
 ```java

@@ -33,7 +33,7 @@ repositories {
     }
   }
   maven {
-    url = 'https://repo.spring.io/libs-milestone'
+    url = 'https://repo.spring.io/milestone'
     content {
       includeGroupAndSubgroups "org.springframework"
     }

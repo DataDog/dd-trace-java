@@ -6,10 +6,6 @@ tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11)
 }
 
-testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_11
-}
-
 muzzle {
   pass {
     group = 'io.vertx'
@@ -52,6 +48,8 @@ dependencies {
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
+  testImplementation libs.bundles.mockito
+
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
 
@@ -69,4 +67,3 @@ dependencies {
     exclude("server/Iast*.groovy")
   }
 }
-

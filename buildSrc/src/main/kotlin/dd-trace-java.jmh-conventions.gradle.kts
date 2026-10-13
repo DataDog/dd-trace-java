@@ -18,7 +18,7 @@ val testJvmSpec = TestJvmSpec(project)
 val jmh = extensions.getByName("jmh")
 
 
-jmhProperty<String>("getJvm").convention(testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath })
+jmhProperty<String>("getJvm").convention(testJvmSpec.requestedTestJvmLauncher.map { it.executablePath.asFile.absolutePath })
 providers.gradleProperty("jmh.includes").map(::commaSeparated).let {
   if (it.isPresent) {
     jmhListProperty("getIncludes").convention(it.map { includes -> listOf(includes.joinToString("|")) })

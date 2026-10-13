@@ -50,13 +50,6 @@ public final class ResourceInstrumentation extends InstrumenterModule.Tracing
         getClass().getName() + "$ResourceHandleAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ResourceDecorator",
-    };
-  }
-
   public static class ResourceHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(

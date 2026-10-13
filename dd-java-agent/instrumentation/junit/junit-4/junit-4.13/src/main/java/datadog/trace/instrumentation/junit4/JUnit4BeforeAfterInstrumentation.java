@@ -31,13 +31,6 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JUnit4BeforeAfterOperationsTracer",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("invokeMethod")

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
+import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;

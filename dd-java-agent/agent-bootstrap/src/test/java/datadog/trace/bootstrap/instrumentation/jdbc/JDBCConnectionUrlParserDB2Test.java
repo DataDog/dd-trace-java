@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.DB2;
 import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.extractDBInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.tabletest.junit.TableTest;
 
@@ -31,5 +33,43 @@ class JDBCConnectionUrlParserDB2Test {
     assertEquals(instance, info.getInstance());
     assertEquals(user, info.getUser());
     assertEquals(db, info.getDb());
+  }
+
+  /**
+   * A URL without "//" after the type, whose only "://" is inside a ';' property value, used to
+   * throw a {@code StringIndexOutOfBoundsException}. Calls {@code DB2.doParse} directly since
+   * {@code extractDBInfo} swallows parse exceptions.
+   */
+  @TableTest({
+    "scenario                        | url                                                   | type ",
+    "DB2 with URL in property value  | db2:mydb;x=http://y                                   | db2  ",
+    "AS400 with file URL in property | as400:host;ssltruststore=file://x                     | as400",
+    "AS400 with several properties   | as400:host;libraries=a;secure=true;keystore=file:///x | as400",
+    "Empty type suffix with property | db2:;a=b://h                                          | db2  "
+  })
+  void schemeSeparatorOnlyInPropertyValueShouldNotThrow(String url, String type) {
+    DBInfo info = DB2.doParse(url, DBInfo.DEFAULT.toBuilder().type(type)).build();
+    assertEquals(type, info.getType());
+    assertNull(info.getHost());
+    assertEquals(50000, info.getPort());
+    assertNull(info.getInstance());
+  }
+
+  /**
+   * The same URLs keep their recognized properties. The old parser applied them before throwing,
+   * and {@code parse} returned that builder from its catch block, so they were recorded then too.
+   */
+  @TableTest({
+    "scenario                   | url                                          | type  | user  | schema",
+    "AS400 user before file URL | as400:host;user=alice;ssltruststore=file://x | as400 | alice |       ",
+    "DB2 schema before http URL | db2:mydb;schema=s1;x=http://y                | db2   |       | s1    ",
+    "AS400 user after file URL  | as400:host;keystore=file:///k;user=bob       | as400 | bob   |       "
+  })
+  void schemeSeparatorOnlyInPropertyValueKeepsProperties(
+      String url, String type, String user, String schema) {
+    DBInfo info = DB2.doParse(url, DBInfo.DEFAULT.toBuilder().type(type)).build();
+    assertEquals(type, info.getType());
+    assertEquals(user, info.getUser());
+    assertEquals(schema, info.getSchema());
   }
 }
