@@ -387,7 +387,7 @@ public final class ContinuableScopeManager {
       newScope.afterActivated();
     }
 
-    return oldStack.swappedOut();
+    return newStack.replacing(oldStack);
   }
 
   public ContextContinuation capture(@Nonnull Context context) {

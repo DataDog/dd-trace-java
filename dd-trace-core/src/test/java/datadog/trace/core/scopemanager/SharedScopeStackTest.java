@@ -149,6 +149,32 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void threadReusesOneTokenForItsOwnStack() throws Exception {
+    Context shared = scopeManager.sharedContextStack(base);
+    Context opened = base.with(KEY, "thread");
+    AtomicReference<Context> token = new AtomicReference<>();
+
+    runOnNewThread(
+        () -> {
+          ContextScope scope = scopeManager.attach(opened);
+          Context first = scopeManager.swap(shared);
+          scopeManager.swap(first);
+          Context second = scopeManager.swap(shared);
+          assertSame(first, second);
+          scopeManager.swap(second);
+          assertSame(opened, scopeManager.currentContext());
+          token.set(second);
+          scope.close();
+        });
+    runOnNewThread(
+        () -> {
+          // the token only restores its own thread's stack; other threads get an empty stack
+          scopeManager.swap(token.get());
+          assertNull(scopeManager.active());
+        });
+  }
+
+  @Test
   void seedingFromSharedContextStartsFromItsCurrentTop() throws Exception {
     Context parent = scopeManager.sharedContextStack(base);
     Context opened = base.with(KEY, "opened");

@@ -141,6 +141,22 @@ class ScopeStack {
     return new SavedScopeContext(this);
   }
 
+  /** Returns a context that swaps the replaced stack back in, after this stack replaces it. */
+  ScopeStackContext replacing(ScopeStack replaced) {
+    return replaced.swappedOut();
+  }
+
+  private ThreadScopeContext coroutineToken; // reused when coroutines replace this stack
+
+  /** Returns a context that swaps this stack back in on this thread, after a coroutine ran. */
+  ScopeStackContext swappedOutForCoroutine() {
+    ThreadScopeContext token = coroutineToken;
+    if (token == null) {
+      coroutineToken = token = new ThreadScopeContext(this);
+    }
+    return token;
+  }
+
   // DQH - regrettably needed for pre-existing tests
   void clear() {
     stack.clear();
