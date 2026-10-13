@@ -1008,86 +1008,69 @@ public class DDSpanContext
   }
 
   /*
-   * Store a tag that interception let through. A direction-dependent name goes through SpanTags,
-   * which applies last-write-wins between a tag and its direction-scoped alias without ordering
-   * state; every other name costs one small map probe. Known corner, accepted: before the span has
-   * a kind, writing an alias and then either of its possible tags drops the alias, even when the
-   * eventual kind maps it to the other tag (see SpanTags). Call while holding the unsafeTags lock.
+   * Store a tag that interception let through. The name is looked up once, as a plain write by
+   * name would: the result is the id to store under, and also says whether the name takes part in
+   * direction-scoped naming -- an id with KnownTagCodec.HAS_SCOPED_ALIAS, or the alias sentinel.
+   * Only those go through SpanTags, which applies last-write-wins between a tag and its alias
+   * without ordering state; every other name costs nothing extra. Known corner, accepted: before
+   * the span has a kind, writing an alias and then either of its possible tags drops the alias,
+   * even when the eventual kind maps it to the other tag (see SpanTags). Call while holding the
+   * unsafeTags lock.
    */
-  private void storeTag(String tag, Object value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
+  private long writeKeyOf(String tag) {
+    long key = KnownTagCodec.keyOrAliasOf(tag);
+    if (key > 0) {
+      if (KnownTagCodec.hasScopedAlias(key)) {
+        SpanTags.prepareWrite(unsafeTags, key, tagDirection());
+      }
+      return key;
     }
+    return key == 0 ? 0L : SpanTags.prepareAliasWrite(unsafeTags, tag, tagDirection());
+  }
+
+  private void storeTag(String tag, Object value) {
+    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, CharSequence value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, boolean value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, int value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, long value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, float value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, double value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
   }
 
-  /** {@link #storeTag} for an entry, by id or by name. */
+  /** {@link #storeTag} for an entry, which carries its id: no lookup unless it may be an alias. */
   private void storeEntry(TagMap.EntryReader entry) {
     long tagId = entry.tagId();
     if (tagId != 0) {
-      SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+      if (KnownTagCodec.hasScopedAlias(tagId)) {
+        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+      }
       unsafeTags.set(entry);
-      return;
-    }
-    long aliasedId = SpanTags.prepareWrite(unsafeTags, entry.tag(), tagDirection());
-    if (aliasedId != 0) {
-      unsafeTags.set(aliasedId, entry.objectValue());
+    } else if (KnownTagCodec.mayBeScopedAlias(entry.tag())) {
+      long aliasedId = SpanTags.prepareAliasWrite(unsafeTags, entry.tag(), tagDirection());
+      if (aliasedId != 0) {
+        unsafeTags.set(aliasedId, entry.objectValue());
+      } else {
+        unsafeTags.set(entry);
+      }
     } else {
       unsafeTags.set(entry);
     }
@@ -1180,7 +1163,9 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1195,7 +1180,9 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsIntercept(tagId)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1209,7 +1196,9 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1223,7 +1212,9 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1237,7 +1228,9 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1251,7 +1244,9 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1265,7 +1260,9 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, value);
       }
     }
@@ -1299,7 +1296,9 @@ public class DDSpanContext
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        if (KnownTagCodec.hasScopedAlias(tagId)) {
+          SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+        }
         unsafeTags.set(tagId, box);
       }
     }
@@ -1402,7 +1401,8 @@ public class DDSpanContext
               }
             });
       } else {
-        map.forEach(this, (ctx, tagEntry) -> ctx.storeEntry(tagEntry));
+        // needsIntercept(TagMap) is also true for a map with a direction-dependent name.
+        unsafeTags.putAll(map);
       }
     }
   }
@@ -1457,12 +1457,7 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final byte value) {
-    long tagId = SpanTags.prepareWrite(unsafeTags, tag, tagDirection());
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    storeTag(tag, value);
   }
 
   void unsafeSetTag(final String tag, final double value) {

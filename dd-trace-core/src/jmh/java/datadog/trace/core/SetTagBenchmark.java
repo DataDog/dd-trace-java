@@ -90,6 +90,12 @@ public class SetTagBenchmark {
     return span.setTag(KnownTags.HTTP_ROUTE_NAME, "/users/{id}");
   }
 
+  /** A tag with a direction-scoped alias: the only names that pay for alias handling. */
+  @Benchmark
+  public Object aliasTargetTag_byName() {
+    return span.setTag(KnownTags.PEER_HOSTNAME_NAME, "db.example");
+  }
+
   @Benchmark
   public Object customTag_byName() {
     return span.setTag("my.custom.tag", "/users/{id}");

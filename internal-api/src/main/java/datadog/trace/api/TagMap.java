@@ -1648,6 +1648,48 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /*
+   * Pre-resolved setters: for a caller that has already looked {@code tag} up with
+   * KnownTagCodec.keyOf (or keyOrAliasOf) and passes the result as {@code tagId} -- the tag's id,
+   * or 0 (or a negative sentinel) for a custom tag. The same write as set(tag, value), without a
+   * second lookup.
+   */
+  public void setResolved(long tagId, @Nonnull String tag, @Nonnull Object value) {
+    this.putEntry(tagId > 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value));
+  }
+
+  public void setResolved(long tagId, @Nonnull String tag, @Nonnull CharSequence value) {
+    this.putEntry(
+        tagId > 0 ? Entry.newObjectEntry(tagId, value) : Entry.newObjectEntry(tag, value));
+  }
+
+  public void setResolved(long tagId, @Nonnull String tag, boolean value) {
+    this.putEntry(
+        tagId > 0 ? Entry.newBooleanEntry(tagId, value) : Entry.newBooleanEntry(tag, value));
+  }
+
+  public void setResolved(long tagId, @Nonnull String tag, int value) {
+    this.putEntry(tagId > 0 ? Entry.newIntEntry(tagId, value) : Entry.newIntEntry(tag, value));
+  }
+
+  public void setResolved(long tagId, @Nonnull String tag, long value) {
+    this.putEntry(tagId > 0 ? Entry.newLongEntry(tagId, value) : Entry.newLongEntry(tag, value));
+  }
+
+  public void setResolved(long tagId, @Nonnull String tag, float value) {
+    this.putEntry(tagId > 0 ? Entry.newFloatEntry(tagId, value) : Entry.newFloatEntry(tag, value));
+  }
+
+  public void setResolved(long tagId, @Nonnull String tag, double value) {
+    this.putEntry(
+        tagId > 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value));
+  }
+
+  /** The read counterpart of {@link #setResolved(long, String, Object)}. */
+  public Entry getEntryResolved(long tagId, String tag) {
+    return tagId > 0 ? this.getEntry(tagId) : this.getEntry(tag, Entry.customHash(tag));
+  }
+
+  /*
    * Id-keyed setters: the caller passes a KnownTags.*_ID, so the entry is built under the tag's
    * canonical name without the name lookup the String setters pay. The id must name a known tag;
    * custom tags have no id and use the String setters.

@@ -167,6 +167,30 @@ class KnownTagsTest {
    * but it is one tag either way: one id, one stored value. Only its OpenTelemetry name depends on
    * the span's direction.
    */
+  /** The direction role rides on the one lookup a write by name already does. */
+  @Test
+  void theLookupCarriesTheDirectionRole() {
+    assertEquals(
+        KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL,
+        KnownTagCodec.keyOrAliasOf("server.address"));
+    assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTagCodec.keyOrAliasOf(Tags.PEER_HOSTNAME));
+    assertEquals(0L, KnownTagCodec.keyOrAliasOf("my.custom.tag"));
+    for (long tagId :
+        new long[] {
+          KnownTags.PEER_HOSTNAME_ID,
+          KnownTags.HTTP_HOSTNAME_ID,
+          KnownTags.NETWORK_CLIENT_IP_ID,
+          KnownTags.PEER_PORT_ID
+        }) {
+      assertTrue(KnownTagCodec.hasScopedAlias(tagId), KnownTagCodec.nameOf(tagId));
+    }
+    assertFalse(KnownTagCodec.hasScopedAlias(KnownTags.HTTP_METHOD_ID));
+    for (String alias :
+        new String[] {"server.address", "server.port", "client.port", "network.peer.address"}) {
+      assertTrue(KnownTagCodec.mayBeScopedAlias(alias), alias);
+    }
+  }
+
   @Test
   void aNameDeclaredPerDirectionIsOneTag() {
     assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));

@@ -339,6 +339,8 @@ class TagRegistryGeneratorTest {
         mapOf(TagConventions.Direction.INBOUND to "client.port", TagConventions.Direction.OUTBOUND to "server.port")
       )
     assertThat(tags.values.map { it.otelName }).containsOnlyNulls()
+    assertThat(tags.values.filter { it.id and TagRegistry.HAS_SCOPED_ALIAS != 0L }.map { it.name })
+      .containsExactlyInAnyOrder("http.hostname", "peer.hostname", "peer.port")
     assertThat(conventions.resolve("http.client").map { it.name }).contains("peer.port@outbound")
     assertThat(conventions.resolve("http.server").map { it.name }).contains("peer.port@inbound")
   }

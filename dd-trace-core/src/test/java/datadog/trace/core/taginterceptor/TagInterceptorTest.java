@@ -29,6 +29,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.remoteconfig.ServiceNameCollectorTestBridge;
@@ -979,6 +980,23 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
 
     assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_ID));
     assertTrue(interceptor.needsIntercept(Tags.PEER_PORT));
+  }
+
+  /** A map with a direction-dependent name must be copied entry by entry, not in bulk. */
+  @Test
+  void aMapWithADirectionDependentNameIsNotBulkCopied() {
+    TagInterceptor interceptor = splittingInterceptor("unrelated.tag");
+    TagMap plain = TagMap.create();
+    plain.set("my.custom.tag", "value");
+    plain.set(KnownTags.HTTP_ROUTE_NAME, "/users");
+    TagMap alias = TagMap.create();
+    alias.set("server.address", "example.com");
+    TagMap aliasTarget = TagMap.create();
+    aliasTarget.set(Tags.PEER_HOSTNAME, "example.com");
+
+    assertFalse(interceptor.needsIntercept(plain));
+    assertTrue(interceptor.needsIntercept(alias));
+    assertTrue(interceptor.needsIntercept(aliasTarget));
   }
 
   private static TagInterceptor splittingInterceptor(String splitByTag) {

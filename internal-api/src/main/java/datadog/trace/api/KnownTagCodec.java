@@ -1,8 +1,5 @@
 package datadog.trace.api;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Resolves generated tag IDs and names. {@link KnownTags} owns the lookup tables; this class owns
  * the ID layout and namespace naming policy.
@@ -63,6 +60,19 @@ public final class KnownTagCodec {
     return (tagId & INTERCEPTED) != 0L;
   }
 
+  /**
+   * HAS_SCOPED_ALIAS bit (low-32 carve, bit 0): marks a tag with an OpenTelemetry name that holds
+   * in some directions only ({@code peer.hostname} is {@code server.address} on outbound spans), so
+   * a value written under that alias can denote it. A write of a constant id tests the bit at JIT
+   * time, so the alias handling folds away for every tag without it.
+   */
+  public static final long HAS_SCOPED_ALIAS = 1L << 0;
+
+  /** True if {@code tagId} has an OpenTelemetry name that holds in some directions only. */
+  public static boolean hasScopedAlias(long tagId) {
+    return (tagId & HAS_SCOPED_ALIAS) != 0L;
+  }
+
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
   public static long traceLevel(long tagId) {
     return tagId | LEVEL_TRACE;
@@ -105,9 +115,9 @@ public final class KnownTagCodec {
   /**
    * What {@link Resolver#lookup} returns for an OpenTelemetry name that applies in one direction
    * only: {@code server.address} is {@code http.hostname} on inbound spans and {@code
-   * peer.hostname} on outbound ones.
+   * peer.hostname} on outbound ones. {@link #keyOrAliasOf} returns it too.
    */
-  static final long DIRECTION_SCOPED_OTEL_NAME_SENTINEL = -2L;
+  public static final long DIRECTION_SCOPED_OTEL_NAME_SENTINEL = -2L;
 
   /**
    * What {@link #directionalKeyOf} returns for a name whose tag depends on the span's direction but
@@ -255,7 +265,7 @@ public final class KnownTagCodec {
    * or null when it has none there, or its name there holds in every direction.
    */
   public static String directionScopedNameOf(long tagId, int direction) {
-    if (direction == DIRECTION_UNKNOWN) {
+    if (direction == DIRECTION_UNKNOWN || !hasScopedAlias(tagId)) {
       return null;
     }
     Resolver resolver = Installed.RESOLVER;
@@ -265,61 +275,50 @@ public final class KnownTagCodec {
         : null;
   }
 
-  /**
-   * {@link #directionScopedNameOf(long, int)} by Datadog name. Costs one small map probe for every
-   * name but the few tags renamed in some directions only.
-   */
+  /** {@link #directionScopedNameOf(long, int)} by Datadog name. */
   public static String directionScopedNameOf(String ddName, int direction) {
     if (direction == DIRECTION_UNKNOWN) {
       return null;
     }
-    long role = directionRoleOf(ddName);
-    return role > 0 ? directionScopedNameOf(role, direction) : null;
-  }
-
-  /** What {@link #directionRoleOf} returns for a name that does not depend on direction. */
-  static final long NOT_DIRECTION_DEPENDENT = -1L;
-
-  /**
-   * How {@code name} takes part in direction-scoped naming: 0 for a direction-scoped OpenTelemetry
-   * name ({@code server.address}); the id of a tag that has one ({@code peer.hostname}); or {@link
-   * #NOT_DIRECTION_DEPENDENT} for every other name. One small map probe.
-   */
-  static long directionRoleOf(String name) {
-    Long role = DirectionScoped.ROLES.get(name);
-    return role == null ? NOT_DIRECTION_DEPENDENT : role;
-  }
-
-  /** True if {@code tagId} has a direction-scoped OpenTelemetry name; an array load. */
-  static boolean hasDirectionScopedName(long tagId) {
-    int serial = serialNum(tagId);
-    boolean[] bySerial = DirectionScoped.BY_SERIAL;
-    return serial < bySerial.length && bySerial[serial];
+    long tagId = keyOf(ddName);
+    return tagId != 0 ? directionScopedNameOf(tagId, direction) : null;
   }
 
   /**
-   * The names that depend on direction, built once from the registry: each direction-scoped
-   * OpenTelemetry name, and each tag that has one.
+   * {@link #keyOf(String)}, except that a direction-scoped alias ({@code server.address}) returns
+   * {@link #DIRECTION_SCOPED_OTEL_NAME_SENTINEL} instead of 0. One lookup, like {@code keyOf}: a
+   * span writing a tag by name learns from it both the id to store under and whether the name
+   * depends on its direction (the alias sentinel, or an id with {@link #HAS_SCOPED_ALIAS}).
    */
-  private static final class DirectionScoped {
-    static final boolean[] BY_SERIAL = new boolean[serialLimit()];
-    static final Map<String, Long> ROLES = directionRoles();
+  public static long keyOrAliasOf(String name) {
+    return Installed.RESOLVER.lookup(name);
+  }
 
-    private static Map<String, Long> directionRoles() {
-      Map<String, Long> roles = new HashMap<>();
+  /**
+   * A cheap pre-check for a name that may be a direction-scoped alias: false for nearly every other
+   * name, at the cost of a bit test on its (cached) hash. A true answer still needs {@link
+   * #directionalKeyOf} to confirm.
+   */
+  public static boolean mayBeScopedAlias(String name) {
+    return (AliasFilter.MASK & (1L << name.hashCode())) != 0L;
+  }
+
+  /** A 64-bit filter over the direction-scoped aliases' hashes, built once from the registry. */
+  private static final class AliasFilter {
+    static final long MASK = aliasMask();
+
+    private static long aliasMask() {
+      long mask = 0L;
       for (int serial = 1; serial < serialLimit(); serial++) {
-        String name = nameOf(makeTagId(serial));
-        long tagId = keyOf(name);
+        long tagId = keyOf(nameOf(makeTagId(serial)));
         for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
-          String scopedName = directionScopedNameOf(tagId, direction);
-          if (scopedName != null) {
-            BY_SERIAL[serial] = true;
-            roles.put(name, tagId);
-            roles.put(scopedName, 0L);
+          String alias = directionScopedNameOf(tagId, direction);
+          if (alias != null) {
+            mask |= 1L << alias.hashCode();
           }
         }
       }
-      return roles;
+      return mask;
     }
   }
 

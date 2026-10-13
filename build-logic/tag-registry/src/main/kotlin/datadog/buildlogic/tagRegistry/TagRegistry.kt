@@ -41,6 +41,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val FIRST_SERIAL = 1
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
     const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
+    const val HAS_SCOPED_ALIAS = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.HAS_SCOPED_ALIAS
 
     /**
      * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
@@ -50,10 +51,11 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     /**
      * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() + intercepted() -- must stay in sync.
-     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, other low bits and the reserved [47-32] window
+     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, HAS_SCOPED_ALIAS at bit 0 (the tag has an
+     * OpenTelemetry name in some directions only), other low bits and the reserved [47-32] window
      * zero. Every id is made here, and the range check makes each one positive by construction.
      */
-    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean): Long {
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, hasScopedAlias: Boolean = false): Long {
       require(serial in FIRST_SERIAL until SERIAL_CAPACITY) {
         "serial $serial is outside [$FIRST_SERIAL, $SERIAL_CAPACITY): more tags would make tag ids " +
           "negative, where KnownTagCodec's lookup sentinels live"
@@ -61,6 +63,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
       var id = serial.toLong() shl 48
       if (traceLevel) id = id or LEVEL_TRACE
       if (intercepted) id = id or INTERCEPTED
+      if (hasScopedAlias) id = id or HAS_SCOPED_ALIAS
       return id
     }
 
@@ -87,7 +90,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             isTraceLevel,
             isIntercepted,
-            id = encode(serial, isTraceLevel, isIntercepted),
+            id = encode(serial, isTraceLevel, isIntercepted, scoped.isNotEmpty()),
             otelName = otelName,
             scopedOtelNames = scoped,
           )

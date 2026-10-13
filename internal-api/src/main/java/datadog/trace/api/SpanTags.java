@@ -76,33 +76,44 @@ public final class SpanTags {
   }
 
   /**
-   * Prepares a write of {@code name} to a span of {@code direction}, returning the id to store the
-   * value under, or 0 to store it under {@code name}. An alias the direction resolves becomes its
-   * tag's id; a write of a tag that has an alias removes the pending aliases it supersedes. Every
-   * other name costs one small map probe.
+   * Prepares a write of the alias {@code alias} -- a name {@link KnownTagCodec#keyOrAliasOf}
+   * returned {@link KnownTagCodec#DIRECTION_SCOPED_OTEL_NAME_SENTINEL} for -- to a span of {@code
+   * direction}, returning the id of the tag to store the value under, or 0 to store it under the
+   * alias. Also safe for any other name, which returns 0.
    */
-  public static long prepareWrite(TagMap tags, String name, int direction) {
-    long role = KnownTagCodec.directionRoleOf(name);
-    if (role == KnownTagCodec.NOT_DIRECTION_DEPENDENT) {
-      return 0L;
+  public static long prepareAliasWrite(TagMap tags, String alias, int direction) {
+    long tagId = KnownTagCodec.directionalKeyOf(alias, direction);
+    if (tagId <= 0) {
+      return 0L; // not an alias, no direction yet, or no tag in it: stored as written
     }
-    if (role == 0) {
-      long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-      if (tagId <= 0) {
-        return 0L; // no direction yet, or no tag in it: stored as written
-      }
-      tags.remove(name); // a value pending under the alias is older than this write
-      return tagId;
-    }
-    removePendingAliases(tags, role, direction);
-    return 0L;
+    tags.remove(alias); // a value pending under the alias is older than this write
+    return tagId;
   }
 
-  /** {@link #prepareWrite(TagMap, String, int)} for a write of the known tag {@code tagId}. */
+  /**
+   * Prepares a write of the known tag {@code tagId} to a span of {@code direction}: when the tag
+   * has an alias ({@link KnownTagCodec#HAS_SCOPED_ALIAS}), removes the pending aliases the write
+   * supersedes. A caller with a constant id that lacks the bit can skip the call.
+   */
   public static void prepareWrite(TagMap tags, long tagId, int direction) {
-    if (KnownTagCodec.hasDirectionScopedName(tagId)) {
+    if (KnownTagCodec.hasScopedAlias(tagId)) {
       removePendingAliases(tags, tagId, direction);
     }
+  }
+
+  /**
+   * True if a span must route {@code entry} through {@link #prepareWrite} or {@link
+   * #prepareAliasWrite}: a tag with an alias, or an alias. A mask test for a known tag; a bit test
+   * on the hash, almost always, for a custom one.
+   */
+  public static boolean isDirectionDependent(TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    if (tagId != 0) {
+      return KnownTagCodec.hasScopedAlias(tagId);
+    }
+    String tag = entry.tag();
+    return KnownTagCodec.mayBeScopedAlias(tag)
+        && KnownTagCodec.keyOrAliasOf(tag) == KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL;
   }
 
   /**
@@ -127,29 +138,26 @@ public final class SpanTags {
 
   /**
    * The value of {@code name} on a span of {@code direction}. An alias reads its tag, and a tag
-   * reads its alias; a pending alias, being the newer write, wins. Every other name costs one small
-   * map probe more than {@link TagMap#getObject}.
+   * reads its alias; a pending alias, being the newer write, wins. Every other name costs the same
+   * single lookup as {@link TagMap#getObject}.
    */
   public static Object get(TagMap tags, String name, int direction) {
-    long role = KnownTagCodec.directionRoleOf(name);
-    if (role == KnownTagCodec.NOT_DIRECTION_DEPENDENT) {
-      return tags.getObject(name);
+    long key = KnownTagCodec.keyOrAliasOf(name);
+    if (key > 0) {
+      return get(tags, key, direction);
     }
-    if (role == 0) {
-      Object pending = tags.getObject(name);
-      long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-      if (pending != null || tagId <= 0) {
-        return pending;
-      }
-      TagMap.Entry tag = tags.getEntry(tagId);
-      return tag == null ? null : tag.objectValue();
+    TagMap.Entry asWritten = tags.getEntryResolved(0L, name);
+    if (key == 0 || asWritten != null) {
+      return asWritten == null ? null : asWritten.objectValue();
     }
-    return get(tags, role, direction);
+    long tagId = KnownTagCodec.directionalKeyOf(name, direction);
+    TagMap.Entry tag = tagId > 0 ? tags.getEntry(tagId) : null;
+    return tag == null ? null : tag.objectValue();
   }
 
   /** The value of the known tag {@code tagId} on a span of {@code direction}; see {@link #get}. */
   public static Object get(TagMap tags, long tagId, int direction) {
-    if (direction != DIRECTION_UNKNOWN && KnownTagCodec.hasDirectionScopedName(tagId)) {
+    if (KnownTagCodec.hasScopedAlias(tagId) && direction != DIRECTION_UNKNOWN) {
       String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
       Object pending = alias == null ? null : tags.getObject(alias);
       if (pending != null) {

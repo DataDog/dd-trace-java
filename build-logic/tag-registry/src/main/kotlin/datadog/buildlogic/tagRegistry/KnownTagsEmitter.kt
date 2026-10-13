@@ -98,6 +98,7 @@ object KnownTagsEmitter {
         append("// makeTagId(serial=${t.serial})")
         if (t.traceLevel) append(" + trace-level")
         if (t.intercepted) append(" + intercepted")
+        if (t.scopedOtelNames.isNotEmpty()) append(" + scoped-alias")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         for ((direction, otel) in t.scopedOtelNames) append(" -> ${escape(otel)} (${direction.yamlKey})")
         appendLine("  <${escape(t.required)}>")
