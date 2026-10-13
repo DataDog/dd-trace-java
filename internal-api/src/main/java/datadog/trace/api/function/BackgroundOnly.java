@@ -32,8 +32,11 @@ import java.lang.annotation.Target;
  * failure.
  *
  * <ul>
- *   <li><b>Foreground code:</b> a method annotated {@link ForegroundSafe}, or a method of a type
- *       annotated {@code @ForegroundSafe} that has no method-level {@code @BackgroundOnly}.
+ *   <li><b>Foreground code:</b> a method annotated {@link ForegroundSafe}; a method of a type
+ *       annotated {@code @ForegroundSafe} that has no method-level {@code @BackgroundOnly}; or an
+ *       advice method annotated {@code @Advice.OnMethodEnter} or {@code @Advice.OnMethodExit}.
+ *       ByteBuddy inlines advice into the instrumented application method, so it runs on the
+ *       application thread by construction.
  *   <li><b>Background-only code:</b> a method annotated {@code @BackgroundOnly}, or a method of a
  *       type annotated {@code @BackgroundOnly} that has no method-level {@code @ForegroundSafe}.
  *   <li><b>Trigger:</b> foreground code that directly calls background-only code.
