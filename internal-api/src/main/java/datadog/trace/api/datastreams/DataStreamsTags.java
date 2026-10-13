@@ -325,7 +325,10 @@ public class DataStreamsTags {
         kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
 
-    this.hash = BaseHash.getBaseHash();
+    // seeded from service+env+primaryTag only: process tags and the agent-reported
+    // container-tags hash vary per-pod/per-rollout and must not fragment pathway identity
+    // (see DSM2-335) — they're folded into aggregationHash below instead.
+    this.hash = BaseHash.getIdentityHash();
 
     if (DataStreamsTags.serviceNameOverride != null) {
       String val = DataStreamsTags.serviceNameOverride.get();
@@ -343,8 +346,15 @@ public class DataStreamsTags {
       }
     }
 
-    // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     this.aggregationHash = this.hash;
+
+    // DSM2-335: process tags and the agent-reported container-tags hash used to be folded in
+    // here (per-pod/per-process metadata inherited from DBM's BaseHash, see BaseHash.getBaseHash()
+    // and PR #9282). They're dropped entirely rather than moved to the aggregation tier: the
+    // backend never decodes them into discrete tags today, so they only added opaque cardinality
+    // with no user-visible benefit.
+
+    // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     for (int i = 7; i < 12; i++) {
       String tag = this.tagByIndex(i);
       if (tag != null) {
