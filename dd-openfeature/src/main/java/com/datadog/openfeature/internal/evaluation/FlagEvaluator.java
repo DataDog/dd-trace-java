@@ -2,8 +2,6 @@ package com.datadog.openfeature.internal.evaluation;
 
 import static java.util.Arrays.asList;
 
-import com.datadog.openfeature.internal.evaluation.EvaluationResult.ErrorCode;
-import com.datadog.openfeature.internal.evaluation.EvaluationResult.Reason;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
@@ -16,7 +14,12 @@ import com.datadog.openfeature.internal.ufc.ShardRange;
 import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
+import dev.openfeature.sdk.ErrorCode;
+import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.ProviderEvaluation;
+import dev.openfeature.sdk.Reason;
+import dev.openfeature.sdk.Value;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -28,30 +31,31 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-/**
- * Local evaluation over a single configuration snapshot. No transport or OpenFeature dependency.
- */
+/** Local evaluation over a single configuration snapshot. No transport dependency. */
 public final class FlagEvaluator {
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
-      new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Object.class));
+      new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
   private static final String METADATA_OBSERVE_FULL_EVALUATION_DATA =
       "observe_full_evaluation_data";
   private static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
   private static final String METADATA_DO_LOG = "__dd_do_log";
   private final boolean spanEnrichmentEnabled;
+  private final ExposureListener exposureListener;
 
-  public FlagEvaluator(final boolean spanEnrichmentEnabled) {
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled, final ExposureListener exposureListener) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
+    this.exposureListener = exposureListener;
   }
 
-  public <T> EvaluationResult<T> evaluate(
+  public <T> ProviderEvaluation<T> evaluate(
       final ServerConfiguration config,
       final Class<T> target,
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
     // Snapshot the config once and thread observeFullEvaluationData through every
-    // EvaluationResult returned, so the hook's consent decision is pinned to this evaluation's
+    // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
     // Boolean.TRUE.equals covers both null (privacy-preserving default) and Boolean.FALSE without
     // an NPE — the field is boxed so a malformed UFC message doesn't abort the whole parse.
@@ -79,7 +83,7 @@ public final class FlagEvaluator {
       }
 
       if (!flag.enabled) {
-        return EvaluationResult.<T>builder()
+        return ProviderEvaluation.<T>builder()
             .value(defaultValue)
             .reason(Reason.DISABLED.name())
             .flagMetadata(consentMetadata(observeFullEvaluationData))
@@ -154,7 +158,7 @@ public final class FlagEvaluator {
         }
       }
 
-      return EvaluationResult.<T>builder()
+      return ProviderEvaluation.<T>builder()
           .value(defaultValue)
           .reason(Reason.DEFAULT.name())
           .flagMetadata(consentMetadata(observeFullEvaluationData))
@@ -175,17 +179,17 @@ public final class FlagEvaluator {
         .build();
   }
 
-  private static <T> EvaluationResult<T> error(
+  private static <T> ProviderEvaluation<T> error(
       final T defaultValue,
       final ErrorCode code,
       final String errorMessage,
       final boolean observeFullEvaluationData) {
     // Under consent-off the errorMessage is dropped: exception messages from the outer catch blocks
     // (NumberFormatException, generic Exception) can echo raw evaluation-context values, so they
-    // must never reach any consumer of EvaluationResult.getErrorMessage() — not just our own
+    // must never reach any consumer of ProviderEvaluation.getErrorMessage() — not just our own
     // wire hook. Downstream (FlagEvalLoggingHook) falls back to ErrorCode.name(), so operators
     // still get a stable signal like "TYPE_MISMATCH".
-    return EvaluationResult.<T>builder()
+    return ProviderEvaluation.<T>builder()
         .value(defaultValue)
         .reason(Reason.ERROR.name())
         .errorCode(code)
@@ -386,7 +390,7 @@ public final class FlagEvaluator {
     }
   }
 
-  private <T> EvaluationResult<T> resolveVariant(
+  private <T> ProviderEvaluation<T> resolveVariant(
       final Class<T> target,
       final String key,
       final T defaultValue,
@@ -453,8 +457,8 @@ public final class FlagEvaluator {
       }
       metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
     }
-    final EvaluationResult<T> result =
-        EvaluationResult.<T>builder()
+    final ProviderEvaluation<T> result =
+        ProviderEvaluation.<T>builder()
             .value(mappedValue)
             .reason(
                 !isEmpty(allocation.rules)
@@ -464,18 +468,19 @@ public final class FlagEvaluator {
                         : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
-            .logExposure(Boolean.TRUE.equals(allocation.doLog))
-            .serialId(split.serialId)
             .build();
+    if (Boolean.TRUE.equals(allocation.doLog)) {
+      exposureListener.onExposure(key, result, split.serialId, context);
+    }
     return result;
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
     // Special handling for "id" attribute: if not explicitly provided, use targeting key
-    if ("id".equals(name) && !context.hasAttribute(name)) {
+    if ("id".equals(name) && !context.keySet().contains(name)) {
       return context.getTargetingKey();
     }
-    return context.attribute(name);
+    return context.convertValue(context.getValue(name));
   }
 
   public static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
@@ -492,7 +497,7 @@ public final class FlagEvaluator {
       case NUMERIC:
         return target == Double.class;
       case JSON:
-        return target == Object.class;
+        return target == Value.class;
       default:
         return true; // Unknown types pass through — mapValue errors caught as GENERAL
     }
@@ -526,7 +531,7 @@ public final class FlagEvaluator {
       final Double number = parseDouble(value);
       return (T) number;
     }
-    return (T) value;
+    return (T) Value.objectToValue(value);
   }
 
   private static Double parseDouble(final Object value) {
@@ -534,6 +539,24 @@ public final class FlagEvaluator {
       return ((Number) value).doubleValue();
     }
     return Double.parseDouble(String.valueOf(value));
+  }
+
+  /** Receives the evaluations whose allocation logs exposures. */
+  @FunctionalInterface
+  public interface ExposureListener {
+    /**
+     * Called when an evaluation resolves to an allocation logging exposures.
+     *
+     * @param flagKey the evaluated flag key.
+     * @param evaluation the evaluation result.
+     * @param serialId the split serial id, or {@code null} if absent.
+     * @param context the evaluation context.
+     */
+    void onExposure(
+        String flagKey,
+        ProviderEvaluation<?> evaluation,
+        Integer serialId,
+        EvaluationContext context);
   }
 
   @FunctionalInterface
