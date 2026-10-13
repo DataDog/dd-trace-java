@@ -4,10 +4,12 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
+import java.util.Objects;
 
 public class SubStringExpression implements ValueExpression<Value<String>> {
   private final ValueExpression<?> source;
@@ -63,5 +65,21 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
 
   public int getEndIndex() {
     return endIndex;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    SubStringExpression that = (SubStringExpression) o;
+    return startIndex == that.startIndex
+        && endIndex == that.endIndex
+        && Objects.equals(source, that.source);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(source, startIndex, endIndex);
   }
 }
