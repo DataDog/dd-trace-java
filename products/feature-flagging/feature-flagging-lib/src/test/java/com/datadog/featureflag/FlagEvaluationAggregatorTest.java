@@ -5,11 +5,14 @@ import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -451,6 +454,40 @@ class FlagEvaluationAggregatorTest {
     for (final FlagEvaluationAggregator.EvalBucket bucket : degraded.degradedTier.values()) {
       assertEquals(p1.equals(bucket.features) ? 2 : 1, bucket.count);
     }
+  }
+
+  @Test
+  void bucketsShareOneCopyOfEachFeatureSetUntilTheWindowIsCleared() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+
+    aggregator.aggregate(featureEvent("user-1", 1000L, false, policy("p1")));
+    aggregator.aggregate(featureEvent("user-2", 2000L, false, policy("p1")));
+    aggregator.aggregate(featureEvent("user-3", 3000L, false, policy("p2")));
+
+    final List<FlagEvaluationAggregator.EvalBucket> p1Buckets = new ArrayList<>();
+    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullTier.values()) {
+      if (policy("p1").equals(bucket.features)) {
+        p1Buckets.add(bucket);
+      }
+    }
+    assertEquals(2, p1Buckets.size());
+    assertSame(p1Buckets.get(0).features, p1Buckets.get(1).features);
+    assertEquals(2, aggregator.featureSets.size());
+
+    aggregator.simulateFullTierAtCap();
+    aggregator.aggregate(featureEvent("user-4", 4000L, false, policy("p1")));
+    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedTier.values()) {
+      assertSame(p1Buckets.get(0).features, bucket.features);
+    }
+
+    aggregator.clear();
+    assertTrue(aggregator.featureSets.isEmpty());
+  }
+
+  private static Map<String, Object> policy(final String id) {
+    final Map<String, Object> features = new HashMap<>();
+    features.put("bandit.policy_id", id);
+    return features;
   }
 
   private static FlagEvalEvent featureEvent(

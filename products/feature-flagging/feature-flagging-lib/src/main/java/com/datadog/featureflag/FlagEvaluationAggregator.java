@@ -4,6 +4,7 @@ import static datadog.trace.util.HashingUtils.addToHash;
 import static datadog.trace.util.HashingUtils.hash;
 
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +47,9 @@ final class FlagEvaluationAggregator {
   final Map<String, Integer> perFlagCount = new HashMap<>();
   final AtomicLong droppedDegradedOverflow = new AtomicLong(0);
   final AtomicInteger globalFullCount = new AtomicInteger(0);
+  // One shared key and map for each distinct feature set in the flush window, so buckets of many
+  // subjects do not each keep their own copy until the flush.
+  final Map<String, FeatureSet> featureSets = new HashMap<>();
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
@@ -57,7 +61,8 @@ final class FlagEvaluationAggregator {
     final String ctxKey = observeFullEvaluationData ? canonicalContextKey(prunedAttrs) : "";
     // Features come from the flag configuration, not the evaluation context, so they split buckets
     // in both tiers and whatever the consent: rows with different features must not merge.
-    final String featuresKey = canonicalContextKey(event.features);
+    final FeatureSet featureSet = featureSet(event.features);
+    final String featuresKey = featureSet.key;
     final FullKey fullKey = buildFullKey(event, ctxKey, featuresKey);
 
     EvalBucket bucket = fullTier.get(fullKey);
@@ -81,7 +86,7 @@ final class FlagEvaluationAggregator {
               isDefault,
               prunedAttrs,
               observeFullEvaluationData,
-              event.features));
+              featureSet.features));
       globalFullCount.incrementAndGet();
       perFlagCount.put(event.flagKey, flagCount + 1);
       return;
@@ -108,7 +113,7 @@ final class FlagEvaluationAggregator {
               isDefault,
               null,
               observeFullEvaluationData,
-              event.features));
+              featureSet.features));
       return;
     }
 
@@ -146,8 +151,34 @@ final class FlagEvaluationAggregator {
   void clear() {
     fullTier.clear();
     degradedTier.clear();
+    featureSets.clear();
     perFlagCount.clear();
     globalFullCount.set(0);
+  }
+
+  private FeatureSet featureSet(final Map<String, Object> features) {
+    if (features == null || features.isEmpty()) {
+      return FeatureSet.NONE;
+    }
+    final String key = canonicalContextKey(features);
+    FeatureSet featureSet = featureSets.get(key);
+    if (featureSet == null) {
+      featureSet = new FeatureSet(key, features);
+      featureSets.put(key, featureSet);
+    }
+    return featureSet;
+  }
+
+  static final class FeatureSet {
+    static final FeatureSet NONE = new FeatureSet("", Collections.<String, Object>emptyMap());
+
+    final String key;
+    final Map<String, Object> features;
+
+    FeatureSet(final String key, final Map<String, Object> features) {
+      this.key = key;
+      this.features = features;
+    }
   }
 
   AggregatedState snapshot() {
