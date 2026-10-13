@@ -5,6 +5,7 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.util.Strings.truncate;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -222,7 +223,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
       /* 7 (meta), 8 (metrics) */
-      span.processTagsAndBaggage(metaWriter.withWritable(writable));
+      span.processTagsAndBaggage(metaWriter.withWritable(writable), OWN_PROPAGATION_TAGS);
     }
     eventCount += trace.size();
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
