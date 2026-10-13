@@ -37,20 +37,28 @@ class ExposureLoggingHook<T> implements Hook<T> {
         return;
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
-      if (metadata == null
-          || !Boolean.TRUE.equals(metadata.getBoolean(DDEvaluator.METADATA_DO_LOG))
-          || !Boolean.FALSE.equals(metadata.getBoolean(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT))) {
+      if (metadata == null) {
+        return;
+      }
+      // The ImmutableMetadata getters build a debug message for every absent key.
+      final Map<String, Object> values = metadata.asUnmodifiableMap();
+      if (!Boolean.TRUE.equals(values.get(DDEvaluator.METADATA_DO_LOG))
+          || !Boolean.FALSE.equals(values.get(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT))) {
         return;
       }
       final String flag = details.getFlagKey();
-      final String allocationKey = metadata.getString("allocationKey");
+      final Object allocationValue = values.get("allocationKey");
+      final String allocationKey =
+          allocationValue instanceof String ? (String) allocationValue : null;
       final String variantKey = details.getVariant();
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
         return;
       }
+      final Object serialValue = values.get(DDEvaluator.METADATA_SPLIT_SERIAL_ID);
       final Integer serialId =
-          DDEvaluator.exposureSerialId(metadata.getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
+          DDEvaluator.exposureSerialId(
+              serialValue instanceof Integer ? (Integer) serialValue : null);
       cache.record(flag, context.getTargetingKey(), allocationKey, variantKey, serialId);
       FeatureFlaggingGateway.dispatch(
           DDEvaluator.exposureEvent(flag, allocationKey, variantKey, context, serialId));
