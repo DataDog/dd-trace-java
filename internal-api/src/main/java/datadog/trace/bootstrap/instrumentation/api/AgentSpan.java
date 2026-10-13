@@ -12,10 +12,12 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -146,6 +148,35 @@ public interface AgentSpan
 
   AgentSpan setAllTags(Map<String, ?> map);
 
+  /**
+   * Sets tags on this span by applying a {@link TagExtractor} to a foreign source — the span-first,
+   * product-dev-facing form of {@code extractor.extract(source, this)}. Named {@code setTagsFrom},
+   * not {@code setTags}, because {@code source} is not itself a tag value: {@code setTag(name,
+   * value)} stores one value, while this derives any number of tags from {@code source}. Kept small
+   * so it inlines: each call site then sees the exact extractor type (see {@link
+   * datadog.trace.api.function.Strategy}). This is also the seam where the whole extraction can be
+   * coarse-locked (one critical section) — an implementer may override to do so.
+   */
+  @StrategyConsumer
+  default <T> AgentSpan setTagsFrom(final T source, final TagExtractor<T> extractor) {
+    if (source != null) {
+      extractor.extract(source, this);
+    }
+    return this;
+  }
+
+  /**
+   * Sets the tags a {@link TagContributor} projects from its own state — the span-first form of
+   * {@code contributor.addTo(this)}. Call it with the contributor's concrete type so {@code addTo}
+   * devirtualizes and inlines.
+   */
+  default AgentSpan setTagsFrom(final TagContributor contributor) {
+    if (contributor != null) {
+      contributor.addTo(this);
+    }
+    return this;
+  }
+
   @Override
   AgentSpan setTag(String key, Number value);
 
@@ -263,6 +294,26 @@ public interface AgentSpan
   TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);
+
+  /**
+   * Adds an event to the span.
+   *
+   * @param name The event name.
+   * @param attributes The event attributes, with values being {@link String}, {@link Boolean},
+   *     {@link Long}, {@link Double}, or a {@link java.util.List} of them.
+   */
+  void addEvent(String name, Map<String, ?> attributes);
+
+  /**
+   * Adds an event to the span.
+   *
+   * @param name The event name.
+   * @param attributes The event attributes, with values being {@link String}, {@link Boolean},
+   *     {@link Long}, {@link Double}, or a {@link java.util.List} of them.
+   * @param timestamp The event time since the Unix epoch.
+   * @param unit The event time unit.
+   */
+  void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit);
 
   AgentSpan setMetaStruct(final String field, final Object value);
 

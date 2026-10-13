@@ -4,6 +4,8 @@ import datadog.buildlogic.smoketest.NestedGradleBuild.Companion.gradleExecutable
 import datadog.buildlogic.smoketest.NestedGradleBuild.Companion.isGradleDaemonCandidate
 import datadog.buildlogic.smoketest.NestedMavenBuild.Companion.mavenWrapperName
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.gradle.api.GradleException
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.kotlin.dsl.apply
@@ -103,6 +105,32 @@ class SmokeTestAppPluginTest {
     Thread.currentThread().interrupt()
     try {
       task.deleteGradleUserHome(userHome)
+
+      assertThat(Thread.currentThread().isInterrupted).isTrue()
+      assertThat(userHome).exists()
+    } finally {
+      Thread.interrupted()
+    }
+  }
+
+  @Test
+  fun `nested Gradle build reports a user home retained after cleanup`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    val task = project.tasks.register("nestedBuild", NestedGradleBuild::class.java).get()
+    task.applicationDir.set(project.layout.projectDirectory)
+    task.applicationBuildDir.set(project.layout.buildDirectory.dir("application"))
+    // Resolve the toolchain before simulating interrupted cleanup.
+    task.javaLauncher.get()
+    val userHome = task.temporaryDir.resolve("gradle-user-home")
+    assertThat(userHome.mkdirs()).isTrue()
+
+    Thread.currentThread().interrupt()
+    try {
+      assertThatThrownBy { task.runNestedBuild() }
+        .isInstanceOf(GradleException::class.java)
+        .hasMessageContaining("Could not clean up existing nested Gradle user home:")
+        .hasMessageContaining(userHome.absolutePath)
 
       assertThat(Thread.currentThread().isInterrupted).isTrue()
       assertThat(userHome).exists()
