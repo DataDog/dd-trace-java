@@ -29,16 +29,17 @@ java {
 
 dependencies {
   api("dev.openfeature:sdk:1.22.0")
+  api("io.opentelemetry:opentelemetry-api:1.66.0")
   api(libs.jackson.core)
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
 }
 
-tasks.withType<JavaCompile>().configureEach {
-  configureCompiler(JavaVersion.VERSION_11)
-}
-
 jmh {
   jmhVersion = libs.versions.jmh.get()
+}
+
+tasks.withType<JavaCompile>().configureEach {
+  configureCompiler(JavaVersion.VERSION_11)
 }
