@@ -77,8 +77,8 @@ public class MatchesExpression implements BooleanExpression {
 
     @Override
     public char charAt(int index) {
-      if ((charAccessCount++ & 0xFF) == 0) {
-        // checks every 256 char accesses
+      if ((charAccessCount++ & 0xFFF) == 0) {
+        //   checks every 4096 char accesses
         ExpressionHelper.checkTimeout(timeoutChecker, matchesExpression);
       }
       return s.charAt(index);
