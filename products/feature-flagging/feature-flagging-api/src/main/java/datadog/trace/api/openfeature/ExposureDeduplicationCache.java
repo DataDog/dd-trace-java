@@ -10,8 +10,9 @@ import java.util.Objects;
  */
 final class ExposureDeduplicationCache {
 
-  // Matches the agent's exposure writer, which still deduplicates on its own, so both caches evict
-  // at the same size.
+  // The same size as the agent's exposure writer cache, which still deduplicates on its own. The
+  // two
+  // caches refresh entries at different times, so once full they can evict different subjects.
   static final int CAPACITY = 1 << 16;
 
   static final ExposureDeduplicationCache INSTANCE = new ExposureDeduplicationCache(CAPACITY);
