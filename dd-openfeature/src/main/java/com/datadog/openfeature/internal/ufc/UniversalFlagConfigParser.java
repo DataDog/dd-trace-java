@@ -108,7 +108,11 @@ public final class UniversalFlagConfigParser {
         return parser.getText();
       case VALUE_NUMBER_INT:
       case VALUE_NUMBER_FLOAT:
-        return parser.getDoubleValue();
+        final double number = parser.getDoubleValue();
+        if (!Double.isFinite(number)) {
+          throw new JsonParseException(parser, "Non-finite JSON number");
+        }
+        return number;
       case VALUE_TRUE:
         return Boolean.TRUE;
       case VALUE_FALSE:

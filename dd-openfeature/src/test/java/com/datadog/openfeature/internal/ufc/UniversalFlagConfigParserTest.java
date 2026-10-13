@@ -47,6 +47,16 @@ class UniversalFlagConfigParserTest {
   }
 
   @TableTest({
+    "scenario              | flag                                                                                                ",
+    "overflowing variant   | '{\"key\":\"f\",\"variations\":{\"v\":{\"key\":\"v\",\"value\":1e400}}}'                            ",
+    "negative overflow     | '{\"key\":\"f\",\"variations\":{\"v\":{\"key\":\"v\",\"value\":-1e400}}}'                           ",
+    "overflowing condition | '{\"key\":\"f\",\"allocations\":[{\"key\":\"a\",\"rules\":[{\"conditions\":[{\"value\":1e400}]}]}]}'"
+  })
+  void rejectsNonFiniteNumbers(final String flag) {
+    assertThrows(IOException.class, () -> deserialize("{\"flags\":{\"f\":" + flag + "}}"));
+  }
+
+  @TableTest({
     "scenario | enabled  ",
     "string   | '\"yes\"'",
     "number   | '1'      ",
