@@ -285,6 +285,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   /** Extracts the bare function name from any accepted {@code FunctionName} form. */
   static String lambdaFunctionName(String functionName) {
     String[] parts = functionName.split(":");
+    // A colon-only value (":", "::") splits to an empty array; leave such malformed input to the
+    // SDK/service to reject rather than throwing from the tracing callback.
+    if (parts.length == 0) {
+      return functionName;
+    }
     // Full ARN: arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
     if (parts.length >= 7 && "arn".equals(parts[0]) && "function".equals(parts[5])) {
       return parts[6];
