@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.lambda;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -12,7 +13,11 @@ import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Unit tests for {@link StripInjectedContext}. */
 class StripInjectedContextTest extends DDJavaSpecification {
@@ -524,5 +529,71 @@ class StripInjectedContextTest extends DDJavaSpecification {
     assertTimeoutPreemptively(
         Duration.ofSeconds(1),
         () -> assertArrayEquals(input, StripInjectedContext.stripInternal(input)));
+  }
+
+  /**
+   * Keeps behavior aligned with the dd-trace-go implementation. The only intended difference is
+   * that whitespace before the colon does not prevent removal.
+   */
+  static Stream<Arguments> sharedCasesWithGo() {
+    return Stream.of(
+        Arguments.of(
+            "no datadog key", "{\"detail\":{\"foo\":\"bar\"}}", "{\"detail\":{\"foo\":\"bar\"}}"),
+        Arguments.of("empty object", "{}", "{}"),
+        Arguments.of("empty input", "", ""),
+        Arguments.of("invalid JSON", "not even json", "not even json"),
+        Arguments.of(
+            "SQS event",
+            "{\"Records\":[{\"body\":\"hello\"}]}",
+            "{\"Records\":[{\"body\":\"hello\"}]}"),
+        Arguments.of(
+            "object detail alone", "{\"detail\":{\"_datadog\":{\"x\":\"y\"}}}", "{\"detail\":{}}"),
+        Arguments.of(
+            "object detail at beginning",
+            "{\"detail\":{\"_datadog\":{\"x\":\"y\"},\"foo\":\"bar\"}}",
+            "{\"detail\":{\"foo\":\"bar\"}}"),
+        Arguments.of(
+            "object detail at end",
+            "{\"detail\":{\"foo\":\"bar\",\"_datadog\":{\"x\":\"y\"}}}",
+            "{\"detail\":{\"foo\":\"bar\"}}"),
+        Arguments.of(
+            "object detail in middle",
+            "{\"detail\":{\"foo\":\"bar\",\"_datadog\":{\"x\":\"y\"},\"baz\":\"qux\"}}",
+            "{\"detail\":{\"foo\":\"bar\",\"baz\":\"qux\"}}"),
+        Arguments.of("adjacent carriers", "{\"_datadog\":{},\"_datadog\":{}}", "{}"),
+        Arguments.of(
+            "value with comma and brace",
+            "{\"foo\":\"a,}b\",\"_datadog\":{\"x\":1}}",
+            "{\"foo\":\"a,}b\"}"),
+        Arguments.of("_datadog value null", "{\"_datadog\":null}", "{\"_datadog\":null}"),
+        Arguments.of("_datadog value bool", "{\"_datadog\":true}", "{\"_datadog\":true}"),
+        Arguments.of("_datadog value number", "{\"_datadog\":42}", "{\"_datadog\":42}"),
+        Arguments.of("_datadog value string", "{\"_datadog\":\"str\"}", "{\"_datadog\":\"str\"}"),
+        Arguments.of("_datadog value array", "{\"_datadog\":[1,2,3]}", "{\"_datadog\":[1,2,3]}"),
+        Arguments.of(
+            "similar key prefix", "{\"x_datadog\":{\"a\":\"b\"}}", "{\"x_datadog\":{\"a\":\"b\"}}"),
+        Arguments.of(
+            "similar key suffix", "{\"_datadogx\":{\"a\":\"b\"}}", "{\"_datadogx\":{\"a\":\"b\"}}"),
+        Arguments.of("whitespace before colon", "{\"_datadog\" :{\"x\":\"y\"}}", "{}"),
+        Arguments.of(
+            "even backslashes in value",
+            "{\"foo\":\"bar\\\\\\\\\",\"_datadog\":{\"x\":\"y\"}}",
+            "{\"foo\":\"bar\\\\\\\\\"}"),
+        Arguments.of(
+            "odd backslashes in carrier value", "{\"_datadog\":{\"x\":\"val\\\\\\\"\"}}", "{}"),
+        Arguments.of(
+            "string detail",
+            "{\"detail\":\"{\\\"foo\\\":\\\"bar\\\",\\\"_datadog\\\":{\\\"k\\\":\\\"v\\\"}}\"}",
+            "{\"detail\":\"{\\\"foo\\\":\\\"bar\\\"}\"}"),
+        Arguments.of(
+            "string detail with brace in carrier",
+            "{\"detail\":\"{\\\"foo\\\":\\\"bar\\\",\\\"_datadog\\\":{\\\"k\\\":\\\"v}z\\\"}}\"}",
+            "{\"detail\":\"{\\\"foo\\\":\\\"bar\\\"}\"}"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("sharedCasesWithGo")
+  void matchesExpectedOutput(String name, String input, String expected) {
+    assertEquals(expected, toUtf8(StripInjectedContext.stripInternal(bytes(input))));
   }
 }
