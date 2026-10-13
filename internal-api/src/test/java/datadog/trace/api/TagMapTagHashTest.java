@@ -92,7 +92,7 @@ class TagMapTagHashTest {
     for (Field field : KnownTags.class.getFields()) {
       if (field.getType() == long.class && Modifier.isStatic(field.getModifiers())) {
         long tagId = field.getLong(null);
-        if (KnownTagCodec.isKeyableById(tagId)) {
+        if (KnownTagCodec.isKnown(tagId)) {
           tagIds.add(tagId);
         }
       }

@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -160,20 +159,25 @@ class KnownTagsTest {
   }
 
   /**
-   * {@code peer.port} means the server's port on outbound spans and the client's on inbound ones,
-   * so it is one tag per direction. Both share the Datadog name, which therefore resolves to no tag
-   * until name resolution knows the span's direction.
+   * {@code peer.port} is declared once per direction, but it is one tag with one id: only its
+   * OpenTelemetry name depends on the span's direction ({@code client.port} inbound, {@code
+   * server.port} outbound).
    */
   @Test
-  void aNameDeclaredPerDirectionIsOneTagPerDirection() {
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_INBOUND_ID));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertNotEquals(KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID);
-    assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_INBOUND_ID));
-    assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertFalse(KnownTagCodec.isKeyableById(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertTrue(KnownTagCodec.isKeyableById(KnownTags.PEER_HOSTNAME_ID));
-    assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
+  void aNameDeclaredPerDirectionIsOneTag() {
+    assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.PEER_PORT_ID));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID));
+    assertEquals(
+        "client.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_INBOUND));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND));
+    assertEquals(
+        Tags.PEER_PORT,
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_NONE));
   }
 
   @Test

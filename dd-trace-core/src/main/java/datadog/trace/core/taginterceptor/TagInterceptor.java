@@ -95,8 +95,7 @@ public class TagInterceptor {
 
   /**
    * Marks, by serial, each known tag that {@code names} names under any of its names, so a tag set
-   * by id or by its OpenTelemetry name matches too. A name declared per direction marks each
-   * direction's tag.
+   * by id or by its OpenTelemetry name matches too.
    */
   private static boolean[] knownTagSerials(Set<String> names) {
     boolean[] serials = new boolean[KnownTagCodec.serialLimit()];

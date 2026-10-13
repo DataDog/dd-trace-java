@@ -40,35 +40,25 @@ object KnownTagsEmitter {
       return u
     }
 
-    val nameOfConst = HashMap<TagConventions.TagIdentity, String>()
-    val idOfConst = HashMap<TagConventions.TagIdentity, String>()
-    val serialOfConst = HashMap<TagConventions.TagIdentity, String>()
-    val otelNameOfConst = HashMap<TagConventions.TagIdentity, String>()
+    val nameOfConst = HashMap<String, String>()
+    val idOfConst = HashMap<String, String>()
+    val serialOfConst = HashMap<String, String>()
+    val otelNameOfConst = HashMap<String, String>()
     for (t in reg.tags) {
       val base = sanitize(t.name)
-      // Shared Datadog names get no NAME constant because they identify several tags.
-      // Callers use a direction-specific ID (e.g. PEER_PORT_OUTBOUND_ID); nameOf emits the
-      // shared Datadog name as a literal.
-      if (t.sharedNameDirection == null) nameOfConst[t.identity] = unique(withSuffix(base, "_NAME"))
-      idOfConst[t.identity] = unique(withSuffix(base, "_ID"))
-      serialOfConst[t.identity] = unique(withSuffix(base, "_SERIAL_NUM"))
+      nameOfConst[t.ddName] = unique(withSuffix(base, "_NAME"))
+      idOfConst[t.ddName] = unique(withSuffix(base, "_ID"))
+      serialOfConst[t.ddName] = unique(withSuffix(base, "_SERIAL_NUM"))
       // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
       // already-suffixed identifier would produce a redundant compound like NAME_OTEL_NAME.
-      if (t.otelName != null) otelNameOfConst[t.identity] = unique(withSuffix(base, "_OTEL_NAME"))
+      if (t.otelName != null) otelNameOfConst[t.ddName] = unique(withSuffix(base, "_OTEL_NAME"))
     }
-    fun nameC(identity: TagConventions.TagIdentity) = nameOfConst.getValue(identity)
+    fun nameC(ddName: String) = nameOfConst.getValue(ddName)
+    fun idC(ddName: String) = idOfConst.getValue(ddName)
+    fun serialC(ddName: String) = serialOfConst.getValue(ddName)
+    fun otelNameC(ddName: String) = otelNameOfConst.getValue(ddName)
 
-    // The expression nameOf returns: the NAME constant, or the shared name's literal.
-    fun nameExpr(t: TagRegistry.Tag) = nameOfConst[t.identity] ?: "\"${escape(t.ddName)}\""
-    fun idC(identity: TagConventions.TagIdentity) = idOfConst.getValue(identity)
-    fun serialC(identity: TagConventions.TagIdentity) = serialOfConst.getValue(identity)
-    fun otelNameC(identity: TagConventions.TagIdentity) = otelNameOfConst.getValue(identity)
-
-    val order = reg.tags.map { it.identity } // stable emit order
-    // keyOf has no direction argument, so omit shared names and let them resolve to 0 (unknown).
-    val keyOfOrder = reg.tags.filter { it.sharedNameDirection == null }.map { it.identity }
-    // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
-    val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.identity to it } }.toMap()
+    val keyOfOrder = reg.tags.map { it.ddName } // stable emit order
     return buildString {
       // Public API first (name + encoded id couplets), so readers see the useful parts up top; the
       // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
@@ -87,24 +77,16 @@ object KnownTagsEmitter {
       )
 
       for (t in reg.tags) {
-        val direction = t.sharedNameDirection
-        if (direction == null) {
-          appendLine("  public static final String ${nameC(t.identity)} = \"${escape(t.ddName)}\";")
-        } else {
-          appendLine(
-            "  /** {@code ${escape(t.ddName)}} on ${direction.yamlKey} spans. This ID identifies the direction; " +
-              "the Datadog name is shared across directions. */"
-          )
-        }
-        appendLine("  public static final long ${idC(t.identity)} = ${hex(t.id)};")
+        appendLine("  public static final String ${nameC(t.ddName)} = \"${escape(t.ddName)}\";")
+        appendLine("  public static final long ${idC(t.ddName)} = ${hex(t.id)};")
         if (t.otelName != null) {
-          appendLine("  public static final String ${otelNameC(t.identity)} = \"${escape(t.otelName)}\";")
+          appendLine("  public static final String ${otelNameC(t.ddName)} = \"${escape(t.otelName)}\";")
         }
         append("// makeTagId(serial=${t.serial})")
         if (t.traceLevel) append(" + trace-level")
         if (t.intercepted) append(" + intercepted")
-        if (t.sharedNameDirection != null) append(" + shared-name")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
+        for ((direction, otel) in t.scopedOtelNames) append(" -> ${escape(otel)} (${direction.yamlKey})")
         appendLine("  <${escape(t.required)}>")
         appendLine()
       }
@@ -113,7 +95,7 @@ object KnownTagsEmitter {
       // this package (the resolver here, TagInterceptor in core) can name them as case labels.
       appendLine("  // ---- serial numbers ----")
       for (t in reg.tags) {
-        appendLine("  public static final int ${serialC(t.identity)} = ${t.serial};")
+        appendLine("  public static final int ${serialC(t.ddName)} = ${t.serial};")
       }
       // Every known tag's serial is below SERIAL_LIMIT; serial 0 is no tag.
       val serialLimit = (reg.tags.maxOfOrNull { it.serial } ?: 0) + 1
@@ -123,7 +105,7 @@ object KnownTagsEmitter {
       // canonical names. Sort by OTel name to keep output deterministic.
       val otelByCanonical =
         reg.tags
-          .mapNotNull { t -> t.otelName?.let { it to t.identity } }
+          .mapNotNull { t -> t.otelName?.let { it to t.ddName } }
           .sortedBy { it.first }
 
       // keyOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then
@@ -179,7 +161,7 @@ object KnownTagsEmitter {
         """.trimIndent()
       )
       for (t in reg.tags.sortedBy { it.serial }) {
-        appendLine("    ${nameExpr(t)},")
+        appendLine("    ${nameC(t.ddName)},")
       }
       appendLine(
         """
@@ -198,21 +180,29 @@ object KnownTagsEmitter {
                   return serial < NAMES_BY_SERIAL.length ? NAMES_BY_SERIAL[serial] : null;
                 }
         
-                // openTelemetryNameOf: canonical id -> OTel-namespace name, null when the tag has
-                // none. The caller (a serializer) owns any fall-back-to-Datadog-name policy.
+                // openTelemetryNameOf: id -> OTel-namespace name on spans of a direction, null when
+                // the tag has none there. The caller (a serializer) owns any fall-back-to-Datadog-name
+                // policy.
                 @Override
-                public String openTelemetryNameOf(long tagId) {
+                public String openTelemetryNameOf(long tagId, int direction) {
                   switch (KnownTagCodec.serialNum(tagId)) {
         """.trimIndent()
       )
-      for (identity in order) {
-        if (otelName[identity] == null) continue
-        appendLine(
-          """
-                      case ${serialC(identity)}:
-                        return ${otelNameC(identity)};
-          """.trimIndent()
-        )
+      for (t in reg.tags) {
+        val result =
+          if (t.otelName != null) {
+            otelNameC(t.ddName)
+          } else if (t.scopedOtelNames.isNotEmpty()) {
+            // Renamed only on spans of some directions: elsewhere, and while the direction is
+            // unknown, the tag keeps its Datadog name.
+            t.scopedOtelNames.entries.reversed().fold("null") { rest, (direction, otel) ->
+              "direction == KnownTagCodec.DIRECTION_${direction.name} ? \"${escape(otel)}\" : $rest"
+            }
+          } else {
+            continue
+          }
+        appendLine("case ${serialC(t.ddName)}:")
+        appendLine("  return $result;")
       }
       appendLine(
         """

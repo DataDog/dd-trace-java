@@ -62,13 +62,16 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void aSharedNameIdIsIgnoredAndLeavesTheNamedTag() {
+  void anIdReplacesAValueSetUnderTheName() {
     span.setTag("peer.port", 8080);
 
-    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
-    span.setTag(KnownTags.PEER_PORT_INBOUND_ID, (Object) null);
+    span.setTag(KnownTags.PEER_PORT_ID, 443);
 
-    assertEquals(8080, span.getTag("peer.port"));
+    assertEquals(443, span.getTag("peer.port"));
+
+    span.setTag(KnownTags.PEER_PORT_ID, (Object) null);
+
+    assertNull(span.getTag("peer.port"));
   }
 
   @Test

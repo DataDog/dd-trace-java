@@ -74,16 +74,6 @@ class TagMapSetByIdTest {
   }
 
   @Test
-  void rejectsSharedNameIds() {
-    TagMap map = TagMap.create();
-    assertThrows(IllegalArgumentException.class, () -> map.set(KnownTags.PEER_PORT_INBOUND_ID, 80));
-    assertThrows(
-        IllegalArgumentException.class, () -> map.set(KnownTags.PEER_PORT_OUTBOUND_ID, 443));
-    assertThrows(
-        IllegalArgumentException.class, () -> map.getEntry(KnownTags.PEER_PORT_OUTBOUND_ID));
-  }
-
-  @Test
   void theCoresTrustedSetsStoreWhatTheCheckedSetsStore() {
     TagMap checked = TagMap.create();
     checked.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");

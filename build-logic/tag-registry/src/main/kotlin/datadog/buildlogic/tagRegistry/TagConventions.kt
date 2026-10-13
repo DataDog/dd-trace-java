@@ -61,13 +61,9 @@ class TagConventions private constructor(
     val name: String
       get() = identity.label
 
-    /** The Datadog-namespace name, shared by the tags of a name declared per direction. */
+    /** The Datadog-namespace name, shared by the declarations of a name declared per direction. */
     val ddName: String
       get() = identity.ddName
-
-    /** The direction of a tag declared per direction, or null for every other tag. */
-    val sharedNameDirection: Direction?
-      get() = identity.direction
   }
 
   /**

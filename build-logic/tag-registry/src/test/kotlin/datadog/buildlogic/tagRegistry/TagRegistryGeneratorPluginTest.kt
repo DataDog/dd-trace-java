@@ -247,9 +247,13 @@ class TagRegistryGeneratorPluginTest {
       public final class KnownTagCodec {
         public interface Resolver {
           String nameOf(long id);
-          String openTelemetryNameOf(long id);
+          String openTelemetryNameOf(long id, int direction);
           long keyOf(String name);
         }
+        public static final int DIRECTION_UNKNOWN = -1;
+        public static final int DIRECTION_INBOUND = 0;
+        public static final int DIRECTION_OUTBOUND = 1;
+        public static final int DIRECTION_NONE = 2;
         public static int serialNum(long id) { return (int) (id >>> 48); }
       }
       """
