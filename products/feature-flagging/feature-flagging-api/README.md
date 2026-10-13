@@ -88,9 +88,13 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 
 ## Exposures in your own data store
 
-The provider sends exposures to Datadog. To also record them in your own data store, register an
-`ExposureHook`. It receives every completed evaluation, with the same exposure decision that the
-provider uses for Datadog.
+The provider sends exposures to Datadog. It also puts its exposure decision and the selected split's
+features into the flag metadata of every evaluation, so any OpenFeature hook can record exposures in
+your own data store (see [Flag metadata](#flag-metadata)).
+
+For convenience, `dd-openfeature` ships `ExposureHook`, which reads that metadata for you. It
+receives every completed evaluation, with the same exposure decision that the provider uses for
+Datadog.
 
 ```java
 import datadog.trace.api.openfeature.ExposureHook;
@@ -114,13 +118,17 @@ OpenFeatureAPI.getInstance().addHooks(new ExposureHook(evaluation -> {
 
 - The callback runs on the evaluation thread. Do not write to the data store from the callback.
   Copy what you need and hand it to a background queue.
-- `shouldSend()` is true for exactly the exposures that the provider sends to Datadog: a successful
-  evaluation of an allocation that logs exposures, for a subject not yet exposed to the same
-  allocation, variant and serial id.
+- `shouldSend()` is true for a successful evaluation of an allocation that logs exposures, for a
+  subject not yet exposed to the same allocation, variant and serial id. These are exactly the
+  exposures that the provider sends to Datadog, as long as the provider's own hooks run: evaluate
+  through an OpenFeature client, and inside a `MultiProvider` use OpenFeature SDK 1.23.0 or later.
+  With an older SDK, a provider inside a `MultiProvider` sends no exposures, and `shouldSend()` is
+  true for every exposure.
 - `isExposure()` is true for every successful evaluation of an allocation that logs exposures,
   including repeats. `isCacheHit()` tells repeats apart.
 - An evaluation that fails, including one that a later `after` hook fails, is not an exposure.
-- An exception from the callback is logged and does not affect the evaluation.
+- An exception from the callback does not affect the evaluation. The first one is logged at warn
+  level, later ones at debug level.
 
 ### Features
 
@@ -137,15 +145,29 @@ provider ignores a destination it does not know and logs a warning once for each
 
 ### Flag metadata
 
-The same data is in the evaluation's flag metadata, for hooks that use only the OpenFeature API:
+The same data is in the evaluation's flag metadata, for hooks that use only the OpenFeature API.
+Read it in the hook's `finallyAfter` stage, where the details match what the application receives,
+and skip details that have an error code. `ExposureHook` does both.
 
 | Key | Type | Meaning |
 |---|---|---|
 | `allocationKey` | String | The selected allocation |
-| `__dd_do_log` | Boolean | The allocation logs exposures |
+| `__dd_do_log` | Boolean | Whether the allocation logs exposures. Present when the allocation logs exposures or span enrichment is on |
 | `__dd_exposure_cache_hit` | Boolean | The subject was already exposed. Present only when `__dd_do_log` is true |
-| `__dd_split_serial_id` | Integer | The split's serial id. Present when the split has one and `__dd_do_log` is true |
+| `__dd_split_serial_id` | Integer | The split's serial id. Present when `__dd_do_log` is present, the split has a serial id, and the installed `dd-java-agent` supports serial ids |
 | `__dd_feature.<key>` | String, Double or Boolean | One entry for each feature of the selected split that lists the `HOOK` destination |
+
+### Agent versions
+
+`dd-openfeature` and `dd-java-agent` ship separately. The provider turns a capability off when the
+installed agent lacks it:
+
+| Capability | Needs `dd-java-agent` | Without it |
+|---|---|---|
+| Serial ids on splits (`__dd_split_serial_id`) | 1.65.0 | The key is absent |
+| Serial ids on exposures sent to Datadog | 1.67.0 | Exposures are sent without a serial id, so holdout attribution is lost |
+| Flag evaluation events sent to Datadog | 1.66.0 | No flag evaluation events are sent |
+| Split features (`getFeatures()`, `__dd_feature.<key>`) | The first release that includes this change | `getFeatures()` is empty |
 
 ### Stop sending exposures to Datadog
 
