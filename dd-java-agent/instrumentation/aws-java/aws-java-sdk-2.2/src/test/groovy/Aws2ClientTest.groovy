@@ -327,6 +327,65 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "both fields" | true  | "arn:aws:sns:us-east-1:123456789012:test-topic" | "arn:aws:sns:us-east-1:123456789012:endpoint/APNS/app/device" | "test-topic"
   }
 
+
+  def "Lambda resource tags normalize #scenario (async=#async)"() {
+    setup:
+    def eventLoopGroup = async ? SdkEventLoopGroup.builder().numberOfThreads(1).build() : null
+    def builder = async ? LambdaAsyncClient.builder()
+      .httpClientBuilder(NettyNioAsyncHttpClient.builder().eventLoopGroup(eventLoopGroup)) : LambdaClient.builder()
+    def client = builder
+      .endpointOverride(server.address)
+      .region(Region.US_EAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("{}")
+    def request = InvokeRequest.builder().functionName(functionName).qualifier(qualifier).build()
+
+    when:
+    def response = client.invoke(request)
+    if (response instanceof Future) {
+      response.get()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    spans[0].getTag("aws.function.name") == expectedName
+    spans[0].getTag("aws.function.arn") == expectedArn
+
+    cleanup:
+    client.close()
+    if (eventLoopGroup != null) {
+      eventLoopGroup.eventLoopGroup().shutdownGracefully().syncUninterruptibly()
+    }
+
+    where:
+    scenario                      | async | functionName                                                             | qualifier | expectedName          | expectedArn
+    "bare name"                   | false | "somefunction"                                                           | null      | "somefunction"        | null
+    "bare name"                   | true  | "somefunction"                                                           | null      | "somefunction"        | null
+    "alias"                       | false | "somefunction:PROD"                                                      | null      | "somefunction"        | null
+    "alias"                       | true  | "somefunction:PROD"                                                      | null      | "somefunction"        | null
+    "version"                     | false | "somefunction:42"                                                        | null      | "somefunction"        | null
+    "version"                     | true  | "somefunction:42"                                                        | null      | "somefunction"        | null
+    "partial ARN"                 | false | "123456789012:function:somefunction"                                     | null      | "somefunction"        | null
+    "partial ARN"                 | true  | "123456789012:function:somefunction"                                     | null      | "somefunction"        | null
+    "qualified partial ARN"       | false | "123456789012:function:somefunction:PROD"                                | null      | "somefunction"        | null
+    "qualified partial ARN"       | true  | "123456789012:function:somefunction:PROD"                                | null      | "somefunction"        | null
+    "full ARN"                    | false | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "full ARN"                    | true  | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "qualified full ARN"          | false | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"       | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"
+    "qualified full ARN"          | true  | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"       | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"
+    "GovCloud ARN"                | false | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction" | null      | "somefunction"        | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction"
+    "GovCloud ARN"                | true  | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction" | null      | "somefunction"        | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction"
+    "separate qualifier"          | false | "somefunction"                                                           | "PROD"    | "somefunction"        | null
+    "separate qualifier"          | true  | "somefunction"                                                           | "PROD"    | "somefunction"        | null
+    "ARN with separate qualifier" | false | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | "PROD"    | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "ARN with separate qualifier" | true  | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | "PROD"    | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "name containing function"    | false | "my-function-handler:PROD"                                               | null      | "my-function-handler" | null
+    "name containing function"    | true  | "my-function-handler:PROD"                                               | null      | "my-function-handler" | null
+  }
+
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {
     setup:
     boolean executed = false

@@ -260,6 +260,45 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
       """    | null | null
   }
 
+
+  def "Lambda resource tags normalize #scenario"() {
+    setup:
+    def client = AWSLambdaClientBuilder.standard()
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(credentialsProvider)
+      .build()
+    responseBody.set("")
+    jsonPointer.set(null)
+    def request = new InvokeRequest().withFunctionName(functionName).withQualifier(qualifier)
+
+    when:
+    client.invoke(request)
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.get(0)
+    spans.size() == 1
+    spans[0].getTag("aws.function.name") == expectedName
+    spans[0].getTag("aws.function.arn") == expectedArn
+
+    cleanup:
+    client.shutdown()
+
+    where:
+    scenario                      | functionName                                                             | qualifier | expectedName          | expectedArn
+    "bare name"                   | "somefunction"                                                           | null      | "somefunction"        | null
+    "alias"                       | "somefunction:PROD"                                                      | null      | "somefunction"        | null
+    "version"                     | "somefunction:42"                                                        | null      | "somefunction"        | null
+    "partial ARN"                 | "123456789012:function:somefunction"                                     | null      | "somefunction"        | null
+    "qualified partial ARN"       | "123456789012:function:somefunction:PROD"                                | null      | "somefunction"        | null
+    "full ARN"                    | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "qualified full ARN"          | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"       | null      | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction:PROD"
+    "GovCloud ARN"                | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction" | null      | "somefunction"        | "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:somefunction"
+    "separate qualifier"          | "somefunction"                                                           | "PROD"    | "somefunction"        | null
+    "ARN with separate qualifier" | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"            | "PROD"    | "somefunction"        | "arn:aws:lambda:us-east-1:123456789012:function:somefunction"
+    "name containing function"    | "my-function-handler:PROD"                                               | null      | "my-function-handler" | null
+  }
+
   def "send #operation request to closed port"() {
     setup:
     responseBody.set(body)
@@ -551,5 +590,4 @@ class AWS1ClientV1ForkedTest extends AWS1ClientTest {
     1
   }
 }
-
 
