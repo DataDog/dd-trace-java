@@ -13,7 +13,6 @@ import org.tabletest.junit.TableTest;
 class TagMapEntryCreateByNameTest {
   @TableTest({
     "scenario                     | name                ",
-    "shared Datadog name          | peer.port           ",
     "OTel name, both directions   | server.address      ",
     "OTel name, outbound only     | server.port         ",
     "OTel name, inbound only      | client.port         ",
@@ -42,11 +41,12 @@ class TagMapEntryCreateByNameTest {
     assertEquals(3, entry.intValue());
   }
 
+  /** {@code peer.port} is one tag in every direction; only its OpenTelemetry name varies. */
   @Test
-  void theIdOfATagDeclaredPerDirectionCreatesIt() {
-    TagMap.Entry entry = TagMap.Entry.create(KnownTags.PEER_PORT_OUTBOUND_ID, (Object) 5432);
+  void aDatadogNameDeclaredPerDirectionCreatesItsOneTag() {
+    TagMap.Entry entry = TagMap.Entry.create("peer.port", 5432);
 
-    assertEquals(KnownTags.PEER_PORT_OUTBOUND_ID, entry.tagId());
+    assertEquals(KnownTags.PEER_PORT_ID, entry.tagId());
     assertEquals("peer.port", entry.tag());
   }
 }

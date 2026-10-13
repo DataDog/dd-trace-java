@@ -13,6 +13,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -41,7 +42,6 @@ import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -129,8 +129,9 @@ public class DDSpanContext
   };
 
   /**
-   * The direction each span kind ordinal resolves direction-dependent tag names in ({@code
-   * peer.port} is the client's port on a server span). Broker and custom kinds have none.
+   * The direction each span kind ordinal reads direction-dependent tag names in ({@code
+   * server.address} is {@code peer.hostname} on a client span). Broker and custom kinds have none.
+   * Mirrors {@link SpanTags#directionOfKind}, by ordinal.
    */
   private static final int[] TAG_DIRECTION_OF_SPAN_KIND = {
     KnownTagCodec.DIRECTION_UNKNOWN, // UNSET
@@ -144,12 +145,6 @@ public class DDSpanContext
   };
 
   private volatile byte spanKindOrdinal = SPAN_KIND_UNSET;
-
-  /**
-   * Set when a direction-dependent tag name was stored before the span had a direction, so it is
-   * stored under its bare name. Setting the span kind then re-keys it to the tag it denotes.
-   */
-  private volatile boolean unresolvedDirectionalTags;
 
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
@@ -923,61 +918,11 @@ public class DDSpanContext
    */
   public void setSpanKindOrdinal(String kind) {
     spanKindOrdinal = spanKindOrdinalOf(kind);
-    if (unresolvedDirectionalTags) {
-      resolveDirectionalTags();
-    }
   }
 
-  /** The direction this span resolves direction-dependent tag names in. */
+  /** The direction this span reads direction-dependent tag names in; see {@link SpanTags}. */
   private int tagDirection() {
     return TAG_DIRECTION_OF_SPAN_KIND[spanKindOrdinal];
-  }
-
-  /**
-   * The tag a direction-dependent name denotes on this span, or 0 for any other name, which {@link
-   * TagMap} resolves itself. Only a handful of names depend on direction, so a miss is cheap.
-   */
-  private long directionalTagId(String tag) {
-    long tagId = KnownTagCodec.directionalKeyOf(tag, tagDirection());
-    return tagId > 0 ? tagId : 0L;
-  }
-
-  /**
-   * {@link #directionalTagId} for a tag about to be stored, noting a direction-dependent name that
-   * cannot resolve until the span has a direction. Call while holding the {@code unsafeTags} lock.
-   */
-  private long directionalTagIdToStore(String tag) {
-    int direction = tagDirection();
-    long tagId = KnownTagCodec.directionalKeyOf(tag, direction);
-    if (tagId > 0) {
-      return tagId;
-    }
-    if (tagId == KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL
-        && direction == KnownTagCodec.DIRECTION_UNKNOWN) {
-      unresolvedDirectionalTags = true;
-    }
-    return 0L;
-  }
-
-  /** Re-keys tags stored under a direction-dependent name before the span had a direction. */
-  private void resolveDirectionalTags() {
-    int direction = tagDirection();
-    if (direction == KnownTagCodec.DIRECTION_UNKNOWN) {
-      return;
-    }
-    synchronized (unsafeTags) {
-      unresolvedDirectionalTags = false;
-      List<TagMap.Entry> unresolved = new ArrayList<>(2);
-      for (TagMap.EntryReader entry : unsafeTags) {
-        if (entry.tagId() == 0 && KnownTagCodec.directionalKeyOf(entry.tag(), direction) > 0) {
-          unresolved.add(entry.entry());
-        }
-      }
-      for (TagMap.Entry entry : unresolved) {
-        unsafeTags.remove(entry.tag());
-        unsafeTags.set(KnownTagCodec.directionalKeyOf(entry.tag(), direction), entry.objectValue());
-      }
-    }
   }
 
   static byte spanKindOrdinalOf(String kind) {
@@ -1063,70 +1008,35 @@ public class DDSpanContext
   }
 
   /*
-   * Store a tag that interception let through, by id when its name depends on the span's direction
-   * (peer.port, server.address), otherwise by name. Call while holding the unsafeTags lock.
+   * Store a tag that interception let through, as written: a direction-dependent name is resolved
+   * when it is read or emitted (see SpanTags), never here. Call while holding the unsafeTags lock.
    */
   private void storeTag(String tag, Object value) {
-    long tagId = directionalTagIdToStore(tag);
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.set(tag, value);
   }
 
   private void storeTag(String tag, CharSequence value) {
-    long tagId = directionalTagIdToStore(tag);
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.set(tag, value);
   }
 
   private void storeTag(String tag, boolean value) {
-    long tagId = directionalTagIdToStore(tag);
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.set(tag, value);
   }
 
   private void storeTag(String tag, int value) {
-    long tagId = directionalTagIdToStore(tag);
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.set(tag, value);
   }
 
   private void storeTag(String tag, long value) {
-    long tagId = directionalTagIdToStore(tag);
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.set(tag, value);
   }
 
   private void storeTag(String tag, float value) {
-    long tagId = directionalTagIdToStore(tag);
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.set(tag, value);
   }
 
   private void storeTag(String tag, double value) {
-    long tagId = directionalTagIdToStore(tag);
-    if (tagId != 0) {
-      unsafeTags.set(tagId, value);
-    } else {
-      unsafeTags.set(tag, value);
-    }
+    unsafeTags.set(tag, value);
   }
 
   public void removeTag(String tag) {
@@ -1135,13 +1045,8 @@ public class DDSpanContext
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
-      // A direction-dependent name removes the tag it denotes here, and any tag stored under the
-      // bare name before the span had a direction.
-      long tagId = directionalTagId(tag);
-      if (tagId != 0) {
-        unsafeTags.getAndRemove(tagId);
-      }
-      unsafeTags.remove(tag);
+      // A direction-dependent name and the tag it denotes here are removed together.
+      SpanTags.remove(unsafeTags, tag, tagDirection());
     }
   }
 
@@ -1159,7 +1064,7 @@ public class DDSpanContext
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
-      unsafeTags.getAndRemove(tagId);
+      SpanTags.remove(unsafeTags, tagId, tagDirection());
     }
   }
 
@@ -1313,12 +1218,7 @@ public class DDSpanContext
     // the interceptor prechecks the entry, to avoid boxing
     if (!tagInterceptor.interceptTag(this, entry)) {
       synchronized (unsafeTags) {
-        long tagId = entry.tagId() == 0 ? directionalTagIdToStore(entry.tag()) : 0L;
-        if (tagId != 0) {
-          unsafeTags.set(tagId, entry.objectValue());
-        } else {
-          unsafeTags.set(entry);
-        }
+        unsafeTags.set(entry);
       }
     }
   }
@@ -1532,15 +1432,7 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    long tagId = directionalTagId(tag);
-    if (tagId != 0) {
-      TagMap.Entry entry = unsafeTags.getEntry(tagId);
-      if (entry != null) {
-        return entry.objectValue();
-      }
-      // else stored under the bare name before the span had a direction
-    }
-    return unsafeTags.getObject(tag);
+    return SpanTags.get(unsafeTags, tag, tagDirection());
   }
 
   @Deprecated
@@ -1670,6 +1562,9 @@ public class DDSpanContext
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
     synchronized (unsafeTags) {
+      // Direction-scoped names: the span's kind is final now, so each resolves to its one tag.
+      SpanTags.resolveScopedNames(unsafeTags, tagDirection());
+
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 

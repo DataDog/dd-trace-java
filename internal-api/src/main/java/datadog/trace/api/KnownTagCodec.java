@@ -1,5 +1,8 @@
 package datadog.trace.api;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Resolves generated tag IDs and names. {@link KnownTags} owns the lookup tables; this class owns
  * the ID layout and namespace naming policy.
@@ -17,8 +20,7 @@ public final class KnownTagCodec {
    * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
    * are RESERVED and always zero here: they are the window the dense tag store uses for its
    * co-occurrence slot coordinate, which arrives with that store. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and bit 0 is the
-   * SHARED_NAME bit. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
+   * the trace/span LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
    * them.
    *
    * <p>The INTERCEPTED bit marks a tag TagInterceptor may route on the set-path, to a span field or
@@ -61,18 +63,6 @@ public final class KnownTagCodec {
     return (tagId & INTERCEPTED) != 0L;
   }
 
-  /**
-   * SHARED_NAME bit (low-32 carve, bit 0): marks one direction of a tag declared once per direction
-   * under a shared Datadog name, such as {@code peer.port}. {@link #keyOf} resolves that name to
-   * neither id; TagMap reads and writes by that name check each direction's id instead.
-   */
-  public static final long SHARED_NAME = 1L << 0;
-
-  /** True if the tagId is one direction of a tag whose Datadog name is shared across directions. */
-  public static boolean hasSharedName(long tagId) {
-    return (tagId & SHARED_NAME) != 0L;
-  }
-
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
   public static long traceLevel(long tagId) {
     return tagId | LEVEL_TRACE;
@@ -89,9 +79,10 @@ public final class KnownTagCodec {
   }
 
   /*
-   * A span's direction, which resolves the few names whose tag depends on it: peer.port is the
-   * client's port on inbound spans and the server's on outbound ones. Pass one of these to
-   * keyOf(String, int) and openTelemetryTagOf(long, int).
+   * A span's direction, which names the few tags whose OpenTelemetry name depends on it: peer.port
+   * is client.port on inbound spans and server.port on outbound ones. A tag is stored the same way
+   * in every direction; direction applies only when naming it. Pass one of these to
+   * openTelemetryTagOf(long, int) and directionalKeyOf(String, int).
    */
 
   /** Direction not known, for example a span with no kind: only names that need none resolve. */
@@ -110,12 +101,6 @@ public final class KnownTagCodec {
    * Lookup sentinels. Each is negative and distinct; a tag id never is, since the generator keeps
    * every serial below 2^15. Not ids: nothing may store one as a tag.
    */
-
-  /**
-   * What {@link Resolver#lookup} returns for a Datadog name shared by a tag per direction ({@code
-   * peer.port}): no single tag, but whichever of them a map holds is that name's value.
-   */
-  static final long SHARED_DATADOG_NAME_SENTINEL = -1L;
 
   /**
    * What {@link Resolver#lookup} returns for an OpenTelemetry name that applies in one direction
@@ -138,15 +123,14 @@ public final class KnownTagCodec {
 
     /**
      * The tag's OpenTelemetry-namespace name on spans of {@code direction}, or {@code null} when it
-     * declares none there. {@link #DIRECTION_UNKNOWN} returns every name that needs no direction:
-     * one that holds in every direction, or that of a tag declared per direction.
+     * declares none there. {@link #DIRECTION_UNKNOWN} returns only a name that holds in every
+     * direction.
      */
     String openTelemetryNameOf(long tagId, int direction);
 
     /**
-     * The id for {@code name} in any namespace; {@link #SHARED_DATADOG_NAME_SENTINEL} or {@link
-     * #DIRECTION_SCOPED_OTEL_NAME_SENTINEL} when its tag depends on direction; 0 when it is not a
-     * known tag.
+     * The id for {@code name} in any namespace; {@link #DIRECTION_SCOPED_OTEL_NAME_SENTINEL} when
+     * its tag depends on direction; 0 when it is not a known tag.
      */
     long lookup(String name);
 
@@ -192,11 +176,11 @@ public final class KnownTagCodec {
    * with {@link #datadogNameOf} for the same tag under the Datadog namespace; outbound naming is
    * per-namespace, never normalized to one of them.
    *
-   * <p>Needs no direction for nearly every tag, including one declared per direction ({@code
-   * peer.port} on an outbound span is {@code server.port}). The exception is a single tag whose
-   * rename holds in one direction only ({@code http.hostname} is {@code server.address} on inbound
-   * spans): without a direction it passes through under its Datadog name. A caller naming a span's
-   * tags uses {@link #openTelemetryTagOf(long, int)}.
+   * <p>Needs no direction for nearly every tag. The exception is a tag renamed in some directions
+   * only ({@code http.hostname} is {@code server.address} on inbound spans, {@code peer.port} is
+   * {@code client.port} inbound and {@code server.port} outbound): without a direction it passes
+   * through under its Datadog name. A caller naming a span's tags uses {@link
+   * #openTelemetryTagOf(long, int)}.
    */
   public static String openTelemetryTagOf(long tagId) {
     return openTelemetryTagOf(tagId, DIRECTION_UNKNOWN);
@@ -254,35 +238,70 @@ public final class KnownTagCodec {
   }
 
   /**
-   * Only the direction-dependent part of {@link #keyOf(String, int)}, for a caller that already
-   * resolves every other name: the tag {@code name} denotes on spans of {@code direction} when it
-   * is one of the few names that depend on direction ({@code peer.port}, {@code server.address}); 0
-   * for every other name; or {@link #NO_TAG_IN_DIRECTION_SENTINEL}.
+   * The tag a direction-scoped OpenTelemetry name ({@code server.address}, {@code client.port})
+   * denotes on spans of {@code direction}; 0 for every other name; or {@link
+   * #NO_TAG_IN_DIRECTION_SENTINEL}. A value written under such a name is stored as written and
+   * resolved to its tag here, once the span's direction is known.
    *
-   * <p>A switch over just those names, so a miss is far cheaper than a full lookup. A span uses it
-   * before handing a name to {@link TagMap}, which then does its usual single lookup.
+   * <p>A switch over just those names, so a miss is far cheaper than a full lookup.
    */
   public static long directionalKeyOf(String name, int direction) {
     return Installed.RESOLVER.directionalKeyOf(name, direction);
   }
 
   /**
-   * The raw registry lookup: {@code name}'s id, 0 when it is not a known tag, or {@link
-   * #SHARED_DATADOG_NAME_SENTINEL} / {@link #DIRECTION_SCOPED_OTEL_NAME_SENTINEL} when its tag
-   * depends on direction.
+   * The inverse of {@link #directionalKeyOf}: the direction-scoped OpenTelemetry name {@code tagId}
+   * has on spans of {@code direction} ({@code server.address} for {@code http.hostname} inbound),
+   * or null when it has none there, or its name there holds in every direction.
    */
-  static long lookup(String name) {
-    return Installed.RESOLVER.lookup(name);
+  public static String directionScopedNameOf(long tagId, int direction) {
+    if (direction == DIRECTION_UNKNOWN) {
+      return null;
+    }
+    Resolver resolver = Installed.RESOLVER;
+    String name = resolver.openTelemetryNameOf(tagId, direction);
+    return name != null && resolver.openTelemetryNameOf(tagId, DIRECTION_UNKNOWN) == null
+        ? name
+        : null;
   }
 
   /**
-   * {@link #keyOf(String)}, except that a Datadog name shared by a tag per direction returns {@link
-   * #SHARED_DATADOG_NAME_SENTINEL}, so {@link TagMap} can find whichever of those tags it holds,
-   * through {@link #directionalKeyOf}. One lookup, like {@code keyOf}.
+   * {@link #directionScopedNameOf(long, int)} by Datadog name. Costs one small map probe for every
+   * name but the few tags renamed in some directions only.
    */
-  static long keyOrSharedName(String name) {
-    long key = Installed.RESOLVER.lookup(name);
-    return key == DIRECTION_SCOPED_OTEL_NAME_SENTINEL ? 0L : key;
+  public static String directionScopedNameOf(String ddName, int direction) {
+    if (direction == DIRECTION_UNKNOWN) {
+      return null;
+    }
+    Long tagId = DirectionScoped.TAG_IDS.get(ddName);
+    return tagId == null ? null : directionScopedNameOf(tagId, direction);
+  }
+
+  /** The tags renamed in some directions only, by Datadog name; built once from the registry. */
+  private static final class DirectionScoped {
+    static final Map<String, Long> TAG_IDS = directionScopedTagIds();
+
+    private static Map<String, Long> directionScopedTagIds() {
+      Map<String, Long> tagIds = new HashMap<>();
+      for (int serial = 1; serial < serialLimit(); serial++) {
+        String name = nameOf(makeTagId(serial));
+        long tagId = keyOf(name);
+        for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
+          if (directionScopedNameOf(tagId, direction) != null) {
+            tagIds.put(name, tagId);
+          }
+        }
+      }
+      return tagIds;
+    }
+  }
+
+  /**
+   * The raw registry lookup: {@code name}'s id, 0 when it is not a known tag, or {@link
+   * #DIRECTION_SCOPED_OTEL_NAME_SENTINEL} when its tag depends on direction.
+   */
+  static long lookup(String name) {
+    return Installed.RESOLVER.lookup(name);
   }
 
   /**

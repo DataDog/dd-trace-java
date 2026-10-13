@@ -6,7 +6,6 @@ import static datadog.trace.api.KnownTagCodec.DIRECTION_OUTBOUND;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -165,32 +164,28 @@ class KnownTagsTest {
 
   /**
    * {@code peer.port} means the server's port on outbound spans and the client's on inbound ones,
-   * so it is one tag per direction. Both share the Datadog name, which therefore resolves to no tag
-   * until name resolution knows the span's direction.
+   * but it is one tag either way: one id, one stored value. Only its OpenTelemetry name depends on
+   * the span's direction.
    */
   @Test
-  void aNameDeclaredPerDirectionIsOneTagPerDirection() {
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_INBOUND_ID));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertNotEquals(KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID);
-    assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_INBOUND_ID));
-    assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
+  void aNameDeclaredPerDirectionIsOneTag() {
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
+    assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT));
+    for (int direction = DIRECTION_UNKNOWN; direction <= DIRECTION_NONE; direction++) {
+      assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT, direction));
+    }
   }
 
   static Stream<Arguments> directionalNames() {
     return Stream.of(
-        Arguments.of(Tags.PEER_PORT, DIRECTION_INBOUND, KnownTags.PEER_PORT_INBOUND_ID),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_OUTBOUND, KnownTags.PEER_PORT_OUTBOUND_ID),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_NONE, 0L),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_UNKNOWN, 0L),
         Arguments.of("server.address", DIRECTION_INBOUND, KnownTags.HTTP_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_OUTBOUND, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_UNKNOWN, 0L),
-        Arguments.of("server.port", DIRECTION_OUTBOUND, KnownTags.PEER_PORT_OUTBOUND_ID),
+        Arguments.of("server.port", DIRECTION_OUTBOUND, KnownTags.PEER_PORT_ID),
         Arguments.of("server.port", DIRECTION_INBOUND, 0L),
-        Arguments.of("client.port", DIRECTION_INBOUND, KnownTags.PEER_PORT_INBOUND_ID),
+        Arguments.of("client.port", DIRECTION_INBOUND, KnownTags.PEER_PORT_ID),
         Arguments.of("client.port", DIRECTION_OUTBOUND, 0L),
+        Arguments.of("client.port", DIRECTION_NONE, 0L),
         Arguments.of("network.peer.address", DIRECTION_INBOUND, KnownTags.NETWORK_CLIENT_IP_ID));
   }
 
@@ -220,25 +215,22 @@ class KnownTagsTest {
         Tags.HTTP_HOSTNAME,
         KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID, DIRECTION_OUTBOUND));
     assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID, DIRECTION_OUTBOUND));
-    assertEquals(
-        "client.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_INBOUND_ID, DIRECTION_INBOUND));
-    assertEquals(
         "http.request.method",
         KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_METHOD_ID, DIRECTION_UNKNOWN));
     assertEquals(Tags.HTTP_HOSTNAME, KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID));
   }
 
-  /** A tag declared per direction exists only on spans of its direction, so its name needs none. */
+  /** One tag, named for the span's direction; with no direction it keeps its Datadog name. */
   @Test
-  void aTagDeclaredPerDirectionIsEmittedWithoutADirection() {
-    assertEquals("server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertEquals("client.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_INBOUND_ID));
+  void aTagDeclaredPerDirectionIsEmittedUnderTheNameForTheDirection() {
     assertEquals(
         "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID, DIRECTION_UNKNOWN));
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND));
+    assertEquals(
+        "client.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_INBOUND));
+    assertEquals(
+        Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_NONE));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID));
   }
 
   @Test

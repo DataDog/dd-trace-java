@@ -974,11 +974,10 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void splitByTagsOnANameDeclaredPerDirectionMatchesEachDirection() {
+  void splitByTagsOnANameDeclaredPerDirectionMatchesItsTag() {
     TagInterceptor interceptor = splittingInterceptor(Tags.PEER_PORT);
 
-    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_INBOUND_ID));
-    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_ID));
     assertTrue(interceptor.needsIntercept(Tags.PEER_PORT));
   }
 

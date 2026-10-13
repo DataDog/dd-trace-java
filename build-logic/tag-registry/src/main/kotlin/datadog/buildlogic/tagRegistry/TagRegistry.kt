@@ -13,41 +13,34 @@ package datadog.buildlogic.tagRegistry
  * sampling directive instead of tag storage), as listed by the tracer overlay. A setter called with
  * a constant id then folds the interception test away. TagInterceptor's switch stays the authority
  * on what each tag does; a test there keeps the bit and the switch in agreement.
+ *
+ * <p>There is one tag, and one id, per Datadog name. A name the conventions declare once per
+ * direction, as `peer.port` is, is still one tag: only its OpenTelemetry name depends on the span's
+ * direction, so direction is applied when a tag is named, never when it is stored.
  */
 class TagRegistry private constructor(val tags: List<Tag>) {
   data class Tag(
-    val identity: TagConventions.TagIdentity,
+    val ddName: String,
     val type: String,
     val required: String,
     val serial: Int,
     val traceLevel: Boolean,
     val intercepted: Boolean,
     val id: Long,
-    /** The tag's OpenTelemetry name, in [otelDirection] or every direction; null when not renamed. */
-    val declaredOtelName: String? = null,
-    /**
-     * The one direction [declaredOtelName] applies in, or null when it applies in every direction. A
-     * tag has one declaration, so its rename covers either every direction or exactly one.
-     */
-    val otelDirection: TagConventions.Direction? = null,
+    /** The tag's OpenTelemetry name in every direction; null when not renamed, or renamed per direction. */
+    val otelName: String? = null,
+    /** The tag's OpenTelemetry name on spans of each direction that renames it, when [otelName] is null. */
+    val scopedOtelNames: Map<TagConventions.Direction, String> = emptyMap(),
   ) {
-    /** The identity's label, as reports and constant names show it. */
-    val name: String = identity.label
-    val ddName: String = identity.ddName
-    val sharedNameDirection: TagConventions.Direction? = identity.direction
-
-    /**
-     * The rename included in the direction-free lookup tables, or null when absent or scoped
-     * to one direction. Scoped renames remain in `declaredOtelName` for later resolution.
-     */
-    val otelName: String? = declaredOtelName.takeIf { otelDirection == null }
+    /** The tag as reports and generated constant names show it. */
+    val name: String
+      get() = ddName
   }
 
   companion object {
     const val FIRST_SERIAL = 1
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
     const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
-    const val SHARED_NAME = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.SHARED_NAME
 
     /**
      * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
@@ -57,11 +50,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     /**
      * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() + intercepted() -- must stay in sync.
-     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, SHARED_NAME at bit 0, other low bits and the
-     * reserved [47-32] window zero. Every id is made here, and the range check makes each one
-     * positive by construction.
+     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, other low bits and the reserved [47-32] window
+     * zero. Every id is made here, and the range check makes each one positive by construction.
      */
-    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, sharedName: Boolean = false): Long {
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean): Long {
       require(serial in FIRST_SERIAL until SERIAL_CAPACITY) {
         "serial $serial is outside [$FIRST_SERIAL, $SERIAL_CAPACITY): more tags would make tag ids " +
           "negative, where KnownTagCodec's lookup sentinels live"
@@ -69,36 +61,73 @@ class TagRegistry private constructor(val tags: List<Tag>) {
       var id = serial.toLong() shl 48
       if (traceLevel) id = id or LEVEL_TRACE
       if (intercepted) id = id or INTERCEPTED
-      if (sharedName) id = id or SHARED_NAME
       return id
     }
 
     fun build(conv: TagConventions): TagRegistry {
-      val traceLevel = conv.traceLevelTags().map { it.identity }.toSet()
-      val renames = conv.otelMappings().associateBy { it.tag }
+      val traceLevel = conv.traceLevelTags().map { it.ddName }.toSet()
+      val renames = conv.otelMappings().groupBy { it.tag.ddName }
 
-      // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
+      // One tag per Datadog name, in a stable order (by name) so serials -- and therefore ids -- are
+      // a pure function of the input. A name's declarations per direction merge into its one tag.
       val tags =
-        conv.allDeclaredTags().sortedBy { it.name }.mapIndexed { i, t ->
+        conv.allDeclaredTags().groupBy { it.ddName }.toSortedMap().values.mapIndexed { i, decls ->
+          val first = decls.first()
+          require(decls.all { it.type == first.type }) {
+            "'${first.ddName}' is declared per direction with different types: ${decls.map { it.type }}"
+          }
           val serial = FIRST_SERIAL + i
-          val isTraceLevel = t.identity in traceLevel
-          val isIntercepted = t.ddName in conv.interceptedNames
+          val isTraceLevel = first.ddName in traceLevel
+          val isIntercepted = first.ddName in conv.interceptedNames
+          val (otelName, scoped) = otelNamesOf(first.ddName, renames[first.ddName].orEmpty())
           Tag(
-            t.identity,
-            t.type,
-            t.required,
+            first.ddName,
+            first.type,
+            strongestRequirement(decls.map { it.required }),
             serial,
             isTraceLevel,
             isIntercepted,
-            id = encode(serial, isTraceLevel, isIntercepted, t.identity.direction != null),
-            declaredOtelName = renames[t.identity]?.otelName,
-            otelDirection = renames[t.identity]?.direction,
+            id = encode(serial, isTraceLevel, isIntercepted),
+            otelName = otelName,
+            scopedOtelNames = scoped,
           )
         }
 
       validateOtelNames(tags)
       return TagRegistry(tags)
     }
+
+    /**
+     * A tag's renames, as one name for every direction or one name per direction. The rename of a
+     * declaration made per direction applies in that declaration's direction.
+     */
+    private fun otelNamesOf(
+      ddName: String,
+      mappings: List<TagConventions.OtelMapping>,
+    ): Pair<String?, Map<TagConventions.Direction, String>> {
+      val everywhere = mappings.filter { (it.direction ?: it.tag.direction) == null }.map { it.otelName }.distinct()
+      require(everywhere.size <= 1) { "'$ddName' has several direction-free OpenTelemetry names: $everywhere" }
+      if (everywhere.isNotEmpty()) {
+        require(mappings.all { it.otelName == everywhere[0] }) {
+          "'$ddName' has a direction-free OpenTelemetry name and a different one per direction"
+        }
+        return everywhere[0] to emptyMap()
+      }
+      val scoped = sortedMapOf<TagConventions.Direction, String>()
+      for (m in mappings) {
+        val direction = m.direction ?: m.tag.direction!!
+        val prev = scoped.put(direction, m.otelName)
+        require(prev == null || prev == m.otelName) {
+          "'$ddName' has two OpenTelemetry names on ${direction.yamlKey} spans: '$prev' and '${m.otelName}'"
+        }
+      }
+      return null to scoped
+    }
+
+    private val REQUIREMENT_STRENGTH = listOf("required", "conditional", "recommended", "optional")
+
+    /** The strongest of a name's requirement levels across its declarations per direction. */
+    private fun strongestRequirement(levels: List<String>): String = levels.minBy { REQUIREMENT_STRENGTH.indexOf(it).let { i -> if (i < 0) Int.MAX_VALUE else i } }
 
     /**
      * Rejects OpenTelemetry names that collide with any Datadog name. Within each direction,
@@ -110,8 +139,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
       val canonical = tags.map { it.ddName }.toSet()
       val owner = HashMap<Pair<TagConventions.Direction, String>, String>()
       for (t in tags) {
-        val otel = t.declaredOtelName ?: continue
-        for (direction in t.otelDirection?.let { listOf(it) } ?: TagConventions.Direction.entries) {
+        val byDirection =
+          t.otelName?.let { otel -> TagConventions.Direction.entries.associateWith { otel } } ?: t.scopedOtelNames
+        for ((direction, otel) in byDirection) {
           require(otel !in canonical) {
             "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
           }
