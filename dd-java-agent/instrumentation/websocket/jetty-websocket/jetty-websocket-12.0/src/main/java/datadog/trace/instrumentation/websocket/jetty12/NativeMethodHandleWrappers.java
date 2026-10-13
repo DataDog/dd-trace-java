@@ -128,30 +128,20 @@ public class NativeMethodHandleWrappers {
       String payload,
       boolean last)
       throws Throwable {
-    HandlerContext.Receiver context;
     boolean finish = last;
-    ContextScope scope;
-    synchronized (contexts) {
-      context = contexts.text;
-      contexts.activeTextHandlers++;
-      scope = startMessage(context, payload, partial);
-    }
+    ContextScope scope = contexts.startText(payload, partial);
     try (ContextScope ignored = scope) {
       try {
         delegate.invokeExact(payload, last);
       } catch (Throwable t) {
         finish = true;
         synchronized (contexts) {
-          DECORATE.onError(context.getWebsocketSpan(), t);
+          DECORATE.onError(contexts.text.getWebsocketSpan(), t);
         }
         throw t;
       }
     } finally {
-      synchronized (contexts) {
-        contexts.activeTextHandlers--;
-        contexts.textFinishRequested |= finish;
-        contexts.finishTextIfIdle();
-      }
+      contexts.endText(finish);
     }
   }
 
@@ -229,6 +219,17 @@ public class NativeMethodHandleWrappers {
       return insertArguments(TEXT, 0, delegate, this, partial);
     }
 
+    private synchronized ContextScope startText(String payload, boolean partial) {
+      activeTextHandlers++;
+      return startMessage(text, payload, partial);
+    }
+
+    private synchronized void endText(boolean finish) {
+      activeTextHandlers--;
+      textFinishRequested |= finish;
+      finishTextIfIdle();
+    }
+
     public synchronized void finish() {
       textFinishRequested = true;
       finishTextIfIdle();
@@ -243,8 +244,7 @@ public class NativeMethodHandleWrappers {
       }
     }
 
-    /** Must be called with this instance's monitor held. */
-    private void finishTextIfIdle() {
+    private synchronized void finishTextIfIdle() {
       // Connection close may run while a text handler still owns the receive span.
       if (textFinishRequested && activeTextHandlers == 0) {
         textFinishRequested = false;
