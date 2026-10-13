@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.play26.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,24 +28,19 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 import play.api.libs.json.JsValue;
 import play.api.libs.json.Json$;
 import play.mvc.StatusHeader;
 
 /**
- * Pins the CURRENT behavior of {@link ResultsStatusApplyAdvice} and {@link
- * StatusHeaderSendJsonAdvice} (also applied to Play 2.7+ via the {@code play26Plus} muzzle
- * directive): when the AppSec response body callback returns a {@link
- * Flow.Action.RequestBlockingAction} and a {@link BlockResponseFunction} is present, the advice
- * attempts to commit the blocking response and then throws a {@link BlockingException}
- * unconditionally, ignoring the commit result.
- *
- * <p><b>Deliberate tripwire:</b> PR #12601 (APPSEC-70201) intentionally changes these advices to
- * throw only when the commit succeeds. The {@code commitResult = false} cases are EXPECTED to fail
- * once that PR is rebased on top of this test. That failure is the signal to consciously review the
- * behavior change, not a regression to fix by reverting #12601.
+ * Covers {@link ResultsStatusApplyAdvice} and {@link StatusHeaderSendJsonAdvice} (also applied to
+ * Play 2.7+ via the {@code play26Plus} muzzle directive): when the AppSec response body callback
+ * returns a {@link Flow.Action.RequestBlockingAction} and a {@link BlockResponseFunction} is
+ * present, the advice attempts to commit the blocking response and throws {@link BlockingException}
+ * only if the commit succeeds. A failed commit lets the request proceed, since there is no way to
+ * abort consistently with the rest of the Play response pipeline (headers, status, body already
+ * produced by this point).
  */
 class JsonResponseBlockingAdviceTest {
 
@@ -81,10 +77,9 @@ class JsonResponseBlockingAdviceTest {
     AgentTracer.forceRegister(originalTracer);
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void resultsStatusApplyThrowsRegardlessOfCommitResult(boolean commitResult) {
-    RecordingBlockResponseFunction brf = givenBlockResponseFunction(commitResult);
+  @Test
+  void resultsStatusApplyThrowsWhenCommitSucceeds() {
+    RecordingBlockResponseFunction brf = givenBlockResponseFunction(true);
     JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
 
     BlockingException ex =
@@ -95,10 +90,19 @@ class JsonResponseBlockingAdviceTest {
     brf.assertCommittedOnce(segment);
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void statusHeaderSendJsonThrowsRegardlessOfCommitResult(boolean commitResult) {
-    RecordingBlockResponseFunction brf = givenBlockResponseFunction(commitResult);
+  @Test
+  void resultsStatusApplyDoesNotThrowWhenCommitFails() {
+    RecordingBlockResponseFunction brf = givenBlockResponseFunction(false);
+    JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
+
+    assertDoesNotThrow(() -> ResultsStatusApplyAdvice.after(content, reqCtx));
+
+    brf.assertCommittedOnce(segment);
+  }
+
+  @Test
+  void statusHeaderSendJsonThrowsWhenCommitSucceeds() {
+    RecordingBlockResponseFunction brf = givenBlockResponseFunction(true);
     ObjectNode json = JsonNodeFactory.instance.objectNode().put("key", "value");
 
     BlockingException ex;
@@ -112,6 +116,21 @@ class JsonResponseBlockingAdviceTest {
     }
 
     assertEquals("Blocked request (for StatusHeader/sendJson)", ex.getMessage());
+    brf.assertCommittedOnce(segment);
+  }
+
+  @Test
+  void statusHeaderSendJsonDoesNotThrowWhenCommitFails() {
+    RecordingBlockResponseFunction brf = givenBlockResponseFunction(false);
+    ObjectNode json = JsonNodeFactory.instance.objectNode().put("key", "value");
+
+    try {
+      assertDoesNotThrow(() -> StatusHeaderSendJsonAdvice.before(json, reqCtx));
+    } finally {
+      // reset the call depth incremented by before()
+      CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
+    }
+
     brf.assertCommittedOnce(segment);
   }
 
