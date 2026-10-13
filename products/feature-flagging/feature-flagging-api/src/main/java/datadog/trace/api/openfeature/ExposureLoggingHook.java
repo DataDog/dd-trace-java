@@ -7,6 +7,9 @@ import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sends the exposure for a logged allocation to the agent once the evaluation has succeeded.
@@ -17,6 +20,9 @@ import java.util.Map;
  * mark the subject as exposed.
  */
 class ExposureLoggingHook<T> implements Hook<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(ExposureLoggingHook.class);
+  private static final AtomicBoolean WARNED = new AtomicBoolean();
 
   static final ExposureLoggingHook<Object> INSTANCE =
       new ExposureLoggingHook<>(
@@ -71,6 +77,9 @@ class ExposureLoggingHook<T> implements Hook<T> {
       }
     } catch (LinkageError e) {
       // Never let exposure reporting break flag evaluation.
+      if (WARNED.compareAndSet(false, true)) {
+        log.warn("Could not send a feature flag exposure; later failures are not logged", e);
+      }
     }
   }
 }

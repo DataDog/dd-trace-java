@@ -10,6 +10,7 @@ import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,10 +19,17 @@ import org.slf4j.LoggerFactory;
  * An OpenFeature hook that hands each completed flag evaluation to a callback, with the Datadog
  * exposure decision, so an application can record exposures in its own data store.
  *
+ * <p>This hook is optional. The provider puts the same data in the flag metadata, so any
+ * OpenFeature hook can read it (see "Flag metadata" in the README). This class reads it for you.
+ *
  * <p>Register it with {@code OpenFeatureAPI.getInstance().addHooks(new ExposureHook(callback))} or
  * on a client. The callback runs for every evaluation, including errors and repeats. Use {@link
- * Evaluation#shouldSend()} to keep exactly the exposures that Datadog sends. That decision is the
- * same whether or not {@code DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED} is set.
+ * Evaluation#shouldSend()} to keep the new or changed exposures. When the provider's own hooks run,
+ * these are exactly the exposures that Datadog sends, whether or not {@code
+ * DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED} is set. The provider's hooks run when the
+ * application evaluates through an OpenFeature client. Inside a {@code MultiProvider} they run only
+ * with OpenFeature SDK 1.23.0 or later. With an older SDK, Datadog receives no exposures from a
+ * provider inside a {@code MultiProvider}, and {@code shouldSend()} is true for every exposure.
  *
  * <p>The callback runs on the evaluation thread: hand the data to a background queue instead of
  * writing it from the callback. An exception from the callback is logged and does not affect the
@@ -32,6 +40,7 @@ public final class ExposureHook implements Hook<Object> {
   private static final Logger log = LoggerFactory.getLogger(ExposureHook.class);
 
   private final Consumer<Evaluation> callback;
+  private final AtomicBoolean warned = new AtomicBoolean();
 
   public ExposureHook(final Consumer<Evaluation> callback) {
     this.callback = requireNonNull(callback, "callback");
@@ -42,10 +51,17 @@ public final class ExposureHook implements Hook<Object> {
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
       final Map<String, Object> hints) {
+    if (details == null) {
+      return;
+    }
     try {
       callback.accept(new Evaluation(context.getCtx(), details));
     } catch (final LinkageError | RuntimeException e) {
-      log.debug("Exposure callback failed", e);
+      if (warned.compareAndSet(false, true)) {
+        log.warn("Exposure callback failed; later failures are logged at debug level", e);
+      } else {
+        log.debug("Exposure callback failed", e);
+      }
     }
   }
 
@@ -74,12 +90,11 @@ public final class ExposureHook implements Hook<Object> {
      * not this subject was already exposed.
      */
     public boolean isExposure() {
-      final ImmutableMetadata metadata = details.getFlagMetadata();
+      final Map<String, Object> values = metadata();
       return details.getErrorCode() == null
           && details.getVariant() != null
-          && metadata != null
-          && metadata.getString("allocationKey") != null
-          && Boolean.TRUE.equals(metadata.getBoolean(DDEvaluator.METADATA_DO_LOG));
+          && values.get("allocationKey") instanceof String
+          && Boolean.TRUE.equals(values.get(DDEvaluator.METADATA_DO_LOG));
     }
 
     /**
@@ -96,8 +111,16 @@ public final class ExposureHook implements Hook<Object> {
       return isExposure() && Boolean.FALSE.equals(cacheHitStamp());
     }
 
-    private Boolean cacheHitStamp() {
-      return details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT);
+    private Object cacheHitStamp() {
+      return metadata().get(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT);
+    }
+
+    // The ImmutableMetadata getters build a debug message for every absent key.
+    private Map<String, Object> metadata() {
+      final ImmutableMetadata metadata = details.getFlagMetadata();
+      return metadata == null
+          ? Collections.<String, Object>emptyMap()
+          : metadata.asUnmodifiableMap();
     }
 
     /**

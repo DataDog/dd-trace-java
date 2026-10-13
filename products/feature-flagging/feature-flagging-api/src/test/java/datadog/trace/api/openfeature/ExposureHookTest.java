@@ -313,6 +313,22 @@ class ExposureHookTest {
   }
 
   @Test
+  void skipsTheCallbackWhenThereAreNoDetails() {
+    final List<ExposureHook.Evaluation> seen = new ArrayList<>();
+    final HookContext<Object> context =
+        HookContext.<Object>builder()
+            .flagKey("flag")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(0)
+            .ctx(new MutableContext("user-1"))
+            .build();
+
+    new ExposureHook(seen::add).finallyAfter(context, null, Collections.emptyMap());
+
+    assertTrue(seen.isEmpty());
+  }
+
+  @Test
   void featuresAreSkippedWithAnAgentWhoseSplitHasNoFeatures() {
     assertTrue(DDEvaluator.splitFeaturesSupported(Split.class));
     assertFalse(DDEvaluator.splitFeaturesSupported(LegacySplit.class));
