@@ -21,11 +21,11 @@ final class DenseTagMap extends TagMap {
   /*
    * Dense known-tag store (experimental; see TagMap.DenseStore.ENABLED, default off).
    * <p>
-   * With the flag on, a known tag that has a dense-store slot (KnownTagCodec.hasSlot -- the
-   * registry colors required/conditional/recommended tags into slots so tags on one span type never
-   * share one) is NOT stored as a bucket Entry. Its value lives in the insertion-ordered parallel
-   * arrays knownIds/knownValues instead, with no per-tag Entry object: that is the allocation win.
-   * Known tags without a slot (NO_SLOT) and custom tags stay in the buckets, exactly as before.
+   * With the flag on, every known tag is NOT stored as a bucket Entry. Its value lives in the
+   * insertion-ordered parallel arrays knownIds/knownValues instead, with no per-tag Entry object:
+   * that is the allocation win. The registry colors the tags of each span type into distinct slots
+   * (KnownTagCodec.slotOf); a known tag on no modeled span type has NO_SLOT, which shares occupancy
+   * bit 63. Custom tags stay in the buckets, exactly as before.
    * <p>
    * Presence: knownOccupancy holds 1L << slot for every dense id ever added. A clear bit means the
    * tag is definitely absent, so an append or a miss skips the scan. A set bit only means "maybe":
@@ -56,7 +56,7 @@ final class DenseTagMap extends TagMap {
    * Initial capacity of the dense arrays when no {@link SizingHint} presized them; the largest span
    * type resolves about this many tags.
    */
-  private static final int KNOWN_INIT_CAP = 12;
+  static final int KNOWN_INIT_CAP = 12;
 
   /**
    * Shared empty dense arrays a map starts on (and returns to on clear), so that one full-capacity
@@ -440,7 +440,7 @@ final class DenseTagMap extends TagMap {
       for (int i = 0; i < this.knownCount; ++i) {
         long denseId = this.knownIds[i];
         if (denseIdOf(denseId) == 0) {
-          throw new IllegalStateException("dense id without a slot");
+          throw new IllegalStateException("dense id that is not a known tag");
         }
         if ((this.knownOccupancy & slotBit(denseId)) == 0) {
           throw new IllegalStateException("dense id missing from occupancy");

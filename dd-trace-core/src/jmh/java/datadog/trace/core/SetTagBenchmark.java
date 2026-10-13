@@ -100,6 +100,15 @@ public class SetTagBenchmark {
     return span.setTag(KnownTags.HTTP_RESEND_COUNT_ID, 2);
   }
 
+  /**
+   * {@link #knownIntTag_byId} with a value outside {@code Integer}'s cache, so a box, if the path
+   * makes one, is a real allocation -- as for most status codes and ports.
+   */
+  @Benchmark
+  public Object knownIntTag_byId_uncached() {
+    return span.setTag(KnownTags.HTTP_RESEND_COUNT_ID, 5432);
+  }
+
   @Benchmark
   public Object knownIntTag_byName() {
     return span.setTag(KnownTags.HTTP_RESEND_COUNT_NAME, 2);

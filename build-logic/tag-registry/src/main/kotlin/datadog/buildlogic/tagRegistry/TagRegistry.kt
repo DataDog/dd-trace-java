@@ -29,7 +29,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val serial: Int,
     val traceLevel: Boolean,
     val intercepted: Boolean,
-    /** The dense-store slot, or [NO_SLOT] when the tag is stored by hash. */
+    /** The dense-store slot, or [NO_SLOT] for a tag on no modeled span type. */
     val slot: Int,
     val id: Long,
     /** The tag's OpenTelemetry name, in [otelDirection] or every direction; null when not renamed. */
@@ -68,7 +68,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val UNDIRECTED_SHIFT = 16
 
     const val SLOT_SHIFT = 32 // slot window [47-32]; mirrors KnownTagCodec.SLOT_SHIFT
-    const val NO_SLOT = 0xFFFF // all-ones slot: stored by hash; mirrors KnownTagCodec.NO_SLOT
+    const val NO_SLOT = 0xFFFF // all-ones slot: no modeled span type; mirrors KnownTagCodec.NO_SLOT
     const val MAX_SLOTS = 63 // one occupancy long in the dense store; bit 63 is shared by unslotted tags
 
 

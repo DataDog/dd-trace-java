@@ -2332,7 +2332,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       // Per-operation dense-store sizing: an entry (local-root) span carries the trace-metadata /
       // enriching tags a child doesn't, so pick the lane by whether we have a local parent. A
-      // resolved hint sizes the span's TagMap and self-tunes at serialization; null (dense store
+      // resolved hint sizes the span's TagMap and self-tunes as spans finish; null (dense store
       // off, or no operation name) falls back to the generic default capacity. hintFor tests the
       // dense-store flag first, so with it off -- the default -- this constant-folds to null and
       // the default span-creation path does no lookup (do no harm).

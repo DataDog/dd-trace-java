@@ -1761,6 +1761,14 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
    */
   @NoEscape
   public static final class Internals {
+    /**
+     * Whether the store keeps a known tag's value as an object: true for the dense store. A caller
+     * holding a primitive then boxes it once and passes the box down (to the interceptor and the
+     * store alike); otherwise the hash store keeps the primitive, and the caller should not box. A
+     * static final, so the check folds.
+     */
+    public static final boolean STORES_BOXES = DenseStore.ENABLED;
+
     private final TagMap map;
 
     Internals(TagMap map) {

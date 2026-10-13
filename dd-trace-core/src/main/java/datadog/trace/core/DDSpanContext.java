@@ -169,10 +169,10 @@ public class DDSpanContext
 
   /**
    * Per-operation sizing hint (from SizingHintTable, keyed by operation name) this span's dense
-   * store was sized from, if any. Held so the span can feed its final dense-store size back at
-   * serialization (recordDenseSize) -- the self-tuning loop that lets the reused hint converge to
-   * the operation's real known-tag high-water mark. Null when unsized, which is always the case
-   * with the dense store off.
+   * store was sized from, if any. Held so the span can feed its dense-store size back when it
+   * finishes and when it is serialized (recordDenseSize) -- the self-tuning loop that lets the
+   * reused hint converge to the operation's real known-tag high-water mark. Null when unsized,
+   * which is always the case with the dense store off.
    */
   @Nullable private final SizingHint sizingHint;
 
@@ -1320,11 +1320,25 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    // Boxed once: the interceptor and the store share the box.
-    final Boolean box = value;
-    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+    if (TagMap.Internals.STORES_BOXES) {
+      // The dense store keeps the box: box once, shared by the interceptor and the store.
+      final Boolean box = value;
+      if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else if (tagInterceptor.needsIntercept(tagId)) {
+      final Boolean box = value;
+      if (!tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else {
+      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1333,11 +1347,25 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    // Boxed once: the interceptor and the store share the box.
-    final Integer box = value;
-    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+    if (TagMap.Internals.STORES_BOXES) {
+      // The dense store keeps the box: box once, shared by the interceptor and the store.
+      final Integer box = value;
+      if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else if (tagInterceptor.needsIntercept(tagId)) {
+      final Integer box = value;
+      if (!tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else {
+      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1346,11 +1374,25 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    // Boxed once: the interceptor and the store share the box.
-    final Long box = value;
-    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+    if (TagMap.Internals.STORES_BOXES) {
+      // The dense store keeps the box: box once, shared by the interceptor and the store.
+      final Long box = value;
+      if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else if (tagInterceptor.needsIntercept(tagId)) {
+      final Long box = value;
+      if (!tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else {
+      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1359,11 +1401,25 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    // Boxed once: the interceptor and the store share the box.
-    final Float box = value;
-    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+    if (TagMap.Internals.STORES_BOXES) {
+      // The dense store keeps the box: box once, shared by the interceptor and the store.
+      final Float box = value;
+      if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else if (tagInterceptor.needsIntercept(tagId)) {
+      final Float box = value;
+      if (!tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else {
+      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1372,11 +1428,25 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    // Boxed once: the interceptor and the store share the box.
-    final Double box = value;
-    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+    if (TagMap.Internals.STORES_BOXES) {
+      // The dense store keeps the box: box once, shared by the interceptor and the store.
+      final Double box = value;
+      if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else if (tagInterceptor.needsIntercept(tagId)) {
+      final Double box = value;
+      if (!tagInterceptor.interceptTag(this, tagId, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.internals().setKnown(tagId, box);
+        }
+      }
+    } else {
+      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1399,18 +1469,6 @@ public class DDSpanContext
     }
   }
 
-  /*
-   * Used when the interceptor's precheck says the tag may be intercepted, so boxing is unavoidable
-   *
-   * Either because the tagInterceptor needs to be fully checked (which requires boxing)
-   * In that case, a box has already been created so it makes sense to pass the box
-   * onto TagMap, since optimized TagMap will cache the box
-   *
-   * -- OR --
-   *
-   * The TagMap isn't optimized and will need to box the primitive regardless of
-   * tag interception
-   */
   public void setTag(final String tag, final boolean value) {
     if (null == tag) {
       return;

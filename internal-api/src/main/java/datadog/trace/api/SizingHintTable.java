@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 /**
  * Process-wide, self-tuning registry of per-operation {@link SizingHint}s, keyed by operation name.
  * Pure static: the tracer resolves a hint here at span build and hands it to the span, which sizes
- * its dense {@link TagMap} from it and records the actual size back at serialization — the hint
+ * its dense {@link TagMap} from it and records the actual size back when it finishes — the hint
  * converges to the operation's real known-tag high-water mark, so later spans of that operation
  * size correctly.
  *
@@ -43,10 +43,11 @@ public final class SizingHintTable {
   // oversized arrays forever; a span that outgrows it pays one doubling.
   static final int SEED_SIZE = 4;
 
-  // Fixed size for the shared over-budget hint: today's untuned default (DenseTagMap's initial
-  // capacity). Capped (never grown by recordSize) because it's a heterogeneous catch-all -- growing
-  // it would over-provision lean sharers to the max of an unlike cohort.
-  static final int OVERFLOW_SEED = 12;
+  // Fixed size for the shared over-budget hint: the untuned default, DenseTagMap's initial capacity
+  // (a compile-time constant, so reading it loads no class). Capped (never grown by recordSize)
+  // because it's a heterogeneous catch-all -- growing it would over-provision lean sharers to the
+  // max of an unlike cohort.
+  static final int OVERFLOW_SEED = DenseTagMap.KNOWN_INIT_CAP;
 
   // Max distinct operation names per lane that get their own hint before collapsing to the capped
   // overflow hint.

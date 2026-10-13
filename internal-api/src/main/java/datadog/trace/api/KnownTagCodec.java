@@ -16,7 +16,7 @@ public final class KnownTagCodec {
    * unique per known tag and is the whole of the tag's identity — nameOf/openTelemetryNameOf key on
    * it, and the generator emits each id as a literal. Bits [47-32] hold the tag's dense-store slot
    * ({@link #slotOf}), assigned by graph coloring so tags on one span type never share a slot, or
-   * {@link #NO_SLOT} for a tag stored by hash. Of the low 32 flag bits, bit 3 is the UNDIRECTED
+   * {@link #NO_SLOT} for a tag on no modeled span type. Of the low 32 flag bits, bit 3 is the UNDIRECTED
    * bit, bit 2 is the trace/span LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and
    * bit 0 is the SHARED_NAME bit; a SHARED_NAME id also holds its undirected tag's serial at
    * [30-16]. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
@@ -102,7 +102,10 @@ public final class KnownTagCodec {
   /** Bit position of the dense-store slot: bits [47-32] of an id. */
   public static final int SLOT_SHIFT = 32;
 
-  /** The slot of a tag stored by hash rather than in a dense-store slot. */
+  /**
+   * The slot of a known tag on no modeled span type. The dense store still stores it densely; its
+   * occupancy bit is bit 63, shared by every such tag.
+   */
   public static final int NO_SLOT = 0xFFFF;
 
   /**
