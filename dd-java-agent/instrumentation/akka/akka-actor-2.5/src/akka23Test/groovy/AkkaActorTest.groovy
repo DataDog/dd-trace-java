@@ -1,10 +1,12 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 
-class AkkaActorTest extends InstrumentationSpecification {
+abstract class AbstractAkkaActorTest extends InstrumentationSpecification {
   @Shared
+  @AutoCleanup
   def akkaTester = new AkkaActors()
 
   def "akka actor send #name #iterations"() {
@@ -54,8 +56,10 @@ class AkkaActorTest extends InstrumentationSpecification {
     "forward" | "Akka"  | "Hello"          | 10
     "route"   | "Rakka" | "How you doin'"  | 10
   }
+}
 
-  def "actor message handling should close leaked scopes"() {
+class AkkaActorTest extends AbstractAkkaActorTest {
+  def "legacy actor message handling should close leaked scopes"() {
     when:
     akkaTester.leak("Leaker", "drip")
 
@@ -84,7 +88,7 @@ class AkkaActorTest extends InstrumentationSpecification {
   }
 }
 
-class AkkaActorContextSwapTest extends AkkaActorTest {
+class AkkaActorContextSwapForkedTest extends AbstractAkkaActorTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

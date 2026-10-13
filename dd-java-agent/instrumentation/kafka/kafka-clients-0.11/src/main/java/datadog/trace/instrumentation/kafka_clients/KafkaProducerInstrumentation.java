@@ -27,6 +27,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -38,7 +39,6 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -95,7 +95,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
-      packageName + ".AvroSchemaExtractor",
     };
   }
 
@@ -136,7 +135,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
   public static class ProducerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
         @Advice.FieldValue("sender") Sender sender,
         @Advice.FieldValue("metadata") Metadata metadata,
@@ -181,7 +180,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       // Clear cluster ID from Schema Registry instrumentation
       ClusterIdHolder.clear();
 
@@ -228,7 +227,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-          AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       } catch (final IllegalStateException e) {
         // headers must be read-only from reused record. try again with new one.
@@ -247,7 +245,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-          AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       }
       if (TIME_IN_QUEUE_ENABLED) {
@@ -270,7 +267,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(0) ProducerConfig producerConfig) {
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .putIfAbsent(metadata, MetadataState::new);
+              .getOrCreate(metadata, MetadataState::new);
       if (Config.get().isDataStreamsEnabled()) {
         KafkaConfigHelper.storePendingProducerConfig(
             state, KafkaConfigHelper.extractProducerConfig(producerConfig));

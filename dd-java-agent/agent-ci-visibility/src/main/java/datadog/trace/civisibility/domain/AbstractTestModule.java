@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.IsAndroid;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -114,6 +115,10 @@ public abstract class AbstractTestModule {
       span.finish();
     }
 
-    metricCollector.add(CiVisibilityCountMetric.EVENT_FINISHED, 1, EventType.MODULE);
+    metricCollector.add(
+        CiVisibilityCountMetric.EVENT_FINISHED,
+        1,
+        EventType.MODULE,
+        span.getTag(Tags.TEST_IS_ANDROID) != null ? IsAndroid.TRUE : null);
   }
 }

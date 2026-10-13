@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;

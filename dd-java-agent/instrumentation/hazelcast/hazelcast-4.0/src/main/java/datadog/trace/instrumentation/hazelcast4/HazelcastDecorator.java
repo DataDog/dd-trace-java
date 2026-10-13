@@ -42,7 +42,7 @@ public class HazelcastDecorator extends ClientDecorator {
   }
 
   /** Decorate trace based on service execution metadata. */
-  public AgentSpan onServiceExecution(
+  public void onServiceExecution(
       final AgentSpan span,
       final String operationName,
       final Object objectName,
@@ -62,7 +62,5 @@ public class HazelcastDecorator extends ClientDecorator {
     if (correlationId > 0) {
       span.setTag(HAZELCAST_CORRELATION_ID, correlationId);
     }
-
-    return span;
   }
 }

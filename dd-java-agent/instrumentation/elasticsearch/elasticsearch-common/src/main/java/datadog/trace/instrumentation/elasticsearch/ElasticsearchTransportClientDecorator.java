@@ -60,7 +60,7 @@ public class ElasticsearchTransportClientDecorator extends DBTypeProcessingDatab
     return null;
   }
 
-  public AgentSpan onRequest(final AgentSpan span, final Class action, final Class request) {
+  public void onRequest(final AgentSpan span, final Class action, final Class request) {
     if (action != null) {
       String actionName = action.getSimpleName();
       // ES 7.9 internally changes PutMappingAction to AutoPutMappingAction for
@@ -74,6 +74,5 @@ public class ElasticsearchTransportClientDecorator extends DBTypeProcessingDatab
     if (request != null) {
       span.setTag("elasticsearch.request", request.getSimpleName());
     }
-    return span;
   }
 }

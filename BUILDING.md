@@ -179,7 +179,8 @@ winget install --id Docker.DockerDesktop
 > Without this configuration, you will need to remember to add `--recurse-submodules` to `git checkout` when switching to old branches.
 
 > [!TIP]
-> This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up-to-date.
+> This will keep the submodules in `dd-java-agent/agent-jmxfetch/integrations-core` and
+> `dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data` up-to-date.
 > There is also an automated check when opening a pull request if you are trying to submit a module version change (usually an outdated version).
 
 > [!NOTE]

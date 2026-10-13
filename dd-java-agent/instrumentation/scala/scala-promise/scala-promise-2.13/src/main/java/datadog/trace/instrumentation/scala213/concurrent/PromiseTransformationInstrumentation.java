@@ -8,10 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import net.bytebuddy.asm.Advice;
@@ -50,13 +50,13 @@ public final class PromiseTransformationInstrumentation
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static <F, T> AgentScope before(@Advice.This Transformation<F, T> task) {
-      return PromiseHelper.runActivateSpan(
+    public static <F, T> ContextScope before(@Advice.This Transformation<F, T> task) {
+      return PromiseHelper.runWithContext(
           InstrumentationContext.get(Transformation.class, State.class).get(task));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }
@@ -81,7 +81,7 @@ public final class PromiseTransformationInstrumentation
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
         state =
-            PromiseHelper.executeCaptureSpan(
+            PromiseHelper.executeCaptureContext(
                 InstrumentationContext.get(Try.class, Context.class),
                 resolved,
                 contextStore,

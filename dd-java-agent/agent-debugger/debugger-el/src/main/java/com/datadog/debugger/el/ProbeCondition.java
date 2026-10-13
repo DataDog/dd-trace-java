@@ -9,6 +9,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 
@@ -99,12 +100,12 @@ public final class ProbeCondition implements DebuggerScript<Boolean> {
   }
 
   @Override
-  public Boolean execute(ValueReferenceResolver valueRefResolver) {
+  public Boolean execute(ValueReferenceResolver valueRefResolver, TimeoutChecker timeoutChecker) {
     if (when == null) {
       return true;
     }
-    if (when.evaluate(valueRefResolver)) {
-      then.evaluate(valueRefResolver);
+    if (when.evaluate(new EvalContext(valueRefResolver, timeoutChecker))) {
+      then.evaluate(new EvalContext(valueRefResolver, timeoutChecker));
       return true;
     }
     return false;

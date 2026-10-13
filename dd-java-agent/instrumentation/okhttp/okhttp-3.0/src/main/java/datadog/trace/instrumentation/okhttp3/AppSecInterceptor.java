@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.okhttp3;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static java.util.Collections.unmodifiableList;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
@@ -13,16 +14,19 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.BiFunction;
 import okhttp3.Headers;
 import okhttp3.Interceptor;
@@ -45,23 +49,33 @@ public class AppSecInterceptor implements Interceptor {
 
   @Override
   public Response intercept(final Chain chain) throws IOException {
+    Request request = chain.request();
+    final AgentSpan span = AgentTracer.activeSpan();
+    final RequestContext ctx = span == null ? null : span.getRequestContext();
+    if (ctx == null) {
+      return chain.proceed(request);
+    }
+    boolean sampled = false;
     try {
-      final AgentSpan span = AgentTracer.activeSpan();
-      final RequestContext ctx = span == null ? null : span.getRequestContext();
-      if (ctx == null) {
-        return chain.proceed(chain.request());
-      }
       final long requestId = span.getSpanId();
-      final boolean sampled = sampleRequest(ctx, requestId);
-      final String url = span.getTag(Tags.HTTP_URL).toString();
-      final Request request = onRequest(span, sampled, url, chain.request());
-      final Response response = chain.proceed(request);
+      sampled = sampleRequest(ctx, requestId);
+      final Object urlTag = span.getTag(Tags.HTTP_URL);
+      final String url = urlTag == null ? null : urlTag.toString();
+      request = onRequest(span, sampled, url, request);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
+      LOGGER.debug("Failed to run AppSec request hooks", e);
+    }
+    // let real connection/IO failures propagate rather than swallowing and retrying the request
+    final Response response = chain.proceed(request);
+    try {
       return onResponse(span, sampled, response);
     } catch (final BlockingException e) {
       throw e;
     } catch (final Exception e) {
-      LOGGER.debug("Failed to intercept request", e);
-      return chain.proceed(chain.request());
+      LOGGER.debug("Failed to run AppSec response hooks", e);
+      return response;
     }
   }
 
@@ -142,7 +156,16 @@ public class AppSecInterceptor implements Interceptor {
       }
     }
 
-    publish(ctx, clientResponse, responseCb);
+    try {
+      publish(ctx, clientResponse, responseCb);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
+      // don't let a failure in the response hook discard the rebuilt response above --
+      // its body has already been drained/closed, so falling back to the original response
+      // (as the caller in intercept() does) would hand back an empty/closed body
+      LOGGER.debug("Failed to publish AppSec response event", e);
+    }
     return result;
   }
 
@@ -156,7 +179,7 @@ public class AppSecInterceptor implements Interceptor {
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        brf.tryCommitBlockingResponse(ctx, rba);
       }
       throw new BlockingException("Blocked request (for http downstream request)");
     }
@@ -210,13 +233,27 @@ public class AppSecInterceptor implements Interceptor {
     return buffer.toByteArray();
   }
 
-  private static Map<String, List<String>> mapHeaders(final Headers headers) {
+  @VisibleForTesting
+  static Map<String, List<String>> mapHeaders(final Headers headers) {
     if (headers == null) {
       return Collections.emptyMap();
     }
-    final Map<String, List<String>> result = new HashMap<>(headers.size());
-    for (final String name : headers.names()) {
-      result.put(name, headers.values(name));
+    final Map<String, List<String>> grouped = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    for (int i = 0; i < headers.size(); i++) {
+      final String name = headers.name(i);
+      List<String> values = grouped.get(name);
+      if (values == null) {
+        values = new ArrayList<>(2);
+        grouped.put(name, values);
+      }
+      values.add(headers.value(i));
+    }
+    final int size = grouped.size();
+    // Account for HashMap's default load factor to avoid resizing while copying.
+    final int capacity = size + (size + 2) / 3;
+    final Map<String, List<String>> result = new HashMap<>(capacity);
+    for (Map.Entry<String, List<String>> entry : grouped.entrySet()) {
+      result.put(entry.getKey(), unmodifiableList(entry.getValue()));
     }
     return result;
   }

@@ -1,7 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Visitor;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /** The entry-point expression for the debugger EL */
 public final class WhenExpression implements BooleanExpression {
@@ -12,8 +12,8 @@ public final class WhenExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    return expression.evaluate(valueRefResolver);
+  public Boolean evaluate(EvalContext evalContext) {
+    return expression.evaluate(evalContext);
   }
 
   @Override

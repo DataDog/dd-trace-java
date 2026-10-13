@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.bootstrap-component'
+}
 
 minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0

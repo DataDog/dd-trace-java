@@ -17,8 +17,8 @@ import com.aerospike.client.listener.RecordArrayListener;
 import com.aerospike.client.listener.RecordListener;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.listener.WriteListener;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 
@@ -36,11 +36,11 @@ public final class TracingListener
         DeleteListener {
 
   protected final AgentSpan clientSpan;
-  protected final Continuation continuation;
+  protected final ContextContinuation continuation;
   protected final Object listener;
 
   public TracingListener(
-      final AgentSpan clientSpan, final Continuation continuation, final Object listener) {
+      final AgentSpan clientSpan, final ContextContinuation continuation, final Object listener) {
     this.clientSpan = clientSpan;
     this.continuation = continuation;
     this.listener = listener;
@@ -73,7 +73,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         if (listener instanceof ExistsListener) {
           ((ExistsListener) listener).onSuccess(key, exists);
         } else if (listener instanceof DeleteListener) {
@@ -81,7 +81,7 @@ public final class TracingListener
         }
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -91,11 +91,11 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         ((ExistsArrayListener) listener).onSuccess(keys, exists);
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -105,11 +105,11 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         ((RecordListener) listener).onSuccess(key, record);
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -119,11 +119,11 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         ((RecordArrayListener) listener).onSuccess(keys, records);
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -133,11 +133,11 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         ((BatchListListener) listener).onSuccess(records);
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -147,11 +147,11 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         ((WriteListener) listener).onSuccess(key);
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -161,11 +161,11 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         ((ExecuteListener) listener).onSuccess(key, obj);
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -175,7 +175,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         if (listener instanceof ExistsSequenceListener) {
           ((ExistsSequenceListener) listener).onSuccess();
         } else if (listener instanceof RecordSequenceListener) {
@@ -185,7 +185,7 @@ public final class TracingListener
         }
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -196,7 +196,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         if (listener instanceof ExistsListener) {
           ((ExistsListener) listener).onFailure(error);
         } else if (listener instanceof ExistsSequenceListener) {
@@ -222,7 +222,7 @@ public final class TracingListener
         }
       }
     } else {
-      continuation.cancel();
+      continuation.release();
     }
   }
 }

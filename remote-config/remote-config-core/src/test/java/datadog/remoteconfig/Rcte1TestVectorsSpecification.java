@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;

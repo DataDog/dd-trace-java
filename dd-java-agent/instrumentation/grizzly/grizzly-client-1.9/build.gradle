@@ -1,3 +1,6 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   pass {
@@ -20,7 +23,6 @@ repositories {
     url = "https://repository.mulesoft.org/releases/"
   }
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latest5DepTest', 'test')
@@ -34,11 +36,9 @@ tasks.named("latest5DepTest", Test) {
   javaLauncher = getJavaLauncherFor(21)
 }
 
-tasks.named("compileLatest5DepTestJava", JavaCompile) {
-  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+tasks.named("compileLatest5DepTestGroovy", GroovyCompile) {
+  configureCompiler(it, JavaVersion.VERSION_21)
 }
-
-configureGroovyCompiler(21, "compileLatest5DepTestGroovy")
 
 configurations.named("muleLatestDepTestRuntimeClasspath") {
   exclude(group: 'org.glassfish.grizzly')

@@ -1,6 +1,8 @@
 package com.datadog.debugger.agent;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -20,7 +22,7 @@ class DebuggerTracerTest {
 
   @AfterEach
   public void after() {
-    AgentTracer.forceRegister(null);
+    AgentTracer.forceRegister(AgentTracer.NOOP_TRACER);
   }
 
   @Test
@@ -36,9 +38,11 @@ class DebuggerTracerTest {
     assertEquals(0, underlyingSpan.getDurationNano());
     assertEquals(
         "dd.dynamic.span",
-        ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getSpanName());
+        AgentSpan.fromScope(((DebuggerTracer.DebuggerSpanImpl) span).currentScope).getSpanName());
     assertEquals(
-        "a-span", ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getResourceName());
+        "a-span",
+        AgentSpan.fromScope(((DebuggerTracer.DebuggerSpanImpl) span).currentScope)
+            .getResourceName());
     span.finish();
     assertNotEquals(0, underlyingSpan.getDurationNano());
     verify(probeStatusSink).addEmitting(eq(SPAN_ID.getEncodedId()));
@@ -60,7 +64,7 @@ class DebuggerTracerTest {
 
   @Test
   public void noApi() {
-    AgentTracer.forceRegister(null);
+    AgentTracer.forceRegister(AgentTracer.NOOP_TRACER);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     DebuggerTracer debuggerTracer = new DebuggerTracer(probeStatusSink);
     DebuggerSpan span =

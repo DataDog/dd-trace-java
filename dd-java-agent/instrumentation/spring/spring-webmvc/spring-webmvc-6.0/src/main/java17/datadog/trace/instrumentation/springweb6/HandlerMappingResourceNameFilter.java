@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.context.Context.root;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
 
@@ -38,7 +37,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextObj instanceof Context) {
       Context context = (Context) contextObj;
-      AgentSpan parentSpan = spanFromContext(context);
+      AgentSpan parentSpan = AgentSpan.fromContext(context);
       if (parentSpan != null) {
         PathMatchingHttpServletRequestWrapper wrappedRequest =
             new PathMatchingHttpServletRequestWrapper(request);

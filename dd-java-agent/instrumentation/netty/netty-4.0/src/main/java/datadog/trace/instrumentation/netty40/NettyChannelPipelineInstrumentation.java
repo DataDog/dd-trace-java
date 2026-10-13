@@ -4,20 +4,20 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.netty40.client.HttpClientRequestTracingHandler;
 import datadog.trace.instrumentation.netty40.client.HttpClientResponseTracingHandler;
 import datadog.trace.instrumentation.netty40.client.HttpClientTracingHandler;
@@ -62,34 +62,6 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-      // client helpers
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".client.NettyResponseInjectAdapter",
-      packageName + ".client.HttpClientRequestTracingHandler",
-      packageName + ".client.HttpClientResponseTracingHandler",
-      packageName + ".client.HttpClientTracingHandler",
-      // server helpers
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.HttpServerContextTrackingHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler",
-      packageName + ".server.MaybeBlockResponseHandler",
-      packageName + ".server.websocket.WebSocketServerTracingHandler",
-      packageName + ".server.websocket.WebSocketServerResponseTracingHandler",
-      packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
-      packageName + ".NettyPipelineHelper"
-    };
   }
 
   @Override
@@ -231,12 +203,12 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
-      AgentScope.Continuation continuation = captureActiveSpan();
-      if (continuation != noopContinuation()) {
-        final Attribute<AgentScope.Continuation> attribute =
+      ContextContinuation continuation = currentContext().capture();
+      if (continuation.context() != rootContext()) {
+        final Attribute<ContextContinuation> attribute =
             pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
         if (!attribute.compareAndSet(null, continuation)) {
-          continuation.cancel();
+          continuation.release();
         }
       }
     }

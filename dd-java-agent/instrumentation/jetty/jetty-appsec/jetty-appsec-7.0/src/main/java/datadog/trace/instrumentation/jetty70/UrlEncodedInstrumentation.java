@@ -72,7 +72,7 @@ public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
       return true;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean relevantCall,
         @Advice.Argument(1) MultiMap<String> map, // this is our map, not the orig arg
@@ -100,7 +100,7 @@ public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
             if (t == null) {
               t = new BlockingException("Blocked request (for UrlEncoded/decodeTo)");
               reqCtx.getTraceSegment().effectivelyBlocked();

@@ -59,11 +59,11 @@ public class RediscalaClientDecorator
   }
 
   @Override
-  public AgentSpan onConnection(final AgentSpan span, final RedisConnectionInfo connection) {
+  public void onConnection(final AgentSpan span, final RedisConnectionInfo connection) {
     if (connection != null) {
       setPeerPort(span, connection.port);
       span.setTag("db.redis.dbIndex", connection.dbIndex);
     }
-    return super.onConnection(span, connection);
+    super.onConnection(span, connection);
   }
 }

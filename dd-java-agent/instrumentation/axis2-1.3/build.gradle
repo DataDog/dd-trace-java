@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "org.apache.axis2"
@@ -5,8 +9,6 @@ muzzle {
     versions = "[1.3,)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
@@ -32,11 +34,15 @@ configurations.configureEach {
   }
 }
 
-configureGroovyCompiler(17, "compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy")
+["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, JavaVersion.VERSION_17)
+  }
+}
 
 ["compileLatestDepForkedTestJava", "compileLatestDepTestJava"].each {
   tasks.named(it, JavaCompile) {
-    configureCompiler(it, 17)
+    configureCompiler(it, JavaVersion.VERSION_17)
   }
 }
 

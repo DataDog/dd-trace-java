@@ -1,6 +1,10 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
@@ -8,7 +12,7 @@ import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,23 +32,27 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
   }
 
   @Override
-  public Value<Number> evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> materialized = source == null ? Value.nullValue() : source.evaluate(valueRefResolver);
+  public Value<Number> evaluate(EvalContext evalContext) {
+    Value<?> materialized = source == null ? Value.nullValue() : source.evaluate(evalContext);
+    Value<Number> result = Value.undefined();
     try {
       if (materialized.isNull()) {
         throw new RuntimeException("Cannot evaluate the expression for null value");
       } else if (materialized.isUndefined()) {
         throw new RuntimeException("Cannot evaluate the expression for undefined value");
       } else if (materialized instanceof StringValue) {
-        return (NumericValue) Value.of(((StringValue) materialized).length(), ValueType.INT);
+        result = (NumericValue) Value.of(((StringValue) materialized).length(), ValueType.INT);
       } else if (materialized instanceof CollectionValue) {
-        return (NumericValue) Value.of(((CollectionValue) materialized).count(), ValueType.INT);
+        result = (NumericValue) Value.of(((CollectionValue) materialized).count(), ValueType.INT);
+      } else {
+        throw new RuntimeException(
+            "Cannot evaluate the expression for " + materialized.getClass().getTypeName());
       }
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
     }
-    log.warn("Can not compute length for {}", materialized);
-    return Value.undefined();
+    checkTimeout(evalContext.getTimeoutChecker(), this);
+    return result;
   }
 
   public ValueExpression<?> getSource() {
@@ -54,5 +62,19 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
   @Override
   public <R> R accept(Visitor<R> visitor) {
     return visitor.visit(this);
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    LenExpression that = (LenExpression) o;
+    return Objects.equals(source, that.source);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(source);
   }
 }

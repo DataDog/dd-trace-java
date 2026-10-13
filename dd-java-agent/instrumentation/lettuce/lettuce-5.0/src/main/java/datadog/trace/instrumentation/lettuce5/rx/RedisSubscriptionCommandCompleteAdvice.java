@@ -12,7 +12,7 @@ import org.reactivestreams.Subscription;
 
 public class RedisSubscriptionCommandCompleteAdvice {
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterComplete(
       @Advice.Origin("#m") String method,
       @Advice.This RedisCommand command,

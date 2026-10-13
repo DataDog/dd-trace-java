@@ -40,7 +40,7 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".FormDataMap"};
+    return new String[] {packageName + ".FormDataMap", packageName + ".FormDataContentHelper"};
   }
 
   private static final Reference EXCHANGE_REFERENCE =
@@ -65,7 +65,7 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class DoParseAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.FieldValue("exchange") HttpServerExchange exchange,
         @ActiveRequestContext RequestContext reqCtx,
@@ -91,8 +91,9 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
+          boolean success =
+              FormDataContentHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
+          if (success && t == null) {
             t = new BlockingException("Blocked request (for FormEncodedDataParser/doParse)");
           }
         }

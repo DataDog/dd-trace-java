@@ -1,7 +1,8 @@
 package com.datadog.debugger.symbol;
 
 import static org.codehaus.groovy.runtime.InvokerHelper.asList;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 

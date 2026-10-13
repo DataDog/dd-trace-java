@@ -6,7 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CLIENT;
@@ -41,13 +41,6 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
   @Override
   public String instrumentedType() {
     return "org.apache.synapse.transport.passthru.TargetHandler";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TargetRequestInjectAdapter", packageName + ".SynapseClientDecorator",
-    };
   }
 
   @Override
@@ -94,7 +87,7 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
 
       DECORATE.afterStart(span);
 
-      Context context = getCurrentContext().with(span);
+      Context context = currentContext().with(span);
 
       // capture context to be finished by one of the various client response advices
       connection.getContext().setAttribute(SYNAPSE_CONTEXT_KEY, context);

@@ -24,7 +24,7 @@ internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSp
     return false
   }
 
-  val launcherVersion = JavaVersion.toVersion(testJvmSpec.javaTestLauncher.get().metadata.languageVersion.asInt())
+  val launcherVersion = JavaVersion.toVersion(testJvmSpec.requestedTestJvmLauncher.get().metadata.languageVersion.asInt())
   if (!withinAllowedRange(launcherVersion) && forceJdk.get().none { it.equals(testJvmName, ignoreCase = true) }) {
     return false
   }

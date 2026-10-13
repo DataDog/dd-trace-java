@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_CONTEXT_KEY;
@@ -37,16 +37,6 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".SynapseServerDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
@@ -75,7 +65,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       return parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
@@ -88,8 +78,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      Context parentContext =
-          getCurrentContext(); // parent context attached by ContextTrackingAdvice
+      Context parentContext = currentContext(); // parent context attached by ContextTrackingAdvice
       Context context = DECORATE.startSpan(request, parentContext);
       ContextScope scope = context.attach();
       AgentSpan span = spanFromContext(context);
@@ -161,7 +150,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(value = 1, optional = true) final Object error) {
       // check and remove context so it won't be finished twice
       Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
-      if (null != context && context != getRootContext()) {
+      if (null != context && context != rootContext()) {
         AgentSpan span = spanFromContext(context);
         if (null != span) {
           if (error instanceof Throwable) {

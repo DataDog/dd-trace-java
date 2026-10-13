@@ -32,8 +32,14 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.exclude.files";
   public static final String DYNAMIC_INSTRUMENTATION_INCLUDE_FILES =
       "dynamic.instrumentation.include.files";
+  public static final String DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE =
+      "internal.dynamic.instrumentation.timeout.checker.mode";
   public static final String DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT =
       "dynamic.instrumentation.capture.timeout";
+  public static final String DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS =
+      "dynamic.instrumentation.capture.timeout.ms";
+  public static final String DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS =
+      "dynamic.instrumentation.evaluation.timeout.ms";
   public static final String DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS =
       "dynamic.instrumentation.redacted.identifiers";
   public static final String DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS =
@@ -63,6 +69,8 @@ public final class DebuggerConfig {
   public static final String DISTRIBUTED_DEBUGGER_ENABLED = "distributed.debugger.enabled";
   public static final String DEBUGGER_SOURCE_FILE_TRACKING_ENABLED =
       "dynamic.instrumentation.source.file.tracking.enabled";
+  public static final String DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED =
+      "internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
   public static final String THIRD_PARTY_DETECTION_INCLUDES = "third.party.detection.includes";

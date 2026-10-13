@@ -5,8 +5,11 @@ import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.che
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedMap;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedSet;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.evaluateTargetCollection;
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
@@ -21,6 +24,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,8 +45,9 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
   }
 
   @Override
-  public CollectionValue<?> evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> collectionValue = evaluateTargetCollection(source, filterExpression, valueRefResolver);
+  public CollectionValue<?> evaluate(EvalContext evalContext) {
+    Value<?> collectionValue = evaluateTargetCollection(source, filterExpression, evalContext);
+    ValueReferenceResolver valueRefResolver = evalContext.getValueRefResolver();
     if (collectionValue instanceof ListValue) {
       ListValue materialized = (ListValue) collectionValue;
       checkSupportedList(materialized, this);
@@ -53,9 +58,10 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
           Object value = materialized.get(i).getValue();
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(value));
-          if (filterExpression.evaluate(valueRefResolver)) {
+          if (filterExpression.evaluate(evalContext)) {
             filtered.add(value);
           }
+          checkTimeout(evalContext.getTimeoutChecker(), this);
         }
       } finally {
         valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
@@ -74,9 +80,10 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME,
               CapturedValue.of(new MapValue.Entry(key, value)));
-          if (filterExpression.evaluate(valueRefResolver)) {
+          if (filterExpression.evaluate(evalContext)) {
             filtered.put(key.getValue(), value.getValue());
           }
+          checkTimeout(evalContext.getTimeoutChecker(), this);
         }
       } finally {
         valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
@@ -92,9 +99,10 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
         for (Object value : setHolder) {
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(value));
-          if (filterExpression.evaluate(valueRefResolver)) {
+          if (filterExpression.evaluate(evalContext)) {
             filtered.add(value);
           }
+          checkTimeout(evalContext.getTimeoutChecker(), this);
         }
       } finally {
         valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
@@ -117,5 +125,20 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
 
   public BooleanExpression getFilterExpression() {
     return filterExpression;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    FilterCollectionExpression that = (FilterCollectionExpression) o;
+    return Objects.equals(source, that.source)
+        && Objects.equals(filterExpression, that.filterExpression);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(source, filterExpression);
   }
 }

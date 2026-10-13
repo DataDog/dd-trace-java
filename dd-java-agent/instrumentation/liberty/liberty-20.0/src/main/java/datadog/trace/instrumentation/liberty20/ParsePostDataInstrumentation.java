@@ -40,6 +40,14 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".LibertyBlockingHelper",
+      packageName + ".LibertyBlockingHelper$WsByteBufferImpl",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -52,7 +60,7 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParsePostDataAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return Hashtable<String, String[]> retval,
         @ActiveRequestContext RequestContext reqCtx,
@@ -74,9 +82,12 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t = new BlockingException("Blocked request (for SRTServletRequest/parsePostData)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
+          boolean success =
+              LibertyBlockingHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
+          if (success) {
+            t = new BlockingException("Blocked request (for SRTServletRequest/parsePostData)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
         }
       }
     }

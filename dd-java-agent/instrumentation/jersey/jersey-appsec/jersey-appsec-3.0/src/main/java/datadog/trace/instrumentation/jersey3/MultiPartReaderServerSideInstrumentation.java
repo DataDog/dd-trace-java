@@ -46,11 +46,6 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".MultiPartHelper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("readMultiPart")
@@ -62,7 +57,7 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ReadMultiPartAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return final MultiPart ret,
         @ActiveRequestContext RequestContext reqCtx,

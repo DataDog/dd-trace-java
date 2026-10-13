@@ -8,11 +8,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithExchange;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_COMMAND;
@@ -37,6 +39,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -44,7 +47,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.util.HashMap;
@@ -71,15 +73,6 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
     return implementsInterface(named(hierarchyMarkerType()))
         // Class is added to ignores trie, but it's not final so just being safe
         .and(not(extendsClass(named("reactor.rabbitmq.ChannelProxy"))));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RabbitDecorator",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer",
-    };
   }
 
   @Override
@@ -121,7 +114,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
   public static class ChannelMethodAdvice {
     @Advice.OnMethodEnter
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final Channel channel, @Advice.Origin("Channel.#m") final String method) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       if (callDepth > 0) {
@@ -140,21 +133,21 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
       CLIENT_DECORATE.onError(scope, throwable);
       CLIENT_DECORATE.beforeFinish(scope);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
       CallDepthThreadLocalMap.reset(Channel.class);
     }
   }
 
   public static class ChannelPublishAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope setResourceNameAddHeaders(
+    public static ContextScope setResourceNameAddHeaders(
         @Advice.This final Channel channel,
         @Advice.Argument(0) final String exchange,
         @Advice.Argument(1) final String routingKey,
@@ -184,14 +177,14 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
       CallDepthThreadLocalMap.reset(Channel.class);
     }
   }
@@ -207,8 +200,10 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
       if (span == null) return;
       Config config = Config.get();
+      final boolean isDefaultExchange = exchange == null || exchange.isEmpty();
+      final String destination = isDefaultExchange ? routingKey : exchange;
       if (!config.isRabbitPropagationEnabled()
-          || config.isRabbitPropagationDisabledForDestination(exchange)) return;
+          || config.isRabbitPropagationDisabledForDestination(destination)) return;
       // This is the internal behavior when props are null.  We're just doing it earlier now.
       if (props == null) {
         props = MessageProperties.MINIMAL_BASIC;
@@ -219,9 +214,13 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       if (TIME_IN_QUEUE_ENABLED) {
         RabbitDecorator.injectTimeInQueueStart(headers);
       }
-      DataStreamsTags tags =
-          createWithExchange(
-              "rabbitmq", OUTBOUND, exchange, routingKey != null && !routingKey.isEmpty());
+      final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
+      DataStreamsTags tags;
+      if (isDefaultExchange && hasRoutingKey) {
+        tags = create("rabbitmq", OUTBOUND, routingKey);
+      } else {
+        tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);
+      }
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
       props =
@@ -246,7 +245,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
   public static class ChannelGetAdvice {
     @Advice.OnMethodEnter
     public static long takeTimestamp(
-        @Advice.Local("placeholderScope") AgentScope placeholderScope,
+        @Advice.Local("placeholderScope") ContextScope placeholderScope,
         @Advice.Local("callDepth") int callDepth) {
 
       callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
@@ -260,7 +259,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final Channel channel,
         @Advice.Argument(0) final String queue,
         @Advice.Enter final long spanStartMillis,
-        @Advice.Local("placeholderScope") final AgentScope placeholderScope,
+        @Advice.Local("placeholderScope") final ContextScope placeholderScope,
         @Advice.Local("callDepth") final int callDepth,
         @Advice.Return final GetResponse response,
         @Advice.Thrown final Throwable throwable) {
@@ -273,14 +272,14 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       final boolean propagate =
           config.isRabbitPropagationEnabled()
               && !config.isRabbitPropagationDisabledForDestination(queue);
-      final AgentScope scope =
+      final ContextScope scope =
           RabbitDecorator.startReceivingSpan(
               propagate,
               spanStartMillis,
               null != response ? response.getProps() : null,
               null != response ? response.getBody() : null,
               queue);
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       CONSUMER_DECORATE.setPeerPort(span, connection.getPort());
       CONSUMER_DECORATE.onGet(span, queue);
       CONSUMER_DECORATE.onPeerConnection(span, connection.getAddress());

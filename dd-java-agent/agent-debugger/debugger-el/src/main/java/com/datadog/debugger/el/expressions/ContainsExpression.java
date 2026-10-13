@@ -1,11 +1,16 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkStringLength;
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import java.util.Objects;
 
 public class ContainsExpression implements BooleanExpression {
   private final ValueExpression<?> target;
@@ -17,8 +22,8 @@ public class ContainsExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> targetValue = target.evaluate(valueRefResolver);
+  public Boolean evaluate(EvalContext evalContext) {
+    Value<?> targetValue = target.evaluate(evalContext);
     if (targetValue.isUndefined()) {
       throw new EvaluationException(
           "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
@@ -27,22 +32,28 @@ public class ContainsExpression implements BooleanExpression {
       throw new EvaluationException(
           "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
-    Value<?> val = value.evaluate(valueRefResolver);
+    Value<?> val = value.evaluate(evalContext);
     if (val.isUndefined()) {
       return false;
     }
+    boolean result;
     if (targetValue.getValue() instanceof String) {
       String targetStr = (String) targetValue.getValue();
       if (val.getValue() instanceof String) {
         String valStr = (String) val.getValue();
-        return targetStr.contains(valStr);
+        checkStringLength(valStr, this);
+        result = targetStr.contains(valStr);
+        checkTimeout(evalContext.getTimeoutChecker(), this);
+        return result;
       }
       throw new EvaluationException(
           "Cannot evaluate the expression for non-string value", PrettyPrintVisitor.print(this));
     }
     if (targetValue instanceof CollectionValue) {
       try {
-        return ((CollectionValue<?>) targetValue).contains(val);
+        result = ((CollectionValue<?>) targetValue).contains(val);
+        checkTimeout(evalContext.getTimeoutChecker(), this);
+        return result;
       } catch (RuntimeException ex) {
         throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
       }
@@ -61,5 +72,19 @@ public class ContainsExpression implements BooleanExpression {
 
   public ValueExpression<?> getValue() {
     return value;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    ContainsExpression that = (ContainsExpression) o;
+    return Objects.equals(target, that.target) && Objects.equals(value, that.value);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(target, value);
   }
 }

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.java.concurrent.executor;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
-import static datadog.trace.instrumentation.java.concurrent.executor.ThreadPoolExecutorInstrumentation.TPE;
 import static java.util.Collections.singleton;
 
 import com.google.auto.service.AutoService;
@@ -41,7 +40,6 @@ public class ExecutorModule extends InstrumenterModule.ContextTracking
     contextStore.put("java.util.concurrent.RunnableFuture", State.class.getName());
     // TODO get rid of this
     contextStore.put("java.lang.Runnable", State.class.getName());
-    contextStore.put(TPE, Boolean.class.getName());
     return Collections.unmodifiableMap(contextStore);
   }
 

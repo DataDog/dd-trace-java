@@ -1,6 +1,5 @@
 package opentelemetry14;
 
-import static datadog.trace.agent.test.assertions.Matchers.is;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
@@ -9,6 +8,7 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.DD_SVC_SRC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static io.opentelemetry.api.common.AttributeKey.longKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static io.opentelemetry.api.trace.SpanKind.CLIENT;
@@ -20,10 +20,10 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.opentelemetry.shim.trace.OtelConventions;
-import datadog.trace.agent.test.assertions.Matcher;
-import datadog.trace.agent.test.assertions.Matchers;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
+import datadog.trace.test.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matchers;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanKind;
@@ -39,6 +39,16 @@ import org.junit.jupiter.params.provider.MethodSource;
 public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test {
   private static final String SPAN_KIND_INTERNAL = "internal";
   private static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
+
+  // Attributes with a dd-name registered under a different otel-name in tag-conventions.yaml are
+  // stored (and must be asserted) under their canonical Datadog name, not the raw OTel attribute
+  // key.
+  private static final Map<String, String> CANONICAL_TAG_NAMES = new HashMap<>();
+
+  static {
+    CANONICAL_TAG_NAMES.put("http.request.method", "http.method");
+    CANONICAL_TAG_NAMES.put("db.system", "db.type");
+  }
 
   static Stream<Arguments> testSpanNameConventionsArguments() {
     return Stream.of(
@@ -121,7 +131,8 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     attributes.forEach(
         (key, value) -> {
           if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
-            tagMatchers.add(tag(key, is(value)));
+            String tagName = CANONICAL_TAG_NAMES.getOrDefault(key, key);
+            tagMatchers.add(tag(tagName, is(value)));
           }
         });
 

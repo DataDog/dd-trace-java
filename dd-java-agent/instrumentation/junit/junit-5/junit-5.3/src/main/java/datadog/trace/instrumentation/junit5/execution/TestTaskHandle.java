@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5.execution;
 
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.util.Arrays;
@@ -13,7 +14,6 @@ import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.support.hierarchical.EngineExecutionContext;
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutorService;
-import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 public class TestTaskHandle {
@@ -28,16 +28,43 @@ public class TestTaskHandle {
 
   private static final MethodHandle TEST_DESCRIPTOR_GETTER =
       METHOD_HANDLES.privateFieldGetter(TEST_TASK_CLASS, "testDescriptor");
-  private static final MethodHandle TEST_DESCRIPTOR_SETTER =
-      METHOD_HANDLES.privateFieldSetter(TEST_TASK_CLASS, "testDescriptor");
-
-  private static final MethodHandle NODE_SETTER =
-      METHOD_HANDLES.privateFieldSetter(TEST_TASK_CLASS, "node");
 
   private static final MethodHandle PARENT_CONTEXT_GETTER =
       METHOD_HANDLES.privateFieldGetter(TEST_TASK_CLASS, "parentContext");
   private static final MethodHandle PARENT_CONTEXT_SETTER =
       METHOD_HANDLES.privateFieldSetter(TEST_TASK_CLASS, "parentContext");
+
+  /** NodeTestTask's {@code (NodeTestTaskContext, TestDescriptor)} constructor (1.3.1+) */
+  private static final Class<?> TEST_TASK_CONTEXT_CLASS_REF =
+      JUnitPlatformUtils.loadClass(TEST_TASK_CONTEXT_CLASS);
+
+  private static final MethodHandle TEST_TASK_CONSTRUCTOR =
+      TEST_TASK_CONTEXT_CLASS_REF != null
+          ? METHOD_HANDLES.constructor(
+              TEST_TASK_CLASS, TEST_TASK_CONTEXT_CLASS_REF, TestDescriptor.class)
+          : null;
+
+  // Legacy fallback setters, lazily created to avoid JEP 500 warnings, only used on 1.3.0
+  private static volatile MethodHandle testDescriptorSetter;
+  private static volatile MethodHandle nodeSetter;
+
+  private static MethodHandle testDescriptorSetter() {
+    MethodHandle handle = testDescriptorSetter;
+    if (handle == null) {
+      handle = METHOD_HANDLES.privateFieldSetter(TEST_TASK_CLASS, "testDescriptor");
+      testDescriptorSetter = handle;
+    }
+    return handle;
+  }
+
+  private static MethodHandle nodeSetter() {
+    MethodHandle handle = nodeSetter;
+    if (handle == null) {
+      handle = METHOD_HANDLES.privateFieldSetter(TEST_TASK_CLASS, "node");
+      nodeSetter = handle;
+    }
+    return handle;
+  }
 
   private static final MethodHandle THROWABLE_COLLECTOR_FACTORY_GETTER =
       METHOD_HANDLES.privateFieldGetter(TEST_TASK_CLASS, "throwableCollectorFactory");
@@ -118,20 +145,29 @@ public class TestTaskHandle {
     return METHOD_HANDLES.invoke(TEST_DESCRIPTOR_GETTER, testTask);
   }
 
-  public void setTestDescriptor(TestDescriptor testDescriptor) {
-    METHOD_HANDLES.invoke(TEST_DESCRIPTOR_SETTER, testTask, testDescriptor);
-  }
-
-  public void setNode(Node<?> node) {
-    METHOD_HANDLES.invoke(NODE_SETTER, testTask, node);
-  }
-
   public EngineExecutionContext getParentContext() {
     return METHOD_HANDLES.invoke(PARENT_CONTEXT_GETTER, testTask);
   }
 
-  public void setParentContext(EngineExecutionContext parentContext) {
+  /**
+   * Returns a task that will execute the given retry descriptor. If possible, a brand-new
+   * NodeTestTask is constructed; otherwise we fall back to overwriting the current task's fields
+   * (non-compliant with JEP500).
+   */
+  public HierarchicalTestExecutorService.TestTask createRetryTask(
+      TestDescriptor descriptor, EngineExecutionContext parentContext) {
+    if (TEST_TASK_CONSTRUCTOR != null && testTaskContext != null) {
+      Object retryTask = METHOD_HANDLES.invoke(TEST_TASK_CONSTRUCTOR, testTaskContext, descriptor);
+      if (retryTask != null) {
+        METHOD_HANDLES.invoke(PARENT_CONTEXT_SETTER, retryTask, parentContext);
+        return (HierarchicalTestExecutorService.TestTask) retryTask;
+      }
+    }
+    // fallback (< 1.3.1): reuse the current task by overwriting its final fields.
+    METHOD_HANDLES.invoke(testDescriptorSetter(), testTask, descriptor);
+    METHOD_HANDLES.invoke(nodeSetter(), testTask, descriptor);
     METHOD_HANDLES.invoke(PARENT_CONTEXT_SETTER, testTask, parentContext);
+    return testTask;
   }
 
   public EngineExecutionListener getListener() {

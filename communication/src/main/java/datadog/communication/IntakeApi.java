@@ -25,6 +25,7 @@ public class IntakeApi implements BackendApi {
   private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_ENCODING = "gzip";
+  private static final String IDENTITY_ENCODING = "identity";
 
   private final String apiKey;
   private final String traceId;
@@ -73,9 +74,10 @@ public class IntakeApi implements BackendApi {
       requestBuilder.addHeader(CONTENT_ENCODING_HEADER, GZIP_ENCODING);
     }
 
-    if (responseCompression) {
-      requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, GZIP_ENCODING);
-    }
+    // OkHttp adds Accept-Encoding: gzip when this header is absent. Always set the header so a
+    // caller can disable response compression on the wire.
+    requestBuilder.addHeader(
+        ACCEPT_ENCODING_HEADER, responseCompression ? GZIP_ENCODING : IDENTITY_ENCODING);
 
     Request request = requestBuilder.build();
     try (okhttp3.Response response =

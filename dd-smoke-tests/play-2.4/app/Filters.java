@@ -1,6 +1,10 @@
-import filters.*;
+import filters.Filter1;
+import filters.Filter2;
+import filters.Filter3;
+import filters.Filter4;
 import javax.inject.Inject;
-import play.api.mvc.*;
+import play.api.mvc.EssentialFilter;
+import play.api.mvc.Filter;
 import play.http.HttpFilters;
 
 public class Filters implements HttpFilters {

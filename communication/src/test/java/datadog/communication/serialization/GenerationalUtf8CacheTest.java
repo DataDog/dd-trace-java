@@ -7,8 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -173,6 +177,88 @@ public class GenerationalUtf8CacheTest {
 
     assertNotEquals(0, edenHits);
     assertNotEquals(0, promotedHits);
+  }
+
+  @Test
+  public void concurrentAccess_neverThrowsOrReturnsWrongBytes() throws InterruptedException {
+    // Regression test for a lookup-then-read race in getUtf8(): a slot can be nulled (recalibrate
+    // purge / eviction) or reassigned to a *different* value between lookupEntryIndex() and the
+    // array read. Before the fix this either NPE'd (null slot) or, worse, silently returned another
+    // value's bytes (reassigned slot). Serialization is single-threaded today, but the cache is
+    // built to allow concurrent use, so this exercises that contract.
+    final GenerationalUtf8Cache cache = create();
+
+    // More distinct values than the cache can hold, so promotions/evictions churn slots hard.
+    final String[] values = new String[256];
+    for (int i = 0; i < values.length; ++i) {
+      values[i] = "value-" + i;
+    }
+
+    final int threadCount = 8;
+    final int iterationsPerThread = 200_000;
+    final CountDownLatch start = new CountDownLatch(1);
+    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final AtomicInteger readersRunning = new AtomicInteger(threadCount);
+
+    Thread[] readers = new Thread[threadCount];
+    for (int t = 0; t < threadCount; ++t) {
+      readers[t] =
+          new Thread(
+              () -> {
+                try {
+                  start.await();
+                  ThreadLocalRandom random = ThreadLocalRandom.current();
+                  for (int i = 0; i < iterationsPerThread && failure.get() == null; ++i) {
+                    String value = values[random.nextInt(values.length)];
+                    byte[] result = cache.getUtf8(value);
+                    if (!Arrays.equals(value.getBytes(StandardCharsets.UTF_8), result)) {
+                      failure.compareAndSet(
+                          null,
+                          new AssertionError(
+                              "getUtf8(\""
+                                  + value
+                                  + "\") returned bytes for \""
+                                  + new String(result, StandardCharsets.UTF_8)
+                                  + "\""));
+                      return;
+                    }
+                  }
+                } catch (Throwable e) {
+                  failure.compareAndSet(null, e);
+                } finally {
+                  readersRunning.decrementAndGet();
+                }
+              });
+    }
+
+    // Recalibrate in a tight loop for the duration, nulling decayed slots concurrently with reads.
+    Thread recalibrator =
+        new Thread(
+            () -> {
+              try {
+                start.await();
+                while (readersRunning.get() > 0 && failure.get() == null) {
+                  cache.recalibrate();
+                }
+              } catch (Throwable e) {
+                failure.compareAndSet(null, e);
+              }
+            });
+
+    for (Thread reader : readers) {
+      reader.start();
+    }
+    recalibrator.start();
+    start.countDown();
+
+    for (Thread reader : readers) {
+      reader.join();
+    }
+    recalibrator.join();
+
+    if (failure.get() != null) {
+      throw new AssertionError("concurrent getUtf8() failed", failure.get());
+    }
   }
 
   @Test

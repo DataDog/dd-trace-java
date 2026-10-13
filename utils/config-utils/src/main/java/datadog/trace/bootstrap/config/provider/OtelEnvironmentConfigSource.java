@@ -21,6 +21,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENAB
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
@@ -37,7 +38,6 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
@@ -128,8 +128,10 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       Map<String, String> attributeMap = parseOtelMap(resourceAttributes);
       capture(SERVICE_NAME, attributeMap.remove("service.name"));
       capture(VERSION, attributeMap.remove("service.version"));
-      capture(ENV, attributeMap.remove("deployment.environment"));
-      capture(TAGS, renderDatadogMap(attributeMap, 10));
+      String environment = attributeMap.remove("deployment.environment");
+      String namedEnvironment = attributeMap.remove("deployment.environment.name");
+      capture(ENV, namedEnvironment != null ? namedEnvironment : environment);
+      capture(TAGS, renderDatadogMap(attributeMap));
     }
     capture(LOG_LEVEL, logLevel);
     capture(SERVICE_NAME, serviceName);
@@ -163,8 +165,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
     capture(TRACE_EXTENSIONS_PATH, extensions);
     capture(
-        TRACES_SPAN_METRICS_ENABLED,
-        getOtelProperty("otel.traces.span.metrics.enabled", "dd." + TRACES_SPAN_METRICS_ENABLED));
+        OTEL_TRACES_SPAN_METRICS_ENABLED,
+        getOtelProperty(
+            "otel.traces.span.metrics.enabled", "dd." + OTEL_TRACES_SPAN_METRICS_ENABLED));
 
     String exporter = getOtelProperty("otel.traces.exporter");
     if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
@@ -466,15 +469,11 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   /** Renders the map as a comma-separated list of key:value entries. */
-  private static String renderDatadogMap(Map<String, String> map, int maxEntries) {
+  private static String renderDatadogMap(Map<String, String> map) {
     StringBuilder buf = new StringBuilder();
 
-    int entries = 0;
     for (Map.Entry<String, String> entry : map.entrySet()) {
       buf.append(entry.getKey()).append(':').append(entry.getValue()).append(',');
-      if (++entries >= maxEntries) {
-        break;
-      }
     }
 
     // remove trailing comma, mapping empty conversion to null

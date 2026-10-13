@@ -4,12 +4,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_POLL;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -17,6 +18,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
+import org.apache.kafka.common.errors.WakeupException;
 
 /**
  * this method transfers the consumer group from the KafkaConsumer class key to the ConsumerRecords
@@ -25,7 +27,7 @@ import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
  */
 public class RecordsAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.This ConsumerDelegate consumer) {
+  public static ContextScope onEnter(@Advice.This ConsumerDelegate consumer) {
     // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
     KafkaConsumerInfo kafkaConsumerInfo =
         InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
@@ -45,11 +47,12 @@ public class RecordsAdvice {
     return null;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void captureGroup(
-      @Advice.Enter final AgentScope scope,
+      @Advice.Enter final ContextScope scope,
       @Advice.This ConsumerDelegate consumer,
-      @Advice.Return ConsumerRecords records) {
+      @Advice.Return ConsumerRecords records,
+      @Advice.Thrown Throwable throwable) {
     int recordsCount = 0;
     if (records != null) {
       // new - we are getting the KafkaConsumerInfo from the ConsumerDelegate instead of
@@ -68,9 +71,12 @@ public class RecordsAdvice {
     if (scope == null) {
       return;
     }
-    AgentSpan span = scope.span();
+    AgentSpan span = spanFromScope(scope);
     span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
-    span.finish();
+    if (!(throwable instanceof WakeupException)) {
+      span.addThrowable(throwable);
+    }
     scope.close();
+    span.finish();
   }
 }

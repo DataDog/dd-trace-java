@@ -43,9 +43,12 @@ class PekkoHttpTestWebServer(binder: Binder) extends HttpServer {
 
   override def stop(): Unit = {
     import materializer.executionContext
-    portBinding
-      .flatMap(_.unbind())
-      .onComplete(_ => system.terminate())
+    Await.ready(
+      portBinding
+        .flatMap(_.unbind())
+        .flatMap(_ => system.terminate()),
+      10 seconds
+    )
   }
 
   override def address(): URI = {
@@ -245,7 +248,7 @@ object PekkoHttpTestWebServer {
                   resp.withHeaders(headers.Location(endpoint.getBody))
                 case ERROR     => resp.withEntity(endpoint.getBody)
                 case EXCEPTION => throw new Exception(endpoint.getBody)
-                case _ =>
+                case _         =>
                   if (path.startsWith("/injected-id/")) {
                     val groups = path.split('/')
                     if (groups.size == 4) { // The path starts with a / and has 3 segments

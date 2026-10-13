@@ -39,19 +39,6 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatadogWrapperHelper",
-      packageName + ".DatadogAsyncHandlerWrapper",
-      packageName + ".DatadogAsyncHandlerWrapper$1",
-      packageName + ".DatadogAsyncHandlerWrapper$2",
-      packageName + ".PekkoHttpServerHeaders",
-      packageName + ".PekkoHttpServerDecorator",
-      packageName + ".UriAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         takesArguments(8)
@@ -84,7 +71,7 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
       }
     }
 
-    @OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit() {
       CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }
@@ -101,7 +88,7 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
       }
     }
 
-    @OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit() {
       CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }
@@ -118,7 +105,7 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
       }
     }
 
-    @OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit() {
       CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }

@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileLocator;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.ClassFileTransformer;
 import net.bytebuddy.pool.TypePool;
 
@@ -40,6 +41,10 @@ public final class SharedTypePools {
     SUPPLIER.clear();
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal holder; Class object does not escape to app code and lock only guards one-time supplier registration.")
   public static synchronized void registerIfAbsent(Supplier supplier) {
     if (null == SUPPLIER) {
       SUPPLIER = supplier;

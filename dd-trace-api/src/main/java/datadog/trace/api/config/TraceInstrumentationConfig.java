@@ -74,6 +74,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String DB_DBM_INJECT_SQL_BASEHASH = "dbm.inject.sql.basehash";
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
+  public static final String DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED =
+      "dbm.propagation.oracle.action-only.enabled";
   public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
   public static final String DB_DBM_ALWAYS_APPEND_SQL_COMMENT = "dbm.always_append_sql_comment";
 
@@ -99,6 +101,7 @@ public final class TraceInstrumentationConfig {
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
       "trace.serialversionuid.field.injection";
+  public static final String RUNTIME_CONTEXT_MAP_PER_STORE = "trace.runtime.context.map-per-store";
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
   public static final String LOGS_INJECTION = "logs.injection";
@@ -156,6 +159,9 @@ public final class TraceInstrumentationConfig {
 
   public static final String SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME =
       "spring-data.repository.interface.resource-name";
+
+  public static final String SPRING_SCHEDULING_MEASURED_ENABLED =
+      "spring-scheduling.measured.enabled";
 
   public static final String INSTRUMENTATION_CONFIG_ID = "instrumentation_config_id";
 

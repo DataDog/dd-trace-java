@@ -387,6 +387,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  /** Override to false when the multipart implementation uses a set with non-deterministic ordering (e.g. HashSet). */
+  boolean testBodyFilesContentOrdering() {
+    true
+  }
+
   boolean testBodyJson() {
     false
   }
@@ -1259,7 +1264,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
   def "Instrumentation test exception"() {
     setup:
     def method = "GET"
@@ -1767,7 +1771,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def 'test instrumentation gateway file upload content max files limit'() {
     setup:
-    assumeTrue(testBodyFilesContent())
+    assumeTrue(testBodyFilesContent() && testBodyFilesContentOrdering())
     def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
     def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
     (1..maxFilesToInspect + 1).each {
@@ -1785,8 +1789,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TEST_WRITER.get(0).any {
       span ->
       def tag = span.getTag('request.body.files_content') as String
-      tag?.contains("content_of_file_$maxFilesToInspect") &&
-      !tag.contains("content_of_file_${maxFilesToInspect + 1}")
+      // Exactly maxFilesToInspect files inspected; which file is excluded depends on iteration order
+      tag != null && tag.count('content_of_file_') == maxFilesToInspect
     }
 
     cleanup:

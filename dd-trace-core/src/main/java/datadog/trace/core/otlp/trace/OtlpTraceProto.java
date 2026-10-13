@@ -1,23 +1,20 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_WAS_LONG_RUNNING;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
@@ -30,6 +27,10 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentatio
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.NO_TRACE_FLAGS;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
+import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -37,6 +38,8 @@ import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -47,18 +50,31 @@ import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
 
-  private static final UTF8BytesString SERVICE_NAME = UTF8BytesString.create("service.name");
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
-  public static final int NO_TRACE_FLAGS = 0x00000000;
-  public static final int SAMPLED_TRACE_FLAG = 0x00000001;
-  public static final int REMOTE_TRACE_FLAG = 0x00000300;
+  /*
+   * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
+   * keys through the registry here so OpenTelemetry names stay consistent with entry tags.
+   */
+  private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
+
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
+      otelKey(KnownTags.HTTP_STATUS_CODE_ID);
+
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY_DD =
+      UTF8BytesString.create(KnownTags.HTTP_STATUS_CODE_NAME);
+
+  /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
+  private static UTF8BytesString otelKey(long tagId) {
+    return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
+  }
 
   private OtlpTraceProto() {}
 
@@ -87,6 +103,7 @@ public final class OtlpTraceProto {
       int nestedSpanLinkBytes,
       OtlpProtoBuffer protobuf) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
+    SamplingState samplingState = propagationTags.samplingState();
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, span.getTraceId());
@@ -94,7 +111,7 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, span.getSpanId());
 
-    String tracestate = propagationTags.getW3CTracestate();
+    String tracestate = propagationTags.getW3CTracestate(samplingState);
     if (tracestate != null) {
       writeTag(buf, 3, LEN_WIRE_TYPE);
       writeString(buf, tracestate);
@@ -106,7 +123,7 @@ public final class OtlpTraceProto {
     }
 
     int traceFlags = NO_TRACE_FLAGS;
-    if (span.samplingPriority() > 0) {
+    if (samplingState.getSamplingPriority() > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
     if (span.spanContext().isRemote()) {
@@ -135,7 +152,7 @@ public final class OtlpTraceProto {
     writeI64(buf, span.getStartTime() + PendingTrace.getDurationNano(span));
 
     if (!Config.get().getServiceName().equals(span.getServiceName())) {
-      writeSpanTag(buf, SERVICE_NAME, span.getServiceName());
+      writeSpanTag(buf, SERVICE_NAME_KEY, span.getServiceName());
     }
     writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(buf, OPERATION_NAME, span.getOperationName());
@@ -143,7 +160,7 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
     }
 
-    span.processTagsAndBaggage(metaWriter);
+    span.processTagsAndBaggage(metaWriter, OWN_PROPAGATION_TAGS);
 
     if (span.isError()) {
       int stateSize = 2;
@@ -176,8 +193,10 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, spanLink.spanId());
 
-    writeTag(buf, 3, LEN_WIRE_TYPE);
-    writeString(buf, spanLink.traceState());
+    if (!spanLink.traceState().isEmpty()) {
+      writeTag(buf, 3, LEN_WIRE_TYPE);
+      writeString(buf, spanLink.traceState());
+    }
 
     spanLink
         .attributes()
@@ -189,7 +208,7 @@ public final class OtlpTraceProto {
             });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
-    writeI32(buf, spanLink.traceFlags());
+    writeI32(buf, spanLink.traceFlags() & 0xff);
 
     return protobuf.recordMessage(buf, 13);
   }
@@ -207,20 +226,25 @@ public final class OtlpTraceProto {
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
+    // OTLP is the OpenTelemetry wire format, but the rename itself is opt-in: emit the
+    // OpenTelemetry-namespace name only when OTel semantics are enabled, else the entry's own
+    // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in.
+    String key =
+        Config.get().isTraceOtelSemanticsEnabled() ? tagEntry.openTelemetryTag() : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(buf, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(buf, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, LONG_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(buf, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, DOUBLE_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       default:
-        writeAttribute(buf, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(buf, STRING_ATTRIBUTE, key, tagEntry.stringValue());
     }
   }
 
@@ -242,22 +266,6 @@ public final class OtlpTraceProto {
   private static void writeSpanTag(StreamingBuffer buf, UTF8BytesString key, long value) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     writeAttribute(buf, key, value);
-  }
-
-  private static int spanKind(CharSequence spanKind) {
-    if (spanKind == null) {
-      return 0; // UNSPECIFIED
-    } else if (SPAN_KIND_SERVER.contentEquals(spanKind)) {
-      return 2; // SERVER
-    } else if (SPAN_KIND_CLIENT.contentEquals(spanKind)) {
-      return 3; // CLIENT
-    } else if (SPAN_KIND_PRODUCER.contentEquals(spanKind)) {
-      return 4; // PRODUCER
-    } else if (SPAN_KIND_CONSUMER.contentEquals(spanKind)) {
-      return 5; // CONSUMER
-    } else {
-      return 1; // INTERNAL
-    }
   }
 
   public static class MetaWriter implements MetadataConsumer {
@@ -302,8 +310,13 @@ public final class OtlpTraceProto {
 
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
-      if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCode());
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
+        writeSpanTag(
+            buf,
+            Config.get().isTraceOtelSemanticsEnabled()
+                ? HTTP_STATUS_CODE_KEY
+                : HTTP_STATUS_CODE_KEY_DD,
+            metadata.getHttpStatusCode());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());

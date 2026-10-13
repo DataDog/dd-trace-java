@@ -77,6 +77,13 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".SpringBlockingHelper",
+    };
+  }
+
+  @Override
   public Advice.PostProcessor.Factory postProcessor() {
     return postProcessorFactory;
   }
@@ -86,7 +93,7 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
         "org.springframework.web.servlet.HandlerMapping.uriTemplateVariables";
 
     @SuppressWarnings("Duplicates")
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     public static void after(
         @Advice.Argument(0) final HttpServletRequest req,
@@ -127,11 +134,13 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
               Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
               BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
               if (brf != null) {
-                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                boolean success = SpringBlockingHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+                if (success) {
+                  t =
+                      new BlockingException(
+                          "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
+                }
               }
-              t =
-                  new BlockingException(
-                      "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
             }
           }
         }

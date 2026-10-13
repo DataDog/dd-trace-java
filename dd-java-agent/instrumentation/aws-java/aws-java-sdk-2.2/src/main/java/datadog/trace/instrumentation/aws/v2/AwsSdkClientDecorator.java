@@ -7,6 +7,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithDataset;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -46,6 +47,7 @@ import software.amazon.awssdk.core.SdkField;
 import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkResponse;
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
@@ -93,7 +95,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
+          .getOrCreate("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
 
   // not static because this object would be ClassLoader specific if multiple SDK instances were
   // loaded by different loaders
@@ -115,7 +117,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                     "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
   }
 
-  public Context onSdkRequest(
+  public void onSdkRequest(
       final Context context,
       final SdkRequest request,
       final SdkHttpRequest httpRequest,
@@ -153,6 +155,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             url -> {
               span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
               setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+              String queueName = urlFileName(url);
+              if (!queueName.isEmpty()) {
+                setQueueName(span, queueName);
+              }
             });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
@@ -226,11 +232,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       span.setTag(Tags.PEER_SERVICE, hostname);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, "peer.service");
     }
-
-    return context;
   }
 
-  private static AgentSpan onOperation(
+  private static void onOperation(
       final AgentSpan span, final String awsServiceName, final String awsOperationName) {
     String awsRequestName = awsServiceName + "." + awsOperationName;
     span.setResourceName(awsRequestName, RESOURCE_NAME_PRIORITY);
@@ -261,8 +265,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
     span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperationName);
-
-    return span;
   }
 
   private static void setPeerService(
@@ -307,7 +309,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
-  public Context onSdkResponse(
+  public void onSdkResponse(
       final Context context,
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
@@ -405,7 +407,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         }
       }
     }
-    return span;
   }
 
   @Override
@@ -426,6 +427,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected URI url(final SdkHttpRequest request) {
     return request.getUri();
+  }
+
+  /** Tags the HTTP status code of a service error, which has no response to read it from. */
+  public void onServiceError(final AgentSpan span, final Throwable error) {
+    if (error instanceof SdkServiceException) {
+      final int status = ((SdkServiceException) error).statusCode();
+      if (status > 0) {
+        span.setHttpStatusCode(status);
+      }
+    }
   }
 
   @Override

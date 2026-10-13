@@ -1,4 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
+  extraRepository("confluent-releases", "https://packages.confluent.io/maven/")
+
   pass {
     name = "since-0.11"
     group = "org.apache.kafka"
@@ -14,8 +20,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 addTestSuite('iastLatestDepTest3')
@@ -67,5 +71,4 @@ tasks.named("iastLatestDepTest3", Test) {
   javaLauncher = getJavaLauncherFor(17)
   jvmArgs = ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
 }
-
 

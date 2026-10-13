@@ -2,7 +2,9 @@ package com.datadog.debugger.symbol;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -15,9 +17,19 @@ import static utils.TestClassFileHelper.getClassFileBytes;
 
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.util.ClassNameFiltering;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.mockito.ArgumentCaptor;
@@ -74,6 +86,45 @@ class SymbolAggregatorTest {
     assertEquals(
         "BOOT-INF/classes/org/springframework/samples/petclinic/vet/VetController.class",
         captor.getAllValues().get(2));
+  }
+
+  @Test
+  void testScanJarClosesEntryStreams() throws Exception {
+    SymbolSink symbolSink = mock(SymbolSink.class);
+    CountingJarFile[] holder = new CountingJarFile[1];
+    SymbolAggregator symbolAggregator =
+        new SymbolAggregator(ClassNameFiltering.allowAll(), emptyList(), symbolSink, 1) {
+          @Override
+          JarFile openJarFile(File file) throws IOException {
+            return holder[0] = new CountingJarFile(file);
+          }
+        };
+    Path jarPath = Paths.get(getClass().getResource("/debugger-symbol.jar").toURI());
+    symbolAggregator.scanJar(
+        SymDBReport.NO_OP, jarPath, new ByteArrayOutputStream(8192), new byte[4096]);
+    assertTrue(holder[0].opened.get() > 0);
+    assertEquals(holder[0].opened.get(), holder[0].closed.get());
+  }
+
+  private static class CountingJarFile extends JarFile {
+    final AtomicInteger opened = new AtomicInteger();
+    final AtomicInteger closed = new AtomicInteger();
+
+    CountingJarFile(File file) throws IOException {
+      super(file);
+    }
+
+    @Override
+    public synchronized InputStream getInputStream(ZipEntry ze) throws IOException {
+      opened.incrementAndGet();
+      return new FilterInputStream(super.getInputStream(ze)) {
+        @Override
+        public void close() throws IOException {
+          closed.incrementAndGet();
+          super.close();
+        }
+      };
+    }
   }
 
   @Test

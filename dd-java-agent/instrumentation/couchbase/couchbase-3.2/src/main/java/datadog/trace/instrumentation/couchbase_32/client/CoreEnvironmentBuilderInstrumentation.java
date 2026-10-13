@@ -19,18 +19,6 @@ public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CouchbaseClientDecorator",
-      packageName + ".DatadogRequestSpan",
-      packageName + ".DatadogRequestSpan$1",
-      packageName + ".DatadogRequestTracer",
-      packageName + ".DelegatingRequestSpan",
-      packageName + ".DelegatingRequestTracer"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
   }

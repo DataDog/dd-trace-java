@@ -86,7 +86,7 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
     }
   }
 
-  public AgentSpan onRequest(
+  public void onRequest(
       final AgentSpan span,
       final String method,
       final String endpoint,
@@ -126,14 +126,13 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
         span.setTag("elasticsearch.params", queryParametersStringBuilder.toString());
       }
     }
-    return HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
+    HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final Response response) {
+  public void onResponse(final AgentSpan span, final Response response) {
     if (response != null && response.getHost() != null) {
       span.setTag(Tags.PEER_HOSTNAME, response.getHost().getHostName());
       setPeerPort(span, response.getHost().getPort());
     }
-    return span;
   }
 }

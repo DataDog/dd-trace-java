@@ -6,6 +6,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
@@ -78,9 +79,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final Request request) {
+  protected void doOnRequest(final AgentSpan span, final Request request) {
     // Call super first because we override the resource name below.
-    super.onRequest(span, request);
+    super.doOnRequest(span, request);
 
     final String awsServiceName = request.getServiceName();
     final String awsSimplifiedServiceName = simplifyServiceName(awsServiceName);
@@ -245,11 +246,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
       }
     }
-
-    return span;
   }
 
-  public AgentSpan onServiceResponse(
+  public void onServiceResponse(
       final AgentSpan span, final String awsService, final Response response) {
     if ("s3".equalsIgnoreCase(simplifyServiceName(awsService))
         && traceConfig().isDataStreamsEnabled()) {
@@ -287,18 +286,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
       }
     }
-
-    return span;
   }
 
   @Override
-  public AgentSpan onResponse(final AgentSpan span, final Response response) {
+  protected void doOnResponse(final AgentSpan span, final Response response) {
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
     }
 
-    return super.onResponse(span, response);
+    super.doOnResponse(span, response);
   }
 
   @Override
@@ -324,6 +321,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected URI url(final Request request) {
     return request.getEndpoint();
+  }
+
+  /** Tags the HTTP status code of a service error, which has no response to read it from. */
+  public void onServiceError(final AgentSpan span, final Exception error) {
+    if (error instanceof AmazonServiceException) {
+      final int status = ((AmazonServiceException) error).getStatusCode();
+      if (status > 0) {
+        span.setHttpStatusCode(status);
+      }
+    }
   }
 
   @Override

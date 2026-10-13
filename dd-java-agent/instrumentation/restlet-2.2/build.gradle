@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   extraRepository("restlet", "https://maven.restlet.talend.com/")
 
@@ -8,8 +12,6 @@ muzzle {
     assertInverse = false
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
   maven {

@@ -51,11 +51,6 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
     return new Reference[] {EXCHANGE_REFERENCE};
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".FormDataMap"};
-  }
-
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseBlocking")
@@ -67,12 +62,13 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseBlockingAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean onEnter(@Advice.FieldValue("exchange") HttpServerExchange exchange) {
       return exchange.getAttachment(FORM_DATA) == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean relevant,
         @Advice.FieldValue("exchange") HttpServerExchange exchange,
@@ -87,7 +83,9 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
           cbp.getCallback(EVENTS.requestBodyProcessed());
       BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
           cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (bodyCallback == null && filenamesCb == null) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+          cbp.getCallback(EVENTS.requestFilesContent());
+      if (bodyCallback == null && filenamesCb == null && contentCb == null) {
         return;
       }
       FormData attachment = exchange.getAttachment(FORM_DATA);
@@ -103,7 +101,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
             boolean success =
-                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                FormDataContentHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
             if (success && t == null) {
               t =
                   new BlockingException(
@@ -131,9 +129,28 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null && t == null) {
-              boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              boolean success = FormDataContentHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
               if (success) {
                 t = new BlockingException("Blocked request (multipart file upload)");
+              }
+            }
+          }
+        }
+      }
+
+      if (contentCb != null && t == null) {
+        List<String> filesContent = FormDataContentHelper.collectContents(attachment);
+        if (!filesContent.isEmpty()) {
+          Flow<Void> contentFlow = contentCb.apply(reqCtx, filesContent);
+          Flow.Action contentAction = contentFlow.getAction();
+          if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba =
+                (Flow.Action.RequestBlockingAction) contentAction;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null && t == null) {
+              boolean success = FormDataContentHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+              if (success) {
+                t = new BlockingException("Blocked request (multipart file upload content)");
               }
             }
           }

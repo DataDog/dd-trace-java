@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.sofarpc.SofaRpcExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.sofarpc.SofaRpcServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.sofarpc.SofaRpcServerDecorator.SOFA_RPC_SERVER;
@@ -13,8 +14,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.alipay.sofa.rpc.core.request.SofaRequest;
 import com.alipay.sofa.rpc.core.response.SofaResponse;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
@@ -39,7 +40,7 @@ public class ProviderProxyInvokerInstrumentation
 
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) SofaRequest request) {
+    public static ContextScope enter(@Advice.Argument(0) SofaRequest request) {
       // Protocol is set in thread-local by transport-specific instrumentation before this call.
       // If null, the transport is not instrumented — skip.
       String protocol = SofaRpcProtocolContext.get();
@@ -63,13 +64,13 @@ public class ProviderProxyInvokerInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Return SofaResponse response,
         @Advice.Thrown Throwable throwable) {
       if (scope == null) {
         return;
       }
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       DECORATE.onResponse(span, response);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);

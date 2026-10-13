@@ -8,8 +8,8 @@ import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -25,7 +25,7 @@ import org.apache.kafka.clients.producer.internals.Sender;
 public class ProducerAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(
+  public static ContextScope onEnter(
       @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
       @Advice.FieldValue("sender") Sender sender,
       @Advice.FieldValue("metadata") Metadata metadata,
@@ -70,7 +70,7 @@ public class ProducerAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
-      @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
     // Clear cluster ID from Schema Registry instrumentation
     ClusterIdHolder.clear();
 

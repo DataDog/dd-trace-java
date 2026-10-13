@@ -2,13 +2,13 @@ package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.SetValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.List;
 import java.util.Map;
@@ -34,14 +34,12 @@ public class CollectionExpressionHelper {
   }
 
   public static Value<?> evaluateTargetCollection(
-      ValueExpression<?> collectionTarget,
-      Expression<?> expression,
-      ValueReferenceResolver valueRefResolver) {
+      ValueExpression<?> collectionTarget, Expression<?> expression, EvalContext evalContext) {
     if (collectionTarget == null) {
       throw new EvaluationException(
           "Cannot evaluate the expression for null value", print(expression));
     }
-    Value<?> value = collectionTarget.evaluate(valueRefResolver);
+    Value<?> value = collectionTarget.evaluate(evalContext);
     if (value.isUndefined()) {
       throw new EvaluationException(
           "Cannot evaluate the expression for undefined value", print(expression));

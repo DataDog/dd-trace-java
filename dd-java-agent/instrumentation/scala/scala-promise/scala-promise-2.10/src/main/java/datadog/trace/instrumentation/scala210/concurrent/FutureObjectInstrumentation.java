@@ -44,7 +44,7 @@ public final class FutureObjectInstrumentation
             lookup.findVirtual(Future$.class, "unit", MethodType.methodType(Future.class));
         Future<?> unit = (Future<?>) mh.invoke(Future$.MODULE$);
         Try<?> result = unit.value().get();
-        InstrumentationContext.get(Try.class, Context.class).put(result, null);
+        InstrumentationContext.get(Try.class, Context.class).remove(result);
       } catch (Throwable ignored) {
       }
     }

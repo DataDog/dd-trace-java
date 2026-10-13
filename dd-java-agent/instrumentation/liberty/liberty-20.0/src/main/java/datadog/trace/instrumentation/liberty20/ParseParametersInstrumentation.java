@@ -54,6 +54,8 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
       packageName + ".ParameterCollector",
       packageName + ".ParameterCollector$ParameterCollectorNoop",
       packageName + ".ParameterCollector$ParameterCollectorImpl",
+      packageName + ".LibertyBlockingHelper",
+      packageName + ".LibertyBlockingHelper$WsByteBufferImpl",
     };
   }
 
@@ -91,7 +93,7 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
       collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Local("collector") ParameterCollector collector,
         @Advice.Local("reqCtx") RequestContext reqCtx,
@@ -113,9 +115,12 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t = new BlockingException("Blocked request (for SRTServletRequest/parseParameters)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
+          boolean success =
+              LibertyBlockingHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
+          if (success) {
+            t = new BlockingException("Blocked request (for SRTServletRequest/parseParameters)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
         }
       }
     }

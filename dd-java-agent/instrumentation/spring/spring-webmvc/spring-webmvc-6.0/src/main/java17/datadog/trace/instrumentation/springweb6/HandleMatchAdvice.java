@@ -28,7 +28,7 @@ public class HandleMatchAdvice {
       "org.springframework.web.servlet.HandlerMapping.matrixVariables";
 
   @SuppressWarnings("Duplicates")
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   public static void after(
       @Advice.Argument(2) final HttpServletRequest req,
@@ -98,11 +98,13 @@ public class HandleMatchAdvice {
               Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
               BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
               if (brf != null) {
-                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                boolean success = SpringBlockingHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+                if (success) {
+                  t =
+                      new BlockingException(
+                          "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
+                }
               }
-              t =
-                  new BlockingException(
-                      "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
             }
           }
         }

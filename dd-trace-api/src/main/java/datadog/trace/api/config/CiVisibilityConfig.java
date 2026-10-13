@@ -69,6 +69,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_FLAKY_RETRY_COUNT = "civisibility.flaky.retry.count";
   public static final String CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT =
       "civisibility.total.flaky.retry.count";
+  public static final String CIVISIBILITY_DYNAMIC_ATR_ENABLED = "civisibility.dynamic.atr.enabled";
+  public static final String CIVISIBILITY_DYNAMIC_ATR_BUCKETS = "civisibility.dynamic.atr.buckets";
   public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
   public static final String CIVISIBILITY_TEST_COMMAND = "civisibility.test.command";
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";
@@ -83,6 +85,8 @@ public final class CiVisibilityConfig {
   public static final String TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES =
       "test.management.attempt.to.fix.retries";
   public static final String TEST_FAILED_TEST_REPLAY_ENABLED = "test.failed.test.replay.enabled";
+  public static final String CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED =
+      "civisibility.gradle.dependency.verification.enabled";
 
   /* Git PR info */
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull.request.base.branch";
@@ -90,6 +94,7 @@ public final class CiVisibilityConfig {
   public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
 
   /* COVERAGE SETTINGS */
+  public static final String CODE_COVERAGE_FLAGS = "code.coverage.flags";
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
       "civisibility.code.coverage.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED =

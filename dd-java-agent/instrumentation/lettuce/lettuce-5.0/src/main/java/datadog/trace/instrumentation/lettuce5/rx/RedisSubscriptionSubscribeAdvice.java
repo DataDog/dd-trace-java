@@ -5,8 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.lettuce5.LettuceClientDecorator;
 import io.lettuce.core.RedisURI;
@@ -17,10 +17,10 @@ import org.reactivestreams.Subscription;
 
 public class RedisSubscriptionSubscribeAdvice {
   public static final class State {
-    public final AgentScope parentScope;
+    public final ContextScope parentScope;
     public final AgentSpan span;
 
-    public State(AgentScope parentScope, AgentSpan span) {
+    public State(ContextScope parentScope, AgentSpan span) {
       this.parentScope = parentScope;
       this.span = span;
     }
@@ -32,7 +32,7 @@ public class RedisSubscriptionSubscribeAdvice {
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
 
-    AgentScope parentScope = null;
+    ContextScope parentScope = null;
     RedisSubscriptionState state =
         (RedisSubscriptionState)
             InstrumentationContext.get(
@@ -59,12 +59,14 @@ public class RedisSubscriptionSubscribeAdvice {
     return new State(parentScope, span);
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSubscribe(
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand,
-      @Advice.Enter State state) {
-    if (!expectsResponse(command)) {
+      @Advice.Enter State state,
+      @Advice.Thrown Throwable throwable) {
+    if (throwable != null || !expectsResponse(command)) {
+      DECORATE.onError(state.span, throwable);
       DECORATE.beforeFinish(state.span);
       state.span.finish();
       InstrumentationContext.get(RedisCommand.class, AgentSpan.class)

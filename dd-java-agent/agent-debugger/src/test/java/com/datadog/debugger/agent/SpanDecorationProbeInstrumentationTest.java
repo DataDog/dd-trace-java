@@ -65,6 +65,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   private static final ProbeId PROBE_ID4 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
   private static final ProbeId LINE_PROBE_ID1 =
       new ProbeId("beae1817-f3b0-4ea8-a74f-000000000001", 0);
+  private static final ProbeId LINE_PROBE_ID3 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000003", 0);
 
   private TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
 
@@ -288,9 +290,9 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", "{arg}");
     SpanDecorationProbe.Decoration deco2 = createDecoration("tag2", "{this.intField}");
     SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", "{strField}");
-    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
     installSingleSpanDecoration(
-        LINE_PROBE_ID1,
+        LINE_PROBE_ID3,
         CLASS_NAME,
         ROOT,
         asList(deco1, deco2, deco3),

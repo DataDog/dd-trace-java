@@ -1,25 +1,222 @@
 package datadog.trace.instrumentation.jetty8;
 
 import static java.util.Arrays.asList;
+import static java.util.Arrays.fill;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.Config;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.EventType;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import javax.servlet.http.Part;
 import org.eclipse.jetty.util.MultiPartInputStream;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PartHelperTest {
+
+  private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
+  private CallbackProvider callbackProvider;
+  private RequestContext reqCtx;
+  private BlockResponseFunction brf;
+  private TraceSegment traceSegment;
+
+  // Same RequestBlockingAction used across the block-failure-reporting tests below.
+  private static final Flow.Action.RequestBlockingAction RBA =
+      new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
+
+  @BeforeEach
+  void setUpBlockFailureFixtures() {
+    callbackProvider = mock(CallbackProvider.class);
+    traceSegment = mock(TraceSegment.class);
+    brf = mock(BlockResponseFunction.class);
+    reqCtx = mock(RequestContext.class);
+    when(reqCtx.getTraceSegment()).thenReturn(traceSegment);
+    when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
+
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(any(RequestContextSlot.class))).thenReturn(callbackProvider);
+    AgentTracer.forceRegister(tracer);
+  }
+
+  @AfterEach
+  void tearDownBlockFailureFixtures() {
+    AgentTracer.forceRegister(originalTracer);
+  }
+
+  private static Flow<Void> blockingFlow() {
+    return new Flow<Void>() {
+      @Override
+      public Action getAction() {
+        return RBA;
+      }
+
+      @Override
+      public Void getResult() {
+        return null;
+      }
+    };
+  }
+
+  private <T> void stubCallback(EventType<BiFunction<RequestContext, T, Flow<Void>>> event) {
+    doReturn((Object) (BiFunction<RequestContext, T, Flow<Void>>) (ctx, x) -> blockingFlow())
+        .when(callbackProvider)
+        .getCallback(event);
+  }
+
+  // ── fireBodyProcessedEvent: wiring to BlockResponseFunction ─────────────────
+
+  @Test
+  void fireBodyProcessedEventCommitFails() throws IOException {
+    stubCallback(Events.get().requestBodyProcessed());
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(false);
+
+    BlockingException result =
+        PartHelper.fireBodyProcessedEvent(singletonList(field("a", "x")), reqCtx);
+
+    assertNull(result);
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
+    verify(traceSegment, never()).effectivelyBlocked();
+  }
+
+  @Test
+  void fireBodyProcessedEventCommitSucceeds() throws IOException {
+    stubCallback(Events.get().requestBodyProcessed());
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(true);
+
+    BlockingException result =
+        PartHelper.fireBodyProcessedEvent(singletonList(field("a", "x")), reqCtx);
+
+    assertNotNull(result);
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
+  }
+
+  @Test
+  void fireBodyProcessedEventNoBlockResponseFunction() throws IOException {
+    stubCallback(Events.get().requestBodyProcessed());
+    when(reqCtx.getBlockResponseFunction()).thenReturn(null);
+
+    BlockingException result =
+        PartHelper.fireBodyProcessedEvent(singletonList(field("a", "x")), reqCtx);
+
+    assertNull(result);
+    verify(brf, never()).tryCommitBlockingResponse(any(RequestContext.class), any());
+  }
+
+  // ── fireFilenamesEvent: wiring to BlockResponseFunction ─────────────────────
+
+  @Test
+  void fireFilenamesEventCommitFails() {
+    stubCallback(Events.get().requestFilesFilenames());
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(false);
+
+    BlockingException result =
+        PartHelper.fireFilenamesEvent(singletonList(filePart("evil.php")), reqCtx);
+
+    assertNull(result);
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
+  }
+
+  @Test
+  void fireFilenamesEventCommitSucceeds() {
+    stubCallback(Events.get().requestFilesFilenames());
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(true);
+
+    BlockingException result =
+        PartHelper.fireFilenamesEvent(singletonList(filePart("evil.php")), reqCtx);
+
+    assertNotNull(result);
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
+  }
+
+  @Test
+  void fireFilenamesEventNoBlockResponseFunction() {
+    stubCallback(Events.get().requestFilesFilenames());
+    when(reqCtx.getBlockResponseFunction()).thenReturn(null);
+
+    BlockingException result =
+        PartHelper.fireFilenamesEvent(singletonList(filePart("evil.php")), reqCtx);
+
+    assertNull(result);
+    verify(brf, never()).tryCommitBlockingResponse(any(RequestContext.class), any());
+  }
+
+  // ── fireFilesContentEvent: wiring to BlockResponseFunction ──────────────────
+
+  @Test
+  void fireFilesContentEventCommitFails() throws IOException {
+    stubCallback(Events.get().requestFilesContent());
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(false);
+
+    Part p = filePart("photo.jpg");
+    when(p.getInputStream())
+        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+
+    BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
+
+    assertNull(result);
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
+  }
+
+  @Test
+  void fireFilesContentEventCommitSucceeds() throws IOException {
+    stubCallback(Events.get().requestFilesContent());
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(true);
+
+    Part p = filePart("photo.jpg");
+    when(p.getInputStream())
+        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+
+    BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
+
+    assertNotNull(result);
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
+  }
+
+  @Test
+  void fireFilesContentEventNoBlockResponseFunction() throws IOException {
+    stubCallback(Events.get().requestFilesContent());
+    when(reqCtx.getBlockResponseFunction()).thenReturn(null);
+
+    Part p = filePart("photo.jpg");
+    when(p.getInputStream())
+        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+
+    BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
+
+    assertNull(result);
+    verify(brf, never()).tryCommitBlockingResponse(any(RequestContext.class), any());
+  }
 
   // ── extractFilenames ────────────────────────────────────────────────────────
 
@@ -234,6 +431,103 @@ class PartHelperTest {
             fieldWithContentType("drink", iso88591Bytes, "text/plain; charset=ISO-8859-1"));
     Map<String, List<String>> result = PartHelper.extractFormFields(parts);
     assertEquals(singletonList("café"), result.get("drink"));
+  }
+
+  @Test
+  void extractFormFieldsTruncatesFieldExceedingMaxContentBytes() throws IOException {
+    int maxBytes = Config.get().getAppSecMaxFileContentBytes();
+    // ASCII value larger than the cap so byte length == char length and truncation is exact.
+    char[] chars = new char[maxBytes * 2 + 123];
+    fill(chars, 'a');
+    String oversized = new String(chars);
+    List<Part> parts = singletonList(field("big", oversized));
+    Map<String, List<String>> result = PartHelper.extractFormFields(parts);
+    List<String> values = result.get("big");
+    assertEquals(1, values.size());
+    assertEquals(maxBytes, values.get(0).length());
+  }
+
+  @Test
+  void extractFormFieldsCapsAtMaxFileContentCount() throws IOException {
+    int maxFields = Config.get().getAppSecMaxFileContentCount();
+    int count = maxFields + 1;
+    Part[] parts = new Part[count];
+    for (int i = 0; i < count; i++) {
+      parts[i] = field("field" + i, "value" + i);
+    }
+    Map<String, List<String>> result = PartHelper.extractFormFields(asList(parts));
+    assertEquals(maxFields, result.size());
+  }
+
+  // ── extractContents ─────────────────────────────────────────────────────────
+
+  @Test
+  void extractContentsReturnsEmptyListForNull() {
+    assertEquals(emptyList(), PartHelper.extractContents(null));
+  }
+
+  @Test
+  void extractContentsReturnsEmptyListForEmpty() {
+    assertEquals(emptyList(), PartHelper.extractContents(emptyList()));
+  }
+
+  @Test
+  void extractContentsSkipsFormFieldParts() {
+    List<Part> parts = asList(formField("a"), formField("b"));
+    assertEquals(emptyList(), PartHelper.extractContents(parts));
+  }
+
+  @Test
+  void extractContentsIncludesFileWithEmptyFilename() throws IOException {
+    List<Part> parts = singletonList(emptyFilenamePart("upload"));
+    Part p = parts.get(0);
+    when(p.getInputStream())
+        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+    when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
+    assertEquals(singletonList("data"), PartHelper.extractContents(parts));
+  }
+
+  @Test
+  void extractContentsReadsFileContent() throws IOException {
+    Part p = filePart("photo.jpg");
+    when(p.getInputStream())
+        .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
+    when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
+    assertEquals(singletonList("file-content"), PartHelper.extractContents(singletonList(p)));
+  }
+
+  @Test
+  void extractContentsTruncatesAtMaxContentBytes() throws IOException {
+    byte[] large = new byte[PartHelper.MAX_CONTENT_BYTES + 1];
+    Arrays.fill(large, (byte) 'A');
+    Part p = filePart("big.bin");
+    when(p.getInputStream()).thenReturn(new ByteArrayInputStream(large));
+    when(p.getContentType()).thenReturn(null);
+    List<String> contents = PartHelper.extractContents(singletonList(p));
+    assertEquals(1, contents.size());
+    assertEquals(PartHelper.MAX_CONTENT_BYTES, contents.get(0).length());
+  }
+
+  @Test
+  void extractContentsReturnsEmptyStringOnIOException() throws IOException {
+    Part p = filePart("file.txt");
+    when(p.getInputStream()).thenThrow(new IOException("simulated"));
+    assertEquals(singletonList(""), PartHelper.extractContents(singletonList(p)));
+  }
+
+  @Test
+  void extractContentsCappsAtMaxFilesToInspect() throws IOException {
+    int count = PartHelper.MAX_FILES_TO_INSPECT + 1;
+    List<Part> parts = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      Part p = filePart("file" + i + ".txt");
+      when(p.getInputStream())
+          .thenReturn(new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8)));
+      when(p.getContentType()).thenReturn(null);
+      parts.add(p);
+    }
+    List<String> contents = PartHelper.extractContents(parts);
+    assertEquals(PartHelper.MAX_FILES_TO_INSPECT, contents.size());
   }
 
   // ── getAllParts ─────────────────────────────────────────────────────────────

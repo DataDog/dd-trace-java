@@ -12,8 +12,8 @@ public class CharacterMatcher implements Matcher {
   }
 
   @Override
-  public int consume(char[] line, int offset) {
-    return offset < line.length && line[offset] == character ? 1 : -1;
+  public int consume(String line, int offset) {
+    return offset < line.length() && line.charAt(offset) == character ? 1 : -1;
   }
 
   @Override

@@ -49,7 +49,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 3, time = 30, timeUnit = SECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
-@Fork(value = 1)
+@Fork(1)
 public class ClientStatsAggregatorDDSpanBenchmark {
 
   private static final CoreTracer TRACER =
@@ -62,6 +62,7 @@ public class ClientStatsAggregatorDDSpanBenchmark {
       new ClientStatsAggregator(
           new WellKnownTags("", "", "", "", "", ""),
           Collections.emptySet(),
+          AdditionalTagsSchema.EMPTY,
           featuresDiscovery,
           HealthMetrics.NO_OP,
           new ClientStatsAggregatorBenchmark.NullSink(),

@@ -1,9 +1,8 @@
 plugins {
   id 'dd-trace-java.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
 
 muzzle {
   pass {

@@ -1,3 +1,6 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   pass {
@@ -6,6 +9,7 @@ muzzle {
     versions = "[7.3,8.0.0)"
     assertInverse = true
     skipVersions = ["7.11.0", "7.17.8"]
+    excludeDependency 'org.apache.logging.log4j:log4j-api'
   }
   pass {
     group = "org.elasticsearch"
@@ -13,10 +17,9 @@ muzzle {
     versions = "[7.3,8.0.0)"
     assertInverse = true
     skipVersions = ["7.11.0", "7.17.8", "8.8.0", "9.3.0"]
+    excludeDependency 'org.apache.logging.log4j:log4j-api'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

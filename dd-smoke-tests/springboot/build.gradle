@@ -3,9 +3,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'com.gradleup.shadow'
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_15
@@ -48,6 +47,8 @@ dependencies {
   implementation 'com.sun.mail:jakarta.mail:2.0.1'
   // text sanitization
   implementation group: 'org.apache.commons', name: 'commons-text', version: '1.0'
+  // code injection
+  implementation group: 'org.apache-extras.beanshell', name: 'bsh', version: '2.0b6'
 }
 
 tasks.withType(Test).configureEach {

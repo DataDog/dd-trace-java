@@ -82,7 +82,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
       // if there is no request context, skips the body, returns 0 and will skip after()
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Local("origParamHashValues") Map<String, ArrayList<String>> origParamValues,
         @Advice.FieldValue("paramHashValues") final Map<String, ArrayList<String>> paramValuesField,
@@ -111,7 +111,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
             if (t == null) {
               t = new BlockingException("Blocked request (for Parameters/processParameters)");
             }

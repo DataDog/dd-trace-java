@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,6 +22,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.environment.JavaVirtualMachine;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.SamplingPriorityMetadataChecker;
@@ -30,7 +33,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -68,7 +70,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   private CoreTracer.ConfigSnapshot traceConfig;
   private ContinuableScopeManager scopeManager;
   private PendingTrace.Factory factory;
-  private List<TraceScope.Continuation> continuations;
+  private List<ContextContinuation> continuations;
 
   @BeforeAll
   static void checkJvm() {
@@ -141,7 +143,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
 
     clearInvocations(bufferSpy, tracer, traceConfig);
 
-    continuations.get(0).cancel();
+    continuations.get(0).release();
 
     assertEquals(0, trace.getPendingReferenceCount());
     verify(tracer).write(argThat(it -> it.size() == 1));
@@ -179,7 +181,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     doAnswer(
             invocation -> {
               List<DDSpan> spans = invocation.getArgument(0);
-              spans.get(0).processTagsAndBaggage(metadataChecker);
+              spans.get(0).processTagsAndBaggage(metadataChecker, OWN_PROPAGATION_TAGS);
               return null;
             })
         .when(tracer)
@@ -250,7 +252,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   void continuationAllowsAddingAfterRootFinished() {
     PendingTrace trace = factory.create(DDTraceId.ONE);
     DDSpan parent = addContinuation(newSpanOf(trace));
-    TraceScope.Continuation continuation = continuations.get(0);
+    ContextContinuation continuation = continuations.get(0);
 
     assertEquals(1, continuations.size());
 
@@ -276,7 +278,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     // write() is called synchronously on this thread. Starting the buffer
     // would introduce a race where the worker thread could process the
     // enqueued trace before continuation.cancel(), causing unexpected interactions.
-    continuation.cancel();
+    continuation.release();
 
     assertEquals(0, trace.size());
     assertEquals(0, trace.getPendingReferenceCount());
@@ -503,8 +505,8 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   }
 
   private DDSpan addContinuation(DDSpan span) {
-    TraceScope scope = scopeManager.activateSpan(span);
-    continuations.add(scopeManager.captureSpan(span));
+    ContextScope scope = scopeManager.activateSpan(span);
+    continuations.add(scopeManager.capture(span));
     scope.close();
     return span;
   }

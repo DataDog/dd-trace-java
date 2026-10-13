@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
+}
+
 muzzle {
   pass {
     group = "software.amazon.awssdk"
@@ -8,26 +13,29 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 // Broken: at some point S3 moved the bucket name to the hostname resulting in host not found somebucket.localhost on all S3 tests
 // addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 addTestSuite('dsmTest')
-addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
+addForkedTestTask('dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')
 addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 
 addTestSuite('payloadTaggingTest')
-addTestSuiteExtendingForDir('payloadTaggingForkedTest', 'payloadTaggingTest', 'payloadTaggingTest')
+addForkedTestTask('payloadTaggingTest')
 addTestSuiteForDir('latestPayloadTaggingTest', 'payloadTaggingTest')
 addTestSuiteExtendingForDir('latestPayloadTaggingForkedTest', 'latestPayloadTaggingTest', 'payloadTaggingTest')
+
+configurations.named('latestPayloadTaggingTestContainerImage') {
+  extendsFrom(configurations.named('payloadTaggingTestContainerImage').get())
+}
 
 def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'aws-core', version: '2.2.0'
+  payloadTaggingTestContainerImage(image('localstack/localstack:4.2.0', 'test.localstack.image'))
   testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.

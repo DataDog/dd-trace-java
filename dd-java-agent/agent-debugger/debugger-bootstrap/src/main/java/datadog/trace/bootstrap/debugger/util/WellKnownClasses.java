@@ -196,6 +196,29 @@ public class WellKnownClasses {
           "org.agrona.collections." // Agrona
           );
 
+  private static final Set<String> UNSAFE_COLLECTION_CLASSES =
+      new HashSet<>(
+          Arrays.asList(
+              // Collection with synchronized methods can lead to deadlock
+              "java.util.Stack",
+              "java.util.Vector",
+              "java.util.Collections$SynchronizedSet",
+              "java.util.Collections$SynchronizedCollection",
+              "java.util.Collections$SynchronizedSortedSet",
+              "java.util.Collections$SynchronizedNavigableSet",
+              "java.util.Collections$SynchronizedList",
+              "java.util.Collections$SynchronizedRandomAccessList"));
+
+  private static final Set<String> UNSAFE_MAP_CLASSES =
+      new HashSet<>(
+          Arrays.asList(
+              // Maps with synchronized methods can lead to deadlock
+              "java.util.Hashtable",
+              "java.util.Properties",
+              "java.util.Collections$SynchronizedMap",
+              "java.util.Collections$SynchronizedSortedMap",
+              "java.util.Collections$SynchronizedNavigableMap"));
+
   private static final List<String> SAFE_MAP_PACKAGES =
       Arrays.asList(
           "java.", // JDK base module
@@ -223,24 +246,26 @@ public class WellKnownClasses {
   }
 
   /**
-   * @return true if collection implementation is safe to call (only in-memory)
+   * @return true if collection implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Collection<?> collection) {
-    String className = collection.getClass().getTypeName();
-    for (String safePackage : SAFE_COLLECTION_PACKAGES) {
-      if (className.startsWith(safePackage)) {
-        return true;
-      }
-    }
-    return false;
+    return isSafe(
+        collection.getClass().getTypeName(), SAFE_COLLECTION_PACKAGES, UNSAFE_COLLECTION_CLASSES);
   }
 
   /**
-   * @return true if map implementation is safe to call (only in-memory)
+   * @return true if map implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Map<?, ?> map) {
-    String className = map.getClass().getTypeName();
-    for (String safePackage : SAFE_MAP_PACKAGES) {
+    return isSafe(map.getClass().getTypeName(), SAFE_MAP_PACKAGES, UNSAFE_MAP_CLASSES);
+  }
+
+  private static boolean isSafe(
+      String className, List<String> safePackages, Set<String> unsafeClasses) {
+    if (unsafeClasses.contains(className)) {
+      return false;
+    }
+    for (String safePackage : safePackages) {
       if (className.startsWith(safePackage)) {
         return true;
       }

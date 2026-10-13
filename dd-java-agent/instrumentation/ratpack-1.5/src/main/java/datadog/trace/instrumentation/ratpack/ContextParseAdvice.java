@@ -19,7 +19,7 @@ import ratpack.form.Form;
 public class ContextParseAdvice {
 
   // for now ignore that the parser can be configured to mix in the query string
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after(
       @Advice.Return Object obj_,
       @ActiveRequestContext RequestContext reqCtx,

@@ -1,9 +1,13 @@
 package datadog.trace.test.agent.decoder.v04.raw;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
+
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanLink;
+import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +71,8 @@ public class SpanV04 implements DecodedSpan {
         metaStruct = unpackMetaStruct(unpacker, spanId);
       }
 
+      List<DecodedSpanLink> links = DecodedSpanLinks.fromMeta(meta);
+
       return new SpanV04(
           service,
           name,
@@ -80,7 +86,8 @@ public class SpanV04 implements DecodedSpan {
           type,
           metrics,
           meta,
-          metaStruct);
+          metaStruct,
+          links);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -241,6 +248,7 @@ public class SpanV04 implements DecodedSpan {
   private final Map<String, Object> metaStruct;
   private final Map<String, Number> metrics;
   private final String type;
+  private final List<DecodedSpanLink> links;
 
   public SpanV04(
       String service,
@@ -255,7 +263,8 @@ public class SpanV04 implements DecodedSpan {
       String type,
       Map<String, Number> metrics,
       Map<String, String> meta,
-      Map<String, Object> metaStruct) {
+      Map<String, Object> metaStruct,
+      List<DecodedSpanLink> links) {
     this.service = service;
     this.name = name;
     this.resource = resource;
@@ -265,10 +274,11 @@ public class SpanV04 implements DecodedSpan {
     this.start = start;
     this.duration = duration;
     this.error = error;
-    this.meta = Collections.unmodifiableMap(meta);
-    this.metaStruct = metaStruct == null ? null : Collections.unmodifiableMap(metaStruct);
-    this.metrics = Collections.unmodifiableMap(metrics);
+    this.meta = unmodifiableMap(meta);
+    this.metaStruct = metaStruct == null ? emptyMap() : unmodifiableMap(metaStruct);
+    this.metrics = unmodifiableMap(metrics);
     this.type = type;
+    this.links = links;
   }
 
   public String getService() {
@@ -324,6 +334,11 @@ public class SpanV04 implements DecodedSpan {
   }
 
   @Override
+  public List<DecodedSpanLink> getLinks() {
+    return links;
+  }
+
+  @Override
   public String toString() {
     return "SpanV04{"
         + "service='"
@@ -355,7 +370,8 @@ public class SpanV04 implements DecodedSpan {
         + metrics
         + ", type='"
         + type
-        + '\''
+        + "', links="
+        + links
         + '}';
   }
 }

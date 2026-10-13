@@ -477,7 +477,7 @@ Alice Johnson majors in mathematics at UCLA.""")
 
     def toolsField = params._body().class.getDeclaredField("tools")
     toolsField.accessible = true
-    toolsField.set(params._body(), rawTools)
+    toolsField.set(params._body(), rawTools) // TODO: JEP 500 - avoid mutating final fields
 
     params
   }

@@ -123,12 +123,21 @@ public abstract class CiVisibilityService
 
   public void onModuleStart(
       String taskPath,
+      boolean isAndroid,
       BuildModuleLayout moduleLayout,
       Path jvmExecutable,
       Collection<Path> taskClasspath,
       JavaAgent jacocoAgent) {
+    Map<String, Object> additionalTags =
+        isAndroid ? Collections.singletonMap(Tags.TEST_IS_ANDROID, true) : Collections.emptyMap();
     buildEventsHandler.onTestModuleStart(
-        SESSION_KEY, taskPath, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent, null);
+        SESSION_KEY,
+        taskPath,
+        moduleLayout,
+        jvmExecutable,
+        taskClasspath,
+        jacocoAgent,
+        additionalTags);
   }
 
   public void onModuleFinish(

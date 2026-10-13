@@ -153,6 +153,29 @@ final class JUnitReport {
     }
   }
 
+  /// Marks every testcase as `test.final_status=skip` for jobs that tolerate failures.
+  ///
+  /// The flaky test jobs (`test_flaky`, `test_flaky_inst`) run with `CONTINUE_ON_FAILURE=true`, so
+  /// their result never gates the pipeline: it runs to completion regardless of pass or fail.
+  /// `test.final_status` records that CI impact rather than the raw outcome, so every test in these
+  /// jobs is `skip` — a failure is a non-blocking failure and a pass is a non-blocking pass. This
+  /// keeps flaky failures from creating false-positive notifications and skewing SLIs, while the
+  /// real per-test outcome stays available in `test.status` (derived from the `<failure>`,
+  /// `<error>`, and `<skipped>` children, which are left in place). Always-green tests that could
+  /// leave the flaky pipeline are then found with `@test.status:pass @test.final_status:skip`.
+  ///
+  /// **Must run before {@link #tagFinalStatuses()}** so the natural pass/fail status is never
+  /// assigned. Testcases already tagged by {@link #tagRetriedAttempts()} or
+  /// {@link #tagSyntheticFailures()} are left untouched (already `skip`).
+  void tagAllAsSkipped() {
+    for (var testcase : testcases()) {
+      if (hasFinalStatusProperty(testcase)) {
+        continue;
+      }
+      addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.FIRST_CHILD);
+    }
+  }
+
   void write(Path xmlFile) throws Exception {
     Files.createDirectories(xmlFile.getParent());
     var tmpFile = Files.createTempFile(xmlFile.getParent(), "collect-results-", ".xml");

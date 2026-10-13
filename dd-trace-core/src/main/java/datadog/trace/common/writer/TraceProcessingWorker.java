@@ -9,6 +9,7 @@ import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
@@ -120,6 +121,11 @@ public class TraceProcessingWorker implements AutoCloseable {
   public long getRemainingCapacity() {
     // only advertise primary capacity (partly to keep test which aims to saturate the queue happy)
     return primaryQueue.remainingCapacity();
+  }
+
+  @VisibleForTesting
+  MessagePassingBlockingQueue<Object> getPrimaryQueue() {
+    return primaryQueue;
   }
 
   private static MessagePassingBlockingQueue<Object> createQueue(int capacity) {

@@ -38,7 +38,7 @@ public class UriRoutingContextGetPathSegmentsInstrumentation extends Instrumente
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetPathSegmentsAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This UriRoutingContext thiz,
         @Advice.Argument(0) boolean decode,

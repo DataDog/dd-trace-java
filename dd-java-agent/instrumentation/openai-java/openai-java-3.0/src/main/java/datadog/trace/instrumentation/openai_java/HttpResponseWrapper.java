@@ -9,7 +9,7 @@ import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,13 +76,13 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
     return delegate.statusCode();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public Headers headers() {
     return delegate.headers();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public InputStream body() {
     return delegate.body();

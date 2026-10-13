@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<StreamResponse<T>> {
 
@@ -69,13 +69,13 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
     return delegate.statusCode();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public Headers headers() {
     return delegate.headers();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public InputStream body() {
     return delegate.body();

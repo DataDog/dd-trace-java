@@ -5,10 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.core.monitor.HealthMetrics;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -85,10 +88,10 @@ class PeerTagSchemaTest {
   }
 
   @Test
-  void handlerAccumulatesBlockedCountsAcrossRegistrations() {
+  void resetHandlersReportsBlockedCountToHealthMetrics() {
     // Build a schema then replace its handler with a sentinel-mode instance at a low limit.
     // (Production schemas use AggregateEntry.LIMITS_ENABLED which is currently false; this test
-    // exercises the blocked-count path directly so it stays valid before and after the flag flips.)
+    // exercises the reportingpath directly so it stays valid before and after the flag flips.)
     PeerTagSchema schema =
         new PeerTagSchema(new String[] {"peer.hostname"}, PeerTagSchema.NO_STATE);
     schema.handlers[0] = new TagCardinalityHandler("peer.hostname", 1, true);
@@ -97,9 +100,55 @@ class PeerTagSchemaTest {
     schema.register(0, "host-b"); // blocked
     schema.register(0, "host-c"); // blocked
 
-    assertEquals(2, schema.handlers[0].reset());
+    long[] recorded = {0};
+    HealthMetrics hm =
+        new HealthMetrics() {
+          @Override
+          public void onTagCardinalityBlocked(String[] tag, long count) {
+            recorded[0] += count;
+          }
+        };
+
+    schema.resetHandlers(hm, new CardinalityLimitReporter());
+    assertEquals(2, recorded[0]);
 
     // After the reset, no new values were registered so the next reset reports nothing.
-    assertEquals(0, schema.handlers[0].reset());
+    recorded[0] = 0;
+    schema.resetHandlers(hm, new CardinalityLimitReporter());
+    assertEquals(0, recorded[0]);
+  }
+
+  @Test
+  void resetHandlersAggregatesAllPeerTagsUnderSinglePeerTagsField() {
+    // The Cardinality Limits RFC reports peer-tag collapses under the protobuf field name peer_tags
+    // aggregated across every configured peer tag, not per individual tag name.
+    PeerTagSchema schema =
+        new PeerTagSchema(new String[] {"peer.hostname", "peer.service"}, PeerTagSchema.NO_STATE);
+    schema.handlers[0] = new TagCardinalityHandler("peer.hostname", 1, true);
+    schema.handlers[1] = new TagCardinalityHandler("peer.service", 1, true);
+
+    schema.register(0, "host-a"); // within limit
+    schema.register(0, "host-b"); // blocked
+    schema.register(1, "svc-a"); // within limit
+    schema.register(1, "svc-b"); // blocked
+    schema.register(1, "svc-c"); // blocked
+
+    List<String[]> tags = new ArrayList<>();
+    long[] total = {0};
+    HealthMetrics hm =
+        new HealthMetrics() {
+          @Override
+          public void onTagCardinalityBlocked(String[] tag, long count) {
+            tags.add(tag);
+            total[0] += count;
+          }
+        };
+
+    schema.resetHandlers(hm, new CardinalityLimitReporter());
+
+    // One health-metric call, tagged at the field granularity, summing both handlers' blocks.
+    assertEquals(1, tags.size());
+    assertArrayEquals(new String[] {"collapsed:peer_tags"}, tags.get(0));
+    assertEquals(3, total[0]);
   }
 }

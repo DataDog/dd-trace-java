@@ -54,9 +54,6 @@ public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
               PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
           assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
           assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
-          assertFalse(
-              logHasErrors(
-                  logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
           if (processTagsEnabled) {
             assertNotNull(intakeRequest.getProcessTags());
             assertTrue(

@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.internal-library'
+}
 
 // We have some general logging paths that are hard to test
 minimumInstructionCoverage = 0.8
@@ -27,4 +29,3 @@ dependencies {
   testImplementation libs.bundles.mockito
   testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
-

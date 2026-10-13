@@ -73,7 +73,7 @@ public class GrizzlyCharBodyInstrumentation
   }
 
   static class NIOReaderReadAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Return int ret,
@@ -99,7 +99,7 @@ public class GrizzlyCharBodyInstrumentation
   }
 
   static class NIOReaderReadCharArrayAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Argument(0) char[] charArray,
@@ -126,7 +126,7 @@ public class GrizzlyCharBodyInstrumentation
   }
 
   static class NIOReaderReadCharArrayIntIntAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Argument(0) char[] charArray,
@@ -166,7 +166,7 @@ public class GrizzlyCharBodyInstrumentation
       return charBuffer.position();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Local("storedCharBody") StoredCharBody storedCharBody,
         @Advice.Argument(0) CharBuffer charBuffer,
@@ -197,7 +197,7 @@ public class GrizzlyCharBodyInstrumentation
   }
 
   static class NIOReaderIsFinishedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Return boolean ret,
@@ -221,7 +221,7 @@ public class GrizzlyCharBodyInstrumentation
   }
 
   static class NIOReaderRecycleAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(@Advice.This final NIOReader thiz) {
       InstrumentationContext.get(NIOReader.class, StoredCharBody.class).put(thiz, null);
     }

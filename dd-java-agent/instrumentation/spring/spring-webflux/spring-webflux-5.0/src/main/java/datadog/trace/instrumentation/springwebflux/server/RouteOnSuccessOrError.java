@@ -31,10 +31,10 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
                       .trim())
               .replaceAll("");
 
+  private static final DDCache<String, String> PARSED_ROUTE_CACHE = DDCaches.newFixedSizeCache(64);
+
   private final RouterFunction routerFunction;
   private final ServerRequest serverRequest;
-
-  private final DDCache<String, String> parsedRouteCache = DDCaches.newFixedSizeCache(16);
 
   public RouteOnSuccessOrError(
       final RouterFunction routerFunction, final ServerRequest serverRequest) {
@@ -56,7 +56,7 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
 
   @Nonnull
   private String parseRoute(@Nonnull String routerString) {
-    return parsedRouteCache.computeIfAbsent(routerString, PATH_EXTRACTOR);
+    return PARSED_ROUTE_CACHE.computeIfAbsent(routerString, PATH_EXTRACTOR);
   }
 
   @Override

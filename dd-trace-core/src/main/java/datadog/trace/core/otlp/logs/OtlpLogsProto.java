@@ -12,7 +12,7 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeStringCached;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
-import static datadog.trace.core.otlp.trace.OtlpTraceProto.SAMPLED_TRACE_FLAG;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.writeSpanId;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.writeTraceId;
 import static java.nio.charset.StandardCharsets.UTF_8;

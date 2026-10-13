@@ -76,7 +76,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
    */
   @SuppressWarnings("rawtypes")
   public static final class NewTaskFor {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean execute(
         @Advice.This Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
@@ -91,7 +91,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
       return true;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void cancel(
         @Advice.Enter boolean wrapped,
         @Advice.Argument(0) Runnable task,
@@ -115,12 +115,12 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
   /** More general wrapper that uses {@link Wrapper} instead of calling 'newTaskFor'. */
   @SuppressWarnings("rawtypes")
   public static final class Wrap {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void execute(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
       task = Wrapper.wrap(task);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void cancel(@Advice.Argument(0) Runnable task, @Advice.Thrown Throwable error) {
       if (null != error && task instanceof Wrapper) {
         ((Wrapper) task).cancel();

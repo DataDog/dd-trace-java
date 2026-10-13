@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jetty_client12;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.jetty_client12.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jetty_client12.JettyClientDecorator.DECORATE;
 
@@ -20,6 +20,6 @@ public class SendContextPropagationAdvice {
     if (span == null) {
       return;
     }
-    DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
+    DECORATE.injectContext(currentContext().with(span), request, SETTER);
   }
 }

@@ -48,7 +48,7 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetPathParametersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return final Map<String, List<String>> ret,
         @ActiveRequestContext RequestContext reqCtx,
@@ -70,7 +70,7 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
           t =
               new BlockingException(
                   "Blocked request (for UriRoutingContextInstrumentation/getPathParameters)");

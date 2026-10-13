@@ -1,15 +1,31 @@
 package com.datadog.debugger.el;
 
-import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.DSL.and;
+import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.ge;
+import static com.datadog.debugger.el.DSL.getMember;
+import static com.datadog.debugger.el.DSL.gt;
+import static com.datadog.debugger.el.DSL.index;
+import static com.datadog.debugger.el.DSL.le;
+import static com.datadog.debugger.el.DSL.len;
+import static com.datadog.debugger.el.DSL.lt;
+import static com.datadog.debugger.el.DSL.not;
+import static com.datadog.debugger.el.DSL.or;
+import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.DSL.value;
+import static com.datadog.debugger.el.DSL.when;
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.CapturedContext;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,7 +37,7 @@ class ExpressionTest {
   @MethodSource("literalExpressions")
   void testLiteralExpressions(Literal<?> literal, Object expectedValue) {
     Value<?> value1 = literal.evaluate(null);
-    Value<?> value2 = literal.evaluate(new CapturedContext());
+    Value<?> value2 = literal.evaluate(new EvalContext(new CapturedContext(), null));
 
     assertNotNull(value1);
     assertNotNull(value2);
@@ -43,16 +59,16 @@ class ExpressionTest {
     StringValue string = new StringValue("Hello World");
     StringValue emptyString = new StringValue("");
 
-    ValueReferenceResolver resolver = new CapturedContext();
+    EvalContext evalContext = createEvalContext(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(string);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyString);
 
-    assertFalse(isEmpty1.evaluate(resolver));
-    assertTrue(isEmpty2.evaluate(resolver));
+    assertFalse(isEmpty1.evaluate(evalContext));
+    assertTrue(isEmpty2.evaluate(evalContext));
 
-    assertTrue(not(isEmpty1).evaluate(resolver));
-    assertTrue(or(isEmpty1, isEmpty2).evaluate(resolver));
-    assertFalse(and(isEmpty1, isEmpty2).evaluate(resolver));
+    assertTrue(not(isEmpty1).evaluate(evalContext));
+    assertTrue(or(isEmpty1, isEmpty2).evaluate(evalContext));
+    assertFalse(and(isEmpty1, isEmpty2).evaluate(evalContext));
   }
 
   @Test

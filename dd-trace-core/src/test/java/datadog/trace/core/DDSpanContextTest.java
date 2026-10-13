@@ -40,7 +40,7 @@ import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
-import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
+import datadog.trace.test.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;

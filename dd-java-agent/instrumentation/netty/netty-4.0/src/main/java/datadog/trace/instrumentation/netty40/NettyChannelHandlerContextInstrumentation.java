@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES;
@@ -15,9 +14,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator;
 import datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator;
@@ -45,22 +44,6 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         // this may be overly aggressive:
@@ -70,21 +53,24 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
 
   public static class FireAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
+    public static ContextScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
       final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
       final AgentSpan channelSpan = spanFromContext(storedContext);
       if (channelSpan == null || channelSpan == activeSpan()) {
         // don't modify the scope
-        return noopScope();
+        return null;
       }
       return activateSpan(channelSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void close(@Advice.Enter final AgentScope scope) {
-      scope.close();
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void close(@Advice.Enter final ContextScope scope) {
+      if (scope != null) {
+        scope.close();
+      }
     }
 
+    @SuppressWarnings("DataFlowIssue")
     private void muzzleCheck() {
       NettyHttpClientDecorator.DECORATE.afterStart(null);
       NettyHttpServerDecorator.DECORATE.afterStart(null);

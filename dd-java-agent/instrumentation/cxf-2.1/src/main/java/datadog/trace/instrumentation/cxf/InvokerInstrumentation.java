@@ -40,13 +40,6 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ServletHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         ElementMatchers.isMethod().and(NameMatchers.named("invoke")),
@@ -69,7 +62,7 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
       return null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterInvoke(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();

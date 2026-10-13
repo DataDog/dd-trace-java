@@ -9,8 +9,9 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
 
   @Test
   fun `writes version file in version~hash format`() {
+    // task truncation convention is 10
     assertVersionFile(
-      expectedContentRegex = "1\\.2\\.3~[0-9a-f]+",
+      expectedContentRegex = "1\\.2\\.3~[0-9a-f]{10}",
       beforeGradle = {
         initGitRepo()
       },

@@ -216,7 +216,7 @@ class ResponseServiceTest extends OpenAiTest {
     inputTags[1].toolCalls[0].arguments == [location: "San Francisco, CA"]
     inputTags[2].toolResults.size() == 1
     inputTags[2].toolResults[0].type == "function_call_output"
-    !inputTags.isEmpty()
+    inputTags[2].toolResults[0].toolId == "call_123"
     inputTags[2].toolResults[0].result == '{"temperature": "72°F", "conditions": "sunny", "humidity": "65%"}'
 
     where:
@@ -475,7 +475,19 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_metric.reasoning_output_tokens" Long
             "_ml_obs_metric.cache_read_input_tokens" Long
             "_ml_obs_tag.parent_id" "undefined"
+            "_ml_obs_tag.sampling_decision" "1"
+            "_ml_obs_tag.sample_rate" "1"
             "_ml_obs_tag.ml_app" String
+            "gen_ai.operation.name" "llm"
+            "gen_ai.request.model" String
+            "gen_ai.provider.name" "openai"
+            "gen_ai.application.name" String
+            "gen_ai.usage.input_tokens" Double
+            "gen_ai.usage.output_tokens" Double
+            "gen_ai.usage.total_tokens" Double
+            "gen_ai.usage.reasoning_output_tokens" Double
+            "gen_ai.usage.cache_read_input_tokens" Double
+            "_dd.llmobs.artificial_gen_ai_tags" "true"
             "$CommonTags.INTEGRATION" "openai"
             "_ml_obs_tag.service" String
             "$CommonTags.DDTRACE_VERSION" String

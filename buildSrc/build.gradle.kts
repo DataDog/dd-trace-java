@@ -2,7 +2,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
 }
 
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
@@ -28,6 +28,10 @@ gradlePlugin {
     create("muzzle-plugin") {
       id = "dd-trace-java.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
+    }
+    create("muzzle-report-aggregation-plugin") {
+      id = "dd-trace-java.muzzle-report-aggregation"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzleReportAggregationPlugin"
     }
     create("call-site-instrumentation-plugin") {
       id = "dd-trace-java.call-site-instrumentation"
@@ -73,6 +77,11 @@ gradlePlugin {
       id = "dd-trace-java.sca-enrichments"
       implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
     }
+
+    create("jardiff-plugin") {
+      id = "dd-trace-java.jardiff"
+      implementationClass = "datadog.gradle.plugin.jardiff.JardiffPlugin"
+    }
   }
 }
 
@@ -84,8 +93,9 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
+  implementation(libs.forbiddenapis)
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.10")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", libs.versions.byte.buddy.get())
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -98,12 +108,15 @@ dependencies {
   implementation(libs.asm)
   implementation(libs.asm.tree)
 
+  // Keep aligned with build-logic/tag-registry, which shares these Jackson classes.
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
   implementation("com.fasterxml.jackson.core:jackson-core")
 
   compileOnly(libs.develocity)
+
+  testImplementation("me.champeau.jmh:jmh-gradle-plugin:0.7.3")
 }
 
 tasks.compileKotlin {
@@ -127,6 +140,9 @@ testing {
 
     withType(JvmTestSuite::class).configureEach {
       useJUnitJupiter(libs.versions.junit5)
+      dependencies {
+        implementation(platform(libs.junit.bom))
+      }
       targets.configureEach {
         testTask
       }

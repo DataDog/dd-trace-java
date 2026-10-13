@@ -102,7 +102,9 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/SpringListenerSQS"
+            "aws.queue.name" "SpringListenerSQS"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            "queuename" "SpringListenerSQS"
             defaultTags(true)
           }
         }
@@ -219,7 +221,9 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "aws.operation" "SendMessage"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/${queueName}"
+        "aws.queue.name" queueName
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
+        "queuename" queueName
         urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
         defaultTags()
       }
@@ -272,7 +276,9 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "aws.operation" "ReceiveMessage"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/${queueName}"
+        "aws.queue.name" queueName
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
+        "queuename" queueName
         defaultTags(true)
       }
     }
@@ -316,7 +322,9 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "aws.operation" "DeleteMessageBatch"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/${queueName}"
+        "aws.queue.name" queueName
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
+        "queuename" queueName
         urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessageBatch"))
         defaultTags()
       }

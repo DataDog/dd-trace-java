@@ -8,9 +8,9 @@ plugins {
   id 'org.jetbrains.kotlin.jvm'
   id 'scala'
   id 'groovy'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'IAST propagation Smoke Tests.'
 
 kotlin {
@@ -30,7 +30,7 @@ tasks.named("jar", Jar) {
 }
 
 tasks.named("shadowJar", ShadowJar) {
-  configurations = [project.configurations.runtimeClasspath]
+  configurations.add(project.configurations.named('runtimeClasspath'))
 }
 
 dependencies {
@@ -57,9 +57,7 @@ tasks.withType(Test).configureEach {
 }
 
 tasks.withType(ScalaCompile).configureEach {
-  // Despite the compatibility matrix, scala compiler doesn't properly
-  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // Scala compilers here can't run on modern JDKs; pinned to JDK 8.
   // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
-  // * https://github.com/gradle/gradle/issues/19456
-  configureCompiler(it, 8)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Scala compilers here do not run on modern JDKs")
 }

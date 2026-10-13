@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,20 +58,19 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  protected void doAfterStart(@Nonnull final AgentSpan span) {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    return super.afterStart(span);
+    super.doAfterStart(span);
   }
 
-  public AgentSpan onProcessStart(AgentSpan span, String processName) {
-    return span.setResourceName(processName)
+  public void onProcessStart(AgentSpan span, String processName) {
+    span.setResourceName(processName)
         .setTag(TIBCO_NODE, JobPool.getName())
         .setTag(TIBCO_VERSION, VERSION)
         .setMeasured(true);
   }
 
-  public AgentSpan onActivityStart(final AgentSpan span, String activityName) {
+  public void onActivityStart(final AgentSpan span, String activityName) {
     span.setResourceName(activityName);
-    return span;
   }
 }

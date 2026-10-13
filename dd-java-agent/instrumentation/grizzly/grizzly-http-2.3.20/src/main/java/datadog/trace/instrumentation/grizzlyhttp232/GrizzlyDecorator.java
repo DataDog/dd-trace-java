@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -90,7 +89,7 @@ public class GrizzlyDecorator
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
     AgentSpan span;
-    if (context != null && (span = spanFromContext(context)) != null) {
+    if (context != null && (span = AgentSpan.fromContext(context)) != null) {
       DECORATE.onResponse(span, responsePacket);
     }
   }
@@ -99,7 +98,7 @@ public class GrizzlyDecorator
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
     AgentSpan span;
-    if (context != null && (span = spanFromContext(context)) != null) {
+    if (context != null && (span = AgentSpan.fromContext(context)) != null) {
       DECORATE.beforeFinish(context);
       span.finish();
     }
@@ -120,7 +119,7 @@ public class GrizzlyDecorator
     Context parentContext = DECORATE.extract(httpRequest);
     Context context = DECORATE.startSpan(httpRequest, parentContext);
     ContextScope scope = context.attach();
-    AgentSpan span = spanFromContext(context);
+    AgentSpan span = AgentSpan.fromContext(context);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
     ctx.getAttributes().setAttribute(DD_CONTEXT_ATTRIBUTE, context);
@@ -150,7 +149,7 @@ public class GrizzlyDecorator
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
     AgentSpan span;
-    if (context != null && (span = spanFromContext(context)) != null) {
+    if (context != null && (span = AgentSpan.fromContext(context)) != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(context);
       span.finish();

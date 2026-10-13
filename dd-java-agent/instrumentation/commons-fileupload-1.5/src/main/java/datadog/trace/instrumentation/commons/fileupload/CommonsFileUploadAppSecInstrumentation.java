@@ -36,13 +36,6 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.commons.fileupload.FileItemContentReader",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseRequest")
@@ -53,7 +46,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseRequestAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return final List<FileItem> fileItems,
         @ActiveRequestContext RequestContext reqCtx,
@@ -93,7 +86,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
           if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            brf.tryCommitBlockingResponse(reqCtx, rba);
             t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
@@ -107,7 +100,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
           BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
           if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            brf.tryCommitBlockingResponse(reqCtx, rba);
             t = new BlockingException("Blocked request (multipart file upload content)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }

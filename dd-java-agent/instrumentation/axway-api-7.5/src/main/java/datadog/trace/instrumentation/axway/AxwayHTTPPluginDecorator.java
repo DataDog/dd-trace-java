@@ -196,14 +196,13 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   /**
    * @param stateInstance type com.vordel.circuit.net.State
    */
-  public AgentSpan onTransaction(AgentSpan span, Object stateInstance) {
+  public void onTransaction(AgentSpan span, Object stateInstance) {
     if (span != null) {
       setStringTagFromStateField(span, Tags.PEER_HOSTNAME, stateInstance, hostField_mh);
       setStringTagFromStateField(span, Tags.PEER_PORT, stateInstance, portField_mh);
       setStringTagFromStateField(span, Tags.HTTP_METHOD, stateInstance, methodField_mh);
       setURLTagFromUriStateField(span, stateInstance);
     }
-    return span;
   }
 
   /**

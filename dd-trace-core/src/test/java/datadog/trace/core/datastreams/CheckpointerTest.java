@@ -4,15 +4,15 @@ import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +32,7 @@ public class CheckpointerTest extends DDCoreJavaSpecification {
     CustomContextCarrier carrier = new CustomContextCarrier();
     // Start and activate a span
     AgentSpan span = tracer.buildSpan("test", "dsm-checkpoint").start();
-    AgentScope scope = tracer.activateSpan(span);
+    ContextScope scope = tracer.activateSpan(span);
 
     // Trigger produce checkpoint
     checkpointer.setProduceCheckpoint("kafka", "testTopic", carrier);

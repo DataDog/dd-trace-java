@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public final class ConfigStrings {
@@ -7,11 +8,11 @@ public final class ConfigStrings {
   private ConfigStrings() {}
 
   public static String toEnvVar(String string) {
-    return string.replace('.', '_').replace('-', '_').toUpperCase();
+    return string.replace('.', '_').replace('-', '_').toUpperCase(Locale.ROOT);
   }
 
   public static String toEnvVarLowerCase(String string) {
-    return string.replace('.', '_').replace('-', '_').toLowerCase();
+    return string.replace('.', '_').replace('-', '_').toLowerCase(Locale.ROOT);
   }
 
   /**
@@ -27,15 +28,18 @@ public final class ConfigStrings {
   }
 
   /**
-   * Converts the system property name, e.g. 'dd.service.name' into a public environment variable
-   * name, e.g. `DD_SERVICE_NAME`.
+   * Converts a config key to its canonical {@code DD_} or {@code OTEL_} environment-variable form.
    *
-   * @param setting The system property name, e.g. `dd.service.name`
-   * @return The public facing environment variable name
+   * @param key The config key in any form
+   * @return The canonical environment variable name
    */
   @Nonnull
-  public static String systemPropertyNameToEnvironmentVariableName(final String setting) {
-    return setting.replace('.', '_').replace('-', '_').toUpperCase();
+  public static String toCanonicalEnvVar(final String key) {
+    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
+      return toEnvVar(key);
+    }
+    final String env = toEnvVar(key);
+    return env.startsWith("DD_") ? env : "DD_" + env;
   }
 
   /**

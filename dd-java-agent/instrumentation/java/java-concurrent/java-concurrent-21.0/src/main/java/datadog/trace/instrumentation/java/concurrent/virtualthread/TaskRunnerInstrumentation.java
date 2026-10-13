@@ -9,11 +9,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -62,12 +62,12 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.ContextT
 
   public static final class Run {
     @OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope activate(@Advice.This Runnable task) {
+    public static ContextScope activate(@Advice.This Runnable task) {
       return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), task);
     }
 
     @OnMethodExit(suppress = Throwable.class)
-    public static void close(@Advice.Enter AgentScope scope) {
+    public static void close(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

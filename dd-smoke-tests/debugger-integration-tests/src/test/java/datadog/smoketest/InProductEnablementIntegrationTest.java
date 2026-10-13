@@ -11,6 +11,8 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 
 @NonRetryable
 public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegrationTest {
@@ -43,9 +45,30 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   }
 
   @Test
+  @DisplayName("testDynamicInstrumentationResetEnablement")
+  void testDynamicInstrumentationResetEnablement() throws Exception {
+    appUrl = startAppAndAndGetUrl();
+    setConfigOverrides(createConfigOverrides(true, false));
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
+    setCurrentConfiguration(createConfig(probe));
+    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+    waitForInstrumentation(appUrl);
+    // disable DI by removing RC record
+    setConfigOverrides(null);
+    waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
+    waitForReTransformation(appUrl); // wait for retransformation of removed probe
+  }
+
+  @Flaky
+  @Test
   @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
   void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+    // internal flag required to avoid racing source file tracking and class loading as
+    // source file tracking information may be missing when looking for class to retransform
+    additionalJvmArgs.add(
+        "-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true");
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
     LogProbe probe =
@@ -80,6 +103,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
 
   @Test
   @DisplayName("testExceptionReplayEnablement")
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testExceptionReplayEnablement() throws Exception {
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     appUrl = startAppAndAndGetUrl();
@@ -99,6 +123,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   @Flaky
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testExceptionReplayEnablementFailure() throws Exception {
     additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");

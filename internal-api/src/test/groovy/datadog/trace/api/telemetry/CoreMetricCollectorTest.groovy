@@ -53,4 +53,24 @@ class CoreMetricCollectorTest extends DDSpecification {
     collector.prepareMetrics()
     collector.drain().size() == limit
   }
+
+  def "direct count core metric"() {
+    setup:
+    def collector = CoreMetricCollector.getInstance()
+    collector.drain()
+
+    when:
+    collector.count('flagevaluation.rows.dropped', 3, 'reason:queue_overflow')
+    def metrics = collector.drain()
+
+    then:
+    metrics.size() == 1
+
+    def metric = metrics[0]
+    metric.type == 'count'
+    metric.value == 3
+    metric.namespace == 'tracers'
+    metric.metricName == 'flagevaluation.rows.dropped'
+    metric.tags == ['reason:queue_overflow']
+  }
 }

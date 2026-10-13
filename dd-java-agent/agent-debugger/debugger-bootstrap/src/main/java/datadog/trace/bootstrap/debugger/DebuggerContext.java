@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,35 +20,6 @@ import org.slf4j.LoggerFactory;
 public class DebuggerContext {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerContext.class);
   private static final ThreadLocal<Boolean> IN_PROBE = ThreadLocal.withInitial(() -> Boolean.FALSE);
-
-  public enum SkipCause {
-    RATE {
-      @Override
-      public String tag() {
-        return "cause:rate";
-      }
-    },
-    CONDITION {
-      @Override
-      public String tag() {
-        return "cause:condition";
-      }
-    },
-    DEBUG_SESSION_DISABLED {
-      @Override
-      public String tag() {
-        return "cause:debug session disabled";
-      }
-    },
-    BUDGET {
-      @Override
-      public String tag() {
-        return "cause:budget_exceeded";
-      }
-    };
-
-    public abstract String tag();
-  }
 
   public interface ProbeResolver {
     ProbeImplementation resolve(int probeIndex);
@@ -324,8 +294,8 @@ public class DebuggerContext {
       // snapshot
       if (needFreeze) {
         Duration timeout =
-            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-        context.freeze(new TimeoutChecker(timeout));
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        context.freeze(TimeoutChecker.create(Config.get(), timeout));
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContext: ", ex);
@@ -359,8 +329,8 @@ public class DebuggerContext {
       // snapshot
       if (needFreeze) {
         Duration timeout =
-            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-        context.freeze(new TimeoutChecker(timeout));
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        context.freeze(TimeoutChecker.create(Config.get(), timeout));
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContext: ", ex);

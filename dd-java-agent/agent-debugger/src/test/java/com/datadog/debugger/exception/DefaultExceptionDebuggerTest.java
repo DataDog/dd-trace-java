@@ -6,6 +6,7 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -110,13 +111,14 @@ public class DefaultExceptionDebuggerTest {
         Duration.ofSeconds(30));
     generateSnapshots(exception);
     exception.printStackTrace();
-    exceptionDebugger.handleException(exception, span);
+    Throwable innerMostException = ExceptionHelper.getInnerMostThrowable(exception);
+    // capture the state before the second call: a successful assignment removes it from the
+    // manager, so it can no longer be looked up by throwable afterwards
     ExceptionProbeManager.ThrowableState state =
-        exceptionDebugger
-            .getExceptionProbeManager()
-            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
-    assertEquals(
-        state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(innerMostException);
+    String exceptionId = state.getExceptionId();
+    exceptionDebugger.handleException(exception, span);
+    assertEquals(exceptionId, spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(exception);
@@ -149,8 +151,13 @@ public class DefaultExceptionDebuggerTest {
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createTest1Exception");
+    // ThrowableState is keyed by the innermost throwable, not the top-level one passed to
+    // handleException: removal must use that same key or it silently leaks for chained exceptions
+    assertNull(
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(innerMostException));
     // make sure we are not leaking references
     exception = null; // release strong reference
+    innerMostException = null;
     System.gc();
     // calling ExceptionProbeManager#hasExceptionStateTracked() will call WeakIdentityHashMap#size()
     // through isEmpty() an will purge stale entries
@@ -184,13 +191,14 @@ public class DefaultExceptionDebuggerTest {
     generateSnapshots(simpleException);
     exceptionDebugger.handleException(simpleException, span);
     nestedException.printStackTrace();
-    exceptionDebugger.handleException(nestedException, span);
+    Throwable innerMostException = ExceptionHelper.getInnerMostThrowable(nestedException);
+    // capture the state before the second call: a successful assignment removes it from the
+    // manager, so it can no longer be looked up by throwable afterwards
     ExceptionProbeManager.ThrowableState state =
-        exceptionDebugger
-            .getExceptionProbeManager()
-            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(nestedException));
-    assertEquals(
-        state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(innerMostException);
+    String exceptionId = state.getExceptionId();
+    exceptionDebugger.handleException(nestedException, span);
+    assertEquals(exceptionId, spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(nestedException);
@@ -224,6 +232,10 @@ public class DefaultExceptionDebuggerTest {
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createTest1Exception");
+    // ThrowableState is keyed by the innermost throwable, not the top-level one passed to
+    // handleException: removal must use that same key or it silently leaks for chained exceptions
+    assertNull(
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(innerMostException));
   }
 
   @Test
@@ -249,13 +261,14 @@ public class DefaultExceptionDebuggerTest {
         Duration.ofSeconds(30));
     generateSnapshots(exception);
     exception.printStackTrace();
-    exceptionDebugger.handleException(exception, span);
+    Throwable innerMostException = ExceptionHelper.getInnerMostThrowable(exception);
+    // capture the state before the second call: a successful assignment removes it from the
+    // manager, so it can no longer be looked up by throwable afterwards
     ExceptionProbeManager.ThrowableState state =
-        exceptionDebugger
-            .getExceptionProbeManager()
-            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
-    assertEquals(
-        state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(innerMostException);
+    String exceptionId = state.getExceptionId();
+    exceptionDebugger.handleException(exception, span);
+    assertEquals(exceptionId, spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(exception);
@@ -269,6 +282,8 @@ public class DefaultExceptionDebuggerTest {
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createTest2Exception");
+    assertNull(
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(innerMostException));
   }
 
   @Test
@@ -308,12 +323,36 @@ public class DefaultExceptionDebuggerTest {
     generateSnapshots(exception);
     ExceptionProbeManager.ThrowableState state =
         exceptionDebugger.getExceptionProbeManager().getStateByThrowable(exception);
-    List<Snapshot> snapshots = state.getSnapshots();
+    String firstSnapshotId = state.getSnapshots().get(0).getId();
     // This should hit the `currentIdx < 0` branch and fallback to i=0
     exceptionDebugger.handleException(exception, span);
     String tagName = String.format(SNAPSHOT_ID_TAG_FMT, 0);
     assertTrue(spanTags.containsKey(tagName));
-    assertEquals(snapshots.get(0).getId(), spanTags.get(tagName));
+    assertEquals(firstSnapshotId, spanTags.get(tagName));
+    // ThrowableState is removed once assigned & sent, so the state does not grow indefinitely
+    assertNull(exceptionDebugger.getExceptionProbeManager().getStateByThrowable(exception));
+  }
+
+  @Test
+  public void throwableStateRemovedAfterSendingToAvoidUnboundedGrowth() {
+    // simulates a singleton exception instance re-thrown repeatedly, as generated by the JIT's
+    // OmitStackTraceInFastThrow optimization
+    RuntimeException exception = new RuntimeException("test");
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
+    AgentSpan span = mock(AgentSpan.class);
+    doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
+    when(span.getTag(anyString())).thenAnswer(inv -> spanTags.get(inv.getArgument(0)));
+    when(span.getTags()).thenReturn(spanTags);
+    exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
+    generateSnapshots(exception);
+    ExceptionProbeManager.ThrowableState state =
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(exception);
+    assertTrue(state.getSnapshots().size() > 0);
+    exceptionDebugger.handleException(exception, span);
+    assertNull(exceptionDebugger.getExceptionProbeManager().getStateByThrowable(exception));
   }
 
   private Object recordTags(InvocationOnMock invocationOnMock) {

@@ -8,7 +8,9 @@ import io.opentelemetry.context.Scope;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import play.libs.concurrent.HttpExecutionContext;
-import play.mvc.*;
+import play.mvc.Filter;
+import play.mvc.Http;
+import play.mvc.Result;
 
 public abstract class AbstractFilter extends Filter {
   private final HttpExecutionContext ec;

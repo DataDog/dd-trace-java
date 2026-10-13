@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.internal-library'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 minimumInstructionCoverage = 0.1
 minimumBranchCoverage = 0.6

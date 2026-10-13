@@ -36,7 +36,7 @@ class ProcessImplStartAdvice {
     return span;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterStart(
       @Advice.Return Process p, @Advice.Enter AgentSpan span, @Advice.Thrown Throwable t) {
     if (span == null) {

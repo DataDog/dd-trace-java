@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.opentelemetry.api.GlobalOpenTelemetry
@@ -304,7 +304,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
       Publisher<Integer> publisher = publisherSupplier()
 
       AgentSpan intermediate = startSpan("test", "intermediate")
-      AgentScope scope = activateSpan(intermediate)
+      ContextScope scope = activateSpan(intermediate)
       try {
         if (publisher instanceof Mono) {
           return ((Mono) publisher).map(addTwo)
@@ -381,6 +381,50 @@ class ReactorCoreTest extends InstrumentationSpecification {
     "elastic"     | (isLatestDepTest ? Schedulers."boundedElastic"() : Schedulers."elastic"())
     "single"      | Schedulers.single()
     "immediate"   | Schedulers.immediate()
+  }
+
+  def "subscribe-time context propagates across threads with #name"() {
+    // Guards that the thread-confined publisher hand-off (HandoffContext) does not break cross-thread
+    // propagation: the @Trace "addOne" spans run in map's onNext on scheduler threads and must still
+    // be children of the subscribe-time parent.
+    when:
+    runUnderTrace("parent") {
+      pipeline.call().collectList().block()
+    }
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName "parent"
+          parent()
+        }
+        span {
+          operationName "addOne"
+          childOf span(0)
+        }
+        span {
+          operationName "addOne"
+          childOf span(0)
+        }
+      }
+    }
+
+    where:
+    name                    | pipeline
+    "publishOn"             | {
+      Flux.just(1, 2).publishOn(Schedulers.parallel()).map(addOne)
+    }
+    "subscribeOn"           | {
+      Flux.just(1, 2).subscribeOn(Schedulers.single()).map(addOne)
+    }
+    "subscribeOn+publishOn" | {
+      Flux.just(1, 2)
+      .subscribeOn(Schedulers.single())
+      .publishOn(Schedulers.parallel())
+      .map(addOne)
+    }
   }
 
   def "Context propagation through reactor context with span #spanType"() {
@@ -520,7 +564,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("test", "publisher-parent")
-    AgentScope scope = activateSpan(span)
+    ContextScope scope = activateSpan(span)
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {

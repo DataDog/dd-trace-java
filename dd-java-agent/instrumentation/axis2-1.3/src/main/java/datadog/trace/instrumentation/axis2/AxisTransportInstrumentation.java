@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_ASYNC_SPAN_KEY;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_TRANSPORT;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
@@ -13,10 +14,10 @@ import static datadog.trace.instrumentation.axis2.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import java.util.TreeMap;
@@ -51,7 +52,7 @@ public final class AxisTransportInstrumentation
 
   public static final class TransportAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginTransport(@Advice.Argument(0) final MessageContext message) {
+    public static ContextScope beginTransport(@Advice.Argument(0) final MessageContext message) {
       // only create a span if the message has a clear action and there's a surrounding request
       if (DECORATE.shouldTrace(message)) {
         AgentSpan span = startSpan("axis2", AXIS2_TRANSPORT);
@@ -65,14 +66,14 @@ public final class AxisTransportInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishTransport(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Argument(0) final MessageContext message,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       if (null != error) {
         // cancel async tracking when we know there's an error
         message.removePropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY);

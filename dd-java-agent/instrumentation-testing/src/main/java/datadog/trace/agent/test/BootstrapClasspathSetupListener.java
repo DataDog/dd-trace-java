@@ -62,6 +62,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
     "datadog.slf4j",
+    "datadog.common.filesystem",
     "datadog.context",
     "datadog.environment",
     "datadog.json",
@@ -136,7 +137,9 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
     // Ensure there weren't any bootstrap classes loaded prematurely.
     Set<String> prematureBootstrapClasses = new TreeSet<>();
     for (Class<?> clazz : ByteBuddyAgent.getInstrumentation().getAllLoadedClasses()) {
-      if (isBootstrapClass(clazz)
+      // getAllLoadedClasses can return null classes (Class Unloading)
+      if (clazz != null
+          && isBootstrapClass(clazz)
           && clazz.getClassLoader() != null
           && !clazz.getName().equals("datadog.trace.api.DisableTestTrace")
           && !clazz.getName().startsWith("org.slf4j")) {

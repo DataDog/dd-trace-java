@@ -5,8 +5,12 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.apache.spark.executor.Executor;
 import org.apache.spark.executor.TaskMetrics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SparkExecutorDecorator extends BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(SparkExecutorDecorator.class);
+
   public static final CharSequence SPARK_TASK = UTF8BytesString.create("spark.task");
   public static final CharSequence SPARK = UTF8BytesString.create("spark");
   public static SparkExecutorDecorator DECORATE = new SparkExecutorDecorator();
@@ -31,7 +35,15 @@ public class SparkExecutorDecorator extends BaseDecorator {
     span.setTag("task_thread_name", taskRunner.threadName());
   }
 
-  public void onTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
+  public final void onTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
+    try {
+      doOnTaskEnd(span, taskRunner);
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on task end", t);
+    }
+  }
+
+  protected void doOnTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
     // task is set by spark in run() by deserializing the task binary coming from the driver
     if (taskRunner.task() == null) {
       return;

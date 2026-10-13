@@ -52,14 +52,6 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
     return "com.ibm.ws.http.channel.internal.inbound.HttpInboundServiceContextImpl";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LibertyBlockingHelper",
-      packageName + ".LibertyBlockingHelper$WsByteBufferImpl",
-    };
-  }
-
   /**
    * @see HttpInboundServiceContextImpl#sendResponseBody(WsByteBuffer[])
    * @see HttpInboundServiceContextImpl#finishResponseMessage(WsByteBuffer[])
@@ -84,7 +76,7 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
       return LibertyBlockingHelper.syncBufferEnter(thiz, buffers, (AgentSpan) o);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter BlockingException blockingException,
         @Advice.Thrown(readOnly = false) Throwable thrown) {

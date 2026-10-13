@@ -19,6 +19,7 @@ import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FailedTestReplayEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
+import datadog.trace.api.civisibility.telemetry.tag.IsAndroid;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
@@ -199,6 +200,9 @@ public abstract class AbstractTestSession {
     }
     if (span.getTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY) != null) {
       tags.add(FailedTestReplayEnabled.SessionMetric.TRUE);
+    }
+    if (span.getTag(Tags.TEST_IS_ANDROID) != null) {
+      tags.add(IsAndroid.TRUE);
     }
     return tags;
   }

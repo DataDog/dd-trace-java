@@ -1,13 +1,14 @@
 package datadog.trace.instrumentation.jetty904;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty9.ExtractAdapter;
 import java.lang.reflect.InvocationTargetException;
@@ -60,7 +61,7 @@ public class JettyCommitResponseHelper {
       return false;
     }
     Context context = (Context) contextObj;
-    AgentSpan span = spanFromContext(context);
+    AgentSpan span = AgentSpan.fromContext(context);
     if (span == null) {
       _committed.set(false);
       return false;
@@ -85,6 +86,11 @@ public class JettyCommitResponseHelper {
         _committed.set(true);
         requestContext.getTraceSegment().effectivelyBlocked();
         return true;
+      } else {
+        Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+        if (rawAppSecCtx instanceof AppSecContext) {
+          ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+        }
       }
     }
 

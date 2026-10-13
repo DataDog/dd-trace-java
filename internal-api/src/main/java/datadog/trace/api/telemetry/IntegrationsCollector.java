@@ -1,5 +1,6 @@
 package datadog.trace.api.telemetry;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -17,6 +18,10 @@ public class IntegrationsCollector {
     return INSTANCE;
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
   public synchronized void update(Iterable<String> names, boolean enabled) {
     Integration i = new Integration();
     i.names = names;
@@ -25,6 +30,10 @@ public class IntegrationsCollector {
     integrations.offer(i);
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
   public synchronized Map<String, Boolean> drain() {
     if (integrations.isEmpty()) {
       return Collections.emptyMap();

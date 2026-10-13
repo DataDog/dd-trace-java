@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.net.InetAddress;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;

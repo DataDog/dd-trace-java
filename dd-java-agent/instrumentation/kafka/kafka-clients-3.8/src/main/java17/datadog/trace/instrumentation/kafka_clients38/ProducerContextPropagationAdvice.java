@@ -52,7 +52,6 @@ public class ProducerContextPropagationAdvice {
         Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
         DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
         dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-        AvroSchemaExtractor.tryExtractProducer(record, span);
       }
     } catch (final IllegalStateException e) {
       // headers must be read-only from reused record. try again with new one.
@@ -71,7 +70,6 @@ public class ProducerContextPropagationAdvice {
         Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
         DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
         dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-        AvroSchemaExtractor.tryExtractProducer(record, span);
       }
     }
     if (TIME_IN_QUEUE_ENABLED) {

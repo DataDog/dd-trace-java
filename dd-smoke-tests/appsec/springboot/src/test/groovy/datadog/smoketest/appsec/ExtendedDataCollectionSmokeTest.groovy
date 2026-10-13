@@ -303,7 +303,7 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger != null, 'test trigger not found'
 
-    rootSpan.span.metaStruct != null
+    !rootSpan.span.metaStruct.isEmpty()
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     !rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')
@@ -343,7 +343,7 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger != null, 'test trigger not found'
 
-    rootSpan.span.metaStruct != null
+    !rootSpan.span.metaStruct.isEmpty()
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     !rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')
@@ -383,7 +383,7 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger != null, 'test trigger not found'
 
-    rootSpan.span.metaStruct != null
+    !rootSpan.span.metaStruct.isEmpty()
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')
@@ -421,7 +421,7 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger == null, 'test trigger found'
 
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
   }
 
   void 'test request body collection if WAF event with default-config'(){
@@ -457,7 +457,7 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger != null, 'test trigger not found'
 
-    rootSpan.span.metaStruct != null
+    !rootSpan.span.metaStruct.isEmpty()
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     !rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')

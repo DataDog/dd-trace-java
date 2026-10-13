@@ -4,13 +4,13 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import java.util.ArrayList;
 import java.util.List;
 
 public class TestSnapshotListener extends DebuggerSink {
   public boolean skipped;
-  public DebuggerContext.SkipCause cause;
+  public DebuggerMetricCollector.SkippedReason reason;
   public List<Snapshot> snapshots = new ArrayList<>();
 
   public TestSnapshotListener(Config config, ProbeStatusSink probeStatusSink) {
@@ -18,9 +18,9 @@ public class TestSnapshotListener extends DebuggerSink {
   }
 
   @Override
-  public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
+  public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {
     skipped = true;
-    this.cause = cause;
+    this.reason = reason;
   }
 
   @Override

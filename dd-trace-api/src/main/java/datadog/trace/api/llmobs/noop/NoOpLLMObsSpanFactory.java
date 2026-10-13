@@ -21,6 +21,14 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
+  public LLMObsSpan startAgentSpan(
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId,
+      @Nullable String version) {
+    return NoOpLLMObsSpan.INSTANCE;
+  }
+
   public LLMObsSpan startToolSpan(
       String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;

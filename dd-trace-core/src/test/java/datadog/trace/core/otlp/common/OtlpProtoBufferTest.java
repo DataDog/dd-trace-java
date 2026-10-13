@@ -1,6 +1,10 @@
 package datadog.trace.core.otlp.common;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
@@ -58,6 +62,14 @@ class OtlpProtoBufferTest {
     OtlpPayload payload = buffer.toPayload();
     assertEquals(0, payload.getContentLength());
     assertEquals("application/x-protobuf", payload.getContentType());
+  }
+
+  @Test
+  void constructorRejectsCapacityExceedingMaxCapacity() {
+    // rounds up to a power of two above MAX_CAPACITY_BYTES; must reject before allocating
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new OtlpProtoBuffer(OtlpProtoBuffer.MAX_CAPACITY_BYTES + 1));
   }
 
   // ─── recordMessage(GrowableBuffer, int) ──────────────────────────────────

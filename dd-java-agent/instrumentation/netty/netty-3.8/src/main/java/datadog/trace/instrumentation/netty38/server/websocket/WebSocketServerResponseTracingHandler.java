@@ -44,7 +44,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
             // WebSocket Write Text Start
             TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
             final AgentSpan span =
-                DECORATE.onSendFrameStart(
+                DECORATE.startOutboundFrameSpan(
                     handlerContext, MESSAGE_TYPE_TEXT, textFrame.getText().length());
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
@@ -61,7 +61,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
             // WebSocket Write Binary Start
             BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
             final AgentSpan span =
-                DECORATE.onSendFrameStart(
+                DECORATE.startOutboundFrameSpan(
                     handlerContext,
                     MESSAGE_TYPE_BINARY,
                     binaryFrame.getBinaryData().readableBytes());
@@ -80,7 +80,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
             ContinuationWebSocketFrame continuationWebSocketFrame =
                 (ContinuationWebSocketFrame) frame;
             final AgentSpan span =
-                DECORATE.onSendFrameStart(
+                DECORATE.startOutboundFrameSpan(
                     handlerContext,
                     handlerContext.getMessageType(),
                     MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
@@ -104,7 +104,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
             String reasonText = closeFrame.getReasonText();
             traceContext.setSenderHandlerContext(null);
             final AgentSpan span =
-                DECORATE.onSessionCloseIssued(handlerContext, reasonText, statusCode);
+                DECORATE.startOutboundCloseSpan(handlerContext, reasonText, statusCode);
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {

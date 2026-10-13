@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'log4j'
@@ -5,8 +9,6 @@ muzzle {
     versions = '[1.2.4,]'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 configurations {
   testImplementation.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'

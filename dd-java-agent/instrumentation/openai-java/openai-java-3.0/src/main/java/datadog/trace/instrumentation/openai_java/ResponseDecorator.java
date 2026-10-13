@@ -20,6 +20,7 @@ import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponsePrompt;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
+import com.openai.models.responses.ResponseUsage;
 import com.openai.models.responses.Tool;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
@@ -279,7 +280,7 @@ public class ResponseDecorator {
     Optional<ResponseInputItem.FunctionCallOutput> functionCallOutput = item.functionCallOutput();
     if (functionCallOutput.isPresent()) {
       ResponseInputItem.FunctionCallOutput output = functionCallOutput.get();
-      String callId = output.callId();
+      String callId = FunctionCallOutputExtractor.getCallIdAsString(output);
       String result = FunctionCallOutputExtractor.getOutputAsString(output);
       LLMObs.ToolResult toolResult =
           LLMObs.ToolResult.from("", "function_call_output", callId, result);
@@ -511,6 +512,8 @@ public class ResponseDecorator {
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
+    response._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+
     if (!llmObsEnabled) {
       return;
     }
@@ -594,21 +597,16 @@ public class ResponseDecorator {
     metadata.put("stream", stream);
 
     span.setTag(CommonTags.METADATA, metadata);
+  }
 
-    response
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.outputTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
-              span.setTag(
-                  CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
-              span.setTag(
-                  CommonTags.REASONING_OUTPUT_TOKENS,
-                  usage.outputTokensDetails().reasoningTokens());
-            });
+  private static void withUsage(AgentSpan span, ResponseUsage usage) {
+    TokenUsage.set(span, CommonTags.INPUT_TOKENS, usage.inputTokens());
+    TokenUsage.set(span, CommonTags.OUTPUT_TOKENS, usage.outputTokens());
+    TokenUsage.set(span, CommonTags.TOTAL_TOKENS, usage.totalTokens());
+    TokenUsage.set(
+        span, CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
+    TokenUsage.set(
+        span, CommonTags.REASONING_OUTPUT_TOKENS, usage.outputTokensDetails().reasoningTokens());
   }
 
   private void enrichInputWithPromptTracking(AgentSpan span, Response response) {

@@ -6,14 +6,12 @@ import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 
 public class ValueScriptHelper {
   public static void serializeValue(
       StringBuilder sb, String expr, Object value, CapturedContext.Status status, Limits limits) {
-    Duration timeout =
-        Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-    TimeoutChecker timeoutChecker = new TimeoutChecker(timeout);
+    Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+    TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
     SerializerWithLimits serializer =
         new SerializerWithLimits(new StringTokenWriter(sb, status.getErrors()), timeoutChecker);
     try {

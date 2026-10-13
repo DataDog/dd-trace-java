@@ -10,14 +10,12 @@ import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 
 /** Serializes snapshots in Json using Moshi */
 public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
   private static final JsonAdapter<IntakeRequest> ADAPTER =
       MoshiHelper.createMoshiSnapshot(
-              Duration.of(
-                  Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS))
+              Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout()))
           .adapter(IntakeRequest.class);
   private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotHelper.CapturedValueAdapter();

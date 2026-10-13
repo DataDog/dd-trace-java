@@ -7,18 +7,17 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.JarFile;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +89,7 @@ public final class AgentJarIndex {
    * Generates an index from the contents of the 'build/resources' directory that makes up the agent
    * jar.
    */
-  static class IndexGenerator extends SimpleFileVisitor<Path> {
+  static class IndexGenerator {
     private static final Set<String> ignoredFileNames =
         new HashSet<>(Arrays.asList("MANIFEST.MF", "NOTICE", "LICENSE.renamed"));
 
@@ -102,9 +101,6 @@ public final class AgentJarIndex {
     private final List<String> collectedEntryKeys = new ArrayList<>();
     private final List<Integer> collectedPrefixIds = new ArrayList<>();
 
-    private Path prefixRoot;
-    private int prefixId;
-
     IndexGenerator(Path resourcesDir) {
       this.resourcesDir = resourcesDir;
 
@@ -112,7 +108,24 @@ public final class AgentJarIndex {
     }
 
     void buildIndex() throws IOException {
-      Files.walkFileTree(resourcesDir, this);
+      Set<String> seen = new HashSet<>();
+      try (Stream<Path> paths = Files.walk(resourcesDir)) {
+        paths
+            .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+            .map(resourcesDir::relativize)
+            .sorted()
+            .filter(entry -> entry.getNameCount() >= 2)
+            .forEach(
+                entry -> {
+                  String prefix = entry.getName(0) + "/";
+                  int prefixId = prefixIdFor(prefix);
+                  String entryKey = computeEntryKey(entry.subpath(1, entry.getNameCount()));
+                  if (null != entryKey && seen.add(prefixId + "\0" + entryKey)) {
+                    collectedEntryKeys.add(entryKey);
+                    collectedPrefixIds.add(prefixId);
+                  }
+                });
+      }
 
       for (int i = 0; i < collectedEntryKeys.size(); i++) {
         prefixTrie.put(collectedEntryKeys.get(i), collectedPrefixIds.get(i));
@@ -152,42 +165,13 @@ public final class AgentJarIndex {
       return prefixes.get(prefixId - 1);
     }
 
-    @Override
-    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-      if (dir.getParent().equals(resourcesDir)) {
-        String prefix = dir.getFileName() + "/";
-        prefixRoot = dir;
-        prefixId = 1 + prefixes.indexOf(prefix);
-        if (prefixId < 1) {
-          prefixes.add(prefix);
-          prefixId = prefixes.size();
-        }
+    private int prefixIdFor(String prefix) {
+      int prefixId = 1 + prefixes.indexOf(prefix);
+      if (prefixId < 1) {
+        prefixes.add(prefix);
+        prefixId = prefixes.size();
       }
-      return FileVisitResult.CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
-      if (dir.equals(prefixRoot)) {
-        prefixRoot = null;
-      }
-      return FileVisitResult.CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-      if (null != prefixRoot) {
-        String entryKey = computeEntryKey(prefixRoot.relativize(file));
-        if (null != entryKey) {
-          collectedEntryKeys.add(entryKey);
-          collectedPrefixIds.add(prefixId);
-          if (entryKey.endsWith("*")) {
-            // optimization: wildcard will match everything under here so can skip
-            return FileVisitResult.SKIP_SIBLINGS;
-          }
-        }
-      }
-      return FileVisitResult.CONTINUE;
+      return prefixId;
     }
 
     static String computeEntryKey(Path path) {

@@ -43,13 +43,6 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BodyParserHelpers", packageName + ".BodyParserHelpers$ScalaIteratorAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "tolerantFormUrlEncoded", is(int.class).or(is(long.class)))
@@ -109,7 +102,7 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
       CallDepthThreadLocalMap.incrementCallDepth(PlayBodyParsers.class);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return(readOnly = false) BodyParser<String> parser, @Advice.Thrown Throwable t) {
       int depth = CallDepthThreadLocalMap.decrementCallDepth(PlayBodyParsers.class);

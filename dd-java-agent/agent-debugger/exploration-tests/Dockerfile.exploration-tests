@@ -10,6 +10,7 @@ COPY .sdkmanrc .
 RUN curl -s "https://get.sdkman.io" | bash
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     sdk env install && \
+    sdk install java 17.0.10-tem && \
     sdk flush"
 
 RUN mkdir exploration-tests
@@ -30,7 +31,7 @@ RUN cd jackson-core && git apply /exploration-tests/jackson-core_exploration-tes
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && mvn verify -DskipTests=true"
 RUN git clone -b 2.16 https://github.com/FasterXML/jackson-databind.git
 COPY jackson-databind_exploration-tests.patch .
-# fix tests that are failing because too deep recrursion
+# fix tests that are failing because too deep recursion
 RUN cd jackson-databind && git apply /exploration-tests/jackson-databind_exploration-tests.patch
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && mvn verify -DskipTests=true"
 
@@ -42,3 +43,8 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && m
 #RUN git clone https://github.com/google/guava.git
 #RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd guava && mvn -B -P!standard-with-extra-repos verify -U -Dmaven.javadoc.skip=true -DskipTests=true"
 
+# okhttp
+RUN git clone -b okhttp_5.3.x https://github.com/square/okhttp.git
+COPY okhttp_exploration-tests.patch .
+RUN cd okhttp && git apply /exploration-tests/okhttp_exploration-tests.patch
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java 17.0.10-tem && cd okhttp && ./gradlew dependencies"

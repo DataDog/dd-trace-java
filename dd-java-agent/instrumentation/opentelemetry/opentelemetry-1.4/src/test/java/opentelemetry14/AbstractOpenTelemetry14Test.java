@@ -3,7 +3,7 @@ package opentelemetry14;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;

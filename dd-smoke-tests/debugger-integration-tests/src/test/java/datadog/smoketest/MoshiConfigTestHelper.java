@@ -153,7 +153,20 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(HasAllExpression hasAllExpression) {
-      throw new UnsupportedOperationException("hasAll expression");
+      try {
+        jsonWriter.beginObject();
+        jsonWriter.name("all");
+        jsonWriter.beginArray();
+        hasAllExpression.getValueExpression().accept(this);
+        // jsonWriter.beginObject();
+        hasAllExpression.getFilterPredicateExpression().accept(this);
+        // jsonWriter.endObject();
+        jsonWriter.endArray();
+        jsonWriter.endObject();
+      } catch (IOException ex) {
+        LOGGER.debug("Cannot serialize: ", ex);
+      }
+      return null;
     }
 
     @Override

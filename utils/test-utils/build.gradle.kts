@@ -1,8 +1,7 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.test.logging.*",
@@ -19,6 +18,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.test.util.ConfigTransformSpockExtension*",
   "datadog.trace.test.util.ControllableEnvironmentVariables*",
   "datadog.trace.test.util.DDSpecification*",
+  "datadog.trace.test.util.ExcludeInheritedFeatures*",
   "datadog.trace.test.util.Flaky*",
   "datadog.trace.test.util.FlakySpockExtension*",
   "datadog.trace.test.util.MultipartRequestParser*",
@@ -32,14 +32,18 @@ dependencies {
 
   api(project(":components:environment"))
   api(project(":utils:config-utils"))
-  api(project(":utils:junit-utils"))
+  api(project(":utils:test-junit-utils"))
+  api(project(":utils:test-junit-converter-utils"))
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
   compileOnly(project(":components:annotations"))
   compileOnly(libs.junit.jupiter)
+  compileOnly(libs.junit.platform.launcher)
   compileOnly(libs.logback.core)
   compileOnly(libs.logback.classic)
 
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
+
+  testImplementation(libs.junit.platform.launcher)
 }
