@@ -147,6 +147,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude("datadog.trace.api.interceptor.*")
     exclude("datadog.trace.api.internal.*")
     exclude("datadog.trace.api.internal.util.*")
+    exclude("datadog.trace.api.llmobs.*")
     exclude("datadog.trace.api.profiling.*")
     exclude("datadog.trace.api.sampling.*")
     exclude("datadog.trace.context.*")
