@@ -56,8 +56,10 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
         (replaced, element) -> replaced.plus(element == existing ? fresh : element));
   }
 
-  @Nullable private final Context seed;
-  @Nullable private final AgentTraceCollector traceKeptOpenByParent;
+  // only needed until the initial context is captured; cleared so a long-lived child doesn't keep
+  // its parent's scope stack and trace alive
+  @Nullable private Context seed;
+  @Nullable private AgentTraceCollector traceKeptOpenByParent;
   private volatile Context context;
   private volatile ContextContinuation continuation;
 
@@ -127,6 +129,8 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
         }
       }
       context = initial;
+      seed = null;
+      traceKeptOpenByParent = null;
     }
   }
 
@@ -158,8 +162,10 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   public void restoreThreadContext(
       @Nonnull CoroutineContext coroutineContext, Context originalContext) {
     Context coroutineContextAfter = originalContext.swap();
+    // legacy workers share the coroutine's scope stack, so it never needs saving; writing it back
+    // would usually store that same stack, but after an unbalanced swap on this thread it would
+    // rebind the coroutine to the wrong stack
     if (!LEGACY_CONTEXT_MANAGER) {
-      // legacy workers share the coroutine's scope stack, so there's nothing to save
       context = coroutineContextAfter;
     }
   }
