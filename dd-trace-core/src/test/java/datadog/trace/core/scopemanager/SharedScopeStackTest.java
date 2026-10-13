@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -235,14 +236,14 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
         () -> {
           try {
             for (int round = 0; round < rounds; round++) {
-              phase.await(); // iteration scope is on top
+              phase.await(10, SECONDS); // iteration scope is on top
               Context original = scopeManager.swap(shared.get());
               for (int i = 0; i < 200; i++) {
                 // reuses the iteration scope until it's cleared, then pushes a new scope instead
                 scopeManager.activateSpan(iterationSpan.get()).close();
               }
               scopeManager.swap(original);
-              phase.await(); // round finished
+              phase.await(10, SECONDS); // round finished
             }
           } catch (Exception e) {
             throw new RuntimeException(e);
@@ -257,11 +258,11 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
               ContextScope outer = scopeManager.attach(base.with(KEY, "outer"));
               iterationSpan.set(tracer.buildSpan("test", "iteration").start());
               iterationScope.set((ContinuableScope) scopeManager.activateNext(iterationSpan.get()));
-              phase.await();
+              phase.await(10, SECONDS);
               // closing the outer scope clears the overdue iteration scope above it
               outer.close();
               scopeManager.swap(original);
-              phase.await();
+              phase.await(10, SECONDS);
               assertFalse(iterationScope.get().alive(), "cleared scope retained in round " + round);
             }
           } catch (Exception e) {
@@ -272,19 +273,29 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
     Thread second = new Thread(closer, "closer");
     AtomicReference<Throwable> failure = new AtomicReference<>();
     // keeps the first failure, rather than the interrupt that stops the other thread
-    first.setUncaughtExceptionHandler((t, e) -> failure.compareAndSet(null, e));
-    second.setUncaughtExceptionHandler(
+    Thread.UncaughtExceptionHandler stopWorkers =
         (t, e) -> {
           failure.compareAndSet(null, e);
-          first.interrupt();
-        });
-    first.start();
-    second.start();
-    second.join();
-    first.join(10_000);
+          (t == first ? second : first).interrupt();
+        };
+    first.setUncaughtExceptionHandler(stopWorkers);
+    second.setUncaughtExceptionHandler(stopWorkers);
+    try {
+      first.start();
+      second.start();
+      first.join(10_000);
+      second.join(10_000);
+    } finally {
+      first.interrupt();
+      second.interrupt();
+      first.join(10_000);
+      second.join(10_000);
+    }
     if (failure.get() != null) {
       throw new AssertionError(failure.get());
     }
+    assertFalse(first.isAlive(), "reuser did not terminate");
+    assertFalse(second.isAlive(), "closer did not terminate");
   }
 
   @Test

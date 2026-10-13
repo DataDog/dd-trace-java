@@ -40,7 +40,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
                   || (AbstractCoroutine.class.isAssignableFrom(type)
                       && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
 
-  /** Gives each new coroutine its own element, so coroutines never share Datadog context. */
+  /** Adds a fresh Datadog element, replacing any inherited element in place. */
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
     DatadogThreadContextElement existing = coroutineContext.get(DATADOG_KEY);
     if (existing == null) {

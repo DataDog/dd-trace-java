@@ -235,10 +235,10 @@ public class ContextManagerBenchmark {
    * ContinuableScopeManager#swap(Context)} replaces the entire scope stack, making this a heavier
    * operation than in {@link ThreadLocalContextManager}.
    *
-   * <p>Note: GCProfiler will show allocation asymmetry here by design. {@link
-   * ContinuableScopeManager} swap allocates a {@code ScopeStack}, a {@code ContinuableScope}, and a
-   * {@code SavedScopeContext} per invocation; {@link ThreadLocalContextManager} swap is a plain
-   * field write. That asymmetry is the real cost of each manager's swap operation, not scaffolding.
+   * <p>This scenario uses ordinary contexts: entering creates a new scope stack and seed scope, and
+   * each swap creates a saved-stack token. The unused return token may be optimized away.
+   * Shared-stack swaps reuse their stack and restoration tokens and are not measured here. {@link
+   * ThreadLocalContextManager} swap is a plain field write.
    */
   @Benchmark
   public void swapContexts(ThreadState thread) {

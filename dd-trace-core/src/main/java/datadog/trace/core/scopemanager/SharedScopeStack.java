@@ -6,8 +6,9 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  * A {@link ScopeStack} owned by a coroutine and shared by whichever threads are running it.
  *
  * <p>Threads normally hand the coroutine over in sequence, but the previous thread can still be
- * unwinding while the next one starts. Changes are therefore made under this stack's lock. The top
- * scope is also published through a volatile field so the frequent active-scope reads need no lock.
+ * unwinding while the next one starts. Stack mutations take this stack's lock; reference-count
+ * changes take the scope's lock. The top scope is published through a volatile field so the
+ * frequent active-scope reads need no lock.
  */
 final class SharedScopeStack extends ScopeStack {
   private volatile ContinuableScope liveTop;
