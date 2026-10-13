@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Checks the generated registry's name resolution and tag ID encoding. Datadog and OpenTelemetry
@@ -167,6 +168,70 @@ class KnownTagsTest {
    * but it is one tag either way: one id, one stored value. Only its OpenTelemetry name depends on
    * the span's direction.
    */
+  @Test
+  void flagsAndRangeChecks() {
+    assertTrue(KnownTagCodec.isIntercepted(KnownTags.SPAN_KIND_ID));
+    assertFalse(KnownTagCodec.isIntercepted(KnownTags.HTTP_ROUTE_ID));
+    assertTrue(KnownTagCodec.isKnown(KnownTags.HTTP_ROUTE_ID));
+    assertFalse(KnownTagCodec.isKnown(0L));
+    assertFalse(KnownTagCodec.isKnown(KnownTagCodec.makeTagId(KnownTagCodec.serialLimit())));
+  }
+
+  @TableTest({
+    "scenario         | name              | direction | expected            ",
+    "client hostname  | peer.hostname     | 1         | server.address      ",
+    "server hostname  | http.hostname     | 0         | server.address      ",
+    "server client ip | network.client.ip | 0         | network.peer.address",
+    "client peer port | peer.port         | 1         | server.port         ",
+    "server peer port | peer.port         | 0         | client.port         "
+  })
+  void aTagsDirectionScopedNameByDatadogName(String name, int direction, String expected) {
+    assertEquals(expected, KnownTagCodec.directionScopedNameOf(name, direction));
+    assertEquals(
+        expected, KnownTagCodec.directionScopedNameOf(KnownTagCodec.keyOf(name), direction));
+  }
+
+  @TableTest({
+    "scenario                   | name          | direction",
+    "no direction               | peer.hostname | -1       ",
+    "no alias in this direction | peer.hostname | 0        ",
+    "internal span              | peer.port     | 2        ",
+    "renamed in every direction | http.method   | 1        ",
+    "custom tag                 | my.tag        | 1        "
+  })
+  void noDirectionScopedName(String name, int direction) {
+    assertNull(KnownTagCodec.directionScopedNameOf(name, direction));
+  }
+
+  @Test
+  void directionalKeyOfResolvesOnlyAliases() {
+    assertEquals(
+        KnownTags.PEER_HOSTNAME_ID,
+        KnownTagCodec.directionalKeyOf("server.address", DIRECTION_OUTBOUND));
+    assertEquals(0L, KnownTagCodec.directionalKeyOf(Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+    assertEquals(
+        KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL,
+        KnownTagCodec.directionalKeyOf("server.address", DIRECTION_UNKNOWN));
+  }
+
+  @Test
+  void theAliasFilterRejectsMostOtherNames() {
+    int rejected = 0;
+    String[] names = {"my.tag", "http.route", "component", "db.statement", "error.message"};
+    for (String name : names) {
+      if (!KnownTagCodec.mayBeScopedAlias(name)) {
+        rejected++;
+      }
+    }
+    assertTrue(rejected > 0, "a 64-bit filter over 4 aliases should reject most other names");
+  }
+
+  @Test
+  void canonicalNames() {
+    assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName("http.request.method"));
+    assertEquals("my.tag", KnownTagCodec.canonicalTagName("my.tag"));
+  }
+
   /** The direction role rides on the one lookup a write by name already does. */
   @Test
   void theLookupCarriesTheDirectionRole() {
