@@ -387,7 +387,7 @@ public final class ContinuableScopeManager {
       newScope.afterActivated();
     }
 
-    return new ScopeContext(oldStack);
+    return oldStack.swappedOut();
   }
 
   public ContextContinuation capture(@Nonnull Context context) {
@@ -423,7 +423,7 @@ public final class ContinuableScopeManager {
       sharedStack.seed(
           new ContinuableScope(this, initial, CONTEXT, true, createScopeState(initial)));
     }
-    return new SharedScopeContext(sharedStack);
+    return sharedStack.handle;
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {

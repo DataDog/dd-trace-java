@@ -12,8 +12,12 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 final class SharedScopeStack extends ScopeStack {
   private volatile ContinuableScope liveTop;
 
+  /** Swaps this stack in on any thread; also returned when this stack is swapped out. */
+  final SharedScopeContext handle;
+
   SharedScopeStack(ProfilingContextIntegration profilingContextIntegration) {
     super(profilingContextIntegration, 4);
+    this.handle = new SharedScopeContext(this);
   }
 
   /** Seeds the stack with an initial scope, before it is shared with other threads. */
@@ -40,10 +44,22 @@ final class SharedScopeStack extends ScopeStack {
   }
 
   /** Removes closed scopes from the top, such as scopes closed by another thread. */
-  synchronized void cleanupClosedTop() {
-    if (top != null && !top.alive()) {
-      cleanup();
+  void cleanupClosedTop() {
+    ContinuableScope current = liveTop;
+    // only take the lock when there's something to remove
+    if (current != null && !current.alive()) {
+      synchronized (this) {
+        if (top != null && !top.alive()) {
+          cleanup();
+        }
+      }
     }
+  }
+
+  @Override
+  ScopeContext swappedOut() {
+    // the shared handle always reads the live stack, so there's no snapshot to take
+    return handle;
   }
 
   @Override

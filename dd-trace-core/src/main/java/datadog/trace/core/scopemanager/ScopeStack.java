@@ -136,6 +136,11 @@ class ScopeStack {
     return top != null ? 1 + stack.size() : 0;
   }
 
+  /** Returns a context that swaps this stack back in. */
+  ScopeContext swappedOut() {
+    return new ScopeContext(this);
+  }
+
   // DQH - regrettably needed for pre-existing tests
   void clear() {
     stack.clear();
