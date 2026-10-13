@@ -65,14 +65,14 @@ final class SharedScopeStack extends ScopeStack {
   }
 
   @Override
-  ScopeStackContext swappedOutForCoroutine() {
+  ScopeStackContext swappedOutForSameThread() {
     return handle;
   }
 
   @Override
   ScopeStackContext replacing(ScopeStack replaced) {
     // the coroutine always swaps the replaced stack back on this thread, so needs no snapshot
-    return replaced.swappedOutForCoroutine();
+    return replaced.swappedOutForSameThread();
   }
 
   @Override

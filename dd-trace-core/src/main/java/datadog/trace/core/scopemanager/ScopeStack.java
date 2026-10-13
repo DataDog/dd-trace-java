@@ -146,13 +146,16 @@ class ScopeStack {
     return replaced.swappedOut();
   }
 
-  private ThreadScopeContext coroutineToken; // reused when coroutines replace this stack
+  private ThreadScopeContext sameThreadToken; // reused, as it takes no snapshot
 
-  /** Returns a context that swaps this stack back in on this thread, after a coroutine ran. */
-  ScopeStackContext swappedOutForCoroutine() {
-    ThreadScopeContext token = coroutineToken;
+  /**
+   * Returns a reusable context that swaps this stack back in, for callers that always swap it back
+   * on this thread.
+   */
+  ScopeStackContext swappedOutForSameThread() {
+    ThreadScopeContext token = sameThreadToken;
     if (token == null) {
-      coroutineToken = token = new ThreadScopeContext(this);
+      sameThreadToken = token = new ThreadScopeContext(this);
     }
     return token;
   }
