@@ -45,6 +45,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    // Match DefaultPromise.cancel(): older tasks inherit it and newer tasks delegate to it.
+    // The advice limits context cleanup to RunnableFuture receivers.
     return extendsClass(nameEndsWith(".netty.util.concurrent.PromiseTask"))
         .and(implementsInterface(named(RunnableFuture.class.getName())))
         .or(nameEndsWith(".netty.util.concurrent.DefaultPromise"));
