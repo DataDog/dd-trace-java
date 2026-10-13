@@ -108,6 +108,17 @@ instrumentationNaming {
     "lettuce-60-test",
     "lettuce-61-test",
     "lettuce-62-test",
+    "akka-http-base-tests",
+    "akka-http-base-forked-tests",
+    "akka-http-version-101-tests",
+    "akka-http-version-101-forked-tests",
+    "akka-http-version-102-tests",
+    "webflux-client-a-test",
+    "webflux-client-b-test",
+    "webflux-client-c-test",
+    "webflux-client-d-test",
+    "webflux-client-other-test",
+    "webflux-forked-iast-tests",
   ]
   suffixes = ["-common", "-stubs", "-iast"]
 }
