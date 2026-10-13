@@ -40,12 +40,15 @@ public class SetTagBenchmark {
   static final CoreTracer TRACER = CoreTracer.builder().build();
 
   private DDSpan span;
+  private DDSpan spanWithPendingAlias;
   private TagMap tagMap;
   private long nonConstantTagId;
 
   @Setup
   public void setup() {
     span = (DDSpan) TRACER.startSpan("benchmark", "set.tag");
+    spanWithPendingAlias = (DDSpan) TRACER.startSpan("benchmark", "set.tag");
+    spanWithPendingAlias.setTag("server.address", "pending.example");
     tagMap = TagMap.create();
     nonConstantTagId = KnownTags.HTTP_ROUTE_ID;
   }
@@ -53,6 +56,7 @@ public class SetTagBenchmark {
   @TearDown
   public void tearDown() {
     span.finish();
+    spanWithPendingAlias.finish();
   }
 
   @Benchmark
@@ -90,10 +94,25 @@ public class SetTagBenchmark {
     return span.setTag(KnownTags.HTTP_ROUTE_NAME, "/users/{id}");
   }
 
-  /** A tag with a direction-scoped alias: the only names that pay for alias handling. */
+  /** A tag with a direction-scoped alias, on a span that never held a pending alias. */
   @Benchmark
   public Object aliasTargetTag_byName() {
     return span.setTag(KnownTags.PEER_HOSTNAME_NAME, "db.example");
+  }
+
+  /**
+   * The same write on a span that once held a pending alias (written before it had a kind), so the
+   * write takes the routed path that supersedes pending aliases.
+   */
+  @Benchmark
+  public Object aliasTargetTag_withPendingAlias() {
+    return spanWithPendingAlias.setTag(KnownTags.PEER_HOSTNAME_NAME, "db.example");
+  }
+
+  /** A primitive write of a tag with an alias, by id: must stay unboxed on the plain path. */
+  @Benchmark
+  public Object peerPort_byId() {
+    return span.setTag(KnownTags.PEER_PORT_ID, 5432);
   }
 
   @Benchmark

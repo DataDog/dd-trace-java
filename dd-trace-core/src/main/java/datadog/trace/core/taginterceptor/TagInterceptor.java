@@ -174,10 +174,17 @@ public class TagInterceptor {
    * time. {@code tagId} must be a known id.
    */
   public boolean needsIntercept(long tagId) {
-    // One mask test for both bits: a tag with a direction-scoped alias is routed here too, so the
-    // span can supersede a pending alias without adding code to its store fast path.
-    return (tagId & (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS)) != 0L
-        || isSplitServiceTag(tagId);
+    return needsIntercept(
+        tagId, (int) (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS));
+  }
+
+  /**
+   * {@link #needsIntercept(long)} for a span that routes only the id flags in {@code routedFlags}:
+   * a span adds {@link KnownTagCodec#HAS_SCOPED_ALIAS} only once it holds a pending alias. One mask
+   * test, as for the constant mask.
+   */
+  public boolean needsIntercept(long tagId, int routedFlags) {
+    return ((int) tagId & routedFlags) != 0 || isSplitServiceTag(tagId);
   }
 
   public boolean needsIntercept(String tag) {

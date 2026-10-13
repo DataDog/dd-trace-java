@@ -40,6 +40,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -145,6 +146,20 @@ public class DDSpanContext
   };
 
   private volatile byte spanKindOrdinal = SPAN_KIND_UNSET;
+
+  /**
+   * The tag id flags the id setters route through {@link TagInterceptor}: {@link
+   * KnownTagCodec#INTERCEPTED}, plus {@link KnownTagCodec#HAS_SCOPED_ALIAS} once a direction-scoped
+   * alias has been stored as written (see {@link #notePendingAlias}). Until then -- almost always
+   * -- a write of a tag with an alias takes the plain store path: no second lock, no boxing.
+   *
+   * <p>Sticky: it is never cleared, so a span that once held a pending alias keeps routing those
+   * tags. Written under the {@code unsafeTags} lock but read without it, deliberately: a setter on
+   * another thread that has not yet seen the flag is racing the alias write, and the order of two
+   * unsynchronized writes is undefined anyway. The writing thread always sees its own update, so no
+   * value is lost relative to routing every such write.
+   */
+  private int routedTagFlags = (int) KnownTagCodec.INTERCEPTED;
 
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
@@ -1020,12 +1035,35 @@ public class DDSpanContext
   private long writeKeyOf(String tag) {
     long key = KnownTagCodec.keyOrAliasOf(tag);
     if (key > 0) {
-      if (KnownTagCodec.hasScopedAlias(key)) {
+      if (KnownTagCodec.hasScopedAlias(key) && hasPendingAliases()) {
         SpanTags.prepareWrite(unsafeTags, key, tagDirection());
       }
       return key;
     }
-    return key == 0 ? 0L : SpanTags.prepareAliasWrite(unsafeTags, tag, tagDirection());
+    if (key == 0) {
+      return 0L;
+    }
+    long aliasedId = SpanTags.prepareAliasWrite(unsafeTags, tag, tagDirection());
+    if (aliasedId == 0) {
+      notePendingAlias();
+    }
+    return aliasedId;
+  }
+
+  /**
+   * Notes that an alias is being stored as written, so later writes of a tag with an alias are
+   * routed to supersede it. Call while holding the {@code unsafeTags} lock.
+   */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "A stale read only races an unordered alias write; see routedTagFlags")
+  private void notePendingAlias() {
+    routedTagFlags = (int) (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS);
+  }
+
+  /** True once any alias has been stored as written; see {@link #routedTagFlags}. */
+  private boolean hasPendingAliases() {
+    return (routedTagFlags & KnownTagCodec.HAS_SCOPED_ALIAS) != 0;
   }
 
   private void storeTag(String tag, Object value) {
@@ -1060,7 +1098,7 @@ public class DDSpanContext
   private void storeEntry(TagMap.EntryReader entry) {
     long tagId = entry.tagId();
     if (tagId != 0) {
-      if (KnownTagCodec.hasScopedAlias(tagId)) {
+      if (KnownTagCodec.hasScopedAlias(tagId) && hasPendingAliases()) {
         SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
       }
       unsafeTags.set(entry);
@@ -1069,6 +1107,8 @@ public class DDSpanContext
       if (aliasedId != 0) {
         unsafeTags.set(aliasedId, entry.objectValue());
       } else {
+        // An alias stored as written (or a filter false positive: then merely slower).
+        notePendingAlias();
         unsafeTags.set(entry);
       }
     } else {
@@ -1151,12 +1191,16 @@ public class DDSpanContext
 
   /**
    * Removes the pending aliases a write of {@code tagId} supersedes. Called by {@link
-   * TagInterceptor} for a tag with {@link KnownTagCodec#HAS_SCOPED_ALIAS}, which it routes like an
-   * intercepted tag, so the id setters' fast path carries no alias handling at all. The tag itself
-   * is stored right after, under its own lock acquisition; a concurrent write of the alias from
+   * TagInterceptor} for a tag with {@link KnownTagCodec#HAS_SCOPED_ALIAS}, which the id setters
+   * route like an intercepted tag only once the span holds a pending alias ({@link
+   * #routedTagFlags}), so their fast path carries no alias handling at all. The tag itself is
+   * stored right after, under its own lock acquisition; a concurrent write of the alias from
    * another thread in between has no defined order anyway.
    */
   public void supersedeAliases(long tagId) {
+    if (!hasPendingAliases()) {
+      return; // entry paths route on the constant mask; nothing to supersede
+    }
     synchronized (unsafeTags) {
       SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
     }
@@ -1173,7 +1217,7 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId)
+    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1187,7 +1231,7 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId)
+    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tagId, value);
@@ -1199,7 +1243,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1212,7 +1256,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1225,7 +1269,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1238,7 +1282,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
@@ -1251,7 +1295,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
       synchronized (unsafeTags) {
