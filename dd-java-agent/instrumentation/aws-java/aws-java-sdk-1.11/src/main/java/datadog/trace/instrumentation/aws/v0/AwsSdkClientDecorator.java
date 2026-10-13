@@ -284,22 +284,39 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   /** Extracts the bare function name from any accepted {@code FunctionName} form. */
   static String lambdaFunctionName(String functionName) {
-    String[] parts = functionName.split(":");
-    // A colon-only value (":", "::") splits to an empty array; leave such malformed input to the
-    // SDK/service to reject rather than throwing from the tracing callback.
-    if (parts.length == 0) {
+    int valueEnd = functionName.length();
+    while (valueEnd > 0 && functionName.charAt(valueEnd - 1) == ':') {
+      valueEnd--;
+    }
+    // Leave empty or colon-only input unchanged for the SDK/service to validate.
+    if (valueEnd == 0) {
       return functionName;
     }
-    // Full ARN: arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
-    if (parts.length >= 7 && "arn".equals(parts[0]) && "function".equals(parts[5])) {
-      return parts[6];
+    int firstColon = functionName.indexOf(':');
+    if (firstColon < 0) {
+      return functionName;
     }
-    // Partial ARN: <account>:function:<name>[:<qualifier>]
-    if (parts.length >= 3 && "function".equals(parts[1])) {
-      return parts[2];
+
+    int nameStart = 0;
+    int partStart = firstColon + 1;
+    boolean fullArn = functionName.startsWith("arn:");
+    for (int part = 1; part <= 5 && partStart < valueEnd; part++) {
+      int partEnd = functionName.indexOf(':', partStart);
+      if (partEnd < 0 || partEnd >= valueEnd) {
+        break;
+      }
+      // "function" precedes the name in field 1 of a partial ARN or field 5 of a full ARN.
+      if ((part == 1 || (fullArn && part == 5))
+          && partEnd - partStart == 8
+          && functionName.startsWith("function:", partStart)) {
+        nameStart = partEnd + 1;
+      }
+      partStart = partEnd + 1;
     }
-    // Bare name, optionally with a :alias or :version qualifier (parts[0] is the name).
-    return parts[0];
+    int nameEnd = functionName.indexOf(':', nameStart);
+    return nameEnd < 0
+        ? functionName.substring(nameStart)
+        : functionName.substring(nameStart, nameEnd);
   }
 
   public void onServiceResponse(
