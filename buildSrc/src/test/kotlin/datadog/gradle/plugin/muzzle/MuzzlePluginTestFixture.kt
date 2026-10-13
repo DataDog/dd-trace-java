@@ -41,6 +41,30 @@ open class MuzzlePluginTestFixture : GradleFixture() {
     addSubproject("dd-java-agent:instrumentation:demo", instrumentationBuildScript)
   }
 
+  /** Writes an aggregation project with optional instrumentation report producers. */
+  fun writeAggregationProject(vararg producers: String) {
+    addSubproject("dd-java-agent:instrumentation",
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle-report-aggregation")
+      }
+      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
+      muzzleReports.reportFile.set(layout.buildDirectory.file("muzzle-deps-results/dd-java-agent_instrumentation.csv"))
+      dependencies {
+        ${producers.joinToString("\n") { "implementation(project(\":dd-java-agent:instrumentation:$it\"))" }}
+      }
+      tasks.register("muzzleInstrumentationReport") { dependsOn(tasks.named("aggregateMuzzleReports")) }
+      """
+    )
+    writeRootProject(
+      """
+      plugins { id("dd-trace-java.muzzle-report-aggregation") apply false }
+      layout.buildDirectory.set(layout.projectDirectory.dir("relocated/build"))
+      """
+    )
+  }
+
   /**
    * Writes a muzzle scan plugin that always passes.
    */

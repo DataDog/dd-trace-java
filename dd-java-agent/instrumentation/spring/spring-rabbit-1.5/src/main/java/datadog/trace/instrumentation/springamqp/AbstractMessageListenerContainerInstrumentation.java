@@ -68,13 +68,14 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
         if (null != state) {
           ContextContinuation continuation = state.getAndResetContinuation();
           if (null != continuation) {
+            AgentSpan span;
             try (ContextScope scope = continuation.resume()) {
-              AgentSpan span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
+              span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
               span.setMeasured(true);
               DECORATE.afterStart(span);
               DECORATE.onConsume(span, message.getMessageProperties().getConsumerQueue());
-              return activateSpan(span);
             }
+            return activateSpan(span);
           }
         }
       }
