@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -11,6 +13,7 @@ import kotlin.coroutines.CoroutineContext;
 import kotlin.coroutines.EmptyCoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.AbstractCoroutine;
+import kotlinx.coroutines.Job;
 import kotlinx.coroutines.ThreadContextElement;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
@@ -30,10 +33,12 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
     DatadogThreadContextElement existing = coroutineContext.get(DATADOG_KEY);
     if (existing == null) {
-      return coroutineContext.plus(new DatadogThreadContextElement(null));
+      return coroutineContext.plus(new DatadogThreadContextElement(null, null));
     }
     // a context passed from another coroutine starts from that coroutine's current context
-    DatadogThreadContextElement fresh = new DatadogThreadContextElement(existing.context);
+    DatadogThreadContextElement fresh =
+        new DatadogThreadContextElement(
+            existing.context, existing.traceKeptOpenFor(coroutineContext.get(Job.Key)));
     // keep the element's position, so elements added after it can still update scopes on top
     return coroutineContext.<CoroutineContext>fold(
         EmptyCoroutineContext.INSTANCE,
@@ -41,11 +46,27 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   }
 
   @Nullable private final Context seed;
+  @Nullable private final AgentTraceCollector traceKeptOpenByParent;
   private volatile Context context;
   private volatile ContextContinuation continuation;
 
-  private DatadogThreadContextElement(@Nullable Context seed) {
+  /** The coroutine this element was created for. */
+  @Nullable private volatile Job owner;
+
+  /** The trace kept open until this coroutine completes, by its own continuation or its parent. */
+  @Nullable private volatile AgentTraceCollector traceKeptOpen;
+
+  private DatadogThreadContextElement(
+      @Nullable Context seed, @Nullable AgentTraceCollector traceKeptOpenByParent) {
     this.seed = seed;
+    this.traceKeptOpenByParent = traceKeptOpenByParent;
+  }
+
+  /** Returns the trace this coroutine keeps open, if coroutines of this job are its children. */
+  @Nullable
+  private AgentTraceCollector traceKeptOpenFor(@Nullable Job job) {
+    // structured children complete before their parent, which keeps its trace open until then
+    return job != null && job == owner ? traceKeptOpen : null;
   }
 
   @Nonnull
@@ -56,22 +77,46 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
 
   public static void captureDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
-    if (datadog != null && datadog.context == null) {
-      datadog.captureInitialContext();
+    if (datadog != null) {
+      if (datadog.owner == null) {
+        // scoped coroutines built later share this element, but aren't its owner
+        datadog.owner = coroutine;
+      }
+      if (datadog.context == null) {
+        datadog.captureInitialContext();
+      }
     }
   }
 
   private synchronized void captureInitialContext() {
     if (context == null) {
       Context initial = seed != null ? seed : Context.current();
-      // stop enclosing trace from finishing early
-      continuation = initial.capture();
       if (LEGACY_CONTEXT_MANAGER) {
         // workers share this coroutine's scope stack, rather than copying it between them
         initial = AgentTracer.get().sharedContextStack(initial);
       }
+      // this coroutine isn't running yet, so its context can't change under us
+      AgentTraceCollector trace = traceOf(initial);
+      if (trace != null && trace == traceKeptOpenByParent) {
+        // the parent keeps this trace open until after this child completes
+        traceKeptOpen = trace;
+      } else if (trace != null) {
+        // stop enclosing trace from finishing early
+        ContextContinuation captured = initial.capture();
+        continuation = captured;
+        if (captured.context() != Context.root()) {
+          // only when the capture was accepted, e.g. async propagation is enabled
+          traceKeptOpen = trace;
+        }
+      }
       context = initial;
     }
+  }
+
+  @Nullable
+  private static AgentTraceCollector traceOf(Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
+    return span != null ? span.spanContext().getTraceCollector() : null;
   }
 
   public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {

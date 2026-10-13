@@ -436,6 +436,74 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
+  def "structured children keep the trace open after the seed span finishes #dispatcherName"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.structuredChildrenOutliveSeedSpan()
+    kotlinTest.finishDetached()
+    TEST_WRITER.waitForTraces(1)
+    List<DDSpan> trace = TEST_WRITER.get(0)
+
+    expect:
+    TEST_WRITER.size() == 1
+    trace.size() == expectedNumberOfSpans
+    findSpan(trace, "child").spanContext().getParentId() == findSpan(trace, "seed").spanContext().getSpanId()
+    findSpan(trace, "grandchild").spanContext().getParentId() == findSpan(trace, "child").spanContext().getSpanId()
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
+  def "structured child keeps the trace open when its parent started without one #dispatcherName"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.structuredChildOfUntracedCoroutine()
+    kotlinTest.finishDetached()
+    TEST_WRITER.waitForTraces(1)
+    List<DDSpan> trace = TEST_WRITER.get(0)
+
+    expect:
+    TEST_WRITER.size() == 1
+    trace.size() == expectedNumberOfSpans
+    findSpan(trace, "child").spanContext().getParentId() == findSpan(trace, "root").spanContext().getSpanId()
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
+  def "child with a replaced job keeps the trace open supervisor=#supervisor #dispatcherName"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.childWithReplacedJob(supervisor)
+    kotlinTest.finishDetached()
+    TEST_WRITER.waitForTraces(1)
+    List<DDSpan> trace = TEST_WRITER.get(0)
+
+    expect:
+    TEST_WRITER.size() == 1
+    trace.size() == expectedNumberOfSpans
+    findSpan(trace, "child").spanContext().getParentId() == findSpan(trace, "trace.annotation").spanContext().getSpanId()
+
+    where:
+    [dispatcherName, dispatcher, supervisor] << dispatchersToTest.collectMany { [it + false, it + true] }
+  }
+
+  def "cancelled coroutine keeps the trace open for its structured child #dispatcherName"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.structuredChildOfCancelledCoroutine()
+    kotlinTest.cancelDetached()
+    TEST_WRITER.waitForTraces(1)
+    List<DDSpan> trace = TEST_WRITER.get(0)
+
+    expect:
+    TEST_WRITER.size() == 1
+    trace.size() == expectedNumberOfSpans
+    findSpan(trace, "cleanup").spanContext().getParentId() == findSpan(trace, "trace.annotation").spanContext().getSpanId()
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
   protected static DDSpan findSpan(List<DDSpan> trace, String opName) {
     for (DDSpan span : trace) {
       if (span.getOperationName() == opName) {
