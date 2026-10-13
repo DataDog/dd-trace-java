@@ -24,8 +24,13 @@ final class SharedScopeStack extends ScopeStack {
 
   /** Seeds the stack with an initial scope, before it is shared with other threads. */
   void seed(ContinuableScope scope) {
+    publishTop(scope);
+  }
+
+  /** Updates the top scope, publishing it to lock-free readers before any listeners run. */
+  private void publishTop(ContinuableScope scope) {
     top = scope;
-    liveDepth = 1;
+    liveDepth = scope != null ? 1 + stack.size() : 0;
     liveTop = scope;
   }
 
@@ -76,18 +81,45 @@ final class SharedScopeStack extends ScopeStack {
     return replaced.swappedOutForSameThread();
   }
 
+  // copies ScopeStack.cleanup(), so listeners see the new top when it's reactivated
   @Override
   synchronized void cleanup() {
-    super.cleanup();
-    liveDepth = super.depth();
-    liveTop = top;
+    ContinuableScope curScope = top;
+    boolean changedTop = false;
+    while (curScope != null && !curScope.alive()) {
+      // no longer alive -- trigger listener & null out
+      curScope.onProperClose();
+      changedTop = true;
+      curScope = stack.poll();
+    }
+    if (curScope != null && curScope == overdueRootScope) {
+      // we know this scope is the last on the stack and is overdue
+      curScope.onProperClose();
+      overdueRootScope = null;
+      publishTop(null);
+    } else if (changedTop) {
+      publishTop(curScope);
+      if (curScope != null) {
+        curScope.beforeActivated();
+        curScope.afterActivated();
+      }
+    }
+    if (top == null) {
+      onBecomeEmpty();
+    }
   }
 
+  // copies ScopeStack.push(), so listeners see the new top when it's activated
   @Override
   synchronized void push(ContinuableScope scope) {
-    super.push(scope);
-    liveDepth = super.depth();
-    liveTop = top;
+    scope.beforeActivated();
+    if (top != null) {
+      stack.push(top);
+    } else {
+      onBecomeNonEmpty();
+    }
+    publishTop(scope);
+    scope.afterActivated();
   }
 
   @Override
@@ -109,8 +141,7 @@ final class SharedScopeStack extends ScopeStack {
 
   @Override
   synchronized void clear() {
-    super.clear();
-    liveDepth = 0;
-    liveTop = null;
+    stack.clear();
+    publishTop(null);
   }
 }

@@ -7,10 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
+import datadog.trace.api.scopemanager.ScopeListener;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.ScopeManagerTestBridge;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -198,6 +202,38 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
           assertSame(opened, scopeManager.currentContext());
           scopeManager.swap(original);
         });
+  }
+
+  @Test
+  void listenersSeeTheScopeBeingActivated() throws Exception {
+    Context shared = scopeManager.sharedContextStack(Context.root());
+    AgentSpan parent = tracer.buildSpan("test", "parent").start();
+    AgentSpan child = tracer.buildSpan("test", "child").start();
+    List<AgentSpan> activeSpans = new ArrayList<>();
+    scopeManager.addScopeListener(
+        new ScopeListener() {
+          @Override
+          public void afterScopeActivated() {
+            activeSpans.add(scopeManager.activeSpan());
+          }
+
+          @Override
+          public void afterScopeClosed() {}
+        });
+
+    runOnNewThread(
+        () -> {
+          Context original = scopeManager.swap(shared);
+          ContextScope parentScope = scopeManager.activateSpan(parent);
+          scopeManager.activateSpan(child).close();
+          parentScope.close();
+          scopeManager.swap(original);
+        });
+
+    assertEquals(3, activeSpans.size());
+    assertSame(parent, activeSpans.get(0));
+    assertSame(child, activeSpans.get(1));
+    assertSame(parent, activeSpans.get(2), "parent reactivated");
   }
 
   private static void runOnNewThread(Runnable task) throws Exception {

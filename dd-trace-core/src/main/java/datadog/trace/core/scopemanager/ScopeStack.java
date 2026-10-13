@@ -13,7 +13,7 @@ import java.util.ArrayDeque;
 class ScopeStack {
 
   private final ProfilingContextIntegration profilingContextIntegration;
-  private final ArrayDeque<ContinuableScope> stack; // previous scopes
+  final ArrayDeque<ContinuableScope> stack; // previous scopes
 
   ContinuableScope top; // current scope
 
@@ -167,7 +167,7 @@ class ScopeStack {
   }
 
   /** Notifies profiler that this thread has a context now */
-  private void onBecomeNonEmpty() {
+  final void onBecomeNonEmpty() {
     try {
       profilingContextIntegration.onAttach();
     } catch (Throwable e) {
@@ -176,7 +176,7 @@ class ScopeStack {
   }
 
   /** Notifies profiler that this thread no longer has a context */
-  private void onBecomeEmpty() {
+  final void onBecomeEmpty() {
     try {
       profilingContextIntegration.onDetach();
     } catch (Throwable e) {
