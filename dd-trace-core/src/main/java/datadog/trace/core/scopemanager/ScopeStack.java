@@ -10,10 +10,10 @@ import java.util.ArrayDeque;
  * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
  * cleanup() is called to ensure the invariant
  */
-final class ScopeStack {
+class ScopeStack {
 
   private final ProfilingContextIntegration profilingContextIntegration;
-  private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
+  private final ArrayDeque<ContinuableScope> stack; // previous scopes
 
   ContinuableScope top; // current scope
 
@@ -22,6 +22,13 @@ final class ScopeStack {
 
   ScopeStack(ProfilingContextIntegration profilingContextIntegration) {
     this.profilingContextIntegration = profilingContextIntegration;
+    this.stack = new ArrayDeque<>();
+  }
+
+  /** Creates an empty stack with room for the given number of previous scopes. */
+  ScopeStack(ProfilingContextIntegration profilingContextIntegration, int numPrevious) {
+    this.profilingContextIntegration = profilingContextIntegration;
+    this.stack = new ArrayDeque<>(numPrevious);
   }
 
   /** Restore a shallow stack for async propagation purposes. */
@@ -34,6 +41,10 @@ final class ScopeStack {
       stack.push(parent);
     }
     top = active;
+  }
+
+  ContinuableScope top() {
+    return top;
   }
 
   ContinuableScope active() {
@@ -93,7 +104,7 @@ final class ScopeStack {
    * Slower check to see if overdue scopes ahead of the expected scope are all ITERATION scopes.
    * These represent iterations that are now out-of-scope and can be finished ready for cleanup.
    */
-  final boolean checkOverdueScopes(final ContinuableScope expectedScope) {
+  boolean checkOverdueScopes(final ContinuableScope expectedScope) {
     // we already know 'top' isn't the expected scope, so just need to check its source
     if (top == null || top.source() != ITERATION) {
       return false;

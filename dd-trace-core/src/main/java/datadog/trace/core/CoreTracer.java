@@ -2687,4 +2687,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   public ContextContinuation capture(Context context) {
     return scopeManager.capture(context);
   }
+
+  @Override
+  public Context sharedContextStack(Context initial) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "sharedContextStack must not be called when context swap based logic is enabled");
+    }
+    return scopeManager.sharedContextStack(initial);
+  }
 }

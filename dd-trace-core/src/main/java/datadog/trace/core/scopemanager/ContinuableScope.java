@@ -50,7 +50,7 @@ class ContinuableScope implements ContextScope {
     if (!scopeStack.checkTop(this) && !scopeStack.checkOverdueScopes(this)) {
       if (ContinuableScopeManager.log.isDebugEnabled()) {
         ContinuableScopeManager.log.debug(
-            "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top);
+            "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top());
       }
 
       byte source = source();

@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import javax.annotation.Nullable;
 
 /** Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later. */
-final class ScopeContext implements Context {
+class ScopeContext implements Context {
   private final Thread originalThread = Thread.currentThread();
   private final ScopeStack scopeStack;
   private final ContinuableScope parent;
@@ -14,7 +14,7 @@ final class ScopeContext implements Context {
   private final Context context;
 
   ScopeContext(ScopeStack scopeStack) {
-    this(scopeStack, scopeStack.top != null ? scopeStack.top.context : Context.root());
+    this(scopeStack, contextOf(scopeStack.top()));
   }
 
   private ScopeContext(ScopeStack scopeStack, Context context) {
@@ -22,6 +22,10 @@ final class ScopeContext implements Context {
     this.parent = scopeStack.parent();
     this.active = scopeStack.active();
     this.context = context;
+  }
+
+  static Context contextOf(@Nullable ContinuableScope scope) {
+    return scope != null ? scope.context : Context.root();
   }
 
   ScopeStack restore(ProfilingContextIntegration profilingContextIntegration) {
