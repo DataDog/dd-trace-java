@@ -78,8 +78,9 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   /** Returns the trace this coroutine keeps open, if coroutines of this job are its children. */
   @Nullable
   private AgentTraceCollector traceKeptOpenFor(@Nullable Job job) {
+    AgentTraceCollector trace = traceKeptOpen;
     // structured children complete before their parent, which keeps its trace open until then
-    return job != null && (job == owner || isScopedBy(job)) ? traceKeptOpen : null;
+    return trace != null && job != null && (job == owner || isScopedBy(job)) ? trace : null;
   }
 
   /** Scoped coroutines share their caller's element and complete before the caller does. */
@@ -116,16 +117,18 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
       }
       // this coroutine isn't running yet, so its context can't change under us
       AgentTraceCollector trace = traceOf(initial);
-      if (trace != null && trace == traceKeptOpenByParent) {
-        // the parent keeps this trace open until after this child completes
-        traceKeptOpen = trace;
-      } else if (trace != null) {
-        // stop enclosing trace from finishing early
-        ContextContinuation captured = initial.capture();
-        continuation = captured;
-        if (captured.context() != Context.root()) {
-          // only when the capture was accepted, e.g. async propagation is enabled
+      if (trace != null) {
+        if (trace == traceKeptOpenByParent) {
+          // the parent keeps this trace open until after this child completes
           traceKeptOpen = trace;
+        } else {
+          // stop enclosing trace from finishing early
+          ContextContinuation captured = initial.capture();
+          continuation = captured;
+          if (captured.context() != Context.root()) {
+            // only when the capture was accepted, e.g. async propagation is enabled
+            traceKeptOpen = trace;
+          }
         }
       }
       context = initial;
@@ -152,10 +155,12 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
 
   @Override
   public Context updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
-    if (context == null) {
+    Context current = context;
+    if (current == null) {
       captureInitialContext();
+      current = context;
     }
-    return context.swap();
+    return current.swap();
   }
 
   @Override
