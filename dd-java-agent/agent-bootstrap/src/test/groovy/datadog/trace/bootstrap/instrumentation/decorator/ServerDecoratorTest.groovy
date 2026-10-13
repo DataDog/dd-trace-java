@@ -12,7 +12,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 
 class ServerDecoratorTest extends BaseDecoratorTest {
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   def "test afterStart"() {
     def decorator = newDecorator()

@@ -24,7 +24,16 @@ class BaseDecoratorTest extends DDSpecification {
   @Shared
   def errorPriority = null as Byte
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
+
+  /**
+   * Mocks an {@link AgentSpan} that reports every id-keyed {@code setTag} as the name-keyed call,
+   * so expectations are written by tag name however the code under test sets the tag. See
+   * {@link NameKeyedAgentSpan}.
+   */
+  AgentSpan mockSpan() {
+    return Mock(NameKeyedAgentSpan)
+  }
   def spanContext = Mock(AgentSpanContext)
 
   def "test afterStart"() {

@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 
 class ClientDecoratorTest extends BaseDecoratorTest {
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   def "test afterStart"() {
     setup:
