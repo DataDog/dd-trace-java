@@ -51,10 +51,12 @@ public interface BlockResponseFunction {
    * AppSecContext#reportBlockFailure()} if the commit fails.
    *
    * <p>It's responsible for calling {@link TraceSegment#effectivelyBlocked()} before the span is
-   * finished. Callers must never call {@link TraceSegment#effectivelyBlocked()} themselves on the
-   * strength of a {@code true} return value: asynchronous implementations (Netty off the event
-   * loop, Undertow dispatching to an IO thread) return {@code true} as soon as the blocking
-   * response is scheduled, and only mark the segment once the response is actually committed.
+   * finished. For asynchronous implementations (Netty off the event loop, Undertow dispatching to
+   * an IO thread), a {@code true} return value only means the blocking response was scheduled, not
+   * that it was committed yet: callers of those implementations must not call {@link
+   * TraceSegment#effectivelyBlocked()} themselves on the strength of that return value, since the
+   * implementation marks the segment once the response is actually committed. Synchronous
+   * implementations may commit and mark the segment within this call.
    *
    * @param ctx the request context
    * @param action the blocking action containing status code, content type, headers, and security

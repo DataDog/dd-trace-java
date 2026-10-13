@@ -113,6 +113,7 @@ class PathExtractionHelpersTest {
     BlockResponseFunction brf = mock(BlockResponseFunction.class);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
     Flow.Action.RequestBlockingAction rba = blockingAction();
+    when(brf.tryCommitBlockingResponse(reqCtx, rba)).thenReturn(true);
     stubCallbackAction(rba);
 
     BlockingException exception =

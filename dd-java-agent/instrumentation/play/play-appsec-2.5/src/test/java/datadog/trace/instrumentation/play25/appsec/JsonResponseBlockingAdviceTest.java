@@ -7,12 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -48,6 +51,7 @@ class JsonResponseBlockingAdviceTest {
 
   private RequestContext reqCtx;
   private TraceSegment segment;
+  private AppSecContext appSecCtx;
 
   @BeforeEach
   void setup() {
@@ -55,8 +59,11 @@ class JsonResponseBlockingAdviceTest {
     reqCtx = mock(RequestContext.class);
     when(reqCtx.getTraceSegment()).thenReturn(segment);
     // @RequiresRequestContext rewrites the compiled advice to read the request context from the
-    // active span and to bail out unless AppSec data is present
-    when(reqCtx.getData(RequestContextSlot.APPSEC)).thenReturn(new Object());
+    // active span and to bail out unless AppSec data is present. A real AppSecContext (rather than
+    // a plain Object) lets the BlockResponseFunction default method's reportBlockFailure() path be
+    // exercised when the commit fails.
+    appSecCtx = mock(AppSecContext.class);
+    when(reqCtx.getData(RequestContextSlot.APPSEC)).thenReturn(appSecCtx);
     AgentSpan span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(reqCtx);
 
@@ -85,6 +92,7 @@ class JsonResponseBlockingAdviceTest {
 
     assertEquals("Blocked request (for Results$Status/apply)", ex.getMessage());
     brf.assertCommittedOnce(segment);
+    verify(appSecCtx, never()).reportBlockFailure();
   }
 
   @Test
@@ -95,6 +103,7 @@ class JsonResponseBlockingAdviceTest {
     assertDoesNotThrow(() -> ResultsStatusApplyAdvice.before(content, reqCtx));
 
     brf.assertCommittedOnce(segment);
+    verify(appSecCtx).reportBlockFailure();
   }
 
   @Test
@@ -114,6 +123,7 @@ class JsonResponseBlockingAdviceTest {
 
     assertEquals("Blocked request (for StatusHeader/sendJson)", ex.getMessage());
     brf.assertCommittedOnce(segment);
+    verify(appSecCtx, never()).reportBlockFailure();
   }
 
   @Test
@@ -129,6 +139,7 @@ class JsonResponseBlockingAdviceTest {
     }
 
     brf.assertCommittedOnce(segment);
+    verify(appSecCtx).reportBlockFailure();
   }
 
   private RecordingBlockResponseFunction givenBlockResponseFunction(boolean commitResult) {
