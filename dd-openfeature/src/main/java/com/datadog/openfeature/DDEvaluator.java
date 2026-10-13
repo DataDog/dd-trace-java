@@ -6,14 +6,12 @@ import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.evaluation.ConfigurationStore;
-import com.datadog.openfeature.internal.evaluation.EvaluationResult;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.Subject;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.ValueType;
-import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ImmutableStructure;
@@ -106,7 +104,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     this.settings = settings;
     // When span enrichment is off, the __dd_* span-enrichment metadata is not attached to
     // evaluations, so an enabled provider pays nothing extra.
-    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled());
+    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::dispatchExposure);
   }
 
   @Override
@@ -155,55 +153,12 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> ProviderEvaluation<T> evaluate(
       final Class<T> target,
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    final com.datadog.openfeature.internal.evaluation.EvaluationContext adapted =
-        context == null
-            ? null
-            : new com.datadog.openfeature.internal.evaluation.EvaluationContext() {
-              @Override
-              public String getTargetingKey() {
-                return context.getTargetingKey();
-              }
-
-              @Override
-              public boolean hasAttribute(final String name) {
-                return context.keySet().contains(name);
-              }
-
-              @Override
-              public Object attribute(final String name) {
-                return context.convertValue(context.getValue(name));
-              }
-            };
-    final EvaluationResult<?> result =
-        core.evaluate(configuration.get(), (Class) coreType(target), key, defaultValue, adapted);
-    final T value =
-        result.getValue() == defaultValue ? defaultValue : mapValue(target, result.getValue());
-    final ProviderEvaluation<T> evaluation =
-        ProviderEvaluation.<T>builder()
-            .value(value)
-            .reason(result.getReason())
-            .variant(result.getVariant())
-            .errorCode(
-                result.getErrorCode() == null
-                    ? null
-                    : ErrorCode.valueOf(result.getErrorCode().name()))
-            .errorMessage(result.getErrorMessage())
-            .flagMetadata(result.getFlagMetadata())
-            .build();
-    if (result.isLogExposure()) {
-      dispatchExposure(key, evaluation, result.getSerialId(), context);
-    }
-    return evaluation;
-  }
-
-  private static Class<?> coreType(final Class<?> target) {
-    return target == Value.class ? Object.class : target;
+    return core.evaluate(configuration.get(), target, key, defaultValue, context);
   }
 
   static boolean isAllocationActive(final Allocation allocation, final Instant now) {
@@ -211,20 +166,16 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   }
 
   static boolean isTypeCompatible(final Class<?> target, final ValueType type) {
-    return FlagEvaluator.isTypeCompatible(coreType(target), type);
+    return FlagEvaluator.isTypeCompatible(target, type);
   }
 
-  @SuppressWarnings("unchecked")
   static <T> T mapValue(final Class<T> target, final Object value) {
-    if (target == Value.class) {
-      return value == null ? null : (T) Value.objectToValue(value);
-    }
     return FlagEvaluator.mapValue(target, value);
   }
 
-  private <T> void dispatchExposure(
+  private void dispatchExposure(
       final String flag,
-      final ProviderEvaluation<T> evaluation,
+      final ProviderEvaluation<?> evaluation,
       final Integer serialId,
       final EvaluationContext context) {
     final String allocationKey = allocationKey(evaluation);
@@ -255,7 +206,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     }
   }
 
-  private static <T> String allocationKey(final ProviderEvaluation<T> resolution) {
+  private static String allocationKey(final ProviderEvaluation<?> resolution) {
     final ImmutableMetadata meta = resolution.getFlagMetadata();
     return meta == null ? null : meta.getString("allocationKey");
   }
