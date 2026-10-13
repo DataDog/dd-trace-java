@@ -92,16 +92,17 @@ smaller than the original 978.1-second project.
 ## Akka HTTP and Spring WebFlux suite shards
 
 Akka HTTP 10.0 exposes five virtual projects built from its existing version, forked, IAST, and
-Lagom tasks. Pipeline `144164571` measured the JVM 11 tasks, while the Java 8 run supplied the
-Lagom-only duration. The largest unit is the Scala 2.13 suite at 192.163 s, 68.6% smaller than the
-original 612.3-second project.
+Lagom tasks. Pipeline `144209984` measured all 40 JVM 11 suites and 2,044 test executions, while
+the Java 8 run supplied the Lagom-only duration. The largest unit is the Scala 2.13 suite at
+166.919 s, 72.7% smaller than the original 612.3-second project.
 
 Spring WebFlux 5.0 has one dominant base task containing eight similarly sized client suites. CI
 divides those suites into four disjoint two-class tasks, keeps an empty catch-all for newly added
-classes, and groups the existing forked and IAST tasks. Pipeline `144164571` measured the four base
-groups between 120.420 s and 125.552 s and the forked/IAST group at 124.126 s. The largest unit is
-75.4% smaller than the original 509.4-second project. Outside sharded CI, the original test tasks
-remain the local `allTests` and `check` entry points.
+classes, and groups the existing forked and IAST tasks. Pipeline `144209984` measured all 12 JVM 11
+suites and 359 test executions. The four base groups took between 102.246 s and 122.910 s, and the
+forked/IAST group took 116.325 s. The largest unit is 75.9% smaller than the original 509.4-second
+project. Outside sharded CI, the original test tasks remain the local `allTests` and `check` entry
+points.
 
 ## Known limitation: the heaviest project sets a floor
 
@@ -116,7 +117,7 @@ Before the JDBC suite split, the two heaviest projects per pipeline were:
 - `:dd-java-agent:instrumentation:lettuce:lettuce-5.0`: 978.1 s, about 16.3 minutes.
 
 After the JDBC, Lettuce, Akka HTTP, and Spring WebFlux splits, the largest independently scheduled units from those
-projects are 321.831 s, 318.271 s, 192.163 s, and 125.552 s. The largest remaining unsplit weighted project is
+projects are 321.831 s, 318.271 s, 166.919 s, and 122.910 s. The largest remaining unsplit weighted project is
 `kafka-clients-0.11` at 379.1 s. A project's wall-clock span is also longer than its summed test time: in the first
 duration-aware pipeline, the unsplit `jdbc` tests (20.5 minutes of summed test time) spanned 27.6 minutes, starting
 about 10 minutes into the job, so its shard took 39 minutes. Under the previous hash-based assignment, the `jdbc`
