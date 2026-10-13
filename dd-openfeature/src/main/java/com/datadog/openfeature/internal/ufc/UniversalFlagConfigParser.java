@@ -188,7 +188,7 @@ public final class UniversalFlagConfigParser {
     final Map<?, ?> json = asObject(value, "flag");
     return new Flag(
         asString(json.get("key"), "key"),
-        strictBoolean(json.get("enabled"), "enabled"),
+        strictBoolean(json, "enabled"),
         asEnum(json.get("variationType"), ValueType.class, "variationType"),
         toVariants(json.get("variations")),
         toList(json.get("allocations"), "allocations", UniversalFlagConfigParser::toAllocation));
@@ -333,10 +333,12 @@ public final class UniversalFlagConfigParser {
     throw new IllegalArgumentException(name + " is not a string");
   }
 
-  private static boolean strictBoolean(@Nullable final Object value, final String name) {
-    if (value == null) {
+  /** Reads a required boolean field: absent reads {@code false}, explicit {@code null} rejects. */
+  private static boolean strictBoolean(final Map<?, ?> json, final String name) {
+    if (!json.containsKey(name)) {
       return false;
     }
+    final Object value = json.get(name);
     if (value instanceof Boolean) {
       return (Boolean) value;
     }

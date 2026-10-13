@@ -12,8 +12,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.tabletest.junit.TableTest;
 
 /** Parses raw UFC documents, as delivered by Remote Configuration. */
@@ -48,12 +46,19 @@ class UniversalFlagConfigParserTest {
     assertThrows(IOException.class, () -> deserialize("{\"flags\":[]}"));
   }
 
-  @Test
-  void rejectsFlagWithNonBooleanEnabledAndKeepsSiblingFlag() throws Exception {
+  @TableTest({
+    "scenario | enabled  ",
+    "string   | '\"yes\"'",
+    "number   | '1'      ",
+    "null     | 'null'   "
+  })
+  void rejectsFlagWithNonBooleanEnabledAndKeepsSiblingFlag(final String enabled) throws Exception {
     final ServerConfiguration config =
         deserialize(
             "{\"flags\":{"
-                + "\"bad\":{\"key\":\"bad\",\"enabled\":\"yes\"},"
+                + "\"bad\":{\"key\":\"bad\",\"enabled\":"
+                + enabled
+                + "},"
                 + "\"good\":{\"key\":\"good\",\"enabled\":true}"
                 + "}}");
 
@@ -61,6 +66,15 @@ class UniversalFlagConfigParserTest {
     assertFalse(config.flags.containsKey("bad"));
     assertEquals("invalid_flag", config.invalidFlags.get("bad"));
     assertTrue(config.flags.get("good").enabled);
+  }
+
+  @Test
+  void readsAbsentEnabledAsDisabled() throws Exception {
+    final ServerConfiguration config = deserialize("{\"flags\":{\"f\":{\"key\":\"f\"}}}");
+
+    assertNotNull(config);
+    assertFalse(config.flags.get("f").enabled);
+    assertTrue(config.invalidFlags.isEmpty());
   }
 
   @Test
@@ -131,8 +145,13 @@ class UniversalFlagConfigParserTest {
    * parse path is visible here. The values come from the compiler-validated UFC, so the SDK adds no
    * validation of its own; what matters is that a bad one never rejects the sibling flag.
    */
-  @ParameterizedTest
-  @CsvSource({"\"340132\", 340132", "1.5, 1", "-1, -1", "2147483648, 2147483647"})
+  @TableTest({
+    "scenario           | wireValue    | expected  ",
+    "numeric string     | '\"340132\"' | 340132    ",
+    "fraction truncated | '1.5'        | 1         ",
+    "negative           | '-1'         | -1        ",
+    "overflow saturates | '2147483648' | 2147483647"
+  })
   void coercesSerialIdWithoutRejectingTheFlag(final String wireValue, final int expected)
       throws Exception {
     final ServerConfiguration config = deserialize(configWithSerialId(wireValue));
