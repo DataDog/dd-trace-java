@@ -28,6 +28,7 @@ import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
+import dev.openfeature.sdk.multiprovider.MultiProvider;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -61,6 +62,23 @@ class ExposureLoggingHookTest {
     OpenFeatureAPI.getInstance().shutdown();
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
     ExposureDeduplicationCache.INSTANCE.clear();
+  }
+
+  @Test
+  void sendsExposuresWhenWrappedInAMultiProvider() throws Exception {
+    OpenFeatureAPI.getInstance()
+        .setProviderAndWait(
+            new MultiProvider(
+                singletonList(
+                    new Provider(
+                        new Options().initTimeout(10, SECONDS),
+                        new DDEvaluator(mock(Runnable.class))))));
+
+    evaluate("user-1");
+    evaluate("user-1");
+
+    assertEquals(1, dispatched.size());
+    assertEquals("user-1", dispatched.get(0).subject.id);
   }
 
   @Test

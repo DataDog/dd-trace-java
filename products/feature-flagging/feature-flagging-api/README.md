@@ -16,6 +16,10 @@ Published as `com.datadoghq:dd-openfeature` on Maven Central.
 
 The OpenFeature SDK (`dev.openfeature:sdk`) is included as a transitive dependency.
 
+The provider sends exposures from an OpenFeature provider hook. If you wrap it in OpenFeature's
+`MultiProvider`, use `dev.openfeature:sdk` 1.23.0 or later: earlier versions do not run the hooks of
+the providers inside a `MultiProvider`, so the provider sends no exposures there.
+
 ### Evaluation metrics (optional)
 
 To enable evaluation metrics (`feature_flag.evaluations` counter), enable the Datadog Java agent's
