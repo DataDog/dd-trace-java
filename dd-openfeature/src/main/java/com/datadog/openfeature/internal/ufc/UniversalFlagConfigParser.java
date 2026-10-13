@@ -402,11 +402,14 @@ public final class UniversalFlagConfigParser {
     return (long) number;
   }
 
-  /** Ignores wrongly set dates. */
+  /** Ignores unparsable dates and numbers, but rejects other non-string values. */
   @Nullable
   private static Instant toInstant(@Nullable final Object value) {
-    if (!(value instanceof String)) {
+    if (value == null || value instanceof Number) {
       return null;
+    }
+    if (!(value instanceof String)) {
+      throw new IllegalArgumentException("allocation date is not a string");
     }
     try {
       return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse((String) value, Instant::from);

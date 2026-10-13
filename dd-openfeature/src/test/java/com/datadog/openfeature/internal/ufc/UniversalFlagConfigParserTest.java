@@ -274,6 +274,48 @@ class UniversalFlagConfigParserTest {
     }
   }
 
+  @TableTest({
+    "scenario      | field     | date   ",
+    "boolean start | 'startAt' | 'true' ",
+    "object start  | 'startAt' | '{}'   ",
+    "array start   | 'startAt' | '[]'   ",
+    "boolean end   | 'endAt'   | 'false'",
+    "object end    | 'endAt'   | '{}'   ",
+    "array end     | 'endAt'   | '[]'   "
+  })
+  void rejectsFlagWithNonStringAllocationDateAndKeepsSiblingFlag(
+      final String field, final String date) throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{"
+                + "\"bad\":{\"key\":\"bad\",\"enabled\":true,"
+                + "\"allocations\":[{\"key\":\"a\",\""
+                + field
+                + "\":"
+                + date
+                + "}]},"
+                + "\"good\":{\"key\":\"good\",\"enabled\":true}"
+                + "}}");
+
+    assertNotNull(config);
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+    assertTrue(config.flags.containsKey("good"));
+  }
+
+  @Test
+  void readsNumericAllocationDatesAsUnbounded() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"f\":{\"key\":\"f\",\"enabled\":true,"
+                + "\"allocations\":[{\"key\":\"a\",\"startAt\":1672531200,\"endAt\":1.5}]}}}");
+
+    final Allocation allocation = config.flags.get("f").allocations.get(0);
+    assertNull(allocation.startAt);
+    assertNull(allocation.endAt);
+    assertTrue(config.invalidFlags.isEmpty());
+  }
+
   private static ServerConfiguration deserialize(final String json) throws Exception {
     return UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
   }
