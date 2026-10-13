@@ -29,6 +29,69 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
   private static final int WORKERS = 4;
 
   @Test
+  void losingStandaloneRechecksReleaseTheirPermitsAndContexts() throws Exception {
+    ControllableTimeSource time = new ControllableTimeSource();
+    ApiSecuritySamplerImpl sampler = new ApiSecuritySamplerImpl(8, EXPIRATION_MS, time);
+    ExecutorService executor = executor(WORKERS);
+    CountDownLatch acquired = new CountDownLatch(WORKERS);
+    List<AppSecRequestContext> contexts = new ArrayList<>();
+    List<Future<Boolean>> decisions = new ArrayList<>();
+    try {
+      // Hold the update lock until all requests pass the preliminary check and acquire a permit.
+      synchronized (field(sampler, "accessLock")) {
+        for (int i = 0; i < WORKERS; i++) {
+          AppSecRequestContext ctx =
+              new AppSecRequestContext() {
+                @Override
+                public void setKeepOpenForApiSecurityPostProcessing(boolean flag) {
+                  super.setKeepOpenForApiSecurityPostProcessing(flag);
+                  if (flag) {
+                    acquired.countDown();
+                  }
+                }
+              };
+          ctx.setRoute("same-endpoint");
+          ctx.setMethod("GET");
+          ctx.setResponseStatus(200);
+          contexts.add(ctx);
+          decisions.add(
+              executor.submit(
+                  () -> {
+                    boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
+                    if (selected) {
+                      sampler.releaseOne();
+                    }
+                    return selected;
+                  }));
+        }
+        assertTrue(acquired.await(5, SECONDS));
+      }
+
+      int selected = 0;
+      for (int i = 0; i < WORKERS; i++) {
+        if (decisions.get(i).get(5, SECONDS)) {
+          selected++;
+        } else {
+          assertFalse(contexts.get(i).isKeepOpenForApiSecurityPostProcessing());
+        }
+      }
+      assertEquals(1, selected);
+
+      // Rejected requests have no post-processing callback. All four permits must still be usable.
+      for (int i = 0; i < WORKERS; i++) {
+        assertTrue(sampler.preSampleRequest(context("available-" + i), FRAMEWORK));
+      }
+      assertFalse(sampler.preSampleRequest(context("no-permit"), FRAMEWORK));
+      for (int i = 0; i < WORKERS; i++) {
+        sampler.releaseOne();
+      }
+    } finally {
+      executor.shutdownNow();
+      assertTrue(executor.awaitTermination(5, SECONDS));
+    }
+  }
+
+  @Test
   void concurrentStandaloneRequestsSelectOnlyOneSamplePerEndpoint() throws Exception {
     ControllableTimeSource time = new ControllableTimeSource();
     ApiSecuritySamplerImpl sampler = new ApiSecuritySamplerImpl(8, EXPIRATION_MS, time);
@@ -45,10 +108,14 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
                     ready.countDown();
                     assertTrue(start.await(5, SECONDS));
                     AppSecRequestContext ctx = context("same-endpoint");
+                    boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
                     try {
-                      return sampler.preSampleRequest(ctx, FRAMEWORK);
+                      if (!selected) {
+                        assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
+                      }
+                      return selected;
                     } finally {
-                      if (ctx.isKeepOpenForApiSecurityPostProcessing()) {
+                      if (selected) {
                         sampler.releaseOne();
                       }
                     }
@@ -90,10 +157,13 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
                     assertTrue(start.await(5, SECONDS));
                     for (int request = 0; request < 100; request++) {
                       AppSecRequestContext ctx = context("endpoint-" + ((request + offset) % 16));
+                      boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
                       try {
-                        sampler.preSampleRequest(ctx, FRAMEWORK);
+                        if (!selected) {
+                          assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
+                        }
                       } finally {
-                        if (ctx.isKeepOpenForApiSecurityPostProcessing()) {
+                        if (selected) {
                           sampler.releaseOne();
                         }
                       }

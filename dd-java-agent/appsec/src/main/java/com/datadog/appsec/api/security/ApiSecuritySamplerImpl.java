@@ -102,6 +102,9 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
         boolean sampled = updateApiAccessIfExpired(hash);
         if (sampled) {
           logSamplingDecision("preSampleRequest", hash);
+        } else {
+          ctx.setKeepOpenForApiSecurityPostProcessing(false);
+          counter.release();
         }
         return sampled;
       }
