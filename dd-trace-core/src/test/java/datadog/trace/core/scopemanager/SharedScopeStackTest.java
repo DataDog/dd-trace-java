@@ -225,6 +225,69 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void clearedIterationScopeIsNotReusedByAnotherThread() throws Exception {
+    int rounds = 2_000;
+    CyclicBarrier phase = new CyclicBarrier(2);
+    AtomicReference<Context> shared = new AtomicReference<>();
+    AtomicReference<AgentSpan> iterationSpan = new AtomicReference<>();
+    AtomicReference<ContinuableScope> iterationScope = new AtomicReference<>();
+    Runnable reuser =
+        () -> {
+          try {
+            for (int round = 0; round < rounds; round++) {
+              phase.await(); // iteration scope is on top
+              Context original = scopeManager.swap(shared.get());
+              for (int i = 0; i < 200; i++) {
+                // reuses the iteration scope until it's cleared, then pushes a new scope instead
+                scopeManager.activateSpan(iterationSpan.get()).close();
+              }
+              scopeManager.swap(original);
+              phase.await(); // round finished
+            }
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        };
+    Runnable closer =
+        () -> {
+          try {
+            for (int round = 0; round < rounds; round++) {
+              shared.set(scopeManager.sharedContextStack(base));
+              Context original = scopeManager.swap(shared.get());
+              ContextScope outer = scopeManager.attach(base.with(KEY, "outer"));
+              iterationSpan.set(tracer.buildSpan("test", "iteration").start());
+              iterationScope.set((ContinuableScope) scopeManager.activateNext(iterationSpan.get()));
+              phase.await();
+              // closing the outer scope clears the overdue iteration scope above it
+              outer.close();
+              scopeManager.swap(original);
+              phase.await();
+              assertFalse(iterationScope.get().alive(), "cleared scope retained in round " + round);
+            }
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        };
+    Thread first = new Thread(reuser, "reuser");
+    Thread second = new Thread(closer, "closer");
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    // keeps the first failure, rather than the interrupt that stops the other thread
+    first.setUncaughtExceptionHandler((t, e) -> failure.compareAndSet(null, e));
+    second.setUncaughtExceptionHandler(
+        (t, e) -> {
+          failure.compareAndSet(null, e);
+          first.interrupt();
+        });
+    first.start();
+    second.start();
+    second.join();
+    first.join(10_000);
+    if (failure.get() != null) {
+      throw new AssertionError(failure.get());
+    }
+  }
+
+  @Test
   void threadGetsItsOwnStackBackAfterNestedSwaps() {
     Context outer = scopeManager.sharedContextStack(base);
     Context inner = scopeManager.sharedContextStack(base.with(KEY, "inner"));

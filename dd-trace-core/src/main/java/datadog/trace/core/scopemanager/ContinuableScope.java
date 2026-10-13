@@ -141,10 +141,25 @@ class ContinuableScope implements ContextScope {
   }
 
   final void clearReferences() {
+    if (shared) {
+      clearShared();
+    } else {
+      referenceCount = 0;
+    }
+  }
+
+  private synchronized void clearShared() {
+    // stops another thread retaining the scope once it's been cleared
     referenceCount = 0;
   }
 
-  /** Returns true if the scope is still alive (non-zero ref count) */
+  /**
+   * Returns true if the scope is still alive (non-zero ref count)
+   *
+   * <p>Shared scopes are read without their lock. Their count never rises again once it reaches
+   * zero, so a stale read can only delay removing a scope closed on another thread, never remove a
+   * live scope. Such scopes are removed when the stack is next cleaned up or swapped in.
+   */
   final boolean alive() {
     return referenceCount > 0;
   }
