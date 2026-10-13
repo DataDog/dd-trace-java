@@ -59,9 +59,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final AtomicBoolean SPLIT_SERIAL_ID_SUPPORTED =
       new AtomicBoolean(splitSerialIdSupported(Split.class));
 
-  static final AtomicBoolean USE_LEGACY_EXPOSURE_API =
+  static final AtomicBoolean EXPOSURE_SERIAL_ID_SUPPORTED =
       new AtomicBoolean(
-          !(SPLIT_SERIAL_ID_SUPPORTED.get() && exposureSerialIdSupported(ExposureEvent.class)));
+          SPLIT_SERIAL_ID_SUPPORTED.get() && exposureSerialIdSupported(ExposureEvent.class));
 
   static boolean splitSerialIdSupported(final Class<?> splitClass) {
     try {
@@ -638,7 +638,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   /** The serial id an exposure carries: none when the agent's exposure event predates it. */
   static Integer exposureSerialId(final Integer splitSerialId) {
-    return USE_LEGACY_EXPOSURE_API.get() || !SPLIT_SERIAL_ID_SUPPORTED.get() ? null : splitSerialId;
+    return EXPOSURE_SERIAL_ID_SUPPORTED.get() && SPLIT_SERIAL_ID_SUPPORTED.get()
+        ? splitSerialId
+        : null;
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
@@ -724,9 +726,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         new datadog.trace.api.featureflag.exposure.Variant(variantKey);
     final Subject subject = new Subject(context.getTargetingKey(), flattenContext(context));
 
-    return USE_LEGACY_EXPOSURE_API.get()
-        ? new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject)
-        : new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject, serialId);
+    return EXPOSURE_SERIAL_ID_SUPPORTED.get()
+        ? new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject, serialId)
+        : new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject);
   }
 
   static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {

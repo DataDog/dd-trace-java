@@ -420,11 +420,11 @@ public class DDEvaluatorTest {
 
   @Test
   public void legacyExposureApiDispatchesAnExposureWithoutSerialId() {
-    final boolean previous = DDEvaluator.USE_LEGACY_EXPOSURE_API.getAndSet(true);
+    final boolean previous = DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.getAndSet(false);
     try {
       assertNull(exposureFor(7).serial_id);
     } finally {
-      DDEvaluator.USE_LEGACY_EXPOSURE_API.set(previous);
+      DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.set(previous);
     }
   }
 
@@ -458,7 +458,7 @@ public class DDEvaluatorTest {
     assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
     assertTrue(DDEvaluator.exposureSerialIdSupported(ExposureEvent.class));
     assertTrue(DDEvaluator.SPLIT_SERIAL_ID_SUPPORTED.get());
-    assertFalse(DDEvaluator.USE_LEGACY_EXPOSURE_API.get());
+    assertTrue(DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.get());
   }
 
   @Test
