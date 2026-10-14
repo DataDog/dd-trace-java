@@ -750,8 +750,6 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
@@ -769,7 +767,6 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -1258,7 +1255,6 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final String featureFlaggingConfigurationSource;
   private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
   private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
   private final int featureFlaggingConfigurationSourceRequestTimeoutSeconds;
@@ -2950,32 +2946,20 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    final Boolean configuredFeatureFlaggingProviderEnabled =
-        configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
-    final Boolean legacyFeatureFlaggingProviderEnabled =
-        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
-    final String configuredFeatureFlaggingConfigurationSource =
-        configProvider.isSet(FEATURE_FLAGS_CONFIGURATION_SOURCE)
-            ? configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE)
-            : null;
-    final FeatureFlaggingConfig.Resolution resolvedFeatureFlaggingConfiguration =
-        resolveConfiguration(
-            configuredFeatureFlaggingProviderEnabled,
-            configuredFeatureFlaggingConfigurationSource,
-            legacyFeatureFlaggingProviderEnabled);
-    if (legacyFeatureFlaggingProviderEnabled != null) {
+    if (configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED) != null) {
       log.warn(
           "Setting {} is deprecated. Use {} and {} instead.",
           EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED,
           FEATURE_FLAGS_ENABLED,
           FEATURE_FLAGS_CONFIGURATION_SOURCE);
     }
-    if (!isSupportedConfigurationSource(configuredFeatureFlaggingConfigurationSource)) {
+    final String featureFlaggingConfigurationSource =
+        instrumenterConfig.getFeatureFlaggingConfigurationSource();
+    if (!InstrumenterConfig.isSupportedFeatureFlaggingSource(featureFlaggingConfigurationSource)) {
       log.warn(
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
-          resolvedFeatureFlaggingConfiguration.getSource());
+          featureFlaggingConfigurationSource);
     }
-    featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
@@ -4942,7 +4926,7 @@ public class Config {
   }
 
   public String getFeatureFlaggingConfigurationSource() {
-    return featureFlaggingConfigurationSource;
+    return instrumenterConfig.getFeatureFlaggingConfigurationSource();
   }
 
   public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {
@@ -6916,7 +6900,7 @@ public class Config {
         + ", featureFlaggingProviderEnabled="
         + isFeatureFlaggingProviderEnabled()
         + ", featureFlaggingConfigurationSource="
-        + featureFlaggingConfigurationSource
+        + getFeatureFlaggingConfigurationSource()
         + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
         + featureFlaggingConfigurationSourceAgentlessBaseUrl
         + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
