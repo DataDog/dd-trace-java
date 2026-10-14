@@ -39,23 +39,21 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onNext(final ClientResponse response) {
+    DECORATE.onResponse(span, response);
+    DECORATE.beforeFinish(span);
+    span.finish();
     try (final ContextScope scope = activateSpan(parent)) {
       actual.onNext(response);
-    } finally {
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
-      span.finish();
     }
   }
 
   @Override
   public void onError(final Throwable t) {
+    DECORATE.onError(span, t);
+    DECORATE.beforeFinish(span);
+    span.finish();
     try (final ContextScope scope = activateSpan(parent)) {
       actual.onError(t);
-    } finally {
-      DECORATE.onError(span, t);
-      DECORATE.beforeFinish(span);
-      span.finish();
     }
   }
 

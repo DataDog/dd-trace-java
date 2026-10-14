@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty41.client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.isNestedClientSpanSuppressed;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
@@ -72,8 +73,25 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         }
       }
     }
+    final AgentSpan parent = activeSpan();
+    final Context parentContext = Context.current();
+    if (isNestedClientSpanSuppressed(parentContext, parent)) {
+      if (ctx.channel().parent() == null) {
+        ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
+      }
+      DECORATE.injectContext(parentContext, request.headers(), SETTER);
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentContext);
+      try {
+        ctx.write(msg, prm);
+        return;
+      } finally {
+        if (null != parentScope) {
+          parentScope.close();
+        }
+      }
+    }
     if (ctx.channel().parent() == null) {
-      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
+      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
     }
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;

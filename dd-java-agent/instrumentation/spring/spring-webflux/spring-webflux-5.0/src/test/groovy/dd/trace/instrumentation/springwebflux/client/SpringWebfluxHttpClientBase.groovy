@@ -1,15 +1,9 @@
 package dd.trace.instrumentation.springwebflux.client
 
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.api.URIUtils
-import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator
-import io.netty.channel.Channel
 import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.client.ClientRequest
 import org.springframework.web.reactive.function.client.ClientResponse
@@ -40,7 +34,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
       .block()
 
     if (hasParent) {
-      blockUntilChildSpansFinished(callback ? 3 : 2)
+      blockUntilChildSpansFinished(callback ? 2 : 1)
     }
 
     check()
@@ -50,97 +44,13 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
 
   protected static int consumeResponse(ClientResponse response) {
     int status = response.statusCode().value()
-    Channel channel = responseChannel(response)
     response.bodyToMono(Void).block()
-    // Body completion can occur inside channelRead, before channelReadComplete is fired.
-    channel.eventLoop().submit({} as Runnable).sync()
     return status
-  }
-
-  private static Channel responseChannel(ClientResponse response) {
-    def clientHttpResponse = field(response, "response")
-    def nettyResponse = field(clientHttpResponse, "response")
-    return nettyResponse.channel()
-  }
-
-  private static Object field(Object target, String name) {
-    def field = target.class.getDeclaredField(name)
-    field.accessible = true
-    return field.get(target)
   }
 
   @Override
   CharSequence component() {
     return SpringWebfluxHttpClientDecorator.DECORATE.component()
-  }
-
-
-  @Override
-  // parent spanRef must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(
-    TraceAssert trace,
-    Object parentSpan,
-    String method = "GET",
-    boolean renameService = false,
-    boolean tagQueryString = false,
-    URI uri = server.address.resolve("/success"),
-    Integer status = 200,
-    boolean error = false,
-    Throwable exception = null,
-    boolean ignorePeer = false,
-    Map<String, Serializable> extraTags = null) {
-
-    def leafParentId = trace.spanAssertCount.get()
-    super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, error, exception, ignorePeer, extraTags)
-    if (!exception) {
-      def expectedQuery = tagQueryString ? uri.query : null
-      def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
-      if (expectedQuery != null && !expectedQuery.empty) {
-        expectedUrl = "$expectedUrl?$expectedQuery"
-      }
-      trace.span {
-        childOf(trace.span(leafParentId))
-        if (renameService) {
-          serviceName("localhost")
-        }
-        operationName NettyHttpClientDecorator.DECORATE.operationName()
-        resourceName "$method $uri.path"
-        spanType DDSpanTypes.HTTP_CLIENT
-        errored error
-        measured true
-        tags {
-          "$Tags.COMPONENT" NettyHttpClientDecorator.DECORATE.component()
-          "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-          "$Tags.PEER_HOSTNAME" "localhost"
-          "$Tags.PEER_PORT" uri.port
-          "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-          "$Tags.HTTP_URL" expectedUrl
-          "$Tags.HTTP_METHOD" method
-          if (status) {
-            "$Tags.HTTP_STATUS" status
-          }
-          if (tagQueryString) {
-            "$DDTags.HTTP_QUERY" expectedQuery
-            "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
-          }
-          if (exception) {
-            errorTags(exception.class, exception.message)
-          }
-          if ({ isDataStreamsEnabled() }) {
-            "$DDTags.PATHWAY_HASH" { String }
-          }
-          defaultTags()
-          if (extraTags) {
-            it.addTags(extraTags)
-          }
-        }
-      }
-    }
-  }
-
-  @Override
-  int size(int size) {
-    return size + 1
   }
 
   boolean testRedirects() {
