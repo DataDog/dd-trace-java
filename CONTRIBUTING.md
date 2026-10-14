@@ -99,7 +99,8 @@ When opening a pull request, please open it as a [draft](https://github.blog/201
 
 ### Dependency changes
 
-When adding, updating, or removing dependencies, regenerate the `gradle.lockfile` files for all affected modules and include them in the same PR.
+When adding, updating, or removing dependencies, regenerate the `gradle.lockfile` files for all affected modules
+and include them in the same PR.
 This applies to changes in build scripts and `gradle/libs.versions.toml`.
 Follow the [lockfile update workflow](docs/how_to_work_with_gradle.md#updating-lock-files) before requesting review.
 

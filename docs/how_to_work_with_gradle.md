@@ -895,7 +895,8 @@ All projects have dependency locking enabled via the `dd-trace-java.dependency-l
 
 #### Updating Lock Files
 
-When adding, updating, or removing a dependency in a build script or `gradle/libs.versions.toml`, regenerate the lockfiles for all affected modules and include them in the same PR.
+When adding, updating, or removing a dependency in a build script or `gradle/libs.versions.toml`,
+regenerate the lockfiles for all affected modules and include them in the same PR.
 Shared dependencies can affect multiple modules.
 
 ```bash
@@ -906,12 +907,13 @@ Shared dependencies can affect multiple modules.
 ./gradlew :dd-trace-api:resolveAndLockAll --write-locks
 ```
 
-Note that lock files are also automatically updated weekly by CI.
+> [!NOTE]
+> Lock files are also automatically updated weekly by CI.
 
 > [!IMPORTANT]
-> This project uses **lenient lock mode** (`LockMode.LENIENT`), which permits dependency changes without failing lock validation.
+> This project uses **lenient lock mode** (`LockMode.LENIENT`), which permits dependency changes without failing
+> lock validation.
 > This prevents build failures when dependencies are temporarily unavailable or when resolution conflicts occur.
-> A passing build does not prove that lock files are up-to-date.
 
 #### When Lock Files Are Used
 
