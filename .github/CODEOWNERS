@@ -355,6 +355,7 @@
 **/kafka*/**/*Iast*                                                                          @DataDog/asm-java @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 
 # @DataDog/feature-flagging-and-experimentation-sdk
+/dd-openfeature/              @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature/  @DataDog/feature-flagging-and-experimentation-sdk
 /products/feature-flagging/   @DataDog/feature-flagging-and-experimentation-sdk
 
