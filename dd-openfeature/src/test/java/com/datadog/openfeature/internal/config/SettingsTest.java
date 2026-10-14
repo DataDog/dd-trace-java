@@ -44,21 +44,23 @@ class SettingsTest {
   }
 
   @TableTest({
-    "scenario                         | enabled | source          | legacy  | resolved       ",
-    "default                          |         |                 |         | 'agentless'    ",
-    "explicit agentless               |         | 'agentless'     |         | 'agentless'    ",
-    "explicit remote config           |         | 'remote_config' |         | 'remote_config'",
-    "case insensitive source          |         | 'Remote_Config' |         | 'remote_config'",
-    "padded source                    |         | ' agentless '   |         |                ",
-    "unsupported source               |         | 'offline'       |         |                ",
-    "blank source                     |         | ' '             |         | 'agentless'    ",
-    "disabled wins over source        | 'false' | 'remote_config' |         |                ",
-    "enabled keeps default            | 'true'  |                 |         | 'agentless'    ",
-    "legacy enabled selects rc        |         |                 | 'true'  | 'remote_config'",
-    "legacy disabled disables         |         |                 | 'false' |                ",
-    "explicit source wins over legacy |         | 'agentless'     | 'false' | 'agentless'    ",
-    "invalid enabled reads as false   | 'maybe' |                 |         |                ",
-    "numeric disabled                 | '0'     |                 |         |                "
+    "scenario                         | enabled  | source          | legacy   | resolved       ",
+    "default                          |          |                 |          | 'agentless'    ",
+    "explicit agentless               |          | 'agentless'     |          | 'agentless'    ",
+    "explicit remote config           |          | 'remote_config' |          | 'remote_config'",
+    "case insensitive source          |          | 'Remote_Config' |          | 'remote_config'",
+    "padded source                    |          | ' agentless '   |          |                ",
+    "unsupported source               |          | 'offline'       |          |                ",
+    "blank source                     |          | ' '             |          | 'agentless'    ",
+    "disabled wins over source        | 'false'  | 'remote_config' |          |                ",
+    "enabled keeps default            | 'true'   |                 |          | 'agentless'    ",
+    "legacy enabled selects rc        |          |                 | 'true'   | 'remote_config'",
+    "legacy disabled disables         |          |                 | 'false'  |                ",
+    "explicit source wins over legacy |          | 'agentless'     | 'false'  | 'agentless'    ",
+    "invalid enabled reads as false   | 'maybe'  |                 |          |                ",
+    "numeric disabled                 | '0'      |                 |          |                ",
+    "padded enabled reads as false    | ' true ' |                 |          |                ",
+    "padded legacy reads as false     |          |                 | ' true ' |                "
   })
   void resolvesConfigurationSource(
       final String enabled, final String source, final String legacy, final String resolved) {
@@ -88,18 +90,33 @@ class SettingsTest {
   }
 
   @TableTest({
-    "scenario | value | interval",
-    "valid    | '10'  | 10      ",
-    "zero     | '0'   | 30      ",
-    "negative | '-5'  | 30      ",
-    "invalid  | 'ten' | 30      ",
-    "blank    | ' '   | 30      "
+    "scenario | value  | interval",
+    "valid    | '10'   | 10      ",
+    "zero     | '0'    | 30      ",
+    "negative | '-5'   | 30      ",
+    "invalid  | 'ten'  | 30      ",
+    "blank    | ' '    | 30      ",
+    "padded   | ' 10 ' | 30      "
   })
   void fallsBackToDefaultPollIntervalOnInvalidValues(final String value, final int interval) {
     assertEquals(
         interval,
         TestSettings.of("feature.flags.configuration.source.agentless.poll.interval.seconds", value)
             .agentlessPollIntervalSeconds());
+  }
+
+  @Test
+  void fallsBackToLowerPrioritySourcesOnBlankOrInvalidValues() {
+    final Map<String, String> properties = new HashMap<>();
+    properties.put("dd.flagging.evaluation.counts.enabled", " ");
+    properties.put("dd.feature.flags.configuration.source.agentless.poll.interval.seconds", "ten");
+    final Map<String, String> environment = new HashMap<>();
+    environment.put("DD_FLAGGING_EVALUATION_COUNTS_ENABLED", "false");
+    environment.put("DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS", "10");
+    final Settings settings = new Settings(Connector.NONE, properties::get, environment::get);
+
+    assertFalse(settings.isEvaluationCountsEnabled());
+    assertEquals(10, settings.agentlessPollIntervalSeconds());
   }
 
   @Test
