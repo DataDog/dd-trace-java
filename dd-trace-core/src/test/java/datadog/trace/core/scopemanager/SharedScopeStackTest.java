@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
+import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
@@ -19,10 +21,12 @@ import datadog.trace.core.ScopeManagerTestBridge;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class SharedScopeStackTest extends DDCoreJavaSpecification {
   private static final ContextKey<String> KEY = ContextKey.named("shared-scope-stack-test");
@@ -98,6 +102,129 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
           assertEquals(1, scopeManager.scopeStack().depth());
           scopeManager.swap(original);
         });
+  }
+
+  @Test
+  void sharedContextReadsTheLiveTopAndDerivesIndependentContexts() throws Exception {
+    ContextKey<String> extra = ContextKey.named("shared-context-extra");
+    Context shared = scopeManager.sharedContextStack(base);
+    Context before = shared.with(extra, "before");
+    AtomicReference<ContextScope> opened = new AtomicReference<>();
+
+    runOnNewThread(
+        () -> {
+          Context original = scopeManager.swap(shared);
+          opened.set(scopeManager.attach(base.with(KEY, "opened")));
+          scopeManager.swap(original);
+        });
+
+    assertEquals("opened", shared.get(KEY));
+    assertNull(shared.get(extra));
+    assertEquals("base", before.get(KEY));
+    assertEquals("before", before.get(extra));
+    Context after = shared.with(extra, "after");
+    assertEquals("opened", after.get(KEY));
+    assertEquals("after", after.get(extra));
+
+    runOnNewThread(
+        () -> {
+          Context original = scopeManager.swap(shared);
+          opened.get().close();
+          scopeManager.swap(original);
+        });
+
+    assertEquals("base", shared.get(KEY));
+    assertNull(shared.get(extra));
+    assertEquals("opened", after.get(KEY));
+  }
+
+  @Test
+  void overdueSharedRootIsRemovedBeforeAnotherWorkerRuns() throws Exception {
+    Context shared = scopeManager.sharedContextStack(Context.root());
+    AgentSpan iteration = tracer.buildSpan("test", "iteration").start();
+    AtomicInteger closes = new AtomicInteger();
+    scopeManager.addScopeListener(
+        new ScopeListener() {
+          @Override
+          public void afterScopeActivated() {}
+
+          @Override
+          public void afterScopeClosed() {
+            closes.incrementAndGet();
+          }
+        });
+
+    runOnNewThread(
+        () -> {
+          Context original = scopeManager.swap(shared);
+          ScopeStack stack = scopeManager.scopeStack();
+          ContinuableScope root =
+              new ContinuableScope(
+                  scopeManager, iteration, ContinuableScope.ITERATION, true, Stateful.DEFAULT);
+          stack.push(root);
+          assertSame(iteration, scopeManager.activeSpan());
+          // simulate the cleaner marking an expired root, without scheduling its background timer
+          stack.overdueRootScope = root;
+          iteration.finishWithEndToEnd();
+          assertNull(scopeManager.active());
+          stack.cleanup();
+          assertNull(stack.overdueRootScope);
+          scopeManager.swap(original);
+        });
+
+    runOnNewThread(
+        () -> {
+          Context original = scopeManager.swap(shared);
+          assertNull(scopeManager.scopeStack().top());
+          assertNull(scopeManager.active());
+          assertEquals(0, scopeManager.scopeStack().depth());
+          assertSame(Context.root(), scopeManager.currentContext());
+          scopeManager.swap(original);
+        });
+    assertEquals(1, closes.get());
+  }
+
+  @TableTest({
+    "Scenario    | Parent present",
+    "Active only | false         ",
+    "With parent | true          "
+  })
+  void savedContextRestoresAnIndependentStackOnAnotherThread(boolean parentPresent)
+      throws Exception {
+    ContextScope parent = parentPresent ? scopeManager.attach(base) : null;
+    Context activeContext = base.with(KEY, "active");
+    ContextScope active = scopeManager.attach(activeContext);
+    ScopeStack source = scopeManager.scopeStack();
+    Context saved = scopeManager.swap(Context.root());
+
+    try {
+      runOnNewThread(
+          () -> {
+            Context original = scopeManager.swap(saved);
+            try {
+              ScopeStack restored = scopeManager.scopeStack();
+              assertNotSame(source, restored);
+              assertSame(active, restored.top());
+              assertSame(parent, restored.parent());
+              assertEquals(parentPresent ? 2 : 1, restored.depth());
+              assertSame(activeContext, scopeManager.currentContext());
+              try (ContextScope child = scopeManager.attach(base.with(KEY, "worker"))) {
+                assertEquals("worker", scopeManager.currentContext().get(KEY));
+                assertSame(active, source.top());
+                assertEquals(parentPresent ? 2 : 1, source.depth());
+              }
+              assertSame(activeContext, scopeManager.currentContext());
+            } finally {
+              scopeManager.swap(original);
+            }
+          });
+    } finally {
+      scopeManager.swap(saved);
+      active.close();
+      if (parent != null) {
+        parent.close();
+      }
+    }
   }
 
   @Test
@@ -293,6 +420,33 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
           scopeManager.swap(token.get());
           assertNull(scopeManager.active());
         });
+  }
+
+  @Test
+  void reusedThreadTokenReadsItsOwnLiveStack() {
+    ContextKey<String> extra = ContextKey.named("thread-token-extra");
+    Context shared = scopeManager.sharedContextStack(base.with(KEY, "coroutine"));
+    ContextScope parentScope = scopeManager.attach(base);
+    Context token = scopeManager.swap(shared);
+
+    assertEquals("coroutine", scopeManager.currentContext().get(KEY));
+    assertEquals("base", token.get(KEY));
+    Context captured = token.with(extra, "captured");
+    assertEquals("base", captured.get(KEY));
+    assertEquals("captured", captured.get(extra));
+    assertNull(token.get(extra));
+
+    scopeManager.swap(token);
+    ContextScope childScope = scopeManager.attach(base.with(KEY, "child"));
+    Context reused = scopeManager.swap(shared);
+    assertSame(token, reused);
+    assertEquals("child", token.get(KEY));
+    assertEquals("base", captured.get(KEY));
+
+    scopeManager.swap(reused);
+    childScope.close();
+    parentScope.close();
+    assertNull(token.get(KEY));
   }
 
   @Test
