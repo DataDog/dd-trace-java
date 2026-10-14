@@ -2953,12 +2953,11 @@ public class Config {
           FEATURE_FLAGS_ENABLED,
           FEATURE_FLAGS_CONFIGURATION_SOURCE);
     }
-    final String featureFlaggingConfigurationSource =
-        instrumenterConfig.getFeatureFlaggingConfigurationSource();
-    if (!InstrumenterConfig.isSupportedFeatureFlaggingSource(featureFlaggingConfigurationSource)) {
+    if (instrumenterConfig.getFeatureFlaggingConfigurationSource()
+        == FeatureFlaggingSource.INVALID) {
       log.warn(
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
-          featureFlaggingConfigurationSource);
+          configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE));
     }
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
@@ -4926,7 +4925,8 @@ public class Config {
   }
 
   public String getFeatureFlaggingConfigurationSource() {
-    return instrumenterConfig.getFeatureFlaggingConfigurationSource();
+    final FeatureFlaggingSource source = instrumenterConfig.getFeatureFlaggingConfigurationSource();
+    return source == FeatureFlaggingSource.UNSET ? null : source.name().toLowerCase(Locale.ROOT);
   }
 
   public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {

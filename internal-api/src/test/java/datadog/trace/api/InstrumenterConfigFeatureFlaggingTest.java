@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.InstrumenterConfig.isSupportedFeatureFlaggingSource;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
@@ -13,24 +12,25 @@ import org.tabletest.junit.TableTest;
 class InstrumenterConfigFeatureFlaggingTest {
 
   @TableTest({
-    "scenario                  | enabled | source            | legacy  | resolvedEnabled | resolvedSource ",
-    "defaults                  |         |                   |         | true            | 'agentless'    ",
-    "blank source              |         | ' '               |         | true            | 'agentless'    ",
-    "legacy enabled            |         |                   | 'true'  | true            | 'remote_config'",
-    "legacy disabled           |         |                   | 'false' | false           |                ",
-    "source wins over legacy   |         | 'agentless'       | 'true'  | true            | 'agentless'    ",
-    "normalized source         |         | ' remote_CONFIG ' | 'false' | true            | 'remote_config'",
-    "disabled wins over source | 'false' | 'agentless'       | 'true'  | false           | 'agentless'    ",
-    "disabled without source   | 'false' |                   |         | false           |                ",
-    "unsupported source        |         | 'invalid'         |         | false           | 'invalid'      ",
-    "unsupported normalized    |         | ' OFFLINE '       | 'true'  | false           | 'offline'      "
+    "scenario                  | enabled | source          | legacy  | resolvedEnabled | resolvedSource",
+    "defaults                  |         |                 |         | true            | AGENTLESS     ",
+    "blank source              |         | ' '             |         | true            | AGENTLESS     ",
+    "legacy enabled            |         |                 | 'true'  | true            | REMOTE_CONFIG ",
+    "legacy disabled           |         |                 | 'false' | false           | UNSET         ",
+    "source wins over legacy   |         | 'agentless'     | 'true'  | true            | AGENTLESS     ",
+    "case insensitive source   |         | 'Remote_Config' | 'false' | true            | REMOTE_CONFIG ",
+    "disabled wins over source | 'false' | 'agentless'     | 'true'  | false           | AGENTLESS     ",
+    "disabled without source   | 'false' |                 |         | false           | UNSET         ",
+    "unsupported source        |         | 'offline'       | 'true'  | false           | INVALID       ",
+    "padded source             |         | ' agentless '   |         | false           | INVALID       ",
+    "unset is not a value      |         | 'unset'         |         | false           | INVALID       "
   })
   void resolvesFeatureFlagging(
       final String enabled,
       final String source,
       final String legacy,
       final boolean resolvedEnabled,
-      final String resolvedSource) {
+      final FeatureFlaggingSource resolvedSource) {
     final Properties properties = new Properties();
     if (enabled != null) {
       properties.setProperty(FEATURE_FLAGS_ENABLED, enabled);
@@ -47,16 +47,5 @@ class InstrumenterConfigFeatureFlaggingTest {
 
     assertEquals(resolvedEnabled, config.isFeatureFlaggingEnabled());
     assertEquals(resolvedSource, config.getFeatureFlaggingConfigurationSource());
-  }
-
-  @TableTest({
-    "scenario      | source          | supported",
-    "absent        |                 | true     ",
-    "agentless     | 'agentless'     | true     ",
-    "remote config | 'remote_config' | true     ",
-    "unsupported   | 'offline'       | false    "
-  })
-  void recognizesSupportedSources(final String source, final boolean supported) {
-    assertEquals(supported, isSupportedFeatureFlaggingSource(source));
   }
 }
