@@ -41,6 +41,15 @@ class DirectIntakeTransportTest {
   }
 
   @Test
+  void rejectsInvalidSite() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            DirectIntakeTransport.create(
+                TestSettings.of("api-key", "secret", "site", "datadoghq.com@other.example")));
+  }
+
+  @Test
   void postsJsonWithApiKeyAndTraceHeaders() throws Exception {
     this.server.enqueue(202, null);
 

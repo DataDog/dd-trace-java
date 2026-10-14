@@ -285,13 +285,17 @@ public final class CdnConfigurationSource implements ConfigurationService {
       throw new IllegalArgumentException(
           "Invalid Feature Flags configuration source URL: " + configuredBaseUrl, e);
     }
-    if (parsed.getScheme() == null || parsed.getHost() == null) {
+    final String scheme = parsed.getScheme();
+    if ((!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
+        || parsed.getHost() == null) {
       throw new IllegalArgumentException(
           "Invalid Feature Flags configuration source URL: " + configuredBaseUrl);
     }
     final String path = parsed.getRawPath();
     if (path == null || path.isEmpty() || "/".equals(path)) {
-      return parsed.resolve(UFC_RULES_BASED_SERVER_PATH);
+      final String query = parsed.getRawQuery();
+      return parsed.resolve(
+          query == null ? UFC_RULES_BASED_SERVER_PATH : UFC_RULES_BASED_SERVER_PATH + "?" + query);
     }
     return parsed;
   }
@@ -301,7 +305,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   }
 
   private static String managedHost(final Settings settings) {
-    return "ufc-server.ff-cdn." + settings.site();
+    return SiteHost.of("ufc-server.ff-cdn", settings.site());
   }
 
   static long retryDelayMillis(
