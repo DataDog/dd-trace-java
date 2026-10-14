@@ -2,11 +2,13 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class MatchesExpression implements BooleanExpression {
@@ -93,5 +95,19 @@ public class MatchesExpression implements BooleanExpression {
     public String toString() {
       return s;
     }
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    MatchesExpression that = (MatchesExpression) o;
+    return Objects.equals(sourceString, that.sourceString) && Objects.equals(str, that.str);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(sourceString, str);
   }
 }
