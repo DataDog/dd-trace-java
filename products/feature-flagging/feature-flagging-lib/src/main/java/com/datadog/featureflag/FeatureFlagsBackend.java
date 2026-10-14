@@ -1,7 +1,7 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
+import static datadog.trace.api.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
