@@ -964,6 +964,76 @@ class HashtableTest {
     }
 
     @Test
+    void removeMatchingForgetsTheEvictionCursorItPointsAt() {
+      Hashtable.State<CollidingKeyEntry> source = Hashtable.createBounded(4);
+      CollidingKeyEntry tail = new CollidingKeyEntry(new CollidingKey("tail", 17), 2);
+      CollidingKeyEntry head = new CollidingKeyEntry(new CollidingKey("head", 17), 1);
+      assertTrue(Hashtable.insertHeadEntryFor(source, tail.keyHash, tail));
+      assertTrue(Hashtable.insertHeadEntryFor(source, head.keyHash, head));
+      // Leaves the cursor resuming after head.
+      assertSame(tail, Hashtable.evictOne(source, e -> e.value == 2));
+
+      assertSame(head, Hashtable.removeMatching(source, head.keyHash, e -> e == head));
+      assertEvictionStaysInTheSourceTable(source, head);
+    }
+
+    @Test
+    void d1RemoveAndReplaceForgetTheEvictionCursorTheyPointAt() {
+      for (boolean replace : new boolean[] {false, true}) {
+        Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
+            Hashtable.D1.createBounded(CollidingKeyEntry.class, 2);
+        CollidingKey tailKey = new CollidingKey("tail", 17);
+        CollidingKey headKey = new CollidingKey("head", 17);
+        assertTrue(table.insert(new CollidingKeyEntry(tailKey, 2)));
+        CollidingKeyEntry head = new CollidingKeyEntry(headKey, 1);
+        assertTrue(table.insert(head));
+        // Full: evicting the tail to make room leaves the cursor resuming after head.
+        assertNotNull(
+            table.tryGetOrCreateOrEvictOrNull(
+                new CollidingKey("added", 17),
+                k -> new CollidingKeyEntry(k, 3),
+                e -> e.value == 2));
+
+        if (replace) {
+          assertTrue(table.tryInsertOrReplace(new CollidingKeyEntry(headKey, 4)));
+        } else {
+          assertSame(head, table.remove(headKey));
+        }
+
+        // head now leads another table's chain; eviction here must not follow it there.
+        Hashtable.State<CollidingKeyEntry> destination = Hashtable.createBounded(4);
+        CollidingKeyEntry other = new CollidingKeyEntry(new CollidingKey("other", 17), 5);
+        assertTrue(Hashtable.insertHeadEntryFor(destination, other.keyHash, other));
+        assertTrue(Hashtable.insertHeadEntryFor(destination, head.keyHash, head));
+
+        assertNotNull(
+            table.tryGetOrCreateOrEvictOrNull(
+                new CollidingKey("fresh", 17),
+                k -> new CollidingKeyEntry(k, 6),
+                e -> e.value != 6));
+        assertEquals(2, Hashtable.estimateSize(destination), "replace=" + replace);
+        List<CollidingKeyEntry> inDestination = new ArrayList<>();
+        Hashtable.forEach(destination, inDestination::add);
+        assertTrue(inDestination.contains(other), "replace=" + replace);
+      }
+    }
+
+    /** {@code moved} left {@code source}; it now leads another table's chain. */
+    private void assertEvictionStaysInTheSourceTable(
+        Hashtable.State<CollidingKeyEntry> source, CollidingKeyEntry moved) {
+      Hashtable.State<CollidingKeyEntry> destination = Hashtable.createBounded(4);
+      CollidingKeyEntry other = new CollidingKeyEntry(new CollidingKey("other", 17), 3);
+      assertTrue(Hashtable.insertHeadEntryFor(destination, other.keyHash, other));
+      assertTrue(Hashtable.insertHeadEntryFor(destination, moved.keyHash, moved));
+
+      CollidingKeyEntry fresh = new CollidingKeyEntry(new CollidingKey("fresh", 17), 4);
+      assertTrue(Hashtable.insertHeadEntryFor(source, fresh.keyHash, fresh));
+
+      assertSame(fresh, Hashtable.evictOne(source, e -> true));
+      assertEquals(2, Hashtable.estimateSize(destination));
+    }
+
+    @Test
     void evictOneAdvancesCursorEvenWhenNothingMatches() {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);

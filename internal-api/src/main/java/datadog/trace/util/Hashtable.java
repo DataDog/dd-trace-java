@@ -208,7 +208,7 @@ public final class Hashtable {
         TEntry curEntry = iter.next();
         if (curEntry.matches(key)) {
           iter.remove();
-          this.sizeManager.decrement();
+          this.sizeManager.decrement(curEntry);
           return curEntry;
         }
       }
@@ -256,6 +256,7 @@ public final class Hashtable {
 
         if (curEntry.matches(newEntry.key)) {
           iter.replace(newEntry);
+          this.sizeManager.forget(curEntry);
           return true;
         }
       }
@@ -538,7 +539,7 @@ public final class Hashtable {
         TEntry curEntry = iter.next();
         if (curEntry.matches(key1, key2)) {
           iter.remove();
-          this.sizeManager.decrement();
+          this.sizeManager.decrement(curEntry);
           return curEntry;
         }
       }
@@ -566,6 +567,7 @@ public final class Hashtable {
 
         if (curEntry.matches(newEntry.key1, newEntry.key2)) {
           iter.replace(newEntry);
+          this.sizeManager.forget(curEntry);
           return true;
         }
       }
@@ -925,7 +927,7 @@ public final class Hashtable {
       TEntry curEntry = iter.next();
       if (matches.test(curEntry)) {
         iter.remove();
-        sizeManager.decrement();
+        sizeManager.decrement(curEntry);
         return curEntry;
       }
     }
@@ -1363,6 +1365,23 @@ public final class Hashtable {
     /** Call after successfully unlinking an entry. */
     public void decrement() {
       this.size -= 1;
+    }
+
+    /**
+     * Call after successfully unlinking {@code unlinked}. Prefer this to {@link #decrement()}: if
+     * the eviction scan was saved on {@code unlinked}, the scan restarts at that bucket's head, so
+     * it cannot follow the entry into another table the caller links it into.
+     */
+    public void decrement(@Nonnull Hashtable.Entry unlinked) {
+      this.size -= 1;
+      forget(unlinked);
+    }
+
+    /** Drops the saved scan position when it is {@code unlinked}, an entry leaving the table. */
+    void forget(@Nonnull Hashtable.Entry unlinked) {
+      if (unlinked == this.cursorPrev) {
+        this.cursorPrev = null;
+      }
     }
 
     /** Zeroes both the live count and the eviction scan position. */
