@@ -11,10 +11,10 @@ spotbugs_annotations = "4.10.4"
 
 # Source code formatters
 google-java-format = "1.36.1"
-greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
+greclipse = "4.27"  # Pinned to preserve Spock table alignment and compact closure formatting.
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
-spotless = "8.10.3"
+spotless = "8.10.4"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks

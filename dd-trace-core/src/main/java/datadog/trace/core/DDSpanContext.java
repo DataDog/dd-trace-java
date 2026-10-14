@@ -15,6 +15,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
@@ -612,9 +613,10 @@ public class DDSpanContext
    * earlier decorator) wins. Because it never clobbers, {@code apply} is order-independent and
    * self-neutralizes once construction has already seeded the same prototype.
    *
-   * <p>This is the shared seam for both the construction path ({@code CoreSpanBuilder}) and
-   * decorator {@code afterStart} (via {@link DDSpan#apply}). The context owns the tag map, so the
-   * eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
+   * <p>This is the construction-time seam ({@code CoreSpanBuilder}) -- see {@link
+   * #applyOverwriting} for the decorator {@code afterStart} seam (via {@link
+   * DDSpan#applyOverwriting}), which needs different precedence. The context owns the tag map, so
+   * the eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
    * identity short-circuit will land here -- deferred to the dense-store / tag-registry work, which
    * exposes intercept status at the internal-api level. Until then the constant tags route through
    * the interceptor, identical to the per-tag calls this replaces.
@@ -632,6 +634,26 @@ public class DDSpanContext
       if (integrationName != null) {
         setIntegrationName(integrationName);
       }
+    }
+  }
+
+  /**
+   * Applies a {@link SpanPrototype} unconditionally: stamps its span type, constant tags, and
+   * integration name over whatever is already present. This is the decorator {@code afterStart}
+   * seam -- see {@link datadog.trace.bootstrap.instrumentation.api.AgentSpan#applyOverwriting} for
+   * why it needs different precedence than {@link #apply}.
+   */
+  public void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    final CharSequence spanType = prototype.spanType();
+    if (spanType != null) {
+      setSpanType(spanType);
+    }
+    final TagMap tags = prototype.tags();
+    setAllTags(tags, true);
+    tagInterceptor.resolveSplitByTagsPrecedence(this, tags);
+    final CharSequence integrationName = prototype.integrationName();
+    if (integrationName != null) {
+      setIntegrationName(integrationName);
     }
   }
 
@@ -1001,6 +1023,22 @@ public class DDSpanContext
   }
 
   /**
+   * Removes a known tag by id, rather than by its name, which need not resolve back to the id. An
+   * id that names no known tag is ignored, like the id-keyed setters do.
+   */
+  public void removeTag(long tagId) {
+    if (KnownTagCodec.nameOf(tagId) == null) {
+      return;
+    }
+    if (tagId == KnownTags.SPAN_KIND_ID) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    synchronized (unsafeTags) {
+      unsafeTags.getAndRemove(tagId);
+    }
+  }
+
+  /**
    * Sets a tag to the span. Tags are not propagated to the children.
    *
    * <p>Existing tag value with the same value will be replaced. Setting a tag with a {@code null}
@@ -1031,6 +1069,109 @@ public class DDSpanContext
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  /*
+   * Id-keyed setters, mirroring the String setters above: interception still runs on the tag's
+   * name (TagInterceptor is name-keyed), but a stored tag is set by id, skipping the name lookup.
+   * An id that names no known tag is ignored, like a null tag.
+   */
+  public void setTag(final long tagId, final Object value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final CharSequence value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final boolean value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final int value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final long value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final float value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final double value) {
+    final String tag = KnownTagCodec.nameOf(tagId);
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
       }
     }
   }
@@ -1110,10 +1251,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
