@@ -19,7 +19,9 @@ import kotlinx.coroutines.ThreadContextElement;
 import kotlinx.coroutines.internal.ScopeCoroutine;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
-public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
+public final class DatadogThreadContextElement
+    implements ThreadContextElement<Context>,
+        Function2<CoroutineContext, CoroutineContext.Element, CoroutineContext> {
   private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation>
       CONTINUATION =
           AtomicReferenceFieldUpdater.newUpdater(
@@ -51,9 +53,13 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
         new DatadogThreadContextElement(
             existing.context, existing.traceKeptOpenFor(coroutineContext.get(Job.Key)));
     // keep the element's position, so elements added after it can still update scopes on top
-    return coroutineContext.<CoroutineContext>fold(
-        EmptyCoroutineContext.INSTANCE,
-        (replaced, element) -> replaced.plus(element == existing ? fresh : element));
+    return coroutineContext.fold(EmptyCoroutineContext.INSTANCE, fresh);
+  }
+
+  /** Rebuilds the context using this replacement element, avoiding a capturing fold lambda. */
+  @Override
+  public CoroutineContext invoke(CoroutineContext rebuilt, CoroutineContext.Element element) {
+    return rebuilt.plus(element.getKey() == DATADOG_KEY ? this : element);
   }
 
   // only needed until the initial context is captured; cleared so a long-lived child doesn't keep

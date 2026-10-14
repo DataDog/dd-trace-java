@@ -58,4 +58,6 @@ dependencies {
 
   testFixturesCompileOnly(libs.bundles.groovy)
   testFixturesCompileOnly(libs.bundles.spock)
+  testFixturesCompileOnly libs.junit.jupiter
+  testFixturesCompileOnly libs.tabletest
 }
