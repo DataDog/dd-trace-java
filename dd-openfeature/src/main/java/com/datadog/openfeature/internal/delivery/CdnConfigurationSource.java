@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -52,11 +53,12 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private final DoubleSupplier jitter;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean polling = new AtomicBoolean();
+  private final CountDownLatch closedSignal = new CountDownLatch(1);
+  private HttpCall<byte[]> activeCall;
   private volatile Consumer<ServerConfiguration> listener;
   private volatile boolean closed;
   private volatile boolean started;
   private volatile ScheduledFuture<?> scheduledPoll;
-  private volatile Thread pollingThread;
   private volatile String etag;
   private long lastWarningNanos;
 
@@ -72,7 +74,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
             .build(),
         Executors.newSingleThreadScheduledExecutor(
             task -> services.newThread("configuration", task)),
-        TimeUnit.MILLISECONDS::sleep,
+        null,
         () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER));
   }
 
@@ -83,7 +85,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final Duration requestTimeout,
       final HttpClient httpClient,
       final ScheduledExecutorService executor,
-      final Retries.Sleeper retrySleeper,
+      @Nullable final Retries.Sleeper retrySleeper,
       final DoubleSupplier jitter) {
     this.endpoint = endpoint;
     this.apiKey = apiKey;
@@ -91,7 +93,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
     this.requestTimeout = requestTimeout;
     this.httpClient = httpClient;
     this.executor = executor;
-    this.retrySleeper = retrySleeper;
+    this.retrySleeper =
+        retrySleeper != null
+            ? retrySleeper
+            : delay -> this.closedSignal.await(delay, TimeUnit.MILLISECONDS);
     this.jitter = jitter;
   }
 
@@ -122,6 +127,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   @Override
   public void close() {
     final ScheduledFuture<?> poll;
+    final HttpCall<byte[]> call;
     synchronized (this.lifecycleLock) {
       if (this.closed) {
         return;
@@ -129,13 +135,15 @@ public final class CdnConfigurationSource implements ConfigurationService {
       this.closed = true;
       poll = this.scheduledPoll;
       this.scheduledPoll = null;
+      call = this.activeCall;
+      this.activeCall = null;
+    }
+    this.closedSignal.countDown();
+    if (call != null) {
+      call.cancel();
     }
     if (poll != null) {
       poll.cancel(true);
-    }
-    final Thread activePollingThread = this.pollingThread;
-    if (activePollingThread != null) {
-      activePollingThread.interrupt();
     }
     this.executor.shutdownNow();
   }
@@ -154,11 +162,12 @@ public final class CdnConfigurationSource implements ConfigurationService {
     if (this.closed || !this.polling.compareAndSet(false, true)) {
       return false;
     }
-    this.pollingThread = Thread.currentThread();
     try {
       return fetchAndApply();
     } finally {
-      this.pollingThread = null;
+      synchronized (this.lifecycleLock) {
+        this.activeCall = null;
+      }
       this.polling.set(false);
     }
   }
@@ -232,12 +241,23 @@ public final class CdnConfigurationSource implements ConfigurationService {
   }
 
   private HttpResponse<byte[]> fetchWithRetries() throws IOException, InterruptedException {
+    final HttpRequest request = buildRequest();
     return Retries.send(
-        this.httpClient,
-        buildRequest(),
-        HttpResponse.BodyHandlers.ofByteArray(),
+        () -> {
+          synchronized (this.lifecycleLock) {
+            if (this.closed) {
+              throw new IOException("Feature Flags configuration source is closed");
+            }
+            this.activeCall =
+                new HttpCall<>(this.httpClient, request, HttpResponse.BodyHandlers.ofByteArray());
+            return this.activeCall;
+          }
+        },
+        (response, attempt) ->
+            response == null || isRetryableStatus(response.statusCode())
+                ? retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble())
+                : -1,
         MAX_ATTEMPTS,
-        attempt -> retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble()),
         this.retrySleeper,
         () -> this.closed);
   }

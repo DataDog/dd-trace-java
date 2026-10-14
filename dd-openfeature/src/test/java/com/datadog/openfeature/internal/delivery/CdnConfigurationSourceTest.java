@@ -29,12 +29,15 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.tabletest.junit.TableTest;
 
 class CdnConfigurationSourceTest {
@@ -419,8 +422,9 @@ class CdnConfigurationSourceTest {
   }
 
   @Test
-  void closeInterruptsRetryBackoff() throws Exception {
+  void closeWakesRetryBackoffWithoutInterruptingCaller() throws Exception {
     this.server.otherwise(503, null);
+    final CountDownLatch backoff = new CountDownLatch(1);
     final CdnConfigurationSource source =
         new CdnConfigurationSource(
             this.server.uri("/ufc"),
@@ -429,19 +433,105 @@ class CdnConfigurationSourceTest {
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
             mock(ScheduledExecutorService.class),
-            MILLISECONDS::sleep,
-            () -> 1.0);
-    final boolean[] result = {true};
-    final Thread poller = new Thread(() -> result[0] = source.pollOnce());
+            null,
+            () -> {
+              backoff.countDown();
+              return 1.0;
+            });
+    final boolean[] result = {true, true};
+    final Thread poller =
+        new Thread(
+            () -> {
+              result[0] = source.pollOnce();
+              result[1] = Thread.currentThread().isInterrupted();
+            });
+    poller.setDaemon(true);
     poller.start();
-    this.server.received().poll(5, SECONDS);
+    try {
+      assertTrue(backoff.await(5, SECONDS));
+      source.close();
+      poller.join(SECONDS.toMillis(5));
 
-    source.close();
-    poller.join(SECONDS.toMillis(5));
+      assertFalse(poller.isAlive(), "close must wake the retry backoff");
+      assertFalse(result[0]);
+      assertFalse(result[1], "close must not interrupt the caller");
+      assertEquals(1, this.server.requests().size());
+    } finally {
+      source.close();
+      poller.interrupt();
+      poller.join(SECONDS.toMillis(5));
+    }
+  }
 
-    assertFalse(poller.isAlive(), "close must interrupt the retry backoff");
-    assertFalse(result[0]);
-    assertEquals(1, this.server.requests().size());
+  @Test
+  @Timeout(15)
+  void stalledBodyDoesNotBlockPollingIndefinitely() throws Exception {
+    try (StallingHttpServer stalled = new StallingHttpServer(true)) {
+      final CdnConfigurationSource source =
+          new CdnConfigurationSource(
+              stalled.uri(),
+              null,
+              POLL_INTERVAL_MILLIS,
+              Duration.ofMillis(500),
+              HttpClient.newHttpClient(),
+              mock(ScheduledExecutorService.class),
+              this.sleeps::add,
+              () -> 1.0);
+      final FutureTask<Boolean> polling = new FutureTask<>(source::pollOnce);
+      final Thread caller = new Thread(polling, "configuration-poll");
+      caller.setDaemon(true);
+      caller.start();
+      try {
+        stalled.awaitRequest();
+
+        assertFalse(polling.get(5, SECONDS));
+        assertTrue(stalled.awaitDisconnect());
+        assertEquals(CdnConfigurationSource.MAX_ATTEMPTS - 1, this.sleeps.size());
+      } finally {
+        source.close();
+        polling.cancel(true);
+        caller.join(SECONDS.toMillis(5));
+      }
+    }
+  }
+
+  @Test
+  @Timeout(15)
+  void closeCancelsInitialPollWithoutInterruptingCaller() throws Exception {
+    try (StallingHttpServer stalled = new StallingHttpServer(true)) {
+      final CdnConfigurationSource source =
+          new CdnConfigurationSource(
+              stalled.uri(),
+              null,
+              POLL_INTERVAL_MILLIS,
+              Duration.ofMinutes(1),
+              HttpClient.newHttpClient(),
+              mock(ScheduledExecutorService.class),
+              null,
+              () -> 1.0);
+      final FutureTask<Boolean> initialization =
+          new FutureTask<>(
+              () -> {
+                source.start(this.dispatched::add);
+                return Thread.currentThread().isInterrupted();
+              });
+      final Thread caller = new Thread(initialization, "provider-initialization");
+      caller.setDaemon(true);
+      caller.start();
+      try {
+        stalled.awaitRequest();
+        source.close();
+
+        assertFalse(initialization.get(5, SECONDS), "close must not interrupt initialization");
+        assertTrue(stalled.awaitDisconnect());
+        assertTrue(this.dispatched.isEmpty());
+        assertFalse(source.pollOnce());
+      } finally {
+        source.close();
+        initialization.cancel(true);
+        caller.join(SECONDS.toMillis(5));
+      }
+    }
   }
 
   private CdnConfigurationSource source() {

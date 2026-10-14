@@ -6,10 +6,12 @@ import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.connector.EventTransport;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -75,11 +77,11 @@ public final class DirectIntakeTransport implements EventTransport {
     try {
       status =
           Retries.send(
-                  this.httpClient,
-                  request,
-                  HttpResponse.BodyHandlers.discarding(),
+                  () ->
+                      new HttpCall<>(
+                          this.httpClient, request, HttpResponse.BodyHandlers.discarding()),
+                  new IntakeRetryPolicy(),
                   MAX_RETRIES + 1,
-                  attempt -> INITIAL_RETRY_DELAY_MILLIS << (attempt - 1),
                   this.retrySleeper,
                   () -> false)
               .statusCode();
@@ -89,6 +91,46 @@ public final class DirectIntakeTransport implements EventTransport {
     }
     if (status < 200 || status >= 300) {
       throw new IOException("Request to " + route + " returned error response " + status);
+    }
+  }
+
+  private static final class IntakeRetryPolicy implements Retries.Policy {
+    private boolean rateLimitRetry;
+
+    @Override
+    public boolean shouldRetry(final IOException error) {
+      return error instanceof ConnectException || error instanceof HttpTimeoutException;
+    }
+
+    @Override
+    public long retryDelayMillis(@Nullable final HttpResponse<?> response, final int attempt) {
+      if (this.rateLimitRetry) {
+        return -1;
+      }
+      if (response != null) {
+        final int status = response.statusCode();
+        if (status == 429) {
+          final String reset = response.headers().firstValue("X-RateLimit-Reset").orElse(null);
+          if (reset != null) {
+            try {
+              final long seconds = Long.parseLong(reset);
+              if (seconds > 10) {
+                return -1;
+              }
+              if (seconds >= 0) {
+                this.rateLimitRetry = true;
+                return TimeUnit.SECONDS.toMillis(seconds)
+                    + ThreadLocalRandom.current().nextInt(401);
+              }
+            } catch (final NumberFormatException ignored) {
+              // An invalid reset header falls back to exponential backoff.
+            }
+          }
+        } else if (status < 500 || status > 599) {
+          return -1;
+        }
+      }
+      return INITIAL_RETRY_DELAY_MILLIS << (attempt - 1);
     }
   }
 }
