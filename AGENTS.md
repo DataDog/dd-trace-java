@@ -77,6 +77,9 @@ docs/                     Developer documentation (see below)
 
 ## Review Guidelines
 
+Run `./review.sh` before pushing. It runs your harness's code review over the branch changes against these guidelines, then `/perf-review`. It is advisory: findings are printed and nothing is enforced. Use `./review.sh --help` for options.
+
+- **Correctness**: the review applies the [Critical constraints](#critical-constraints) below and the docs they link.
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
 
