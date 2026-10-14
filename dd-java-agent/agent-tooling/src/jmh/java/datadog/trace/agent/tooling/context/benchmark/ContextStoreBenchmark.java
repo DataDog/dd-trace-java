@@ -28,6 +28,10 @@ import org.openjdk.jmh.infra.ThreadParams;
  * <p>The advice uses the instrumented {@code this} as the context key, so once the store access is
  * inlined C2 knows the exact key type and binds the injected accessor statically. Results therefore
  * don't depend on how many other key types have been seen by the shared store code.
+ *
+ * <p>Run with {@code -t 1} for a baseline and {@code -t 16} to measure allocation and contention
+ * with multiple threads. When running through Gradle, use {@code -Pjmh.threads=1} and {@code
+ * -Pjmh.threads=16}, respectively.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(NANOSECONDS)

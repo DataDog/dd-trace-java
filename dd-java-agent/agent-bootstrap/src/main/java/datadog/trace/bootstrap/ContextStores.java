@@ -2,7 +2,10 @@ package datadog.trace.bootstrap;
 
 import datadog.trace.api.InstrumenterConfig;
 
-/** Allocates {@link ContextStore}s. */
+/**
+ * Selects the runtime {@link ContextStore} factory and the descriptors used to rewrite store
+ * access.
+ */
 public final class ContextStores {
 
   // fast lookup available for fixed number of stores

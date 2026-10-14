@@ -16,7 +16,7 @@ public final class OtelMethodCallMapper extends MethodRemapper {
   private static final String VIRTUAL_FIELD_CLASS =
       "io/opentelemetry/javaagent/shaded/instrumentation/api/util/VirtualField";
 
-  private static final String CONTEXT_STORES_FACTORY_CLASS =
+  private static final String STORES_CLASS =
       Type.getType(ContextStores.STORES_DESCRIPTOR).getInternalName();
 
   private static final String GET_CONTENT_STORE_METHOD = "getContextStore";
@@ -94,14 +94,14 @@ public final class OtelMethodCallMapper extends MethodRemapper {
     if (storeId < FAST_STORE_ID_LIMIT) {
       mv.visitFieldInsn(
           Opcodes.GETSTATIC,
-          CONTEXT_STORES_FACTORY_CLASS,
+          STORES_CLASS,
           FAST_CONTENT_STORE_PREFIX + storeId,
           ContextStores.STORE_DESCRIPTOR);
     } else {
       mv.visitLdcInsn(storeId);
       mv.visitMethodInsn(
           Opcodes.INVOKESTATIC,
-          CONTEXT_STORES_FACTORY_CLASS,
+          STORES_CLASS,
           GET_CONTENT_STORE_METHOD,
           GET_CONTENT_STORE_METHOD_DESCRIPTOR,
           false);
