@@ -923,6 +923,23 @@ class HashtableTest {
     }
 
     @Test
+    void evictOneRevisitsTheCursorBucketsPrefixAfterAMidChainEviction() {
+      // Two entries in one bucket; insertHead puts the later one at the head of the chain.
+      Hashtable.State<CollidingKeyEntry> table = Hashtable.createBounded(4);
+      CollidingKeyEntry tail = new CollidingKeyEntry(new CollidingKey("tail", 17), 2);
+      CollidingKeyEntry head = new CollidingKeyEntry(new CollidingKey("head", 17), 1);
+      assertTrue(Hashtable.insertHeadEntryFor(table, tail.keyHash, tail));
+      assertTrue(Hashtable.insertHeadEntryFor(table, head.keyHash, head));
+
+      // Evicting the tail leaves the cursor resuming after the head, which was not evictable then.
+      assertSame(tail, Hashtable.evictOne(table, e -> e.value == 2));
+
+      // The head has become evictable since; the scan must still find it.
+      assertSame(head, Hashtable.evictOne(table, e -> e.value == 1));
+      assertEquals(0, Hashtable.estimateSize(table));
+    }
+
+    @Test
     void evictOneAdvancesCursorEvenWhenNothingMatches() {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);

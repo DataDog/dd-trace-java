@@ -1475,10 +1475,15 @@ public final class Hashtable {
     @Nullable
     public <TEntry extends Entry> TEntry evictOne(
         @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
-      Entry evicted =
-          evictOneInRange(buckets, evictable, this.cursor, buckets.length, this.cursorPrev);
-      if (evicted == null && this.cursor != 0) {
-        evicted = evictOneInRange(buckets, evictable, 0, this.cursor, null);
+      Entry resumeAfter = this.cursorPrev;
+      Entry evicted = evictOneInRange(buckets, evictable, this.cursor, buckets.length, resumeAfter);
+      if (evicted == null) {
+        // Wrap around. A mid-chain resume skipped the cursor bucket's prefix, whose entries may
+        // have become evictable since, so the wrap then covers that bucket again from its head.
+        int wrapEnd = resumeAfter != null ? this.cursor + 1 : this.cursor;
+        if (wrapEnd != 0) {
+          evicted = evictOneInRange(buckets, evictable, 0, wrapEnd, null);
+        }
       }
       if (evicted != null) {
         this.size -= 1;
