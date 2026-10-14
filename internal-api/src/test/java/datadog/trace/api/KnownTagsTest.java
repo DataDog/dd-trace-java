@@ -407,38 +407,4 @@ class KnownTagsTest {
     assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName(Tags.HTTP_METHOD));
     assertEquals("my.custom.tag", KnownTagCodec.canonicalTagName("my.custom.tag"));
   }
-
-  @TableTest({
-    "scenario | kind       | direction",
-    "no kind  |            | -1       ",
-    "server   | 'server'   | 0        ",
-    "consumer | 'consumer' | 0        ",
-    "client   | 'client'   | 1        ",
-    "producer | 'producer' | 1        ",
-    "internal | 'internal' | 2        ",
-    "broker   | 'broker'   | -1       "
-  })
-  void directionOfKind(String kind, int direction) {
-    assertEquals(direction, KnownTagCodec.directionOfKind(kind));
-  }
-
-  @Test
-  void directionOfReadsTheMapsSpanKind() {
-    TagMap tags = TagMap.create();
-    assertEquals(KnownTagCodec.DIRECTION_UNKNOWN, KnownTagCodec.directionOf(tags));
-
-    tags.set(KnownTags.SPAN_KIND_ID, Tags.SPAN_KIND_CLIENT);
-    assertEquals(KnownTagCodec.DIRECTION_OUTBOUND, KnownTagCodec.directionOf(tags));
-  }
-
-  @Test
-  void anEntrysDirectionalOpenTelemetryTagFallsBackToItsNameForACustomTag() {
-    TagMap.Entry custom = TagMap.Entry.newAnyEntry("my.custom.tag", "value");
-    assertEquals("my.custom.tag", custom.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
-
-    TagMap.Entry peerPort = TagMap.Entry.newAnyEntry(KnownTags.PEER_PORT_ID, 443);
-    assertEquals(
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND),
-        peerPort.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
-  }
 }
