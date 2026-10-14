@@ -101,7 +101,7 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
   public static final class Cancel {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(@Advice.This Object task, @Advice.Return boolean cancelled) {
-      // Failed cancellation leaves execution owning the captured context.
+      // Release the captured context only when cancellation actually succeeded
       if (cancelled && task instanceof RunnableFuture) {
         cancelTask(
             InstrumentationContext.get(RunnableFuture.class, State.class),
