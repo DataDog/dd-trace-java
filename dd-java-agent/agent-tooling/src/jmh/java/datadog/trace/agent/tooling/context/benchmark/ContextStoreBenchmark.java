@@ -18,6 +18,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.ThreadParams;
 
@@ -38,6 +39,7 @@ import org.openjdk.jmh.infra.ThreadParams;
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Fork(2)
+@Threads(8)
 public class ContextStoreBenchmark {
   @Benchmark
   public int fieldInjectedRead(Keys keys) {

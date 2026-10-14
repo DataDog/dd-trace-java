@@ -23,6 +23,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
@@ -97,6 +98,7 @@ import org.openjdk.jmh.runner.IterationType;
 // spans several 1s stale-entry cleaner sweeps, so each iteration sees a similar amount of cleanup
 @Measurement(iterations = 5, time = 3)
 @Fork(2)
+@Threads(8)
 public class ContextStoreWorkloadBenchmark {
   static final int INJECTED = 0;
   static final int PARTIAL = 1;
