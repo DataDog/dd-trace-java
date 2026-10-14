@@ -54,6 +54,12 @@ public class TagInterceptor {
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
   private final String inferredServiceName;
+
+  /** Decorator identity tags in split-by-tags precedence order, highest first. */
+  private static final String[] PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE = {
+    Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY
+  };
+
   private final Set<String> splitServiceTags;
 
   private final boolean shouldSet404ResourceName;
@@ -255,6 +261,30 @@ public class TagInterceptor {
     } else {
       span.setResourceName(
           HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+    }
+  }
+
+  /**
+   * Re-applies the split-by-tags service name from the highest-precedence identity tag in a
+   * decorator prototype that was just applied to {@code span}. The prototype's tags are intercepted
+   * in no particular order, so without this {@code language} could overwrite {@code component}. The
+   * precedence ({@code component} over {@code language}) mirrors the old sequential {@code setTag}
+   * calls in {@code ServerDecorator}/{@code BaseDecorator}. It is scoped to the one application:
+   * separate tag writes, before or after, stay last-writer-wins. ({@code span.kind} is not listed:
+   * its interception never reaches the split-by-tags check.)
+   */
+  public void resolveSplitByTagsPrecedence(DDSpanContext span, TagMap prototypeTags) {
+    if (splitServiceTags.isEmpty()) {
+      return;
+    }
+    for (String tag : PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE) {
+      if (splitServiceTags.contains(tag)) {
+        Object value = prototypeTags.getObject(tag);
+        if (value != null) {
+          span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
+          return;
+        }
+      }
     }
   }
 
