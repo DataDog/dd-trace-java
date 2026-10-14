@@ -9,6 +9,7 @@ import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
@@ -26,8 +27,7 @@ class MuzzlePlugin : Plugin<Project> {
    *
    * This function sets up the necessary configurations, dependencies, and tasks for muzzle validation.
    * It registers the muzzle extension, configures bootstrap/tooling dependencies, and sets up tasks for
-   * compiling, running, printing, and reporting muzzle checks. It also optimizes configuration overhead
-   * by only proceeding if relevant muzzle tasks are requested.
+   * compiling, running, printing, and reporting muzzle checks. Validation tasks are registered lazily.
    *
    * @param project The Gradle project to apply the plugin to.
    */
@@ -101,46 +101,22 @@ class MuzzlePlugin : Plugin<Project> {
     }
     project.publishMuzzleReport(report.flatMap { it.versionsFile })
 
-    val relevantTasks = project.gradle.startParameter.taskNames.filter { taskName ->
-      val taskProjectPath = taskName.substringBeforeLast(":", "")
-      val taskNameOnly = taskName.substringAfterLast(":")
-      val isAggregate = taskNameOnly.equals("runMuzzle", ignoreCase = true)
-      val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path ||
-        (isAggregate && project.path.startsWith("$taskProjectPath:"))
-
-      isRelevantForProject && !taskNameOnly.equals("compileMuzzle", ignoreCase = true) &&
-        taskNameOnly.endsWith("muzzle", ignoreCase = true)
-    }
-    if (relevantTasks.isEmpty()) {
-      // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
-      project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
-      return
-    }
-
-    // We only get here if we are running muzzle, so let's start timing things
-    val startTime = System.currentTimeMillis()
-
-    project.afterEvaluate {
-      if (relevantTasks.all { it.substringAfterLast(":").equals("runMuzzle", ignoreCase = true) } &&
-        !extension.includeInAggregate.get()) {
-        project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
-        return@afterEvaluate
-      }
+    val validationTasks = MuzzleValidationTasks(project.providers) {
+      val startTime = System.currentTimeMillis()
       val system = MuzzleMavenRepoUtils.newRepositorySystem()
       val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
       val taskPlanner = MuzzleTaskPlanner.from(system, session)
-      // use runAfter to set up task finalizers in version order
-      var runAfter: TaskProvider<MuzzleTask> = muzzleTask
-      val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
       val directives = project.extensions.getByType<MuzzleExtension>().directives
-      taskPlanner.plan(directives).forEach { plan ->
-        runAfter = registerMuzzleTask(plan.directive, plan.artifact, project, runAfter, muzzleBootstrap, muzzleTooling)
-        muzzleReportTasks.add(runAfter)
+      val checks = taskPlanner.plan(directives).map { plan ->
+        val check = registerMuzzleTask(plan.directive, plan.artifact, project, muzzleBootstrap, muzzleTooling)
         project.logger.info("configured ${plan.directive}")
+        check
       }
 
-      if (muzzleReportTasks.isEmpty() && !directives.any { it.assertPass }) {
-        muzzleReportTasks.add(muzzleTask)
+      val muzzleReportTasks = if (checks.isEmpty() && !directives.any { it.assertPass }) {
+        listOf(muzzleTask)
+      } else {
+        checks
       }
 
       val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
@@ -152,10 +128,17 @@ class MuzzlePlugin : Plugin<Project> {
         )
         muzzleResultFiles.from(muzzleReportTasks.map { it.flatMap { task -> task.result } })
       }
-      // last muzzle task to run
-      runAfter.configure {
-        finalizedBy(timingTask)
+
+      val executionChain: List<TaskProvider<out Task>> = checks + timingTask
+      executionChain.zipWithNext { current, next ->
+        current.configure { finalizedBy(next) }
       }
+
+      // Note this is unordered set, the execution order is configured via the finalizer relationships
+      setOf(executionChain.first().get())
+    }
+    muzzleTask.configure {
+      finalizedBy(validationTasks.tasks)
     }
   }
 
@@ -169,7 +152,6 @@ class MuzzlePlugin : Plugin<Project> {
      * @param muzzleDirective The directive describing the dependency and test parameters.
      * @param versionArtifact The artifact representing the dependency version to test (may be null when `muzzleDirective.coreJdk` is true).
      * @param instrumentationProject The Gradle project to register the task in.
-     * @param runAfterTask The task provider for the task that this muzzle task should run after.
      * @param muzzleBootstrap The configuration provider for agent bootstrap dependencies.
      * @param muzzleTooling The configuration provider for agent tooling dependencies.
      * @return The muzzle task provider.
@@ -178,7 +160,6 @@ class MuzzlePlugin : Plugin<Project> {
       muzzleDirective: MuzzleDirective,
       versionArtifact: Artifact?,
       instrumentationProject: Project,
-      runAfterTask: TaskProvider<MuzzleTask>,
       muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
       muzzleTooling: NamedDomainObjectProvider<Configuration>
     ): TaskProvider<MuzzleTask> {
@@ -246,9 +227,6 @@ class MuzzlePlugin : Plugin<Project> {
         this.muzzleTooling.set(muzzleTooling)
       }
 
-      runAfterTask.configure {
-        finalizedBy(muzzleTask)
-      }
       return muzzleTask
     }
   }
