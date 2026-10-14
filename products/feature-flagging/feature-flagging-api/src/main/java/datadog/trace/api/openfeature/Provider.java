@@ -87,7 +87,7 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(3);
+    final List<Hook> hooks = new ArrayList<>(4);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
@@ -100,6 +100,13 @@ public class Provider extends EventProvider implements Metadata {
       }
     } catch (LinkageError | Exception e) {
       // Keep older bootstrap/API combinations working: EVP recording is best-effort.
+    }
+    try {
+      if (ExposureLoggingHook.isEnabled()) {
+        hooks.add(new ExposureLoggingHook());
+      }
+    } catch (LinkageError | Exception e) {
+      log.debug("Exposure logging unavailable", e);
     }
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);

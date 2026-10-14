@@ -6,6 +6,11 @@ public class FeatureFlaggingConfig {
   public static final String CONFIGURATION_SOURCE_REMOTE_CONFIG = "remote_config";
 
   public static final String FEATURE_FLAGS_ENABLED = "feature.flags.enabled";
+
+  /** Controls only automatic Datadog exposure logging; customer hooks remain independent. */
+  public static final String FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED =
+      "feature.flags.exposures.datadog.logging.enabled";
+
   public static final String EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED =
       "experimental.flagging.provider.enabled";
 

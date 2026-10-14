@@ -21,18 +21,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/**
- * Drives the span-enrichment branch of {@link DDEvaluator}, which the ordinary test task cannot
- * reach: the gate is read once into a static final field at class load. The property is set here
- * rather than through {@code @WithConfig} because that extension rewrites {@code Config.INSTANCE},
- * which this module does not use, and the forked task gives this class its own JVM where nothing
- * has loaded the evaluator yet.
- */
-class DDEvaluatorSpanEnrichmentForkedTest {
-
-  static {
-    System.setProperty("dd.experimental.flagging.provider.span.enrichment.enabled", "true");
-  }
+/** Exposure metadata remains available independently of span enrichment and agent compatibility. */
+class DDEvaluatorExposureMetadataTest {
 
   @Test
   void enrichmentMetadataCarriesTheSplitSerialId() {
@@ -40,7 +30,7 @@ class DDEvaluatorSpanEnrichmentForkedTest {
 
     assertNotNull(
         result.getFlagMetadata().getBoolean(DDEvaluator.METADATA_DO_LOG),
-        "span enrichment must be on, or the assertions below pass vacuously");
+        "exposure metadata must be present even with span enrichment disabled");
     assertEquals(
         Integer.valueOf(340132),
         result.getFlagMetadata().getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
@@ -52,13 +42,13 @@ class DDEvaluatorSpanEnrichmentForkedTest {
    */
   @Test
   void enrichmentMetadataSurvivesAnAgentWithoutTheExposureConstructor() {
-    final boolean previous = DDEvaluator.USE_LEGACY_EXPOSURE_API.getAndSet(true);
+    final boolean previous = ExposureLoggingHook.USE_LEGACY_EXPOSURE_API.getAndSet(true);
     try {
       assertEquals(
           Integer.valueOf(340132),
           evaluate(340132).getFlagMetadata().getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
     } finally {
-      DDEvaluator.USE_LEGACY_EXPOSURE_API.set(previous);
+      ExposureLoggingHook.USE_LEGACY_EXPOSURE_API.set(previous);
     }
   }
 

@@ -3,8 +3,6 @@ package datadog.trace.api.openfeature;
 import static java.util.Arrays.asList;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.exposure.ExposureEvent;
-import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -59,10 +57,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final AtomicBoolean SPLIT_SERIAL_ID_SUPPORTED =
       new AtomicBoolean(splitSerialIdSupported(Split.class));
 
-  static final AtomicBoolean USE_LEGACY_EXPOSURE_API =
-      new AtomicBoolean(
-          !(SPLIT_SERIAL_ID_SUPPORTED.get() && exposureSerialIdSupported(ExposureEvent.class)));
-
   static boolean splitSerialIdSupported(final Class<?> splitClass) {
     try {
       return splitClass.getField("serialId").getType() == Integer.class;
@@ -72,27 +66,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               + "agent, which does not carry a serial id on the flag configuration. Upgrade "
               + "dd-java-agent to enable holdout attribution.");
       log.debug("Unable to access the flag configuration serial ID", e);
-      return false;
-    }
-  }
-
-  static boolean exposureSerialIdSupported(final Class<?> eventClass) {
-    try {
-      eventClass.getConstructor(
-          long.class,
-          datadog.trace.api.featureflag.exposure.Allocation.class,
-          datadog.trace.api.featureflag.exposure.Flag.class,
-          datadog.trace.api.featureflag.exposure.Variant.class,
-          Subject.class,
-          Integer.class);
-      return true;
-    } catch (final NoSuchMethodException | LinkageError | RuntimeException e) {
-      log.warn(
-          "Feature flag exposure serial ID reporting is unavailable with the installed "
-              + "Datadog Java agent. Exposures are still reported, without the serial id, and "
-              + "span enrichment is unaffected. Upgrade dd-java-agent to enable holdout "
-              + "attribution on exposures.");
-      log.debug("Unable to access the exposure serial ID constructor", e);
       return false;
     }
   }
@@ -141,8 +114,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    */
   static final int MAX_STRUCTURE_PROPERTIES = 256;
 
-  // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
-  // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
+  // Evaluation metadata shared by the exposure and span-enrichment hooks.
   static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
   static final String METADATA_DO_LOG = "__dd_do_log";
 
@@ -150,11 +122,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // key = non-DD provider; the hook falls back to false (fail-closed).
   static final String METADATA_OBSERVE_FULL_EVALUATION_DATA = "observe_full_evaluation_data";
 
-  // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
-  // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
-  // change at runtime, and this class is loaded lazily (well after startup) so config is ready.
-  private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
-
+  private final ExposureAdvisoryCache exposureCache = new ExposureAdvisoryCache(1024);
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
@@ -540,7 +508,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
   }
 
-  private static <T> ProviderEvaluation<T> resolveVariant(
+  private <T> ProviderEvaluation<T> resolveVariant(
       final Class<T> target,
       final String key,
       final T defaultValue,
@@ -596,16 +564,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addString("allocationKey", allocation.key)
             .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
             .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
-    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
-    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
-    // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
-    // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
-    // subject.
-    if (SPAN_ENRICHMENT_ENABLED) {
-      if (SPLIT_SERIAL_ID_SUPPORTED.get() && split.serialId != null) {
-        metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
-      }
-      metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
+    // Compute once, before any hook runs: each destination sees the same advisory even if
+    // Datadog logging is disabled or no customer hook is registered.
+    final Integer serialId = SPLIT_SERIAL_ID_SUPPORTED.get() ? split.serialId : null;
+    if (serialId != null) {
+      metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, serialId);
+    }
+    final boolean doLog = Boolean.TRUE.equals(allocation.doLog);
+    metadataBuilder.addBoolean(METADATA_DO_LOG, doLog);
+    if (doLog) {
+      metadataBuilder.addBoolean(
+          ExposureHook.CACHE_HIT_METADATA_KEY,
+          exposureCache.observe(
+              key, context.getTargetingKey(), allocation.key, variant.key, serialId));
     }
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
@@ -619,10 +590,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
             .build();
-    final boolean doLog = allocation.doLog != null && allocation.doLog;
-    if (doLog) {
-      dispatchExposure(key, result, context, split);
-    }
     return result;
   }
 
@@ -691,39 +658,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return ((Number) value).doubleValue();
     }
     return Double.parseDouble(String.valueOf(value));
-  }
-
-  private static <T> void dispatchExposure(
-      final String flag,
-      final ProviderEvaluation<T> evaluation,
-      final EvaluationContext context,
-      final Split split) {
-    final String allocationKey = allocationKey(evaluation);
-    final String variantKey = evaluation.getVariant();
-    if (allocationKey == null || variantKey == null) {
-      return;
-    }
-    final long timestamp = System.currentTimeMillis();
-    // Exposure types share names with the imported UFC Allocation, Flag, and Variant types.
-    final datadog.trace.api.featureflag.exposure.Allocation allocation =
-        new datadog.trace.api.featureflag.exposure.Allocation(allocationKey);
-    final datadog.trace.api.featureflag.exposure.Flag exposureFlag =
-        new datadog.trace.api.featureflag.exposure.Flag(flag);
-    final datadog.trace.api.featureflag.exposure.Variant variant =
-        new datadog.trace.api.featureflag.exposure.Variant(variantKey);
-    final Subject subject = new Subject(context.getTargetingKey(), flattenContext(context));
-
-    final ExposureEvent event =
-        USE_LEGACY_EXPOSURE_API.get()
-            ? new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject)
-            : new ExposureEvent(
-                timestamp, allocation, exposureFlag, variant, subject, split.serialId);
-    FeatureFlaggingGateway.dispatch(event);
-  }
-
-  private static <T> String allocationKey(final ProviderEvaluation<T> resolution) {
-    final ImmutableMetadata meta = resolution.getFlagMetadata();
-    return meta == null ? null : meta.getString("allocationKey");
   }
 
   static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {
