@@ -27,6 +27,59 @@ class JsonDecoderTest {
   private static final String TWO_TRACES = loadJson("/two-traces.json");
 
   @Test
+  void exposesNativeSpanEventsWithNumberLiteralsVerbatim() {
+    String events =
+        "[{\"name\":\"configuration-loaded\",\"time_unix_nano\":1791902357478000001,"
+            + "\"attributes\":{\"source\":\"file\",\"count\":3,\"cached\":false,"
+            + "\"ratio\":0.123456789012,\"huge\":18446744073709551616,\"missing\":null,"
+            + "\"list\":[1,2.5,\"three\"]}}]";
+    DecodedSpan span = decodeSpanWithEvents("\"span_events\":" + events);
+
+    assertEquals(events, span.getMeta().get("events"));
+  }
+
+  @Test
+  void compactsNativeSpanEvents() {
+    DecodedSpan span =
+        decodeSpanWithEvents(
+            "\"span_events\": [ {\"name\": \"a \\\"quoted\\\" name\", \"time_unix_nano\": 1e3} ]");
+
+    assertEquals(
+        "[{\"name\":\"a \\\"quoted\\\" name\",\"time_unix_nano\":1e3}]",
+        span.getMeta().get("events"));
+  }
+
+  @Test
+  void preservesLegacySpanEventsTag() {
+    String events = "[{\"name\":\"configuration-loaded\"}]";
+    DecodedSpan span =
+        decodeSpanWithEvents(
+            "\"meta\":{\"events\":\"[{\\\"name\\\":\\\"configuration-loaded\\\"}]\"}");
+
+    assertEquals(events, span.getMeta().get("events"));
+  }
+
+  @Test
+  void nativeSpanEventsTakePrecedenceAndEmptyEventsStayEmpty() {
+    DecodedSpan span = decodeSpanWithEvents("\"meta\":{\"events\":\"legacy\"},\"span_events\":[]");
+
+    assertEquals("[]", span.getMeta().get("events"));
+    assertNull(decodeSpanWithEvents("\"span_events\":null").getMeta().get("events"));
+    assertNull(decodeSpanWithEvents("\"meta\":{}").getMeta().get("events"));
+  }
+
+  private static DecodedSpan decodeSpanWithEvents(String fields) {
+    return Decoder.decodeJson(
+            "[[{\"name\":\"test\",\"trace_id\":1,\"span_id\":2,\"start\":3,\"duration\":4,"
+                + fields
+                + "}]]")
+        .getTraces()
+        .get(0)
+        .getSpans()
+        .get(0);
+  }
+
+  @Test
   void decodesTraceAndSpanStructure() {
     List<DecodedTrace> traces = Decoder.decodeJson(TWO_TRACES).getTraces();
 
