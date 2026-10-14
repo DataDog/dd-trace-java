@@ -872,6 +872,57 @@ class HashtableTest {
     }
 
     @Test
+    void drainKeepsTheUndeliveredRestOfAChainWhenTheSinkThrows() {
+      Hashtable.State<CollidingKeyEntry> table = threeCollidingEntries();
+
+      assertThrows(
+          IllegalStateException.class,
+          () ->
+              Hashtable.drain(
+                  table,
+                  e -> {
+                    throw new IllegalStateException("boom");
+                  }));
+
+      assertUndeliveredEntriesRemain(table);
+    }
+
+    @Test
+    void contextDrainKeepsTheUndeliveredRestOfAChainWhenTheSinkThrows() {
+      Hashtable.State<CollidingKeyEntry> table = threeCollidingEntries();
+
+      assertThrows(
+          IllegalStateException.class,
+          () ->
+              Hashtable.drain(
+                  table,
+                  "context",
+                  (ctx, e) -> {
+                    throw new IllegalStateException("boom");
+                  }));
+
+      assertUndeliveredEntriesRemain(table);
+    }
+
+    /** Three entries forced into one bucket, so a drain walks them as a single chain. */
+    private Hashtable.State<CollidingKeyEntry> threeCollidingEntries() {
+      Hashtable.State<CollidingKeyEntry> table = Hashtable.createBounded(4);
+      for (int i = 0; i < 3; i++) {
+        CollidingKeyEntry e = new CollidingKeyEntry(new CollidingKey("k" + i, 17), i);
+        assertTrue(Hashtable.insertHeadEntryFor(table, e.keyHash, e));
+      }
+      return table;
+    }
+
+    /** The sink threw on the first entry: it left the table, the other two must still be there. */
+    private void assertUndeliveredEntriesRemain(Hashtable.State<CollidingKeyEntry> table) {
+      List<CollidingKeyEntry> remaining = new ArrayList<>();
+      Hashtable.forEach(table, remaining::add);
+      assertEquals(2, remaining.size(), "entries the sink never reached stay in the table");
+      assertEquals(2, Hashtable.estimateSize(table), "the count matches what is still linked");
+    }
+
+    @Test
     void evictOneAdvancesCursorEvenWhenNothingMatches() {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);

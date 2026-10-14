@@ -1289,12 +1289,13 @@ public final class Hashtable {
       @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> sink) {
     for (int i = 0; i < buckets.length; i++) {
       Entry entry = buckets[i];
-      buckets[i] = null;
       while (entry != null) {
         // Unhook before handing over: a sink that retains one entry of a chain would otherwise pin
         // the whole chain through `next`, including entries it chose not to keep. Read `next`
-        // first, since the sink may do anything with the entry once it has it.
+        // first, since the sink may do anything with the entry once it has it. The bucket advances
+        // one entry at a time, so if the sink throws, the entries it has not reached stay linked.
         Entry next = entry.next();
+        buckets[i] = next;
         entry.setNext(null);
         sink.accept((TEntry) entry);
         entry = next;
@@ -1314,9 +1315,9 @@ public final class Hashtable {
       @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
     for (int i = 0; i < buckets.length; i++) {
       Entry entry = buckets[i];
-      buckets[i] = null;
       while (entry != null) {
         Entry next = entry.next();
+        buckets[i] = next;
         entry.setNext(null);
         sink.accept(context, (TEntry) entry);
         entry = next;
