@@ -313,9 +313,7 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      // Deliberately isFull() -> create -> increment, not the one-call tracked
-      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: creator runs
-      // between check and link and may throw, so reserving up front could leak.
+      // Build before incrementing because creator may throw; reserving first would leak capacity.
       if (this.sizeManager.isFull()) {
         return null;
       }
@@ -361,9 +359,8 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: creator
-      // runs between eviction and link and may throw, so reserving the freed slot up front could
-      // leak it. See tryGetOrCreateOrNull above for the non-evicting form of this reasoning.
+      // Evict before creation because creator may throw; reserving the freed slot first could leak
+      // it.
       if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
         return null;
       }
@@ -621,10 +618,7 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      // Deliberately isFull() -> create -> increment, rather than the one-call tracked
-      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: `creator` runs
-      // between the check and the link and may throw, so a slot reserved up front could leak. See
-      // SizeManager#tryReserve.
+      // Build before incrementing because creator may throw; reserving first would leak capacity.
       if (this.sizeManager.isFull()) {
         return null;
       }
@@ -674,10 +668,8 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: `creator`
-      // runs between eviction and the link and may throw, so reserving the freed slot up front
-      // could leak it. See tryGetOrCreateOrNull above for the non-evicting form of this same
-      // reasoning.
+      // Evict before creation because creator may throw; reserving the freed slot first could leak
+      // it.
       if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
         return null;
       }
