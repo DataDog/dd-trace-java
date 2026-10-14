@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.openfeature;
 
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -11,18 +10,19 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.connector.Connector;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.tabletest.junit.TableTest;
 
 /**
- * Guards against drift between the agent ({@link FeatureFlaggingConfig}) and the SDK ({@link
+ * Guards against drift between the agent ({@link InstrumenterConfig}) and the SDK ({@link
  * Settings}) resolution of the Feature Flags product switch and configuration source. Both sides
  * read the same raw settings, keyed by the agent setting names.
  */
+@ExtendWith(WithConfigExtension.class)
 class ConfigurationResolutionParityTest {
   @TableTest({
     "Scenario                         | Enabled | Source           | Legacy | Expected     ",
@@ -56,17 +56,13 @@ class ConfigurationResolutionParityTest {
     assertEquals(expected, sdkSource(settings), "SDK resolution");
   }
 
-  /** Resolves the source like the agent: {@code InstrumenterConfig} and {@code Config}. */
+  /** Resolves the source like the agent, through {@link InstrumenterConfig}. */
   private static String agentSource(final Map<String, String> settings) {
-    final Properties properties = new Properties();
-    properties.putAll(settings);
-    final ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(properties);
-    final FeatureFlaggingConfig.Resolution resolution =
-        resolveConfiguration(
-            configProvider.getBoolean(FEATURE_FLAGS_ENABLED),
-            configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE),
-            configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED));
-    return resolution.isEnabled() ? resolution.getSource() : null;
+    settings.forEach(WithConfigExtension::injectSysConfig);
+    final InstrumenterConfig config = InstrumenterConfig.get();
+    return config.isFeatureFlaggingEnabled()
+        ? config.getFeatureFlaggingConfigurationSource()
+        : null;
   }
 
   /**

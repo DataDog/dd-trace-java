@@ -373,6 +373,9 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_INCL
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL;
@@ -742,11 +745,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
@@ -764,7 +762,6 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -1252,8 +1249,6 @@ public class Config {
   private final String remoteConfigTargetsKey;
 
   private final int remoteConfigMaxExtraServices;
-
-  private final String featureFlaggingConfigurationSource;
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
@@ -2942,32 +2937,20 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    final Boolean configuredFeatureFlaggingProviderEnabled =
-        configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
-    final Boolean legacyFeatureFlaggingProviderEnabled =
-        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
-    final String configuredFeatureFlaggingConfigurationSource =
-        configProvider.isSet(FEATURE_FLAGS_CONFIGURATION_SOURCE)
-            ? configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE)
-            : null;
-    final FeatureFlaggingConfig.Resolution resolvedFeatureFlaggingConfiguration =
-        resolveConfiguration(
-            configuredFeatureFlaggingProviderEnabled,
-            configuredFeatureFlaggingConfigurationSource,
-            legacyFeatureFlaggingProviderEnabled);
-    if (legacyFeatureFlaggingProviderEnabled != null) {
+    if (configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED) != null) {
       log.warn(
           "Setting {} is deprecated. Use {} and {} instead.",
           EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED,
           FEATURE_FLAGS_ENABLED,
           FEATURE_FLAGS_CONFIGURATION_SOURCE);
     }
-    if (!isSupportedConfigurationSource(configuredFeatureFlaggingConfigurationSource)) {
+    final String featureFlaggingConfigurationSource =
+        instrumenterConfig.getFeatureFlaggingConfigurationSource();
+    if (!InstrumenterConfig.isSupportedFeatureFlaggingSource(featureFlaggingConfigurationSource)) {
       log.warn(
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
-          resolvedFeatureFlaggingConfiguration.getSource());
+          featureFlaggingConfigurationSource);
     }
-    featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
 
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
@@ -4905,7 +4888,7 @@ public class Config {
   }
 
   public String getFeatureFlaggingConfigurationSource() {
-    return featureFlaggingConfigurationSource;
+    return instrumenterConfig.getFeatureFlaggingConfigurationSource();
   }
 
   public boolean isDynamicInstrumentationEnabled() {
@@ -6867,7 +6850,7 @@ public class Config {
         + ", featureFlaggingProviderEnabled="
         + isFeatureFlaggingProviderEnabled()
         + ", featureFlaggingConfigurationSource="
-        + featureFlaggingConfigurationSource
+        + getFeatureFlaggingConfigurationSource()
         + ", debuggerEnabled="
         + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="

@@ -165,7 +165,6 @@ include(":dd-java-agent:agent-aiguard")
 include(
   ":products:feature-flagging:feature-flagging-agent",
   ":products:feature-flagging:feature-flagging-bootstrap",
-  ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
 

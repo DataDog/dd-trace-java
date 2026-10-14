@@ -33,6 +33,11 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLEC
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
@@ -98,13 +103,11 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
+import static java.lang.Boolean.FALSE;
 import static java.util.Collections.singletonList;
+import static java.util.Locale.ROOT;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingEnablement;
@@ -180,6 +183,7 @@ public class InstrumenterConfig {
   private final boolean telemetryEnabled;
   private final boolean llmObsEnabled;
   private final boolean featureFlaggingEnabled;
+  private final String featureFlaggingConfigurationSource;
 
   private final String traceExtensionsPath;
 
@@ -281,12 +285,26 @@ public class InstrumenterConfig {
             CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
             DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
-    featureFlaggingEnabled =
-        resolveConfiguration(
-                configProvider.getBoolean(FEATURE_FLAGS_ENABLED),
-                configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE),
-                configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED))
-            .isEnabled();
+    // The product switch wins, then an explicit source, then the deprecated experimental toggle.
+    final Boolean featureFlagsEnabled = configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
+    final String featureFlagsSource =
+        normalizeFeatureFlaggingSource(
+            configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE));
+    final Boolean legacyFeatureFlagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
+    if (FALSE.equals(featureFlagsEnabled) || featureFlagsSource != null) {
+      featureFlaggingEnabled =
+          !FALSE.equals(featureFlagsEnabled)
+              && isSupportedFeatureFlaggingSource(featureFlagsSource);
+      featureFlaggingConfigurationSource = featureFlagsSource;
+    } else if (legacyFeatureFlagsEnabled != null) {
+      featureFlaggingEnabled = legacyFeatureFlagsEnabled;
+      featureFlaggingConfigurationSource =
+          legacyFeatureFlagsEnabled ? CONFIGURATION_SOURCE_REMOTE_CONFIG : null;
+    } else {
+      featureFlaggingEnabled = true;
+      featureFlaggingConfigurationSource = CONFIGURATION_SOURCE_AGENTLESS;
+    }
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
@@ -504,6 +522,32 @@ public class InstrumenterConfig {
 
   public boolean isFeatureFlaggingEnabled() {
     return featureFlaggingEnabled;
+  }
+
+  /**
+   * @return the normalized Feature Flags configuration source, unsupported values included, or
+   *     {@code null} when none is configured.
+   */
+  public String getFeatureFlaggingConfigurationSource() {
+    return featureFlaggingConfigurationSource;
+  }
+
+  /**
+   * @param source the normalized configuration source.
+   * @return whether the source is absent or supported.
+   */
+  static boolean isSupportedFeatureFlaggingSource(final String source) {
+    return source == null
+        || CONFIGURATION_SOURCE_AGENTLESS.equals(source)
+        || CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(source);
+  }
+
+  private static String normalizeFeatureFlaggingSource(final String source) {
+    if (source == null) {
+      return null;
+    }
+    final String normalized = source.trim().toLowerCase(ROOT);
+    return normalized.isEmpty() ? null : normalized;
   }
 
   public boolean isTraceOtelEnabled() {
