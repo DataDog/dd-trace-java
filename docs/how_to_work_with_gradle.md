@@ -895,20 +895,23 @@ All projects have dependency locking enabled via the `dd-trace-java.dependency-l
 
 #### Updating Lock Files
 
-Lock files are automatically updated weekly by CI. To update them manually:
+When adding, updating, or removing a dependency in a build script or `gradle/libs.versions.toml`, regenerate the lockfiles for all affected modules and include them in the same PR.
+Shared dependencies can affect multiple modules.
 
 ```bash
-# Update all lock files in the repository
+# Regenerate lockfiles for all projects
 ./gradlew resolveAndLockAll --write-locks
 
-# Update lock files for a specific project
-./gradlew :dd-trace-api:dependencies --write-locks
+# Regenerate lockfiles for a specific project, e.g. dd-trace-api
+./gradlew :dd-trace-api:resolveAndLockAll --write-locks
 ```
 
+Note that lock files are also automatically updated weekly by CI.
+
 > [!IMPORTANT]
-> This project uses **lenient lock mode** (`LockMode.LENIENT`), which allows the build to succeed 
-> even if locked dependencies can't be resolved. This prevents build failures when dependencies 
-> are temporarily unavailable or when resolution conflicts occur.
+> This project uses **lenient lock mode** (`LockMode.LENIENT`), which permits dependency changes without failing lock validation.
+> This prevents build failures when dependencies are temporarily unavailable or when resolution conflicts occur.
+> A passing build does not prove that lock files are up-to-date.
 
 #### When Lock Files Are Used
 
@@ -933,14 +936,15 @@ cat dd-trace-api/gradle.lockfile
 
 #### Lock File Workflow
 
-1. **Developer adds a dependency**: The dependency is resolved using the current version rules
-2. **Run with `--write-locks`**: Gradle resolves all configurations and writes exact versions to lock files
-3. **Commit lock files**: Include `gradle.lockfile` changes in your commit
-4. **CI validates**: Builds use locked versions for reproducibility
-5. **Weekly CI job**: Automatically updates all lock files to pick up new versions
+1. **Change dependencies**: Add, update, or remove dependencies in build scripts or the version catalog
+2. **Regenerate lockfiles**: Run `resolveAndLockAll --write-locks` for all affected projects
+3. **Include lockfiles**: Review the generated changes and include affected `gradle.lockfile` files in the same PR
+4. **CI builds**: Builds read the updated lockfiles; lenient mode does not enforce lockfile consistency
+5. **Weekly CI job**: Refreshes floating versions independently of dependency PRs
 
-> [!NOTE]> **Instrumentation modules often use version ranges** (e.g., `[3.0,3.12.12]`) to test 
-> against multiple library versions. Dependency locking pins these ranges to specific versions in 
+> [!NOTE]
+> **Instrumentation modules often use version ranges** (e.g., `[3.0,3.12.12]`) to test
+> against multiple library versions. Dependency locking pins these ranges to specific versions in
 > lock files, ensuring consistent test behavior.
 
 ## Useful dd-trace-java Extensions
