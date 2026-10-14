@@ -2,6 +2,7 @@ package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
+import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.telemetry.OtlpTelemetry;
@@ -24,10 +25,12 @@ public final class OtlpMetricsService {
   private final AgentTaskScheduler scheduler;
   private final OtlpMetricsCollector collector;
   private final OtlpSender sender;
-
   private final int intervalMillis;
 
-  private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
+  private final Object lifecycleLock = new Object();
+
+  private AgentTaskScheduler.Scheduled<?> scheduledTask;
+  private CompletableResultCode shutdownResult;
 
   OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
@@ -43,6 +46,17 @@ public final class OtlpMetricsService {
     }
 
     this.intervalMillis = config.getMetricsOtelInterval();
+  }
+
+  OtlpMetricsService(
+      AgentTaskScheduler scheduler,
+      OtlpMetricsCollector collector,
+      OtlpSender sender,
+      int intervalMillis) {
+    this.scheduler = scheduler;
+    this.collector = collector;
+    this.sender = sender;
+    this.intervalMillis = intervalMillis;
   }
 
   OtlpSender getSender() {
@@ -75,26 +89,83 @@ public final class OtlpMetricsService {
   }
 
   public void flush() {
-    if (sender != null) {
-      scheduler.execute(this::export);
+    synchronized (lifecycleLock) {
+      if (sender != null && shutdownResult == null) {
+        scheduler.execute(this::export);
+      }
     }
   }
 
+  /** Performs one last export before shutting down the OTLP metrics exporter. */
+  public CompletableResultCode exportThenShutdown() {
+    synchronized (lifecycleLock) {
+      if (shutdownResult != null) {
+        return shutdownResult.newResultView();
+      }
+
+      shutdownResult = new CompletableResultCode();
+      if (scheduledTask != null) {
+        scheduledTask.cancel();
+      }
+
+      if (sender != null) {
+        scheduler.execute(this::waitForExportThenShutdown);
+      } else {
+        shutdownResult.succeed();
+      }
+
+      return shutdownResult.newResultView();
+    }
+  }
+
+  /** Shutdown on JVM exit; avoids I/O and any waiting or joining on threads. */
   public void shutdown() {
     if (scheduledTask != null) {
       scheduledTask.cancel();
     }
     if (sender != null) {
-      sender.shutdown();
+      closeSender();
     }
   }
 
-  private void export() {
-    OtlpPayload payload = collector.collectMetrics();
-    if (payload != OtlpPayload.EMPTY) {
+  private void waitForExportThenShutdown() {
+    boolean success = export();
+    closeSender();
+    if (success) {
+      shutdownResult.succeed();
+    } else {
+      shutdownResult.fail();
+    }
+  }
+
+  private void closeSender() {
+    try {
+      sender.shutdown();
+    } catch (Throwable e) {
+      LOGGER.debug("Failed to shut down OTLP metrics sender", e);
+    }
+  }
+
+  private boolean export() {
+    boolean attemptedExport = false;
+    try {
+      OtlpPayload payload = collector.collectMetrics();
+      if (payload == OtlpPayload.EMPTY) {
+        return true;
+      }
+
       OtlpTelemetry.getInstance().onMetricsExportAttempt();
+      attemptedExport = true;
       RemoteApi.Response response = sender.send(payload);
-      OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
+      boolean success = response != null && response.success();
+      OtlpTelemetry.getInstance().onMetricsExportComplete(success);
+      return success;
+    } catch (Throwable e) {
+      if (attemptedExport) {
+        OtlpTelemetry.getInstance().onMetricsExportComplete(false);
+      }
+      LOGGER.debug("Failed to export OTLP metrics", e);
+      return false;
     }
   }
 }
