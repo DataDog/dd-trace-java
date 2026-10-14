@@ -52,13 +52,13 @@ class DDEvaluatorSpanEnrichmentForkedTest {
    */
   @Test
   void enrichmentMetadataSurvivesAnAgentWithoutTheExposureConstructor() {
-    final boolean previous = DDEvaluator.USE_LEGACY_EXPOSURE_API.getAndSet(true);
+    final boolean previous = DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.getAndSet(false);
     try {
       assertEquals(
           Integer.valueOf(340132),
           evaluate(340132).getFlagMetadata().getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
     } finally {
-      DDEvaluator.USE_LEGACY_EXPOSURE_API.set(previous);
+      DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.set(previous);
     }
   }
 

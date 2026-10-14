@@ -48,9 +48,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
   companion object {
     const val FIRST_SERIAL = 1
-    const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
-    const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
     const val HAS_SCOPED_ALIAS = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.HAS_SCOPED_ALIAS
+    const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
+    const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
 
     const val SLOT_SHIFT = 32 // slot window [47-32]; mirrors KnownTagCodec.SLOT_SHIFT
     const val NO_SLOT = 0xFFFF // all-ones slot: no modeled span type; mirrors KnownTagCodec.NO_SLOT
@@ -64,8 +64,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     /**
      * Mirrors KnownTagCodec's layout -- must stay in sync: serial at [63-48], slot at [47-32],
-     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, HAS_SCOPED_ALIAS at bit 0 (the tag has an
-     * OpenTelemetry name in some directions only), other low bits zero. Every id is made here, and
+     * HAS_SCOPED_ALIAS at bit 0 (the tag has an OpenTelemetry name in some directions only),
+     * INTERCEPTED at bit 1, LEVEL_TRACE at bit 2, other low bits zero. Every id is made here, and
      * the range check makes each one positive by construction.
      */
     fun encode(
