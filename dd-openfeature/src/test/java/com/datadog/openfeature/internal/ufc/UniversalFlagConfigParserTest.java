@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal.ufc;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -168,6 +170,110 @@ class UniversalFlagConfigParserTest {
 
     assertNotNull(config);
     assertEquals(Integer.valueOf(expected), serialIdOf(config));
+  }
+
+  @Test
+  void parsesSplitFeatures() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            configWithFeatures(
+                "[{\"key\": \"holdout.key\", \"value\": \"q4-global\", \"destinations\": [\"HOOK\"]},"
+                    + " {\"key\": \"holdout.weight\", \"value\": 0.5,"
+                    + " \"destinations\": [\"EXPOSURE\", \"EVALUATION\"]},"
+                    + " {\"key\": \"holdout.should_include_in_holdout_analysis\", \"value\": true,"
+                    + " \"destinations\": [\"HOOK\", \"SOME_FUTURE_DESTINATION\"]}]"));
+
+    final List<Feature> features = featuresOf(config);
+    assertEquals(3, features.size());
+    assertFeature(features.get(0), "holdout.key", "q4-global", "HOOK");
+    assertFeature(features.get(1), "holdout.weight", 0.5, "EXPOSURE", "EVALUATION");
+    assertFeature(
+        features.get(2),
+        "holdout.should_include_in_holdout_analysis",
+        true,
+        "HOOK",
+        "SOME_FUTURE_DESTINATION");
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  @Test
+  void parsesAbsentSplitFeaturesAsNull() throws Exception {
+    final ServerConfiguration config = deserialize(configWithFeatures(null));
+
+    assertNull(featuresOf(config));
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  @Test
+  void dropsMalformedSplitFeaturesAndKeepsTheFlag() throws Exception {
+    final String hook = ", \"destinations\": [\"HOOK\"]";
+    final ServerConfiguration config =
+        deserialize(
+            configWithFeatures(
+                "[{\"key\": \"object-value\", \"value\": {\"nested\": true}"
+                    + hook
+                    + "},"
+                    + " {\"key\": \"array-value\", \"value\": [1]"
+                    + hook
+                    + "},"
+                    + " {\"key\": \"null-value\", \"value\": null"
+                    + hook
+                    + "},"
+                    + " {\"key\": \"\", \"value\": \"empty key\""
+                    + hook
+                    + "},"
+                    + " {\"key\": 3, \"value\": \"numeric key\""
+                    + hook
+                    + "},"
+                    + " {\"value\": \"missing key\""
+                    + hook
+                    + "},"
+                    + " {\"key\": \"missing value\""
+                    + hook
+                    + "},"
+                    + " {\"key\": \"no-destinations\", \"value\": \"dropped\"},"
+                    + " {\"key\": \"empty-destinations\", \"value\": \"dropped\", \"destinations\": []},"
+                    + " {\"key\": \"destinations-not-a-list\", \"value\": \"dropped\","
+                    + " \"destinations\": \"HOOK\"},"
+                    + " {\"key\": \"only-invalid-destinations\", \"value\": \"dropped\","
+                    + " \"destinations\": [1, \"\", null, {\"name\": \"HOOK\"}]},"
+                    + " \"not-an-object\","
+                    + " {\"key\": \"holdout.key\", \"value\": \"q4-global\","
+                    + " \"destinations\": [1, \"HOOK\", \"\"], \"destination\": \"HOOK\"}]"));
+
+    assertTrue(config.flags.containsKey("valid-flag"));
+    final List<Feature> features = featuresOf(config);
+    assertEquals(1, features.size());
+    assertFeature(features.get(0), "holdout.key", "q4-global", "HOOK");
+  }
+
+  @Test
+  void ignoresSplitFeaturesThatAreNotAList() throws Exception {
+    final ServerConfiguration config =
+        deserialize(configWithFeatures("{\"holdout.key\": \"q4-global\"}"));
+
+    assertTrue(config.flags.containsKey("valid-flag"));
+    assertNull(featuresOf(config));
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  private static void assertFeature(
+      final Feature feature, final String key, final Object value, final String... destinations) {
+    assertEquals(key, feature.key);
+    assertEquals(value, feature.value);
+    assertEquals(asList(destinations), feature.destinations);
+  }
+
+  private static List<Feature> featuresOf(final ServerConfiguration config) {
+    return config.flags.get("valid-flag").allocations.get(0).splits.get(0).features;
+  }
+
+  /** Inserts the raw features JSON; null omits the key. */
+  private static String configWithFeatures(final String featuresJson) throws IOException {
+    final String json = resource("split-features.json");
+    return featuresJson == null
+        ? json.replace("\"features\": \"${features}\",", "")
+        : json.replace("\"${features}\"", featuresJson);
   }
 
   private static Integer serialIdOf(final ServerConfiguration config) {
