@@ -10,8 +10,8 @@ public final class Split {
 
   /** Absent in some UFC shapes. Surfaced as {@code __dd_split_serial_id} for span enrichment. */
   public final Integer serialId;
-  // Null when the UFC split has no features. A provider must check that this field exists before
-  // reading it, because an older agent ships a Split without it.
+
+  /** Null when the UFC split has no features. */
   public final List<Feature> features;
 
   public Split(

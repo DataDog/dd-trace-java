@@ -1,5 +1,8 @@
 package com.datadog.openfeature.internal.ufc;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.unmodifiableList;
+
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -267,7 +270,61 @@ public final class UniversalFlagConfigParser {
         toList(json.get("shards"), "shards", UniversalFlagConfigParser::toShard),
         asString(json.get("variationKey"), "variationKey"),
         toStringMap(json.get("extraLogging")),
-        serialId == null ? null : asLenientInt(serialId, "serialId"));
+        serialId == null ? null : asLenientInt(serialId, "serialId"),
+        toFeatures(json.get("features")));
+  }
+
+  /**
+   * Reads a split's features. Features only feed exposure hooks, so a malformed list or entry is
+   * dropped instead of rejecting the flag: it must never change which variation a subject gets.
+   */
+  @Nullable
+  private static List<Feature> toFeatures(@Nullable final Object value) {
+    if (!(value instanceof List)) {
+      return null;
+    }
+    final List<Feature> features = new ArrayList<>();
+    for (final Object element : (List<?>) value) {
+      final Feature feature = toFeature(element);
+      if (feature != null) {
+        features.add(feature);
+      }
+    }
+    return unmodifiableList(features);
+  }
+
+  @Nullable
+  private static Feature toFeature(@Nullable final Object value) {
+    if (!(value instanceof Map)) {
+      return null;
+    }
+    final Map<?, ?> json = (Map<?, ?>) value;
+    final Object key = json.get("key");
+    final Object featureValue = json.get("value");
+    final List<String> destinations = toDestinations(json.get("destinations"));
+    if (!(key instanceof String)
+        || ((String) key).isEmpty()
+        || !(featureValue instanceof String
+            || featureValue instanceof Double
+            || featureValue instanceof Boolean)
+        || destinations.isEmpty()) {
+      return null;
+    }
+    return new Feature((String) key, featureValue, destinations);
+  }
+
+  /** Keeps every non-empty string, including destinations this SDK does not know yet. */
+  private static List<String> toDestinations(@Nullable final Object value) {
+    if (!(value instanceof List)) {
+      return emptyList();
+    }
+    final List<String> destinations = new ArrayList<>();
+    for (final Object element : (List<?>) value) {
+      if (element instanceof String && !((String) element).isEmpty()) {
+        destinations.add((String) element);
+      }
+    }
+    return unmodifiableList(destinations);
   }
 
   @Nullable
