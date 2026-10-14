@@ -1,8 +1,8 @@
 package datadog.trace.common.writer;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
 import java.util.Collection;

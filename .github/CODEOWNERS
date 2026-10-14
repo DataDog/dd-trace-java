@@ -18,6 +18,7 @@
 
 # Shared communication
 /communication/*.*                                                   @DataDog/apm-java
+/communication/otlp-exporter/                                        @DataDog/apm-sdk-capabilities-java
 /communication/src/*/*/datadog/communication/*.*                     @DataDog/apm-java
 /communication/src/*/*/datadog/communication/ddagent/                @DataDog/apm-java
 /communication/src/*/*/datadog/communication/http/                   @DataDog/apm-java
