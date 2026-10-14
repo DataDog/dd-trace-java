@@ -130,6 +130,29 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void failingListenerDoesNotStarveOtherListeners() {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestConnector(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
+    runtime.addConfigurationListener(
+        configuration -> {
+          throw new IllegalStateException("listener failure");
+        });
+    runtime.addConfigurationListener(received::add);
+    runtime.start();
+    try {
+      source.listener.accept(EMPTY_UFC);
+    } finally {
+      runtime.stop();
+    }
+
+    assertEquals(1, received.size());
+  }
+
+  @Test
   void sharedRuntimeIsReferenceCounted() {
     final TestConfigurationSource source = new TestConfigurationSource();
     final Connector connector = new TestConnector(source, null);
