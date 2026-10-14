@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
@@ -33,6 +34,11 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_COMPRESSION;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
@@ -40,6 +46,8 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
@@ -104,10 +112,16 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   OtelEnvironmentConfigSource(Properties datadogConfigFile) {
     this.datadogConfigFile = datadogConfigFile;
-    this.enabled = traceOtelEnabled() || metricsOtelEnabled() || logsOtelEnabled();
+    boolean otelEnabled = traceOtelEnabled() || metricsOtelEnabled() || logsOtelEnabled();
+    boolean profilesEnabled = profilingOtlpEnabled();
+    this.enabled = otelEnabled || profilesEnabled;
 
-    if (enabled) {
+    if (otelEnabled) {
       setupOtelEnvironment();
+    }
+    // OTLP profiling only maps the profiles exporter keys, not the general OTel environment
+    if (profilesEnabled) {
+      setupProfilesOtelEnvironment();
     }
   }
 
@@ -266,6 +280,25 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
   }
 
+  // OTLP profile export is enabled by dd.profiling.otlp.enabled, not by an OTel exporter setting
+  private void setupProfilesOtelEnvironment() {
+    capture(
+        OTLP_PROFILES_HEADERS,
+        getOtelOtlpProperty("profiles", "headers", "dd." + OTLP_PROFILES_HEADERS));
+    capture(
+        OTLP_PROFILES_PROTOCOL,
+        getOtelOtlpProperty("profiles", "protocol", "dd." + OTLP_PROFILES_PROTOCOL));
+    capture(
+        OTLP_PROFILES_COMPRESSION,
+        getOtelOtlpProperty("profiles", "compression", "dd." + OTLP_PROFILES_COMPRESSION));
+    capture(
+        OTLP_PROFILES_TIMEOUT,
+        getOtelOtlpProperty("profiles", "timeout", "dd." + OTLP_PROFILES_TIMEOUT));
+    capture(
+        OTLP_PROFILES_ENDPOINT,
+        getOtelOtlpProperty("profiles", "endpoint", "dd." + OTLP_PROFILES_ENDPOINT));
+  }
+
   private boolean traceOtelEnabled() {
     String enabled = getDatadogProperty("dd." + TRACE_OTEL_ENABLED);
     if (null != enabled) {
@@ -281,6 +314,15 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       return Boolean.parseBoolean(enabled);
     } else {
       return DEFAULT_METRICS_OTEL_ENABLED;
+    }
+  }
+
+  private boolean profilingOtlpEnabled() {
+    String enabled = getDatadogProperty("dd." + PROFILING_OTLP_ENABLED);
+    if (null != enabled) {
+      return Boolean.parseBoolean(enabled);
+    } else {
+      return PROFILING_OTLP_ENABLED_DEFAULT;
     }
   }
 
@@ -355,6 +397,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_TRACES_PROTOCOL))) {
           otelValue = otelValue + (otelValue.endsWith("/") ? "v1/traces" : "/v1/traces");
         }
+        if ("profiles".equals(signal) && !"grpc".equalsIgnoreCase(profilesProtocol())) {
+          otelValue =
+              otelValue
+                  + (otelValue.endsWith("/") ? "" : "/")
+                  + DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT;
+        }
       }
     }
     if (null == otelValue) {
@@ -369,6 +417,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       return null;
     }
     return otelValue;
+  }
+
+  /** The profiles protocol from the OTel environment, else from the Datadog setting that won. */
+  private String profilesProtocol() {
+    String protocol = otelEnvironment.get(OTLP_PROFILES_PROTOCOL);
+    return protocol != null ? protocol : getDatadogProperty("dd." + OTLP_PROFILES_PROTOCOL);
   }
 
   /**

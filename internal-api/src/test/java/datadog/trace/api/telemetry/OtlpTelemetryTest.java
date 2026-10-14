@@ -1,6 +1,7 @@
 package datadog.trace.api.telemetry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
@@ -84,6 +85,46 @@ class OtlpTelemetryTest {
     assertEquals(2L, valuesByName.get("otel.metrics_export_attempts"));
     assertEquals(1L, valuesByName.get("otel.metrics_export_successes"));
     assertEquals(1L, valuesByName.get("otel.metrics_export_failures"));
+  }
+
+  @Test
+  void onProfilesConversionQueuesAvgAndMaxGauges() {
+    collector.onProfilesConversion(50_000_000L); // 50 ms
+    collector.onProfilesConversion(150_000_000L); // 150 ms
+    collector.prepareMetrics();
+
+    Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
+
+    Map<String, OtlpTelemetry.OtlpMetric> gaugesByName = new HashMap<>();
+    for (OtlpTelemetry.OtlpMetric metric : metrics) {
+      gaugesByName.put(metric.metricName, metric);
+    }
+    assertEquals(2, gaugesByName.size());
+
+    OtlpTelemetry.OtlpMetric avg = gaugesByName.get("otel.profiles_conversion_ms");
+    assertEquals("gauge", avg.type);
+    assertEquals(100.0, avg.value.doubleValue(), 0.001);
+    assertTrue(avg.tags.contains("protocol:http"));
+
+    OtlpTelemetry.OtlpMetric max = gaugesByName.get("otel.profiles_conversion_max_ms");
+    assertEquals("gauge", max.type);
+    assertEquals(150.0, max.value.doubleValue(), 0.001);
+    assertTrue(max.tags.contains("protocol:http"));
+  }
+
+  @Test
+  void onProfilesConversionOmittedWhenNoConversions() {
+    // stage a different metric so a non-empty drain proves the gauges were specifically
+    // omitted rather than nothing being emitted at all
+    collector.onTracesExportAttempt();
+    collector.prepareMetrics();
+
+    Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
+
+    assertFalse(metrics.isEmpty(), "expected the traces metric to be staged");
+    assertTrue(
+        metrics.stream().noneMatch(m -> m.metricName.startsWith("otel.profiles_conversion")),
+        "no profiles conversion metrics expected without conversions");
   }
 
   @Test
