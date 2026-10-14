@@ -27,12 +27,20 @@ HARNESS=""
 RUN_EXTENSIONS=true
 OUT=""
 
+require_value() {
+    if [ $# -lt 2 ] || [ -z "$2" ]; then
+        echo "❌ Missing value for $1" >&2
+        usage >&2
+        exit 1
+    fi
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
-        --base) BASE="$2"; shift 2 ;;
-        --harness) HARNESS="$2"; shift 2 ;;
+        --base) require_value "$@"; BASE="$2"; shift 2 ;;
+        --harness) require_value "$@"; HARNESS="$2"; shift 2 ;;
         --no-extensions) RUN_EXTENSIONS=false; shift ;;
-        --out) OUT="$2"; shift 2 ;;
+        --out) require_value "$@"; OUT="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "❌ Unknown option: $1" >&2; usage >&2; exit 1 ;;
     esac
@@ -59,10 +67,13 @@ detect_harness() {
 
 if [ -z "$BASE" ]; then
     BASE=$(find_base)
+else
+    BASE=$(git merge-base HEAD "$BASE")
 fi
-if [ -z "$HARNESS" ]; then
-    HARNESS=$(detect_harness)
-fi
+case "${HARNESS:=$(detect_harness)}" in
+    claude|codex) ;;
+    *) echo "❌ Unsupported harness: $HARNESS (supported: claude, codex)" >&2; exit 1 ;;
+esac
 
 if git diff --quiet "$BASE" HEAD; then
     echo "No changes since $BASE; nothing to review."
@@ -93,10 +104,6 @@ run_harness() {
             ;;
         codex)
             codex exec --sandbox read-only "$prompt"
-            ;;
-        *)
-            echo "❌ Unsupported harness: $HARNESS" >&2
-            exit 1
             ;;
     esac
 }
