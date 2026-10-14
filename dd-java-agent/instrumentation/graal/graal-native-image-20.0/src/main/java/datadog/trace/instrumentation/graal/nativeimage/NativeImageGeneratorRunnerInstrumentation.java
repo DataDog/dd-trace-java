@@ -85,6 +85,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.config.OtlpConfig$Protocol:build_time,"
               + "datadog.trace.api.config.OtlpConfig$Temporality:build_time,"
               + "datadog.trace.api.EventTracker:build_time,"
+              + "datadog.trace.api.FeatureFlaggingSource:build_time,"
               + "datadog.trace.api.InstrumenterConfig:build_time,"
               + "datadog.trace.api.Functions:build_time,"
               + "datadog.trace.api.Functions$NewInstance:build_time,"
