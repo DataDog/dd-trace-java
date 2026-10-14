@@ -645,9 +645,10 @@ public class DDSpanContext
    * earlier decorator) wins. Because it never clobbers, {@code apply} is order-independent and
    * self-neutralizes once construction has already seeded the same prototype.
    *
-   * <p>This is the shared seam for both the construction path ({@code CoreSpanBuilder}) and
-   * decorator {@code afterStart} (via {@link DDSpan#apply}). The context owns the tag map, so the
-   * eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
+   * <p>This is the construction-time seam ({@code CoreSpanBuilder}) -- see {@link
+   * #applyOverwriting} for the decorator {@code afterStart} seam (via {@link
+   * DDSpan#applyOverwriting}), which needs different precedence. The context owns the tag map, so
+   * the eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
    * identity short-circuit will land here, with the dense store; a tag's intercept status is
    * already on its id ({@link KnownTagCodec#isIntercepted}). Until then each constant tag is
    * prechecked by the interceptor, identical to the per-tag calls this replaces.
@@ -665,6 +666,26 @@ public class DDSpanContext
       if (integrationName != null) {
         setIntegrationName(integrationName);
       }
+    }
+  }
+
+  /**
+   * Applies a {@link SpanPrototype} unconditionally: stamps its span type, constant tags, and
+   * integration name over whatever is already present. This is the decorator {@code afterStart}
+   * seam -- see {@link datadog.trace.bootstrap.instrumentation.api.AgentSpan#applyOverwriting} for
+   * why it needs different precedence than {@link #apply}.
+   */
+  public void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    final CharSequence spanType = prototype.spanType();
+    if (spanType != null) {
+      setSpanType(spanType);
+    }
+    final TagMap tags = prototype.tags();
+    setAllTags(tags, true);
+    tagInterceptor.resolveSplitByTagsPrecedence(this, tags);
+    final CharSequence integrationName = prototype.integrationName();
+    if (integrationName != null) {
+      setIntegrationName(integrationName);
     }
   }
 

@@ -1804,7 +1804,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     if (wasTombstoned || this.parent == null) {
       return null;
     }
-    return this.parent.getEntry(newEntry.tag);
+    // By the entry's own identity, not its name: the name would only resolve back to the same hash.
+    return this.parent.getEntry(newEntry.tag, newEntry.tagHash);
   }
 
   /**
