@@ -181,7 +181,11 @@ public final class FeatureFlagsRuntime {
   private void onConfiguration(@Nullable final ServerConfiguration configuration) {
     this.configuration = configuration;
     for (final Consumer<ServerConfiguration> listener : this.listeners) {
-      listener.accept(configuration);
+      try {
+        listener.accept(configuration);
+      } catch (final RuntimeException e) {
+        LOGGER.warn("Feature Flags configuration listener failed", e);
+      }
     }
   }
 
