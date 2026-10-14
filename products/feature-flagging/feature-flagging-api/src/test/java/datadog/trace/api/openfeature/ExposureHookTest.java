@@ -213,6 +213,26 @@ class ExposureHookTest {
   }
 
   @Test
+  void evaluatesWithoutFeaturesWhenTheAgentSplitHasNone() throws Exception {
+    start(
+        true,
+        configuration(
+            Boolean.TRUE,
+            singletonList(new Feature("holdout.key", "q4-global", singletonList("HOOK")))));
+    DDEvaluator.SPLIT_FEATURES_SUPPORTED.set(false);
+    final FlagEvaluationDetails<Integer> details;
+    try {
+      details = evaluate("user-1");
+    } finally {
+      DDEvaluator.SPLIT_FEATURES_SUPPORTED.set(true);
+    }
+
+    assertNull(details.getErrorCode());
+    assertEquals(Integer.valueOf(1), details.getValue());
+    assertTrue(evaluations.get(0).getFeatures().isEmpty());
+  }
+
+  @Test
   void hasNoFeaturesWhenTheSplitHasNone() throws Exception {
     start(true, configuration(Boolean.TRUE, null));
 
