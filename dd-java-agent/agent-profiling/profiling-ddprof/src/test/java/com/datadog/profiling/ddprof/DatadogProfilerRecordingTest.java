@@ -1,6 +1,7 @@
 package com.datadog.profiling.ddprof;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,5 +72,8 @@ class DatadogProfilerRecordingTest {
     InputStream inputStream = data.getStream();
     assertNotNull(inputStream);
     assertTrue(inputStream.available() > 0);
+    // Snapshot files must live under the same recordings dir as start (SCP-1361).
+    assertNotNull(data.getPath());
+    assertEquals(recording.getRecordingFile().getParent(), data.getPath().getParent());
   }
 }

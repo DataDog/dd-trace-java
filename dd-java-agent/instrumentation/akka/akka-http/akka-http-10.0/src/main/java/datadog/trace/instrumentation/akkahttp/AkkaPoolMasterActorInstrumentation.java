@@ -5,9 +5,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -39,12 +39,12 @@ public final class AkkaPoolMasterActorInstrumentation extends InstrumenterModule
   public static class BlockPropagation {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter() {
+    public static ContextScope enter() {
       return activateSpan(noopSpan());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope) {
+    public static void exit(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
   }

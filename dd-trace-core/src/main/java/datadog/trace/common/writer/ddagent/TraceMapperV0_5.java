@@ -1,6 +1,8 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Mapper;
@@ -34,6 +36,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private final GrowableBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
+
   private final int size;
   private boolean firstSpanWritten;
 
@@ -83,7 +86,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
           metaWriter
               .withWritable(writable)
               .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
-          i == 0);
+          i == 0 ? ROOT_PROPAGATION_TAGS : 0);
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
       firstSpanWritten = true;
@@ -219,15 +222,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
+      final UTF8BytesString otlpExport = firstSpanInPayload ? metadata.otlpExportMarker() : null;
 
       TagMap tags = metadata.getTags();
 
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
+              + (null == otlpExport ? 0 : 1)
               + 1;
       int metricsSize =
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
@@ -259,9 +264,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writeDictionaryEncoded(writable, HTTP_STATUS);
-        writeDictionaryEncoded(writable, metadata.getHttpStatusCode());
+        writeDictionaryEncoded(writable, metadata.getHttpStatusCodeString());
       }
       if (null != metadata.getOrigin()) {
         writeDictionaryEncoded(writable, ORIGIN_KEY);
@@ -270,6 +275,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       if (null != processTags) {
         writeDictionaryEncoded(writable, PROCESS_TAGS_KEY);
         writeDictionaryEncoded(writable, processTags);
+      }
+      if (null != otlpExport) {
+        writeDictionaryEncoded(writable, SDK_OTLP_EXPORT_KEY);
+        writeDictionaryEncoded(writable, otlpExport);
       }
 
       for (TagMap.EntryReader entry : tags) {

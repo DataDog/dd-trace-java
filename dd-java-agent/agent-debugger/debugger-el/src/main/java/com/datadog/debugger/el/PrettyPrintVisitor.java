@@ -147,7 +147,11 @@ public class PrettyPrintVisitor implements Visitor<String> {
 
   @Override
   public String visit(MatchesExpression matchesExpression) {
-    return stringPredicateExpression(matchesExpression);
+    return "matches("
+        + nullSafeAccept(matchesExpression.getSourceString())
+        + ", "
+        + nullSafeAccept(matchesExpression.getStr())
+        + ")";
   }
 
   @Override

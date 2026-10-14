@@ -47,6 +47,7 @@ import software.amazon.awssdk.core.SdkField;
 import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkResponse;
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
@@ -161,12 +162,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
-    // SNS
+    // SNS. TargetArn may identify a mobile platform endpoint, so only TopicArn is a topic ARN.
     Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-    if (!snsTopicArn.isPresent()) {
-      snsTopicArn = request.getValueForField("TargetArn", String.class);
-    }
-    Optional<String> snsTopicName = snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+    snsTopicArn.ifPresent(arn -> span.setTag(InstrumentationTags.AWS_TOPIC_ARN, arn));
+    Optional<String> snsTargetArn =
+        snsTopicArn.isPresent() ? snsTopicArn : request.getValueForField("TargetArn", String.class);
+    Optional<String> snsTopicName =
+        snsTargetArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
     snsTopicName.ifPresent(topic -> setTopicName(span, topic));
 
     // Kinesis
@@ -176,6 +178,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     Optional<String> kinesisStreamArn = request.getValueForField("StreamARN", String.class);
     kinesisStreamArn.ifPresent(
         streamArn -> {
+          span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
           if (traceConfig().isDataStreamsEnabled()) {
             attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
           }
@@ -187,6 +190,27 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // DynamoDB
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
+
+    // Step Functions. getValueForField matches the API model's member name verbatim, and the
+    // Step Functions model declares its members in lowerCamelCase (unlike SNS "TopicArn" or
+    // DynamoDB "TableName"), so "StateMachineArn" would never match here.
+    request
+        .getValueForField("stateMachineArn", String.class)
+        .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, arn));
+    request
+        .getValueForField("executionArn", String.class)
+        .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, arn));
+
+    // Lambda. FunctionName accepts a bare name, name:qualifier, partial ARN
+    // (account:function:name) or full ARN, and cross-account/cross-Region invokes require a full
+    // ARN, so pass-through would fragment aws.function.name across forms. Normalize the name and
+    // only emit aws.function.arn when the request carries a full ARN. A separate Qualifier field
+    // never changes the resource name.
+    if ("lambda".equalsIgnoreCase(awsServiceName)) {
+      request
+          .getValueForField("FunctionName", String.class)
+          .ifPresent(name -> setFunctionIdentity(span, name));
+    }
 
     // DSM
     if (traceConfig().isDataStreamsEnabled()) {
@@ -308,6 +332,61 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
+  /**
+   * Normalizes a Lambda {@code FunctionName} request value. {@code aws.function.name} is always the
+   * bare function name (account, {@code function:} prefix and {@code :qualifier} suffix stripped),
+   * and {@code aws.function.arn} is set only when the value is a full ARN. A partial ARN ({@code
+   * account:function:name}) yields the name but no ARN, because its Region and partition are
+   * unknown and must not be invented.
+   */
+  private static void setFunctionIdentity(AgentSpan span, String functionName) {
+    if (functionName == null || functionName.isEmpty()) {
+      return;
+    }
+    if (functionName.startsWith("arn:")) {
+      // arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
+      span.setTag(InstrumentationTags.AWS_FUNCTION_ARN, functionName);
+    }
+    span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, lambdaFunctionName(functionName));
+  }
+
+  /** Extracts the bare function name from any accepted {@code FunctionName} form. */
+  static String lambdaFunctionName(String functionName) {
+    int valueEnd = functionName.length();
+    while (valueEnd > 0 && functionName.charAt(valueEnd - 1) == ':') {
+      valueEnd--;
+    }
+    // Leave empty or colon-only input unchanged for the SDK/service to validate.
+    if (valueEnd == 0) {
+      return functionName;
+    }
+    int firstColon = functionName.indexOf(':');
+    if (firstColon < 0) {
+      return functionName;
+    }
+
+    int nameStart = 0;
+    int partStart = firstColon + 1;
+    boolean fullArn = functionName.startsWith("arn:");
+    for (int part = 1; part <= 5 && partStart < valueEnd; part++) {
+      int partEnd = functionName.indexOf(':', partStart);
+      if (partEnd < 0 || partEnd >= valueEnd) {
+        break;
+      }
+      // "function" precedes the name in field 1 of a partial ARN or field 5 of a full ARN.
+      if ((part == 1 || (fullArn && part == 5))
+          && partEnd - partStart == 8
+          && functionName.startsWith("function:", partStart)) {
+        nameStart = partEnd + 1;
+      }
+      partStart = partEnd + 1;
+    }
+    int nameEnd = functionName.indexOf(':', nameStart);
+    return nameEnd < 0
+        ? functionName.substring(nameStart)
+        : functionName.substring(nameStart, nameEnd);
+  }
+
   public void onSdkResponse(
       final Context context,
       final SdkResponse response,
@@ -426,6 +505,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected URI url(final SdkHttpRequest request) {
     return request.getUri();
+  }
+
+  /** Tags the HTTP status code of a service error, which has no response to read it from. */
+  public void onServiceError(final AgentSpan span, final Throwable error) {
+    if (error instanceof SdkServiceException) {
+      final int status = ((SdkServiceException) error).statusCode();
+      if (status > 0) {
+        span.setHttpStatusCode(status);
+      }
+    }
   }
 
   @Override

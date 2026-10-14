@@ -7,9 +7,8 @@ import datadog.environment.SystemProperties;
 import datadog.logging.IOLogger;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.TempLocationManager;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +28,8 @@ import java.util.regex.Pattern;
 /** Call the `jfr` cli on the given recording */
 public class JfrCliHelper {
 
+  private static final Path JFR_CLI_SUBDIR = Paths.get("jfr-cli");
+
   private static ExecutorService executorService =
       new ThreadPoolExecutor(
           0,
@@ -43,7 +44,7 @@ public class JfrCliHelper {
   private static Pattern columnSeparatorRegex = Pattern.compile("\\s+");
 
   public static void invokeOn(final RecordingData data, final IOLogger ioLogger) {
-    File tmp = null;
+    Path tmp = null;
     try {
       Path jfr = Paths.get(SystemProperties.get("java.home"), "bin", "jfr");
       if (JavaVirtualMachine.isJ9() || !Files.exists(jfr)) {
@@ -51,19 +52,20 @@ public class JfrCliHelper {
         return;
       }
 
-      // Create temporary file to save recording to
-      tmp = File.createTempFile("recording-", ".jfr");
+      Path tempDir = TempLocationManager.getInstance().getTempDir(JFR_CLI_SUBDIR);
+      tmp = Files.createTempFile(tempDir, "recording-", ".jfr");
 
       // Save recording to temporary file
       InputStream in = data.getStream();
-      try (FileOutputStream out = new FileOutputStream(tmp)) {
+      try (OutputStream out = Files.newOutputStream(tmp)) {
         redirect(in, out);
       }
 
       String[] stdout;
 
       // Launch `jfr` on temporary file and get stdout
-      ProcessBuilder builder = new ProcessBuilder(jfr.toString(), "summary", tmp.getAbsolutePath());
+      ProcessBuilder builder =
+          new ProcessBuilder(jfr.toString(), "summary", tmp.toAbsolutePath().toString());
       builder.redirectInput(ProcessBuilder.Redirect.INHERIT);
       builder.redirectOutput(ProcessBuilder.Redirect.PIPE); // we'll want to read stdout
       builder.redirectError(ProcessBuilder.Redirect.INHERIT);
@@ -139,7 +141,10 @@ public class JfrCliHelper {
       return;
     } finally {
       if (tmp != null) {
-        tmp.delete();
+        try {
+          Files.deleteIfExists(tmp);
+        } catch (IOException ignored) {
+        }
       }
     }
   }

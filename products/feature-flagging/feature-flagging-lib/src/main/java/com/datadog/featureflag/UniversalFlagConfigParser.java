@@ -9,6 +9,7 @@ import com.squareup.moshi.Types;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Feature;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
@@ -23,6 +24,7 @@ import java.lang.reflect.Type;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +61,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
           .add(AllocationAdapter.FACTORY)
           .add(FlagMapAdapter.FACTORY)
           .add(LenientBooleanAdapter.FACTORY)
+          .add(FeatureListAdapter.FACTORY)
           .build();
   private static final JsonAdapter<ServerConfiguration> V1_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
@@ -433,6 +436,121 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nullable final Boolean value)
+        throws IOException {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  /**
+   * Reads a split's features. Features only feed exposure hooks, so a malformed list or entry is
+   * dropped instead of rejecting the flag: it must never change which variation a subject gets.
+   */
+  static final class FeatureListAdapter extends JsonAdapter<List<Feature>> {
+
+    private static final Type FEATURES_TYPE = Types.newParameterizedType(List.class, Feature.class);
+
+    static final Factory FACTORY =
+        new Factory() {
+          @Nullable
+          @Override
+          public JsonAdapter<?> create(
+              @Nonnull final Type type,
+              @Nonnull final Set<? extends Annotation> annotations,
+              @Nonnull final Moshi moshi) {
+            if (!annotations.isEmpty() || !Types.equals(type, FEATURES_TYPE)) {
+              return null;
+            }
+            return new FeatureListAdapter();
+          }
+        };
+
+    @Nullable
+    @Override
+    public List<Feature> fromJson(@Nonnull final JsonReader reader) throws IOException {
+      if (reader.peek() != JsonReader.Token.BEGIN_ARRAY) {
+        reader.skipValue();
+        return null;
+      }
+      final List<Feature> features = new ArrayList<>();
+      reader.beginArray();
+      while (reader.hasNext()) {
+        final Feature feature = readFeature(reader);
+        if (feature != null) {
+          features.add(feature);
+        }
+      }
+      reader.endArray();
+      return Collections.unmodifiableList(features);
+    }
+
+    @Nullable
+    private static Feature readFeature(final JsonReader reader) throws IOException {
+      if (reader.peek() != JsonReader.Token.BEGIN_OBJECT) {
+        reader.skipValue();
+        return null;
+      }
+      String key = null;
+      Object value = null;
+      List<String> destinations = Collections.emptyList();
+      reader.beginObject();
+      while (reader.hasNext()) {
+        final String name = reader.nextName();
+        if ("key".equals(name) && reader.peek() == JsonReader.Token.STRING) {
+          key = reader.nextString();
+        } else if ("value".equals(name)) {
+          value = readScalar(reader);
+        } else if ("destinations".equals(name)) {
+          destinations = readDestinations(reader);
+        } else {
+          reader.skipValue();
+        }
+      }
+      reader.endObject();
+      if (key == null || key.isEmpty() || value == null || destinations.isEmpty()) {
+        return null;
+      }
+      return new Feature(key, value, destinations);
+    }
+
+    /** Keeps every non-empty string, including destinations this SDK does not know yet. */
+    private static List<String> readDestinations(final JsonReader reader) throws IOException {
+      if (reader.peek() != JsonReader.Token.BEGIN_ARRAY) {
+        reader.skipValue();
+        return Collections.emptyList();
+      }
+      final List<String> destinations = new ArrayList<>();
+      reader.beginArray();
+      while (reader.hasNext()) {
+        if (reader.peek() == JsonReader.Token.STRING) {
+          final String destination = reader.nextString();
+          if (!destination.isEmpty()) {
+            destinations.add(destination);
+          }
+        } else {
+          reader.skipValue();
+        }
+      }
+      reader.endArray();
+      return Collections.unmodifiableList(destinations);
+    }
+
+    @Nullable
+    private static Object readScalar(final JsonReader reader) throws IOException {
+      switch (reader.peek()) {
+        case STRING:
+          return reader.nextString();
+        case NUMBER:
+          return reader.nextDouble();
+        case BOOLEAN:
+          return reader.nextBoolean();
+        default:
+          reader.skipValue();
+          return null;
+      }
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final List<Feature> value)
         throws IOException {
       throw new UnsupportedOperationException("Reading only adapter");
     }

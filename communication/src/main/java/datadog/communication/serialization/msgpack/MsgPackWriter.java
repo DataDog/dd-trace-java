@@ -8,6 +8,8 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.communication.serialization.ValueWriter;
 import datadog.communication.serialization.WritableFormatter;
+import datadog.perfcontract.StaticLifetime;
+import datadog.perfcontract.SuppressPerfContract;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -58,6 +60,9 @@ public class MsgPackWriter implements WritableFormatter {
   public static final int FIXARRAY = 0x90;
   public static final int FIXMAP = 0x80;
 
+  @SuppressPerfContract(
+      value = StaticLifetime.class,
+      reason = "holds a caller-supplied codec; all callers pass the static Codec.INSTANCE")
   private final Codec codec;
 
   private final StreamingBuffer buffer;
@@ -101,6 +106,8 @@ public class MsgPackWriter implements WritableFormatter {
         }
       }
       buffer.reset();
+      // the buffer is now empty, so drop any mapper state from the rejected message
+      mapper.reset();
       return false;
     }
   }

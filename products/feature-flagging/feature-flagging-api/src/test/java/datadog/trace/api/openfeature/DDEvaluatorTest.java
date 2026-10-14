@@ -12,9 +12,11 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -26,6 +28,8 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -40,6 +44,9 @@ import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.FlagValueType;
+import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -392,6 +399,140 @@ public class DDEvaluatorTest {
     assertThat(
         details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
         equalTo(false));
+  }
+
+  // ---- exposure events carry the split's serial id ----
+
+  @Test
+  public void exposureCarriesTheSplitSerialId() {
+    assertEquals(Integer.valueOf(340132), exposureFor(340132).serial_id);
+  }
+
+  @Test
+  public void exposureCarriesSerialIdZero() {
+    assertEquals(Integer.valueOf(0), exposureFor(0).serial_id);
+  }
+
+  @Test
+  public void exposureOmitsSerialIdWhenTheSplitHasNone() {
+    assertNull(exposureFor(null).serial_id);
+  }
+
+  @Test
+  public void legacyExposureApiDispatchesAnExposureWithoutSerialId() {
+    final boolean previous = DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.getAndSet(false);
+    try {
+      assertNull(exposureFor(7).serial_id);
+    } finally {
+      DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.set(previous);
+    }
+  }
+
+  // ---- old-agent bootstrap probe ----
+
+  /** A Split from an agent that predates the serial id: the field does not exist. */
+  static final class SplitWithoutSerialId {}
+
+  /** A Split whose serialId is not the Integer the dispatch site reads. */
+  static final class SplitWithWrongSerialIdType {
+    public long serialId;
+  }
+
+  /** An ExposureEvent from an agent that predates the serial id: only the five-arg constructor. */
+  static final class LegacyExposureEvent {
+    // Qualify exposure types that share names with the imported UFC types.
+    LegacyExposureEvent(
+        final long timestamp,
+        final datadog.trace.api.featureflag.exposure.Allocation allocation,
+        final datadog.trace.api.featureflag.exposure.Flag flag,
+        final datadog.trace.api.featureflag.exposure.Variant variant,
+        final Subject subject) {}
+  }
+
+  /**
+   * Positive control. The probe must agree with the bootstrap actually on the classpath, or the
+   * negative cases below would pass for the wrong reason and the feature would ship switched off.
+   */
+  @Test
+  public void probeAcceptsTheBootstrapOnTheClasspath() {
+    assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
+    assertTrue(DDEvaluator.exposureSerialIdSupported(ExposureEvent.class));
+    assertTrue(DDEvaluator.SPLIT_SERIAL_ID_SUPPORTED.get());
+    assertTrue(DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.get());
+  }
+
+  @Test
+  public void probeRejectsAnAgentWhoseSplitHasNoSerialId() {
+    assertFalse(DDEvaluator.splitSerialIdSupported(SplitWithoutSerialId.class));
+  }
+
+  @Test
+  public void probeRejectsAnAgentWhoseSerialIdIsNotAnInteger() {
+    assertFalse(DDEvaluator.splitSerialIdSupported(SplitWithWrongSerialIdType.class));
+  }
+
+  @Test
+  public void probeRejectsAnAgentWithoutTheSerialIdConstructor() {
+    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
+  }
+
+  /**
+   * Tests legacy bootstrap behavior when Split.serialId exists but the exposure event has only the
+   * five-argument constructor. Split support must remain independent of exposure constructor
+   * support.
+   */
+  @Test
+  public void probeKeepsSplitSupportWhenOnlyTheEventConstructorIsMissing() {
+    assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
+    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
+  }
+
+  /**
+   * Evaluates a logging allocation whose split carries the given serial id, then runs the exposure
+   * hook as OpenFeature would after a successful evaluation, and returns the single dispatched
+   * exposure. Span enrichment is off here, as it is by default, so this also pins that the serial
+   * id reaches the hook without span enrichment.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static ExposureEvent exposureFor(final Integer serialId) {
+    ExposureDeduplicationCache.INSTANCE.clear();
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.TRUE);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "target",
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", true, null, flags));
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
+
+    final List<ExposureEvent> dispatched = new ArrayList<>();
+    final FeatureFlaggingGateway.ExposureListener listener = dispatched::add;
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      final ProviderEvaluation<Integer> evaluation =
+          evaluator.evaluate(Integer.class, "target", 23, ctx);
+      assertTrue(dispatched.isEmpty(), "resolving a flag must not send an exposure by itself");
+      final HookContext<Object> hookContext =
+          HookContext.<Object>builder()
+              .flagKey("target")
+              .type(FlagValueType.INTEGER)
+              .defaultValue(23)
+              .ctx(ctx)
+              .build();
+      ExposureLoggingHook.INSTANCE.finallyAfter(
+          hookContext,
+          (FlagEvaluationDetails) FlagEvaluationDetails.from(evaluation, "target"),
+          emptyMap());
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+      ExposureDeduplicationCache.INSTANCE.clear();
+    }
+    assertEquals(1, dispatched.size());
+    return dispatched.get(0);
   }
 
   // Builds a flag that reaches resolveVariant: enabled, one allocation with no rules, one split

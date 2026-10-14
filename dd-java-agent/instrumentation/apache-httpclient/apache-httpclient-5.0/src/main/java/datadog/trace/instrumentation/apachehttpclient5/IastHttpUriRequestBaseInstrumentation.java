@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 
 @AutoService(InstrumenterModule.class)
-public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.Iast
+public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

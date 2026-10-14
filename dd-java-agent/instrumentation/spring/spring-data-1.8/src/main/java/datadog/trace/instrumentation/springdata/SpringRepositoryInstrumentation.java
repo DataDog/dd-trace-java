@@ -25,15 +25,6 @@ public final class SpringRepositoryInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringDataDecorator",
-      packageName + ".RepositoryInterceptor",
-      packageName + ".InterceptingRepositoryProxyPostProcessor",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),

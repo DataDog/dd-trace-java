@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,6 +35,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.AllSampler;
 import datadog.trace.common.writer.ListWriter;
@@ -48,8 +50,11 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.ConfigDefaultsConverter;
 import datadog.trace.test.junit.utils.converter.TagsConverter;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -190,15 +195,56 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals("new-service", span.getServiceName());
   }
 
+  @TableTest({
+    "scenario                      | configured                  | tag          | expectedBuilder | expectedSetter",
+    "configured by OTel name       | db.system                   | db.system    | split           | split         ",
+    "configured by Datadog name    | db.type                     | db.type      | split           | split         ",
+    "Datadog config, OTel tag      | db.type                     | db.system    | split           | my-service    ",
+    "OTel config, Datadog tag      | db.system                   | db.type      | split           | split         ",
+    "custom tag                    | custom.tag                  | custom.tag   | split           | split         ",
+    "unconfigured tag              | db.system                   | other.tag    | my-service      | my-service    ",
+    "empty configuration           | ''                          | db.system    | my-service      | my-service    ",
+    "both names, OTel tag          | db.system,db.type           | db.system    | split           | split         ",
+    "both names, Datadog tag       | db.system,db.type           | db.type      | split           | split         ",
+    "custom tag survives expansion | db.system,custom.tag        | custom.tag   | split           | split         ",
+    "first of two renamed tags     | db.system,db.operation.name | db.type      | split           | split         ",
+    "second of two renamed tags    | db.system,db.operation.name | db.operation | split           | split         "
+  })
+  void splitByTagsMatchesCanonicalAndOriginalNames(
+      String configured, String tag, String expectedBuilder, String expectedSetter) {
+    Set<String> configuredTags =
+        configured.isEmpty() ? emptySet() : new HashSet<>(Arrays.asList(configured.split(",")));
+    CoreTracer tracer = createSplittingTracer(configuredTags, emptyMap());
+
+    AgentSpan builderSpan = tracer.buildSpan("datadog", "some span").withTag(tag, "split").start();
+    AgentSpan setterSpan = tracer.buildSpan("datadog", "some span").start();
+    setterSpan.setTag(tag, "split");
+
+    assertEquals(expectedBuilder, builderSpan.getServiceName());
+    assertEquals(expectedSetter, setterSpan.getServiceName());
+
+    CoreTracer defaultTagTracer = createSplittingTracer(configuredTags, singletonMap(tag, "split"));
+    AgentSpan defaultTagSpan = defaultTagTracer.buildSpan("datadog", "some span").start();
+
+    assertEquals(expectedBuilder, defaultTagSpan.getServiceName());
+  }
+
   private CoreTracer createSplittingTracer(String tag) {
+    return createSplittingTracer(Collections.singleton(tag));
+  }
+
+  private CoreTracer createSplittingTracer(Set<String> tags) {
+    return createSplittingTracer(tags, emptyMap());
+  }
+
+  private CoreTracer createSplittingTracer(Set<String> tags, Map<String, String> defaultSpanTags) {
     return tracerBuilder()
         .serviceName("my-service")
         .writer(new LoggingWriter())
         .sampler(new AllSampler())
-        // equivalent to split-by-tags: tag
-        .tagInterceptor(
-            new TagInterceptor(
-                true, "my-service", Collections.singleton(tag), new RuleFlags(), false))
+        .defaultSpanTags(defaultSpanTags)
+        // equivalent to split-by-tags: tags
+        .tagInterceptor(new TagInterceptor(true, "my-service", tags, new RuleFlags(), false))
         .build();
   }
 
@@ -280,6 +326,63 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     span.finish();
 
     assertEquals("peer-service", span.getServiceName());
+  }
+
+  /**
+   * A server decorator's own identity tags -- {@code component} and {@code language} -- can both be
+   * split-by-tags candidates. A single {@code SpanPrototype} application intercepts them in no
+   * particular order, so {@code component} must still win, matching the old sequential {@code
+   * setTag} calls that set language before component.
+   */
+  @Test
+  void splitByTagsComponentWinsOverLanguageWithinOnePrototypeApplication() {
+    CoreTracer tracer =
+        createSplittingTracer(
+            new HashSet<>(Arrays.asList(Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").start();
+    span.applyOverwriting(
+        SpanPrototype.builder()
+            .initComponentAndIntegration("my-component")
+            .initTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE)
+            .build());
+    span.finish();
+
+    assertEquals("my-component", span.getServiceName());
+  }
+
+  /**
+   * The component-over-language precedence is scoped to one prototype application: a candidate set
+   * at construction (e.g. from {@code dd.trace.span.tags}) is still overwritten by the decorator's
+   * later {@code component}, as it was before decorators applied prototypes.
+   */
+  @Test
+  void splitByTagsDecoratorComponentOverwritesCandidateSetAtConstruction() {
+    CoreTracer tracer =
+        createSplittingTracer(new HashSet<>(Arrays.asList("tenant", Tags.COMPONENT)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").withTag("tenant", "acme").start();
+    assertEquals("acme", span.getServiceName());
+    span.applyOverwriting(
+        SpanPrototype.builder().initComponentAndIntegration("my-component").build());
+    span.finish();
+
+    assertEquals("my-component", span.getServiceName());
+  }
+
+  /** Separate tag writes stay last-writer-wins, whichever split-by-tags candidate they set. */
+  @Test
+  void splitByTagsSeparateWritesAreLastWriterWins() {
+    CoreTracer tracer =
+        createSplittingTracer(
+            new HashSet<>(Arrays.asList(Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").start();
+    span.setTag(Tags.COMPONENT, "my-component");
+    span.setTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+    span.finish();
+
+    assertEquals(DDTags.LANGUAGE_TAG_VALUE, span.getServiceName());
   }
 
   @Test
@@ -707,6 +810,90 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         );
   }
 
+  @TableTest({
+    "scenario         | methodTag            ",
+    "datadog spelling | 'Tags.HTTP_METHOD'   ",
+    "otel spelling    | 'http.request.method'"
+  })
+  void urlAsResourceNameRuleAppliesRegardlessOfMethodSpellingWhenUrlSetFirst(
+      @ConvertWith(TagsConverter.class) String methodTag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(HTTP_URL, "/with-method");
+      span.setTag(methodTag, "Post");
+      assertEquals("POST /with-method", span.getResourceName().toString());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @TableTest({
+    "scenario         | methodTag            ",
+    "datadog spelling | 'Tags.HTTP_METHOD'   ",
+    "otel spelling    | 'http.request.method'"
+  })
+  void urlAsResourceNameRuleAppliesRegardlessOfMethodSpellingWhenMethodSetFirst(
+      @ConvertWith(TagsConverter.class) String methodTag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(methodTag, "Post");
+      span.setTag(HTTP_URL, "/with-method");
+      assertEquals("POST /with-method", span.getResourceName().toString());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @TableTest({
+    "scenario                  | statementTag    | beforeStart",
+    "datadog spelling, builder | 'db.statement'  | true       ",
+    "datadog spelling, setTag  | 'db.statement'  | false      ",
+    "otel spelling, builder    | 'db.query.text' | true       ",
+    "otel spelling, setTag     | 'db.query.text' | false      "
+  })
+  void dbStatementIsConsumedIntoResourceRegardlessOfSpellingOrTiming(
+      String statementTag, boolean beforeStart) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span =
+        beforeStart
+            ? tracer.buildSpan("datadog", "fakeOperation").withTag(statementTag, "select 1").start()
+            : tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      if (!beforeStart) {
+        span.setTag(statementTag, "select 1");
+      }
+      assertEquals("select 1", span.getResourceName().toString());
+      assertNull(span.getTag(Tags.DB_STATEMENT));
+      assertNull(span.getTag("db.query.text"));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @TableTest({
+    "scenario         | urlTag         ",
+    "datadog spelling | 'Tags.HTTP_URL'",
+    "otel spelling    | 'url.full'     "
+  })
+  void urlAsResourceNameRuleAppliesRegardlessOfUrlSpelling(
+      @ConvertWith(TagsConverter.class) String urlTag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(HTTP_METHOD, "Post");
+      span.setTag(urlTag, "/with-method");
+      assertEquals("POST /with-method", span.getResourceName().toString());
+    } finally {
+      span.finish();
+    }
+  }
+
   @Test
   void whenUserSetsPeerServiceTheSourceShouldBePeerService() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -715,6 +902,51 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     try {
       span.setTag(Tags.PEER_SERVICE, "test");
       assertEquals("peer.service", span.getTag(DDTags.PEER_SERVICE_SOURCE));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @TableTest({
+    "scenario         | tag                        ",
+    "datadog spelling | 'Tags.HTTP_STATUS'         ",
+    "otel spelling    | 'http.response.status_code'"
+  })
+  void httpStatusCodeIsInterceptedRegardlessOfSpelling(
+      @ConvertWith(TagsConverter.class) String tag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(tag, 200);
+      assertEquals((short) 200, span.getHttpStatusCode());
+      // consumed into Metadata's httpStatusCode field, not left behind as a generic tag under
+      // either spelling -- otherwise the OTLP writers would emit it a second time. getTag(...)
+      // is not a suitable check here: it synthesizes the Datadog spelling's value straight from
+      // httpStatusCode regardless of generic storage, so go straight to the backing TagMap.
+      assertNull(span.unsafeGetTag(HTTP_STATUS));
+      assertNull(span.unsafeGetTag("http.response.status_code"));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @TableTest({
+    "scenario         | tag                        ",
+    "datadog spelling | 'Tags.HTTP_STATUS'         ",
+    "otel spelling    | 'http.response.status_code'"
+  })
+  void httpStatusCodeIsReadableRegardlessOfSpelling(@ConvertWith(TagsConverter.class) String tag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(tag, 200);
+      // regardless of which spelling was used to set it, both spellings must read it back --
+      // TagsMatcher (and thus trace-sampling rules) reads tags through getTag(), so a spelling
+      // the getter doesn't recognize would look unset even though it was intercepted.
+      assertEquals(200, span.getTag(Tags.HTTP_STATUS));
+      assertEquals(200, span.getTag("http.response.status_code"));
     } finally {
       span.finish();
     }

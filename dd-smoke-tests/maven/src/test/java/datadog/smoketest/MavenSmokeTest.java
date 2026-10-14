@@ -10,6 +10,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.civisibility.CiVisibilitySmokeTest;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
@@ -41,6 +42,8 @@ import org.apache.maven.wrapper.MavenWrapperMain;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.slf4j.Logger;
@@ -312,6 +315,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "failed-test-replay | test_failed_maven_failed_test_replay | 3.9.9       "
   })
   @ParameterizedTest
+  // Exception Replay is disabled by default on JDK8 due to JVM bug
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testFailedTestReplay(String projectName, String mavenVersion) throws Exception {
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);
@@ -327,6 +332,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     Map<String, String> agentArgs = new HashMap<>();
     agentArgs.put(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT, "3");
     agentArgs.put(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL, mockBackend.getIntakeUrl());
+    agentArgs.put(DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "999999");
 
     int exitCode =
         whenRunningMavenBuild(agentArgs, Collections.emptyList(), Collections.emptyMap(), true);

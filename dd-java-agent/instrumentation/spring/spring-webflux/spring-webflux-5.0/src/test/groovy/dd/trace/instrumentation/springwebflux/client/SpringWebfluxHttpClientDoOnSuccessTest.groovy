@@ -29,7 +29,7 @@ class SpringWebfluxHttpClientDoOnSuccessTest extends SpringWebfluxHttpClientBase
 
     check()
 
-    response.statusCode().value()
+    consumeResponse(response)
   }
 
   @Override

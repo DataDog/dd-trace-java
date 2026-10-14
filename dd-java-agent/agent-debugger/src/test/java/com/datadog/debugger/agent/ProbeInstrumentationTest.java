@@ -4,7 +4,7 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -46,7 +46,7 @@ public class ProbeInstrumentationTest {
     }
 
     @Override
-    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
+    public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {}
 
     public List<Snapshot> getSnapshots() {
       return snapshots;

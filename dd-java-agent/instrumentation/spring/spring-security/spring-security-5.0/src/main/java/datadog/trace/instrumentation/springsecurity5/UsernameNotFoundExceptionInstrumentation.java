@@ -32,13 +32,6 @@ public class UsernameNotFoundExceptionInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.springsecurity5.SpringSecurityUserEventDecorator"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("java.lang.String"))).and(isPublic()),

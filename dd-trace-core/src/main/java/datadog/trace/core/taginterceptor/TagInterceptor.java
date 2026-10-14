@@ -4,6 +4,10 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
+import static datadog.trace.api.KnownTags.DB_STATEMENT_OTEL_NAME;
+import static datadog.trace.api.KnownTags.HTTP_METHOD_OTEL_NAME;
+import static datadog.trace.api.KnownTags.HTTP_STATUS_CODE_OTEL_NAME;
+import static datadog.trace.api.KnownTags.HTTP_URL_OTEL_NAME;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
@@ -23,6 +27,7 @@ import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURC
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
@@ -37,6 +42,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -50,6 +56,12 @@ public class TagInterceptor {
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
   private final String inferredServiceName;
+
+  /** Decorator identity tags in split-by-tags precedence order, highest first. */
+  private static final String[] PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE = {
+    Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY
+  };
+
   private final Set<String> splitServiceTags;
 
   private final boolean shouldSet404ResourceName;
@@ -73,9 +85,9 @@ public class TagInterceptor {
       boolean jeeSplitByDeployment) {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
-    this.splitServiceTags = splitServiceTags;
+    this.splitServiceTags = withCanonicalNames(splitServiceTags);
     this.ruleFlags = ruleFlags;
-    splitByServletContext = splitServiceTags.contains(SERVLET_CONTEXT);
+    splitByServletContext = this.splitServiceTags.contains(SERVLET_CONTEXT);
 
     shouldSet404ResourceName =
         ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
@@ -83,6 +95,25 @@ public class TagInterceptor {
             && ruleFlags.isEnabled(STATUS_404_DECORATOR);
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
     this.jeeSplitByDeployment = jeeSplitByDeployment;
+  }
+
+  /**
+   * Adds the Datadog name of each configured tag: entries set on the span builder arrive under it,
+   * so a tag configured by its OpenTelemetry name (e.g. {@code db.system}) would otherwise be
+   * missed.
+   */
+  private static Set<String> withCanonicalNames(Set<String> tags) {
+    Set<String> result = null;
+    for (String tag : tags) {
+      String canonical = KnownTagCodec.canonicalTagName(tag);
+      if (!canonical.equals(tag) && !tags.contains(canonical)) {
+        if (result == null) {
+          result = new HashSet<>(tags);
+        }
+        result.add(canonical);
+      }
+    }
+    return result == null ? tags : result;
   }
 
   public boolean needsIntercept(TagMap map) {
@@ -103,6 +134,7 @@ public class TagInterceptor {
     switch (tag) {
       case DDTags.RESOURCE_NAME:
       case Tags.DB_STATEMENT:
+      case DB_STATEMENT_OTEL_NAME:
       case DDTags.SERVICE_NAME:
       case "service":
       case Tags.PEER_SERVICE:
@@ -118,8 +150,11 @@ public class TagInterceptor {
       case ANALYTICS_SAMPLE_RATE:
       case Tags.ERROR:
       case HTTP_STATUS:
+      case HTTP_STATUS_CODE_OTEL_NAME:
       case HTTP_METHOD:
+      case HTTP_METHOD_OTEL_NAME:
       case HTTP_URL:
+      case HTTP_URL_OTEL_NAME:
       case ORIGIN_KEY:
       case MEASURED:
       case Tags.SPAN_KIND:
@@ -135,6 +170,7 @@ public class TagInterceptor {
       case DDTags.RESOURCE_NAME:
         return interceptResourceName(span, value);
       case Tags.DB_STATEMENT:
+      case DB_STATEMENT_OTEL_NAME:
         return interceptDbStatement(span, value);
       case DDTags.SERVICE_NAME:
       case "service":
@@ -184,10 +220,13 @@ public class TagInterceptor {
       case Tags.ERROR:
         return interceptError(span, value);
       case HTTP_STATUS:
+      case HTTP_STATUS_CODE_OTEL_NAME:
         // not set internally but may come from manual instrumentation
         return interceptHttpStatusCode(span, value);
       case HTTP_METHOD:
+      case HTTP_METHOD_OTEL_NAME:
       case HTTP_URL:
+      case HTTP_URL_OTEL_NAME:
         return interceptUrlResourceAsNameRule(span, tag, value);
       case ORIGIN_KEY:
         return interceptOrigin(span, value);
@@ -205,13 +244,17 @@ public class TagInterceptor {
 
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
     if (shouldSetUrlResourceAsName) {
-      if (HTTP_METHOD.equals(tag)) {
+      if (HTTP_METHOD.equals(tag) || HTTP_METHOD_OTEL_NAME.equals(tag)) {
         final Object url = span.unsafeGetTag(HTTP_URL);
         if (url != null) {
           setResourceFromUrl(span, value.toString(), url);
         }
-      } else if (HTTP_URL.equals(tag)) {
-        final Object method = span.unsafeGetTag(HTTP_METHOD);
+      } else if (HTTP_URL.equals(tag) || HTTP_URL_OTEL_NAME.equals(tag)) {
+        // the method may have been set under either spelling -- see HTTP_METHOD_OTEL_NAME.
+        Object method = span.unsafeGetTag(HTTP_METHOD);
+        if (method == null) {
+          method = span.unsafeGetTag(HTTP_METHOD_OTEL_NAME);
+        }
         setResourceFromUrl(span, method != null ? method.toString() : null, value);
       }
     }
@@ -239,6 +282,30 @@ public class TagInterceptor {
     } else {
       span.setResourceName(
           HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+    }
+  }
+
+  /**
+   * Re-applies the split-by-tags service name from the highest-precedence identity tag in a
+   * decorator prototype that was just applied to {@code span}. The prototype's tags are intercepted
+   * in no particular order, so without this {@code language} could overwrite {@code component}. The
+   * precedence ({@code component} over {@code language}) mirrors the old sequential {@code setTag}
+   * calls in {@code ServerDecorator}/{@code BaseDecorator}. It is scoped to the one application:
+   * separate tag writes, before or after, stay last-writer-wins. ({@code span.kind} is not listed:
+   * its interception never reaches the split-by-tags check.)
+   */
+  public void resolveSplitByTagsPrecedence(DDSpanContext span, TagMap prototypeTags) {
+    if (splitServiceTags.isEmpty()) {
+      return;
+    }
+    for (String tag : PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE) {
+      if (splitServiceTags.contains(tag)) {
+        Object value = prototypeTags.getObject(tag);
+        if (value != null) {
+          span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
+          return;
+        }
+      }
     }
   }
 

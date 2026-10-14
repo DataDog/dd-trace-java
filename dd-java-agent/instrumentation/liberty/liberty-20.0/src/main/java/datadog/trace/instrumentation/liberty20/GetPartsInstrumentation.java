@@ -41,7 +41,11 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.liberty20.PartHelper"};
+    return new String[] {
+      "datadog.trace.instrumentation.liberty20.PartHelper",
+      "datadog.trace.instrumentation.liberty20.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty20.LibertyBlockingHelper$WsByteBufferImpl",
+    };
   }
 
   @Override
@@ -77,8 +81,8 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
+          boolean success = LibertyBlockingHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
+          if (success && t == null) {
             t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }

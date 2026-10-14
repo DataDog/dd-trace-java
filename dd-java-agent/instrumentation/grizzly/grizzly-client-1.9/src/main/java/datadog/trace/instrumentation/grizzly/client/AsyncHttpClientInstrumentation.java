@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.grizzly.client.InjectAdapter.SETTER;
@@ -14,9 +15,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -42,7 +43,7 @@ public final class AsyncHttpClientInstrumentation
   public static class ExecuteRequest {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Argument(0) final Request request,
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler<?> handler) {
       AgentSpan parentSpan = activeSpan();
@@ -55,12 +56,12 @@ public final class AsyncHttpClientInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
       if (throwable != null) {
-        AgentSpan span = scope.span();
+        AgentSpan span = spanFromScope(scope);
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         scope.close();

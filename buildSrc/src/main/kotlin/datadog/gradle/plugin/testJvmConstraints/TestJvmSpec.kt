@@ -4,17 +4,15 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.internal.provider.PropertyFactory
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.internal.jvm.inspection.JavaInstallationRegistry
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
-import org.gradle.jvm.toolchain.JavaToolchainSpec
 import org.gradle.jvm.toolchain.JvmImplementation
 import org.gradle.jvm.toolchain.JvmVendorSpec
-import org.gradle.jvm.toolchain.internal.DefaultToolchainSpec
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
-import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.support.serviceOf
 import java.nio.file.Files
 import java.nio.file.Path
@@ -49,8 +47,6 @@ class TestJvmSpec(val project: Project) {
     }
   }
 
-  private val currentJavaHomePath = project.providers.systemProperty("java.home").map { it.normalizeToJDKJavaHome() }
-
   /**
    * The raw `testJvm` property as passed via command line or environment variable.
    */
@@ -80,33 +76,39 @@ class TestJvmSpec(val project: Project) {
     }
   }.map { project.logger.info("normalized testJvm: {}", it); it }
 
+  private val defaultJavaLauncher = project.javaToolchains.launcherFor(
+    project.extensions.getByType(JavaPluginExtension::class.java).toolchain
+  )
+
   /**
-   * The home path of the test JVM.
+   * The launcher for the requested test JVM.
    *
    * The `<testJvm>` string (`8`, `11`, `ZULU8`, `GRAALVM25`, etc.) is interpreted in that order:
    * 1. Lookup for a valid path,
-   * 2. Look JVM via Gradle toolchains
-   *
-   * Holds the resolved JavaToolchainSpec for the test JVM.
+   * 2. Lookup via Gradle toolchains.
    */
-  private val testJvmSpec = normalizedTestJvm.map {
-    val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(it)?.groupValues?.drop(1) ?: listOf("", "")
+  private val testJvmLauncher = normalizedTestJvm.flatMap { testJvm ->
+    val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(testJvm)?.groupValues?.drop(1) ?: listOf("", "")
 
     // Allow looking up JAVA_<TESTJVM>_HOME environment variable (e.g., JAVA_IBM8_HOME, JAVA_SEMERU8_HOME),
     // because gradle doesn't offer a way to distinguish ibm8 or semeru8
-    val envVarValue = project.providers.environmentVariable("JAVA_${it.uppercase()}_HOME").orNull
+    val envVarValue = project.providers.environmentVariable("JAVA_${testJvm.uppercase()}_HOME").orNull
 
-    when {
-      Files.exists(Paths.get(it)) -> it.normalizeToJDKJavaHome().toToolchainSpec()
-      envVarValue != null && Files.exists(Paths.get(envVarValue)) -> envVarValue.normalizeToJDKJavaHome().toToolchainSpec()
+    val javaHome = when {
+      Files.exists(Paths.get(testJvm)) -> testJvm.normalizeToJDKJavaHome()
+      envVarValue != null && Files.exists(Paths.get(envVarValue)) -> envVarValue.normalizeToJDKJavaHome()
+      else -> null
+    }
+
+    val launcher = when {
+      javaHome != null -> javaHome.toLauncher()
       version.isNotBlank() -> {
-        // Best effort to make a spec for the passed testJvm
+        // Best effort to select a launcher for the passed testJvm
         // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
         // if it is an integer, we assume it's a Java version
         // also we can handle on macOs oracle, zulu, semeru, graalvm prefixes
 
-        // This is using internal APIs
-        DefaultToolchainSpec(project.serviceOf<PropertyFactory>()).apply {
+        project.javaToolchains.launcherFor {
           languageVersion.set(JavaLanguageVersion.of(version.toInt()))
           when (distribution.lowercase()) {
             "" -> {
@@ -143,7 +145,7 @@ class TestJvmSpec(val project: Project) {
 
       else -> throw GradleException(
         """
-        Unable to find launcher for Java '$it'. It needs to be:
+        Unable to find launcher for Java '$testJvm'. It needs to be:
         1. A valid path to a JDK home, or
         2. An environment variable named 'JAVA_<testJvm>_HOME' or '<testJvm>' pointing to a JDK home, or
         3. A Java version or a known distribution+version combination (e.g. '11', 'zulu8', 'graalvm11', etc.) that can be resolved via Gradle toolchains.
@@ -151,34 +153,58 @@ class TestJvmSpec(val project: Project) {
         """.trimIndent()
       )
     }
-  }.map { project.logger.info("testJvm home path: {}", it); it }
+
+    launcher.orElse(project.providers.provider {
+      throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
+    })
+  }
 
   /**
    * The Java launcher for the test JVM.
    *
-   * Current JVM or a launcher specified via the testJvm.
+   * `requestedTestJvmLauncher` represents what `testJvm` selected. It is present whenever `testJvm` is set and
+   * is used by the _test jvm constraints_, and external conventions like native-image checks, and JMH.
+   *
+   * Absent when no `testJvm` is supplied.
    */
-  val javaTestLauncher: Provider<JavaLauncher> =
-    project.providers.zip(testJvmSpec, normalizedTestJvm) { jvmSpec, testJvm ->
-      // Only change test JVM if it's not the one we are running the gradle build with
-      if ((jvmSpec as? SpecificInstallationToolchainSpec)?.javaHome == currentJavaHomePath.get()) {
-        project.objects.property<JavaLauncher>()
+  val requestedTestJvmLauncher: Provider<JavaLauncher> =
+    testJvmLauncher.map { project.logger.info("testJvm launcher: {}", it.executablePath); it }
+
+  /**
+   * The launcher override required by test tasks.
+   *
+   * `javaTestLauncherOverride` represents whether `Test.javaLauncher` must be **explicitly** configured.
+   * It is absent when `testJvm` and the project toolchain both select the Gradle daemon JVM,
+   * because setting it would be redundant.
+   *
+   * Absent when the requested JVM and the default project launcher both use the current JVM.
+   */
+  internal val javaTestLauncherOverride: Provider<JavaLauncher> =
+    requestedTestJvmLauncher.flatMap { requested ->
+      if (!requested.metadata.isCurrentJvm) {
+        project.providers.provider { requested }
       } else {
-        // The provider always says that a value is present so we need to wrap it for proper error messages
-        project.javaToolchains.launcherFor(jvmSpec).orElse(project.providers.provider {
-          throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
-        })
+        project.providers.provider {
+          try {
+            defaultJavaLauncher.get().metadata.isCurrentJvm
+          } catch (_: GradleException) {
+            // An unavailable project toolchain must not block an explicitly resolved testJvm.
+            false
+          }
+        }.filter { !it }.map { requested }
       }
-    }.flatMap { it }.map { project.logger.info("testJvm launcher: {}", it.executablePath); it }
+    }
 
   private fun String.normalizeToJDKJavaHome(): Path {
     val javaHome = project.file(this).toPath().toRealPath()
     return if (javaHome.endsWith("jre")) javaHome.parent else javaHome
   }
 
-  private fun Path.toToolchainSpec(): JavaToolchainSpec =
-    // This is using internal APIs
-    SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
+  private fun Path.toLauncher(): Provider<JavaLauncher> =
+    // No public API exists, use internal
+    project.javaToolchains.launcherFor(
+      SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
+    )
 
   private val Project.javaToolchains: JavaToolchainService
     get() =
@@ -188,6 +214,7 @@ class TestJvmSpec(val project: Project) {
    * Discovers available Java versions via Gradle's internal JavaInstallationRegistry.
    */
   private fun discoverJavaVersionsViaToolchains(): List<Int>? {
+    // No public API exists, use internal
     val registry = (project as ProjectInternal).services.get(JavaInstallationRegistry::class.java)
     val versions = registry.toolchains().mapNotNull { installation ->
         installation.metadata.languageVersion.majorVersion.toInt()

@@ -9,8 +9,31 @@ import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
   @ParameterizedTest
-  @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle"])
-  fun `detects muzzle invocation with various task names`(taskName: String) {
+  @ValueSource(strings = [":dd-java-agent:runMuzzle", "dd-java-agent:runMuzzle"])
+  fun `nested aggregate plans descendant instrumentation checks`(taskName: String) {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeNoopScanPlugin()
+    writeFile("dd-java-agent/build.gradle.kts",
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+    val result = run(taskName)
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle", "verifyCompatibility"])
+  fun `runs validation through different task entry points`(taskName: String) {
     writeProject(
       """
       plugins {
@@ -32,6 +55,9 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       tasks.register("runMuzzle") {
         dependsOn(":dd-java-agent:instrumentation:demo:muzzle")
       }
+      tasks.register("verifyCompatibility") {
+        dependsOn(":dd-java-agent:instrumentation:demo:muzzle")
+      }
       """
     )
 
@@ -39,14 +65,13 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
 
     val result = run(taskName, "--stacktrace")
 
-    assertThat(result.tasks)
-      .withFailMessage("Should create muzzle tasks when '$taskName' is requested")
-      .anyMatch { it.path.contains("muzzle") }
-    assertThat(result.output)
-      .withFailMessage("Should not skip muzzle task planification when '$taskName' is requested")
-      .doesNotContain("No muzzle tasks invoked, skipping muzzle task planification")
-    assertThat(result.tasks).withFailMessage("Should execute muzzle tasks when '$taskName' is requested")
-      .anyMatch { it.path == ":dd-java-agent:instrumentation:demo:muzzle" || it.path.contains("muzzle-Assert") }
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+      .withFailMessage("Should execute validation through '$taskName'")
+      .isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+      .withFailMessage("Should execute reporting through '$taskName'")
+      .isEqualTo(SUCCESS)
   }
 
   @Test
@@ -538,6 +563,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       module = "with-transitive",
       versions = listOf("1.0.0")
     )
+    // Publish the transitive dependency too, so the test still discriminates: without the
+    // exclusion guava resolves and lands on the classpath, and the scan plugin below fails.
+    // (Resolving it from the real Maven Central would defeat routing everything through the proxy.)
+    mavenRepoFixture.publishVersions(
+      group = "com.google.guava",
+      module = "guava",
+      versions = listOf("31.0-jre")
+    )
 
     // Manually create a POM with a transitive dependency
     // Write into MavenRepoFixture's repoDir, not GradleFixture's projectDir.
@@ -575,7 +608,6 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
             artifact()
           }
         }
-        mavenCentral()
       }
 
       muzzle {
@@ -589,15 +621,15 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       """
     )
 
-    // Scan plugin verifies that guava is NOT in the classpath (it was excluded)
+    // Scan plugin verifies that guava is NOT in the classpath (it was excluded).
+    // The fixture jar carries no guava classes, so probe the Maven descriptor every
+    // MavenRepoFixture artifact embeds instead of loading a class.
     writeScanPlugin(
       """
-      try {
-        testApplicationClassLoader.loadClass("com.google.common.collect.ImmutableList");
+      if (testApplicationClassLoader.getResource("META-INF/maven/com.google.guava/guava/pom.properties") != null) {
         throw new RuntimeException("Unexpected excluded dependency (guava) SHOULD NOT be in test classpath but was found");
-      } catch (ClassNotFoundException e) {
-        System.out.println("Excluded dependency (guava) correctly not in test classpath");
       }
+      System.out.println("Excluded dependency (guava) correctly not in test classpath");
       """
     )
 

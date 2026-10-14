@@ -1,5 +1,5 @@
+import datadog.gradle.configureCompiler
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import groovy.lang.Closure
 
 plugins {
   `java-library`
@@ -13,6 +13,12 @@ configure<TestJvmConstraintsExtension> {
 }
 
 description = "Implementation of the OpenFeature Provider interface."
+
+extra["excludedClassesCoverage"] = listOf(
+  // Value classes with only equals/hashCode; the cache tests cover their use.
+  "datadog.trace.api.openfeature.ExposureDeduplicationCache.Key",
+  "datadog.trace.api.openfeature.ExposureDeduplicationCache.Sent"
+)
 
 // Set both JAR and Maven artifact name
 val openFeatureArtifactId = "dd-openfeature"
@@ -39,7 +45,7 @@ java {
 }
 
 dependencies {
-  api("dev.openfeature:sdk:1.20.1")
+  api("dev.openfeature:sdk:1.23.0")
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
   compileOnly(project(":products:feature-flagging:feature-flagging-config"))
@@ -47,6 +53,10 @@ dependencies {
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  // SpanEnrichmentGate resolves FeatureFlaggingConfig at runtime. Without it on the test
+  // classpath the gate swallows a NoClassDefFoundError and reads as off, so the enrichment
+  // branch cannot be driven.
+  testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
@@ -71,21 +81,8 @@ jmh {
   }
 }
 
-fun AbstractCompile.configureCompiler(
-  javaVersionInteger: Int,
-  compatibilityVersion: JavaVersion? = null,
-  unsetReleaseFlagReason: String? = null
-) {
-  (project.extra["configureCompiler"] as Closure<*>).call(
-    this,
-    javaVersionInteger,
-    compatibilityVersion,
-    unsetReleaseFlagReason
-  )
-}
-
 tasks.withType<JavaCompile>().configureEach {
-  configureCompiler(11, JavaVersion.VERSION_11)
+  configureCompiler(JavaVersion.VERSION_11)
 }
 
 tasks.withType<Javadoc>().configureEach {

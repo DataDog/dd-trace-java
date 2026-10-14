@@ -12,7 +12,6 @@ public class GraalNativeImageModule extends AbstractNativeImageModule {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".DeleteFieldAdvice",
       packageName + ".Target_com_datadog_profiling_agent_ProcessContext",
       packageName + ".Target_datadog_jctools_util_UnsafeRefArrayAccess",
       packageName + ".Target_org_datadog_jmxfetch_App",

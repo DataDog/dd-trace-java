@@ -1,21 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.context.TraceScope;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 
-public final class NoopScope implements AgentScope {
+public final class NoopScope implements ContextScope {
   public static final NoopScope INSTANCE = new NoopScope();
 
   private NoopScope() {}
 
   @Override
-  public AgentSpan span() {
+  public Context context() {
     return NoopSpan.INSTANCE;
-  }
-
-  @Override
-  @SuppressWarnings("deprecation")
-  public TraceScope.Continuation capture() {
-    return NoopContinuation.INSTANCE;
   }
 
   @Override

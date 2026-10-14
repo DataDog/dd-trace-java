@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.spymemcached;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.ExecutionException;
@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 public class SyncCompletionListener extends CompletionListener<Void> {
   private static final Logger log = LoggerFactory.getLogger(SyncCompletionListener.class);
-  private final AgentScope scope;
+  private final ContextScope scope;
 
   public SyncCompletionListener(final AgentSpan span, final String methodName) {
     super(span, methodName);
