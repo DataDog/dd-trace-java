@@ -54,6 +54,12 @@ public final class FlagEvalEvent {
    */
   public final boolean observeFullEvaluationData;
 
+  /**
+   * Split features routed to the EVALUATION destination. They come from the flag configuration, not
+   * the evaluation context, so they are kept whatever the consent. May be empty but never null.
+   */
+  public final Map<String, Object> features;
+
   /** Convenience constructor; consent defaults to the privacy-preserving false. */
   public FlagEvalEvent(
       final String flagKey,
@@ -86,6 +92,28 @@ public final class FlagEvalEvent {
       final long evalTimeMs,
       final boolean observeFullEvaluationData,
       final Map<String, Object> attrs) {
+    this(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        errorMessage,
+        evalTimeMs,
+        observeFullEvaluationData,
+        attrs,
+        null);
+  }
+
+  public FlagEvalEvent(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final String errorMessage,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs,
+      final Map<String, Object> features) {
     this.flagKey = flagKey;
     this.variant = variant;
     this.allocationKey = allocationKey;
@@ -94,5 +122,6 @@ public final class FlagEvalEvent {
     this.evalTimeMs = evalTimeMs;
     this.observeFullEvaluationData = observeFullEvaluationData;
     this.attrs = attrs != null ? attrs : Collections.emptyMap();
+    this.features = features != null ? features : Collections.emptyMap();
   }
 }
