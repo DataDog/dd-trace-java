@@ -124,9 +124,9 @@ if (gitBaseRefProvider.isPresent) {
 
 tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
-    p.isInSelectedSlot.get()
-        && p.plugins.hasPlugin("java")
-        && p.plugins.hasPlugin("dd-trace-java.muzzle")
+    p.plugins.hasPlugin("java") &&
+      p.plugins.hasPlugin("dd-trace-java.muzzle") &&
+      p.isInSelectedSlot.get()
   }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }
