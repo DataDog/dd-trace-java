@@ -29,25 +29,8 @@ import javax.annotation.Nullable;
  * <p>For higher key dimensions, client code must implement its own class, but can still use the
  * static building blocks on this class to ease the implementation complexity.
  *
- * <h2>Choosing between the three tables</h2>
- *
- * <ol>
- *   <li><b>Concurrent access?</b> Use {@code ConcurrentHashtable} -- the only thread-safe one of
- *       the three. {@code FlatHashtable} is racy by design, and this class is not thread-safe at
- *       all.
- *   <li><b>Otherwise: does the population reset wholesale, or evolve?</b> A table cleared as a unit
- *       -- once per cycle, per request, or built and then discarded -- wants {@code FlatHashtable},
- *       whose open addressing has no tombstones and so offers no removal beyond clearing. A table
- *       whose entries come and go independently wants this one, where chaining removes and evicts
- *       in place.
- * </ol>
- *
- * <p>Lifetime is the usual shorthand for that second question and mostly works, because a
- * short-lived table never needs to remove -- it just dies. The case it mis-sorts is a long-lived
- * table that resets on a cycle: that is a sequence of short lives, and belongs with the short-lived
- * ones. Compare a table that evicts stale entries one at a time while the busy ones survive the
- * cycle (evolving -- this class) against one that clears every entry each time it reports (resets
- * -- {@code FlatHashtable}).
+ * <p>Use {@code ConcurrentHashtable} for concurrent access. Otherwise use this class when entries
+ * are removed independently, and {@code FlatHashtable} when the table is cleared as a unit.
  *
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
  * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
@@ -170,37 +153,22 @@ public final class Hashtable {
     }
 
     /**
-     * A <em>capped</em> single-key table: it holds at most {@code maxCapacity} live entries, after
-     * which {@link #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code
-     * null}. A lookup hit is still always returned at capacity -- the cap only blocks new entries.
+     * Creates a single-key table bounded to {@code maxCapacity} live entries. At the bound, {@link
+     * #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null} for an
+     * absent key; lookup hits and replacements still succeed.
      *
-     * <p>"Capped" names the promise, not the mechanism: the bucket array is sized once from {@code
-     * maxCapacity} via {@link Hashtable#capacityFor(int)} and never resized, but that is an
-     * implementation detail. What the caller is choosing here is a bounded entry count and, with
-     * it, a bounded footprint -- the posture an agent living in someone else's heap wants by
-     * default. Callers that need overflow to be absorbed rather than refused should pair a {@link
-     * SizeManager}'s eviction half over the static building blocks (see {@link
-     * Hashtable#createBounded(int)}) rather than reaching for an uncapped table.
+     * <p>The bucket array is allocated once via {@link Hashtable#capacityFor(int)}. Callers that
+     * need an eviction policy can use {@link Hashtable#createBounded(int)} with its state-aware
+     * reservation and eviction helpers.
      *
-     * <p><b>Pick {@code maxCapacity} in the right ballpark of what you actually expect to hold</b>
-     * -- the bucket array is sized from it, so it is read as both the limit and a rough estimate.
-     * Nothing assumes you will reach the cap, but a cap set as a paranoid safety valve far above
-     * typical usage over-allocates the spine for a fill that never arrives. When the limit and the
-     * expectation genuinely differ by a lot, size the two independently with the low-level API:
-     * {@code Hashtable.create(capacityFor(expected))} paired with {@code new SizeManager(limit)}.
+     * <p>{@code entryClass} is used only to infer {@code K} and {@code TEntry}; the backing array
+     * remains a {@code Hashtable.Entry[]}.
      *
-     * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
-     * infers both {@code K} and {@code TEntry} at the call site (e.g. {@code
-     * D1.createBounded(MyEntry.class, 64)}), keeping the factory symmetric with the rest of the
-     * collections family. Unlike {@link Hashtable#create(Class, int)} it is not reflectively
-     * allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally, matching the
-     * static building blocks ({@link Hashtable#bucketFor}, {@link Hashtable#insertHeadEntryFor},
-     * etc.) that {@link #get}, {@link #insert}, and friends delegate to.
-     *
-     * @param entryClass type token pinning {@code TEntry} for inference; not used for reflective
-     *     allocation
-     * @param maxCapacity strict cap on live entries
-     * @return a capped, non-resizing single-key table
+     * @param <K> key type
+     * @param <TEntry> entry type
+     * @param entryClass concrete entry type used for generic type inference
+     * @param maxCapacity maximum number of live entries
+     * @return a bounded table
      */
     @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
@@ -306,28 +274,16 @@ public final class Hashtable {
     }
 
     /**
-     * Returns the entry for {@code key}, building one via {@code creator} if absent -- wrapped in a
-     * {@link Maybe} that is absent if the key is absent and the table is <b>at capacity</b>. A
-     * lookup hit is always returned even at capacity, so only the create half can fail. Check
-     * {@link #isFull()} beforehand if you want to distinguish "refused" from "created" without
-     * inspecting the result.
+     * Returns the existing entry for {@code key}, or creates one with {@code creator}. The result
+     * is absent only when the key is absent and the table is at capacity; lookup hits are always
+     * returned.
      *
-     * <p>Refusal is a designed steady state for a capped table, not an exceptional condition -- see
-     * {@link #createBounded}. Decide deliberately what a refused create should do (drop the sample,
-     * fall back, make room); silently ignoring an absent {@link Maybe} turns the cap into data loss
-     * you cannot see.
+     * <p>The hash is computed once for lookup and insertion. {@code creator} must return an entry
+     * whose {@code keyHash} equals {@link Entry#hash(Object) D1.Entry.hash(key)}, or subsequent
+     * {@link #get} calls will not find it.
      *
-     * <p>Computes the hash once, reused for both the lookup and (on miss) the insert -- avoids the
-     * double-hash that "{@code get}; if null then {@code insert}" would incur.
-     *
-     * <p>{@code creator} must build an entry whose {@code keyHash} equals {@link Entry#hash(Object)
-     * D1.Entry.hash(key)} (typically by passing {@code key} to a constructor that calls {@code
-     * super(key)}), or a future {@link #get} for that key won't find it.
-     *
-     * <p>Exactly one {@link Maybe#of} call site, fed by delegating to {@link #tryGetOrCreateOrNull}
-     * -- see {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
-     * Use {@link #tryGetOrCreateOrNull} directly only when a manual null check is genuinely more
-     * convenient than {@link Maybe#update}/{@link Maybe#getOrNull}.
+     * <p>Delegating to {@link #tryGetOrCreateOrNull} keeps a single {@link Maybe#of} allocation
+     * site.
      *
      * @param key key to look up
      * @param creator creates an entry when the key is absent
@@ -536,22 +492,19 @@ public final class Hashtable {
     }
 
     /**
-     * Composite-key analogue of {@link D1#createBounded}: a <em>capped</em> table holding at most
-     * {@code maxCapacity} live entries, after which {@link #insert} returns {@code false} and
-     * {@link #tryGetOrCreateOrNull} returns {@code null}, with lookup hits still always returned.
-     * See {@link D1#createBounded} for what "capped" promises and why it is the default posture.
+     * Creates a two-key table bounded to {@code maxCapacity} live entries. At the bound, {@link
+     * #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null} for an
+     * absent key pair; lookup hits and replacements still succeed.
      *
-     * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
-     * infers {@code K1}, {@code K2}, and {@code TEntry} at the call site (e.g. {@code
-     * D2.createBounded(MyEntry.class, 64)}). Unlike {@link Hashtable#create(Class, int)} it is not
-     * reflectively allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally,
-     * matching the static building blocks that {@link #get}, {@link #insert}, and friends delegate
-     * to.
+     * <p>{@code entryClass} is used only to infer the key and entry types; the backing array
+     * remains a {@code Hashtable.Entry[]}.
      *
-     * @param entryClass type token pinning {@code TEntry} for inference; not used for reflective
-     *     allocation
-     * @param maxCapacity strict cap on live entries
-     * @return a capped, non-resizing two-key table
+     * @param <K1> first key type
+     * @param <K2> second key type
+     * @param <TEntry> entry type
+     * @param entryClass concrete entry type used for generic type inference
+     * @param maxCapacity maximum number of live entries
+     * @return a bounded table
      */
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
@@ -697,11 +650,15 @@ public final class Hashtable {
     }
 
     /**
-     * Escape hatch for {@link #tryGetOrCreateOrEvict} for callers that want the nullable entry
-     * directly. Eviction runs before {@code creator}, not after: {@code creator} may throw, so
-     * freeing a slot and only then attempting the fallible create keeps a thrown exception from
-     * ever leaving a slot double-booked. A creator that throws after a successful eviction simply
-     * leaves the table one entry smaller -- no corruption, just a wasted eviction.
+     * Nullable form of {@link #tryGetOrCreateOrEvict}. When full, evicts before invoking {@code
+     * creator}; if creation then throws, the table remains one entry smaller without leaking a
+     * reservation.
+     *
+     * @param key1 first key component
+     * @param key2 second key component
+     * @param creator creates an entry when the key pair is absent
+     * @param evictable selects an entry to remove when the table is full
+     * @return the existing or created entry, or {@code null} when full with no evictable entry
      */
     @Nullable
     public TEntry tryGetOrCreateOrEvictOrNull(
@@ -781,8 +738,8 @@ public final class Hashtable {
   static final int MAX_BUCKETS = 1 << 30;
 
   /**
-   * Allocates a fixed-size bucket array sized to hold {@code capacity} entries: {@code capacity}
-   * rounded up to the next power of two.
+   * Allocates a fixed-size bucket array with at least {@code capacity} buckets, rounded up to the
+   * next power of two.
    *
    * <p>Erasure stops a caller writing {@code new TEntry[n]}, so {@code entryClass} is allocated
    * reflectively via {@link Array#newInstance}. That buys a real {@code TEntry} component type
@@ -824,11 +781,9 @@ public final class Hashtable {
   }
 
   /**
-   * Balanced default load factor for a chained bucket array: at this target fill, chains from a
-   * well-spread hash stay short (average chain length {@code ~DEFAULT_LOAD_FACTOR}, i.e. entries
-   * per bucket) without over-provisioning the array. Chaining tolerates a high target fill: past
-   * 1.0 it degrades gradually into longer chains rather than failing, so there is no cliff to stay
-   * clear of and no reason to over-allocate the spine.
+   * Default target load factor for chained bucket arrays. With well-spread hashes, {@code 0.75}
+   * means 0.75 live entries per bucket on average. Separate chaining continues to work above 1.0,
+   * degrading gradually into longer chains rather than reaching a correctness cliff.
    */
   public static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
@@ -1330,25 +1285,12 @@ public final class Hashtable {
   }
 
   /**
-   * Manages a table's occupancy against a fixed cap -- both directions. Reserving a slot for an
-   * insert and evicting to make room are two halves of the same policy, so they live on one object:
-   * a caller never has to remember to decrement after unlinking, and there is no second object to
-   * wire up (or mis-wire) alongside the count.
+   * Tracks occupancy against a fixed capacity and owns the cursor used for eviction. Callers
+   * driving raw bucket arrays must keep reservations and releases paired with successful table
+   * mutations.
    *
-   * <p>{@link D1} and {@link D2} use one internally for their strict entry-count cap; composers
-   * driving a {@code Hashtable.Entry[]} through the static building blocks can reuse it instead of
-   * hand-rolling the same increment/decrement/cap-check bookkeeping. A table that never evicts
-   * simply never calls the eviction half.
-   *
-   * <pre>{@code
-   * // miss path of a capped, self-evicting table
-   * if (!sizeManager.tryReserveOrEvict(buckets, STALE)) {
-   *   return null;                       // full, and nothing was evictable -- drop the datum
-   * }
-   * insertHeadEntryFor(buckets, keyHash, newEntry);   // slot already reserved
-   * }</pre>
-   *
-   * <p>Not thread-safe, matching the rest of this class.
+   * <p>{@link D1} and {@link D2} use this internally; custom tables can compose it with the static
+   * helpers. Not thread-safe.
    */
   public static final class SizeManager {
     private final int capacity;
@@ -1377,14 +1319,9 @@ public final class Hashtable {
     }
 
     /**
-     * Live entries, as far as this manager knows -- an estimate, not a census. A reservation taken
-     * by {@link #tryReserve()} or {@link #tryReserveOrEvict} counts immediately, so between
-     * reserving and linking the figure runs one high; and {@link Hashtable#insertReserved} trusts
-     * the caller to have reserved, so a link without one leaves it low. The manager counts what it
-     * is told, and cannot audit the spine to check.
-     *
-     * <p>Wrappers that never expose the reservation window -- {@link D1} and {@link D2}, which
-     * reserve and link inside a single call -- can and do present this as an exact {@code size()}.
+     * Returns tracked occupancy. It temporarily includes a reserved but not yet linked slot and can
+     * drift if callers mutate buckets without updating this manager. {@link D1} and {@link D2}
+     * expose an exact size because mutation and tracking occur within one call.
      */
     public int estimateSize() {
       return this.size;
@@ -1400,14 +1337,11 @@ public final class Hashtable {
     }
 
     /**
-     * Reserves a slot for a fresh insert: increments and returns {@code true}, or leaves the count
-     * unchanged and returns {@code false} if already at capacity. Use this when the entry to link
-     * is already fully built (nothing between the check and the increment can fail). When building
-     * the entry is itself fallible, check {@link #isFull()} first, do the fallible work, then call
-     * {@link #increment()} only once linking actually succeeds.
+     * Reserves a slot by incrementing the count, or returns {@code false} without changing it when
+     * full. Use this only when no fallible work remains before linking; otherwise perform that
+     * work, check {@link #isFull()} first, then link and call {@link #increment()}.
      *
-     * <p>Returning {@code false} is not a final refusal -- it is the caller's cue to either refuse
-     * the insert or make room. {@link #tryReserveOrEvict} folds those two steps into one call.
+     * @return whether a slot was reserved
      */
     public boolean tryReserve() {
       if (isFull()) {
@@ -1418,14 +1352,12 @@ public final class Hashtable {
     }
 
     /**
-     * {@link #tryReserve()}, falling back to evicting one entry matching {@code evictable} when the
-     * table is full. Returns {@code true} with a slot reserved, or {@code false} if the table was
-     * full and nothing was evictable -- in which case {@code buckets} is untouched and the caller
-     * should drop the datum.
+     * Reserves a slot or, when full, evicts the first entry matching {@code evictable}. Returns
+     * {@code false} without modifying {@code buckets} when the table is full and nothing matches.
      *
-     * <p>The whole capacity decision of a self-evicting table's miss path, in one call. Pass a
-     * non-capturing {@code evictable} (typically a {@code static final}) to keep it
-     * allocation-free.
+     * @param buckets table to evict from
+     * @param evictable selects an entry to remove
+     * @return whether a slot was reserved
      */
     public <TEntry extends Entry> boolean tryReserveOrEvict(
         @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
@@ -1534,13 +1466,10 @@ public final class Hashtable {
     }
 
     /**
-     * Unlinks every entry matching {@code evictable} in one full pass, decrementing the count for
-     * each, and returns how many were removed. Resets the scan position, since a full pass leaves
-     * nothing later to resume from.
+     * Removes every entry matching {@code evictable}, decrementing the tracked count per removal.
+     * Resets the eviction cursor after a completed pass.
      *
-     * <p>Named {@code evictAll} rather than {@code drain} to keep it distinct from {@link
-     * Hashtable#drain(Hashtable.Entry[], Consumer)}, which empties the whole table into a sink.
-     * This one removes only what matches, and hands back a count rather than the entries.
+     * @return the number of removed entries
      */
     @SuppressWarnings("unchecked")
     public <TEntry extends Entry> int evictAll(
@@ -1551,9 +1480,7 @@ public final class Hashtable {
         Entry candidate = iter.next();
         if (evictable.test((TEntry) candidate)) {
           iter.remove();
-          // Decrement per removal rather than subtracting `count` after the loop: if `evictable`
-          // throws part way through, the entries unlinked so far are already gone from the chains,
-          // and a deferred subtraction would never run -- leaving the count permanently high.
+          // Decrement immediately so the count remains correct if a later predicate call throws.
           this.size -= 1;
           count++;
         }
@@ -1565,20 +1492,17 @@ public final class Hashtable {
   }
 
   /**
-   * The mutable state of a caller-driven table: a bucket array and the {@link SizeManager} sized
-   * and matched to it. Both halves are stateful and neither is much use without the other, which is
-   * what the name is getting at -- the spine holds the entries, the manager holds how many there
-   * are and where the last eviction looked.
+   * Mutable state for a caller-driven table, keeping its bucket array and {@link SizeManager}
+   * together for overloads that accept a {@link State}.
    *
-   * <p><b>Hold this, rather than unpacking it.</b> Keeping one field instead of two is not just
-   * tidier: it keeps the array and its manager passed and stored together, so callers who hold a
-   * {@code State} can't accidentally pair one table's array with another's manager. Composers reach
-   * through it -- {@code state.buckets}, {@code state.sizeManager} -- when calling the static
-   * building blocks; both fields are package-private since only {@code datadog.trace.util} calls
-   * those building blocks directly.
+   * <p>Prefer passing this object directly to those overloads. Direct field access remains
+   * available for low-level composition; callers using it must keep occupancy accounting consistent
+   * with bucket mutations.
    *
-   * <p>Same headroom idiom as {@link D1}/{@link D2}: {@code maxCapacity} is the strict cap on live
-   * entries, and the backing array is sized with load-factor headroom over it.
+   * <p>The {@code maxCapacity} passed to {@link #createBounded(int)} is the strict live-entry
+   * bound, and the backing array is sized from it via {@link #capacityFor(int)}.
+   *
+   * @param <TEntry> stored entry type
    */
   public static final class State<TEntry extends Entry> {
     final Hashtable.Entry[] buckets;

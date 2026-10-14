@@ -43,25 +43,8 @@ import javax.annotation.Nullable;
  * see {@link #resizingInsert}). The trade only pays when a miss is benign (a cache / interner), not
  * for a must-hold-everything map.
  *
- * <h2>Choosing between the three tables</h2>
- *
- * <ol>
- *   <li><b>Concurrent access?</b> Use {@code ConcurrentHashtable} -- the only thread-safe one of
- *       the three. This class is racy by design (see above), and {@code Hashtable} is not
- *       thread-safe at all.
- *   <li><b>Otherwise: does the population reset wholesale, or evolve?</b> A table cleared as a unit
- *       -- once per cycle, per request, or built and then discarded -- wants this class, whose open
- *       addressing has no tombstones and so offers no removal beyond clearing. A table whose
- *       entries come and go independently wants the chained {@code Hashtable}, which removes and
- *       evicts in place.
- * </ol>
- *
- * <p>Lifetime is the usual shorthand for that second question and mostly works, because a
- * short-lived table never needs to remove -- it just dies. The case it mis-sorts is a long-lived
- * table that resets on a cycle: that is a sequence of short lives, and belongs with the short-lived
- * ones. Compare a table that evicts stale entries one at a time while the busy ones survive the
- * cycle (evolving -- {@code Hashtable}) against one that clears every entry each time it reports
- * (resets -- this class).
+ * <p>Use {@code ConcurrentHashtable} for concurrent access. Otherwise use this class when the table
+ * is cleared as a unit, and {@code Hashtable} when entries are removed independently.
  *
  * <p><b>Strategy roles, split by concern.</b> The per-use policy is a small set of {@link Strategy
  * strategy} objects rather than one, so a caller supplies only what an operation needs:
@@ -275,16 +258,12 @@ public final class FlatHashtable {
     }
 
     /**
-     * Low-level, {@code null}-returning form of {@link #tryGetOrCreate}. Prefer the {@link Maybe}
-     * form above for new call sites; this one remains as an escape hatch for callers where the
-     * {@link Maybe} allocation-free contract doesn't fit or that pre-date it. Under-promising
-     * refusal here costs an NPE at the cap; over-promising it costs a redundant null check on a
-     * growable table -- so it errs toward {@code try}.
+     * Nullable form of {@link #tryGetOrCreate}. A fixed table returns {@code null} when it is full
+     * and {@code key} is absent; a growable table always returns the existing or created entry.
      *
      * @param key key to look up
      * @param createStrat creates an entry when the key is absent
-     * @return the existing or created entry, or {@code null} when a fixed table is full and {@code
-     *     key} is absent
+     * @return the existing or created entry, or {@code null} for a new key in a full fixed table
      */
     @StrategyConsumer
     @Nullable
@@ -486,15 +465,14 @@ public final class FlatHashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#tryGetOrCreateOrNull}: low-level, {@code null}-returning form
-     * of {@link #tryGetOrCreate}. Growable never returns {@code null}; fixed returns {@code null}
-     * when full and {@code (key1, key2)} is absent.
+     * Nullable form of {@link #tryGetOrCreate}. A fixed table returns {@code null} when it is full
+     * and the key pair is absent; a growable table always returns the existing or created entry.
      *
      * @param key1 first key component
      * @param key2 second key component
      * @param createStrat creates an entry when the key pair is absent
-     * @return the existing or created entry, or {@code null} when a fixed table is full and the key
-     *     pair is absent
+     * @return the existing or created entry, or {@code null} for a new key pair in a full fixed
+     *     table
      */
     @StrategyConsumer
     @Nullable
