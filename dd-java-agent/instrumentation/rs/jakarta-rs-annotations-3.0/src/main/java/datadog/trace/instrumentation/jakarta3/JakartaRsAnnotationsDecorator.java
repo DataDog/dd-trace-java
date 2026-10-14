@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.jakarta3;
 
-import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isOpen;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.ResourceMethodSpanState;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -56,45 +56,48 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
     return JAKARTA_RS_CONTROLLER;
   }
 
-  /**
-   * Called on entry to {@code resume()}/{@code cancel()}. If the resource method that owns {@code
-   * asyncResponse} is still open on this thread, the call is synchronous and the resource method's
-   * own exit advice finishes the span, so nothing is claimed. Otherwise this atomically claims the
-   * span via {@link ContextStore#remove} before the call can mark the response as resolved: a
-   * resource-method exit advice racing on another thread then finds no mapping and leaves the span
-   * to this caller, which tags it on method exit before finishing it.
-   */
-  public AgentSpan claimUnlessOpen(
-      final ContextStore<AsyncResponse, AgentSpan> contextStore,
+  /** Registers a terminal call so resource exit cannot finish while its outcome is undecorated. */
+  public ResourceMethodSpanState beginTerminal(
+      final ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore,
       final AsyncResponse asyncResponse) {
-    final AgentSpan span = contextStore.get(asyncResponse);
-    if (span == null || isOpen(span)) {
-      return null;
+    final ResourceMethodSpanState state = contextStore.get(asyncResponse);
+    if (state != null && state.beginTerminalCall()) {
+      return state;
     }
-    return contextStore.remove(asyncResponse);
+    return null;
   }
 
   /**
-   * The span a successful {@code resume()}/{@code cancel()} should tag: the one claimed on entry,
-   * or, for a synchronous call, the still-open owning resource method's span (which that method's
-   * exit advice finishes later).
+   * Returns the span only to the first terminal call that completes successfully or exceptionally.
    */
-  public AgentSpan terminalSpan(
-      final ContextStore<AsyncResponse, AgentSpan> contextStore,
-      final AsyncResponse asyncResponse,
-      final AgentSpan claimed) {
-    if (claimed != null) {
-      return claimed;
-    }
-    final AgentSpan span = contextStore.get(asyncResponse);
-    return span != null && isOpen(span) ? span : null;
+  public AgentSpan claimTerminalOutcome(final ResourceMethodSpanState state) {
+    return state != null && state.claimTerminalOutcome() ? state.span() : null;
   }
 
-  /** Finishes a span claimed by {@link #claimUnlessOpen}, if any. */
-  public void finishClaimed(final AgentSpan claimed) {
-    if (claimed != null) {
-      beforeFinish(claimed);
-      claimed.finish();
+  /** Completes a terminal call and finishes only after the owning resource method has exited. */
+  public void endTerminal(
+      final ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore,
+      final AsyncResponse asyncResponse,
+      final ResourceMethodSpanState state) {
+    if (state == null) {
+      return;
+    }
+    boolean responseResolved = false;
+    try {
+      responseResolved = !asyncResponse.isSuspended();
+    } catch (final Throwable ignored) {
+    }
+    if (state.endTerminalCall(responseResolved)) {
+      final AgentSpan span = state.span();
+      try {
+        beforeFinish(span);
+      } finally {
+        try {
+          contextStore.remove(asyncResponse);
+        } finally {
+          span.finish();
+        }
+      }
     }
   }
 

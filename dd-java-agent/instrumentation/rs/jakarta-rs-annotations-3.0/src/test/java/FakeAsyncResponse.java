@@ -29,9 +29,11 @@ public class FakeAsyncResponse implements AsyncResponse {
   private volatile boolean cancelled = false;
   private final CountDownLatch resolved;
   private final CountDownLatch releaseCancel;
+  private final CountDownLatch objectResumeEntered;
+  private final CountDownLatch releaseObjectResume;
 
   public FakeAsyncResponse() {
-    this(null, null);
+    this(null, null, null, null);
   }
 
   /**
@@ -40,12 +42,26 @@ public class FakeAsyncResponse implements AsyncResponse {
    * @param releaseCancel awaited by a successful {@code cancel()} before it returns
    */
   public FakeAsyncResponse(final CountDownLatch resolved, final CountDownLatch releaseCancel) {
+    this(resolved, releaseCancel, null, null);
+  }
+
+  public FakeAsyncResponse(
+      final CountDownLatch resolved,
+      final CountDownLatch releaseCancel,
+      final CountDownLatch objectResumeEntered,
+      final CountDownLatch releaseObjectResume) {
     this.resolved = resolved;
     this.releaseCancel = releaseCancel;
+    this.objectResumeEntered = objectResumeEntered;
+    this.releaseObjectResume = releaseObjectResume;
   }
 
   @Override
   public boolean resume(final Object response) {
+    if (objectResumeEntered != null) {
+      objectResumeEntered.countDown();
+    }
+    await(releaseObjectResume);
     return suspended.compareAndSet(true, false);
   }
 
@@ -64,11 +80,7 @@ public class FakeAsyncResponse implements AsyncResponse {
       resolved.countDown();
     }
     if (releaseCancel != null) {
-      try {
-        releaseCancel.await(5, TimeUnit.SECONDS);
-      } catch (final InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
+      await(releaseCancel);
     }
     return true;
   }
@@ -96,6 +108,17 @@ public class FakeAsyncResponse implements AsyncResponse {
   @Override
   public boolean isDone() {
     return !suspended.get();
+  }
+
+  private static void await(final CountDownLatch latch) {
+    if (latch == null) {
+      return;
+    }
+    try {
+      latch.await(5, TimeUnit.SECONDS);
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   @Override

@@ -13,8 +13,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Regression coverage for GH-12597 (jax-rs.request span double-finish / premature finish on
- * synchronous AsyncResponse#resume()/cancel()) directly against the jakarta.ws.rs advice, with no
+ * Regression coverage for the jax-rs.request span double-finish and premature-finish behavior found
+ * while investigating GH-12597. These tests run directly against the jakarta.ws.rs advice, with no
  * real JAX-RS server involved -- resource methods are invoked directly, exactly like the existing
  * JakartaRsAnnotations3InstrumentationTest does. This exercises the same advice code as the
  * cxf-2.1 module's CxfContextPropagationTest (which only covers the javax.ws.rs path).
@@ -122,11 +122,8 @@ class JakartaRsAsyncResponseInstrumentationTest extends InstrumentationSpecifica
     // Regression test for a gap found reviewing the fix: resume() is called on the OUTER
     // resource method's response, but from inside a DIFFERENT resource method invoked
     // synchronously from within the outer one (not a bare @Trace helper). That inner resource
-    // method pushes its own entry onto ResourceMethodSpanTracker's stack, on top of the
-    // outer's, so the outer's span is no longer the innermost entry -- checking only the top
-    // of the stack (an earlier version of this fix) would treat the outer's resume() as
-    // genuinely async and finish its span right there, then finish it again when the outer
-    // resource method itself returns (caught by enabledFinishTimingChecks()).
+    // method has its own response and span. The state associated with the outer response must
+    // still identify the outer resource method as its owner.
     setup:
     def outerResponse = new FakeAsyncResponse()
 
@@ -249,6 +246,135 @@ class JakartaRsAsyncResponseInstrumentationTest extends InstrumentationSpecifica
     }
   }
 
+  def "resume() on another thread cannot finish before the resource method returns"() {
+    setup:
+    def terminalReturned = new CountDownLatch(1)
+    def releaseResource = new CountDownLatch(1)
+    def response = new FakeAsyncResponse()
+    def executor = Executors.newSingleThreadExecutor()
+
+    when:
+    def invocation = executor.submit {
+      new EarlyCrossThreadResumeResource().resumeBeforeReturn(
+        response, terminalReturned, releaseResource)
+    }
+    assert terminalReturned.await(5, TimeUnit.SECONDS)
+
+    then:
+    // resume() has returned on the worker, but the owning resource method is still open.
+    spanFinishLocations.isEmpty()
+    TEST_WRITER.size() == 0
+
+    when:
+    releaseResource.countDown()
+    invocation.get(5, TimeUnit.SECONDS)
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /earlycross-thread-resume"
+          spanType "web"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/earlycross-thread-resume"
+            defaultTags()
+          }
+        }
+        TraceUtils.basicSpan(it, "trace.annotation", "EarlyCrossThreadResumeResource.doWorkAfterResume", span(0), null, ["component": "trace"])
+      }
+    }
+
+    cleanup:
+    releaseResource.countDown()
+    executor.shutdownNow()
+  }
+
+  def "successful cancel wins decoration when a competing resume entered first"() {
+    setup:
+    def resumeEntered = new CountDownLatch(1)
+    def releaseResume = new CountDownLatch(1)
+    def response = new FakeAsyncResponse(null, null, resumeEntered, releaseResume)
+    def executor = Executors.newSingleThreadExecutor()
+    new SuspendedResource().suspend(response)
+
+    when:
+    def losingResume = executor.submit { response.resume("too late") }
+    assert resumeEntered.await(5, TimeUnit.SECONDS)
+    assert response.cancel()
+    releaseResume.countDown()
+    assert !losingResume.get(5, TimeUnit.SECONDS)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /suspended"
+          spanType "web"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/suspended"
+            "canceled" true
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    releaseResume.countDown()
+    executor.shutdownNow()
+  }
+
+  def "successful throwable resume wins decoration when a normal resume entered first"() {
+    setup:
+    def resumeEntered = new CountDownLatch(1)
+    def releaseResume = new CountDownLatch(1)
+    def response = new FakeAsyncResponse(null, null, resumeEntered, releaseResume)
+    def executor = Executors.newSingleThreadExecutor()
+    new SuspendedResource().suspend(response)
+    def failure = new IllegalStateException("boom")
+
+    when:
+    def losingResume = executor.submit { response.resume("too late") }
+    assert resumeEntered.await(5, TimeUnit.SECONDS)
+    assert response.resume(failure)
+    releaseResume.countDown()
+    assert !losingResume.get(5, TimeUnit.SECONDS)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /suspended"
+          spanType "web"
+          errored true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/suspended"
+            "error.message" "boom"
+            "error.type" IllegalStateException.name
+            "error.stack" String
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    releaseResume.countDown()
+    executor.shutdownNow()
+  }
+
   @Path("/asyncresume")
   static class AsyncResumeResource {
     @GET
@@ -321,6 +447,34 @@ class JakartaRsAsyncResponseInstrumentationTest extends InstrumentationSpecifica
       EXECUTOR.submit({ response.cancel() })
       resolved.await(5, TimeUnit.SECONDS)
     }
+  }
+
+  @Path("/earlycross-thread-resume")
+  static class EarlyCrossThreadResumeResource {
+    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor()
+
+    @GET
+    void resumeBeforeReturn(
+      @Suspended final AsyncResponse response,
+      final CountDownLatch terminalReturned,
+      final CountDownLatch releaseResource) {
+      EXECUTOR.submit({
+        response.resume("OK")
+        terminalReturned.countDown()
+      })
+      terminalReturned.await(5, TimeUnit.SECONDS)
+      releaseResource.await(5, TimeUnit.SECONDS)
+      doWorkAfterResume()
+    }
+
+    @Trace
+    private void doWorkAfterResume() {}
+  }
+
+  @Path("/suspended")
+  static class SuspendedResource {
+    @GET
+    void suspend(@Suspended final AsyncResponse response) {}
   }
 
   @Path("/trueasyncresume")

@@ -7,8 +7,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.ResourceMethodSpanTracker.enter;
-import static datadog.trace.bootstrap.ResourceMethodSpanTracker.exit;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -25,6 +23,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.ResourceMethodSpanState;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.ws.rs.container.AsyncResponse;
 import java.lang.reflect.Method;
@@ -62,7 +61,8 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("jakarta.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
+    return singletonMap(
+        "jakarta.ws.rs.container.AsyncResponse", ResourceMethodSpanState.class.getName());
   }
 
   @Override
@@ -99,11 +99,12 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
         @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
-      ContextStore<AsyncResponse, AgentSpan> contextStore = null;
+      ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore = null;
       for (final Object arg : args) {
         if (arg instanceof AsyncResponse) {
           asyncResponse = (AsyncResponse) arg;
-          contextStore = InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
+          contextStore =
+              InstrumentationContext.get(AsyncResponse.class, ResourceMethodSpanState.class);
           if (contextStore.get(asyncResponse) != null) {
             /**
              * We are probably in a recursive call and don't want to start a new span because it
@@ -129,10 +130,7 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
       final ContextScope scope = activateSpan(span);
 
       if (contextStore != null && asyncResponse != null) {
-        contextStore.put(asyncResponse, span);
-        // Only tracked for methods that can hand off to AsyncResponse#resume()/cancel();
-        // see ResourceMethodSpanTracker for why this can't just be a bare counter.
-        enter(span);
+        contextStore.put(asyncResponse, new ResourceMethodSpanState(span));
       }
 
       return scope;
@@ -146,55 +144,50 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
       if (scope == null) {
         return;
       }
-      if (asyncResponse != null) {
-        exit();
-      }
       final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        // Clear span from the asyncResponse so a later resume()/cancel() call (e.g. from
-        // container exception-mapping) doesn't find a stale mapping and double-finish it. If a
-        // resume()/cancel() on another thread already claimed the span, that caller finishes it.
-        final boolean claimedFinish =
-            asyncResponse == null
-                || InstrumentationContext.get(AsyncResponse.class, AgentSpan.class)
-                        .remove(asyncResponse)
-                    != null;
-        DECORATE.onError(span, throwable);
-        if (claimedFinish) {
-          DECORATE.beforeFinish(span);
-        }
-        scope.close();
-        if (claimedFinish) {
-          span.finish();
-        }
-        return;
-      }
-
       if (asyncResponse == null) {
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
+        try {
+          if (throwable != null) {
+            DECORATE.onError(span, throwable);
+          }
+          DECORATE.beforeFinish(span);
+        } finally {
+          scope.close();
+          span.finish();
+        }
         return;
       }
 
-      if (!asyncResponse.isSuspended()) {
-        // A synchronous resume()/cancel() deferred finishing to us, or a genuinely-async one
-        // on another thread is racing us here. ContextStore#remove is the atomic hand-off: a
-        // resume()/cancel() on another thread claims the mapping before resolving the response,
-        // so if remove returns null here, that caller owns the span and finishes it once it
-        // has been tagged.
-        final boolean claimedFinish =
-            InstrumentationContext.get(AsyncResponse.class, AgentSpan.class).remove(asyncResponse)
-                != null;
-        if (claimedFinish) {
+      final ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore =
+          InstrumentationContext.get(AsyncResponse.class, ResourceMethodSpanState.class);
+      final ResourceMethodSpanState state = contextStore.get(asyncResponse);
+      boolean responseResolved = false;
+      if (throwable == null) {
+        try {
+          responseResolved = !asyncResponse.isSuspended();
+        } catch (final Throwable ignored) {
+        }
+      }
+      final boolean finish =
+          state == null
+              ? throwable != null || responseResolved
+              : state.exitResource(responseResolved, throwable != null);
+      try {
+        if (throwable != null) {
+          DECORATE.onError(span, throwable);
+        }
+        if (finish) {
           DECORATE.beforeFinish(span);
         }
+      } finally {
         scope.close();
-        if (claimedFinish) {
-          span.finish();
+        if (finish) {
+          try {
+            contextStore.remove(asyncResponse);
+          } finally {
+            span.finish();
+          }
         }
-      } else {
-        scope.close();
       }
     }
   }
