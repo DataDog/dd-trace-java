@@ -39,9 +39,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
   companion object {
     const val FIRST_SERIAL = 1
-    const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
-    const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
     const val HAS_SCOPED_ALIAS = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.HAS_SCOPED_ALIAS
+    const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
+    const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
 
     /**
      * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
@@ -50,9 +50,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val SERIAL_CAPACITY = 1 shl 15
 
     /**
-     * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() + intercepted() -- must stay in sync.
-     * LEVEL_TRACE at bit 2, INTERCEPTED at bit 1, HAS_SCOPED_ALIAS at bit 0 (the tag has an
-     * OpenTelemetry name in some directions only), other low bits and the reserved [47-32] window
+     * Mirrors KnownTagCodec.makeTagId(serial) + intercepted() + traceLevel() -- must stay in sync.
+     * HAS_SCOPED_ALIAS at bit 0 (the tag has an OpenTelemetry name in some directions only),
+     * INTERCEPTED at bit 1, LEVEL_TRACE at bit 2, other low bits and the reserved [47-32] window
      * zero. Every id is made here, and the range check makes each one positive by construction.
      */
     fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, hasScopedAlias: Boolean = false): Long {

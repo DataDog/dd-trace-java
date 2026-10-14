@@ -125,4 +125,24 @@ class FeatureFlagEvpPublisherTest {
       this.value = value;
     }
   }
+
+  @Test
+  void serializesExposureFeatures() {
+    final ExposureEvent event =
+        new ExposureEvent(
+            1234L,
+            new Allocation("allocation"),
+            new Flag("flag"),
+            new Variant("variant"),
+            new Subject("subject", emptyMap()),
+            7,
+            java.util.Collections.singletonMap("bandit.policy_id", "p2"));
+
+    assertTrue(exposureJsonOf(event).contains("\"features\":{\"bandit.policy_id\":\"p2\"}"));
+  }
+
+  @Test
+  void omitsFeaturesKeyWhenAbsent() {
+    assertFalse(exposureJson(7).contains("features"));
+  }
 }

@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -200,15 +201,54 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals("new-service", span.getServiceName());
   }
 
+  @TableTest({
+    "scenario                      | configured                  | tag          | expectedBuilder | expectedSetter",
+    "configured by OTel name       | db.system                   | db.system    | split           | split         ",
+    "configured by Datadog name    | db.type                     | db.type      | split           | split         ",
+    "Datadog config, OTel tag      | db.type                     | db.system    | split           | split         ",
+    "OTel config, Datadog tag      | db.system                   | db.type      | split           | split         ",
+    "custom tag                    | custom.tag                  | custom.tag   | split           | split         ",
+    "unconfigured tag              | db.system                   | other.tag    | my-service      | my-service    ",
+    "empty configuration           | ''                          | db.system    | my-service      | my-service    ",
+    "both names, OTel tag          | db.system,db.type           | db.system    | split           | split         ",
+    "both names, Datadog tag       | db.system,db.type           | db.type      | split           | split         ",
+    "custom tag survives expansion | db.system,custom.tag        | custom.tag   | split           | split         ",
+    "first of two renamed tags     | db.system,db.operation.name | db.type      | split           | split         ",
+    "second of two renamed tags    | db.system,db.operation.name | db.operation | split           | split         "
+  })
+  void splitByTagsMatchesCanonicalAndOriginalNames(
+      String configured, String tag, String expectedBuilder, String expectedSetter) {
+    Set<String> configuredTags =
+        configured.isEmpty() ? emptySet() : new HashSet<>(Arrays.asList(configured.split(",")));
+    CoreTracer tracer = createSplittingTracer(configuredTags, emptyMap());
+
+    AgentSpan builderSpan = tracer.buildSpan("datadog", "some span").withTag(tag, "split").start();
+    AgentSpan setterSpan = tracer.buildSpan("datadog", "some span").start();
+    setterSpan.setTag(tag, "split");
+
+    assertEquals(expectedBuilder, builderSpan.getServiceName());
+    assertEquals(expectedSetter, setterSpan.getServiceName());
+
+    CoreTracer defaultTagTracer = createSplittingTracer(configuredTags, singletonMap(tag, "split"));
+    AgentSpan defaultTagSpan = defaultTagTracer.buildSpan("datadog", "some span").start();
+
+    assertEquals(expectedBuilder, defaultTagSpan.getServiceName());
+  }
+
   private CoreTracer createSplittingTracer(String tag) {
     return createSplittingTracer(Collections.singleton(tag));
   }
 
   private CoreTracer createSplittingTracer(Set<String> tags) {
+    return createSplittingTracer(tags, emptyMap());
+  }
+
+  private CoreTracer createSplittingTracer(Set<String> tags, Map<String, String> defaultSpanTags) {
     return tracerBuilder()
         .serviceName("my-service")
         .writer(new LoggingWriter())
         .sampler(new AllSampler())
+        .defaultSpanTags(defaultSpanTags)
         // equivalent to split-by-tags: tags
         .tagInterceptor(new TagInterceptor(true, "my-service", tags, new RuleFlags(), false))
         .build();

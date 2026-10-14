@@ -9,8 +9,31 @@ import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
   @ParameterizedTest
-  @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle"])
-  fun `detects muzzle invocation with various task names`(taskName: String) {
+  @ValueSource(strings = [":dd-java-agent:runMuzzle", "dd-java-agent:runMuzzle"])
+  fun `nested aggregate plans descendant instrumentation checks`(taskName: String) {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeNoopScanPlugin()
+    writeFile("dd-java-agent/build.gradle.kts",
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+    val result = run(taskName)
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle", "verifyCompatibility"])
+  fun `runs validation through different task entry points`(taskName: String) {
     writeProject(
       """
       plugins {
@@ -32,6 +55,9 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       tasks.register("runMuzzle") {
         dependsOn(":dd-java-agent:instrumentation:demo:muzzle")
       }
+      tasks.register("verifyCompatibility") {
+        dependsOn(":dd-java-agent:instrumentation:demo:muzzle")
+      }
       """
     )
 
@@ -39,14 +65,13 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
 
     val result = run(taskName, "--stacktrace")
 
-    assertThat(result.tasks)
-      .withFailMessage("Should create muzzle tasks when '$taskName' is requested")
-      .anyMatch { it.path.contains("muzzle") }
-    assertThat(result.output)
-      .withFailMessage("Should not skip muzzle task planification when '$taskName' is requested")
-      .doesNotContain("No muzzle tasks invoked, skipping muzzle task planification")
-    assertThat(result.tasks).withFailMessage("Should execute muzzle tasks when '$taskName' is requested")
-      .anyMatch { it.path == ":dd-java-agent:instrumentation:demo:muzzle" || it.path.contains("muzzle-Assert") }
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+      .withFailMessage("Should execute validation through '$taskName'")
+      .isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+      .withFailMessage("Should execute reporting through '$taskName'")
+      .isEqualTo(SUCCESS)
   }
 
   @Test

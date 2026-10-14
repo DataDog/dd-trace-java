@@ -14,6 +14,12 @@ configure<TestJvmConstraintsExtension> {
 
 description = "Implementation of the OpenFeature Provider interface."
 
+extra["excludedClassesCoverage"] = listOf(
+  // Value classes with only equals/hashCode; the cache tests cover their use.
+  "datadog.trace.api.openfeature.ExposureDeduplicationCache.Key",
+  "datadog.trace.api.openfeature.ExposureDeduplicationCache.Sent"
+)
+
 // Set both JAR and Maven artifact name
 val openFeatureArtifactId = "dd-openfeature"
 base {
@@ -39,7 +45,7 @@ java {
 }
 
 dependencies {
-  api("dev.openfeature:sdk:1.20.1")
+  api("dev.openfeature:sdk:1.23.0")
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
   compileOnly(project(":products:feature-flagging:feature-flagging-config"))
