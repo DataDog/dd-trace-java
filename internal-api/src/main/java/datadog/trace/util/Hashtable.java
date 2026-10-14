@@ -1197,6 +1197,12 @@ public final class Hashtable {
     return removeMatching(state.sizeManager, state.buckets, keyHash, matches);
   }
 
+  /**
+   * Empties {@code buckets} without touching any {@link SizeManager}. For a size-tracked table, use
+   * {@link #clear(SizeManager, Hashtable.Entry[])}: clearing only the buckets leaves the count
+   * consumed and the eviction cursor pointing into the discarded chains, so a later {@link
+   * SizeManager#evictOne} could unlink an entry that is no longer in the table.
+   */
   public static void clear(@Nonnull Hashtable.Entry[] buckets) {
     Arrays.fill(buckets, null);
   }
@@ -1893,8 +1899,8 @@ public final class Hashtable {
     private Hashtable.Entry nextEntry;
 
     /**
-     * Bucket index that held the entry last returned by {@code next}; {@code -1} after {@code
-     * remove}.
+     * Bucket index that held the entry last returned by {@code next}; {@code -1} before the first
+     * {@code next}. {@code remove} leaves it unchanged.
      */
     private int curBucketIndex = -1;
 
@@ -1960,9 +1966,8 @@ public final class Hashtable {
 
     /**
      * Bucket index of the entry last returned by {@link #next()}, or {@code -1} if {@code next} has
-     * not yet been called or the most recent call was {@link #remove()}. Useful for callers driving
-     * a cursor — e.g. resumable eviction sweeps that want to remember where the last successful
-     * removal landed.
+     * not yet been called. {@link #remove()} leaves it unchanged, so a resumable eviction sweep can
+     * read it before or after removing to remember where the removal landed.
      */
     public int currentBucket() {
       return this.curBucketIndex;
