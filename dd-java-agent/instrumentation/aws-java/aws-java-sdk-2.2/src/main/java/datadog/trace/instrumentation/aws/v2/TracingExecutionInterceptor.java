@@ -135,6 +135,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     final AgentSpan span = fromContext(ddContext);
     if (span != null) {
       executionAttributes.putAttribute(CONTEXT_ATTRIBUTE, null);
+      DECORATE.onSdkRequestSuccess(span, context.request(), executionAttributes);
       // Call onResponse on both types of responses:
       DECORATE.onSdkResponse(span, context.response(), context.httpResponse(), executionAttributes);
       DECORATE.onResponse(span, context.httpResponse());

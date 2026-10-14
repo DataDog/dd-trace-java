@@ -14,6 +14,7 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
@@ -28,7 +29,12 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.instrumentation.aws.AwsAccountIdentity;
+import datadog.trace.instrumentation.aws.AwsArn;
 import datadog.trace.payloadtags.PayloadTagsData;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -41,6 +47,8 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.signer.AwsSignerExecutionAttribute;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
@@ -187,7 +195,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         });
 
     // DynamoDB
-    request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
+    request
+        .getValueForField("TableName", String.class)
+        .ifPresent(
+            name -> {
+              if ("dynamodb".equalsIgnoreCase(awsServiceName)) {
+                onDynamoDbTable(span, name, attributes);
+              } else {
+                setTableName(span, name);
+              }
+            });
 
     // DSM
     if (traceConfig().isDataStreamsEnabled()) {
@@ -272,6 +289,90 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     if (SpanNaming.instance().namingSchema().peerService().supports()) {
       span.setTag(Tags.PEER_SERVICE, value);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, precursor);
+    }
+  }
+
+  /**
+   * Tags the owning account of the table. A TableName given as an ARN carries it (and is tagged as
+   * aws.table.arn). A bare name is, by DynamoDB's documented contract, resolved in the requestor's
+   * own account, so the account owning the signing credentials is the table owner. The existing
+   * aws.table.name, tablename and peer.service tags keep the TableName value as given, ARN or not,
+   * so nothing changes for spans that already carry an ARN there.
+   */
+  private static void onDynamoDbTable(
+      final AgentSpan span, final String tableName, final ExecutionAttributes attributes) {
+    setTableName(span, tableName);
+    AwsArn arn = AwsArn.parse(tableName);
+    String account;
+    if (arn != null) {
+      account = arn.account();
+      if (arn.isDynamoDbTable()) {
+        span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
+      }
+    } else {
+      account = callerAccount(attributes);
+    }
+    if (account != null) {
+      span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
+    }
+  }
+
+  /**
+   * Account owning the credentials that sign this request, when the SDK exposes it
+   * (AwsCredentialsIdentity.accountId(), SDK 2.26+, populated by the STS, SSO, profile, process and
+   * container providers). Absent on older SDKs and for providers that do not resolve it.
+   */
+  private static String callerAccount(final ExecutionAttributes attributes) {
+    AwsCredentials credentials =
+        attributes.getAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS);
+    return credentials == null ? null : credentialsAccountId(credentials);
+  }
+
+  // accountId() is absent at the 2.2.0 floor, so look it up per credentials class. ClassValue
+  // lets application classes unload even though each cached MethodHandle references its class.
+  private static final MethodHandle NO_ACCOUNT_ID_GETTER =
+      MethodHandles.constant(Optional.class, Optional.empty());
+  private static final ClassValue<MethodHandle> ACCOUNT_ID_GETTERS =
+      GenericClassValue.of(AwsSdkClientDecorator::accountIdGetter);
+
+  private static MethodHandle accountIdGetter(final Class<?> type) {
+    try {
+      return MethodHandles.publicLookup()
+          .findVirtual(type, "accountId", MethodType.methodType(Optional.class));
+    } catch (NoSuchMethodException | IllegalAccessException e) {
+      return NO_ACCOUNT_ID_GETTER;
+    }
+  }
+
+  static String credentialsAccountId(final AwsCredentials credentials) {
+    try {
+      MethodHandle getter = ACCOUNT_ID_GETTERS.get(credentials.getClass());
+      if (getter == NO_ACCOUNT_ID_GETTER) {
+        return null;
+      }
+      Object value = getter.invoke(credentials);
+      if (value instanceof Optional) {
+        Object account = ((Optional<?>) value).orElse(null);
+        if (account instanceof String && AwsAccountIdentity.isAccountId((String) account)) {
+          return (String) account;
+        }
+      }
+    } catch (VirtualMachineError | ThreadDeath fatal) {
+      throw fatal;
+    } catch (Throwable ignored) {
+      // Lookup or provider failures, including LinkageError, mean the account is unavailable.
+    }
+    return null;
+  }
+
+  /** Tags the expected bucket owner only after S3 has accepted the request. */
+  public void onSdkRequestSuccess(
+      final AgentSpan span, final SdkRequest request, final ExecutionAttributes attributes) {
+    if ("s3".equalsIgnoreCase(attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME))) {
+      request
+          .getValueForField("ExpectedBucketOwner", String.class)
+          .filter(AwsAccountIdentity::isAccountId)
+          .ifPresent(owner -> span.setTag(InstrumentationTags.AWS_ACCOUNT, owner));
     }
   }
 
