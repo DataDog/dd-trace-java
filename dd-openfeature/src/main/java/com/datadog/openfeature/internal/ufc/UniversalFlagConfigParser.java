@@ -35,6 +35,9 @@ public final class UniversalFlagConfigParser {
   private static final String UNIVERSAL_FLAG_CONFIGURATION_TYPE = "universal-flag-configuration";
   private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
+  /** UFC documents nest about ten levels deep; the cap bounds the recursive document reader. */
+  private static final int MAX_NESTING_DEPTH = 32;
+
   private static final JsonFactory JSON_FACTORY =
       new JsonFactory().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
 
@@ -82,7 +85,7 @@ public final class UniversalFlagConfigParser {
       if (parser.nextToken() == null) {
         throw new JsonParseException(parser, "Empty document");
       }
-      final Object document = readValue(parser);
+      final Object document = readValue(parser, 1);
       if (parser.nextToken() != null) {
         throw new JsonParseException(parser, "Unexpected content after the document");
       }
@@ -90,21 +93,25 @@ public final class UniversalFlagConfigParser {
     }
   }
 
-  private static Object readValue(final JsonParser parser) throws IOException {
+  private static Object readValue(final JsonParser parser, final int depth) throws IOException {
     final JsonToken token = parser.currentToken();
+    if ((token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY)
+        && depth > MAX_NESTING_DEPTH) {
+      throw new JsonParseException(parser, "Document nested deeper than " + MAX_NESTING_DEPTH);
+    }
     switch (token) {
       case START_OBJECT:
         final Map<String, Object> object = new LinkedHashMap<>();
         while (parser.nextToken() == JsonToken.FIELD_NAME) {
           final String name = parser.currentName();
           parser.nextToken();
-          object.put(name, readValue(parser));
+          object.put(name, readValue(parser, depth + 1));
         }
         return object;
       case START_ARRAY:
         final List<Object> array = new ArrayList<>();
         while (parser.nextToken() != JsonToken.END_ARRAY) {
-          array.add(readValue(parser));
+          array.add(readValue(parser, depth + 1));
         }
         return array;
       case VALUE_STRING:

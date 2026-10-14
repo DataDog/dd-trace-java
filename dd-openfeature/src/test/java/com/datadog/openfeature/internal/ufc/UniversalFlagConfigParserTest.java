@@ -324,6 +324,21 @@ class UniversalFlagConfigParserTest {
   }
 
   @Test
+  void acceptsNestingUpToTheLimit() throws Exception {
+    assertNotNull(deserialize(nestedConfig(31)));
+  }
+
+  @Test
+  void rejectsNestingBeyondTheLimit() {
+    assertThrows(IOException.class, () -> deserialize(nestedConfig(32)));
+    assertThrows(
+        IOException.class,
+        () ->
+            UniversalFlagConfigParser.parseJsonApi(
+                ("{\"data\":" + nestedConfig(32) + "}").getBytes(UTF_8)));
+  }
+
+  @Test
   void skipsUnknownOperatorFlagAndKeepsValidFlag() throws Exception {
     final ServerConfiguration config = deserialize(resource("unknown-operator.json"));
 
@@ -434,6 +449,18 @@ class UniversalFlagConfigParserTest {
 
   private static ServerConfiguration deserialize(final String json) throws Exception {
     return UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
+  }
+
+  private static String nestedConfig(final int arrays) {
+    final StringBuilder json = new StringBuilder("{\"flags\":{},\"ignored\":");
+    for (int i = 0; i < arrays; i++) {
+      json.append('[');
+    }
+    json.append('0');
+    for (int i = 0; i < arrays; i++) {
+      json.append(']');
+    }
+    return json.append('}').toString();
   }
 
   private static String emptyConfig() throws IOException {
