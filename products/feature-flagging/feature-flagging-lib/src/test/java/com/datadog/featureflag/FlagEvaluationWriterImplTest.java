@@ -101,6 +101,38 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
+  void byteBudgetTelemetrySeparatesDegradedAndDroppedEvaluations() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.aggregator.degradedCardinalityCap.addAndGet(2);
+    setup.handler.aggregator.degradedByteBudget.addAndGet(3);
+    setup.handler.aggregator.droppedByteBudget.addAndGet(4);
+
+    setup.handler.flush();
+
+    final Collection<? extends MetricCollector.Metric> metrics =
+        CoreMetricCollector.getInstance().drain();
+    assertEquals(
+        2,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_DEGRADED_METRIC,
+            "reason:" + FlagEvaluationWriterImpl.DEGRADED_REASON_CARDINALITY_CAP));
+    assertEquals(
+        3,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_DEGRADED_METRIC,
+            "reason:" + FlagEvaluationWriterImpl.DEGRADED_REASON_BYTE_BUDGET));
+    assertEquals(
+        4,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_BYTE_BUDGET));
+  }
+
+  @Test
   void startRegistersWriterAndCloseDeregistersIt() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
