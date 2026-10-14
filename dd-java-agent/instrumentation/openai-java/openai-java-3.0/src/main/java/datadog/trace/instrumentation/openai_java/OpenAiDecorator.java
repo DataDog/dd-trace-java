@@ -11,13 +11,10 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.GenAiApmTags;
-import datadog.trace.api.llmobs.LLMObsContext;
-import datadog.trace.api.llmobs.LLMObsPropagationValues;
+import datadog.trace.api.llmobs.LLMObsParent;
 import datadog.trace.api.llmobs.LLMObsSampler;
-import datadog.trace.api.llmobs.LLMObsTraceId;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -117,107 +114,39 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.SOURCE, "integration");
       span.setTag(CommonTags.INTEGRATION, INTEGRATION);
 
-      // Resolve the LLMObs parent context, gated on trace-id consistency: a stale context
-      // from a different trace (e.g. async boundary leakage) must not contribute trace_id, ml_app,
-      // parent_id, session_id, agent_version, agent attribution, or a sampling verdict to this
-      // span. Matches DDLLMObsSpan's manual-span gate. One flag drives every inherited value, so a
-      // new propagated tag cannot accidentally ship with a weaker gate of its own.
-      AgentSpanContext parent = LLMObsContext.current();
-      boolean inheritable = parent != null && parent.getTraceId().equals(span.getTraceId());
-
-      String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
-      String samplingDecision = null;
-      String sampleRate = null;
-      if (inheritable) {
-        parentSpanId = String.valueOf(parent.getSpanId());
-
-        // Stay in the parent's LLMObs trace and application. The parent may have adopted both
-        // from another service, so the APM trace id and the service default can differ from them.
-        String traceId = LLMObsContext.currentTraceId();
-        if (traceId != null && !traceId.isEmpty()) {
-          span.setTag(CommonTags.TRACE_ID, traceId);
+      // Resolve the LLMObs parent the same way DDLLMObsSpan does: the in-process context when it
+      // is on this trace, else what arrived from another service (an HTTP handler or queue
+      // consumer calling OpenAI without an LLMObs span of its own), else none. Inheriting
+      // session_id is what files this span under its session in the LLM Trace Explorer.
+      LLMObsParent parent = LLMObsParent.resolve(span);
+      span.setTag(CommonTags.PARENT_ID, parent.parentId);
+      // With no trace id to inherit the tag is left unset, and the mapper seeds it from the APM
+      // trace id the same way DDLLMObsSpan does.
+      if (parent.traceId != null) {
+        span.setTag(CommonTags.TRACE_ID, parent.traceId);
+      }
+      if (parent.mlApp != null) {
+        span.setTag(CommonTags.ML_APP, parent.mlApp);
+      }
+      if (parent.sessionId != null) {
+        span.setTag(CommonTags.SESSION_ID, parent.sessionId);
+      }
+      if (parent.agentVersion != null) {
+        span.setTag(CommonTags.AGENT_VERSION, parent.agentVersion);
+      }
+      // The name is only meaningful alongside an id.
+      if (parent.parentAgentSpanId != null) {
+        span.setTag(CommonTags.PAGENT_SPAN_ID, parent.parentAgentSpanId);
+        if (parent.parentAgentName != null) {
+          span.setTag(CommonTags.PAGENT_NAME, parent.parentAgentName);
         }
-        String mlApp = LLMObsContext.currentMlApp();
-        if (mlApp != null && !mlApp.isEmpty()) {
-          span.setTag(CommonTags.ML_APP, mlApp);
-        }
-
-        // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
-        // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
-        // session_id from the workflow root via context propagation. Without this, the
-        // auto-instrumented openai.request span would not appear under its session in
-        // the LLM Trace Explorer's Sessions view.
-        String sessionId = LLMObsContext.currentSessionId();
-        if (sessionId != null && !sessionId.isEmpty()) {
-          span.setTag(CommonTags.SESSION_ID, sessionId);
-        }
-
-        // Inherit agent_version from the active LLMObs parent.
-        String agentVersion = LLMObsContext.currentAgentVersion();
-        if (agentVersion != null && !agentVersion.isEmpty()) {
-          span.setTag(CommonTags.AGENT_VERSION, agentVersion);
-        }
-
-        // Inherit agent attribution: the nearest agent-kind ancestor of this span. The name is
-        // only meaningful alongside an ID, so it is read inside the ID's branch.
-        String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
-        if (parentAgentSpanId != null) {
-          span.setTag(CommonTags.PAGENT_SPAN_ID, parentAgentSpanId);
-          String parentAgentName = LLMObsContext.currentParentAgentName();
-          if (parentAgentName != null) {
-            span.setTag(CommonTags.PAGENT_NAME, parentAgentName);
-          }
-        }
-
-        samplingDecision = LLMObsContext.currentSamplingDecision();
-        sampleRate = LLMObsContext.currentSampleRate();
       }
 
-      // No usable in-process LLMObs parent, so fall back to what arrived from another service on
-      // the span context's propagation tags — e.g. an HTTP handler or queue consumer that calls
-      // OpenAI without opening an LLMObs span of its own. Same fallback, and same precedence, as
-      // DDLLMObsSpan: preferring the in-process parent only when it is on this trace is what keeps
-      // a scope leaked from a previously handled message from shadowing the current one.
-      LLMObsPropagationValues propagated =
-          inheritable ? null : span.spanContext().getExtractedLLMObsValues();
-      if (propagated != null) {
-        if (propagated.parentId != null) {
-          parentSpanId = propagated.parentId;
-        }
-        // Adopt the caller's LLMObs trace id; it arrives as decimal and is stored as hex.
-        String traceId = LLMObsTraceId.fromWire(propagated.traceId);
-        if (traceId != null) {
-          span.setTag(CommonTags.TRACE_ID, traceId);
-        }
-        if (propagated.mlApp != null) {
-          span.setTag(CommonTags.ML_APP, propagated.mlApp);
-        }
-        if (propagated.sessionId != null) {
-          span.setTag(CommonTags.SESSION_ID, propagated.sessionId);
-        }
-        if (propagated.parentAgentSpanId != null) {
-          span.setTag(CommonTags.PAGENT_SPAN_ID, propagated.parentAgentSpanId);
-          if (propagated.parentAgentName != null) {
-            span.setTag(CommonTags.PAGENT_NAME, propagated.parentAgentName);
-          }
-        }
-        // The rate is meaningless without the decision it produced, so both are adopted together.
-        if (propagated.sampleRate != null && propagated.samplingDecision != null) {
-          sampleRate = propagated.sampleRate;
-          samplingDecision = propagated.samplingDecision;
-        }
-      }
-      span.setTag(CommonTags.PARENT_ID, parentSpanId);
-
-      // Roll a decision only when this span is the root of its own LLMObs trace. A parent with no
-      // decision continued a trace whose caller sent none, so this span leaves both tags unset
-      // too, as DDLLMObsSpan does; a local roll here could drop the span while its parent is kept.
-      if (!inheritable && propagated == null) {
+      String sampleRate = parent.sampleRate;
+      String samplingDecision = parent.samplingDecision;
+      if (parent.isRoot()) {
         sampleRate = sampler.formattedRate();
-        samplingDecision =
-            sampler.sample(span.getTraceId().toLong())
-                ? LLMObsContext.SAMPLING_DECISION_SAMPLED
-                : LLMObsContext.SAMPLING_DECISION_DROPPED;
+        samplingDecision = sampler.decide(span.getTraceId());
       }
       if (samplingDecision != null && sampleRate != null) {
         span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
