@@ -2944,12 +2944,11 @@ public class Config {
           FEATURE_FLAGS_ENABLED,
           FEATURE_FLAGS_CONFIGURATION_SOURCE);
     }
-    final String featureFlaggingConfigurationSource =
-        instrumenterConfig.getFeatureFlaggingConfigurationSource();
-    if (!InstrumenterConfig.isSupportedFeatureFlaggingSource(featureFlaggingConfigurationSource)) {
+    if (instrumenterConfig.getFeatureFlaggingConfigurationSource()
+        == FeatureFlaggingSource.INVALID) {
       log.warn(
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
-          featureFlaggingConfigurationSource);
+          configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE));
     }
 
     dynamicInstrumentationEnabled =
@@ -4887,7 +4886,7 @@ public class Config {
     return instrumenterConfig.isFeatureFlaggingEnabled();
   }
 
-  public String getFeatureFlaggingConfigurationSource() {
+  public FeatureFlaggingSource getFeatureFlaggingConfigurationSource() {
     return instrumenterConfig.getFeatureFlaggingConfigurationSource();
   }
 

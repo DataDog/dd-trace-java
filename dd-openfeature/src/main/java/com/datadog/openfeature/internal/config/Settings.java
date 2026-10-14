@@ -90,7 +90,7 @@ public final class Settings {
   @Nullable
   private String resolveSource() {
     final Boolean enabled = getBoolean(FEATURE_FLAGS_ENABLED);
-    final String source = normalize(get(FEATURE_FLAGS_CONFIGURATION_SOURCE));
+    final String source = normalizeSource(get(FEATURE_FLAGS_CONFIGURATION_SOURCE));
     if (Boolean.FALSE.equals(enabled)) {
       return null;
     }
@@ -236,6 +236,15 @@ public final class Settings {
   private static String normalize(@Nullable final String value) {
     final String trimmed = nonBlank(value);
     return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * Normalizes the configuration source like the agent enum parsing: case insensitive, with no
+   * trimming of surrounding spaces.
+   */
+  @Nullable
+  private static String normalizeSource(@Nullable final String value) {
+    return nonBlank(value) == null ? null : value.replace('/', '_').toLowerCase(Locale.ROOT);
   }
 
   @Nullable

@@ -13,9 +13,5 @@ public final class FeatureFlaggingConfig {
   public static final String FEATURE_FLAGS_CONFIGURATION_SOURCE =
       "feature.flags.configuration.source";
 
-  public static final String CONFIGURATION_SOURCE_AGENTLESS = "agentless";
-
-  public static final String CONFIGURATION_SOURCE_REMOTE_CONFIG = "remote_config";
-
   private FeatureFlaggingConfig() {}
 }

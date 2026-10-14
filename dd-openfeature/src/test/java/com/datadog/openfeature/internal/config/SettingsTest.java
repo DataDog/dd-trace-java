@@ -44,20 +44,21 @@ class SettingsTest {
   }
 
   @TableTest({
-    "scenario                         | enabled | source            | legacy  | resolved       ",
-    "default                          |         |                   |         | 'agentless'    ",
-    "explicit agentless               |         | 'agentless'       |         | 'agentless'    ",
-    "explicit remote config           |         | 'remote_config'   |         | 'remote_config'",
-    "normalized source                |         | ' Remote_Config ' |         | 'remote_config'",
-    "unsupported source               |         | 'offline'         |         |                ",
-    "blank source                     |         | ' '               |         | 'agentless'    ",
-    "disabled wins over source        | 'false' | 'remote_config'   |         |                ",
-    "enabled keeps default            | 'true'  |                   |         | 'agentless'    ",
-    "legacy enabled selects rc        |         |                   | 'true'  | 'remote_config'",
-    "legacy disabled disables         |         |                   | 'false' |                ",
-    "explicit source wins over legacy |         | 'agentless'       | 'false' | 'agentless'    ",
-    "invalid enabled reads as false   | 'maybe' |                   |         |                ",
-    "numeric disabled                 | '0'     |                   |         |                "
+    "scenario                         | enabled | source          | legacy  | resolved       ",
+    "default                          |         |                 |         | 'agentless'    ",
+    "explicit agentless               |         | 'agentless'     |         | 'agentless'    ",
+    "explicit remote config           |         | 'remote_config' |         | 'remote_config'",
+    "case insensitive source          |         | 'Remote_Config' |         | 'remote_config'",
+    "padded source                    |         | ' agentless '   |         |                ",
+    "unsupported source               |         | 'offline'       |         |                ",
+    "blank source                     |         | ' '             |         | 'agentless'    ",
+    "disabled wins over source        | 'false' | 'remote_config' |         |                ",
+    "enabled keeps default            | 'true'  |                 |         | 'agentless'    ",
+    "legacy enabled selects rc        |         |                 | 'true'  | 'remote_config'",
+    "legacy disabled disables         |         |                 | 'false' |                ",
+    "explicit source wins over legacy |         | 'agentless'     | 'false' | 'agentless'    ",
+    "invalid enabled reads as false   | 'maybe' |                 |         |                ",
+    "numeric disabled                 | '0'     |                 |         |                "
   })
   void resolvesConfigurationSource(
       final String enabled, final String source, final String legacy, final String resolved) {

@@ -3649,15 +3649,16 @@ class ConfigTest {
   }
 
   @TableTest({
-    "scenario          | value             | expected         ",
-    "not set           |                   | agentless        ",
-    "empty             | ''                | agentless        ",
-    "blank             | '   '             | agentless        ",
-    "mixed case padded | ' ReMoTe_ConFiG ' | remote_config    ",
-    "unknown source    | not-a-real-source | not-a-real-source",
-    "padded uppercase  | ' OFFLINE '       | offline          "
+    "scenario                 | value             | expected     ",
+    "not set                  |                   | AGENTLESS    ",
+    "empty                    | ''                | AGENTLESS    ",
+    "blank                    | '   '             | AGENTLESS    ",
+    "case insensitive         | ReMoTe_ConFiG     | REMOTE_CONFIG",
+    "padded                   | ' remote_config ' | INVALID      ",
+    "unknown source           | not-a-real-source | INVALID      ",
+    "unset is not a value     | unset             | INVALID      "
   })
-  void featureFlagConfigurationSourceNormalizesValue(String value, String expected)
+  void featureFlagConfigurationSourceParsesValue(String value, FeatureFlaggingSource expected)
       throws Exception {
     Properties properties = new Properties();
     if (value != null) {
@@ -3671,23 +3672,23 @@ class ConfigTest {
 
   @TableTest({
     "scenario                           | providerEnabled | source        | legacyProviderEnabled | expectedEnabled | expectedSource",
-    "nothing set                        |                 |               |                       | true            | agentless     ",
-    "provider enabled                   | true            |               |                       | true            | agentless     ",
-    "legacy enabled                     |                 |               | true                  | true            | remote_config ",
-    "legacy disabled                    |                 |               | false                 | false           |               ",
-    "source wins over legacy enabled    |                 | agentless     | true                  | true            | agentless     ",
-    "source wins over legacy disabled   |                 | remote_config | false                 | true            | remote_config ",
-    "provider disabled wins over legacy | false           | agentless     | true                  | false           | agentless     ",
-    "legacy disabled wins over provider | true            |               | false                 | false           |               ",
-    "unknown source                     |                 | not-a-source  |                       | false           | not-a-source  ",
-    "offline source                     |                 | offline       | true                  | false           | offline       "
+    "nothing set                        |                 |               |                       | true            | AGENTLESS     ",
+    "provider enabled                   | true            |               |                       | true            | AGENTLESS     ",
+    "legacy enabled                     |                 |               | true                  | true            | REMOTE_CONFIG ",
+    "legacy disabled                    |                 |               | false                 | false           | UNSET         ",
+    "source wins over legacy enabled    |                 | agentless     | true                  | true            | AGENTLESS     ",
+    "source wins over legacy disabled   |                 | remote_config | false                 | true            | REMOTE_CONFIG ",
+    "provider disabled wins over legacy | false           | agentless     | true                  | false           | AGENTLESS     ",
+    "legacy disabled wins over provider | true            |               | false                 | false           | UNSET         ",
+    "unknown source                     |                 | not-a-source  |                       | false           | INVALID       ",
+    "offline source                     |                 | offline       | true                  | false           | INVALID       "
   })
   void featureFlagConfigurationAppliesMigrationPrecedence(
       Boolean providerEnabled,
       String source,
       Boolean legacyProviderEnabled,
       boolean expectedEnabled,
-      String expectedSource)
+      FeatureFlaggingSource expectedSource)
       throws Exception {
     Properties properties = new Properties();
     if (providerEnabled != null) {
