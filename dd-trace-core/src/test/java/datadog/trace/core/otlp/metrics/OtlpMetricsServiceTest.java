@@ -5,8 +5,8 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
+import datadog.communication.otlp.OtlpHttpSender;
 import datadog.trace.api.Config;
-import datadog.trace.core.otlp.common.OtlpHttpSender;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 

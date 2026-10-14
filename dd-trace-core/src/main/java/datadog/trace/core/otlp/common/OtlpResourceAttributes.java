@@ -1,9 +1,9 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static java.util.Arrays.asList;
 
+import datadog.communication.otlp.OtlpCanonicalResourceAttributes;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import java.util.HashSet;
@@ -46,26 +46,7 @@ final class OtlpResourceAttributes {
    */
   static void visitResourceAttributes(
       Config config, Map<String, Object> extraAttributes, BiConsumer<String, Object> visitor) {
-    String serviceName = config.getServiceName();
-    String env = config.getEnv();
-    String version = config.getVersion();
-
-    visitor.accept("service.name", serviceName);
-    if (!env.isEmpty()) {
-      visitor.accept("deployment.environment.name", env);
-    }
-    if (!version.isEmpty()) {
-      visitor.accept("service.version", version);
-    }
-    if (config.isReportHostName()) {
-      String hostName = config.getHostName();
-      if (hostName != null && !hostName.isEmpty()) {
-        visitor.accept("host.name", hostName);
-      }
-    }
-    visitor.accept("telemetry.sdk.name", "datadog");
-    visitor.accept("telemetry.sdk.version", TRACER_VERSION);
-    visitor.accept("telemetry.sdk.language", "java");
+    OtlpCanonicalResourceAttributes.visit(config, visitor::accept);
 
     config
         .getGlobalTags()

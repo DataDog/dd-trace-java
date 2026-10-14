@@ -1,4 +1,4 @@
-package datadog.trace.core.otlp.common;
+package datadog.communication.otlp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,7 +12,6 @@ import static org.mockito.Mockito.verify;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
-import datadog.trace.common.writer.RemoteApi;
 import java.io.IOException;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -39,8 +38,7 @@ class OtlpSenderSupportTest {
           .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
           .thenReturn(response);
 
-      RemoteApi.Response result =
-          OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
+      OtlpResponse result = OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
 
       assertTrue(result.success());
       assertEquals(200, result.status().getAsInt());
@@ -56,8 +54,7 @@ class OtlpSenderSupportTest {
           .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
           .thenReturn(response);
 
-      RemoteApi.Response result =
-          OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
+      OtlpResponse result = OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
 
       assertFalse(result.success());
       assertEquals(500, result.status().getAsInt());
@@ -73,8 +70,7 @@ class OtlpSenderSupportTest {
           .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
           .thenThrow(exception);
 
-      RemoteApi.Response result =
-          OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
+      OtlpResponse result = OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
 
       assertFalse(result.success());
       assertTrue(result.exception().isPresent());
