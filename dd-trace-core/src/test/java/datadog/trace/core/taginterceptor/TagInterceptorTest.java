@@ -29,6 +29,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.remoteconfig.ServiceNameCollectorTestBridge;
@@ -38,6 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.AllSampler;
 import datadog.trace.common.writer.ListWriter;
@@ -53,8 +55,11 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.ConfigDefaultsConverter;
 import datadog.trace.test.junit.utils.converter.TagsConverter;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -196,14 +201,16 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   private CoreTracer createSplittingTracer(String tag) {
+    return createSplittingTracer(Collections.singleton(tag));
+  }
+
+  private CoreTracer createSplittingTracer(Set<String> tags) {
     return tracerBuilder()
         .serviceName("my-service")
         .writer(new LoggingWriter())
         .sampler(new AllSampler())
-        // equivalent to split-by-tags: tag
-        .tagInterceptor(
-            new TagInterceptor(
-                true, "my-service", Collections.singleton(tag), new RuleFlags(), false))
+        // equivalent to split-by-tags: tags
+        .tagInterceptor(new TagInterceptor(true, "my-service", tags, new RuleFlags(), false))
         .build();
   }
 
@@ -285,6 +292,63 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     span.finish();
 
     assertEquals("peer-service", span.getServiceName());
+  }
+
+  /**
+   * A server decorator's own identity tags -- {@code component} and {@code language} -- can both be
+   * split-by-tags candidates. A single {@code SpanPrototype} application intercepts them in no
+   * particular order, so {@code component} must still win, matching the old sequential {@code
+   * setTag} calls that set language before component.
+   */
+  @Test
+  void splitByTagsComponentWinsOverLanguageWithinOnePrototypeApplication() {
+    CoreTracer tracer =
+        createSplittingTracer(
+            new HashSet<>(Arrays.asList(Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").start();
+    span.applyOverwriting(
+        SpanPrototype.builder()
+            .initComponentAndIntegration("my-component")
+            .initTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE)
+            .build());
+    span.finish();
+
+    assertEquals("my-component", span.getServiceName());
+  }
+
+  /**
+   * The component-over-language precedence is scoped to one prototype application: a candidate set
+   * at construction (e.g. from {@code dd.trace.span.tags}) is still overwritten by the decorator's
+   * later {@code component}, as it was before decorators applied prototypes.
+   */
+  @Test
+  void splitByTagsDecoratorComponentOverwritesCandidateSetAtConstruction() {
+    CoreTracer tracer =
+        createSplittingTracer(new HashSet<>(Arrays.asList("tenant", Tags.COMPONENT)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").withTag("tenant", "acme").start();
+    assertEquals("acme", span.getServiceName());
+    span.applyOverwriting(
+        SpanPrototype.builder().initComponentAndIntegration("my-component").build());
+    span.finish();
+
+    assertEquals("my-component", span.getServiceName());
+  }
+
+  /** Separate tag writes stay last-writer-wins, whichever split-by-tags candidate they set. */
+  @Test
+  void splitByTagsSeparateWritesAreLastWriterWins() {
+    CoreTracer tracer =
+        createSplittingTracer(
+            new HashSet<>(Arrays.asList(Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").start();
+    span.setTag(Tags.COMPONENT, "my-component");
+    span.setTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+    span.finish();
+
+    assertEquals(DDTags.LANGUAGE_TAG_VALUE, span.getServiceName());
   }
 
   @Test
@@ -933,9 +997,16 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         consumed |= interceptor.interceptTag(span, tagId, value);
       }
 
-      boolean hasCase = consumed || !mockingDetails(span).getInvocations().isEmpty();
+      // Superseding a pending alias is not a case: the tag is still stored.
+      boolean hasCase =
+          consumed
+              || mockingDetails(span).getInvocations().stream()
+                  .anyMatch(i -> !i.getMethod().getName().equals("supersedeAliases"));
       assertEquals(KnownTagCodec.isIntercepted(tagId), hasCase, field.getName());
-      assertEquals(KnownTagCodec.isIntercepted(tagId), interceptor.needsIntercept(tagId));
+      assertEquals(
+          KnownTagCodec.isIntercepted(tagId) || KnownTagCodec.hasScopedAlias(tagId),
+          interceptor.needsIntercept(tagId),
+          field.getName());
     }
   }
 
@@ -974,12 +1045,28 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void splitByTagsOnANameDeclaredPerDirectionMatchesEachDirection() {
+  void splitByTagsOnANameDeclaredPerDirectionMatchesItsTag() {
     TagInterceptor interceptor = splittingInterceptor(Tags.PEER_PORT);
 
-    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_INBOUND_ID));
-    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_ID));
     assertTrue(interceptor.needsIntercept(Tags.PEER_PORT));
+  }
+
+  /** A map with a direction-dependent name must be copied entry by entry, not in bulk. */
+  @Test
+  void aMapWithADirectionDependentNameIsNotBulkCopied() {
+    TagInterceptor interceptor = splittingInterceptor("unrelated.tag");
+    TagMap plain = TagMap.create();
+    plain.set("my.custom.tag", "value");
+    plain.set(KnownTags.HTTP_ROUTE_NAME, "/users");
+    TagMap alias = TagMap.create();
+    alias.set("server.address", "example.com");
+    TagMap aliasTarget = TagMap.create();
+    aliasTarget.set(Tags.PEER_HOSTNAME, "example.com");
+
+    assertFalse(interceptor.needsIntercept(plain));
+    assertTrue(interceptor.needsIntercept(alias));
+    assertTrue(interceptor.needsIntercept(aliasTarget));
   }
 
   private static TagInterceptor splittingInterceptor(String splitByTag) {

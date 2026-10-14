@@ -74,39 +74,6 @@ class TagMapSetByIdTest {
   }
 
   @Test
-  void aSharedNameIdIsFoundByItsSharedName() {
-    TagMap map = TagMap.create();
-    map.set(KnownTags.PEER_PORT_INBOUND_ID, 80);
-
-    assertEquals(80, map.getEntry(KnownTags.PEER_PORT_INBOUND_ID).intValue());
-    assertEquals(80, map.getEntry("peer.port").intValue());
-  }
-
-  @Test
-  void aWriteBySharedNameReplacesTheHeldDirectionsTag() {
-    TagMap map = TagMap.create();
-    map.set(KnownTags.PEER_PORT_INBOUND_ID, 80);
-
-    map.set("peer.port", 81);
-
-    assertEquals(1, map.size());
-    assertEquals(81, map.getEntry(KnownTags.PEER_PORT_INBOUND_ID).intValue());
-  }
-
-  @Test
-  void aWriteByIdSupersedesAValueSetUnderTheSharedNameAlone() {
-    TagMap map = TagMap.create();
-    map.set("peer.port", 8080); // no direction known: stored as the undirected tag
-
-    map.set(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
-
-    assertEquals(1, map.size());
-    assertNull(map.getEntry(KnownTags.PEER_PORT_UNDIRECTED_ID));
-    assertEquals(443, map.getEntry("peer.port").intValue());
-    assertEquals(443, map.getEntry(KnownTags.PEER_PORT_OUTBOUND_ID).intValue());
-  }
-
-  @Test
   void theCoresTrustedSetsStoreWhatTheCheckedSetsStore() {
     TagMap checked = TagMap.create();
     checked.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
@@ -144,5 +111,23 @@ class TagMapSetByIdTest {
     // tombstoned parent value and plain miss
     assertNull(child.internals().getKnownValue(KnownTags.PEER_HOSTNAME_ID));
     assertNull(child.internals().getKnownValue(KnownTags.DB_INSTANCE_ID));
+  }
+
+  @Test
+  void theCoresTrustedSetsCoverTheRemainingValueShapes() {
+    Object component = new StringBuilder("jdbc"); // not a String: exercises the Object overload
+    TagMap checked = TagMap.create();
+    checked.set(KnownTags.COMPONENT_ID, component);
+    checked.set(KnownTags.DB_POOL_NAME_ID, 1.5f);
+    checked.set(KnownTags.DB_INSTANCE_ID, 2.25d);
+
+    TagMap trusted = TagMap.create();
+    trusted.internals().setKnown(KnownTags.COMPONENT_ID, component);
+    trusted.internals().setKnown(KnownTags.DB_POOL_NAME_ID, 1.5f);
+    trusted.internals().setKnown(KnownTags.DB_INSTANCE_ID, 2.25d);
+
+    assertEquals(new HashMap<>(checked), new HashMap<>(trusted));
+    assertEquals(1.5f, trusted.getEntry(KnownTags.DB_POOL_NAME_ID).floatValue());
+    assertEquals(2.25d, trusted.getEntry(KnownTags.DB_INSTANCE_ID).doubleValue());
   }
 }

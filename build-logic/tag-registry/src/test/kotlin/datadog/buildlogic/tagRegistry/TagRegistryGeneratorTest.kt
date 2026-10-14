@@ -330,23 +330,23 @@ class TagRegistryGeneratorTest {
 
     val tags = TagRegistry.build(conventions).tags.associateBy { it.name }
 
-    assertThat(tags.getValue("http.hostname").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("server.address" to TagConventions.Direction.INBOUND)
-    assertThat(tags.getValue("peer.hostname").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("server.address" to TagConventions.Direction.OUTBOUND)
-    assertThat(tags.getValue("peer.port@outbound").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("server.port" to TagConventions.Direction.OUTBOUND)
-    assertThat(tags.getValue("peer.port@inbound").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("client.port" to TagConventions.Direction.INBOUND)
-    assertThat(tags.values.filter { it.name.startsWith("peer.port") }.map { it.ddName })
-      .containsOnly("peer.port")
+    assertThat(tags.getValue("http.hostname").scopedOtelNames)
+      .isEqualTo(mapOf(TagConventions.Direction.INBOUND to "server.address"))
+    assertThat(tags.getValue("peer.hostname").scopedOtelNames)
+      .isEqualTo(mapOf(TagConventions.Direction.OUTBOUND to "server.address"))
+    assertThat(tags.getValue("peer.port").scopedOtelNames)
+      .isEqualTo(
+        mapOf(TagConventions.Direction.INBOUND to "client.port", TagConventions.Direction.OUTBOUND to "server.port")
+      )
     assertThat(tags.values.map { it.otelName }).containsOnlyNulls()
+    assertThat(tags.values.filter { it.id and TagRegistry.HAS_SCOPED_ALIAS != 0L }.map { it.name })
+      .containsExactlyInAnyOrder("http.hostname", "peer.hostname", "peer.port")
     assertThat(conventions.resolve("http.client").map { it.name }).contains("peer.port@outbound")
     assertThat(conventions.resolve("http.server").map { it.name }).contains("peer.port@inbound")
   }
 
   @Test
-  fun `a Datadog name declared per direction resolves only with a direction`() {
+  fun `a Datadog name declared per direction is one tag`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -364,70 +364,17 @@ class TagRegistryGeneratorTest {
     val generated = contents(output)
     val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source)
-      .contains("PEER_PORT_INBOUND_ID", "PEER_PORT_OUTBOUND_ID")
-      .contains("{@code peer.port} on outbound spans.", "{@code peer.port} on inbound spans.")
-      .doesNotContain("PEER_PORT_NAME", "PEER_PORT_INBOUND_NAME", "PEER_PORT_OUTBOUND_NAME")
+      .contains("PEER_PORT_NAME = \"peer.port\"", "PEER_PORT_ID")
+      .doesNotContain("PEER_PORT_INBOUND", "PEER_PORT_OUTBOUND", "case \"peer.port\":")
     assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
-      .doesNotContain("PEER_PORT")
-      .contains("KnownTagCodec.SHARED_DATADOG_NAME_SENTINEL, // peer.port")
-    assertThat(source.substringAfter("case \"peer.port\":").substringBefore("default:"))
-      .contains("return PEER_PORT_INBOUND_ID;", "return PEER_PORT_OUTBOUND_ID;")
-    assertThat(generated.getValue("tag-assignment.txt"))
-      .containsPattern("peer\\.port +-> peer\\.port@inbound, peer\\.port@outbound")
+      .contains("PEER_PORT_ID,")
+      .doesNotContain("SENTINEL")
+    assertThat(generated.getValue("tag-assignment.txt").lines().filter { it.endsWith(" peer.port") })
+      .hasSize(1)
   }
 
   @Test
-  fun `a Datadog name declared per direction gets an undirected tag in its directions' slot`() {
-    val conventions = tagConventions(
-      """
-      span_types:
-        http.client: {span-kind: client, include: [outbound_peer]}
-        http.server: {span-kind: server, include: [inbound_peer], tags: [{dd-name: http.route}]}
-      mixins:
-        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int}]}
-        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int}]}
-      """
-    )
-
-    val tags = TagRegistry.build(conventions).tags
-    val undirected = tags.single { it.undirected }
-    val byName = tags.associateBy { it.name }
-    val inbound = byName.getValue("peer.port@inbound")
-    val outbound = byName.getValue("peer.port@outbound")
-
-    assertThat(undirected.ddName).isEqualTo("peer.port")
-    assertThat(undirected.serial).isEqualTo(tags.filter { !it.undirected }.maxOf { it.serial } + 1)
-    assertThat(listOf(inbound.slot, outbound.slot)).containsOnly(undirected.slot)
-    for (t in listOf(inbound, outbound)) {
-      assertThat((t.id ushr TagRegistry.UNDIRECTED_SHIFT) and 0x7FFF).isEqualTo(undirected.serial.toLong())
-    }
-    assertThat(undirected.id and TagRegistry.UNDIRECTED).isNotZero()
-    assertThat(undirected.id and TagRegistry.SHARED_NAME).isZero()
-  }
-
-  @Test
-  fun `a shared name with no tag in a direction resolves there to its undirected tag`() {
-    val yaml = directory.conventionsFile(
-      """
-      span_types:
-        http.client: {span-kind: client, include: [outbound_peer]}
-      mixins:
-        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int}]}
-        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int}]}
-      """
-    )
-    val output = File(directory, "generated")
-
-    TagRegistryGenerator.generate(yaml, output)
-
-    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
-    assertThat(source).contains("PEER_PORT_UNDIRECTED_ID").doesNotContain("PEER_PORT_UNDIRECTED_NAME")
-    assertThat(source.substringAfter("case \"peer.port\":").substringAfter("default:").substringBefore(";"))
-      .contains("return PEER_PORT_UNDIRECTED_ID")
-  }
-
-  @Test
-  fun `a tag declared per direction is emitted under its OpenTelemetry name without a direction`() {
+  fun `a tag declared per direction is emitted under the OpenTelemetry name for the direction`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -447,8 +394,14 @@ class TagRegistryGeneratorTest {
 
     val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
     val emit = source.substringAfter("public String openTelemetryNameOf(long tagId, int direction)")
-    assertThat(emit).contains("return \"server.port\";", "return \"client.port\";")
+    assertThat(emit).contains(
+      "return direction == KnownTagCodec.DIRECTION_INBOUND ? \"client.port\" : " +
+        "direction == KnownTagCodec.DIRECTION_OUTBOUND ? \"server.port\" : null;"
+    )
     assertThat(emit).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
+    assertThat(source.substringAfter("case \"server.port\":").substringBefore("default:"))
+      .contains("case KnownTagCodec.DIRECTION_OUTBOUND:", "return PEER_PORT_ID;")
+      .doesNotContain("DIRECTION_INBOUND")
   }
 
   @Test
@@ -481,7 +434,7 @@ class TagRegistryGeneratorTest {
     val dbType = TagRegistry.build(conventions).tags.single()
 
     assertThat(dbType.otelName).isEqualTo("db.system")
-    assertThat(dbType.otelDirection).isNull()
+    assertThat(dbType.scopedOtelNames).isEmpty()
   }
 
   @TableTest(
@@ -511,8 +464,8 @@ class TagRegistryGeneratorTest {
   @Test
   fun `every tag id is positive, at both ends of the serial range`() {
     for (serial in listOf(TagRegistry.FIRST_SERIAL, TagRegistry.SERIAL_CAPACITY - 1)) {
-      assertThat(TagRegistry.encode(serial, traceLevel = false, intercepted = false, slot = TagRegistry.NO_SLOT)).isPositive()
-      assertThat(TagRegistry.encode(serial, traceLevel = true, intercepted = false, slot = TagRegistry.NO_SLOT)).isPositive()
+      assertThat(TagRegistry.encode(serial, traceLevel = false, intercepted = false)).isPositive()
+      assertThat(TagRegistry.encode(serial, traceLevel = true, intercepted = false)).isPositive()
     }
   }
 
@@ -520,7 +473,7 @@ class TagRegistryGeneratorTest {
   fun `a serial outside the range that keeps ids positive is rejected`() {
     for (serial in listOf(0, TagRegistry.SERIAL_CAPACITY, Short.MAX_VALUE + 1)) {
       assertThatIllegalArgumentException()
-        .isThrownBy { TagRegistry.encode(serial, traceLevel = false, intercepted = false, slot = TagRegistry.NO_SLOT) }
+        .isThrownBy { TagRegistry.encode(serial, traceLevel = false, intercepted = false) }
         .withMessageContaining("serial $serial is outside")
     }
   }
@@ -539,12 +492,13 @@ class TagRegistryGeneratorTest {
       """
     )
 
-    assertThat(TagRegistry.build(conventions).tags.filterNot { it.undirected }.map { it.identity })
+    assertThat(conventions.allDeclaredTags().map { it.identity })
       .containsExactlyInAnyOrder(
         TagConventions.TagIdentity("x", TagConventions.Direction.INBOUND),
         TagConventions.TagIdentity("x", TagConventions.Direction.OUTBOUND),
         TagConventions.TagIdentity("x@inbound"),
       )
+    assertThat(TagRegistry.build(conventions).tags.map { it.ddName }).containsExactly("x", "x@inbound")
   }
 
   @Test
@@ -561,8 +515,8 @@ class TagRegistryGeneratorTest {
       """
     )
 
-    assertThat(TagRegistry.build(conventions).tags.filterNot { it.undirected }.map { it.name })
-      .containsExactlyInAnyOrder("peer.port@inbound", "peer.port@outbound", "user@domain")
+    assertThat(TagRegistry.build(conventions).tags.map { it.name })
+      .containsExactlyInAnyOrder("peer.port", "user@domain")
   }
 
   @Test

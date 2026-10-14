@@ -512,37 +512,14 @@ final class DenseTagMap extends TagMap {
   }
 
   /**
-   * {@link #knownIndexOf} for a write: one direction of a shared name also matches the name's
-   * undirected tag, which it supersedes in place. Both share a slot, so one occupancy test covers
-   * them, and for a constant id the alias folds to a constant (or, for most tags, to the id
-   * itself).
-   */
-  private int knownWriteIndexOf(long denseId) {
-    if ((this.knownOccupancy & slotBit(denseId)) == 0) {
-      return -1; // definitely absent
-    }
-    long alias =
-        KnownTagCodec.hasSharedName(denseId) ? KnownTagCodec.undirectedIdOf(denseId) : denseId;
-    long[] ids = this.knownIds;
-    for (int i = 0; i < this.knownCount; ++i) {
-      long id = ids[i];
-      if (id == denseId || id == alias) return i;
-    }
-    return -1;
-  }
-
-  /**
    * Stores a dense value, replacing it in place when present or appending it, and returns the prior
    * value, or null when there was none. Dense values are never null. Builds no Entry, so a caller
    * that discards the result allocates nothing, whether or not the JIT inlines this.
    */
   private Object storeKnownValue(long denseId, Object value) {
-    int i = this.knownWriteIndexOf(denseId);
+    int i = this.knownIndexOf(denseId);
     if (i >= 0) {
-      long[] ids = this.knownIds;
-      // a superseded undirected tag is relabeled, and was not this tag's prior value
-      Object prior = ids[i] == denseId ? this.knownValues[i] : null;
-      ids[i] = denseId;
+      Object prior = this.knownValues[i];
       this.knownValues[i] = value;
       return prior;
     }

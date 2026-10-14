@@ -6,7 +6,6 @@ import static datadog.trace.api.KnownTagCodec.DIRECTION_OUTBOUND;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Checks the generated registry's name resolution and tag ID encoding. Datadog and OpenTelemetry
@@ -165,47 +165,116 @@ class KnownTagsTest {
 
   /**
    * {@code peer.port} means the server's port on outbound spans and the client's on inbound ones,
-   * so it is one tag per direction. Both share the Datadog name, which therefore resolves to no tag
-   * until name resolution knows the span's direction; with an unknown direction, it denotes the
-   * name's undirected tag.
+   * but it is one tag either way: one id, one stored value. Only its OpenTelemetry name depends on
+   * the span's direction.
    */
   @Test
-  void aNameDeclaredPerDirectionIsOneTagPerDirection() {
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_INBOUND_ID));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertNotEquals(KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID);
-    assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_INBOUND_ID));
-    assertTrue(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_UNDIRECTED_ID));
-    assertTrue(KnownTagCodec.isUndirected(KnownTags.PEER_PORT_UNDIRECTED_ID));
-    assertFalse(KnownTagCodec.hasSharedName(KnownTags.PEER_PORT_UNDIRECTED_ID));
+  void flagsAndRangeChecks() {
+    assertTrue(KnownTagCodec.isIntercepted(KnownTags.SPAN_KIND_ID));
+    assertFalse(KnownTagCodec.isIntercepted(KnownTags.HTTP_ROUTE_ID));
+    assertTrue(KnownTagCodec.isKnown(KnownTags.HTTP_ROUTE_ID));
+    assertFalse(KnownTagCodec.isKnown(0L));
+    assertFalse(KnownTagCodec.isKnown(KnownTagCodec.makeTagId(KnownTagCodec.serialLimit())));
   }
 
-  /** Each direction's id holds its undirected tag, so a constant id folds the supersede check. */
+  @TableTest({
+    "scenario         | name              | direction | expected            ",
+    "client hostname  | peer.hostname     | 1         | server.address      ",
+    "server hostname  | http.hostname     | 0         | server.address      ",
+    "server client ip | network.client.ip | 0         | network.peer.address",
+    "client peer port | peer.port         | 1         | server.port         ",
+    "server peer port | peer.port         | 0         | client.port         "
+  })
+  void aTagsDirectionScopedNameByDatadogName(String name, int direction, String expected) {
+    assertEquals(expected, KnownTagCodec.directionScopedNameOf(name, direction));
+    assertEquals(
+        expected, KnownTagCodec.directionScopedNameOf(KnownTagCodec.keyOf(name), direction));
+  }
+
+  @TableTest({
+    "scenario                   | name          | direction",
+    "no direction               | peer.hostname | -1       ",
+    "no alias in this direction | peer.hostname | 0        ",
+    "internal span              | peer.port     | 2        ",
+    "renamed in every direction | http.method   | 1        ",
+    "custom tag                 | my.tag        | 1        "
+  })
+  void noDirectionScopedName(String name, int direction) {
+    assertNull(KnownTagCodec.directionScopedNameOf(name, direction));
+  }
+
   @Test
-  void aDirectionsTagNamesItsUndirectedTag() {
+  void directionalKeyOfResolvesOnlyAliases() {
+    assertEquals(
+        KnownTags.PEER_HOSTNAME_ID,
+        KnownTagCodec.directionalKeyOf("server.address", DIRECTION_OUTBOUND));
+    assertEquals(0L, KnownTagCodec.directionalKeyOf(Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+    assertEquals(
+        KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL,
+        KnownTagCodec.directionalKeyOf("server.address", DIRECTION_UNKNOWN));
+  }
+
+  @Test
+  void theAliasFilterRejectsMostOtherNames() {
+    int rejected = 0;
+    String[] names = {"my.tag", "http.route", "component", "db.statement", "error.message"};
+    for (String name : names) {
+      if (!KnownTagCodec.mayBeScopedAlias(name)) {
+        rejected++;
+      }
+    }
+    assertTrue(rejected > 0, "a 64-bit filter over 4 aliases should reject most other names");
+  }
+
+  @Test
+  void canonicalNames() {
+    assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName("http.request.method"));
+    assertEquals("my.tag", KnownTagCodec.canonicalTagName("my.tag"));
+  }
+
+  /** The direction role rides on the one lookup a write by name already does. */
+  @Test
+  void theLookupCarriesTheDirectionRole() {
+    assertEquals(
+        KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL,
+        KnownTagCodec.keyOrAliasOf("server.address"));
+    assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTagCodec.keyOrAliasOf(Tags.PEER_HOSTNAME));
+    assertEquals(0L, KnownTagCodec.keyOrAliasOf("my.custom.tag"));
     for (long tagId :
-        new long[] {KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID}) {
-      assertEquals(KnownTags.PEER_PORT_UNDIRECTED_ID, KnownTagCodec.undirectedIdOf(tagId));
-      assertEquals(
-          KnownTagCodec.slotOf(KnownTags.PEER_PORT_UNDIRECTED_ID), KnownTagCodec.slotOf(tagId));
+        new long[] {
+          KnownTags.PEER_HOSTNAME_ID,
+          KnownTags.HTTP_HOSTNAME_ID,
+          KnownTags.NETWORK_CLIENT_IP_ID,
+          KnownTags.PEER_PORT_ID
+        }) {
+      assertTrue(KnownTagCodec.hasScopedAlias(tagId), KnownTagCodec.nameOf(tagId));
+    }
+    assertFalse(KnownTagCodec.hasScopedAlias(KnownTags.HTTP_METHOD_ID));
+    for (String alias :
+        new String[] {"server.address", "server.port", "client.port", "network.peer.address"}) {
+      assertTrue(KnownTagCodec.mayBeScopedAlias(alias), alias);
+    }
+  }
+
+  @Test
+  void aNameDeclaredPerDirectionIsOneTag() {
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
+    assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT));
+    for (int direction = DIRECTION_UNKNOWN; direction <= DIRECTION_NONE; direction++) {
+      assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT, direction));
     }
   }
 
   static Stream<Arguments> directionalNames() {
     return Stream.of(
-        Arguments.of(Tags.PEER_PORT, DIRECTION_INBOUND, KnownTags.PEER_PORT_INBOUND_ID),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_OUTBOUND, KnownTags.PEER_PORT_OUTBOUND_ID),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_NONE, KnownTags.PEER_PORT_UNDIRECTED_ID),
-        Arguments.of(Tags.PEER_PORT, DIRECTION_UNKNOWN, KnownTags.PEER_PORT_UNDIRECTED_ID),
         Arguments.of("server.address", DIRECTION_INBOUND, KnownTags.HTTP_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_OUTBOUND, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_UNKNOWN, 0L),
-        Arguments.of("server.port", DIRECTION_OUTBOUND, KnownTags.PEER_PORT_OUTBOUND_ID),
+        Arguments.of("server.port", DIRECTION_OUTBOUND, KnownTags.PEER_PORT_ID),
         Arguments.of("server.port", DIRECTION_INBOUND, 0L),
-        Arguments.of("client.port", DIRECTION_INBOUND, KnownTags.PEER_PORT_INBOUND_ID),
+        Arguments.of("client.port", DIRECTION_INBOUND, KnownTags.PEER_PORT_ID),
         Arguments.of("client.port", DIRECTION_OUTBOUND, 0L),
+        Arguments.of("client.port", DIRECTION_NONE, 0L),
         Arguments.of("network.peer.address", DIRECTION_INBOUND, KnownTags.NETWORK_CLIENT_IP_ID));
   }
 
@@ -235,25 +304,22 @@ class KnownTagsTest {
         Tags.HTTP_HOSTNAME,
         KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID, DIRECTION_OUTBOUND));
     assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID, DIRECTION_OUTBOUND));
-    assertEquals(
-        "client.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_INBOUND_ID, DIRECTION_INBOUND));
-    assertEquals(
         "http.request.method",
         KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_METHOD_ID, DIRECTION_UNKNOWN));
     assertEquals(Tags.HTTP_HOSTNAME, KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID));
   }
 
-  /** A tag declared per direction exists only on spans of its direction, so its name needs none. */
+  /** One tag, named for the span's direction; with no direction it keeps its Datadog name. */
   @Test
-  void aTagDeclaredPerDirectionIsEmittedWithoutADirection() {
-    assertEquals("server.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertEquals("client.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_INBOUND_ID));
+  void aTagDeclaredPerDirectionIsEmittedUnderTheNameForTheDirection() {
     assertEquals(
         "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_OUTBOUND_ID, DIRECTION_UNKNOWN));
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND));
+    assertEquals(
+        "client.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_INBOUND));
+    assertEquals(
+        Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_NONE));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID));
   }
 
   @Test
@@ -320,5 +386,25 @@ class KnownTagsTest {
     long id = KnownTagCodec.makeTagId(263);
     assertEquals(263, KnownTagCodec.serialNum(id));
     assertFalse(KnownTagCodec.isTraceLevel(id));
+  }
+
+  @Test
+  void theInterceptedBitMarksTheTracerOverlayTags() {
+    assertTrue(KnownTagCodec.isIntercepted(KnownTags.SPAN_KIND_ID));
+    assertFalse(KnownTagCodec.isIntercepted(KnownTags.HTTP_ROUTE_ID));
+  }
+
+  @Test
+  void isKnownRejectsTheNoTagSerialAndSerialsPastTheLimit() {
+    assertTrue(KnownTagCodec.isKnown(KnownTags.HTTP_ROUTE_ID));
+    assertFalse(KnownTagCodec.isKnown(0L));
+    assertFalse(KnownTagCodec.isKnown(KnownTagCodec.makeTagId(KnownTagCodec.serialLimit())));
+  }
+
+  @Test
+  void canonicalTagNameMapsAnOpenTelemetryRenameToItsDatadogName() {
+    assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName(KnownTags.HTTP_METHOD_OTEL_NAME));
+    assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName(Tags.HTTP_METHOD));
+    assertEquals("my.custom.tag", KnownTagCodec.canonicalTagName("my.custom.tag"));
   }
 }

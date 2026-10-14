@@ -1,6 +1,7 @@
 package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.KnownTags.COMPONENT_ID;
 import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
@@ -22,6 +23,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
+import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
@@ -95,8 +97,7 @@ public class TagInterceptor {
 
   /**
    * Marks, by serial, each known tag that {@code names} names under any of its names, so a tag set
-   * by id or by its OpenTelemetry name matches too. A name declared per direction marks each
-   * direction's tag.
+   * by id or by its OpenTelemetry name matches too.
    */
   private static boolean[] knownTagSerials(Set<String> names) {
     boolean[] serials = new boolean[KnownTagCodec.serialLimit()];
@@ -138,9 +139,14 @@ public class TagInterceptor {
     return names != null && names.contains(customTag);
   }
 
+  /**
+   * Whether {@code map} must be copied onto a span entry by entry: some entry may be routed, or
+   * holds a direction-dependent name, which the span resolves through {@link SpanTags}. Computed
+   * once for a tracer-level map, so a map with neither takes the bulk-copy fast path.
+   */
   public boolean needsIntercept(TagMap map) {
     for (TagMap.EntryReader entry : map) {
-      if (needsIntercept(entry)) return true;
+      if (needsIntercept(entry) || SpanTags.isDirectionDependent(entry)) return true;
     }
     return false;
   }
@@ -163,12 +169,23 @@ public class TagInterceptor {
   }
 
   /**
-   * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag. With a constant
-   * id, the {@link KnownTagCodec#INTERCEPTED} test folds to a constant, leaving only the
-   * split-by-tags table load at run time. {@code tagId} must be a known id.
+   * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag, or must see it to
+   * supersede a pending direction-scoped alias ({@link KnownTagCodec#HAS_SCOPED_ALIAS}). With a
+   * constant id, the bit test folds to a constant, leaving only the split-by-tags table load at run
+   * time. {@code tagId} must be a known id.
    */
   public boolean needsIntercept(long tagId) {
-    return KnownTagCodec.isIntercepted(tagId) || isSplitServiceTag(tagId);
+    return needsIntercept(
+        tagId, (int) (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS));
+  }
+
+  /**
+   * {@link #needsIntercept(long)} for a span that routes only the id flags in {@code routedFlags}:
+   * a span adds {@link KnownTagCodec#HAS_SCOPED_ALIAS} only once it holds a pending alias. One mask
+   * test, as for the constant mask.
+   */
+  public boolean needsIntercept(long tagId, int routedFlags) {
+    return ((int) tagId & routedFlags) != 0 || isSplitServiceTag(tagId);
   }
 
   public boolean needsIntercept(String tag) {
@@ -190,6 +207,10 @@ public class TagInterceptor {
    * {@code DDSpanContext.setTag}'s compiled code; {@code TagInterceptorInliningTest} pins that.
    */
   public boolean interceptTag(DDSpanContext span, long tagId, Object value) {
+    if (KnownTagCodec.hasScopedAlias(tagId)) {
+      // Not a route: the tag is still stored. A write of it supersedes any pending alias.
+      span.supersedeAliases(tagId);
+    }
     switch (KnownTagCodec.serialNum(tagId)) {
       case KnownTags.RESOURCE_NAME_SERIAL_NUM:
         return interceptResourceName(span, value);
@@ -320,6 +341,31 @@ public class TagInterceptor {
     } else {
       span.setResourceName(
           HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+    }
+  }
+
+  /**
+   * Re-applies the split-by-tags service name from the highest-precedence identity tag in a
+   * decorator prototype that was just applied to {@code span}. The prototype's tags are intercepted
+   * in no particular order, so without this {@code language} could overwrite {@code component}. The
+   * precedence ({@code component} over {@code language}) mirrors the old sequential {@code setTag}
+   * calls in {@code ServerDecorator}/{@code BaseDecorator}. It is scoped to the one application:
+   * separate tag writes, before or after, stay last-writer-wins. ({@code span.kind} is not listed:
+   * its interception never reaches the split-by-tags check.)
+   */
+  public void resolveSplitByTagsPrecedence(DDSpanContext span, TagMap prototypeTags) {
+    if (isSplitServiceTag(COMPONENT_ID)) {
+      TagMap.Entry component = prototypeTags.getEntry(COMPONENT_ID);
+      if (component != null) {
+        splitService(span, component.objectValue());
+        return;
+      }
+    }
+    if (isSplitServiceTag(DDTags.LANGUAGE_TAG_KEY)) {
+      Object language = prototypeTags.getObject(DDTags.LANGUAGE_TAG_KEY);
+      if (language != null) {
+        splitService(span, language);
+      }
     }
   }
 

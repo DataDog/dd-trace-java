@@ -2,17 +2,20 @@ package datadog.trace.instrumentation.reactor.netty;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import java.util.Map;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * This instrumentation only supports transfer of the active span at connection time to the
- * underlying Netty Channel.
+ * Transfers request context to the underlying Netty channel and clears it when Reactor releases the
+ * connection.
  *
  * <p>Based on the OpenTelemetry Reactor Netty instrumentation.
  * https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/HttpClientInstrumentation.java
@@ -32,11 +35,18 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("reactor.netty.http.client.HttpClientRequest", Context.class.getName());
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.netty41.AttributeKeys",
       packageName + ".CaptureConnectSpan",
       packageName + ".TransferConnectSpan",
+      packageName + ".ClearRequestContext",
+      packageName + ".ClearRequestContext$DeferredCleanup",
     };
   }
 

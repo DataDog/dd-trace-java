@@ -12,10 +12,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * A few tag names mean different tags depending on the span's direction: {@code peer.port} is the
- * client's port on a server span and the server's on a client span, and {@code server.address} is
- * {@code http.hostname} inbound but {@code peer.hostname} outbound. A span resolves them by its
- * kind.
+ * A few tag names depend on the span's direction. {@code peer.port} is one tag in every direction,
+ * emitted as {@code client.port} inbound and {@code server.port} outbound. {@code server.address}
+ * is {@code http.hostname} inbound but {@code peer.hostname} outbound: a value written under it is
+ * stored as written, and read -- and, once the span is emitted, stored -- as the tag it denotes on
+ * the span's kind.
  */
 class DDSpanDirectionalTagsTest extends DDCoreJavaSpecification {
   private CoreTracer tracer;
@@ -34,26 +35,24 @@ class DDSpanDirectionalTagsTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void aSharedNameIsStoredAsTheTagOfTheSpansDirection() {
+  void aNameDeclaredPerDirectionIsOneTagInEveryDirection() {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     span.setTag(Tags.PEER_PORT, 5432);
 
-    assertEquals(5432, storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertNull(storedValue(KnownTags.PEER_PORT_INBOUND_ID));
+    assertEquals(5432, storedValue(KnownTags.PEER_PORT_ID));
     assertEquals(5432, span.getTag(Tags.PEER_PORT));
   }
 
   @Test
-  void aSharedNameOnAServerSpanIsTheClientsPort() {
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+  void aNameDeclaredPerDirectionIsStoredBeforeTheSpanHasAKind() {
     span.setTag(Tags.PEER_PORT, "1234");
 
-    assertEquals("1234", storedValue(KnownTags.PEER_PORT_INBOUND_ID));
+    assertEquals("1234", storedValue(KnownTags.PEER_PORT_ID));
     assertEquals("1234", span.getTag(Tags.PEER_PORT));
   }
 
   @Test
-  void aDirectionScopedOpenTelemetryNameIsStoredAsTheTagItDenotes() {
+  void aDirectionScopedOpenTelemetryNameReadsAsTheTagItDenotes() {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
     span.setTag("server.address", "inbound.example");
 
@@ -81,87 +80,66 @@ class DDSpanDirectionalTagsTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void aNameSetBeforeTheSpanHasADirectionResolvesWhenItGetsOne() {
-    span.setTag(Tags.PEER_PORT, 5432);
+  void aNameSetBeforeTheSpanHasADirectionReadsAsTheTagOnceItHasOne() {
     span.setTag("server.address", "outbound.example");
+    assertNull(span.getTag(Tags.PEER_HOSTNAME));
 
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
 
-    assertEquals(5432, storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
     assertEquals("outbound.example", span.getTag(Tags.PEER_HOSTNAME));
-    assertNull(span.getTags().get("server.address"));
+    assertEquals("outbound.example", span.getTag("server.address"));
   }
 
   @Test
-  void removingASharedNameRemovesTheTagOfTheSpansDirection() {
+  void aDirectionScopedNameWrittenLastOverwritesItsTag() {
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    span.setTag(Tags.PEER_HOSTNAME, "tag.example");
+    span.setTag("server.address", "scoped.example");
+
+    assertEquals("scoped.example", span.getTag(Tags.PEER_HOSTNAME));
+    assertEquals("scoped.example", span.getTag("server.address"));
+    assertEquals("scoped.example", storedValue(KnownTags.PEER_HOSTNAME_ID));
+  }
+
+  @Test
+  void removingADirectionScopedNameRemovesTheTagItDenotes() {
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    span.setTag(Tags.PEER_HOSTNAME, "tag.example");
+
+    span.setTag("server.address", (String) null);
+
+    assertNull(span.getTag(Tags.PEER_HOSTNAME));
+  }
+
+  @Test
+  void removingATagRemovesAValueWrittenUnderItsDirectionScopedName() {
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    span.setTag("server.address", "scoped.example");
+
+    span.setTag(Tags.PEER_HOSTNAME, (String) null);
+
+    assertNull(span.getTag(Tags.PEER_HOSTNAME));
+    assertNull(span.getTag("server.address"));
+  }
+
+  @Test
+  void removingANameDeclaredPerDirectionRemovesItsTag() {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     span.setTag(Tags.PEER_PORT, 5432);
 
     span.setTag(Tags.PEER_PORT, (String) null);
 
-    assertNull(storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
+    assertNull(storedValue(KnownTags.PEER_PORT_ID));
     assertNull(span.getTag(Tags.PEER_PORT));
   }
 
   @Test
-  void anInternalSpanHasNoPeerPort() {
+  void anInternalSpanStoresPeerPortAsItsOneTag() {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
     span.setTag(Tags.PEER_PORT, 5432);
 
-    assertNull(storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertNull(storedValue(KnownTags.PEER_PORT_INBOUND_ID));
-    assertEquals(5432, storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
+    assertEquals(5432, storedValue(KnownTags.PEER_PORT_ID));
     assertEquals(5432, span.getTag(Tags.PEER_PORT));
-  }
-
-  @Test
-  void aSharedNameBeforeTheSpanHasADirectionIsTheUndirectedTag() {
-    span.setTag(Tags.PEER_PORT, 5432);
-
-    assertEquals(5432, storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
-    assertEquals(5432, span.getTag(Tags.PEER_PORT));
-  }
-
-  @Test
-  void aDirectionsTagSetByIdSupersedesTheUndirectedTag() {
-    span.setTag(Tags.PEER_PORT, 8080);
-
-    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
-
-    assertNull(storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
-    assertEquals(443, storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertEquals(443, span.getTag(Tags.PEER_PORT));
-    assertEquals(1, peerPortCount());
-  }
-
-  @Test
-  void aDirectionsTagSetByIdIsFoundByNameBeforeTheSpanHasADirection() {
-    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
-
-    assertEquals(443, span.getTag(Tags.PEER_PORT));
-  }
-
-  @Test
-  void aSharedNameBeforeTheSpanHasADirectionReplacesADirectionsTagSetById() {
-    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, 443);
-
-    span.setTag(Tags.PEER_PORT, 8443);
-
-    assertEquals(8443, storedValue(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertNull(storedValue(KnownTags.PEER_PORT_UNDIRECTED_ID));
-    assertEquals(1, peerPortCount());
-  }
-
-  private int peerPortCount() {
-    int[] count = {0};
-    span.getTags()
-        .forEach(
-            entry -> {
-              if (Tags.PEER_PORT.equals(entry.tag())) {
-                count[0]++;
-              }
-            });
-    return count[0];
   }
 
   private Object storedValue(long tagId) {

@@ -23,10 +23,8 @@ import org.openjdk.jmh.infra.Blackhole;
 /**
  * {@link SpanCreationBenchmark}'s tagged span shapes, setting each tag by its {@link KnownTags} id
  * instead of its name: same tags, values, threads and forks, so each arm here compares directly
- * with the same-named arm there. {@code peer.port} uses its directional id ({@code
- * PEER_PORT_INBOUND_ID} on the server span, {@code PEER_PORT_OUTBOUND_ID} on the client span),
- * which a by-name write resolves through the span's kind. The bare spans set no tags, and the
- * builder path has no id-keyed {@code withTag}, so those arms are not repeated.
+ * with the same-named arm there. The bare spans set no tags, and the builder path has no id-keyed
+ * {@code withTag}, so those arms are not repeated.
  *
  * <p>Read {@code gc.alloc.rate.norm} (B/op) first, as for {@link SpanCreationBenchmark}; throughput
  * is directional. Run with {@code -prof gc}, and append {@code -DTEST_LOG_LEVEL=warn} to any {@code
@@ -100,7 +98,7 @@ public class SpanCreationByIdBenchmark {
     span.setTag(KnownTags.HTTP_ROUTE_ID, HTTP_ROUTE_VALUE);
     span.setTag(KnownTags.HTTP_URL_ID, HTTP_URL_VALUE);
     span.setTag(KnownTags.HTTP_STATUS_CODE_ID, HTTP_STATUS_VALUE);
-    span.setTag(KnownTags.PEER_PORT_INBOUND_ID, PEER_PORT_VALUE);
+    span.setTag(KnownTags.PEER_PORT_ID, PEER_PORT_VALUE);
     span.finish();
   }
 
@@ -116,7 +114,7 @@ public class SpanCreationByIdBenchmark {
     span.setTag(KnownTags.DB_OPERATION_ID, DB_OPERATION_VALUE);
     span.setTag(KnownTags.DB_STATEMENT_ID, DB_STATEMENT_VALUE);
     span.setTag(KnownTags.PEER_HOSTNAME_ID, DB_PEER_HOSTNAME_VALUE);
-    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, DB_PEER_PORT_VALUE);
+    span.setTag(KnownTags.PEER_PORT_ID, DB_PEER_PORT_VALUE);
     span.finish();
   }
 
@@ -128,7 +126,7 @@ public class SpanCreationByIdBenchmark {
     span.setTag(KnownTags.HTTP_ROUTE_ID, HTTP_ROUTE_VALUE);
     span.setTag(KnownTags.HTTP_URL_ID, HTTP_URL_VALUE);
     span.setTag(KnownTags.HTTP_STATUS_CODE_ID, HTTP_STATUS_VALUE);
-    span.setTag(KnownTags.PEER_PORT_INBOUND_ID, PEER_PORT_VALUE);
+    span.setTag(KnownTags.PEER_PORT_ID, PEER_PORT_VALUE);
     span.finish();
   }
 
@@ -141,7 +139,7 @@ public class SpanCreationByIdBenchmark {
     span.setTag(KnownTags.DB_OPERATION_ID, DB_OPERATION_VALUE);
     span.setTag(KnownTags.DB_STATEMENT_ID, DB_STATEMENT_VALUE);
     span.setTag(KnownTags.PEER_HOSTNAME_ID, DB_PEER_HOSTNAME_VALUE);
-    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, DB_PEER_PORT_VALUE);
+    span.setTag(KnownTags.PEER_PORT_ID, DB_PEER_PORT_VALUE);
     span.finish();
   }
 
@@ -153,7 +151,7 @@ public class SpanCreationByIdBenchmark {
     span.setTag(KnownTags.HTTP_ROUTE_ID, HTTP_ROUTE_VALUE);
     span.setTag(KnownTags.HTTP_URL_ID, HTTP_URL_VALUE);
     span.setTag(KnownTags.HTTP_STATUS_CODE_ID, HTTP_STATUS_VALUE);
-    span.setTag(KnownTags.PEER_PORT_INBOUND_ID, PEER_PORT_VALUE);
+    span.setTag(KnownTags.PEER_PORT_ID, PEER_PORT_VALUE);
     span.finish();
   }
 
@@ -166,7 +164,7 @@ public class SpanCreationByIdBenchmark {
     span.setTag(KnownTags.DB_OPERATION_ID, DB_OPERATION_VALUE);
     span.setTag(KnownTags.DB_STATEMENT_ID, DB_STATEMENT_VALUE);
     span.setTag(KnownTags.PEER_HOSTNAME_ID, DB_PEER_HOSTNAME_VALUE);
-    span.setTag(KnownTags.PEER_PORT_OUTBOUND_ID, DB_PEER_PORT_VALUE);
+    span.setTag(KnownTags.PEER_PORT_ID, DB_PEER_PORT_VALUE);
     span.finish();
   }
 }
