@@ -32,13 +32,15 @@ public final class RemoteConfigurationService implements ConfigurationService {
                 listener.accept(null);
                 return;
               }
+              final ServerConfiguration configuration;
               try {
-                final ServerConfiguration configuration = UniversalFlagConfigParser.parse(content);
-                if (configuration != null) {
-                  listener.accept(configuration);
-                }
+                configuration = UniversalFlagConfigParser.parse(content);
               } catch (final IOException | RuntimeException e) {
                 LOGGER.debug("Remote Configuration returned a malformed flag configuration", e);
+                return;
+              }
+              if (configuration != null) {
+                listener.accept(configuration);
               }
             });
   }
