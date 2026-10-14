@@ -12,7 +12,9 @@ import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.llmobs.LLMObsSampler;
+import datadog.trace.api.llmobs.LLMObsTraceId;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -170,12 +172,47 @@ public class OpenAiDecorator extends ClientDecorator {
         samplingDecision = LLMObsContext.currentSamplingDecision();
         sampleRate = LLMObsContext.currentSampleRate();
       }
+
+      // No usable in-process LLMObs parent, so fall back to what arrived from another service on
+      // the span context's propagation tags — e.g. an HTTP handler or queue consumer that calls
+      // OpenAI without opening an LLMObs span of its own. Same fallback, and same precedence, as
+      // DDLLMObsSpan: preferring the in-process parent only when it is on this trace is what keeps
+      // a scope leaked from a previously handled message from shadowing the current one.
+      LLMObsPropagationValues propagated =
+          inheritable ? null : span.spanContext().getExtractedLLMObsValues();
+      if (propagated != null) {
+        if (propagated.parentId != null) {
+          parentSpanId = propagated.parentId;
+        }
+        // Adopt the caller's LLMObs trace id; it arrives as decimal and is stored as hex.
+        String traceId = LLMObsTraceId.fromWire(propagated.traceId);
+        if (traceId != null) {
+          span.setTag(CommonTags.TRACE_ID, traceId);
+        }
+        if (propagated.mlApp != null) {
+          span.setTag(CommonTags.ML_APP, propagated.mlApp);
+        }
+        if (propagated.sessionId != null) {
+          span.setTag(CommonTags.SESSION_ID, propagated.sessionId);
+        }
+        if (propagated.parentAgentSpanId != null) {
+          span.setTag(CommonTags.PAGENT_SPAN_ID, propagated.parentAgentSpanId);
+          if (propagated.parentAgentName != null) {
+            span.setTag(CommonTags.PAGENT_NAME, propagated.parentAgentName);
+          }
+        }
+        // The rate is meaningless without the decision it produced, so both are adopted together.
+        if (propagated.sampleRate != null && propagated.samplingDecision != null) {
+          sampleRate = propagated.sampleRate;
+          samplingDecision = propagated.samplingDecision;
+        }
+      }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
 
       // Roll a decision only when this span is the root of its own LLMObs trace. A parent with no
       // decision continued a trace whose caller sent none, so this span leaves both tags unset
       // too, as DDLLMObsSpan does; a local roll here could drop the span while its parent is kept.
-      if (!inheritable) {
+      if (!inheritable && propagated == null) {
         sampleRate = sampler.formattedRate();
         samplingDecision =
             sampler.sample(span.getTraceId().toLong())
