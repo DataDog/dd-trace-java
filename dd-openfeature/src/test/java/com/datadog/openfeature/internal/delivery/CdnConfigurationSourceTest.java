@@ -84,12 +84,23 @@ class CdnConfigurationSourceTest {
         CdnConfigurationSource.endpoint(TestSettings.of("env", "a b&c")).toString());
   }
 
+  @Test
+  void rejectsInvalidSiteForDatadogUfcCdnEndpoint() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            CdnConfigurationSource.endpoint(
+                TestSettings.of("site", "datadoghq.com@other.example")));
+  }
+
   @TableTest({
-    "scenario    | baseUrl                          | endpoint                                                                 ",
-    "host only   | 'http://localhost:8080'          | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'",
-    "root path   | 'http://localhost:8080/'         | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'",
-    "custom path | 'https://proxy.example/ufc.json' | 'https://proxy.example/ufc.json'                                         ",
-    "trimmed     | '  https://proxy.example/ufc  '  | 'https://proxy.example/ufc'                                              "
+    "scenario    | baseUrl                              | endpoint                                                                             ",
+    "host only   | 'http://localhost:8080'              | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
+    "root path   | 'http://localhost:8080/'             | 'http://localhost:8080/api/v2/feature-flagging/config/rules-based/server'            ",
+    "root query  | 'https://proxy.example/?token=a%2Bb' | 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a%2Bb'",
+    "host query  | 'https://proxy.example?token=a'      | 'https://proxy.example/api/v2/feature-flagging/config/rules-based/server?token=a'    ",
+    "custom path | 'https://proxy.example/ufc.json'     | 'https://proxy.example/ufc.json'                                                     ",
+    "trimmed     | '  https://proxy.example/ufc  '      | 'https://proxy.example/ufc'                                                          "
   })
   void resolvesConfiguredAgentlessBaseUrl(final String baseUrl, final String endpoint) {
     assertEquals(
@@ -104,10 +115,11 @@ class CdnConfigurationSourceTest {
   }
 
   @TableTest({
-    "scenario      | baseUrl       ",
-    "no scheme     | 'localhost'   ",
-    "relative path | 'relative/ufc'",
-    "invalid       | 'http://[::1' "
+    "scenario      | baseUrl                ",
+    "no scheme     | 'localhost'            ",
+    "relative path | 'relative/ufc'         ",
+    "invalid       | 'http://[::1'          ",
+    "ftp scheme    | 'ftp://example.com/ufc'"
   })
   void rejectsInvalidConfiguredAgentlessBaseUrl(final String baseUrl) {
     final Settings settings =

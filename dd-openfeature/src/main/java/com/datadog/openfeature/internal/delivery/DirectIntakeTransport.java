@@ -45,6 +45,7 @@ public final class DirectIntakeTransport implements EventTransport {
    *
    * @param settings the SDK settings.
    * @return the transport, or {@code null} if no API key is configured.
+   * @throws IllegalArgumentException if the configured site is invalid.
    */
   @Nullable
   public static DirectIntakeTransport create(final Settings settings) {
@@ -53,7 +54,7 @@ public final class DirectIntakeTransport implements EventTransport {
       return null;
     }
     return new DirectIntakeTransport(
-        URI.create("https://event-platform-intake." + settings.site() + "/api/v2/"),
+        URI.create("https://" + SiteHost.of("event-platform-intake", settings.site()) + "/api/v2/"),
         apiKey,
         HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).followRedirects(NEVER).build(),
         TimeUnit.MILLISECONDS::sleep);
