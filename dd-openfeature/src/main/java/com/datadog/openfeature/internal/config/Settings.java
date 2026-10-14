@@ -15,6 +15,9 @@ import org.slf4j.LoggerFactory;
 public final class Settings {
   private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
 
+  /** The setting sources: connector, system properties, then environment variables. */
+  private static final int SOURCE_COUNT = 3;
+
   public static final String CONFIGURATION_SOURCE_AGENTLESS = "agentless";
   public static final String CONFIGURATION_SOURCE_REMOTE_CONFIG = "remote_config";
 
@@ -186,56 +189,72 @@ public final class Settings {
     return nonBlank(get(VERSION));
   }
 
+  /** Reads the first non-blank value, in source priority order, like the agent. */
   @Nullable
   String get(final String key) {
-    String value = this.connector.setting(key);
-    if (value == null) {
-      value = this.systemProperties.apply("dd." + key);
+    for (int source = 0; source < SOURCE_COUNT; source++) {
+      final String value = value(key, source);
+      if (nonBlank(value) != null) {
+        return value;
+      }
     }
-    if (value == null) {
-      value = this.environment.apply(environmentVariableName(key));
+    return null;
+  }
+
+  /**
+   * Reads a setting from one source.
+   *
+   * @param key the setting key.
+   * @param source the source index, from the highest priority one.
+   * @return the raw setting value, or {@code null} if not set.
+   */
+  @Nullable
+  private String value(final String key, final int source) {
+    switch (source) {
+      case 0:
+        return this.connector.setting(key);
+      case 1:
+        return this.systemProperties.apply("dd." + key);
+      default:
+        return this.environment.apply(environmentVariableName(key));
     }
-    return value;
   }
 
   @Nullable
   private Boolean getBoolean(final String key) {
-    final String value = normalize(get(key));
+    final String value = get(key);
     if (value == null) {
       return null;
     }
-    // Same parsing as the agent: invalid values are read as false.
-    if ("true".equals(value) || "1".equals(value)) {
+    // Same parsing as the agent: exact values, invalid ones are read as false.
+    if ("1".equals(value) || "true".equalsIgnoreCase(value)) {
       return Boolean.TRUE;
     }
-    if (!"false".equals(value) && !"0".equals(value)) {
+    if (!"0".equals(value) && !"false".equalsIgnoreCase(value)) {
       LOGGER.warn("Invalid boolean value for {}: {}", key, value);
     }
     return Boolean.FALSE;
   }
 
+  /** Reads the first value that parses, in source priority order, like the agent. */
   private int getPositiveInt(final String key, final int defaultValue) {
-    final String value = nonBlank(get(key));
-    if (value == null) {
-      return defaultValue;
+    for (int source = 0; source < SOURCE_COUNT; source++) {
+      final String value = value(key, source);
+      if (nonBlank(value) == null) {
+        continue;
+      }
+      try {
+        final int parsed = Integer.parseInt(value);
+        return parsed > 0 ? parsed : defaultValue;
+      } catch (final NumberFormatException e) {
+        LOGGER.warn("Invalid value for {}: {}", key, value);
+      }
     }
-    try {
-      final int parsed = Integer.parseInt(value);
-      return parsed > 0 ? parsed : defaultValue;
-    } catch (final NumberFormatException e) {
-      LOGGER.warn("Invalid value for {}: {}", key, value);
-      return defaultValue;
-    }
+    return defaultValue;
   }
 
   static String environmentVariableName(final String key) {
     return "DD_" + key.replace('.', '_').replace('-', '_').toUpperCase(Locale.ROOT);
-  }
-
-  @Nullable
-  private static String normalize(@Nullable final String value) {
-    final String trimmed = nonBlank(value);
-    return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
   }
 
   /**

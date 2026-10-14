@@ -26,26 +26,29 @@ import org.tabletest.junit.TableTest;
 @ExtendWith(WithConfigExtension.class)
 class ConfigurationResolutionParityTest {
   @TableTest({
-    "Scenario                         | Enabled | Source        | Legacy | Expected     ",
-    "defaults                         |         |               |        | agentless    ",
-    "enabled                          | true    |               |        | agentless    ",
-    "enabled as number                | 1       |               |        | agentless    ",
-    "disabled                         | false   |               |        |              ",
-    "disabled as number               | 0       |               |        |              ",
-    "disabled wins over source        | false   | remote_config |        |              ",
-    "remote config source             |         | remote_config |        | remote_config",
-    "agentless source                 |         | agentless     |        | agentless    ",
-    "source is case insensitive       |         | Remote_Config |        | remote_config",
-    "padded source is unsupported     |         | ' agentless ' |        |              ",
-    "unsupported source               |         | offline       |        |              ",
-    "legacy enabled                   |         |               | true   | remote_config",
-    "legacy disabled                  |         |               | false  |              ",
-    "source wins over legacy          |         | agentless     | true   | agentless    ",
-    "source wins over legacy disabled |         | remote_config | false  | remote_config",
-    "enabled with legacy disabled     | true    |               | false  |              ",
-    "uppercase boolean                | TRUE    |               | TRUE   | remote_config",
-    "invalid boolean reads as false   | maybe   |               |        |              ",
-    "invalid legacy reads as false    |         |               | maybe  |              "
+    "Scenario                         | Enabled  | Source        | Legacy   | Expected     ",
+    "defaults                         |          |               |          | agentless    ",
+    "enabled                          | true     |               |          | agentless    ",
+    "enabled as number                | 1        |               |          | agentless    ",
+    "disabled                         | false    |               |          |              ",
+    "disabled as number               | 0        |               |          |              ",
+    "disabled wins over source        | false    | remote_config |          |              ",
+    "remote config source             |          | remote_config |          | remote_config",
+    "agentless source                 |          | agentless     |          | agentless    ",
+    "source is case insensitive       |          | Remote_Config |          | remote_config",
+    "padded source is unsupported     |          | ' agentless ' |          |              ",
+    "unsupported source               |          | offline       |          |              ",
+    "legacy enabled                   |          |               | true     | remote_config",
+    "legacy disabled                  |          |               | false    |              ",
+    "source wins over legacy          |          | agentless     | true     | agentless    ",
+    "source wins over legacy disabled |          | remote_config | false    | remote_config",
+    "enabled with legacy disabled     | true     |               | false    |              ",
+    "uppercase boolean                | TRUE     |               | TRUE     | remote_config",
+    "invalid boolean reads as false   | maybe    |               |          |              ",
+    "invalid legacy reads as false    |          |               | maybe    |              ",
+    "padded enabled reads as false    | ' true ' |               |          |              ",
+    "padded number reads as false     | ' 1 '    |               |          |              ",
+    "padded legacy reads as false     |          |               | ' true ' |              "
   })
   void agentAndSdkResolveTheSameConfiguration(
       final String enabled, final String source, final String legacy, final String expected) {
@@ -68,13 +71,13 @@ class ConfigurationResolutionParityTest {
   }
 
   /**
-   * Resolves the source like the SDK. Missing settings are reported as blank, so the SDK does not
-   * fall back to the system properties and environment of the test JVM.
+   * Resolves the source like the SDK. Missing settings fall back to the system properties injected
+   * for the agent, which hold the same values.
    */
   private static String sdkSource(final Map<String, String> settings) {
     final Connector connector = mock(Connector.class);
     when(connector.setting(anyString()))
-        .thenAnswer(invocation -> settings.getOrDefault(invocation.<String>getArgument(0), ""));
+        .thenAnswer(invocation -> settings.get(invocation.<String>getArgument(0)));
     return Settings.load(connector).configurationSource();
   }
 
