@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadHelper.VIRTUAL_THREAD_STATE_CLASS_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
@@ -31,6 +32,12 @@ public final class ScheduledForkJoinTaskInstrumentation extends InstrumenterModu
   @Override
   public boolean isEnabled() {
     return isJavaVersionAtLeast(25) && super.isEnabled();
+  }
+
+  @Override
+  public String[] preloadClassNames() {
+    // FJP needs this helper even when virtual-thread instrumentation is disabled.
+    return new String[] {VIRTUAL_THREAD_STATE_CLASS_NAME};
   }
 
   @Override
