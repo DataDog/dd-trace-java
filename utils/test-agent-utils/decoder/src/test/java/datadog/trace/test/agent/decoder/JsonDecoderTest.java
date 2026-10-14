@@ -60,10 +60,21 @@ class JsonDecoderTest {
   }
 
   @Test
-  void nativeSpanEventsTakePrecedenceAndEmptyEventsStayEmpty() {
-    DecodedSpan span = decodeSpanWithEvents("\"meta\":{\"events\":\"legacy\"},\"span_events\":[]");
+  void nativeSpanEventsReplaceLegacySpanEventsTag() {
+    DecodedSpan span =
+        decodeSpanWithEvents(
+            "\"meta\":{\"events\":\"legacy\"},\"span_events\":[{\"name\":\"native\"}]");
 
-    assertEquals("[]", span.getMeta().get("events"));
+    assertEquals("[{\"name\":\"native\"}]", span.getMeta().get("events"));
+  }
+
+  @Test
+  void emptyNativeSpanEventsDecodeToAnEmptyArray() {
+    assertEquals("[]", decodeSpanWithEvents("\"span_events\":[]").getMeta().get("events"));
+  }
+
+  @Test
+  void nullOrAbsentNativeSpanEventsLeaveNoEventsTag() {
     assertNull(decodeSpanWithEvents("\"span_events\":null").getMeta().get("events"));
     assertNull(decodeSpanWithEvents("\"meta\":{}").getMeta().get("events"));
   }

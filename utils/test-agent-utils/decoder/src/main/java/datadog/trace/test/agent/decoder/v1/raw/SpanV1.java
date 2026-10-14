@@ -5,14 +5,17 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 
+import com.squareup.moshi.JsonWriter;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import okio.Buffer;
 import org.msgpack.core.MessageFormat;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
@@ -58,6 +61,14 @@ public class SpanV1 implements DecodedSpan {
   static final int LINK_FIELD_ATTRIBUTES = 3;
   static final int LINK_FIELD_TRACE_STATE = 4;
   static final int LINK_FIELD_TRACE_FLAGS = 5;
+
+  // Span event field IDs (from TraceMapperV1.encodeSpanEvents)
+  static final int EVENT_FIELD_TIME = 1;
+  static final int EVENT_FIELD_NAME = 2;
+  static final int EVENT_FIELD_ATTRIBUTES = 3;
+
+  // The meta tag the tracer encodes span events into for protocols without native events
+  static final String SPAN_EVENTS_TAG = "events";
 
   // Attribute value types
   static final int STRING_VALUE_TYPE = 1;
@@ -172,10 +183,10 @@ public class SpanV1 implements DecodedSpan {
             links = unpackSpanLinks(unpacker, stringTable);
             break;
           case SPAN_FIELD_SPAN_EVENTS:
-            // TODO Span events are not decoded yet. This blind skip also consumes any streaming
-            // string the events introduced without registering it, desynchronizing the string
-            // table for the rest of the payload (see unpackSpanLinks for the table-aware pattern).
-            unpacker.skipValue();
+            String events = unpackSpanEvents(unpacker, stringTable);
+            if (events != null) {
+              meta.put(SPAN_EVENTS_TAG, events);
+            }
             break;
           case SPAN_FIELD_ENV:
             env = unpackStreamingString(unpacker, stringTable);
@@ -394,6 +405,107 @@ public class SpanV1 implements DecodedSpan {
       links.add(DecodedSpanLinks.link(traceId, spanId, traceFlags, traceState, attributes));
     }
     return unmodifiableList(links);
+  }
+
+  /**
+   * Unpacks the structured span events of field {@value #SPAN_FIELD_SPAN_EVENTS}, as {@code
+   * TraceMapperV1.encodeSpanEvents} writes them, into the JSON value of the {@value
+   * #SPAN_EVENTS_TAG} meta tag, in the shape {@code DDSpanContext.spanEventsToTag} writes for
+   * protocols without native events: {@code time_unix_nano}, {@code name}, then {@code attributes}
+   * only when there are some.
+   *
+   * <p>Event names and attributes are streaming strings, so they are read through the table-aware
+   * helpers to keep every later string index in the payload in sync.
+   *
+   * @param unpacker The message unpacker.
+   * @param stringTable The shared string table for streaming string decoding.
+   * @return The JSON tag value, {@code null} if there are no events.
+   * @throws IOException If unpacking fails.
+   */
+  static String unpackSpanEvents(MessageUnpacker unpacker, List<String> stringTable)
+      throws IOException {
+    int eventCount = unpacker.unpackArrayHeader();
+    if (eventCount == 0) {
+      return null;
+    }
+    List<Map<String, Object>> events = new ArrayList<>(eventCount);
+    for (int i = 0; i < eventCount; i++) {
+      int fieldCount = unpacker.unpackMapHeader();
+      long time = 0;
+      String name = "";
+      Map<String, Object> attributes = new LinkedHashMap<>();
+      for (int field = 0; field < fieldCount; field++) {
+        switch (unpacker.unpackInt()) {
+          case EVENT_FIELD_TIME:
+            time = unpacker.unpackLong();
+            break;
+          case EVENT_FIELD_NAME:
+            name = unpackStreamingString(unpacker, stringTable);
+            break;
+          case EVENT_FIELD_ATTRIBUTES:
+            forEachAttribute(
+                unpacker,
+                stringTable,
+                (attributeUnpacker, table, key, valueType) ->
+                    attributes.put(
+                        key, unpackEventAttributeValue(attributeUnpacker, table, valueType)));
+            break;
+          default:
+            // Unknown event field; numeric or binary, so it cannot hold a streaming string.
+            unpacker.skipValue();
+            break;
+        }
+      }
+      Map<String, Object> event = new LinkedHashMap<>();
+      event.put("time_unix_nano", time);
+      event.put("name", name);
+      if (!attributes.isEmpty()) {
+        event.put("attributes", attributes);
+      }
+      events.add(event);
+    }
+    Buffer buffer = new Buffer();
+    JsonWriter writer = JsonWriter.of(buffer);
+    // Unsupported attribute values are written as null and non-finite doubles as bare literals,
+    // as the tracer's events tag does.
+    writer.setSerializeNulls(true);
+    writer.setLenient(true);
+    writer.jsonValue(events);
+    writer.flush();
+    return buffer.readUtf8();
+  }
+
+  /**
+   * Unpacks an event attribute value: a string, boolean, double, long, or a list of them. Value
+   * types the tracer never writes for events decode to {@code null}.
+   */
+  private static Object unpackEventAttributeValue(
+      MessageUnpacker unpacker, List<String> stringTable, int valueType) throws IOException {
+    switch (valueType) {
+      case STRING_VALUE_TYPE:
+        return unpackStreamingString(unpacker, stringTable);
+      case BOOL_VALUE_TYPE:
+        return unpacker.unpackBoolean();
+      case FLOAT_VALUE_TYPE:
+        return unpacker.unpackDouble();
+      case INT_VALUE_TYPE:
+        return unpacker.unpackLong();
+      case ARRAY_VALUE_TYPE:
+        int arraySize = unpacker.unpackArrayHeader();
+        // Array contains pairs (type, value), so size must be even
+        if (arraySize % 2 != 0) {
+          throw new IllegalArgumentException(
+              "Event attribute array size must be even, got: " + arraySize);
+        }
+        List<Object> items = new ArrayList<>(arraySize / 2);
+        for (int i = 0; i < arraySize / 2; i++) {
+          items.add(unpackEventAttributeValue(unpacker, stringTable, unpacker.unpackInt()));
+        }
+        return items;
+      default:
+        unpacker.skipValue();
+        return null;
+    }
   }
 
   /**
