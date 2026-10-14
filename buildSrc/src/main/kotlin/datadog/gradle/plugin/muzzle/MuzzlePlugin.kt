@@ -134,7 +134,7 @@ class MuzzlePlugin : Plugin<Project> {
         current.configure { finalizedBy(next) }
       }
 
-      // Note this is unordered set, the execution order is configured via the finalizer relationships
+      // Note this is a set, but only the first task of the chain is passed.
       setOf(executionChain.first().get())
     }
     muzzleTask.configure {
