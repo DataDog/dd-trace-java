@@ -34,9 +34,13 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 public final class VirtualThreadState {
   private static final ClassValue<Boolean> PROPAGATE_CONTEXT =
       GenericClassValue.of(
-          type -> !type.getName().equals("jdk.internal.net.http.HttpClientImpl$SelectorManager"));
+          type -> {
+            String name = type.getName();
+            return !name.equals("jdk.internal.net.http.HttpClientImpl$SelectorManager")
+                && !name.startsWith("java.lang.VirtualThread$$Lambda/");
+          });
 
-  /** The HTTP selector belongs to its client, not to the request creating the client. */
+  /** Internal selector and virtual-thread timeout tasks do not consume the creating context. */
   public static boolean shouldPropagateContext(Runnable task) {
     return PROPAGATE_CONTEXT.get(task.getClass());
   }
