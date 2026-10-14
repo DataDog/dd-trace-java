@@ -117,8 +117,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     private val REQUIREMENT_STRENGTH = listOf("required", "conditional", "recommended", "optional")
 
     /** The strongest of a name's requirement levels across its declarations per direction. */
-    private fun strongestRequirement(levels: List<String>): String =
-      levels.minBy { REQUIREMENT_STRENGTH.indexOf(it).let { i -> if (i < 0) Int.MAX_VALUE else i } }
+    private fun strongestRequirement(levels: List<String>): String = levels.minBy { REQUIREMENT_STRENGTH.indexOf(it).let { i -> if (i < 0) Int.MAX_VALUE else i } }
 
     /**
      * Rejects OpenTelemetry names that collide with any Datadog name. Within each direction,

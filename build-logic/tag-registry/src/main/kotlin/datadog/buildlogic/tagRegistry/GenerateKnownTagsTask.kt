@@ -31,8 +31,7 @@ abstract class GenerateKnownTagsTask : DefaultTask() {
   @TaskAction
   fun generate() {
     val outDir = destinationDirectory.get().asFile
-    TagRegistryGenerator.generate(
-      tagConventionsFile.get().asFile, outDir, tracerOverlayFile.orNull?.asFile)
+    TagRegistryGenerator.generate(tagConventionsFile.get().asFile, outDir, tracerOverlayFile.orNull?.asFile)
     logger.lifecycle("tag-registry: generated -> $outDir")
   }
 }

@@ -14,8 +14,7 @@ object TagRegistryGenerator {
    */
   fun generate(tagConventionsFile: File, outDir: File, tracerOverlayFile: File? = null) {
     val mapper = ObjectMapper(YAMLFactory())
-    fun read(file: File): Map<String, Any?> =
-      file.inputStream().use { mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {}) } ?: emptyMap()
+    fun read(file: File): Map<String, Any?> = file.inputStream().use { mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {}) } ?: emptyMap()
     val domain = read(tagConventionsFile)
     val overlay = tracerOverlayFile?.let(::read) ?: emptyMap()
 
