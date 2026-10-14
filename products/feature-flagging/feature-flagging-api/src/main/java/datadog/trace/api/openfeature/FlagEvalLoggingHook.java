@@ -128,11 +128,17 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final ImmutableMetadata metadata = details.getFlagMetadata();
 
       // allocationKey: "allocationKey" (camelCase) - consistent with FlagEvalMetricsHook.java
-      final String allocationKey = metadata != null ? metadata.getString("allocationKey") : null;
+      // The ImmutableMetadata getters build a debug message for every absent key.
+      final Map<String, Object> values =
+          metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+      final Object allocationValue = values.get("allocationKey");
+      final String allocationKey =
+          allocationValue instanceof String ? (String) allocationValue : null;
 
       // eval-time: from flag metadata "__dd_eval_timestamp_ms" (Long), fallback to hook-fire time.
       // ImmutableMetadata.getLong available since sdk 1.4+.
-      final Long evalTimeObj = metadata != null ? metadata.getLong("__dd_eval_timestamp_ms") : null;
+      final Object evalTimeValue = values.get("__dd_eval_timestamp_ms");
+      final Long evalTimeObj = evalTimeValue instanceof Long ? (Long) evalTimeValue : null;
       final long evalTimeMs = evalTimeObj != null ? evalTimeObj : System.currentTimeMillis();
 
       // variant: the OpenFeature variant key (same source as the OTel FlagEvalMetricsHook), NOT the
@@ -145,10 +151,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
 
       // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
       // Missing key = non-DD provider → false, the privacy-preserving default.
+      final Object consentValue = values.get(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA);
       final Boolean consentFromMetadata =
-          metadata != null
-              ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
-              : null;
+          consentValue instanceof Boolean ? (Boolean) consentValue : null;
       final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
 
       // Error message: prefer the human-readable message under consent-on; under consent-off the
@@ -184,11 +189,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // Features come from the flag configuration, not the evaluation context, so they are sent
       // whatever the consent.
       final Map<String, Object> features =
-          metadata != null
-                  && Boolean.TRUE.equals(
-                      metadata
-                          .asUnmodifiableMap()
-                          .get(DDEvaluator.METADATA_HAS_EVALUATION_FEATURES))
+          Boolean.TRUE.equals(values.get(DDEvaluator.METADATA_HAS_EVALUATION_FEATURES))
               ? SplitFeatureMetadata.featuresWithPrefix(
                   metadata, DDEvaluator.METADATA_EVALUATION_FEATURE_PREFIX)
               : Collections.<String, Object>emptyMap();

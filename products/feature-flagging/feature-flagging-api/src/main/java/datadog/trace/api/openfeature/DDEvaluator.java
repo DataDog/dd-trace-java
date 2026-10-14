@@ -186,15 +186,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // sent, so the exposure hook does not send it again.
   static final String METADATA_EXPOSURE_CACHE_HIT = "__dd_exposure_cache_hit";
   // Each feature of the selected split is copied to the metadata once for each destination it
-  // lists, under that destination's prefix. Only the HOOK prefix is a public contract; the other
-  // two
-  // carry features to Datadog's own exposure and flag-evaluation hooks.
+  // lists, under that destination's prefix. Only the HOOK prefix is a public contract; the
+  // other two carry features to Datadog's own exposure and flag-evaluation hooks.
   static final String METADATA_FEATURE_PREFIX = "__dd_feature.";
   static final String METADATA_EXPOSURE_FEATURE_PREFIX = "__dd_exposure_feature.";
   static final String METADATA_EVALUATION_FEATURE_PREFIX = "__dd_evaluation_feature.";
   // Present only when the split routes a feature to EVALUATION, so FlagEvalLoggingHook can skip
   // scanning the metadata on every other evaluation.
-  static final String METADATA_HAS_EVALUATION_FEATURES = "__dd_evaluation_features";
+  static final String METADATA_HAS_EVALUATION_FEATURES = "__dd_has_evaluation_features";
 
   static final String FEATURE_DESTINATION_HOOK = "HOOK";
   static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
