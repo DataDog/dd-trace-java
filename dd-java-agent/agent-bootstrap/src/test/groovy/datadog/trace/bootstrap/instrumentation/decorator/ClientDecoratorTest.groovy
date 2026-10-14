@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-
 import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanState.expectedSpan
 
 class ClientDecoratorTest extends BaseDecoratorTest {
