@@ -17,6 +17,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.FeatureFlaggingSource;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -65,12 +66,12 @@ class FeatureFlagsBackendTest {
 
   @TableTest({
     "Scenario               | Source        | RC enabled | Registers",
-    "remote config source   | remote_config | true       | true     ",
-    "remote config disabled | remote_config | false      | false    ",
-    "agentless source       | agentless     | true       | false    "
+    "remote config source   | REMOTE_CONFIG | true       | true     ",
+    "remote config disabled | REMOTE_CONFIG | false      | false    ",
+    "agentless source       | AGENTLESS     | true       | false    "
   })
   void startRegistersRemoteConfigOnlyWhenItIsTheSource(
-      final String source, final boolean rcEnabled, final boolean registers) {
+      final FeatureFlaggingSource source, final boolean rcEnabled, final boolean registers) {
     final ConfigurationPoller poller = mock(ConfigurationPoller.class);
     when(this.sco.configurationPoller(this.config)).thenReturn(poller);
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
@@ -83,11 +84,12 @@ class FeatureFlagsBackendTest {
 
   @TableTest({
     "Scenario                  | Source        | API key",
-    "agentless with API key    | agentless     | key    ",
-    "agentless without API key | agentless     |        ",
-    "remote config             | remote_config | key    "
+    "agentless with API key    | AGENTLESS     | key    ",
+    "agentless without API key | AGENTLESS     |        ",
+    "remote config             | REMOTE_CONFIG | key    "
   })
-  void createsTheBackendFromTheAgentConfiguration(final String source, final String apiKey) {
+  void createsTheBackendFromTheAgentConfiguration(
+      final FeatureFlaggingSource source, final String apiKey) {
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
     when(this.config.getApiKey()).thenReturn(apiKey);
 

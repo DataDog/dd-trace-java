@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.openfeature;
 import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
+import static java.util.Locale.ROOT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -25,25 +26,26 @@ import org.tabletest.junit.TableTest;
 @ExtendWith(WithConfigExtension.class)
 class ConfigurationResolutionParityTest {
   @TableTest({
-    "Scenario                         | Enabled | Source           | Legacy | Expected     ",
-    "defaults                         |         |                  |        | agentless    ",
-    "enabled                          | true    |                  |        | agentless    ",
-    "enabled as number                | 1       |                  |        | agentless    ",
-    "disabled                         | false   |                  |        |              ",
-    "disabled as number               | 0       |                  |        |              ",
-    "disabled wins over source        | false   | remote_config    |        |              ",
-    "remote config source             |         | remote_config    |        | remote_config",
-    "agentless source                 |         | agentless        |        | agentless    ",
-    "source is normalized             |         | ' Remote_Config' |        | remote_config",
-    "unsupported source               |         | offline          |        |              ",
-    "legacy enabled                   |         |                  | true   | remote_config",
-    "legacy disabled                  |         |                  | false  |              ",
-    "source wins over legacy          |         | agentless        | true   | agentless    ",
-    "source wins over legacy disabled |         | remote_config    | false  | remote_config",
-    "enabled with legacy disabled     | true    |                  | false  |              ",
-    "uppercase boolean                | TRUE    |                  | TRUE   | remote_config",
-    "invalid boolean reads as false   | maybe   |                  |        |              ",
-    "invalid legacy reads as false    |         |                  | maybe  |              "
+    "Scenario                         | Enabled | Source        | Legacy | Expected     ",
+    "defaults                         |         |               |        | agentless    ",
+    "enabled                          | true    |               |        | agentless    ",
+    "enabled as number                | 1       |               |        | agentless    ",
+    "disabled                         | false   |               |        |              ",
+    "disabled as number               | 0       |               |        |              ",
+    "disabled wins over source        | false   | remote_config |        |              ",
+    "remote config source             |         | remote_config |        | remote_config",
+    "agentless source                 |         | agentless     |        | agentless    ",
+    "source is case insensitive       |         | Remote_Config |        | remote_config",
+    "padded source is unsupported     |         | ' agentless ' |        |              ",
+    "unsupported source               |         | offline       |        |              ",
+    "legacy enabled                   |         |               | true   | remote_config",
+    "legacy disabled                  |         |               | false  |              ",
+    "source wins over legacy          |         | agentless     | true   | agentless    ",
+    "source wins over legacy disabled |         | remote_config | false  | remote_config",
+    "enabled with legacy disabled     | true    |               | false  |              ",
+    "uppercase boolean                | TRUE    |               | TRUE   | remote_config",
+    "invalid boolean reads as false   | maybe   |               |        |              ",
+    "invalid legacy reads as false    |         |               | maybe  |              "
   })
   void agentAndSdkResolveTheSameConfiguration(
       final String enabled, final String source, final String legacy, final String expected) {
@@ -61,7 +63,7 @@ class ConfigurationResolutionParityTest {
     settings.forEach(WithConfigExtension::injectSysConfig);
     final InstrumenterConfig config = InstrumenterConfig.get();
     return config.isFeatureFlaggingEnabled()
-        ? config.getFeatureFlaggingConfigurationSource()
+        ? config.getFeatureFlaggingConfigurationSource().name().toLowerCase(ROOT)
         : null;
   }
 

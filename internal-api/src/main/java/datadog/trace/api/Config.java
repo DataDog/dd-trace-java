@@ -4886,9 +4886,8 @@ public class Config {
     return instrumenterConfig.isFeatureFlaggingEnabled();
   }
 
-  public String getFeatureFlaggingConfigurationSource() {
-    final FeatureFlaggingSource source = instrumenterConfig.getFeatureFlaggingConfigurationSource();
-    return source == FeatureFlaggingSource.UNSET ? null : source.name().toLowerCase(Locale.ROOT);
+  public FeatureFlaggingSource getFeatureFlaggingConfigurationSource() {
+    return instrumenterConfig.getFeatureFlaggingConfigurationSource();
   }
 
   public boolean isDynamicInstrumentationEnabled() {
