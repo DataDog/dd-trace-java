@@ -254,6 +254,15 @@ public abstract class Instrumenter {
     }
   }
 
+  protected TryCatchBlockNode findCatchHandler(LabelNode targetLine) {
+    for (TryCatchBlockNode tryCatchBlockNode : methodNode.tryCatchBlocks) {
+      if (tryCatchBlockNode.handler == targetLine) {
+        return tryCatchBlockNode;
+      }
+    }
+    return null;
+  }
+
   protected int newVar(Type type) {
     return newVar(type.getSize());
   }
