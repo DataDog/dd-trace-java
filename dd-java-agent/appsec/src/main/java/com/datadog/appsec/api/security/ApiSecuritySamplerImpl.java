@@ -7,9 +7,9 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Semaphore;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -32,7 +32,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   /** Mapping from endpoint hash to last access timestamp in millis. */
   private final ConcurrentHashMap<Long, Long> accessMap;
 
-  /** Deque of endpoint hashes ordered by access time. Oldest is always first. */
+  /** Deque of endpoint hashes ordered by access time. Oldest is first. Guarded by accessLock. */
   private final Deque<Long> accessDeque;
 
   /** Guards map/deque updates together; preliminary map lookups remain lock-free. */
@@ -55,7 +55,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     this.capacity = capacity;
     this.expirationTimeInMs = expirationTimeInMs;
     this.accessMap = new ConcurrentHashMap<>();
-    this.accessDeque = new ConcurrentLinkedDeque<>();
+    this.accessDeque = new ArrayDeque<>();
     this.timeSource = timeSource;
   }
 
@@ -114,7 +114,9 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     return false;
   }
 
-  /** Get the final sampling decision. This method is NOT thread-safe. */
+  /**
+   * Get the final sampling decision. Updates to shared sampling state are synchronized internally.
+   */
   @Override
   public boolean sampleRequest(AppSecRequestContext ctx) {
     if (ctx == null) {
@@ -172,13 +174,14 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     while (!accessDeque.isEmpty()) {
       final Long oldestHash = accessDeque.peekFirst();
       if (oldestHash == null) {
-        // Should never happen
-        continue;
+        // Stop if the deque has no head.
+        break;
       }
 
       final Long lastAccessTime = accessMap.get(oldestHash);
       if (lastAccessTime == null) {
-        // Should never  happen
+        // Discard orphaned entries so cleanup always makes progress.
+        accessDeque.pollFirst();
         continue;
       }
 

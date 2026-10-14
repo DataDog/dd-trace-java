@@ -11,6 +11,7 @@ import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
@@ -27,6 +28,35 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
   private static final String FRAMEWORK = "test-framework";
   private static final long EXPIRATION_MS = 10;
   private static final int WORKERS = 4;
+
+  @Test
+  void cleanupDiscardsOrphanWithoutLosingTheNewEntry() throws Exception {
+    ControllableTimeSource time = new ControllableTimeSource();
+    ApiSecuritySamplerImpl sampler = new ApiSecuritySamplerImpl(8, EXPIRATION_MS, time);
+    Deque<Long> entries =
+        new ArrayDeque<Long>() {
+          private int peeks;
+
+          @Override
+          public Long peekFirst() {
+            // Fail a non-progressing loop directly rather than leave a spinning test thread.
+            assertTrue(++peeks <= 16, "Cleanup must advance past the orphan");
+            return super.peekFirst();
+          }
+        };
+    entries.addLast(42L);
+    Field dequeField = ApiSecuritySamplerImpl.class.getDeclaredField("accessDeque");
+    dequeField.setAccessible(true);
+    dequeField.set(sampler, entries);
+
+    AppSecRequestContext ctx = context("new-endpoint");
+    sample(sampler, ctx);
+    assertEquals(1, entries.size());
+    assertEquals(ctx.getApiSecurityEndpointHash(), entries.peekFirst());
+    assertTrue(map(sampler).containsKey(ctx.getApiSecurityEndpointHash()));
+    assertFalse(map(sampler).containsKey(42L));
+    assertConsistent(sampler, 8);
+  }
 
   @Test
   void losingStandaloneRechecksReleaseTheirPermitsAndContexts() throws Exception {
