@@ -82,6 +82,13 @@ docs/                     Developer documentation (see below)
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
 
+### `dd-trace-core` performance rules
+
+These rules are strict for changes under `dd-trace-core/`; elsewhere, treat them as advice.
+
+- **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
+- **No defensive copies from internal accessors.** Don't return defensive copies from accessors only the tracer calls, since they allocate on every call on hot paths such as serialization. Use a restrictive type (e.g. `List<? extends T>`), a shared immutable constant for the empty case, and a Javadoc read-only contract instead.
+
 ## Critical constraints
 
 - **Bootstrap**: never use `java.util.logging.*`, `java.nio.file.*`, or `javax.management.*` in `premain` code — see [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md).
