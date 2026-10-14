@@ -1,6 +1,7 @@
 package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.KnownTags.COMPONENT_ID;
 import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
@@ -319,6 +320,31 @@ public class TagInterceptor {
     } else {
       span.setResourceName(
           HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+    }
+  }
+
+  /**
+   * Re-applies the split-by-tags service name from the highest-precedence identity tag in a
+   * decorator prototype that was just applied to {@code span}. The prototype's tags are intercepted
+   * in no particular order, so without this {@code language} could overwrite {@code component}. The
+   * precedence ({@code component} over {@code language}) mirrors the old sequential {@code setTag}
+   * calls in {@code ServerDecorator}/{@code BaseDecorator}. It is scoped to the one application:
+   * separate tag writes, before or after, stay last-writer-wins. ({@code span.kind} is not listed:
+   * its interception never reaches the split-by-tags check.)
+   */
+  public void resolveSplitByTagsPrecedence(DDSpanContext span, TagMap prototypeTags) {
+    if (isSplitServiceTag(COMPONENT_ID)) {
+      TagMap.Entry component = prototypeTags.getEntry(COMPONENT_ID);
+      if (component != null) {
+        splitService(span, component.objectValue());
+        return;
+      }
+    }
+    if (isSplitServiceTag(DDTags.LANGUAGE_TAG_KEY)) {
+      Object language = prototypeTags.getObject(DDTags.LANGUAGE_TAG_KEY);
+      if (language != null) {
+        splitService(span, language);
+      }
     }
   }
 
