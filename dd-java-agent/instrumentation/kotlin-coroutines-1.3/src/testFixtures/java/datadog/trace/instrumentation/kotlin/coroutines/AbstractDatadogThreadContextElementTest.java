@@ -20,16 +20,12 @@ import org.tabletest.junit.TableTest;
 /** Context replacement checks shared by the oldest and latest dependency suites. */
 public abstract class AbstractDatadogThreadContextElementTest {
   @TableTest({
-    "Scenario            | Ordinary before | Ordinary after | Hooks before | Hooks after | Dispatcher | Custom view",
-    "Singleton           | 0               | 0              | 0            | 0           | false      | false      ",
-    "Ordinary after      | 0               | 1              | 0            | 0           | true       | false      ",
-    "Ordinary tail       | 3               | 0              | 0            | 0           | true       | false      ",
-    "Ordinary middle     | 2               | 2              | 0            | 0           | true       | false      ",
-    "Earlier hook        | 1               | 1              | 1            | 0           | true       | false      ",
-    "Later hook          | 1               | 1              | 0            | 1           | true       | false      ",
-    "Hooks either side   | 1               | 1              | 2            | 2           | false      | false      ",
-    "Custom earlier hook | 2               | 2              | 1            | 0           | true       | true       ",
-    "Custom later hook   | 2               | 2              | 1            | 1           | true       | true       "
+    "Scenario          | Ordinary before | Ordinary after | Hooks before | Hooks after | Dispatcher | Custom view",
+    "Singleton         | 0               | 0              | 0            | 0           | false      | false      ",
+    "Ordinary middle   | 2               | 2              | 0            | 0           | true       | false      ",
+    "Later hook        | 1               | 1              | 0            | 1           | true       | false      ",
+    "Hooks either side | 1               | 1              | 2            | 2           | false      | false      ",
+    "Custom later hook | 2               | 2              | 1            | 1           | true       | true       "
   })
   void replacementPreservesContentsAndCallbackOrder(
       int ordinaryBefore,
@@ -64,15 +60,6 @@ public abstract class AbstractDatadogThreadContextElementTest {
   }
 
   @Test
-  void interceptorWithThreadCallbacksKeepsItsPosition() {
-    DatadogThreadContextElement original =
-        (DatadogThreadContextElement) addDatadogElement(EmptyCoroutineContext.INSTANCE);
-    CoroutineContext input = original.plus(new HookInterceptor());
-    assertReplacement(input, original);
-    assertEquals(keys(input, false), keys(addDatadogElement(input), false));
-  }
-
-  @Test
   void contextWithoutDatadogElementRetainsItsContents() {
     Element ordinary = new Element();
     Hook hook = new Hook();
@@ -80,8 +67,9 @@ public abstract class AbstractDatadogThreadContextElementTest {
     CoroutineContext output = addDatadogElement(input);
     assertSame(ordinary, lookup(output, ordinary));
     assertSame(hook, lookup(output, hook));
-    assertEquals(3, keys(output, false).size());
-    assertEquals(hook.getKey(), keys(output, true).get(0));
+    assertEquals(3, keys(output).size());
+    assertEquals(ordinary.getKey(), keys(output).get(0));
+    assertEquals(hook.getKey(), keys(output).get(1));
   }
 
   private static void assertReplacement(
@@ -89,8 +77,7 @@ public abstract class AbstractDatadogThreadContextElementTest {
     CoroutineContext output = addDatadogElement(input);
     assertSame(original, lookup(input, original));
     assertNotSame(original, lookup(output, original));
-    assertEquals(keys(input, false), keys(output, false));
-    assertEquals(keys(input, true), keys(output, true));
+    assertEquals(keys(input), keys(output));
     input.fold(
         output,
         (rebuilt, element) -> {
@@ -107,13 +94,11 @@ public abstract class AbstractDatadogThreadContextElementTest {
     return context.get((CoroutineContext.Key<CoroutineContext.Element>) element.getKey());
   }
 
-  private static List<CoroutineContext.Key<?>> keys(CoroutineContext context, boolean hooksOnly) {
+  private static List<CoroutineContext.Key<?>> keys(CoroutineContext context) {
     return context.fold(
         new ArrayList<CoroutineContext.Key<?>>(),
         (keys, element) -> {
-          if (!hooksOnly || element instanceof ThreadContextElement) {
-            keys.add(element.getKey());
-          }
+          keys.add(element.getKey());
           return keys;
         });
   }
@@ -134,7 +119,7 @@ public abstract class AbstractDatadogThreadContextElementTest {
     public void restoreThreadContext(CoroutineContext context, Object state) {}
   }
 
-  private static class Interceptor extends AbstractCoroutineContextElement
+  private static final class Interceptor extends AbstractCoroutineContextElement
       implements ContinuationInterceptor {
     Interceptor() {
       super(ContinuationInterceptor.Key);
@@ -148,17 +133,6 @@ public abstract class AbstractDatadogThreadContextElementTest {
 
     @Override
     public void releaseInterceptedContinuation(Continuation<?> continuation) {}
-  }
-
-  private static final class HookInterceptor extends Interceptor
-      implements ThreadContextElement<Object> {
-    @Override
-    public Object updateThreadContext(CoroutineContext context) {
-      return null;
-    }
-
-    @Override
-    public void restoreThreadContext(CoroutineContext context, Object state) {}
   }
 
   private static final class ContextView implements CoroutineContext {

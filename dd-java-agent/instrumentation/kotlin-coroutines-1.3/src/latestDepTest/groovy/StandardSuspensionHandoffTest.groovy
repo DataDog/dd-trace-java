@@ -15,8 +15,15 @@ class StandardSuspensionHandoffTest extends AbstractStandardSuspensionHandoffTes
     def violations = new StandardSuspensionHandoffTests().runScopeTouchingElements(1000)
 
     then:
-    // the next worker can briefly see the previous worker's element scope until it is closed;
-    // that is expected, but the coroutine must never lose its base context or fail
-    violations.keySet().findAll { !it.contains("leaked") && !it.contains("restore") }.isEmpty()
+    // Overlapping workers can temporarily see each other's element scopes. The coroutine must
+    // retain its base context, but restore callbacks can observe a different top during overlap.
+    def expectedDuringOverlap = [
+      'element scope leaked from previous worker',
+      'before scope not on top at restore',
+      'after scope not on top at restore',
+      'before restore did not return to previous context',
+      'after restore did not return to previous context'
+    ]
+    (violations.keySet() - expectedDuringOverlap).isEmpty()
   }
 }

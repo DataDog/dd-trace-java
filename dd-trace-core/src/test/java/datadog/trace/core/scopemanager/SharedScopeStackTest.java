@@ -109,7 +109,7 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
         () -> {
           Context original = scopeManager.swap(shared);
           try {
-            start.await();
+            start.await(10, SECONDS);
             for (int i = 0; i < iterations; i++) {
               scopeManager.attach(base.with(KEY, Thread.currentThread().getName() + i)).close();
             }
@@ -121,14 +121,7 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
         };
     Thread first = new Thread(attachAndClose, "first");
     Thread second = new Thread(attachAndClose, "second");
-    AtomicReference<Throwable> failure = new AtomicReference<>();
-    first.setUncaughtExceptionHandler((t, e) -> failure.set(e));
-    second.setUncaughtExceptionHandler((t, e) -> failure.set(e));
-    first.start();
-    second.start();
-    first.join();
-    second.join();
-    assertNull(failure.get());
+    runThreads(first, second);
 
     runOnNewThread(
         () -> {
@@ -148,7 +141,7 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
         () -> {
           Context original = scopeManager.swap(shared);
           try {
-            start.await();
+            start.await(10, SECONDS);
             for (int i = 0; i < iterations; i++) {
               // reuses the seed scope, adding and removing a reference each time
               scopeManager.attach(base).close();
@@ -161,14 +154,7 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
         };
     Thread first = new Thread(reattachBase, "first");
     Thread second = new Thread(reattachBase, "second");
-    AtomicReference<Throwable> failure = new AtomicReference<>();
-    first.setUncaughtExceptionHandler((t, e) -> failure.set(e));
-    second.setUncaughtExceptionHandler((t, e) -> failure.set(e));
-    first.start();
-    second.start();
-    first.join();
-    second.join();
-    assertNull(failure.get());
+    runThreads(first, second);
 
     assertSeedHoldsOnlyItsOriginalReference(shared);
   }
@@ -192,7 +178,7 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
             () -> {
               Context original = scopeManager.swap(shared);
               try {
-                start.await();
+                start.await(10, SECONDS);
                 for (int i = 0; i < references; i++) {
                   scopeManager.attach(base).close();
                 }
@@ -207,20 +193,13 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
         new Thread(
             () -> {
               try {
-                start.await();
+                start.await(10, SECONDS);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
               extraReferences.forEach(ContextScope::close);
             });
-    AtomicReference<Throwable> failure = new AtomicReference<>();
-    reuser.setUncaughtExceptionHandler((t, e) -> failure.set(e));
-    closer.setUncaughtExceptionHandler((t, e) -> failure.set(e));
-    reuser.start();
-    closer.start();
-    reuser.join();
-    closer.join();
-    assertNull(failure.get());
+    runThreads(reuser, closer);
 
     assertSeedHoldsOnlyItsOriginalReference(shared);
   }
@@ -271,31 +250,7 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
         };
     Thread first = new Thread(reuser, "reuser");
     Thread second = new Thread(closer, "closer");
-    AtomicReference<Throwable> failure = new AtomicReference<>();
-    // keeps the first failure, rather than the interrupt that stops the other thread
-    Thread.UncaughtExceptionHandler stopWorkers =
-        (t, e) -> {
-          failure.compareAndSet(null, e);
-          (t == first ? second : first).interrupt();
-        };
-    first.setUncaughtExceptionHandler(stopWorkers);
-    second.setUncaughtExceptionHandler(stopWorkers);
-    try {
-      first.start();
-      second.start();
-      first.join(10_000);
-      second.join(10_000);
-    } finally {
-      first.interrupt();
-      second.interrupt();
-      first.join(10_000);
-      second.join(10_000);
-    }
-    if (failure.get() != null) {
-      throw new AssertionError(failure.get());
-    }
-    assertFalse(first.isAlive(), "reuser did not terminate");
-    assertFalse(second.isAlive(), "closer did not terminate");
+    runThreads(first, second);
   }
 
   @Test
@@ -413,15 +368,47 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
   }
 
   private static void runOnNewThread(Runnable task) throws Exception {
+    runThreads(new Thread(task, "worker"));
+  }
+
+  /** Stops peers on failure and bounds shutdown, including when a worker cannot be interrupted. */
+  private static void runThreads(Thread... threads) throws Exception {
     AtomicReference<Throwable> failure = new AtomicReference<>();
-    Thread thread = new Thread(task);
-    thread.setUncaughtExceptionHandler((t, e) -> failure.set(e));
-    thread.start();
-    thread.join();
+    for (Thread thread : threads) {
+      // a monitor deadlock cannot be interrupted; it must not prevent the test JVM exiting
+      thread.setDaemon(true);
+      thread.setUncaughtExceptionHandler(
+          (failed, error) -> {
+            failure.compareAndSet(null, error);
+            for (Thread peer : threads) {
+              if (peer != failed) {
+                peer.interrupt();
+              }
+            }
+          });
+    }
+    try {
+      for (Thread thread : threads) {
+        thread.start();
+      }
+      for (Thread thread : threads) {
+        thread.join(10_000);
+      }
+    } finally {
+      for (Thread thread : threads) {
+        thread.interrupt();
+      }
+      for (Thread thread : threads) {
+        thread.join(10_000);
+      }
+    }
     if (failure.get() instanceof Error) {
       throw (Error) failure.get();
     } else if (failure.get() != null) {
       throw new AssertionError(failure.get());
+    }
+    for (Thread thread : threads) {
+      assertFalse(thread.isAlive(), thread.getName() + " did not terminate");
     }
   }
 }
