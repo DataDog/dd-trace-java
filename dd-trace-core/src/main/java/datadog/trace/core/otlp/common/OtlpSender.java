@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.common;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.common.writer.RemoteApi;
 
 /** Sends chunks of OTLP data. */

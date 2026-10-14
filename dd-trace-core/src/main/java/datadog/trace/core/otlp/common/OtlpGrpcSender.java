@@ -4,6 +4,8 @@ import static datadog.communication.http.OkHttpUtils.buildHttp2Client;
 import static datadog.communication.http.OkHttpUtils.isPlainHttp;
 
 import datadog.communication.http.HttpRetryPolicy;
+import datadog.communication.otlp.OtlpGrpcRequestBody;
+import datadog.communication.otlp.OtlpPayload;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.config.OtlpConfig.Compression;
 import datadog.trace.common.writer.RemoteApi;

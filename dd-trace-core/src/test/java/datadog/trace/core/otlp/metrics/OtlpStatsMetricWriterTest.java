@@ -11,13 +11,13 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.otlp.OtlpPayload;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.AggregateEntryTestUtils;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.io.IOException;
 import java.util.ArrayList;
