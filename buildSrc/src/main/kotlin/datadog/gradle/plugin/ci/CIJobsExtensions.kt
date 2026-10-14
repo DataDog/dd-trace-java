@@ -99,12 +99,24 @@ private fun Project.createRootTask(
   val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
   tasks.register(rootTaskName) {
     subprojects.forEach { subproject ->
-      if (
-        subproject.isInSelectedSlot.get() &&
-        includePrefixes.any { subproject.path.startsWith(it) } &&
-        !excludePrefixes.any { subproject.path.startsWith(it) }
-      ) {
-        val testTask = subproject.tasks.findByName(subProjTaskName)
+      if (!includePrefixes.any { subproject.path.startsWith(it) } || excludePrefixes.any { subproject.path.startsWith(it) }) {
+        return@forEach
+      }
+      val instrumentationMain = subproject.isInstrumentationProject && subProjTaskName != "allLatestDepTests"
+      val slot = if (instrumentationMain) subproject.instrumentationSlot else null
+      val projectSelected = subproject.isInSelectedSlot.get()
+      val selected = if (instrumentationMain && slot == null) {
+        true
+      } else if (slot != null) {
+        subproject.instrumentationTestPlan(slot.total).selectsProject(subproject.path, slot.index) ||
+          (subProjTaskName == "check" && projectSelected)
+      } else {
+        projectSelected
+      }
+      if (selected) {
+        // Run non-test checks once, while every shard owning main tests reaches those tests.
+        val aggregateName = if (slot != null && subProjTaskName == "check" && !projectSelected) "allTests" else subProjTaskName
+        val testTask = subproject.tasks.findByName(aggregateName)
         var isAffected = true
 
         if (testTask != null) {

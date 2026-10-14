@@ -1,4 +1,6 @@
+import datadog.gradle.plugin.ci.configureInstrumentationTestSharding
 import datadog.gradle.plugin.ci.isInSelectedSlot
+import datadog.gradle.plugin.ci.isInSelectedTestSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
 
@@ -17,15 +19,21 @@ if (project != rootProject) {
 allprojects {
   // Enable tests only on the selected slot (if -Pslot=n/t is provided)
   tasks.withType<Test>().configureEach {
-    onlyIf("Project is in selected slot") {
-      project.isInSelectedSlot.get()
+    onlyIf("Test work is in selected slot") {
+      isInSelectedTestSlot.get()
     }
   }
 }
 
-fun relativeToGitRoot(f: File): File {
-  return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
+gradle.projectsEvaluated {
+  allprojects {
+    tasks.withType<Test>().configureEach {
+      configureInstrumentationTestSharding(this)
+    }
+  }
 }
+
+fun relativeToGitRoot(f: File): File = rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
 
 fun getChangedFiles(baseRef: String, newRef: String): List<File> {
   val stdout = StringBuilder()
@@ -124,9 +132,9 @@ if (gitBaseRefProvider.isPresent) {
 
 tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
-    p.isInSelectedSlot.get()
-        && p.plugins.hasPlugin("java")
-        && p.plugins.hasPlugin("dd-trace-java.muzzle")
+    p.isInSelectedSlot.get() &&
+      p.plugins.hasPlugin("java") &&
+      p.plugins.hasPlugin("dd-trace-java.muzzle")
   }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }

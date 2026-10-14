@@ -1063,7 +1063,8 @@ src/
 
 ### CI Slots and Parallelization
 
-Distributes test execution across multiple CI jobs using hash-based project slotting.
+Distributes test execution across multiple CI jobs. Main instrumentation tests use duration-based
+project, task, and class scheduling; other tests use hash-based project slotting.
 
 ```bash
 # Run only projects assigned to slot 2 out of 4 parallel jobs
@@ -1073,7 +1074,10 @@ Distributes test execution across multiple CI jobs using hash-based project slot
 ./gradlew test
 ```
 
-Projects are assigned to slots based on a hash of their path, ensuring consistent distribution across builds.
+Main instrumentation tests use checked-in mean CI durations to balance slots, splitting heavy projects
+across at most four slots. Newly added tasks and classes retain fallback owners. See
+[Instrumentation test sharding](instrumentation-test-sharding.md) for the model and score refresh workflow.
+Latest dependency tests and other test categories retain consistent project-path hash assignments.
 
 ### Git Change Tracking
 

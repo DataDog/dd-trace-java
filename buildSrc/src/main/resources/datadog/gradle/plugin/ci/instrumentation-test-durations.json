@@ -1,0 +1,2133 @@
+{
+  "_metadata": {
+    "from": "2026-10-06T00:00:00Z",
+    "to": "2026-10-13T00:00:00Z",
+    "query": "@git.repository.id_v2:\"github.com/datadog/dd-trace-java\" @git.branch:master @test.configuration.job_name:test_inst @test.configuration.jvm:11 @test.suite:* -@test.name:*",
+    "aggregation": "mean suite duration in seconds per observed execution",
+    "pipelines_per_suite": [
+      1,
+      9,
+      11,
+      18,
+      23,
+      31,
+      33,
+      38,
+      54,
+      56,
+      57,
+      61,
+      65
+    ],
+    "reference_jvm": 11
+  },
+  "tasks": {
+    ":dd-java-agent:instrumentation:aerospike-4.0:forkedTest": {
+      "datadog.trace.instrumentation.aerospike4.AerospikeAsyncClientV0ForkedTest": 29.624,
+      "datadog.trace.instrumentation.aerospike4.AerospikeAsyncClientV1ForkedTest": 20.644,
+      "datadog.trace.instrumentation.aerospike4.AerospikeClientV0ForkedTest": 29.761,
+      "datadog.trace.instrumentation.aerospike4.AerospikeClientV1ForkedTest": 26.791
+    },
+    ":dd-java-agent:instrumentation:akka:akka-actor-2.5:akka23Test": {
+      "AkkaActorTest": 9.03,
+      "AkkaDeadLetterTest": 6.672
+    },
+    ":dd-java-agent:instrumentation:akka:akka-actor-2.5:akka23TestForkedTest": {
+      "AkkaActorContextSwapForkedTest": 9.201
+    },
+    ":dd-java-agent:instrumentation:akka:akka-actor-2.5:forkedTest": {
+      "AkkaActorContextSwapForkedTest": 11.881
+    },
+    ":dd-java-agent:instrumentation:akka:akka-actor-2.5:test": {
+      "ActorInitTest": 10.255,
+      "AkkaActorTest": 7.649,
+      "AkkaDeadLetterTest": 8.027,
+      "AkkaExecutorInstrumentationTest": 8.556,
+      "ForkJoinPoolPropagationTest": 12.86,
+      "RejectedExecutionTest": 8.619
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:baseTest": {
+      "AkkaHttpServerInstrumentationAsyncHttp2Test": 26.688,
+      "AkkaHttpServerInstrumentationAsyncTest": 23.212,
+      "AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest": 23.428,
+      "AkkaHttpServerInstrumentationBindAndHandleTest": 23.701,
+      "AkkaHttpTimeoutCleanupTest": 17.775,
+      "datadog.trace.instrumentation.akkahttp.SwappedContextScopeTest": 0.096,
+      "datadog.trace.instrumentation.akkahttp.appsec.UnmarshallerHelpersBlockFailureTest": 0.014
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:baseTestForkedTest": {
+      "AkkaHttpJavaClientInstrumentationV0ForkedTest": 18.189,
+      "AkkaHttpJavaClientInstrumentationV1ForkedTest": 18.792,
+      "AkkaHttpScalaClientInstrumentationV0ForkedTest": 16.799,
+      "AkkaHttpScalaClientInstrumentationV1ForkedTest": 16.436,
+      "AkkaHttpServerInstrumentationBindAndHandleContextSwapForkedTest": 24.133,
+      "AkkaHttpServerInstrumentationSyncV0ForkedTest": 19.163,
+      "AkkaHttpServerInstrumentationSyncV1ForkedTest": 17.607
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:iastTest": {
+      "datadog.trace.instrumentation.akkahttp.iast.IastAkkaTest": 22.753
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version101ForkedTest": {
+      "AkkaHttpJavaClientInstrumentationV0ForkedTest": 14.5,
+      "AkkaHttpJavaClientInstrumentationV1ForkedTest": 14.979,
+      "AkkaHttpScalaClientInstrumentationV0ForkedTest": 15.228,
+      "AkkaHttpScalaClientInstrumentationV1ForkedTest": 15.303,
+      "AkkaHttpServerInstrumentationBindAndHandleContextSwapForkedTest": 23.798,
+      "AkkaHttpServerInstrumentationSyncV0ForkedTest": 16.988,
+      "AkkaHttpServerInstrumentationSyncV1ForkedTest": 16.848
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version101IastTest": {
+      "datadog.trace.instrumentation.akkahttp.iast.IastAkkaTest": 22.535
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version101Test": {
+      "AkkaHttpServerInstrumentationAsyncHttp2Test": 27.041,
+      "AkkaHttpServerInstrumentationAsyncTest": 21.04,
+      "AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest": 20.445,
+      "AkkaHttpServerInstrumentationBindAndHandleTest": 20.293,
+      "AkkaHttpTimeoutCleanupTest": 15.233,
+      "datadog.trace.instrumentation.akkahttp.SwappedContextScopeTest": 0.071,
+      "datadog.trace.instrumentation.akkahttp.appsec.UnmarshallerHelpersBlockFailureTest": 0.01
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version102IastTest": {
+      "datadog.trace.instrumentation.akkahttp.iast.IastAkkaTest": 15.334
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:version102Scala213Test": {
+      "AkkaHttp102ServerInstrumentationBindAsyncHttp2Test": 17.098,
+      "AkkaHttp102ServerInstrumentationBindFlowTest": 16.584,
+      "AkkaHttp102ServerInstrumentationBindSyncTest": 15.692,
+      "AkkaHttp102ServerInstrumentationBindTest": 17.084,
+      "AkkaHttpServerInstrumentationAsyncHttp2Test": 17.293,
+      "AkkaHttpServerInstrumentationAsyncTest": 17.223,
+      "AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest": 17.931,
+      "AkkaHttpServerInstrumentationBindAndHandleTest": 17.571,
+      "AkkaHttpTimeoutCleanupTest": 12.765
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6:forkedTest": {
+      "AkkaHttpJavaClientInstrumentationV1ForkedTest": 14.812,
+      "AkkaHttpScalaClientInstrumentationV1ForkedTest": 14.506,
+      "AkkaHttpServerInstrumentationSyncV1ForkedTest": 17.062
+    },
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6:test": {
+      "AkkaHttp102ServerInstrumentationBindAsyncHttp2Test": 25.941,
+      "AkkaHttp102ServerInstrumentationBindFlowTest": 21.577,
+      "AkkaHttp102ServerInstrumentationBindSyncTest": 19.084,
+      "AkkaHttp102ServerInstrumentationBindTest": 21.316,
+      "AkkaHttpJavaClientInstrumentationV0Test": 21.192,
+      "AkkaHttpScalaClientInstrumentationV0Test": 20.583,
+      "AkkaHttpServerInstrumentationAsyncHttp2Test": 24.617,
+      "AkkaHttpServerInstrumentationAsyncTest": 23.283,
+      "AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest": 22.651,
+      "AkkaHttpServerInstrumentationBindAndHandleTest": 23.074,
+      "AkkaHttpServerInstrumentationSyncV0Test": 21.132
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0:forkedTest": {
+      "ApacheHttpAsyncClientHostRequestLegacyForkedTest": 15.575,
+      "ApacheHttpAsyncClientV1ForkedTest": 12.804
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0:test": {
+      "ApacheHttpAsyncClientCallbackTest": 12.482,
+      "ApacheHttpAsyncClientHostRequestTest": 10.976,
+      "ApacheHttpAsyncClientNullCallbackTest": 10.975,
+      "ApacheHttpAsyncClientSubmissionFailureTest": 8.812,
+      "ApacheHttpAsyncClientV0Test": 11.169,
+      "datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpClientRedirectInstrumentationTest": 0.087
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:forkedTest": {
+      "ApacheClientUriRequestResponseHandlerContextV0ForkedTest": 16.437,
+      "ApacheClientUriRequestResponseHandlerContextV1ForkedTest": 15.928,
+      "ApacheHttpClientBlockingForkedTest": 7.091
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:iastIntegrationTest": {
+      "IastHttpClientIntegrationTest": 19.634
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:test": {
+      "ApacheClientHostRequest": 12.53,
+      "ApacheClientHostRequestContext": 9.967,
+      "ApacheClientHostRequestResponseHandler": 10.513,
+      "ApacheClientHostRequestResponseHandlerContext": 10.289,
+      "ApacheClientUriRequest": 14.123,
+      "ApacheClientUriRequestContext": 13.73,
+      "ApacheClientUriRequestResponseHandler": 13.815,
+      "ApacheHttpClientResponseHandlerTest": 14.797,
+      "IastHttpClientInstrumentationTest": 8.758
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:v41IastIntegrationTest": {
+      "IastHttpClientIntegrationTest": 29.021
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:v42IastIntegrationTest": {
+      "IastHttpClientIntegrationTest": 43.463
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:v43IastIntegrationTest": {
+      "IastHttpClientIntegrationTest": 37.034
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:v44IastIntegrationTest": {
+      "IastHttpClientIntegrationTest": 33.559
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0:v45IastIntegrationTest": {
+      "IastHttpClientIntegrationTest": 33.327
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0:forkedTest": {
+      "ApacheClientResponseHandlerAllV1ForkedTest": 15.782,
+      "ApacheHttpAsyncClient5NamingV1ForkedTest": 14.57
+    },
+    ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0:test": {
+      "ApacheClientHostRequest": 12.272,
+      "ApacheClientHostRequestContext": 9.528,
+      "ApacheClientHostRequestResponseHandler": 9.76,
+      "ApacheClientNullHostRequestContext": 12.671,
+      "ApacheClientRequest": 12.943,
+      "ApacheClientRequestContext": 14.956,
+      "ApacheClientRequestContextResponseHandler": 10.01,
+      "ApacheClientRequestResponseHandler": 13.317,
+      "ApacheClientResponseHandlerAllV0Test": 14.968,
+      "ApacheHttpAsyncClient5NamingV0Test": 11.658,
+      "ApacheHttpClientResponseHandlerTest": 15.705,
+      "IastHttpUriRequestBaseInstrumentationTest": 9.519
+    },
+    ":dd-java-agent:instrumentation:apache-httpcore:apache-httpcore-4.0:test": {
+      "datadog.trace.instrumentation.apachehttpcore.IastHttpHostInstrumentationTest": 6.157
+    },
+    ":dd-java-agent:instrumentation:apache-httpcore:apache-httpcore-5.0:test": {
+      "datadog.trace.instrumentation.apachehttpcore5.IastHttpHostInstrumentationTest": 6.229
+    },
+    ":dd-java-agent:instrumentation:armeria:armeria-grpc-0.84:forkedTest": {
+      "ArmeriaGrpcDataStreamsDisabledForkedTest": 133.524,
+      "ArmeriaGrpcDataStreamsEnabledV1ForkedTest": 131.282,
+      "ArmeriaGrpcStreamingV1ForkedTest": 60.054
+    },
+    ":dd-java-agent:instrumentation:armeria:armeria-grpc-0.84:test": {
+      "ArmeriaGrpcClientMessagesEnabledTest": 139.702,
+      "ArmeriaGrpcDataStreamsEnabledV0Test": 141.189,
+      "ArmeriaGrpcStreamingClientMessagesEnabledTest": 73.829,
+      "ArmeriaGrpcStreamingV0Test": 74.733,
+      "GrpcInjectAdapterTest": 6.721
+    },
+    ":dd-java-agent:instrumentation:armeria:armeria-jetty-1.24:jetty11Test": {
+      "ArmeriaJetty11ServerTest": 15.983
+    },
+    ":dd-java-agent:instrumentation:armeria:armeria-jetty-1.24:jetty9Test": {
+      "ArmeriaJetty9ServerTest": 17.071
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-dynamodb-2.0:test": {
+      "DynamoDbClientTest": 80.47,
+      "DynamoDbUtilTest": 0.098
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-eventbridge-2.0:test": {
+      "EventBridgeClientTest": 95.272,
+      "datadog.trace.instrumentation.aws.v2.eventbridge.EventBridgeInterceptorTest": 0.071
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-lambda-handler-1.2:forkedTest": {
+      "LambdaHandlerInstrumentationV1ForkedTest": 4.434
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-lambda-handler-1.2:test": {
+      "LambdaHandlerInstrumentationV0Test": 5.22
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-s3-2.0:test": {
+      "S3ClientTest": 124.093
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-1.11:dsmTest": {
+      "AWS1KinesisClientV0Test": 13.53,
+      "AWS1SnsClientV0Test": 8.954
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-1.11:dsmTestForkedTest": {
+      "AWS1KinesisClientV1ForkedTest": 11.857,
+      "AWS1SnsClientV1ForkedTest": 10.196
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-1.11:forkedTest": {
+      "AWS1ClientV1ForkedTest": 14.13,
+      "LegacyAWS1ClientForkedTest": 11.426
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-1.11:test": {
+      "AWS1ClientV0Test": 12.346,
+      "datadog.trace.instrumentation.aws.v0.Aws1ErrorStatusCodeTest": 9.928
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-1.11:test_before_1_11_106": {
+      "AWS0ClientTest": 11.161
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-1.11:test_before_1_11_106ForkedTest": {
+      "LegacyAWS0ClientForkedTest": 12.159
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2:dsmTest": {
+      "Aws2KinesisDataStreamsV0Test": 17.669,
+      "Aws2SnsDataStreamsV0Test": 16.73
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2:dsmTestForkedTest": {
+      "Aws2KinesisDataStreamsV1ForkedTest": 16.133,
+      "Aws2SnsDataStreamsV1ForkedTest": 13.217
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2:forkedTest": {
+      "Aws2ClientV0ForkedTest": 19.05,
+      "Aws2ClientV1ForkedTest": 19.83,
+      "LegacyAws2ClientForkedTest": 16.128
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2:payloadTaggingTestForkedTest": {
+      "PayloadTaggingExpansionForkedTest": 61.761,
+      "PayloadTaggingMaxDepthForkedTest": 18.436,
+      "PayloadTaggingMaxTagsForkedTest": 18.533,
+      "PayloadTaggingRedactionForkedTest": 20.967
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2:test": {
+      "datadog.trace.instrumentation.aws.v2.Aws2ErrorStatusCodeTest": 7.874
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sfn-2.0:test": {
+      "SfnClientV0Test": 92.847
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sns-1.0:forkedTest": {
+      "SnsClientV1DataStreamsForkedTest": 23.548,
+      "SnsClientV1ForkedTest": 22.994
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sns-1.0:test": {
+      "SnsClientV0DataStreamsTest": 100.859,
+      "SnsClientV0Test": 19.673
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sns-2.0:forkedTest": {
+      "SnsClientV1DataStreamsForkedTest": 21.655,
+      "SnsClientV1ForkedTest": 21.915
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sns-2.0:test": {
+      "SnsClientV0DataStreamsTest": 25.201,
+      "SnsClientV0Test": 18.633,
+      "datadog.trace.instrumentation.aws.v2.sns.SnsInterceptorTest": 0.097
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-1.0:forkedTest": {
+      "LegacySqsClientForkedTest": 31.906,
+      "SqsClientV0ContextSwapForkedTest": 32.384,
+      "SqsClientV1DataStreamsForkedTest": 12.401,
+      "SqsClientV1ForkedTest": 31.74,
+      "TimeInQueueForkedTest": 11.428
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-1.0:test": {
+      "SqsClientV0DataStreamsTest": 13.858,
+      "SqsClientV0Test": 32.539,
+      "datadog.trace.instrumentation.aws.v1.sqs.MessageExtractAdapterTest": 0.109
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0:forkedTest": {
+      "LegacySqsClientForkedTest": 34.229,
+      "SqsClientV0ContextSwapForkedTest": 32.412,
+      "SqsClientV0ContextSwapReceiveIterationForkedTest": 10.892,
+      "SqsClientV1DataStreamsForkedTest": 11.586,
+      "SqsClientV1DataStreamsReceiveIterationForkedTest": 10.211,
+      "SqsClientV1ForkedTest": 32.664,
+      "SqsClientV1ReceiveIterationForkedTest": 11.238,
+      "TimeInQueueForkedTest": 17.493
+    },
+    ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0:test": {
+      "SqsClientV0DataStreamsReceiveIterationTest": 13.313,
+      "SqsClientV0DataStreamsTest": 7.452,
+      "SqsClientV0ReceiveIterationTest": 6.919,
+      "SqsClientV0Test": 27.479
+    },
+    ":dd-java-agent:instrumentation:axis2-1.3:forkedTest": {
+      "datadog.trace.instrumentation.axis2.AxisTransportForkedTest": 9.692
+    },
+    ":dd-java-agent:instrumentation:axis2-1.3:test": {
+      "datadog.trace.instrumentation.axis2.AxisEngineTest": 9.073
+    },
+    ":dd-java-agent:instrumentation:azure-functions-1.2.2:forkedTest": {
+      "AzureFunctionsV0ForkedTest": 8.152
+    },
+    ":dd-java-agent:instrumentation:azure-functions-1.2.2:test": {
+      "AzureFunctionsV1Test": 7.434
+    },
+    ":dd-java-agent:instrumentation:azure-functions-worker-2.7:forkedTest": {
+      "AzureFunctionsWorkerV0ForkedTest": 9.064
+    },
+    ":dd-java-agent:instrumentation:azure-functions-worker-2.7:test": {
+      "AzureFunctionsWorkerV1Test": 10.327
+    },
+    ":dd-java-agent:instrumentation:beanshell-2.0:test": {
+      "datadog.trace.instrumentation.beanshell.BeanShellInstrumentationTest": 10.48
+    },
+    ":dd-java-agent:instrumentation:cdi-1.2:test": {
+      "CDIContainerTest": 9.511
+    },
+    ":dd-java-agent:instrumentation:cics-9.1:test": {
+      "ECIInteractionInstrumentationTest": 7.513,
+      "JavaGatewayInterfaceInstrumentationTest": 3.295
+    },
+    ":dd-java-agent:instrumentation:commons-codec-1.1:test": {
+      "datadog.trace.instrumentation.commonscodec.Base64CallSiteTest": 10.525
+    },
+    ":dd-java-agent:instrumentation:commons-fileupload-1.5:test": {
+      "FileItemContentReaderTest": 1.751,
+      "FileItemInstrumentationTest": 12.004,
+      "FileItemIteratorInstrumentationTest": 8.445,
+      "FileItemStreamInstrumentationTest": 8.653,
+      "MultipartInstrumentationTest": 8.891,
+      "ServletFileUploadInstrumentationTest": 9.442
+    },
+    ":dd-java-agent:instrumentation:commons-httpclient-2.0:forkedTest": {
+      "CommonsHttpClientBlockingForkedTest": 6.771,
+      "CommonsHttpClientV0ForkedTest": 14.973,
+      "CommonsHttpClientV1ForkedTest": 15.683
+    },
+    ":dd-java-agent:instrumentation:commons-httpclient-2.0:test": {
+      "IastCommonsHttpClientInstrumentationTest": 8.881
+    },
+    ":dd-java-agent:instrumentation:commons-lang:commons-lang-2.1:test": {
+      "datadog.trace.instrumentation.commonslang.StringEscapeUtilsCallSiteTest": 10.439
+    },
+    ":dd-java-agent:instrumentation:commons-lang:commons-lang-3.5:test": {
+      "datadog.trace.instrumentation.commonslang3.StringEscapeUtilsCallSiteTest": 10.108
+    },
+    ":dd-java-agent:instrumentation:commons-text-1.0:test": {
+      "datadog.trace.instrumentation.commonstext.StringEscapeUtilsCallSiteTest": 11.62
+    },
+    ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1:test": {
+      "ConfluentSchemaRegistryDataStreamsTest": 9.788
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-2.0:forkedTest": {
+      "CouchbaseAsyncClientV0ForkedTest": 24.089,
+      "CouchbaseAsyncClientV1ForkedTest": 24.965,
+      "CouchbaseClientV0ForkedTest": 20.574,
+      "CouchbaseClientV1ForkedTest": 20.985
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-2.0:test": {
+      "springdata.CouchbaseSpringTemplateTest": 0.002
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-2.6:test": {
+      "CouchbaseAsyncClient26Test": 0.004,
+      "CouchbaseClient26Test": 0.001,
+      "springdata.CouchbaseSpringRepository26Test": 16.238,
+      "springdata.CouchbaseSpringTemplate26Test": 11.476
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-3-common:test": {
+      "datadog.trace.instrumentation.couchbase.RetryingCouchbaseContainerTest": 0.767
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-3.1:forkedTest": {
+      "CouchbaseClient31V1ForkedTest": 107.903
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-3.1:test": {
+      "CouchbaseClient31V0Test": 59.385
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-3.2:forkedTest": {
+      "CouchbaseClient32V1ForkedTest": 62.019
+    },
+    ":dd-java-agent:instrumentation:couchbase:couchbase-3.2:test": {
+      "CouchbaseClient32V0Test": 120.454
+    },
+    ":dd-java-agent:instrumentation:cucumber-5.4:test": {
+      "CucumberTest": 8.282
+    },
+    ":dd-java-agent:instrumentation:cxf-2.1:test": {
+      "CxfContextPropagationTest": 11.002
+    },
+    ":dd-java-agent:instrumentation:datadog:asm:iast-instrumenter:forkedTest": {
+      "AllCallSitesForkedTest": 7.09,
+      "AnonymousClassesForkedTest": 6.854,
+      "AppSecDisabledRaspForkedTest": 6.514,
+      "AppSecEnabledRaspForkedTest": 6.87,
+      "AppSecInactiveRaspForkedTest": 7.031,
+      "IastForkedTest": 7.137,
+      "IastInstrumentationForkedTest": 7.107
+    },
+    ":dd-java-agent:instrumentation:datadog:asm:iast-instrumenter:test": {
+      "IastExclusionTrieTest": 8.012,
+      "IastInstrumentationTest": 4.728,
+      "datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListenerTest": 4.555,
+      "datadog.trace.instrumentation.iastinstrumenter.SourceMapperImplTest": 4.391
+    },
+    ":dd-java-agent:instrumentation:datadog:profiling:enable-wallclock-profiling:forkedTest": {
+      "RegistrationForkedTest": 8.11
+    },
+    ":dd-java-agent:instrumentation:datadog:profiling:exception-profiling:forkedTest": {
+      "KnownExcludesForkedTest": 8.867
+    },
+    ":dd-java-agent:instrumentation:datadog:profiling:exception-profiling:test": {
+      "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionHistogramTest": 3.967
+    },
+    ":dd-java-agent:instrumentation:datadog:tracing:trace-annotation:forkedTest": {
+      "TraceAnnotationNewOpNameForkedTest": 6.112
+    },
+    ":dd-java-agent:instrumentation:datadog:tracing:trace-annotation:test": {
+      "ConfiguredTraceAnnotationsTest": 10.528,
+      "MeasuredConfigTest": 9.311,
+      "TraceAnnotationsAsyncTest": 9.551,
+      "TraceAnnotationsTest": 10.712,
+      "TraceConfigTest": 11.231
+    },
+    ":dd-java-agent:instrumentation:datanucleus-4.0.5:test": {
+      "DatanucleusTest": 17.704
+    },
+    ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-4.0:forkedTest": {
+      "CassandraClientV1ForkedTest": 106.938
+    },
+    ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-4.0:test": {
+      "CassandraClientV0Test": 81.453
+    },
+    ":dd-java-agent:instrumentation:dropwizard:dropwizard-0.8:test": {
+      "DropwizardAsyncTest": 17.067,
+      "DropwizardTest": 17.776
+    },
+    ":dd-java-agent:instrumentation:dropwizard:dropwizard-views-0.7:test": {
+      "ViewRenderTest": 7.853
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-5.0:forkedTest": {
+      "Elasticsearch5RestClientV1ForkedTest": 17.847
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-5.0:test": {
+      "Elasticsearch5RestClientV0Test": 18.695
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-6.4:test": {
+      "Elasticsearch6RestClientTest": 0.002
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-7.0:test": {
+      "Elasticsearch7RestClientTest": 29.197
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-5.0:test": {
+      "Elasticsearch5NodeClientTest": 0.006,
+      "Elasticsearch5TransportClientTest": 0.001
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-5.3:test": {
+      "Elasticsearch53NodeClientTest": 0.004,
+      "Elasticsearch53TransportClientTest": 0.001,
+      "springdata.Elasticsearch53SpringRepositoryTest": 0.0,
+      "springdata.Elasticsearch53SpringTemplateTest": 0.001
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-6.0:test": {
+      "Elasticsearch6NodeClientTest": 0.005,
+      "Elasticsearch6TransportClientTest": 0.001
+    },
+    ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-7.3:test": {
+      "Elasticsearch73NodeClientTest": 0.004,
+      "Elasticsearch73TransportClientTest": 0.0
+    },
+    ":dd-java-agent:instrumentation:finatra-2.9:forkedTest": {
+      "FinatraServerV0ForkedTest": 25.969,
+      "FinatraServerV1ForkedTest": 23.617
+    },
+    ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24:test": {
+      "datadog.trace.instrumentation.freemarker.StringUtilCallSiteTest": 9.927,
+      "datadog.trace.instrumentation.freemarker24.DollarVariableInstrumentationTest": 8.438,
+      "datadog.trace.instrumentation.freemarker24.ObjectWrapperInstrumentationTest": 9.27
+    },
+    ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9:test": {
+      "datadog.trace.instrumentation.freemarker9.DollarVariableInstrumentationTest": 8.264
+    },
+    ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9:version2_3_23Test": {
+      "datadog.trace.instrumentation.freemarker9.DollarVariableInstrumentationTest": 7.954
+    },
+    ":dd-java-agent:instrumentation:gax-1.4:test": {
+      "datadog.trace.instrumentation.gax.GaxRetryContinuationTest": 6.1
+    },
+    ":dd-java-agent:instrumentation:google-http-client-1.19:forkedTest": {
+      "GoogleHttpClientV0ForkedTest": 18.301,
+      "GoogleHttpClientV1ForkedTest": 15.914
+    },
+    ":dd-java-agent:instrumentation:google-http-client-1.19:test": {
+      "GoogleHttpClientAsyncTest": 0.009
+    },
+    ":dd-java-agent:instrumentation:google-pubsub-1.116:forkedTest": {
+      "PubSubDataStreamEnabledForkedTest": 71.387,
+      "PubSubLogGrpcSpansForkedTest": 27.811,
+      "PubSubNamingV0NoLegacyTracingForkedTest": 19.748,
+      "PubSubNamingV1ForkedTest": 19.685
+    },
+    ":dd-java-agent:instrumentation:google-pubsub-1.116:test": {
+      "PubSubMessageReceiverWithAckResponseTest": 20.027,
+      "PubSubNamingV0Test": 18.512
+    },
+    ":dd-java-agent:instrumentation:graphql-java:graphql-java-14.0:forkedTest": {
+      "GraphQLV1ForkedTest": 0.004
+    },
+    ":dd-java-agent:instrumentation:graphql-java:graphql-java-14.0:test": {
+      "GraphQLInstallationTest": 10.146,
+      "GraphQLQuerySanitizerTest": 7.764,
+      "GraphQLV0Test": 0.004
+    },
+    ":dd-java-agent:instrumentation:graphql-java:graphql-java-20.0:forkedTest": {
+      "GraphQLV1ForkedTest": 0.004
+    },
+    ":dd-java-agent:instrumentation:graphql-java:graphql-java-20.0:test": {
+      "GraphQLInstallationTest": 10.129,
+      "GraphQLQuerySanitizerTest": 7.942,
+      "GraphQLV0Test": 0.005
+    },
+    ":dd-java-agent:instrumentation:grizzly:grizzly-2.0:test": {
+      "GrizzlyAsyncTest": 14.518,
+      "GrizzlyTest": 12.633,
+      "LeaderFollowerTest": 14.212,
+      "SameThreadTest": 14.731,
+      "SimpleDynamicTest": 14.74
+    },
+    ":dd-java-agent:instrumentation:grizzly:grizzly-client-1.9:forkedTest": {
+      "GrizzlyAsyncHttpClientV1ForkedTest": 12.757
+    },
+    ":dd-java-agent:instrumentation:grizzly:grizzly-client-1.9:test": {
+      "GrizzlyAsyncHttpClientV0Test": 12.6
+    },
+    ":dd-java-agent:instrumentation:grizzly:grizzly-http-2.3.20:test": {
+      "GrizzlyAsyncTest": 17.877,
+      "GrizzlyByteBodyInstrumentationTest": 11.514,
+      "GrizzlyCharBodyInstrumentationTest": 10.882,
+      "GrizzlyFilterchainServerTest": 15.56,
+      "GrizzlyInactiveAppSecTest": 12.305,
+      "GrizzlyTest": 15.926,
+      "LeaderFollowerTest": 17.439,
+      "SameThreadTest": 18.785,
+      "SimpleDynamicTest": 18.578
+    },
+    ":dd-java-agent:instrumentation:grpc-1.5:forkedTest": {
+      "GrpcDataStreamsDisabledForkedTest": 20.951,
+      "GrpcDataStreamsEnabledV1ForkedTest": 20.947,
+      "GrpcStreamingV1ForkedTest": 10.968,
+      "UnwrapGrpcContextForkedTest": 6.276
+    },
+    ":dd-java-agent:instrumentation:grpc-1.5:test": {
+      "GrpcClientMessagesEnabledTest": 25.129,
+      "GrpcDataStreamsEnabledV0Test": 32.373,
+      "GrpcInjectAdapterTest": 4.587,
+      "GrpcStreamingClientMessageEnabledTest": 24.681,
+      "GrpcStreamingV0Test": 24.474,
+      "HierarchyMatcherGrpcStreamingTest": 26.116,
+      "HierarchyMatcherGrpcTest": 33.563
+    },
+    ":dd-java-agent:instrumentation:gson-1.6:test": {
+      "datadog.trace.instrumentation.gson.JsonReaderInstrumentationTest": 9.799
+    },
+    ":dd-java-agent:instrumentation:guava-10.0:test": {
+      "GuavaAsyncResultExtensionTest": 9.653,
+      "ListenableFutureTest": 5.176
+    },
+    ":dd-java-agent:instrumentation:guidewire-10.0:test": {
+      "datadog.trace.instrumentation.guidewire.WsiAsyncResponseInstrumentationTest": 5.311
+    },
+    ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.6:forkedTest": {
+      "test.hazelcast.v3.HazelcastV0ForkedTest": 12.93,
+      "test.hazelcast.v3.HazelcastV1ForkedTest": 11.772
+    },
+    ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.9:forkedTest": {
+      "test.hazelcast.v39.HazelcastV0ForkedTest": 13.487,
+      "test.hazelcast.v39.HazelcastV1ForkedTest": 13.151
+    },
+    ":dd-java-agent:instrumentation:hazelcast:hazelcast-4.0:forkedTest": {
+      "test.hazelcast.v4.HazelcastV0ForkedTest": 14.818,
+      "test.hazelcast.v4.HazelcastV1ForkedTest": 13.93
+    },
+    ":dd-java-agent:instrumentation:hibernate:hibernate-core-3.3:test": {
+      "CriteriaTest": 14.211,
+      "HierarchyMatcherCriteriaTest": 13.661,
+      "HierarchyMatcherQueryTest": 13.51,
+      "HierarchyMatcherSessionTest": 16.063,
+      "IastQueryInstrumentationTest": 14.378,
+      "QueryTest": 15.039,
+      "SessionTest": 15.307
+    },
+    ":dd-java-agent:instrumentation:hibernate:hibernate-core-4.0:test": {
+      "CriteriaTest": 14.956,
+      "HibernateDecoratorTest": 0.09,
+      "HierarchyMatcherCriteriaTest": 12.815,
+      "HierarchyMatcherQueryTest": 14.007,
+      "HierarchyMatcherSessionTest": 16.034,
+      "IastQueryInstrumentationTest": 15.765,
+      "QueryTest": 15.632,
+      "SessionTest": 16.526
+    },
+    ":dd-java-agent:instrumentation:hibernate:hibernate-core-4.3:test": {
+      "HierarchyMatcherProcedureCallTest": 13.904,
+      "HierarchyMatcherSpringJpaTest": 9.789,
+      "ProcedureCallTest": 11.191,
+      "SpringJpaTest": 0.002
+    },
+    ":dd-java-agent:instrumentation:hystrix-1.4:test": {
+      "HystrixObservableChainTest": 13.536,
+      "HystrixObservableTest": 16.907,
+      "HystrixTest": 14.25
+    },
+    ":dd-java-agent:instrumentation:jackson-core:jackson-core-1.9.13:test": {
+      "Json1FactoryInstrumentationTest": 7.455,
+      "Json1ParserInstrumentationTest": 5.414
+    },
+    ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.0:test": {
+      "datadog.trace.instrumentation.jackson2.core.JsonParserInstrumentationTest": 6.084
+    },
+    ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.12:test": {
+      "datadog.trace.instrumentation.jackson212.core.JsonParserInstrumentationTest": 7.226
+    },
+    ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.16:test": {
+      "datadog.trace.instrumentation.jackson216.core.JsonParserInstrumentationTest": 6.741
+    },
+    ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.6:test": {
+      "datadog.trace.instrumentation.jackson26.core.JsonParserInstrumentationTest": 7.11
+    },
+    ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.8:test": {
+      "datadog.trace.instrumentation.jackson28.core.JsonParserInstrumentationTest": 6.389
+    },
+    ":dd-java-agent:instrumentation:jackson-core:jackson-core-common:test": {
+      "Json2FactoryInstrumentationTest": 9.049,
+      "JsonParserInstrumentationTest": 5.933
+    },
+    ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8:forkedTest": {
+      "QueueTimingForkedTest": 7.74,
+      "QueueTimingReadinessForkedTest": 7.667,
+      "TaskUnwrappingForkedTest": 7.634,
+      "executor.ExecutorInstrumentationForkedTest": 16.123,
+      "executor.ExecutorInstrumentationLegacyForkedTest": 16.745,
+      "executor.ExecutorInstrumentationQueueTimeForkedTest": 15.786
+    },
+    ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8:test": {
+      "CompletableFuturePromiseForkJoinPoolTest": 19.607,
+      "CompletableFuturePromiseNoAsyncTest": 21.327,
+      "CompletableFuturePromiseThreadPoolTest": 22.563,
+      "CompletableFutureTest": 27.677,
+      "CrossedContextTest": 37.923,
+      "ExecutorLambdaTest": 31.021,
+      "TestFanout": 28.981,
+      "executor.ContextLeakTest": 29.369,
+      "executor.NettyExecutorInstrumentationTest": 33.711,
+      "executor.RecursiveThreadPoolPropagationTest": 36.206,
+      "executor.RejectedExecutionTest": 32.431,
+      "forkjoin.ForkJoinPoolPropagationTest": 40.96,
+      "runnable.FutureTaskContinuationTest": 32.362,
+      "runnable.ModuleInjectionTest": 32.058,
+      "timer.TimerTaskContinuationTest": 32.676
+    },
+    ":dd-java-agent:instrumentation:java:java-io-1.8:forkedTest": {
+      "datadog.trace.instrumentation.java.io.FileIORaspHelperForkedTest": 10.46
+    },
+    ":dd-java-agent:instrumentation:java:java-io-1.8:java11Test": {
+      "datadog.trace.instrumentation.java.io.FileReaderCharsetCallSiteTest": 9.484,
+      "datadog.trace.instrumentation.java.io.FileWriterCharsetCallSiteTest": 7.843,
+      "datadog.trace.instrumentation.java.io.FilesJava11CallSiteTest": 8.182,
+      "datadog.trace.instrumentation.java.io.PathOfCallSiteTest": 8.759
+    },
+    ":dd-java-agent:instrumentation:java:java-io-1.8:test": {
+      "datadog.trace.instrumentation.java.io.ByteBufferTest": 10.327,
+      "datadog.trace.instrumentation.java.io.FileCallSiteTest": 8.449,
+      "datadog.trace.instrumentation.java.io.FileChannelCallSiteTest": 9.052,
+      "datadog.trace.instrumentation.java.io.FileInputStreamCallSiteTest": 9.637,
+      "datadog.trace.instrumentation.java.io.FileOutputStreamCallSiteTest": 10.08,
+      "datadog.trace.instrumentation.java.io.FileReaderCallSiteTest": 9.9,
+      "datadog.trace.instrumentation.java.io.FileWriterCallSiteTest": 9.858,
+      "datadog.trace.instrumentation.java.io.FilesCallSiteTest": 10.788,
+      "datadog.trace.instrumentation.java.io.InputStreamInstrumentationTest": 10.718,
+      "datadog.trace.instrumentation.java.io.InputStreamReaderCallSiteTest": 10.658,
+      "datadog.trace.instrumentation.java.io.ObjectInputStreamCallSiteTest": 10.443,
+      "datadog.trace.instrumentation.java.io.PathCallSiteTest": 10.306,
+      "datadog.trace.instrumentation.java.io.PathsCallSiteTest": 10.302,
+      "datadog.trace.instrumentation.java.io.PrintWriterCallSiteTest": 10.719,
+      "datadog.trace.instrumentation.java.io.RandomAccessFileCallSiteTest": 11.072,
+      "datadog.trace.instrumentation.java.io.StringReaderCallSiteTest": 11.109,
+      "datadog.trace.instrumentation.java.lang.FileIORaspHelperBlockingTest": 0.708
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-1.8:forkedTest": {
+      "datadog.trace.instrumentation.java.lang.ProcessImplInstrumentationExecCmdRaspForkedTest": 10.615,
+      "datadog.trace.instrumentation.java.lang.RuntimeInstrumentationForkedTest": 10.953,
+      "datadog.trace.instrumentation.java.lang.StringFullDetectionCallSiteForkedTest": 11.339
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-1.8:test": {
+      "datadog.trace.instrumentation.java.lang.ClassCallSiteTest": 9.796,
+      "datadog.trace.instrumentation.java.lang.ClassLoaderCallSiteTest": 7.682,
+      "datadog.trace.instrumentation.java.lang.LookupCallSiteTest": 7.875,
+      "datadog.trace.instrumentation.java.lang.MathCallSiteTest": 7.755,
+      "datadog.trace.instrumentation.java.lang.ProcessBuilderCallSiteTest": 8.175,
+      "datadog.trace.instrumentation.java.lang.ProcessImplInstrumentationSpecification": 6.705,
+      "datadog.trace.instrumentation.java.lang.RuntimeCallSiteTest": 9.409,
+      "datadog.trace.instrumentation.java.lang.StringBuilderCallSiteTest": 8.588,
+      "datadog.trace.instrumentation.java.lang.StringCallSiteTest": 9.527,
+      "datadog.trace.instrumentation.java.lang.StringExperimentalCallSiteTest": 9.507
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-11.0:test": {
+      "datadog.trace.instrumentation.java.lang.jdk11.StringCallSiteTest": 10.696
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-9.0:test": {
+      "datadog.trace.instrumentation.java.lang.invoke.Lookup9CallSiteTest": 10.556,
+      "datadog.trace.instrumentation.java.lang.invoke.StringConcatFactoryCallSiteTest": 8.269
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8:classloadingJbossTest": {
+      "JBossClassloadingTest": 5.999
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8:classloadingJsr14Test": {
+      "Jsr14ClassloadingTest": 6.529
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8:classloadingOsgiTest": {
+      "ClassloadingTest": 5.788
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8:classloadingTomcatTest": {
+      "TomcatClassloadingTest": 6.063
+    },
+    ":dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8:test": {
+      "ClassloadingTest": 6.183
+    },
+    ":dd-java-agent:instrumentation:java:java-net:java-net-1.8:forkedTest": {
+      "HttpUrlConnectionV0ForkedTest": 17.835,
+      "HttpUrlConnectionV1ForkedTest": 18.23,
+      "SocketForkedTest": 8.195,
+      "SpringRestTemplateV0ForkedTest": 14.865,
+      "SpringRestTemplateV1ForkedTest": 14.088,
+      "UrlConnectionV0ForkedTest": 9.183,
+      "UrlConnectionV1ForkedTest": 8.958
+    },
+    ":dd-java-agent:instrumentation:java:java-net:java-net-1.8:test": {
+      "HttpUrlConnectionConnectFirstTest": 17.11,
+      "HttpUrlConnectionResponseCodeOnlyTest": 15.042,
+      "HttpUrlConnectionUseCachesFalseTest": 15.217,
+      "SslSocketTest": 9.89,
+      "datadog.trace.instrumentation.java.net.URICallSIteTest": 17.581,
+      "datadog.trace.instrumentation.java.net.URLCallSiteTest": 17.395,
+      "datadog.trace.instrumentation.java.net.URLDecoderCallSiteTest": 18.033,
+      "datadog.trace.instrumentation.java.net.URLEncoderCallSiteTest": 18.285,
+      "datadog.trace.instrumentation.java.net.URLSinkCallSiteBlockingTest": 0.514,
+      "datadog.trace.instrumentation.java.net.URLSinkCallSiteTest": 18.318
+    },
+    ":dd-java-agent:instrumentation:java:java-net:java-net-11.0:forkedTest": {
+      "datadog.trace.instrumentation.httpclient.JavaHttpClientBlockingForkedTest": 6.885,
+      "datadog.trace.instrumentation.httpclient.JavaHttpClientV1ForkedTest": 14.995,
+      "datadog.trace.instrumentation.httpclient.JpmsInetAddressDisabledForkedTest": 0.002,
+      "datadog.trace.instrumentation.httpclient.JpmsInetAddressForkedTest": 3.632
+    },
+    ":dd-java-agent:instrumentation:java:java-net:java-net-11.0:test": {
+      "datadog.trace.instrumentation.httpclient.BodyHandlerWrapperTest": 0.096,
+      "datadog.trace.instrumentation.httpclient.JavaHttpClientAsyncTest": 19.052,
+      "datadog.trace.instrumentation.httpclient.JavaHttpClientV0Test": 14.954
+    },
+    ":dd-java-agent:instrumentation:java:java-nio-1.8:test": {
+      "DirectAllocationTrackingTest": 9.314
+    },
+    ":dd-java-agent:instrumentation:java:java-rmi-1.1:forkedTest": {
+      "RmiV1ForkedTest": 8.549
+    },
+    ":dd-java-agent:instrumentation:java:java-rmi-1.1:test": {
+      "RmiV0Test": 9.754
+    },
+    ":dd-java-agent:instrumentation:java:java-security-1.8:test": {
+      "test.WeakCipherTest": 10.556,
+      "test.WeakHashTest": 8.061
+    },
+    ":dd-java-agent:instrumentation:java:java-util-1.8:test": {
+      "datadog.trace.instrumentation.java.util.RandomCallSiteTest": 10.17,
+      "datadog.trace.instrumentation.java.util.concurrent.ThreadLocalRandomCallSiteTest": 7.905
+    },
+    ":dd-java-agent:instrumentation:javax-naming-1.0:test": {
+      "DirContextCallSiteTest": 12.474
+    },
+    ":dd-java-agent:instrumentation:javax-xml-1.4:test": {
+      "datadog.trace.instrumentation.javax.xml.XPathInstrumentationTest": 11.09
+    },
+    ":dd-java-agent:instrumentation:jboss:jboss-modules-1.3:test": {
+      "ModuleNameExtractionTest": 6.381
+    },
+    ":dd-java-agent:instrumentation:jdbc:forkedTest": {
+      "DBMAppendInjectionForkedTest": 9.585,
+      "DBMBaseHashInjectionForkedTest": 7.768,
+      "DBMDynamicServiceInjectionForkedTest": 8.477,
+      "DBMInjectionForkedTest": 8.692,
+      "DriverInstrumentationWithMetadataOnConnectForkedTest": 8.543,
+      "DriverInstrumentationWithoutMetadataOnConnectForkedTest": 8.384,
+      "JDBCDecoratorDynamicServicePropagationForkedTest": 6.926,
+      "JDBCDecoratorFullPropagationForkedTest": 6.684,
+      "JDBCDecoratorNoPropagationForkedTest": 7.192,
+      "JDBCDecoratorParseDBInfoWithMetadataForkedTest": 7.263,
+      "JDBCDecoratorParseDBInfoWithoutCallsForkedTest": 7.5,
+      "JDBCDecoratorServicePropagationForkedTest": 7.221,
+      "JDBCInstrumentationDBMTraceInjectedForkedTest": 31.291,
+      "JDBCInstrumentationV1ForkedTest": 31.213,
+      "OracleDynamicServiceActionInjectionForkedTest": 8.104,
+      "OracleDynamicServiceActionProcessTagsDisabledForkedTest": 7.508,
+      "OracleInjectionForkedTest": 7.215,
+      "RemoteDBMTraceInjectedForkedTest": 257.687,
+      "RemoteDBMTraceInjectedForkedTestTracePreparedStatements": 70.881,
+      "RemoteJDBCInstrumentationV1ForkedTest": 70.668,
+      "SQLServerAppendInjectionForkedTest": 5.55,
+      "SQLServerInjectionForkedTest": 5.701
+    },
+    ":dd-java-agent:instrumentation:jdbc:oldH2Test": {
+      "IastJDBCTest": 19.0,
+      "IastResultSetInstrumentationTest": 21.691,
+      "JDBCConnectionUrlParserTest": 18.397,
+      "JDBCInstrumentationV0Test": 33.51,
+      "JDBCWrappedInterfacesTest": 27.797,
+      "RemoteJDBCInstrumentationV0Test": 86.024,
+      "datadog.trace.instrumentation.jdbc.ParseDBInfoClientInfoTest": 0.062,
+      "datadog.trace.instrumentation.jdbc.SQLCommenterTest": 39.395
+    },
+    ":dd-java-agent:instrumentation:jdbc:oldPostgresTest": {
+      "IastJDBCTest": 18.209,
+      "IastResultSetInstrumentationTest": 21.262,
+      "JDBCConnectionUrlParserTest": 17.884,
+      "JDBCInstrumentationV0Test": 32.36,
+      "JDBCWrappedInterfacesTest": 28.037,
+      "RemoteJDBCInstrumentationV0Test": 86.041,
+      "datadog.trace.instrumentation.jdbc.ParseDBInfoClientInfoTest": 0.062,
+      "datadog.trace.instrumentation.jdbc.SQLCommenterTest": 39.375
+    },
+    ":dd-java-agent:instrumentation:jdbc:scalikejdbc-3.5:test": {
+      "ScalikeJDBCInstrumentationTest": 12.409
+    },
+    ":dd-java-agent:instrumentation:jdbc:test": {
+      "IastJDBCTest": 18.097,
+      "IastResultSetInstrumentationTest": 21.273,
+      "JDBCConnectionUrlParserTest": 17.679,
+      "JDBCInstrumentationV0Test": 32.085,
+      "JDBCWrappedInterfacesTest": 27.817,
+      "RemoteJDBCInstrumentationV0Test": 85.525,
+      "datadog.trace.instrumentation.jdbc.ParseDBInfoClientInfoTest": 0.062,
+      "datadog.trace.instrumentation.jdbc.SQLCommenterTest": 39.731
+    },
+    ":dd-java-agent:instrumentation:jedis:jedis-1.4:forkedTest": {
+      "JedisClientV1ForkedTest": 6.977
+    },
+    ":dd-java-agent:instrumentation:jedis:jedis-1.4:test": {
+      "JedisClientV0Test": 6.566
+    },
+    ":dd-java-agent:instrumentation:jedis:jedis-3.0:forkedTest": {
+      "Jedis30ClientV1ForkedTest": 7.621
+    },
+    ":dd-java-agent:instrumentation:jedis:jedis-3.0:test": {
+      "Jedis30ClientV0Test": 7.798
+    },
+    ":dd-java-agent:instrumentation:jedis:jedis-4.0:forkedTest": {
+      "Jedis40ClientV0ForkedTest": 8.316,
+      "Jedis40ClientV1ForkedTest": 8.358
+    },
+    ":dd-java-agent:instrumentation:jersey:jersey-2.0:jersey2JettyTest": {
+      "datadog.trace.instrumentation.jersey2.Jersey2InactiveAppSecTest": 9.874,
+      "datadog.trace.instrumentation.jersey2.Jersey2JettyTest": 15.159,
+      "datadog.trace.instrumentation.jersey2.iast.IastJersey2JettyTest": 11.728
+    },
+    ":dd-java-agent:instrumentation:jersey:jersey-2.0:jersey3JettyTest": {
+      "datadog.trace.instrumentation.jersey3.Jersey3InactiveAppSecTest": 10.248,
+      "datadog.trace.instrumentation.jersey3.Jersey3JettyTest": 14.714,
+      "datadog.trace.instrumentation.jersey3.iast.IastJersey3JettyTest": 10.801
+    },
+    ":dd-java-agent:instrumentation:jersey:jersey-2.0:test": {
+      "datadog.trace.instrumentation.jersey.JakartaWSResponseInstrumentationTest": 6.601
+    },
+    ":dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0:test": {
+      "MultiPartHelperTest": 2.142
+    },
+    ":dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-3.0:test": {
+      "MultiPartHelperTest": 1.902
+    },
+    ":dd-java-agent:instrumentation:jersey:jersey-client-2.0:test": {
+      "WrappingResponseCallbackTest": 6.783
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-11.0:test": {
+      "datadog.trace.instrumentation.jetty11.MultipartHelperTest": 1.411
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3:test": {
+      "datadog.trace.instrumentation.jetty8.PartHelperTest": 1.44
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2:test": {
+      "datadog.trace.instrumentation.jetty92.MultipartHelperTest": 1.539
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3:test": {
+      "datadog.trace.instrumentation.jetty93.MultipartHelperTest": 1.43
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4:test": {
+      "datadog.trace.instrumentation.jetty94.MultipartHelperTest": 1.4
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0:forkedTest": {
+      "JettyClientV1ForkedTest": 10.309
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0:jetty11Test": {
+      "JettyClientV0Test": 12.392
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0:test": {
+      "JettyClientV0Test": 13.617
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1:forkedTest": {
+      "JettyClientV1ForkedTest": 10.04
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1:test": {
+      "JettyClientV0Test": 12.88
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-common:test": {
+      "datadog.trace.instrumentation.jetty.JettyBlockingHelperSpecification": 1.387
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0:earlyDep10ForkedTest": {
+      "datadog.trace.instrumentation.jetty10.Jetty10V0ForkedTest": 13.711,
+      "datadog.trace.instrumentation.jetty10.Jetty10V1ForkedTest": 13.592
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0:forkedTest": {
+      "datadog.trace.instrumentation.jetty10.Jetty10V0ForkedTest": 13.945,
+      "datadog.trace.instrumentation.jetty10.Jetty10V1ForkedTest": 14.205
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0:test": {
+      "datadog.trace.instrumentation.jetty10.Jetty10InactiveAppSecTest": 11.173
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0:forkedTest": {
+      "Jetty11V0ForkedTest": 19.39,
+      "Jetty11V1ForkedTest": 19.759,
+      "JettyRumInjectionForkedTest": 20.085
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0:test": {
+      "HttpChannelAppSecTest": 7.593,
+      "Jetty11InactiveAppSecTest": 7.425,
+      "JettyAsyncHandlerTest": 14.904
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.0:forkedTest": {
+      "Jetty70V0ForkedTest": 13.101,
+      "Jetty70V1ForkedTest": 14.006,
+      "JettyContinuationHandlerV0ForkedTest": 14.371,
+      "JettyContinuationHandlerV1ForkedTest": 13.455
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6:forkedTest": {
+      "Jetty76V0ForkedTest": 12.364,
+      "Jetty76V1ForkedTest": 12.143,
+      "JettyContinuationHandlerV0ForkedTest": 12.028,
+      "JettyContinuationHandlerV1ForkedTest": 12.047
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4:forkedTest": {
+      "datadog.trace.instrumentation.jetty9.Jetty9V0ForkedTest": 14.23,
+      "datadog.trace.instrumentation.jetty9.Jetty9V1ForkedTest": 14.495,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV0ForkedTest": 13.536,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV1ForkedTest": 13.392
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4:test": {
+      "datadog.trace.instrumentation.jetty9.Jetty9InactiveAppSecTest": 9.62
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0:forkedTest": {
+      "datadog.trace.instrumentation.jetty9.Jetty9V0ForkedTest": 14.387,
+      "datadog.trace.instrumentation.jetty9.Jetty9V1ForkedTest": 14.565,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV0ForkedTest": 15.805,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV1ForkedTest": 14.127
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0:test": {
+      "datadog.trace.instrumentation.jetty9.Jetty9InactiveAppSecTest": 8.449
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.3:forkedTest": {
+      "datadog.trace.instrumentation.jetty9.Jetty9V0ForkedTest": 17.639,
+      "datadog.trace.instrumentation.jetty9.Jetty9V1ForkedTest": 17.6,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV0ForkedTest": 16.651,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV1ForkedTest": 16.178
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.3:test": {
+      "datadog.trace.instrumentation.jetty9.Jetty9InactiveAppSecTest": 9.664
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.4.21:forkedTest": {
+      "datadog.trace.instrumentation.jetty9.Jetty9V0ForkedTest": 16.462,
+      "datadog.trace.instrumentation.jetty9.Jetty9V1ForkedTest": 16.261,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV0ForkedTest": 15.878,
+      "datadog.trace.instrumentation.jetty9.JettyContinuationHandlerV1ForkedTest": 14.55
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.4.21:test": {
+      "datadog.trace.instrumentation.jetty9.Jetty9InactiveAppSecTest": 8.031
+    },
+    ":dd-java-agent:instrumentation:jetty:jetty-util-9.4.31:test": {
+      "JettyExecutorInstrumentationTest": 7.415
+    },
+    ":dd-java-agent:instrumentation:jms:javax-jms-1.1:forkedTest": {
+      "JMS1V1ForkedTest": 22.293,
+      "JMSContextSwapForkedTest": 16.412,
+      "TimeInQueueForkedTest": 10.703,
+      "TimeInQueueSplitByDestinationForkedTest": 12.352
+    },
+    ":dd-java-agent:instrumentation:jms:javax-jms-1.1:test": {
+      "JMS10Test": 25.747,
+      "JMS1V0Test": 26.275,
+      "JMSDecoratorTest": 0.056,
+      "MDBTest": 12.338,
+      "SpringListenerJMS1Test": 0.001,
+      "SpringTemplateJMS1Test": 11.888,
+      "datadog.trace.instrumentation.jms.JMSDecoratorGetDestinationTest": 0.074
+    },
+    ":dd-java-agent:instrumentation:jose-jwt-4.0:test": {
+      "JWTParserInstrumentationTest": 7.6
+    },
+    ":dd-java-agent:instrumentation:jsp-2.3:test": {
+      "JSPInstrumentationBasicTests": 18.13,
+      "JSPInstrumentationForwardTests": 16.497
+    },
+    ":dd-java-agent:instrumentation:junit:junit-4:junit-4-cucumber-5.4:test": {
+      "CucumberTest": 18.013
+    },
+    ":dd-java-agent:instrumentation:junit:junit-4:junit-4-munit-0.7.28:test": {
+      "MUnitTest": 16.861
+    },
+    ":dd-java-agent:instrumentation:junit:junit-4:junit-4.10:test": {
+      "JUnit4Test": 25.752
+    },
+    ":dd-java-agent:instrumentation:junit:junit-4:junit-4.13:test": {
+      "JUnit413Test": 12.311
+    },
+    ":dd-java-agent:instrumentation:junit:junit-5:junit-5-cucumber-5.4:cucumber723Test": {
+      "CucumberTest": 18.716
+    },
+    ":dd-java-agent:instrumentation:junit:junit-5:junit-5-cucumber-5.4:cucumber76Test": {
+      "CucumberTest": 18.524
+    },
+    ":dd-java-agent:instrumentation:junit:junit-5:junit-5-cucumber-5.4:test": {
+      "CucumberTest": 17.788
+    },
+    ":dd-java-agent:instrumentation:junit:junit-5:junit-5-spock-2.0:test": {
+      "SpockTest": 20.703
+    },
+    ":dd-java-agent:instrumentation:junit:junit-5:junit-5.3:test": {
+      "JUnit5Test": 25.844
+    },
+    ":dd-java-agent:instrumentation:junit:junit-5:junit-5.3:v513Test": {
+      "JUnit5Test": 23.781
+    },
+    ":dd-java-agent:instrumentation:junit:junit-5:junit-5.8:test": {
+      "JUnit58Test": 14.032
+    },
+    ":dd-java-agent:instrumentation:kafka:kafka-clients-0.11:forkedTest": {
+      "KafkaClientBadBase64HeaderForkedTest": 13.171,
+      "KafkaClientContextSwapForkedTest": 52.136,
+      "KafkaClientDataStreamsDisabledForkedTest": 44.52,
+      "KafkaClientLegacyTracingV0ForkedTest": 45.661,
+      "KafkaClientLegacyTracingV1ForkedTest": 44.545,
+      "KafkaClientSplitByDestinationForkedTest": 45.187,
+      "KafkaClientV0ForkedTest": 45.16,
+      "KafkaClientV1ForkedTest": 44.831,
+      "KafkaReactorForkedTest": 16.824,
+      "iast.KafkaIastDeserializerForkedTest": 9.943
+    },
+    ":dd-java-agent:instrumentation:kafka:kafka-clients-0.11:test": {
+      "KafkaClientCustomPropagationConfigTest": 58.301,
+      "TextMapExtractAdapterTest": 16.807
+    },
+    ":dd-java-agent:instrumentation:kafka:kafka-common:test": {
+      "KafkaConfigHelperTest": 0.161
+    },
+    ":dd-java-agent:instrumentation:kafka:kafka-connect-0.11:test": {
+      "ConnectWorkerInstrumentationTest": 19.594
+    },
+    ":dd-java-agent:instrumentation:kafka:kafka-streams-0.11:forkedTest": {
+      "KafkaStreamsDataStreamsDisabledForkedTest": 8.725,
+      "KafkaStreamsLegacyTracingV0ForkedTest": 8.287,
+      "KafkaStreamsLegacyTracingV1ForkedTest": 7.904,
+      "KafkaStreamsSplitByDestinationForkedTest": 7.84,
+      "KafkaStreamsV0ForkedTest": 7.8,
+      "KafkaStreamsV1ForkedTest": 7.522
+    },
+    ":dd-java-agent:instrumentation:karate:karate-1.0:karate131Test": {
+      "KarateTest": 32.519
+    },
+    ":dd-java-agent:instrumentation:karate:karate-1.0:karate141Test": {
+      "KarateTest": 32.43
+    },
+    ":dd-java-agent:instrumentation:karate:karate-1.0:test": {
+      "KarateTest": 29.003
+    },
+    ":dd-java-agent:instrumentation:kotlin-coroutines-1.3:test": {
+      "KotlinCoroutineInstrumentationTest": 15.926
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-4.0:forkedTest": {
+      "Lettuce4AsyncClientV1ForkedTest": 11.435,
+      "Lettuce4SyncClientV1ForkedTest": 12.684
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-4.0:test": {
+      "Lettuce4AsyncClientV0Test": 14.148,
+      "Lettuce4SyncClientV0Test": 12.893
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:forkedTest": {
+      "Lettuce5AsyncClientProfilingForkedTest": 50.137,
+      "Lettuce5AsyncClientV1ForkedTest": 41.801,
+      "Lettuce5ReactiveClientProfilingForkedTest": 44.509,
+      "Lettuce5ReactiveClientV1ForkedTest": 32.806,
+      "Lettuce5SyncClientProfilingForkedTest": 27.537,
+      "Lettuce5SyncClientV1ForkedTest": 27.113
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce51Test": {
+      "Lettuce5AsyncClientV0Test": 31.467,
+      "Lettuce5ClusterTest": 65.619,
+      "Lettuce5MasterReplicaTest": 39.61,
+      "Lettuce5ReactiveClientV0Test": 39.1,
+      "Lettuce5SyncClientV0Test": 38.454
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce60Test": {
+      "Lettuce5AsyncClientV0Test": 31.729,
+      "Lettuce5ClusterTest": 65.746,
+      "Lettuce5MasterReplicaTest": 41.464,
+      "Lettuce5ReactiveClientV0Test": 39.644,
+      "Lettuce5SyncClientV0Test": 40.457
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce61Test": {
+      "Lettuce5AsyncClientV0Test": 31.377,
+      "Lettuce5ClusterTest": 65.727,
+      "Lettuce5MasterReplicaTest": 41.325,
+      "Lettuce5ReactiveClientV0Test": 40.196,
+      "Lettuce5SyncClientV0Test": 40.297
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:lettuce62Test": {
+      "Lettuce5AsyncClientV0Test": 31.834,
+      "Lettuce5ClusterTest": 65.589,
+      "Lettuce5MasterReplicaTest": 41.333,
+      "Lettuce5ReactiveClientV0Test": 38.899,
+      "Lettuce5SyncClientV0Test": 40.884
+    },
+    ":dd-java-agent:instrumentation:lettuce:lettuce-5.0:test": {
+      "Lettuce5AsyncClientV0Test": 30.578,
+      "Lettuce5ClusterTest": 64.782,
+      "Lettuce5MasterReplicaTest": 38.796,
+      "Lettuce5ReactiveClientV0Test": 37.37,
+      "Lettuce5SyncClientV0Test": 38.002
+    },
+    ":dd-java-agent:instrumentation:liberty:liberty-20.0:forkedTest": {
+      "datadog.trace.instrumentation.liberty20.Liberty20AsyncForkedTest": 25.356,
+      "datadog.trace.instrumentation.liberty20.Liberty20V0ForkedTest": 25.912,
+      "datadog.trace.instrumentation.liberty20.Liberty20V1ForkedTest": 26.799,
+      "datadog.trace.instrumentation.liberty20.LibertyServletClassloaderNamingForkedTest": 28.229
+    },
+    ":dd-java-agent:instrumentation:liberty:liberty-20.0:test": {
+      "datadog.trace.instrumentation.liberty20.Liberty20InactiveAppSecTest": 15.851
+    },
+    ":dd-java-agent:instrumentation:liberty:liberty-23.0:forkedTest": {
+      "datadog.trace.instrumentation.liberty23.Liberty23V0ForkedTest": 21.636,
+      "datadog.trace.instrumentation.liberty23.Liberty23V1ForkedTest": 20.912,
+      "datadog.trace.instrumentation.liberty23.LibertyServletClassloaderNamingForkedTest": 22.306
+    },
+    ":dd-java-agent:instrumentation:liberty:liberty-23.0:test": {
+      "datadog.trace.instrumentation.liberty23.Liberty23InactiveAppSecTest": 15.551
+    },
+    ":dd-java-agent:instrumentation:log4j:log4j-1.2.4:test": {
+      "MdcTest": 6.95
+    },
+    ":dd-java-agent:instrumentation:log4j:log4j-2.0:test": {
+      "Log4jDatadogAppenderAppLogCollectionTest": 6.554,
+      "Log4jDatadogAppenderTest": 3.593,
+      "Log4jThreadContextTest": 3.874
+    },
+    ":dd-java-agent:instrumentation:mail:jakarta-mail-2.0.1:test": {
+      "JakartaMailInstrumentationTest": 10.08
+    },
+    ":dd-java-agent:instrumentation:mail:javax-mail-1.4.4:test": {
+      "JavaxMailInstrumentationTest": 8.755
+    },
+    ":dd-java-agent:instrumentation:maven:maven-3.2.1:test": {
+      "MavenInstrumentationTest": 142.203,
+      "datadog.trace.instrumentation.maven3.MavenProjectConfiguratorTest": 16.53,
+      "datadog.trace.instrumentation.maven3.MavenUtilsTest": 31.696
+    },
+    ":dd-java-agent:instrumentation:micronaut:micronaut-http-server-netty:micronaut-http-server-netty-2.0:test": {
+      "MicronautTest": 20.884
+    },
+    ":dd-java-agent:instrumentation:micronaut:micronaut-http-server-netty:micronaut-http-server-netty-3.0:test": {
+      "MicronautTest": 18.685
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-common:forkedTest": {
+      "MongoCommentInjectorDisabledModeForkedTest": 5.545,
+      "MongoCommentInjectorServiceModeForkedTest": 6.351
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-common:test": {
+      "MongoCommentInjectorTest": 5.916
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.1:forkedTest": {
+      "MongoJava31ClientV1ForkedTest": 21.926
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.1:test": {
+      "BsonScrubber31Test": 6.774,
+      "MongoJava31ClientV0Test": 10.057,
+      "datadog.trace.instrumentation.mongo.BsonBinaryScrubber31Test": 0.079
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.4:forkedTest": {
+      "MongoJava34ClientV1ForkedTest": 13.516
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.4:test": {
+      "BsonScrubber34Test": 6.836,
+      "MongoJava34ClientV0Test": 9.296,
+      "datadog.trace.instrumentation.mongo.BsonBinaryScrubber34Test": 0.067
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.6:forkedTest": {
+      "DefaultServerConnection36InstrumentationDisabledV1ForkedTest": 9.797,
+      "DefaultServerConnection36InstrumentationEnabledV0ForkedTest": 9.571,
+      "DefaultServerConnection36InstrumentationEnabledV1ForkedTest": 9.325
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.6:test": {
+      "DefaultServerConnection36InstrumentationDisabledV0Test": 13.037
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.8:forkedTest": {
+      "DefaultServerConnection38InstrumentationDisabledV1ForkedTest": 11.552,
+      "DefaultServerConnection38InstrumentationEnabledV0ForkedTest": 10.887,
+      "DefaultServerConnection38InstrumentationEnabledV1ForkedTest": 10.591
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.8:test": {
+      "DefaultServerConnection38InstrumentationDisabledV0Test": 12.796
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-4.0:forkedTest": {
+      "Mongo4ClientV1ForkedTest": 16.768,
+      "MongoReactiveClientV1ForkedTest": 27.917
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-4.0:mongo410ForkedTest": {
+      "Mongo4ClientV1ForkedTest": 18.679,
+      "MongoReactiveClientV1ForkedTest": 15.199
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-4.0:mongo410Test": {
+      "Mongo4ClientV0Test": 30.442,
+      "MongoDBMCommentTest": 0.01,
+      "MongoReactiveClientV0Test": 12.772
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-4.0:mongo43ForkedTest": {
+      "Mongo4ClientV1ForkedTest": 11.263,
+      "MongoReactiveClientV1ForkedTest": 9.866
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-4.0:mongo43Test": {
+      "Mongo4ClientV0Test": 13.342,
+      "MongoDBMCommentTest": 0.009,
+      "MongoReactiveClientV0Test": 12.242
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-4.0:test": {
+      "Mongo4ClientV0Test": 13.813,
+      "MongoDBMCommentTest": 0.01,
+      "MongoReactiveClientV0Test": 11.874
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-async-3.3:forkedTest": {
+      "MongoAsyncClientV1ForkedTest": 16.676
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-async-3.3:test": {
+      "MongoAsyncClientV0Test": 20.169
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.1:forkedTest": {
+      "MongoCore31ClientV1ForkedTest": 11.888
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.1:test": {
+      "MongoCore31ClientV0Test": 28.808
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.7:forkedTest": {
+      "MongoCore37ClientV1ForkedTest": 9.673
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.7:test": {
+      "MongoCore37ClientV0Test": 27.244
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-sync-3.10:forkedTest": {
+      "MongoSyncClientV1ForkedTest": 25.542
+    },
+    ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-sync-3.10:test": {
+      "MongoSyncClientV0Test": 11.006
+    },
+    ":dd-java-agent:instrumentation:mule-4.5:forkedTest": {
+      "mule4.MuleForkedTest": 41.516,
+      "mule4.MuleHttpServerForkedTest": 41.428,
+      "mule4.MuleHttpServerOTELEnabledForkedTest": 49.749
+    },
+    ":dd-java-agent:instrumentation:mule-4.5:mule46ForkedTest": {
+      "mule4.MuleForkedTest": 33.485,
+      "mule4.MuleHttpServerForkedTest": 34.792,
+      "mule4.MuleHttpServerOTELEnabledForkedTest": 37.513
+    },
+    ":dd-java-agent:instrumentation:netty:netty-4.1:forkedTest": {
+      "Netty41ClientV0ForkedTest": 17.883,
+      "Netty41ClientV1ForkedTest": 20.614,
+      "Netty41ServerV1ForkedTest": 19.497
+    },
+    ":dd-java-agent:instrumentation:netty:netty-4.1:test": {
+      "Netty41PipelineTest": 19.045,
+      "Netty41ServerV0Test": 16.281,
+      "NettyMultipartHelperTest": 0.398,
+      "ReactorNettyTest": 17.029,
+      "datadog.trace.instrumentation.netty41.Http2ContextTransferTest": 0.243,
+      "datadog.trace.instrumentation.netty41.ServerRequestContextTest": 0.021,
+      "datadog.trace.instrumentation.netty41.client.NettyHttpClientDecoratorTest": 0.208,
+      "datadog.trace.instrumentation.netty41.server.BlockingResponseHandlerTest": 4.073,
+      "datadog.trace.instrumentation.netty41.server.HttpServerResponseTracingHandlerTest": 8.863,
+      "datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandlerTest": 6.495,
+      "datadog.trace.instrumentation.netty41.server.NettyChunkedResponseSpanTest": 18.292,
+      "datadog.trace.instrumentation.netty41.server.NettyHttp11PipeliningTest": 7.095,
+      "datadog.trace.instrumentation.netty41.server.NettyNativeClientAbortSpanTest": 7.888
+    },
+    ":dd-java-agent:instrumentation:netty:netty-concurrent-4.0:forkedTest": {
+      "TimingReadinessForkedTest": 4.919,
+      "executor.JavaConcurrentOnlyNettyForkedTest": 4.426,
+      "executor.RunnableFutureOnlyNettyForkedTest": 3.551
+    },
+    ":dd-java-agent:instrumentation:netty:netty-concurrent-4.0:legacyNettyTest": {
+      "executor.NettyScheduledFutureTaskContextPropagationTest": 5.214
+    },
+    ":dd-java-agent:instrumentation:netty:netty-concurrent-4.0:netty4144Test": {
+      "executor.NettyScheduledFutureTaskContextPropagationTest": 5.107
+    },
+    ":dd-java-agent:instrumentation:netty:netty-concurrent-4.0:test": {
+      "TimingTest": 9.326,
+      "executor.GrpcShadedNettyScheduledFutureTaskContextPropagationTest": 2.396,
+      "executor.NettyScheduledFutureTaskContextPropagationTest": 2.018
+    },
+    ":dd-java-agent:instrumentation:netty:netty-promise-4.0:test": {
+      "NettyProgressivePromiseTest": 9.633,
+      "NettyPromiseTest": 6.728
+    },
+    ":dd-java-agent:instrumentation:ognl-appsec-3.3.2:test": {
+      "datadog.trace.instrumentation.ognl.OgnlInstrumentationSpec": 7.142
+    },
+    ":dd-java-agent:instrumentation:okhttp:okhttp-2.2:forkedTest": {
+      "OkHttp2AsyncV0ForkedTest": 20.039,
+      "OkHttp2AsyncV1ForkedTest": 18.457,
+      "OkHttp2V0ForkedTest": 16.66,
+      "OkHttp2V1ForkedTest": 16.714
+    },
+    ":dd-java-agent:instrumentation:okhttp:okhttp-2.2:test": {
+      "HeadersUtilTest": 0.151,
+      "IastOkHttp2InstrumentationTest": 12.597,
+      "datadog.trace.instrumentation.okhttp2.AppSecHeadersTest": 0.139,
+      "datadog.trace.instrumentation.okhttp2.AppSecInterceptorBlockFailureTest": 0.477,
+      "datadog.trace.instrumentation.okhttp2.AppSecInterceptorTest": 0.026
+    },
+    ":dd-java-agent:instrumentation:okhttp:okhttp-3.0:forkedTest": {
+      "OkHttp3AsyncV0ForkedTest": 16.459,
+      "OkHttp3AsyncV1ForkedTest": 15.538,
+      "OkHttp3V0ForkedTest": 12.242,
+      "OkHttp3V1ForkedTest": 11.937
+    },
+    ":dd-java-agent:instrumentation:okhttp:okhttp-3.0:test": {
+      "IastOkHttp3InstrumentationTest": 11.258,
+      "datadog.trace.instrumentation.okhttp3.AppSecHeadersTest": 0.148,
+      "datadog.trace.instrumentation.okhttp3.AppSecInterceptorBlockFailureTest": 0.474,
+      "datadog.trace.instrumentation.okhttp3.AppSecInterceptorTest": 0.025
+    },
+    ":dd-java-agent:instrumentation:openai-java:openai-java-3.0:forkedTest": {
+      "datadog.trace.instrumentation.openai_java.LlmObsContextPropagationForkedTest": 7.551,
+      "datadog.trace.instrumentation.openai_java.LlmObsDisabledForkedTest": 6.814,
+      "datadog.trace.instrumentation.openai_java.LlmObsZeroSampleRateForkedTest": 6.46
+    },
+    ":dd-java-agent:instrumentation:openai-java:openai-java-3.0:test": {
+      "ChatCompletionServiceTest": 19.49,
+      "CompletionServiceTest": 16.307,
+      "EmbeddingServiceTest": 16.115,
+      "GlobalTagsTest": 16.127,
+      "ResponseServiceTest": 19.992,
+      "datadog.trace.instrumentation.openai_java.JsonValueUtilsTest": 0.107
+    },
+    ":dd-java-agent:instrumentation:opensearch:opensearch-rest-1.0:test": {
+      "OpensearchRestClientTest": 25.727
+    },
+    ":dd-java-agent:instrumentation:opensearch:opensearch-transport-1.0:test": {
+      "OpensearchNodeClientTest": 0.004,
+      "OpensearchTransportClientTest": 0.001
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-0.3:test": {
+      "OpenTelemetryTest": 8.772,
+      "TypeConverterTest": 4.391
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.27:forkedTest": {
+      "opentelemetry127.logs.OpenTelemetryLogsActivationByInstrumentationNameForkedTest": 3.346,
+      "opentelemetry127.logs.OpenTelemetryLogsActivationByOtelRfcNameForkedTest": 3.291,
+      "opentelemetry127.logs.OpenTelemetryLogsDisableByDefaultForkedTest": 3.174
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.27:test": {
+      "opentelemetry127.logs.OpenTelemetryLogsTest": 4.715
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.47:forkedTest": {
+      "opentelemetry147.metrics.JvmOtlpRuntimeMetricsForkedTest": 0.862,
+      "opentelemetry147.metrics.OpenTelemetryMetricsActivationByInstrumentationNameForkedTest": 3.896,
+      "opentelemetry147.metrics.OpenTelemetryMetricsActivationByOtelRfcNameForkedTest": 3.391,
+      "opentelemetry147.metrics.OpenTelemetryMetricsCumulativeForkedTest": 3.671,
+      "opentelemetry147.metrics.OpenTelemetryMetricsDisableByDefaultForkedTest": 4.162
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.47:test": {
+      "opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest": 0.954,
+      "opentelemetry147.metrics.OpenTelemetryMetricsTest": 4.376
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4:forkedTest": {
+      "opentelemetry14.OpenTelemetry14ActivationByInstrumentationNameForkedTest": 3.535,
+      "opentelemetry14.OpenTelemetry14ActivationByOtelRfcNameForkedTest": 3.979,
+      "opentelemetry14.OpenTelemetry14DisableByDefaultForkedTest": 3.964
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4:test": {
+      "opentelemetry14.OpenTelemetry14ConventionsTest": 4.673,
+      "opentelemetry14.OpenTelemetry14Test": 2.64,
+      "opentelemetry14.context.ContextTest": 2.325,
+      "opentelemetry14.context.propagation.B3MultiPropagatorTest": 2.352,
+      "opentelemetry14.context.propagation.B3SinglePropagatorTest": 2.415,
+      "opentelemetry14.context.propagation.DatadogPropagatorTest": 2.484,
+      "opentelemetry14.context.propagation.OtelW3cPropagatorTest": 2.534,
+      "opentelemetry14.context.propagation.W3cPropagatorTest": 2.542,
+      "opentelemetry14.context.propagation.W3cPropagatorTracestateTest": 2.575
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20:test": {
+      "SpanAttributeAnnotationTest": 8.619,
+      "WithSpanAnnotationTest": 6.185
+    },
+    ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.26:test": {
+      "AddingSpanAttributesAnnotationTest": 8.683
+    },
+    ":dd-java-agent:instrumentation:opentracing:opentracing-0.31:test": {
+      "OpenTracing31Test": 8.667,
+      "TypeConverterTest": 4.458
+    },
+    ":dd-java-agent:instrumentation:opentracing:opentracing-0.32:test": {
+      "OpenTracing32Test": 7.922,
+      "TypeConverterTest": 4.315
+    },
+    ":dd-java-agent:instrumentation:org-json-20230227:test": {
+      "JSONArrayInstrumentationTest": 9.621,
+      "JSONCookieInstrumentationTest": 7.68,
+      "JSONObjectInstrumentationTest": 8.429,
+      "JSONTokenerInstrumentationTest": 8.501
+    },
+    ":dd-java-agent:instrumentation:osgi-4.3:test": {
+      "datadog.trace.instrumentation.osgi43.BundleWiringHelperTest": 0.444
+    },
+    ":dd-java-agent:instrumentation:owasp-esapi-2.1:test": {
+      "datadog.trace.instrumentation.owasp.esapi.EncoderCallSiteTest": 12.188
+    },
+    ":dd-java-agent:instrumentation:pekko:pekko-concurrent-1.0:forkedTest": {
+      "PekkoActorContextSwapForkedTest": 28.725
+    },
+    ":dd-java-agent:instrumentation:pekko:pekko-concurrent-1.0:test": {
+      "PekkoActorTest": 32.132
+    },
+    ":dd-java-agent:instrumentation:pekko:pekko-http-1.0:baseTest": {
+      "PekkoHttpAsyncHandlerWrapperTest": 15.327,
+      "PekkoHttpServerInstrumentationAsyncHttp2Test": 22.044,
+      "PekkoHttpServerInstrumentationAsyncTest": 18.129,
+      "PekkoHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest": 19.566,
+      "PekkoHttpServerInstrumentationBindAndHandleTest": 20.808,
+      "datadog.trace.instrumentation.pekkohttp.SwappedContextScopeTest": 0.006
+    },
+    ":dd-java-agent:instrumentation:pekko:pekko-http-1.0:baseTestForkedTest": {
+      "PekkoHttpAsyncHandlerWrapperForkedTest": 8.743,
+      "PekkoHttpJavaClientInstrumentationV0ForkedTest": 21.52,
+      "PekkoHttpJavaClientInstrumentationV1ForkedTest": 20.553,
+      "PekkoHttpScalaClientInstrumentationV0ForkedTest": 25.066,
+      "PekkoHttpScalaClientInstrumentationV1ForkedTest": 18.905,
+      "PekkoHttpServerInstrumentationBindAndHandleContextSwapForkedTest": 24.011,
+      "PekkoHttpServerInstrumentationSyncV0ForkedTest": 17.348,
+      "PekkoHttpServerInstrumentationSyncV1ForkedTest": 17.152
+    },
+    ":dd-java-agent:instrumentation:pekko:pekko-http-1.0:iastTest": {
+      "datadog.trace.instrumentation.pekkohttp.iast.IastPekkoTest": 20.443
+    },
+    ":dd-java-agent:instrumentation:play-ws:play-ws-1.0:forkedTest": {
+      "PlayJavaWSClientV0ForkedTest": 21.067,
+      "PlayJavaWSClientV1ForkedTest": 20.319
+    },
+    ":dd-java-agent:instrumentation:play-ws:play-ws-1.0:test": {
+      "PlayJavaStreamedWSClientTest": 21.559,
+      "PlayScalaStreamedWSClientTest": 20.985,
+      "PlayScalaWSClientTest": 20.68
+    },
+    ":dd-java-agent:instrumentation:play-ws:play-ws-2.0:forkedTest": {
+      "PlayJavaWSClientV0ForkedTest": 22.359,
+      "PlayJavaWSClientV1ForkedTest": 21.062
+    },
+    ":dd-java-agent:instrumentation:play-ws:play-ws-2.0:test": {
+      "PlayJavaStreamedWSClientTest": 22.272,
+      "PlayScalaStreamedWSClientTest": 22.19,
+      "PlayScalaWSClientTest": 21.267
+    },
+    ":dd-java-agent:instrumentation:play-ws:play-ws-2.1:test": {
+      "PlayJavaStreamedWSClientTest": 23.934,
+      "PlayJavaWSClientTest": 21.043,
+      "PlayScalaStreamedWSClientTest": 22.488,
+      "PlayScalaWSClientTest": 21.21
+    },
+    ":dd-java-agent:instrumentation:play:play-appsec-2.7:test": {
+      "datadog.trace.instrumentation.play27.server.test.PlayAsyncServerRoutesScalaWithErrorHandlerTest": 26.136,
+      "datadog.trace.instrumentation.play27.server.test.PlayAsyncServerScalaWithErrorHandlerTest": 19.688
+    },
+    ":dd-java-agent:instrumentation:play:play-appsec-common:test": {
+      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpersTest": 0.854
+    },
+    ":dd-java-agent:instrumentation:quartz-2.0:test": {
+      "QuartzTest": 13.31
+    },
+    ":dd-java-agent:instrumentation:quartz-2.0:version40Test": {
+      "QuartzTest": 10.786
+    },
+    ":dd-java-agent:instrumentation:r2dbc:r2dbc-1.0:forkedTest": {
+      "datadog.trace.instrumentation.r2dbc.R2dbcDbmBaseHashForkedTest": 9.255,
+      "datadog.trace.instrumentation.r2dbc.R2dbcDbmForkedTest": 9.163,
+      "datadog.trace.instrumentation.r2dbc.R2dbcSqlCommentInjectorAlwaysAppendForkedTest": 3.604,
+      "datadog.trace.instrumentation.r2dbc.R2dbcSqlCommentInjectorDisabledForkedTest": 3.659,
+      "datadog.trace.instrumentation.r2dbc.R2dbcSqlCommentInjectorDynamicServiceForkedTest": 3.792,
+      "datadog.trace.instrumentation.r2dbc.R2dbcSqlCommentInjectorForkedTest": 3.961
+    },
+    ":dd-java-agent:instrumentation:r2dbc:r2dbc-1.0:test": {
+      "datadog.trace.instrumentation.r2dbc.R2dbcFilteredResultTest": 18.798,
+      "datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest": 17.05,
+      "datadog.trace.instrumentation.r2dbc.R2dbcPeerServiceTest": 14.958,
+      "datadog.trace.instrumentation.r2dbc.R2dbcPoolTest": 15.853
+    },
+    ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7:forkedTest": {
+      "RabbitMQDatastreamsDisabledForkedTest": 28.448,
+      "RabbitMQLegacyTracingV0ForkedTest": 24.628,
+      "RabbitMQLegacyTracingV1ForkedTest": 24.154,
+      "RabbitMQNamingV1ForkedTest": 24.837,
+      "RabbitMQRoutingKeyExcludedForkedTest": 21.747,
+      "RabbitMQSplitByDestinationForkedTest": 24.064
+    },
+    ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7:reactorTest": {
+      "ReactorRabbitMQTest": 17.397
+    },
+    ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7:test": {
+      "RabbitMQNamingV0Test": 25.522
+    },
+    ":dd-java-agent:instrumentation:ratpack-1.5:test": {
+      "RatpackOtherTest": 18.807,
+      "client.RatpackForkedHttpClientTest": 24.956,
+      "client.RatpackHttpClientTest": 28.151,
+      "server.RatpackAsyncHttpServerTest": 31.919,
+      "server.RatpackForkedHttpServerTest": 34.788,
+      "server.RatpackHttpServerAppSecTest": 30.483,
+      "server.RatpackHttpServerTest": 37.303,
+      "server.RatpackInactiveAppSecTest": 33.474
+    },
+    ":dd-java-agent:instrumentation:reactive-streams-1.0:test": {
+      "PublishSubscribeTest": 8.294,
+      "ReactiveStreamsAsyncResultExtensionTest": 4.932,
+      "datadog.trace.instrumentation.reactivestreams.ReactiveStreamsContextPropagationTest": 0.08
+    },
+    ":dd-java-agent:instrumentation:reactor-core-3.1:test": {
+      "ReactorAsyncResultExtensionTest": 30.038,
+      "ReactorCoreTest": 29.235,
+      "SubscriptionTest": 31.898
+    },
+    ":dd-java-agent:instrumentation:reactor-netty-1.0:test": {
+      "ReactorNettyBaggagePropagationTest": 37.443,
+      "ReactorNettyHttp2ClientTest": 27.788,
+      "ReactorNettyHttpClientTest": 34.603,
+      "datadog.trace.instrumentation.reactor.netty.ClearRequestContextTest": 0.759
+    },
+    ":dd-java-agent:instrumentation:rediscala-1.8:forkedTest": {
+      "RediscalaClientV1ForkedTest": 11.525
+    },
+    ":dd-java-agent:instrumentation:rediscala-1.8:test": {
+      "RediscalaClientV0Test": 10.253
+    },
+    ":dd-java-agent:instrumentation:redisson:redisson-2.0.0:forkedTest": {
+      "RedissonClientV1ForkedTest": 18.484
+    },
+    ":dd-java-agent:instrumentation:redisson:redisson-2.0.0:test": {
+      "RedissonClientV0Test": 13.669
+    },
+    ":dd-java-agent:instrumentation:redisson:redisson-2.3.0:forkedTest": {
+      "RedissonClientV1ForkedTest": 13.01
+    },
+    ":dd-java-agent:instrumentation:redisson:redisson-2.3.0:test": {
+      "RedissonClientV0Test": 18.24
+    },
+    ":dd-java-agent:instrumentation:redisson:redisson-3.10.3:forkedTest": {
+      "RedissonClientV1ForkedTest": 14.237
+    },
+    ":dd-java-agent:instrumentation:redisson:redisson-3.10.3:test": {
+      "RedissonClientV0Test": 13.985
+    },
+    ":dd-java-agent:instrumentation:resteasy:resteasy-3.0:test": {
+      "ResteasyClientConnectionErrorsInstrumentationTest": 8.504,
+      "WrappedFutureTest": 4.18
+    },
+    ":dd-java-agent:instrumentation:resteasy:resteasy-appsec-3.0:jettyAsyncTest": {
+      "datadog.trace.instrumentation.resteasy.JettyResteasyAppsecTest": 10.655
+    },
+    ":dd-java-agent:instrumentation:resteasy:resteasy-appsec-3.0:nettyTest": {
+      "datadog.trace.instrumentation.resteasy.NettyResteasyAppsecTest": 25.52
+    },
+    ":dd-java-agent:instrumentation:resteasy:resteasy-appsec-3.0:test": {
+      "JavaxWSResponseInstrumentationTest": 6.724,
+      "MultipartHelperTest": 0.539
+    },
+    ":dd-java-agent:instrumentation:restlet-2.2:baseForkedTest": {
+      "RestletV0ForkedTest": 13.739,
+      "RestletV1ForkedTest": 14.162
+    },
+    ":dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3.0:test": {
+      "JakartaRsAnnotations3InstrumentationTest": 9.628,
+      "datadog.trace.instrumentation.jakarta3.MessageBodyWriterAdviceAppSecTest": 0.545
+    },
+    ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-1.1.1:test": {
+      "JaxRsAnnotations1InstrumentationTest": 9.046,
+      "JerseyTest": 7.286
+    },
+    ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0:nestedTest": {
+      "NestedResourcesTest": 9.438
+    },
+    ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0:resteasy31Test": {
+      "JaxRsAnnotations2InstrumentationTest": 7.961,
+      "JerseyFilterTest": 8.125,
+      "ResteasyFilterTest": 10.308,
+      "datadog.trace.instrumentation.jaxrs2.MessageBodyWriterAdviceAppSecTest": 0.441
+    },
+    ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0:test": {
+      "JaxRsAnnotations2InstrumentationTest": 7.933,
+      "JerseyFilterTest": 8.416,
+      "ResteasyFilterTest": 10.532,
+      "datadog.trace.instrumentation.jaxrs2.MessageBodyWriterAdviceAppSecTest": 0.443
+    },
+    ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-client:jax-rs-client-1.1:forkedTest": {
+      "JaxRsClientV1NamingV0ForkedTest": 15.276,
+      "JaxRsClientV1NamingV1ForkedTest": 14.262
+    },
+    ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-client:jax-rs-client-2.0:forkedTest": {
+      "ResteasyClientAsyncV0ForkedTest": 14.502,
+      "ResteasyClientAsyncV1ForkedTest": 14.186,
+      "ResteasyClientV0ForkedTest": 13.833,
+      "ResteasyClientV1ForkedTest": 13.957
+    },
+    ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-client:jax-rs-client-2.0:test": {
+      "CxfClientAsyncTest": 12.792,
+      "CxfClientTest": 9.997,
+      "JaxMultithreadedClientTest": 8.736,
+      "JerseyClientAsyncTest": 15.605,
+      "JerseyClientTest": 0.001
+    },
+    ":dd-java-agent:instrumentation:rxjava:rxjava-2.0:test": {
+      "RxJava2ResultExtensionTest": 11.123,
+      "RxJava2Test": 10.185,
+      "SubscriptionTest": 9.243
+    },
+    ":dd-java-agent:instrumentation:rxjava:rxjava-3.0:test": {
+      "testdog.trace.instrumentation.rxjava3.RxJava3InteropTest": 5.689,
+      "testdog.trace.instrumentation.rxjava3.RxJava3ResultExtensionTest": 3.262,
+      "testdog.trace.instrumentation.rxjava3.RxJava3Test": 4.248,
+      "testdog.trace.instrumentation.rxjava3.SubscriptionTest": 3.402
+    },
+    ":dd-java-agent:instrumentation:scala:scala-2.10.7:test": {
+      "datadog.trace.instrumentation.scala.RandomCallSiteTest": 10.639,
+      "datadog.trace.instrumentation.scala.SourceCallSiteTest": 10.245,
+      "datadog.trace.instrumentation.scala.StringBuilderCallSiteTest": 11.255,
+      "datadog.trace.instrumentation.scala.StringContextCallSiteTest": 11.7,
+      "datadog.trace.instrumentation.scala.StringOpsFormatCallSiteTest": 11.722
+    },
+    ":dd-java-agent:instrumentation:scala:scala-concurrent-2.8:test": {
+      "ForkJoinPoolPropagationTest": 14.694,
+      "RejectedExecutionTest": 5.178,
+      "ScalaExecutorInstrumentationTest": 6.021,
+      "ScalaInstrumentationTest": 6.654
+    },
+    ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10:forkedTest": {
+      "Scala210PromiseCompletionPriorityForkJoinPoolForkedTest": 7.778,
+      "Scala210PromiseCompletionPriorityGlobalForkedTest": 7.507,
+      "Scala210PromiseCompletionPriorityScheduledThreadPoolForkedTest": 8.171,
+      "Scala210PromiseCompletionPriorityThreadPoolForkedTest": 7.475,
+      "Scala210UnitPromiseCheckInstrumentationForkedTest": 6.011,
+      "Scala210UnitPromiseForkedTest": 6.017
+    },
+    ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10:test": {
+      "Scala210PromiseForkJoinPoolTest": 11.551,
+      "Scala210PromiseGlobalTest": 7.664,
+      "Scala210PromiseScheduledThreadPoolTest": 8.236,
+      "Scala210PromiseThreadPoolTest": 8.873
+    },
+    ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13:forkedTest": {
+      "Scala213PromiseCompletionPriorityForkJoinPoolForkedTest": 9.02,
+      "Scala213PromiseCompletionPriorityGlobalForkedTest": 8.778,
+      "Scala213PromiseCompletionPriorityScheduledThreadPoolForkedTest": 8.155,
+      "Scala213PromiseCompletionPriorityThreadPoolForkedTest": 8.137,
+      "Scala213UnitPromiseCheckInstrumentationForkedTest": 7.183,
+      "Scala213UnitPromiseForkedTest": 6.915
+    },
+    ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13:scala21317Test": {
+      "ScalaFirstCompletedOfTest": 8.255,
+      "datadog.trace.instrumentation.scala213.concurrent.DefaultPromiseCallbackInstrumentationTest": 0.46
+    },
+    ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13:test": {
+      "Scala213PromiseForkJoinPoolTest": 10.441,
+      "Scala213PromiseGlobalTest": 7.314,
+      "Scala213PromiseScheduledThreadPoolTest": 8.355,
+      "Scala213PromiseThreadPoolTest": 9.057
+    },
+    ":dd-java-agent:instrumentation:scalatest-3.0.8:test": {
+      "ScalatestTest": 19.04
+    },
+    ":dd-java-agent:instrumentation:selenium-3.13:test": {
+      "datadog.trace.instrumentation.selenium.SeleniumTest": 14.812,
+      "datadog.trace.instrumentation.selenium.SeleniumUtilsTest": 8.19
+    },
+    ":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.0:test": {
+      "ContextPreservingInstrumentationTest": 7.903
+    },
+    ":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.56:test": {
+      "ContextPreservingInstrumentationTest": 7.269
+    },
+    ":dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0:test": {
+      "IastJakartaServletInstrumentationTest": 12.912,
+      "JakartaHttpServletRequestInstrumentationTest": 13.244,
+      "JakartaHttpServletResponseInstrumentationTest": 13.699,
+      "JakartaJspWriterCallsiteTest": 14.054,
+      "JakartaJspWriterFullDetectionCallsiteTest": 14.03,
+      "JakartaMultipartInstrumentationTest": 14.572,
+      "RumHttpServletResponseWrapperTest": 8.471
+    },
+    ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2:forkedTest": {
+      "IastJettyServlet2ForkedTest": 16.923,
+      "JettyServlet2V0ForkedTest": 14.498,
+      "JettyServlet2V1ForkedTest": 14.741,
+      "WrapperForkedTest": 0.883
+    },
+    ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0:forkedTest": {
+      "IastJettyServlet3ForkedTest": 15.008,
+      "IastTomcatServlet3ForkedTest": 17.399,
+      "JettyServlet3ASyncV1ForkedTest": 16.044,
+      "JettyServlet3SyncRumInjectionForkedTest": 13.041,
+      "JettyServlet3SyncV1ForkedTest": 12.104,
+      "MultipartInstrumentationForkedTest": 8.002,
+      "TomcatServlet3AsyncV1ForkedTest": 26.723,
+      "TomcatServlet3SyncV1ForkedTest": 13.581
+    },
+    ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0:test": {
+      "JettyServlet3ServeFromAsyncTimeout": 51.276,
+      "JettyServlet3TestAsync": 19.619,
+      "JettyServlet3TestAsyncDispatchOnAsyncTimeout": 59.794,
+      "JettyServlet3TestDispatchAsync": 20.394,
+      "JettyServlet3TestDispatchImmediate": 17.121,
+      "JettyServlet3TestFakeAsync": 16.206,
+      "JettyServlet3TestForward": 16.14,
+      "JettyServlet3TestInclude": 15.872,
+      "JettyServlet3TestSync": 16.583,
+      "JettyServlet3TestSyncDispatchOnAsyncTimeout": 50.805,
+      "JettyServletHandlerTest": 16.157,
+      "RumHttpServletResponseWrapperTest": 11.87,
+      "TomcatServlet3TestAsync": 31.51,
+      "TomcatServlet3TestDispatchAsync": 34.354,
+      "TomcatServlet3TestDispatchImmediate": 19.278,
+      "TomcatServlet3TestFakeAsync": 19.254,
+      "TomcatServlet3TestForward": 19.608,
+      "TomcatServlet3TestInclude": 19.456,
+      "TomcatServlet3TestSync": 20.935
+    },
+    ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common:test": {
+      "CookieInstrumentationTest": 14.42,
+      "FilterTest": 8.907,
+      "HttpServletRequestTest": 15.497,
+      "HttpServletResponseTest": 10.053,
+      "HttpServletTest": 10.273,
+      "JspWriterCallSiteTest": 17.178,
+      "JspWriterFullDetectionCallSiteTest": 16.149,
+      "RequestDispatcherRecursionTest": 9.459,
+      "RequestDispatcherTest": 10.299,
+      "ServletContextNullDispatcherTest": 9.086
+    },
+    ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast:test": {
+      "HttpServletResponseInstrumentationTest": 6.895,
+      "HttpSessionInstrumentationTest": 3.721
+    },
+    ":dd-java-agent:instrumentation:slick-3.2:test": {
+      "SlickBaggagePropagationTest": 4.572,
+      "SlickTest": 13.582
+    },
+    ":dd-java-agent:instrumentation:snakeyaml-1.33:test": {
+      "SnakeYamlInstrumentationTest": 6.947
+    },
+    ":dd-java-agent:instrumentation:sofarpc:sofarpc-5.0:forkedTest": {
+      "datadog.trace.instrumentation.sofarpc.SofaRpcTripleWithGrpcForkedTest": 11.056
+    },
+    ":dd-java-agent:instrumentation:sofarpc:sofarpc-5.0:test": {
+      "datadog.trace.instrumentation.sofarpc.SofaRpcRestTest": 9.351,
+      "datadog.trace.instrumentation.sofarpc.SofaRpcTest": 9.114
+    },
+    ":dd-java-agent:instrumentation:spark:spark-common:test": {
+      "datadog.trace.instrumentation.spark.DatabricksRepairAttemptTest": 0.478,
+      "datadog.trace.instrumentation.spark.EmrUtilsTest": 0.012,
+      "datadog.trace.instrumentation.spark.SetupOpenLineageTest": 2.143,
+      "datadog.trace.instrumentation.spark.SparkLauncherTest": 7.412
+    },
+    ":dd-java-agent:instrumentation:spark:spark-executor-common:baseTest": {
+      "SparkExecutorTest": 19.785
+    },
+    ":dd-java-agent:instrumentation:spark:spark_2.12:test": {
+      "SparkListenerTest": 12.412,
+      "SparkStructuredStreamingTest": 27.55,
+      "SparkTest": 32.767
+    },
+    ":dd-java-agent:instrumentation:spark:spark_2.12:test_spark24": {
+      "Spark24SqlTest": 26.164
+    },
+    ":dd-java-agent:instrumentation:spark:spark_2.12:test_spark32": {
+      "Spark32SqlTest": 27.409
+    },
+    ":dd-java-agent:instrumentation:spark:spark_2.13:test": {
+      "SparkListenerTest": 10.951,
+      "SparkStructuredStreamingTest": 30.917,
+      "SparkTest": 31.914
+    },
+    ":dd-java-agent:instrumentation:spark:spark_2.13:test_spark32": {
+      "Spark32SqlTest": 25.6
+    },
+    ":dd-java-agent:instrumentation:spark:sparkjava-2.3:test": {
+      "SparkJavaBasedTest": 10.019
+    },
+    ":dd-java-agent:instrumentation:spray-1.3:forkedTest": {
+      "SprayServerV0ForkedTest": 17.144,
+      "SprayServerV1ForkedTest": 16.985
+    },
+    ":dd-java-agent:instrumentation:spray-1.3:test": {
+      "datadog.trace.instrumentation.spray.RequestCompletionTest": 1.323
+    },
+    ":dd-java-agent:instrumentation:spring:spring-boot-1.3:boot2ForkedTest": {
+      "SpringBootApplicationNotAppliedForkedTest": 8.266
+    },
+    ":dd-java-agent:instrumentation:spring:spring-boot-1.3:boot2Test": {
+      "SpringBootApplicationTest": 9.356
+    },
+    ":dd-java-agent:instrumentation:spring:spring-boot-1.3:forkedTest": {
+      "SpringBootApplicationNotAppliedForkedTest": 8.483
+    },
+    ":dd-java-agent:instrumentation:spring:spring-boot-1.3:test": {
+      "SpringBootApplicationTest": 8.838
+    },
+    ":dd-java-agent:instrumentation:spring:spring-cloud-zuul-2.0:test": {
+      "ProxyRequestHelperTest": 24.586,
+      "SpringBootZuulTest": 0.01
+    },
+    ":dd-java-agent:instrumentation:spring:spring-core-3.2.2:test": {
+      "datadog.trace.instrumentation.springcore.StreamUtilsInstrumentationTest": 9.035
+    },
+    ":dd-java-agent:instrumentation:spring:spring-data-1.8:test": {
+      "SpringJpaTest": 0.005
+    },
+    ":dd-java-agent:instrumentation:spring:spring-jms-3.1:forkedTest": {
+      "MaxMessagesPerTaskForkedTest": 11.047
+    },
+    ":dd-java-agent:instrumentation:spring:spring-jms-3.1:test": {
+      "SpringSAListenerTest": 10.334
+    },
+    ":dd-java-agent:instrumentation:spring:spring-rabbit-1.5:test": {
+      "SpringAmqpTest": 20.892
+    },
+    ":dd-java-agent:instrumentation:spring:spring-scheduling-3.1:forkedTest": {
+      "SpringAsyncMeasuredForkedTest": 6.892,
+      "SpringSchedulingLegacyTracingForkedTest": 9.153
+    },
+    ":dd-java-agent:instrumentation:spring:spring-scheduling-3.1:test": {
+      "ShedlockTest": 6.415,
+      "SpringAsyncTest": 7.46,
+      "SpringSchedulingTest": 9.139
+    },
+    ":dd-java-agent:instrumentation:spring:spring-security:spring-security-5.0:test": {
+      "datadog.trace.instrumentation.springsecurity5.SpringBootBasedTest": 14.813
+    },
+    ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0:forkedTest": {
+      "dd.trace.instrumentation.springwebflux.client.HeadersAdviceForkedTest": 5.195,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDoOnSuccessOrErrorV0ForkedTest": 43.245,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDoOnSuccessOrErrorV1ForkedTest": 43.263
+    },
+    ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0:iastTest": {
+      "datadog.trace.instrumentation.springwebflux.server.IastWebFluxTest": 25.289
+    },
+    ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0:test": {
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientBasicTest": 57.247,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientBuilderReuseTest": 58.808,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDoAfterTerminateTest": 59.052,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDoOnSuccessTest": 60.456,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDoOnTerminateTest": 59.828,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientFilterBuilderReuseTest": 59.315,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientFilterTest": 59.461,
+      "dd.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientFiltersRemovedTest": 59.487
+    },
+    ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1:forkedTest": {
+      "datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilterForkedTest": 10.056,
+      "datadog.trace.instrumentation.springweb.ResteasySpringBeanProcessorForkedTest": 6.634,
+      "test.boot.SpringBootRumInjectionForkedTest": 26.793
+    },
+    ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1:test": {
+      "datadog.trace.instrumentation.springweb.HandlerSpanKeysTest": 0.072,
+      "datadog.trace.instrumentation.springweb.HttpMessageConverterInstrumentationTest": 12.488,
+      "test.boot.CustomBeanClassloaderTest": 33.181,
+      "test.boot.SpringBootBasedTest": 37.157,
+      "test.boot.SpringInactiveAppSecTest": 7.088,
+      "test.dynamic.DynamicRoutingTest": 10.005,
+      "test.filter.ServletFilterTest": 9.387,
+      "test.iast.HandlerMethodReturnValueHandlerCompositeInstrumentationTest": 31.34,
+      "test.urlhandlermapping.UrlHandlerMappingTest": 35.848
+    },
+    ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-5.3:test": {
+      "EscapeUtilsCallSiteTest": 12.592,
+      "test.apms8174.ServletPathRequestFilterTest": 11.591,
+      "test.boot.EndpointCollectorSpringBootTest": 8.858
+    },
+    ":dd-java-agent:instrumentation:spring:spring-ws-2.0:test": {
+      "SpringWebServiceTest": 17.23
+    },
+    ":dd-java-agent:instrumentation:spymemcached-2.10:forkedTest": {
+      "datadog.trace.instrumentation.spymemcached.SpymemcachedV1ForkedTest": 17.498
+    },
+    ":dd-java-agent:instrumentation:spymemcached-2.10:test": {
+      "datadog.trace.instrumentation.spymemcached.SpymemcachedV0Test": 18.33
+    },
+    ":dd-java-agent:instrumentation:synapse-3.0:forkedTest": {
+      "datadog.trace.instrumentation.synapse3.SynapseV0ForkedTest": 12.803,
+      "datadog.trace.instrumentation.synapse3.SynapseV1ForkedTest": 12.308
+    },
+    ":dd-java-agent:instrumentation:testng:testng-6.4:test": {
+      "TestNG6Test": 14.646
+    },
+    ":dd-java-agent:instrumentation:testng:testng-7.0:test": {
+      "TestNG7Test": 17.017
+    },
+    ":dd-java-agent:instrumentation:testng:testng-7.0:testng751Test": {
+      "TestNG7Test": 16.645
+    },
+    ":dd-java-agent:instrumentation:thymeleaf-3.0:test": {
+      "datadog.trace.instrumentation.thymeleaf.ThymeleafXssTest": 9.583
+    },
+    ":dd-java-agent:instrumentation:tomcat:tomcat-5.5:forkedTest": {
+      "TomcatServletV1ForkedTest": 16.336
+    },
+    ":dd-java-agent:instrumentation:tomcat:tomcat-5.5:test": {
+      "TomcatServletV0Test": 16.304,
+      "datadog.trace.instrumentation.tomcat.TomcatSecurityTestingHeadersTest": 0.391,
+      "datadog.trace.instrumentation.tomcat.TomcatServerInstrumentationTest": 0.019
+    },
+    ":dd-java-agent:instrumentation:tomcat:tomcat-5.5:tomcat9Test": {
+      "TomcatWebsocketAsyncPojoTest": 15.876,
+      "TomcatWebsocketSyncPartialTest": 14.35,
+      "datadog.trace.instrumentation.tomcat.TomcatSecurityTestingHeadersTest": 0.354,
+      "datadog.trace.instrumentation.tomcat.TomcatServerInstrumentationTest": 0.016
+    },
+    ":dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0:forkedTest": {
+      "datadog.trace.instrumentation.tomcat7.AppSecErrorReportValueInstrumentationForkedTest": 5.985,
+      "datadog.trace.instrumentation.tomcat7.ErrorReportValueInstrumentationForkedTest": 5.897,
+      "datadog.trace.instrumentation.tomcat7.IastDisabledErrorReportValueInstrumentationForkedTest": 5.878,
+      "datadog.trace.instrumentation.tomcat7.IastErrorReportValueInstrumentationForkedTest": 5.986
+    },
+    ":dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0:test": {
+      "datadog.trace.instrumentation.tomcat7.GlassFishBlockingHelperTest": 0.855,
+      "datadog.trace.instrumentation.tomcat7.ParameterCollectorImplTest": 1.017
+    },
+    ":dd-java-agent:instrumentation:tomcat:tomcat-common:test": {
+      "datadog.trace.instrumentation.tomcat.TomcatBlockingHelperTest": 1.944
+    },
+    ":dd-java-agent:instrumentation:twilio-0.0.1:forkedTest": {
+      "test.TwilioClientV1ForkedTest": 14.055
+    },
+    ":dd-java-agent:instrumentation:twilio-0.0.1:test": {
+      "test.TwilioClientV0Test": 15.581
+    },
+    ":dd-java-agent:instrumentation:unbescape-1.1:test": {
+      "datadog.trace.instrumentation.unbescape.EscapeUtilsCallSiteTest": 10.703
+    },
+    ":dd-java-agent:instrumentation:undertow:undertow-2.0:forkedTest": {
+      "UndertowDispatcherV1ForkedTest": 14.865,
+      "UndertowServletNoHttpRouteForkedTest": 16.512,
+      "UndertowServletV1ForkedTest": 15.902
+    },
+    ":dd-java-agent:instrumentation:undertow:undertow-2.0:test": {
+      "UndertowDispatcherV0Test": 18.581,
+      "UndertowServletAsyncTest": 20.447,
+      "UndertowServletV0Test": 23.254,
+      "UndertowTest": 23.901,
+      "datadog.trace.instrumentation.undertow.FormDataContentHelperTest": 0.175,
+      "datadog.trace.instrumentation.undertow.FormDataMapTest": 0.03,
+      "datadog.trace.instrumentation.undertow.UndertowDecoratorTest": 0.004
+    },
+    ":dd-java-agent:instrumentation:undertow:undertow-2.2:test": {
+      "UndertowDispatcherTest": 17.139,
+      "UndertowServletTest": 19.879,
+      "UndertowTest": 21.04
+    },
+    ":dd-java-agent:instrumentation:valkey-java-5.3:forkedTest": {
+      "ValkeyClientV0ForkedTest": 9.843,
+      "ValkeyClientV1ForkedTest": 8.404
+    },
+    ":dd-java-agent:instrumentation:velocity-1.5:test": {
+      "datadog.trace.instrumentation.velocity.ASTReferenceInstrumentationTest": 11.764,
+      "datadog.trace.instrumentation.velocity.EscapeToolCallSiteTest": 8.42
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-mysql-client:vertx-mysql-client-3.9:forkedTest": {
+      "VertxSqlClientForkedTest": 9.527
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-mysql-client:vertx-mysql-client-4.0:forkedTest": {
+      "VertxSqlClientForkedTest": 9.479
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-pg-client:vertx-pg-client-4.0:forkedTest": {
+      "VertxPostgresSqlClientForkedTest": 8.422
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-3.9:forkedTest": {
+      "VertxRedisAPIRedisConnectionForkedTest": 13.495,
+      "VertxRedisAPIRedisForkedTest": 8.961,
+      "VertxRedisRxForkedTest": 8.719,
+      "VertxRedisV1ForkedTest": 8.539
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-3.9:redis4xForkedTest": {
+      "VertxRedisAPIRedisConnectionForkedTest": 8.57,
+      "VertxRedisAPIRedisForkedTest": 8.596,
+      "VertxRedisRxForkedTest": 8.211,
+      "VertxRedisV1ForkedTest": 8.154
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-rx-3.5:forkedTest": {
+      "client.VertxRxCircuitBreakerWebClientForkedTest": 13.652,
+      "client.VertxRxWebClientForkedTest": 14.022,
+      "server.VertxRxCircuitBreakerHttpServerForkedTest": 13.432,
+      "server.VertxRxHttpServerForkedTest": 0.01
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.4:forkedTest": {
+      "client.VertxHttpClientForkedTest": 12.642,
+      "server.VertxHttpServerAppSecForkedTest": 7.901,
+      "server.VertxHttpServerForkedTest": 14.145,
+      "server.VertxMiddlewareHttpServerForkedTest": 13.987,
+      "server.VertxSubrouterForkedTest": 13.688
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.4:test": {
+      "core.BufferInstrumentationTest": 12.106,
+      "core.CaseInsensitiveHeadersInstrumentationTest": 10.562,
+      "core.HeadersAdaptorInstrumentationTest": 11.369,
+      "datadog.trace.instrumentation.vertx_3_4.server.FileUploadHelperAppSecTest": 0.364,
+      "datadog.trace.instrumentation.vertx_3_4.server.RoutingContextSessionAdviceAppSecTest": 0.197,
+      "server.IastSinksTest": 17.308,
+      "server.IastSourceTest": 17.698,
+      "server.RouteHandlerExceptionHandlerTest": 10.075,
+      "server.RouteHandlerSendFileTest": 10.239,
+      "server.VertxInactiveAppSecTest": 11.552
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.5:test": {
+      "core.VertxHttpHeadersInstrumentationTest": 8.076
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.9:test": {
+      "server.Vertx39InsecureCookieTest": 13.806
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-4.0:forkedTest": {
+      "client.VertxHttpClientForkedTest": 12.922,
+      "server.VertxHttpServerAppSecForkedTest": 8.178,
+      "server.VertxHttpServerForkedTest": 14.494,
+      "server.VertxHttpServerWorkerAppSecForkedTest": 8.098,
+      "server.VertxHttpServerWorkerForkedTest": 14.378,
+      "server.VertxMiddlewareHttpServerForkedTest": 14.515,
+      "server.VertxSubrouterForkedTest": 14.748
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-4.0:test": {
+      "core.BufferInstrumentationTest": 11.7,
+      "core.MultiMapInstrumentationTest": 10.729,
+      "datadog.trace.instrumentation.vertx_4_0.server.FileUploadHelperAppSecTest": 0.284,
+      "datadog.trace.instrumentation.vertx_4_0.server.RoutingContextSessionAdviceAppSecTest": 0.18,
+      "server.IastVertxHttp1ServerTest": 14.518,
+      "server.IastVertxHttp2ServerTest": 0.002,
+      "server.IastVertxSinksTest": 16.946,
+      "server.RouteHandlerExceptionHandlerTest": 9.878,
+      "server.VertxInactiveAppSecTest": 11.321
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-5.0:forkedTest": {
+      "client.VertxHttpClientForkedTest": 12.256,
+      "server.VertxHttpServerAppSecForkedTest": 7.684,
+      "server.VertxHttpServerForkedTest": 13.942,
+      "server.VertxHttpServerWorkerAppSecForkedTest": 7.511,
+      "server.VertxHttpServerWorkerForkedTest": 13.914,
+      "server.VertxMiddlewareHttpServerForkedTest": 13.794,
+      "server.VertxSubrouterForkedTest": 13.817
+    },
+    ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-5.0:test": {
+      "core.BufferInstrumentationTest": 11.885,
+      "core.MultiMapInstrumentationTest": 10.847,
+      "datadog.trace.instrumentation.vertx_5_0.server.FileUploadHelperAppSecTest": 0.337,
+      "server.HttpServerResponseEndHandlerInstrumentationTest": 10.665,
+      "server.IastVertxHttp1ServerTest": 14.859,
+      "server.IastVertxHttp2ServerTest": 0.002,
+      "server.IastVertxSinksTest": 17.664,
+      "server.LocalSessionStoreInstrumentationTest": 10.669,
+      "server.VertxInactiveAppSecTest": 11.386
+    },
+    ":dd-java-agent:instrumentation:weaver-0.9:test": {
+      "WeaverTest": 15.944
+    },
+    ":dd-java-agent:instrumentation:weaver-0.9:weaver084Test": {
+      "WeaverTest": 14.042
+    },
+    ":dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0:test": {
+      "WebsocketTest": 14.887
+    },
+    ":dd-java-agent:instrumentation:websocket:javax-websocket-1.0:test": {
+      "WebsocketTest": 13.853
+    },
+    ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0:test": {
+      "WebsocketTest": 8.032
+    },
+    ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11.0:test": {
+      "WebsocketTest": 8.388
+    },
+    ":dd-java-agent:instrumentation:wildfly-9.0:forkedTest": {
+      "WildFlyForkedTest": 23.291
+    },
+    ":dd-java-agent:instrumentation:ws:jakarta-ws-annotations-3.0:test": {
+      "WebServiceTest": 7.673
+    },
+    ":dd-java-agent:instrumentation:ws:jax-ws:jax-ws-annotations-1.1:test": {
+      "WebServiceTest": 7.228
+    },
+    ":dd-java-agent:instrumentation:ws:jax-ws:jax-ws-annotations-2.0:test": {
+      "WebServiceProviderTest": 6.358
+    },
+    ":dd-java-agent:instrumentation:zio:zio-2.0:test": {
+      "ZioRuntimeInstrumentationTest": 11.32
+    }
+  }
+}
