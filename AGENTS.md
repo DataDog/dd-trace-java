@@ -45,6 +45,68 @@ docs/                     Developer documentation (see below)
 
 **When working on a topic above, read the linked file first** — they are the source of truth maintained by humans.
 
+## Gradle changes
+
+Before editing files under `buildSrc/` or `build-logic/`, read that folder's
+`AGENTS.md`. These local instructions supplement the rules below.
+
+### Required skill
+
+- Before modifying Gradle scripts, settings, properties, version catalogs, or task/plugin
+  source, use the official `gradle-best-practices` skill in audit mode. Scope the audit to
+  the requested change and its affected consumers.
+- The complete installed or repository-provided skill bundle, including its reference
+  files, must be available. A skill name or remote link alone does not satisfy this prerequisite.
+- If unavailable or incomplete, report: "gradle-best-practices is required for this change
+  but is unavailable." Provide the [official installation instructions](https://github.com/gradle/gradle-skills#installation).
+  Continue read-only investigation, but make no Gradle changes until the skill is available.
+- In Codex, invoke `$gradle-best-practices`. Its `$skill-installer`, when available, can
+  install the `skills/gradle-best-practices` directory from `gradle/gradle-skills`.
+  In Claude Code, install and invoke the official plugin:
+
+  ```text
+  /plugin marketplace add gradle/gradle-skills
+  /plugin install gradle-skills@gradle-skills
+  /gradle-skills:gradle-best-practices
+  ```
+
+- Check recommendations against the pinned Gradle wrapper and the JVMs that execute the
+  affected code. A newer or nightly catalog may describe APIs unavailable to this build.
+- Keep fixes within the requested scope. Record unrelated findings separately. An audit
+  does not authorise wrapper upgrades, dependency updates, or structural migrations.
+
+### Guardrails
+
+- Find affected plugin IDs, extensions, properties, tasks, fixtures, and consuming modules
+  before editing. Preserve their contracts and defaults unless the request changes them.
+- Prefer `register`, `named`, `configureEach`, and provider composition. Avoid eager task
+  traversal, dependency resolution, external processes, and expensive work during configuration.
+  Check when providers are consumed and whether the receiving API supports them.
+- Wire producer outputs into consumer inputs where data flows. Preserve the distinction
+  between execution dependencies, ordering, lifecycle aggregation, and finalisation.
+  `mustRunAfter` does not cause a prerequisite task to run.
+- Keep task execution independent of the live `Project` model. Use declared properties
+  and supported injected services. Declare relevant inputs and distinct outputs, and choose
+  cacheability and path sensitivity according to the task's behaviour.
+- Use public Gradle APIs. Avoid new cross-project mutable configuration and lifecycle
+  callbacks such as `afterEvaluate` when providers or plugin callbacks express the relationship.
+- Sharing a source root, such as `buildSrc`, does not make plugins one component. Integrate
+  through plugin IDs, documented extensions, and Gradle model APIs. Avoid another plugin's
+  implementation classes, internal helpers, and incidental task layout.
+- Apply required plugins explicitly; use `withPlugin` for optional integrations. Extract
+  shared code only for shared knowledge. Prefer small local duplication over premature coupling.
+- Verify changed behaviour with focused tests and a representative consumer. When changing
+  configuration-cache behaviour, verify both storage and reuse. When changing incremental or
+  build-cache behaviour, inspect task outcomes and artifacts. Preserve validation and diagnostics.
+
+### Documentation boundary
+
+Update [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) only when a change
+affects general Gradle guidance or practices broadly applicable to this repository. This
+includes repository constraints that prevent following a best practice. Preserve the project
+specifics intentionally documented there. Keep new plugin implementation details, local
+workarounds, and task-specific procedures in source comments or local documentation.
+
 ## Build quick reference
 
 ```shell
