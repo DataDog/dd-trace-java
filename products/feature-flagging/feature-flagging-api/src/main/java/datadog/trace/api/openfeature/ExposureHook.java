@@ -24,16 +24,21 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Register it with {@code OpenFeatureAPI.getInstance().addHooks(new ExposureHook(callback))} or
  * on a client. The callback runs for every evaluation, including errors and repeats. Use {@link
- * Evaluation#shouldSend()} to keep the new or changed exposures. When the provider's own hooks run,
- * these are exactly the exposures that Datadog sends, whether or not {@code
- * DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED} is set. The provider's hooks run when the
- * application evaluates through an OpenFeature client. Inside a {@code MultiProvider} they run only
- * with OpenFeature SDK 1.23.0 or later. With an older SDK, Datadog receives no exposures from a
- * provider inside a {@code MultiProvider}, and {@code shouldSend()} is true for every exposure.
+ * Evaluation#shouldSend()} to keep the new or changed exposures. A changed serial id counts as a
+ * change only with {@code dd-java-agent} 1.67.0 or later; with an older agent, only a changed
+ * allocation or variant does.
+ *
+ * <p>When the provider's own hooks run and {@code
+ * DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED} is on, these are exactly the exposures that
+ * Datadog sends. With that setting off, Datadog receives no exposures, and {@code shouldSend()}
+ * gives the same results. The provider's hooks run when the application evaluates through an
+ * OpenFeature client. Inside a {@code MultiProvider} they run only with OpenFeature SDK 1.23.0 or
+ * later. With an older SDK, Datadog receives no exposures from a provider inside a {@code
+ * MultiProvider}, and {@code shouldSend()} is true for every exposure.
  *
  * <p>The callback runs on the evaluation thread: hand the data to a background queue instead of
- * writing it from the callback. An exception from the callback is logged and does not affect the
- * evaluation.
+ * writing it from the callback. An exception from the callback does not affect the evaluation. The
+ * first one is logged at warn level, later ones at debug level.
  */
 public final class ExposureHook implements Hook<Object> {
 
@@ -106,7 +111,10 @@ public final class ExposureHook implements Hook<Object> {
       return isExposure() && Boolean.TRUE.equals(cacheHitStamp());
     }
 
-    /** True for exactly the exposures that Datadog sends: new or changed exposures. */
+    /**
+     * True for a new or changed exposure: the decision the provider uses for Datadog. The class
+     * Javadoc says when that decision reaches Datadog.
+     */
     public boolean shouldSend() {
       return isExposure() && Boolean.FALSE.equals(cacheHitStamp());
     }
