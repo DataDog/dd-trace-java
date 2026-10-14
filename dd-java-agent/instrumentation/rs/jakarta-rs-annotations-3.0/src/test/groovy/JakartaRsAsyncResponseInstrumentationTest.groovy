@@ -215,6 +215,40 @@ class JakartaRsAsyncResponseInstrumentationTest extends InstrumentationSpecifica
     }
   }
 
+  def "cancel() from another thread racing the resource method's exit keeps the canceled tag"() {
+    // cancel() on a background thread marks the response resolved, then pauses before returning.
+    // The resource method returns in that window, so its exit advice sees a non-suspended
+    // response while the cancel advice has not tagged the span yet. The exit advice must leave
+    // finishing to the cancel advice instead of publishing the span without "canceled".
+    setup:
+    def resolved = new CountDownLatch(1)
+    def releaseCancel = new CountDownLatch(1)
+    def response = new FakeAsyncResponse(resolved, releaseCancel)
+
+    when:
+    new RacingCancelResource().cancelFromAnotherThread(response, resolved)
+    releaseCancel.countDown()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /racingcancel"
+          spanType "web"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/racingcancel"
+            "canceled" true
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   @Path("/asyncresume")
   static class AsyncResumeResource {
     @GET
@@ -274,6 +308,18 @@ class JakartaRsAsyncResponseInstrumentationTest extends InstrumentationSpecifica
       // normally when this method returns, instead of being left open forever.
       outerResponse.resume("OK")
       ownResponse.resume("OK")
+    }
+  }
+
+  @Path("/racingcancel")
+  static class RacingCancelResource {
+    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor()
+
+    @GET
+    void cancelFromAnotherThread(
+      @Suspended final AsyncResponse response, final CountDownLatch resolved) {
+      EXECUTOR.submit({ response.cancel() })
+      resolved.await(5, TimeUnit.SECONDS)
     }
   }
 

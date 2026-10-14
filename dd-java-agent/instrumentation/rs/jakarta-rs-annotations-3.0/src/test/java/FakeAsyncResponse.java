@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -18,11 +19,30 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * succeeds. A plain boolean's read-then-write is not atomic, so two concurrent callers could both
  * observe "still suspended" and both report success, which would make tests exercising concurrent
  * terminal calls exercise a scenario the real advice never actually sees.
+ *
+ * <p>The optional latches let a test pause a successful {@code cancel()} after it has marked the
+ * response resolved but before it returns, to pin down a race with the resource method's exit.
  */
 public class FakeAsyncResponse implements AsyncResponse {
 
   private final AtomicBoolean suspended = new AtomicBoolean(true);
   private volatile boolean cancelled = false;
+  private final CountDownLatch resolved;
+  private final CountDownLatch releaseCancel;
+
+  public FakeAsyncResponse() {
+    this(null, null);
+  }
+
+  /**
+   * @param resolved counted down once a successful {@code cancel()} has marked the response
+   *     resolved
+   * @param releaseCancel awaited by a successful {@code cancel()} before it returns
+   */
+  public FakeAsyncResponse(final CountDownLatch resolved, final CountDownLatch releaseCancel) {
+    this.resolved = resolved;
+    this.releaseCancel = releaseCancel;
+  }
 
   @Override
   public boolean resume(final Object response) {
@@ -40,6 +60,16 @@ public class FakeAsyncResponse implements AsyncResponse {
       return false;
     }
     cancelled = true;
+    if (resolved != null) {
+      resolved.countDown();
+    }
+    if (releaseCancel != null) {
+      try {
+        releaseCancel.await(5, TimeUnit.SECONDS);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
     return true;
   }
 

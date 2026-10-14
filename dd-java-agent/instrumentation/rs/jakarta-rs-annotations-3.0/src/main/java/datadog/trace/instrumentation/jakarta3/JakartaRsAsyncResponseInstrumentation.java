@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.ws.rs.container.AsyncResponse;
@@ -75,86 +74,99 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
 
   public static class AsyncResponseAdvice {
 
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentSpan claimSpan(@Advice.This final AsyncResponse asyncResponse) {
+      return DECORATE.claimUnlessOpen(
+          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class), asyncResponse);
+    }
+
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Enter final AgentSpan claimed,
         @Advice.Thrown Throwable throwable,
         @Advice.Return final boolean succeeded) {
-      if (throwable == null && !succeeded) {
-        // AsyncResponse#resume() returns false when the response was already resolved (a
-        // second resume()/cancel() call on the same response); nothing changed, so there is
-        // nothing to tag or finish. If the call threw instead of returning, treat it the same
-        // as before: @Advice.Return defaults to false on the exception path, so that alone
-        // does not mean "already resolved".
-        return;
+      // AsyncResponse#resume() returns false when the response was already resolved (a second
+      // resume()/cancel() call on the same response); nothing changed, so there is nothing to
+      // tag. If the call threw instead of returning, treat it the same as before:
+      // @Advice.Return defaults to false on the exception path, so that alone does not mean
+      // "already resolved".
+      if (throwable != null || succeeded) {
+        final AgentSpan span =
+            DECORATE.terminalSpan(
+                InstrumentationContext.get(AsyncResponse.class, AgentSpan.class),
+                asyncResponse,
+                claimed);
+        if (span != null) {
+          DECORATE.onError(span, throwable);
+        }
       }
-
-      final ContextStore<AsyncResponse, AgentSpan> contextStore =
-          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
-
-      final AgentSpan span = contextStore.get(asyncResponse);
-      if (span != null) {
-        DECORATE.onError(span, throwable);
-        // If this resource method's invocation is still open -- however deeply other
-        // instrumented calls have nested in the meantime -- let its own exit advice close the
-        // scope and finish the span instead of finishing it here, which would both
-        // double-finish the span and finish it prematurely while the resource method may
-        // still be doing work under it.
-        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
-      }
+      // Tagging above happens before this finish, so a racing resource-method exit can never
+      // publish the span without it: that exit only finishes spans it claimed itself.
+      DECORATE.finishClaimed(claimed);
     }
   }
 
   public static class AsyncResponseThrowableAdvice {
 
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentSpan claimSpan(@Advice.This final AsyncResponse asyncResponse) {
+      return DECORATE.claimUnlessOpen(
+          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class), asyncResponse);
+    }
+
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Enter final AgentSpan claimed,
         @Advice.Argument(0) final Throwable throwable,
         @Advice.Thrown final Throwable methodThrew,
         @Advice.Return final boolean succeeded) {
-      if (methodThrew == null && !succeeded) {
-        // see comment in AsyncResponseAdvice#stopSpan
-        return;
+      // see comments in AsyncResponseAdvice#stopSpan
+      if (methodThrew != null || succeeded) {
+        final AgentSpan span =
+            DECORATE.terminalSpan(
+                InstrumentationContext.get(AsyncResponse.class, AgentSpan.class),
+                asyncResponse,
+                claimed);
+        if (span != null) {
+          DECORATE.onError(span, throwable);
+        }
       }
-
-      final ContextStore<AsyncResponse, AgentSpan> contextStore =
-          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
-
-      final AgentSpan span = contextStore.get(asyncResponse);
-      if (span != null) {
-        DECORATE.onError(span, throwable);
-        // see comment in AsyncResponseAdvice#stopSpan
-        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
-      }
+      DECORATE.finishClaimed(claimed);
     }
   }
 
   public static class AsyncResponseCancelAdvice {
 
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentSpan claimSpan(@Advice.This final AsyncResponse asyncResponse) {
+      return DECORATE.claimUnlessOpen(
+          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class), asyncResponse);
+    }
+
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Enter final AgentSpan claimed,
         @Advice.Thrown Throwable throwable,
         @Advice.Return final boolean succeeded) {
-      if (throwable == null && !succeeded) {
-        // see comment in AsyncResponseAdvice#stopSpan
-        return;
-      }
-
-      final ContextStore<AsyncResponse, AgentSpan> contextStore =
-          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
-
-      final AgentSpan span = contextStore.get(asyncResponse);
-      if (span != null) {
-        if (throwable != null) {
-          DECORATE.onError(span, throwable);
-        } else {
-          span.setTag("canceled", true);
+      // see comments in AsyncResponseAdvice#stopSpan
+      if (throwable != null || succeeded) {
+        final AgentSpan span =
+            DECORATE.terminalSpan(
+                InstrumentationContext.get(AsyncResponse.class, AgentSpan.class),
+                asyncResponse,
+                claimed);
+        if (span != null) {
+          if (throwable != null) {
+            DECORATE.onError(span, throwable);
+          } else {
+            span.setTag("canceled", true);
+          }
         }
-        // see comment in AsyncResponseAdvice#stopSpan
-        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
       }
+      DECORATE.finishClaimed(claimed);
     }
   }
 }

@@ -57,39 +57,45 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
   }
 
   /**
-   * Finishes {@code span} unless some other, concurrent caller (a racing {@code resume()}/{@code
-   * cancel()} on another thread, or the resource method's own exit advice) already claimed it
-   * first. {@link ContextStore#remove} is the atomic hand-off: it removes and returns the mapping
-   * in one step, so exactly one caller ever sees a non-null result, no matter how the calls
-   * interleave across threads.
+   * Called on entry to {@code resume()}/{@code cancel()}. If the resource method that owns {@code
+   * asyncResponse} is still open on this thread, the call is synchronous and the resource method's
+   * own exit advice finishes the span, so nothing is claimed. Otherwise this atomically claims the
+   * span via {@link ContextStore#remove} before the call can mark the response as resolved: a
+   * resource-method exit advice racing on another thread then finds no mapping and leaves the span
+   * to this caller, which tags it on method exit before finishing it.
    */
-  public void finishUnlessAlreadyClaimed(
+  public AgentSpan claimUnlessOpen(
       final ContextStore<AsyncResponse, AgentSpan> contextStore,
       final AsyncResponse asyncResponse) {
-    final AgentSpan claimed = contextStore.remove(asyncResponse);
+    final AgentSpan span = contextStore.get(asyncResponse);
+    if (span == null || isOpen(span)) {
+      return null;
+    }
+    return contextStore.remove(asyncResponse);
+  }
+
+  /**
+   * The span a successful {@code resume()}/{@code cancel()} should tag: the one claimed on entry,
+   * or, for a synchronous call, the still-open owning resource method's span (which that method's
+   * exit advice finishes later).
+   */
+  public AgentSpan terminalSpan(
+      final ContextStore<AsyncResponse, AgentSpan> contextStore,
+      final AsyncResponse asyncResponse,
+      final AgentSpan claimed) {
+    if (claimed != null) {
+      return claimed;
+    }
+    final AgentSpan span = contextStore.get(asyncResponse);
+    return span != null && isOpen(span) ? span : null;
+  }
+
+  /** Finishes a span claimed by {@link #claimUnlessOpen}, if any. */
+  public void finishClaimed(final AgentSpan claimed) {
     if (claimed != null) {
       beforeFinish(claimed);
       claimed.finish();
     }
-  }
-
-  /**
-   * Called from the {@code resume()}/{@code cancel()} advice once it has already tagged {@code
-   * span} as needed: defers to the resource method's own exit advice if that method's invocation is
-   * still open ({@link datadog.trace.bootstrap.ResourceMethodSpanTracker#isOpen}), otherwise
-   * finishes {@code span} via {@link #finishUnlessAlreadyClaimed}. Shared by all three advice
-   * classes ({@code resume()} with a result, {@code resume()} with a {@link Throwable}, and {@code
-   * cancel()}) since they differ only in how {@code span} gets tagged before reaching this common
-   * tail.
-   */
-  public void finishUnlessOpenOrAlreadyClaimed(
-      final ContextStore<AsyncResponse, AgentSpan> contextStore,
-      final AsyncResponse asyncResponse,
-      final AgentSpan span) {
-    if (isOpen(span)) {
-      return;
-    }
-    finishUnlessAlreadyClaimed(contextStore, asyncResponse);
   }
 
   public void onJakartaRsSpan(
