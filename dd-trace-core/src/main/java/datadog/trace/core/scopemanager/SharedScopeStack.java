@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link ScopeStack} owned by a coroutine and shared by whichever threads are running it.
@@ -30,6 +31,11 @@ final class SharedScopeStack extends ScopeStack {
   }
 
   /** Updates the top scope, publishing it to lock-free readers before any listeners run. */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "The following volatile liveTop write publishes liveDepth to readers that acquire "
+              + "the top. Depth is a best-effort limit check, so concurrent staleness is acceptable.")
   private void publishTop(ContinuableScope scope) {
     top = scope;
     liveDepth = scope != null ? 1 + stack.size() : 0;

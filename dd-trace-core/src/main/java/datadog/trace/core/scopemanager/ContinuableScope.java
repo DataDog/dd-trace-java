@@ -6,6 +6,7 @@ import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 class ContinuableScope implements ContextScope {
 
@@ -108,11 +109,21 @@ class ContinuableScope implements ContextScope {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Set before publishing the scope through SharedScopeStack.liveTop; the flag never "
+              + "changes after publication.")
   final void markShared() {
     shared = true;
   }
 
   /** Adds a reference to a live scope -- returns false if the scope was already closed */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Only non-shared scopes use the unlocked write; shared scopes retain under their "
+              + "own monitor in retainShared().")
   final boolean retain() {
     if (shared) {
       return retainShared();
@@ -131,6 +142,11 @@ class ContinuableScope implements ContextScope {
   }
 
   /** Removes a reference -- returns true if the scope is still alive */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Only non-shared scopes use the unlocked write; shared scopes release under their "
+              + "own monitor in releaseShared(), including closes from another stack.")
   final boolean release() {
     return shared ? releaseShared() : --referenceCount > 0;
   }
@@ -140,6 +156,11 @@ class ContinuableScope implements ContextScope {
     return --referenceCount > 0;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Only non-shared scopes use the unlocked write; shared scopes clear under their "
+              + "own monitor in clearShared().")
   final void clearReferences() {
     if (shared) {
       clearShared();
@@ -177,6 +198,11 @@ class ContinuableScope implements ContextScope {
     return context;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Changes are serialized with scope execution, including coroutine handoff between "
+              + "workers. Overlapping scope close/restore callbacks do not modify this flag.")
   public final void setAsyncPropagation(final boolean value) {
     asyncPropagating = value;
   }
@@ -186,10 +212,20 @@ class ContinuableScope implements ContextScope {
     return super.toString() + "->" + context;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Checkpoint updates are serialized with scope execution; coroutine handoff orders "
+              + "them between workers. Overlapping scope close/restore does not modify checkpoints.")
   public void checkpoint() {
     checkpointCount++;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Checkpoint updates are serialized with scope execution; coroutine handoff orders "
+              + "them between workers. Overlapping scope close/restore does not modify checkpoints.")
   public boolean rollback() {
     if (checkpointCount > 0) {
       checkpointCount--;
