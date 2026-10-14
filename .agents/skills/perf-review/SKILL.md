@@ -116,6 +116,12 @@ mechanism is certain or the severity is catastrophic.
   **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
   toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
   (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
+- **`dd-trace-core` is stricter — see the `dd-trace-core` performance rules in `AGENTS.md`.**
+  For changes under `dd-trace-core/`: a performance claim (in the title, description, or
+  commits) without JMH before/after numbers is a finding, not a soft nudge. A new defensive
+  copy returned from an internal accessor is a flag-with-confidence #1 finding; the fix is a
+  restrictive type, a shared empty constant, and a read-only Javadoc contract. Outside
+  `dd-trace-core`, keep the softer posture above.
 
 ## Workflow
 
