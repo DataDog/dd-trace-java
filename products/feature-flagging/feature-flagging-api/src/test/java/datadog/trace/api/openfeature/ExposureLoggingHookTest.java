@@ -82,6 +82,20 @@ class ExposureLoggingHookTest {
   }
 
   @Test
+  void deduplicatesWithAnAgentThatPredatesSerialIdExposures() {
+    final boolean previous = DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.getAndSet(false);
+    try {
+      evaluate("user-1");
+      evaluate("user-1");
+    } finally {
+      DDEvaluator.EXPOSURE_SERIAL_ID_SUPPORTED.set(previous);
+    }
+
+    assertEquals(1, dispatched.size(), "a repeat is deduplicated without serial ids");
+    assertNull(dispatched.get(0).serial_id);
+  }
+
+  @Test
   void sendsOneExposurePerSubject() {
     evaluate("user-1");
     evaluate("user-1");
