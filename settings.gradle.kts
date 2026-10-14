@@ -61,6 +61,7 @@ rootProject.name = "dd-trace-java"
 
 // external apis
 include(
+  ":dd-openfeature",
   ":dd-trace-api",
   ":dd-trace-ot",
   ":dd-trace-ot:correlation-id-injection",

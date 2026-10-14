@@ -157,6 +157,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.topic.name" "testtopic"
             "topicname" "testtopic"
+            "aws.topic.arn" testTopicARN
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
