@@ -7,8 +7,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  * the ID layout and namespace naming policy.
  *
  * <p>Datadog and OpenTelemetry names can resolve to the same ID. {@link #canonicalTagName(String)}
- * provides the Datadog key used by {@link TagMap}; the namespace readers choose output names. The
- * ID does not determine whether a tag is intercepted or where it is stored.
+ * provides the Datadog key used by {@link TagMap}; the namespace readers choose output names. An ID
+ * marks a tag that may be intercepted ({@link #INTERCEPTED}), but {@code TagInterceptor} decides
+ * whether to consume the value. The ID says nothing about where the tag is stored.
  */
 public final class KnownTagCodec {
   /*
