@@ -111,9 +111,9 @@ public final class FlatHashtable {
    * initialCapacity} is a sizing hint, not a cap, the table doubles when it fills past its load
    * factor, and {@code tryGetOrCreateOrNull} never returns {@code null}. The distinct factory names
    * make the choice explicit at the call site (there's no ambiguous {@code (Class, int)}
-   * constructor); {@code Capacity} always counts <i>entries</i>, matching the chained {@code
-   * Hashtable.D1.createBounded}. Across the family a table factory's number is always entries —
-   * only the low-level array allocators take a bucket count.
+   * constructor). Both factories take an entry count, as every table factory in this family does,
+   * including {@code Hashtable.D1.createBounded}; only the low-level array allocators take a bucket
+   * count.
    *
    * <p><b>Entry-centric, not strategy-based.</b> Supply a {@link D1.Entry} subclass carrying the
    * key and value fields; key equality is {@link Object#equals} by default (override {@link
@@ -239,17 +239,16 @@ public final class FlatHashtable {
     }
 
     /**
-     * Existing entry for {@code key}, or a freshly {@link CreateStrategy#create created} + inserted
-     * one, wrapped in a {@link Maybe}. A growable table's {@link Maybe} is always present; a fixed
-     * one's is absent when full and {@code key} is absent (the caller supplies the overflow
-     * default). A hit is always returned even at capacity — the cap blocks only creation, not
-     * lookup.
+     * Returns the existing entry for {@code key}, or creates and inserts one with {@code
+     * createStrat}. The result is absent only for a new key in a full fixed table; a growable table
+     * always returns a present result, and lookup hits are returned even at capacity.
      *
-     * <p>The {@code try} prefix marks "this may refuse" — a growable table simply never exercises
-     * it.
+     * <p>Delegating to {@link #tryGetOrCreateOrNull} keeps a single {@link Maybe#of} call site, the
+     * shape {@link Maybe}'s class Javadoc requires for staying allocation-free.
      *
-     * <p>Delegates to {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site -- see
-     * {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
+     * @param key key to look up
+     * @param createStrat creates an entry when the key is absent
+     * @return the existing or created entry, or an absent value for a new key in a full fixed table
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(
@@ -452,9 +451,16 @@ public final class FlatHashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#tryGetOrCreate}: {@link Maybe}-wrapped form, delegating to
-     * {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site. Growable's {@link
-     * Maybe} is always present; fixed's is absent when full and {@code (key1, key2)} is absent.
+     * Returns the existing entry for {@code (key1, key2)}, or creates and inserts one with {@code
+     * createStrat}. The result is absent only for a new key pair in a full fixed table; a growable
+     * table always returns a present result. Delegates to {@link #tryGetOrCreateOrNull} as the
+     * single {@link Maybe#of} call site.
+     *
+     * @param key1 first key component
+     * @param key2 second key component
+     * @param createStrat creates an entry when the key pair is absent
+     * @return the existing or created entry, or an absent value for a new key pair in a full fixed
+     *     table
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(

@@ -138,12 +138,11 @@ import org.openjdk.jmh.infra.Blackhole;
  * counter/tally use cases with a primitive value. Avoiding the per-update boxing allocation wins
  * under G1, and wins by a much larger margin on a throughput collector.
  *
- * <p>Rerun on the capped/{@code State}-backed table (5 forks, 15 datapoints/method, Zulu 17.0.7
- * AArch64, 8 threads). <b>Not comparable to the table above:</b> JMH auto-detected the {@code full
- * + dont-inline} Blackhole here rather than the cheap {@code compiler} one, on the same JVM build
- * and JMH 1.37 -- the mode is auto-detected per run and is not stable across runs, so every
- * absolute number in this file is conditional on a mode that JMH does not record beside it. Compare
- * within a table, never across. M ops/us:
+ * <p>Rerun on the bounded table ({@code D1.createBounded}) with 5 forks and 15 data points per
+ * method, on Zulu 17.0.7 AArch64 with 8 threads. <b>Not comparable to the tables above:</b> on the
+ * same JVM build and JMH 1.37, JMH auto-detected the {@code full + dont-inline} Blackhole here
+ * instead of the cheaper {@code compiler} mode. JMH chooses the mode per run and does not record it
+ * with the scores, so compare within a table, never across. M ops/us:
  *
  * <pre>{@code
  * add_hashMap        1204.8   add_hashtable       974.4
@@ -151,20 +150,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * iterate_hashMap      15.9   iterate_hashtable    21.5
  * }</pre>
  *
- * <p>Within this run: {@code update_hashtable} wins by ~3.2x and {@code iterate_hashtable} by
- * ~1.35x, while {@code add_hashtable} now <em>loses</em> by ~19% -- no longer the "roughly
- * comparable" of the JDK 8 table, and a wider gap than the slight edge HashMap held in the previous
- * Java 17 run. {@code add} is where the capped table's bookkeeping is least amortized: both sides
- * allocate one entry per insert, so there is no boxing win to offset it, and the loop does nothing
- * else. The counter/tally path -- the case {@code Hashtable} exists for -- is unaffected.
+ * <p>Within this run, {@code update_hashtable} wins by ~3.2x and {@code iterate_hashtable} by
+ * ~1.35x, while {@code add_hashtable} is ~19% slower. The cause of the {@code add} gap was not
+ * measured.
  *
- * <p>That is the right side of the trade for this family. {@code Hashtable} and {@link
- * ConcurrentHashtable} are designed for workloads where <b>updates dominate</b>: the table is
- * populated once and then hit repeatedly, so per-insert cost amortizes away and in-place mutation
- * of a primitive field is the operation that runs hot. Paying on {@code add} to make {@code update}
- * faster is the trade those workloads want. {@code FlatHashtable} and {@code TagMap} sit at the
- * other end -- built up and read, not updated in a loop -- so this result does not transfer to
- * them, and neither does the reasoning that justifies it.
+ * <p>{@code Hashtable} and {@link ConcurrentHashtable} target workloads where <b>updates
+ * dominate</b>: the table is populated once and its primitive fields are then mutated in place, so
+ * a slower {@code add} is an acceptable cost for a faster {@code update}. This result does not
+ * transfer to {@code FlatHashtable} or {@code TagMap}, which are built and then read rather than
+ * updated in a loop.
  */
 @Fork(2)
 @Warmup(iterations = 2)

@@ -302,14 +302,11 @@ public class CaseInsensitiveMapBenchmark {
             table, new CIEntry(key, hash, suffix), CaseInsensitiveKeyStrategy.INSTANCE);
       }
     }
-    // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffix 0 & 2): 8 case-
-    // insensitive collisions. tryGetOrCreate finds the already-present lower-case entry (a hit, so
-    // the create never fires and nothing allocates) and then the value is overwritten explicitly --
-    // tryGetOrCreate itself never updates an existing entry, so without this the FlatHashtable arm
-    // would do
-    // less work (and end up with different final values) than the maps' overwriting put(), a false
-    // performance advantage. With the overwrite, all three create arms perform the same 24
-    // operations and end up with the same final values.
+    // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffixes 0 and 2): 8
+    // case-insensitive collisions. tryGetOrCreate finds the existing lower-case entry without
+    // allocating but never updates it, so the value is overwritten explicitly. Without that, the
+    // FlatHashtable arm would do less work than the maps' put() and end with different values. With
+    // it, all three create arms perform the same 24 operations and end with the same values.
     for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
       for (String prefix : UPPER_PREFIXES) {
         String key = prefix + "-" + suffix;

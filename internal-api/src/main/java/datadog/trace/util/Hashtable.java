@@ -79,15 +79,11 @@ public final class Hashtable {
    * fields. For counter-style workloads this can be several times faster than {@code HashMap<K,
    * Long>} and produces effectively zero GC pressure.
    *
-   * <p>Capacity is fixed at construction. The table does not resize, so the caller is responsible
-   * for choosing a capacity appropriate to the working set. Once {@link #size()} reaches that
-   * capacity, {@link #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns
-   * {@code null} rather than adding more entries -- a lookup hit is still always returned even at
-   * capacity, the cap only blocks new entries. Want your own eviction policy instead of a hard cap?
-   * Drop down to the static building blocks and drive the bucket array yourself -- {@link
-   * Hashtable#createBounded(int)} hands you a spine and a {@link SizeManager} already matched to
-   * each other, and the manager evicts as well as counts. Actual bucket-array length is rounded up
-   * to the next power of two.
+   * <p>The table holds at most the {@code maxCapacity} passed to {@link #createBounded} and never
+   * resizes, so choose a bound that fits the working set. At the bound, {@link #insert} returns
+   * {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null}; lookup hits are still
+   * returned. For an eviction policy instead of a hard bound, drive the static building blocks with
+   * {@link Hashtable#createBounded(int)}, whose {@link SizeManager} both counts and evicts.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -204,11 +200,8 @@ public final class Hashtable {
 
     @Nullable
     public TEntry remove(@Nullable K key) {
-      // Walks the chain directly rather than delegating to Hashtable#removeMatching: a
-      // `e -> e.matches(key)` predicate captures `key`, so it allocates a fresh Predicate on every
-      // call. This class ships context-passing forEach/drain overloads precisely so callers can
-      // avoid capturing lambdas -- the write paths follow the same discipline. Same loop shape as
-      // tryInsertOrReplace below.
+      // Walks the chain directly instead of delegating to Hashtable#removeMatching: an
+      // `e -> e.matches(key)` predicate captures `key`, so it would allocate on every call.
       long keyHash = D1.Entry.hash(key);
       for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
           iter.hasNext(); ) {
@@ -247,12 +240,9 @@ public final class Hashtable {
      * <em>and</em> the table is at capacity -- a replacement swaps one entry for another without
      * growing {@link #size()}, so it always succeeds, even on a full table.
      *
-     * <p>Does not hand back the entry it displaced. Callers that need it can {@link #get} first;
-     * that is rare enough (the same way {@code Map.put}'s return value is rarely read) not to be
-     * worth the cost of the alternative, which was throwing {@link IllegalStateException} on
-     * refusal because {@code null} was already spoken for by "inserted fresh". Refusal at a cap is
-     * ordinary steady-state behaviour, not a programming error, and an exception would allocate a
-     * throwable plus stack trace exactly when the table is under the most pressure.
+     * <p>It does not return the displaced entry; call {@link #get} first if you need it. Refusal at
+     * the bound is ordinary steady-state behavior, so it is reported as {@code false} rather than
+     * thrown.
      *
      * <p>Note this swaps the entry <em>object</em>. Where the goal is to change values on an entry
      * that may or may not exist yet, prefer looking it up once and mutating in place -- that is the
@@ -297,10 +287,12 @@ public final class Hashtable {
     }
 
     /**
-     * Low-level, {@code null}-returning form of {@link #tryGetOrCreate}. Prefer the {@link Maybe}
-     * form above for new call sites; this one remains as an escape hatch for callers where the
-     * {@link Maybe} allocation-free contract doesn't fit (e.g. storing the result past the current
-     * stack frame) or that pre-date it.
+     * Nullable form of {@link #tryGetOrCreate}, for call sites where a null check reads better than
+     * {@link Maybe#update} or {@link Maybe#getOrNull}.
+     *
+     * @param key key to look up
+     * @param creator creates an entry when the key is absent
+     * @return the existing or created entry, or {@code null} when a new key is refused at capacity
      */
     @Nullable
     public TEntry tryGetOrCreateOrNull(
@@ -390,7 +382,8 @@ public final class Hashtable {
     /**
      * Removes every entry, passing each to {@code sink} as it is unlinked -- the read-and-reset
      * primitive for flush/publish workflows (drain the table into a telemetry batch, an event
-     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
+     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call. If
+     * {@code sink} throws, the entries it has not reached remain in the table.
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
       Hashtable.<TEntry>drain(this.sizeManager, this.buckets, sink);
@@ -581,17 +574,21 @@ public final class Hashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#tryGetOrCreate}: returns the entry for {@code (key1, key2)},
-     * building one via {@code creator} if absent -- wrapped in a {@link Maybe} that is absent if
-     * the pair is absent and the table is <b>at capacity</b>. Refusal is a designed steady state
-     * rather than an exceptional one; see {@link D1#tryGetOrCreate} for the full contract and what
-     * to do about a refused create.
+     * Returns the existing entry for {@code (key1, key2)}, or creates one with {@code creator}. The
+     * result is absent only when the key pair is absent and the table is at capacity; lookup hits
+     * are always returned.
      *
-     * <p>Computes the combined hash once and reuses it for both lookup and (on miss) insert. The
-     * {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
-     * Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
+     * <p>The combined hash is computed once for lookup and insertion. {@code creator} must return
+     * an entry whose {@code keyHash} equals {@link Entry#hash(Object, Object) D2.Entry.hash(key1,
+     * key2)}, or subsequent {@link #get} calls will not find it.
      *
-     * <p>Delegates to {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site.
+     * <p>Delegating to {@link #tryGetOrCreateOrNull} keeps a single {@link Maybe#of} call site.
+     *
+     * @param key1 first key component
+     * @param key2 second key component
+     * @param creator creates an entry when the key pair is absent
+     * @return the existing or created entry, or an absent value when a new key pair is refused at
+     *     capacity
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(
@@ -602,8 +599,14 @@ public final class Hashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#tryGetOrCreateOrNull}: low-level, {@code null}-returning form
-     * of {@link #tryGetOrCreate}. Prefer the {@link Maybe} form above for new call sites.
+     * Nullable form of {@link #tryGetOrCreate}, for call sites where a null check reads better than
+     * {@link Maybe#update} or {@link Maybe#getOrNull}.
+     *
+     * @param key1 first key component
+     * @param key2 second key component
+     * @param creator creates an entry when the key pair is absent
+     * @return the existing or created entry, or {@code null} when a new key pair is refused at
+     *     capacity
      */
     @Nullable
     public TEntry tryGetOrCreateOrNull(
@@ -699,7 +702,8 @@ public final class Hashtable {
     /**
      * Removes every entry, passing each to {@code sink} as it is unlinked -- the read-and-reset
      * primitive for flush/publish workflows (drain the table into a telemetry batch, an event
-     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
+     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call. If
+     * {@code sink} throws, the entries it has not reached remain in the table.
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
       Hashtable.<TEntry>drain(this.sizeManager, this.buckets, sink);
@@ -740,11 +744,9 @@ public final class Hashtable {
    * Capacity is fixed; the table does not resize. Use {@link #create(int)} when the spine is driven
    * purely through the static building blocks and the base component type is enough.
    *
-   * <p>{@code capacity} sizes the bucket array 1:1 (no headroom) -- chains stay a plain hash table
-   * at exactly this many entries. For load-factor headroom over a target cap on live entries (so
-   * chains stay short even as the table fills, the way {@link D1}/{@link D2}/{@link #createBounded}
-   * size themselves), pass {@link #capacityFor(int)} instead: {@code create(MyEntry.class,
-   * capacityFor(cardinalityLimit))}.
+   * <p>{@code capacity} is a bucket count with no load-factor headroom. To size the array for a cap
+   * on live entries, as {@link D1}, {@link D2}, and {@link #createBounded} do, pass {@link
+   * #capacityFor(int)}: {@code create(MyEntry.class, capacityFor(cardinalityLimit))}.
    */
   @SuppressWarnings("unchecked")
   @Nonnull
@@ -795,11 +797,8 @@ public final class Hashtable {
    * length for a strict cap of {@code cardinalityLimit} live entries, rounded up to a power of two
    * via {@link #sizeFor(int)}.
    *
-   * <p>Divides in {@code double} and rounds up ({@code Math.ceil}) before handing off to {@link
-   * #sizeFor(int)}, rather than truncating via an {@code int} cast: truncating first can collapse
-   * the requested headroom away entirely for small {@code cardinalityLimit} -- e.g. {@code
-   * cardinalityLimit=1} at the default 0.75 load factor would truncate {@code 1/0.75 = 1.333} down
-   * to {@code 1} and size a 1-bucket array, a 1.0 load factor rather than the documented 0.75.
+   * <p>The quotient is rounded up before {@link #sizeFor(int)}, so small limits keep their
+   * headroom: a limit of 1 at a 0.75 load factor gets 2 buckets, not 1.
    */
   public static int capacityFor(int cardinalityLimit, float loadFactor) {
     if (!(loadFactor > 0f && loadFactor < 1f)) {
@@ -836,10 +835,9 @@ public final class Hashtable {
    * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
    * doesn't need to thread a raw {@link Entry} variable through.
    *
-   * <p>Named {@code bucketFor} rather than {@code bucket}: there is no competing {@code int}-index
-   * overload today, but the {@code For} suffix marks "derives the index from a key hash" up front,
-   * so adding an index-taking sibling later cannot reintroduce the int-vs-long overload ambiguity
-   * described on {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}.
+   * <p>The {@code For} suffix marks a key-hash argument, so an index-taking sibling can be added
+   * without the {@code int}-vs-{@code long} overload trap described on {@link
+   * #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}.
    */
   @SuppressWarnings("unchecked")
   @Nullable
@@ -878,19 +876,14 @@ public final class Hashtable {
   }
 
   /**
-   * {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}, but folding in the
-   * strict-cap check that every unconditional insert needs: reserves a slot from {@code
-   * sizeManager} first, splicing {@code entry} in only if the reservation succeeds. Returns {@code
-   * false} (without touching {@code buckets}) once {@code sizeManager} is at capacity. Lets a
-   * composer working directly against the static building blocks (e.g. {@link D1#insert}, or a
-   * caller-owned table of higher key arity) get the same one-call insert-with-cap-check contract
-   * that {@link D1}/{@link D2} give their own callers.
+   * {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)} with a strict-cap check:
+   * reserves a slot from {@code sizeManager} and links {@code entry} only if that succeeds. Returns
+   * {@code false}, leaving {@code buckets} unchanged, when the manager is at capacity.
    *
-   * <p>{@code sizeManager} leads, per this class's parameter order for the size-tracked statics:
-   * mutated bookkeeping, then the spine, then the key, then callbacks. Putting it first (rather
-   * than appending it) makes the tracked and untracked forms visibly different at the head of the
-   * call instead of differing only in a trailing argument -- forgetting the tracker leaks the cap
-   * silently, so the distinction should be hard to overlook at the call site and in review.
+   * <p>Every size-tracked static takes {@code sizeManager} first, then the bucket array, the key,
+   * and callbacks. Leading with the manager makes tracked and untracked calls differ at the start
+   * of the argument list; forgetting the manager silently breaks the cap, so the difference should
+   * be easy to spot in review.
    */
   public static boolean insertHeadEntryFor(
       @Nonnull SizeManager sizeManager,
@@ -916,14 +909,10 @@ public final class Hashtable {
   }
 
   /**
-   * Scans the bucket chain at {@code keyHash} for the first entry matching {@code matches}, unlinks
-   * it, decrements {@code sizeManager}, and returns it -- or returns {@code null} (leaving {@code
-   * buckets} and {@code sizeManager} untouched) if nothing in the chain matches. Mirrors {@link
-   * #insertHeadEntryFor(SizeManager, Hashtable.Entry[], long, Hashtable.Entry)} on the removal
-   * side: the one-call, size-tracked shape a composer driving the static building blocks directly
-   * can use instead of hand-rolling the mutating-iterator loop and remembering to decrement.
-   *
-   * <p>{@code sizeManager} leads for the same reason it does on the insert side.
+   * Unlinks the first entry in {@code keyHash}'s chain that matches {@code matches}, decrements
+   * {@code sizeManager}, and returns the entry. Returns {@code null}, changing nothing, when no
+   * entry matches. This is the removal counterpart of {@link #insertHeadEntryFor(SizeManager,
+   * Hashtable.Entry[], long, Hashtable.Entry)}, with the manager first for the same reason.
    */
   @Nullable
   public static <TEntry extends Entry> TEntry removeMatching(
@@ -944,12 +933,12 @@ public final class Hashtable {
   }
 
   /**
-   * {@link #drain(Hashtable.Entry[], Consumer)} plus the matching bookkeeping: empties the table
-   * into {@code sink}, decrementing {@code sizeManager} for each entry as it is unlinked -- before
-   * handing it to {@code sink}, so a sink that throws mid-drain leaves the count matching exactly
-   * what {@code buckets} still holds, rather than the whole reset being skipped and the cap staying
-   * permanently consumed. Same one-call reasoning as {@link #clear(SizeManager,
-   * Hashtable.Entry[])}.
+   * {@link #drain(Hashtable.Entry[], Consumer)} with size tracking: decrements {@code sizeManager}
+   * as each entry is unlinked, before {@code sink} receives it. If {@code sink} throws, the count
+   * still matches the entries left in {@code buckets}.
+   *
+   * <p>It also restarts the eviction scan first. The saved scan position can point at a drained
+   * entry, and {@code sink} may link that entry into another table.
    */
   public static <TEntry extends Entry> void drain(
       @Nonnull SizeManager sizeManager,
@@ -1004,11 +993,9 @@ public final class Hashtable {
   }
 
   /**
-   * {@code true} when {@code state} appears to hold no entries. Derived from {@link
-   * SizeManager#estimateSize()} and inherits its imprecision -- an outstanding reservation reads as
-   * non-empty, and a link made without one can read as empty while the spine is not. Named for what
-   * it can honestly promise: use it to skip work that is merely wasted on an empty table, not to
-   * establish that there is nothing there.
+   * {@code true} when {@code state}'s tracked count is zero. The count can include an outstanding
+   * reservation or miss a link made without one (see {@link SizeManager#estimateSize()}), so use
+   * this to skip work that would be wasted on an empty table, not to prove the table is empty.
    */
   public static boolean isLikelyEmpty(@Nonnull State<?> state) {
     return state.sizeManager.estimateSize() == 0;
@@ -1092,9 +1079,8 @@ public final class Hashtable {
 
   /**
    * Removes every entry matching {@code predicate} from {@code buckets}, decrementing {@code
-   * sizeManager} once per removal, and returns {@code true} if any were removed. Delegates to
-   * {@link SizeManager#evictAll} for the sweep -- same full-table unlink, just the general-purpose
-   * removal entry point rather than the capacity-eviction one {@link #evictAll} is for.
+   * sizeManager} once per removal, and returns {@code true} if any were removed. It uses the same
+   * sweep as {@link SizeManager#evictAll}, so it also restarts the eviction scan.
    */
   public static <TEntry extends Entry> boolean removeIf(
       @Nonnull SizeManager sizeManager,
@@ -1171,11 +1157,10 @@ public final class Hashtable {
 
   /**
    * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
-   * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. the
-   * cursor-based eviction in {@link SizeManager#evictOne} -- where one call drives {@code [cursor,
-   * length)} and a wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap
-   * around within a single instance; callers compose two iterators when wrap-around is desired. An
-   * empty range ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
+   * bucket range {@code [startBucket, endBucket)}, for resumable sweeps such as {@link
+   * SizeManager#evictOne}, which scans from its cursor to the end and then wraps around to the
+   * start. A single iterator never wraps; callers compose two. An empty range ({@code startBucket
+   * == endBucket}) produces an immediately exhausted iterator.
    *
    * @param startBucket inclusive lower bound; must be in {@code [0, buckets.length]}.
    * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
@@ -1232,8 +1217,9 @@ public final class Hashtable {
   /**
    * Removes every entry, passing each removed entry to {@code sink} as it is unlinked -- the
    * read-and-reset primitive for flush/publish workflows (drain the table into a telemetry batch,
-   * an event emitter, etc.). Equivalent to {@link #forEach} then {@link #clear}, offered as one
-   * call so composers don't have to spell out both steps.
+   * an event emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in one call. Each
+   * entry reaches {@code sink} with its chain link cleared. If {@code sink} throws, the entries it
+   * has not reached remain in {@code buckets}.
    */
   @SuppressWarnings("unchecked")
   public static <TEntry extends Entry> void drain(
@@ -1289,20 +1275,19 @@ public final class Hashtable {
     private int size;
 
     /**
-     * Bucket index the last eviction removed from. The next scan resumes here, so a sustained
-     * eviction stream doesn't repeatedly re-walk the same hot entries clustered near bucket 0.
+     * Bucket where the next eviction scan starts: the bucket of the last eviction, moved on by one
+     * after each refused scan. Starting here keeps a sustained eviction stream from re-testing the
+     * same entries near bucket 0.
      */
     private int cursor;
 
     /**
-     * Predecessor of the entry the last eviction removed, within {@code cursor}'s chain -- or
-     * {@code null} if that entry was the bucket head or no eviction has happened yet since the last
-     * {@link #reset()}. Lets the next scan resume mid-chain instead of re-testing a non-evictable
-     * prefix on every call, which is what made a sustained eviction stream from one hot bucket
-     * quadratic. See {@link
+     * Predecessor of the last evicted entry in {@code cursor}'s chain, or {@code null} when the
+     * next scan starts at the bucket head. A saved predecessor lets the next scan resume mid-chain
+     * instead of re-testing a non-evictable prefix, which would make repeated evictions from one
+     * bucket quadratic. See {@link
      * Hashtable.MutatingTableIterator#MutatingTableIterator(Hashtable.Entry[], int, int,
-     * Hashtable.Entry)} for what happens if this entry itself gets removed elsewhere before the
-     * next resume.
+     * Hashtable.Entry)} for what happens if this entry is removed before the next resume.
      */
     @Nullable private Hashtable.Entry cursorPrev;
 
@@ -1391,18 +1376,17 @@ public final class Hashtable {
      * eviction left off and wrapping around if needed. Unlinks and returns the evicted entry,
      * decrementing the count; returns {@code null} (count untouched) if nothing matched anywhere.
      *
-     * <p>Resuming from the previous position -- including mid-chain, via {@link #cursorPrev} -- is
-     * what keeps a sustained eviction stream amortized: without it, a bucket with a non-evictable
-     * prefix followed by many evictable entries pays that prefix's cost again on every single
-     * eviction pulled from the bucket, making N evictions from one hot bucket O(N * prefix) instead
-     * of amortized O(chain length). With it, each call resumes right after the previous removal.
+     * <p>Each call resumes right after the previous removal, including mid-chain via {@link
+     * #cursorPrev}. Without that, a bucket with a non-evictable prefix followed by many evictable
+     * entries would re-test the prefix on every eviction, making N evictions cost O(N * prefix).
+     * When a scan that resumed mid-chain wraps around, it rescans the cursor bucket from its head,
+     * so prefix entries that have since become evictable are still found.
      *
-     * <p><b>That amortization covers successes only.</b> A call that matches nothing has, by
-     * definition, tested every live entry -- so a table that is full and entirely hot pays a full
-     * pass per attempt. The cursor still steps on, so repeated refusals at least start from a
-     * different bucket rather than re-testing in identical order, but the per-attempt cost does not
-     * shrink. Size the cap to the steady-state working set so this stays the rare path, and keep
-     * {@code evictable} cheap -- it is called once per live entry on every refusal.
+     * <p><b>The amortization covers successful evictions only.</b> A refusal tests every live
+     * entry, so a full table with nothing evictable pays a full pass per call. The cursor still
+     * moves on, so successive refusals start from different buckets. Size the cap to the
+     * steady-state working set and keep {@code evictable} cheap, because it runs once per live
+     * entry on every refusal.
      */
     @SuppressWarnings("unchecked")
     @Nullable
@@ -1422,10 +1406,9 @@ public final class Hashtable {
         this.size -= 1;
         return (TEntry) evicted;
       }
-      // Nothing matched anywhere. Step the cursor on regardless, so a table that is full of hot
-      // entries doesn't retry from the same origin every time -- successive refusals sweep a
-      // different starting bucket instead of re-testing the same entries in the same order.
-      // (buckets.length is a power of two, so the mask wraps.) A full pass found no resume point.
+      // Nothing matched. Move the cursor on anyway so successive refusals start from different
+      // buckets; buckets.length is a power of two, so the mask wraps. A full pass leaves no
+      // mid-chain resume point.
       this.cursor = (this.cursor + 1) & (buckets.length - 1);
       this.cursorPrev = null;
       return null;
@@ -1947,16 +1930,16 @@ public final class Hashtable {
     }
 
     /**
-     * Resumes a walk of {@code bucket} immediately after {@code resumeAfter}, instead of from the
-     * bucket's head -- so a caller that remembers where it last stopped inside a chain doesn't pay
-     * to re-test the entries before that point. {@code resumeAfter}'s own successor is read lazily
-     * ({@code resumeAfter.next()}), so any unrelated removal elsewhere in the chain since it was
-     * saved is picked up correctly. The one caveat: if {@code resumeAfter} <i>itself</i> was
-     * removed in the meantime, its {@code next()} now reads {@code null} (removal detaches a node
-     * from its own successor), so this walk sees {@code bucket} as exhausted and moves on to {@code
-     * bucket + 1} -- under-scanning {@code bucket} for this one pass rather than corrupting
-     * anything. A resumable sweep that revisits every bucket over time (e.g. {@link
-     * SizeManager#evictOne}'s cursor) self-heals that on its next lap.
+     * Resumes a walk of {@code bucket} immediately after {@code resumeAfter} instead of at the
+     * bucket's head, so a caller that remembers where it stopped inside a chain does not re-test
+     * the entries before that point. The successor is read when the walk starts, so other removals
+     * in the chain since {@code resumeAfter} was saved are handled.
+     *
+     * <p>If {@code resumeAfter} itself was removed, removal cleared its link, so this walk treats
+     * {@code bucket} as exhausted and continues at {@code bucket + 1}. {@link SizeManager#evictOne}
+     * covers that skipped part when it wraps around. {@code resumeAfter} must not have been linked
+     * into another chain since it was saved, or the walk would follow that chain; {@link
+     * SizeManager} restarts its scan before a tracked drain hands entries out for that reason.
      */
     MutatingTableIterator(
         @Nonnull Hashtable.Entry[] buckets,
