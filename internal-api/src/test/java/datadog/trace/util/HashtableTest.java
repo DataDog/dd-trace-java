@@ -940,6 +940,30 @@ class HashtableTest {
     }
 
     @Test
+    void drainClearsTheEvictionCursorBeforeTheSinkCanMoveAnEntry() {
+      Hashtable.State<CollidingKeyEntry> source = Hashtable.createBounded(4);
+      CollidingKeyEntry tail = new CollidingKeyEntry(new CollidingKey("tail", 17), 2);
+      CollidingKeyEntry head = new CollidingKeyEntry(new CollidingKey("head", 17), 1);
+      assertTrue(Hashtable.insertHeadEntryFor(source, tail.keyHash, tail));
+      assertTrue(Hashtable.insertHeadEntryFor(source, head.keyHash, head));
+      // Leaves the cursor resuming after head.
+      assertSame(tail, Hashtable.evictOne(source, e -> e.value == 2));
+
+      // The sink moves head into another table, in front of an entry already there.
+      Hashtable.State<CollidingKeyEntry> destination = Hashtable.createBounded(4);
+      CollidingKeyEntry other = new CollidingKeyEntry(new CollidingKey("other", 17), 3);
+      assertTrue(Hashtable.insertHeadEntryFor(destination, other.keyHash, other));
+      Hashtable.drain(source, e -> Hashtable.insertHeadEntryFor(destination, e.keyHash, e));
+
+      CollidingKeyEntry fresh = new CollidingKeyEntry(new CollidingKey("fresh", 17), 4);
+      assertTrue(Hashtable.insertHeadEntryFor(source, fresh.keyHash, fresh));
+
+      // Eviction on the source must scan the source, not follow head into the destination.
+      assertSame(fresh, Hashtable.evictOne(source, e -> true));
+      assertEquals(2, Hashtable.estimateSize(destination));
+    }
+
+    @Test
     void evictOneAdvancesCursorEvenWhenNothingMatches() {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);

@@ -1008,6 +1008,9 @@ public final class Hashtable {
       @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
       @Nonnull Consumer<? super TEntry> sink) {
+    // Before any entry reaches the sink: the saved cursor may point at one, and the sink is free to
+    // link it into another table, where a later eviction would follow it.
+    sizeManager.clearCursor();
     drain(
         buckets,
         (Consumer<TEntry>)
@@ -1023,6 +1026,7 @@ public final class Hashtable {
       @Nonnull Hashtable.Entry[] buckets,
       C context,
       @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    sizeManager.clearCursor();
     drain(
         buckets,
         context,
@@ -1449,6 +1453,11 @@ public final class Hashtable {
     /** Zeroes both the live count and the eviction scan position. */
     public void reset() {
       this.size = 0;
+      clearCursor();
+    }
+
+    /** Restarts the eviction scan from the first bucket, dropping any saved mid-chain position. */
+    private void clearCursor() {
       this.cursor = 0;
       this.cursorPrev = null;
     }
