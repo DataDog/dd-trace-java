@@ -7,6 +7,9 @@ import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sends the exposure for a logged allocation to the agent once the evaluation has succeeded.
@@ -18,13 +21,21 @@ import java.util.Map;
  */
 class ExposureLoggingHook<T> implements Hook<T> {
 
+  private static final Logger log = LoggerFactory.getLogger(ExposureLoggingHook.class);
+  private static final AtomicBoolean WARNED = new AtomicBoolean();
+
   static final ExposureLoggingHook<Object> INSTANCE =
-      new ExposureLoggingHook<>(ExposureDeduplicationCache.INSTANCE);
+      new ExposureLoggingHook<>(
+          ExposureDeduplicationCache.INSTANCE, DatadogExposureLoggingGate.isEnabled());
 
   private final ExposureDeduplicationCache cache;
+  // When false the hook still records exposures, so customer ExposureHooks see the same cache
+  // verdicts whether or not exposures go to Datadog.
+  private final boolean sendToDatadog;
 
-  ExposureLoggingHook(final ExposureDeduplicationCache cache) {
+  ExposureLoggingHook(final ExposureDeduplicationCache cache, final boolean sendToDatadog) {
     this.cache = cache;
+    this.sendToDatadog = sendToDatadog;
   }
 
   @Override
@@ -60,10 +71,22 @@ class ExposureLoggingHook<T> implements Hook<T> {
           DDEvaluator.exposureSerialId(
               serialValue instanceof Integer ? (Integer) serialValue : null);
       cache.record(flag, context.getTargetingKey(), allocationKey, variantKey, serialId);
-      FeatureFlaggingGateway.dispatch(
-          DDEvaluator.exposureEvent(flag, allocationKey, variantKey, context, serialId));
+      if (sendToDatadog) {
+        FeatureFlaggingGateway.dispatch(
+            DDEvaluator.exposureEvent(
+                flag,
+                allocationKey,
+                variantKey,
+                context,
+                serialId,
+                SplitFeatureMetadata.featuresWithPrefix(
+                    metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)));
+      }
     } catch (LinkageError e) {
       // Never let exposure reporting break flag evaluation.
+      if (WARNED.compareAndSet(false, true)) {
+        log.warn("Could not send a feature flag exposure; later failures are not logged", e);
+      }
     }
   }
 }
