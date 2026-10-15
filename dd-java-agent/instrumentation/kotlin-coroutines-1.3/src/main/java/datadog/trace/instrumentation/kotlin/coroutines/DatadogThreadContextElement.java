@@ -151,8 +151,12 @@ public final class DatadogThreadContextElement
 
   public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
-    ContextContinuation continuation =
-        datadog == null ? null : CONTINUATION.getAndSet(datadog, null);
+    if (datadog == null || datadog.owner != coroutine) {
+      // scoped coroutines share their caller's element, but must not release its trace hold
+      return;
+    }
+    datadog.traceKeptOpen = null;
+    ContextContinuation continuation = CONTINUATION.getAndSet(datadog, null);
     if (continuation != null) {
       // release enclosing trace now the coroutine has completed
       continuation.release();

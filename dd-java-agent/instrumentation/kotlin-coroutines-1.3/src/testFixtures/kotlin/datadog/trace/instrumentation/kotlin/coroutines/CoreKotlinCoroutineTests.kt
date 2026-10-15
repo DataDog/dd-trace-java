@@ -431,6 +431,34 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     return 4
   }
 
+  /** A structured child launched after a scoped coroutine has completed in its parent. */
+  open fun structuredChildAfterScopedCoroutine(scoped: String): Int {
+    runTest {
+      childSpan("root").activateAndUse {
+        val seedFinished = CompletableDeferred<Unit>()
+        detached = launch(Job() + jobName("detached")) {
+          childSpan("seed").activateAndUse {
+            when (scoped) {
+              "none" -> Unit
+              "withContext" -> withContext(jobName("scoped")) {}
+              "coroutineScope" -> coroutineScope {}
+              "withTimeout" -> withTimeout(30_000) {}
+              else -> error("Unknown scoped coroutine: $scoped")
+            }
+            launch(coroutineContext + jobName("child")) {
+              gate.await()
+              childSpan("child").finish()
+            }
+          }
+          seedFinished.complete(Unit)
+        }
+        // Finish both spans before opening the child's gate, regardless of dispatcher timing.
+        seedFinished.await()
+      }
+    }
+    return 3
+  }
+
   /** Children launched with the context of scoped coroutines inside their parent. */
   @Trace
   open fun structuredChildrenOfScopedCoroutines(): Int {
