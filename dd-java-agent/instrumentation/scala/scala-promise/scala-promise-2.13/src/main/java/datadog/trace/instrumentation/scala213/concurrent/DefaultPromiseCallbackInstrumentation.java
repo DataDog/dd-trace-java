@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.scala213.concurrent;
 
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;

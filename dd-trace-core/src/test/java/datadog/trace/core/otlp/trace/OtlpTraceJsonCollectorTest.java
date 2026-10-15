@@ -42,6 +42,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
+import org.tabletest.junit.TableTest;
 
 /**
  * Tests for {@link OtlpTraceJsonCollector}, parsing the produced JSON back with {@link JsonMapper}
@@ -115,6 +116,36 @@ class OtlpTraceJsonCollectorTest {
     assertTrue(
         attrKeys.contains("custom.unregistered"),
         "a tag the registry does not name passes through unchanged; got " + attrKeys);
+  }
+
+  @TableTest({
+    "scenario         | kind   | tag               | otelName            ",
+    "client hostname  | client | peer.hostname     | server.address      ",
+    "server hostname  | server | http.hostname     | server.address      ",
+    "server client ip | server | network.client.ip | network.peer.address",
+    "client peer port | client | peer.port         | server.port         ",
+    "server peer port | server | peer.port         | client.port         "
+  })
+  void aDirectionScopedTagIsEmittedUnderTheNameForTheSpansKind(
+      String kind, String tag, String otelName) throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan agentSpan = TRACER.startSpan("test", "op.directional");
+      agentSpan.setTag(SPAN_KIND, kind);
+      agentSpan.setTag(tag, "value");
+      agentSpan.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) agentSpan));
+      Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+
+      assertTrue(attrKeys.contains(otelName), "expected " + otelName + "; got " + attrKeys);
+      assertFalse(attrKeys.contains(tag), "expected no " + tag + "; got " + attrKeys);
+    }
   }
 
   private static Set<String> collectTagsAttributeKeys(boolean otelSemanticsEnabled)

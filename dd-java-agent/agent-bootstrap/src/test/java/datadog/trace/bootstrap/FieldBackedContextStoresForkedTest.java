@@ -1,9 +1,11 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.test.util.ThreadUtils.runConcurrently;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 /** Forked to isolate the static context-store registry from other tests. */
@@ -21,7 +24,7 @@ class FieldBackedContextStoresForkedTest {
   private static final int THREAD_COUNT = 8;
 
   // enough stores to go past the pre-allocated stores, grow the array, and keep threads contending
-  private static final int STORE_COUNT = FieldBackedContextStores.FAST_STORE_ID_LIMIT + 2000;
+  private static final int STORE_COUNT = ContextStores.FAST_STORE_ID_LIMIT + 2000;
 
   @Test
   void sameNameReturnsSameStore() {
@@ -30,6 +33,34 @@ class FieldBackedContextStoresForkedTest {
     assertNotEquals(storeId, FieldBackedContextStores.getContextStoreId("sameKey", "otherContext"));
     assertNotEquals(storeId, FieldBackedContextStores.getContextStoreId("otherKey", "sameContext"));
     assertEquals(storeId, FieldBackedContextStores.getContextStore(storeId).storeId);
+  }
+
+  @Test
+  void concurrentAllocationAssignsDistinctIdsForDistinctNames() throws Throwable {
+    int testAllocations = 128;
+    int firstStoreId =
+        FieldBackedContextStores.getContextStoreId("allocationStartKey", "allocationStartContext")
+            + 1;
+    FieldBackedContextStore[] allocatedStores = new FieldBackedContextStore[testAllocations];
+    AtomicInteger keyIds = new AtomicInteger();
+
+    runConcurrently(
+        10,
+        testAllocations,
+        () -> {
+          int keyId = keyIds.getAndIncrement();
+          int storeId = FieldBackedContextStores.getContextStoreId("key" + keyId, "value" + keyId);
+          int index = storeId - firstStoreId;
+          assertNull(allocatedStores[index]);
+          allocatedStores[index] = FieldBackedContextStores.getContextStore(storeId);
+        });
+
+    assertEquals(testAllocations, keyIds.get());
+    assertEquals(testAllocations, allocatedStores.length);
+    for (int index = 0; index < testAllocations; index++) {
+      assertNotNull(allocatedStores[index]);
+      assertEquals(firstStoreId + index, allocatedStores[index].storeId);
+    }
   }
 
   @Test

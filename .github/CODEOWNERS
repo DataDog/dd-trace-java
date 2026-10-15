@@ -13,6 +13,7 @@
 /SECURITY.md               @DataDog/apm-java
 /SUPPORT.md                @DataDog/apm-java
 /tag-conventions.yaml      @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
+/tag-conventions-java.yaml @DataDog/apm-java @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities
 /dd-smoke-tests/README.md  @DataDog/apm-java
 /docs/                     @DataDog/apm-java
 
@@ -87,6 +88,7 @@
 /internal-api/src/*/*/datadog/trace/api/endpoint/      @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/env/           @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/function/      @DataDog/apm-java
+/internal-api/src/*/*/datadog/apicontract/             @DataDog/apm-java
 /internal-api/src/*/*/datadog/perfcontract/            @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/intake/        @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/logging/       @DataDog/apm-java
@@ -157,6 +159,7 @@
 /internal-api/src/*/*/datadog/trace/api/metrics/BaggageMetrics*         @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/PropagationStyle*               @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/TracePropagation*               @DataDog/apm-sdk-capabilities
+/dd-trace-api/src/*/*/datadog/trace/api/metrics                         @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/bootstrap                           @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/api/propagation/                    @DataDog/apm-sdk-capabilities
@@ -355,6 +358,7 @@
 **/kafka*/**/*Iast*                                                                          @DataDog/asm-java @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 
 # @DataDog/feature-flagging-and-experimentation-sdk
+/dd-openfeature/              @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature/  @DataDog/feature-flagging-and-experimentation-sdk
 /products/feature-flagging/   @DataDog/feature-flagging-and-experimentation-sdk
 

@@ -22,6 +22,7 @@ dependencies {
   // Required so that GrpcServerModule / GrpcClientModule are discovered via ServiceLoader
   // in SofaRpcTripleWithGrpcForkedTest.
   testImplementation project(':dd-java-agent:instrumentation:grpc-1.5')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: "io.grpc", name: "grpc-netty", version: "1.53.0"
   testImplementation group: "io.grpc", name: "grpc-core", version: "1.53.0"
   testImplementation group: "io.grpc", name: "grpc-stub", version: "1.53.0"
