@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.EventTransport;
-import com.datadog.openfeature.internal.connector.HealthMetrics;
-import com.datadog.openfeature.internal.connector.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -17,19 +17,19 @@ import org.tabletest.junit.TableTest;
 
 class SettingsTest {
   @Test
-  void looksUpConnectorThenSystemPropertiesThenEnvironment() {
-    final Map<String, String> connector = new HashMap<>();
+  void looksUpBridgeThenSystemPropertiesThenEnvironment() {
+    final Map<String, String> bridge = new HashMap<>();
     final Map<String, String> properties = new HashMap<>();
     final Map<String, String> environment = new HashMap<>();
     final Settings settings =
-        new Settings(new SettingConnector(connector), properties::get, environment::get);
+        new Settings(new SettingAgentBridge(bridge), properties::get, environment::get);
 
     assertNull(settings.env());
     environment.put("DD_ENV", "from-env");
     assertEquals("from-env", settings.env());
     properties.put("dd.env", "from-property");
     assertEquals("from-property", settings.env());
-    connector.put("env", "from-agent");
+    bridge.put("env", "from-agent");
     assertEquals("from-agent", settings.env());
   }
 
@@ -68,7 +68,7 @@ class SettingsTest {
     putIfNotNull(properties, "dd.feature.flags.enabled", enabled);
     putIfNotNull(properties, "dd.feature.flags.configuration.source", source);
     putIfNotNull(properties, "dd.experimental.flagging.provider.enabled", legacy);
-    final Settings settings = new Settings(Connector.NONE, properties::get, name -> null);
+    final Settings settings = new Settings(AgentBridge.NONE, properties::get, name -> null);
 
     assertEquals(resolved, settings.configurationSource());
     assertEquals(resolved != null, settings.isEnabled());
@@ -130,7 +130,7 @@ class SettingsTest {
     final Map<String, String> environment = new HashMap<>();
     environment.put("DD_FLAGGING_EVALUATION_COUNTS_ENABLED", "false");
     environment.put("DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS", "10");
-    final Settings settings = new Settings(Connector.NONE, properties::get, environment::get);
+    final Settings settings = new Settings(AgentBridge.NONE, properties::get, environment::get);
 
     assertFalse(settings.isEvaluationCountsEnabled());
     assertEquals(10, settings.agentlessPollIntervalSeconds());
@@ -167,11 +167,11 @@ class SettingsTest {
     }
   }
 
-  /** A connector only providing settings. */
-  private static final class SettingConnector implements Connector {
+  /** A bridge only providing settings. */
+  private static final class SettingAgentBridge implements AgentBridge {
     private final Map<String, String> settings;
 
-    SettingConnector(final Map<String, String> settings) {
+    SettingAgentBridge(final Map<String, String> settings) {
       this.settings = settings;
     }
 

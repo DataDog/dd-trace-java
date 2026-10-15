@@ -8,8 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.datadog.openfeature.internal.connector.EventProxyUnavailableException;
-import com.datadog.openfeature.internal.connector.EventTransport;
+import com.datadog.openfeature.internal.bridge.EventProxyUnavailableException;
+import com.datadog.openfeature.internal.bridge.EventTransport;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 

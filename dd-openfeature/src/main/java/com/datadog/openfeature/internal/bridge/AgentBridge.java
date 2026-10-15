@@ -1,11 +1,11 @@
-package com.datadog.openfeature.internal.connector;
+package com.datadog.openfeature.internal.bridge;
 
 import javax.annotation.Nullable;
 
 /** Components supplied by the Datadog Java agent when attached, or no-op ones otherwise. */
-public interface Connector {
-  /** The connector used when no Datadog Java agent is attached. */
-  Connector NONE = new NoConnector();
+public interface AgentBridge {
+  /** The bridge used when no Datadog Java agent is attached. */
+  AgentBridge NONE = new NoopAgentBridge();
 
   /**
    * Looks up a setting from the agent configuration.
