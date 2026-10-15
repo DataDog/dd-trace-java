@@ -277,7 +277,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug(
           "Feature Flagging agentless configuration applied: flags={}, env={}, configurationEnv={}, createdAt={}",
-          configuration.flags == null ? 0 : configuration.flags.size(),
+          configuration.flags.size(),
           config.getEnv(),
           configuration.environment == null ? null : configuration.environment.name,
           configuration.createdAt);

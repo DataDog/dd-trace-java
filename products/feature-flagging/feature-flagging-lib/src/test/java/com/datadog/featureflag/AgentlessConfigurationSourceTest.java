@@ -1275,6 +1275,47 @@ class AgentlessConfigurationSourceTest {
     }
 
     @Test
+    void reportsAppliedConfigurationWithoutEnvironment() throws Exception {
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any()))
+          .thenReturn(
+              response(
+                  200, null, jsonApiResponse("universal-flag-configuration", "{\"flags\":{}}")));
+      try (AgentlessConfigurationSource service = service(client)) {
+        assertTrue(service.pollOnce());
+        assertLogged("configuration applied: flags=0, env=, configurationEnv=null, createdAt=null");
+      }
+    }
+
+    @Test
+    void omitsDebugDetailsAndApiKeyWarningForConfiguredEndpoint() throws Exception {
+      logger.setLevel(Level.INFO);
+      final Config config = config();
+      when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+          .thenReturn("https://flags.example.com");
+      lenient().when(config.getApiKey()).thenReturn(null);
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any())).thenReturn(response(200, null, emptyConfig()));
+      FeatureFlaggingGateway.addConfigListener(listener);
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              HttpUrl.get("https://flags.example.com" + CONFIG_PATH),
+              config,
+              30_000,
+              client,
+              mock(ScheduledExecutorService.class));
+      try {
+        service.init();
+        verify(listener).accept(any(ServerConfiguration.class));
+        assertTrue(appender.list.isEmpty());
+      } finally {
+        service.close();
+      }
+    }
+
+    @Test
     void logsMissingCredentialsAndOnlyEndpointOrigin() throws Exception {
       final Config config = config();
       when(config.getApiKey()).thenReturn(null);

@@ -27,6 +27,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.HttpResponseException;
 import datadog.communication.IntakeApi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -163,11 +164,12 @@ class ExposureWriterTests {
   }
 
   @TableTest({
-    "Scenario            | Fails | Outcome                                    ",
-    "Successful delivery | false | 'flush delivered'                          ",
-    "Failed delivery     | true  | 'flush failed: IOException; dropping batch'"
+    "Scenario            | Fails | Status | Outcome                                    ",
+    "Successful delivery | false |        | 'flush delivered'                          ",
+    "Transport failure   | true  |        | 'flush failed: IOException; dropping batch'",
+    "HTTP rejection      | true  | 403    | 'flush failed: HTTP 403; dropping batch'   "
   })
-  void distinguishesQueuedFromDeliveredExposures(String scenario, boolean fails, String outcome)
+  void distinguishesQueuedFromDeliveredExposures(boolean fails, Integer status, String outcome)
       throws Exception {
     Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
     Level previousLevel = logger.getLevel();
@@ -177,7 +179,10 @@ class ExposureWriterTests {
     logger.addAppender(appender);
     logger.setLevel(Level.DEBUG);
     BackendApi backend = mock(BackendApi.class);
-    IOException failure = new IOException("connection reset");
+    IOException failure =
+        status == null
+            ? new IOException("connection reset")
+            : new HttpResponseException(status, "exposure batch rejected");
     if (fails) {
       when(backend.post(any(), any(), any(), any(), eq(false))).thenThrow(failure);
     }
@@ -214,6 +219,36 @@ class ExposureWriterTests {
       logger.detachAppender(appender);
       logger.setLevel(previousLevel);
       appender.stop();
+    }
+  }
+
+  @Test
+  void logsExposuresDroppedWhenQueueIsFull() {
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    Config config = mockConfig("test-service");
+
+    // The writer is not initialized, so no serializer thread drains the queue.
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      for (ExposureEvent exposure : buildExposures(17)) {
+        writer.accept(exposure);
+      }
+
+      assertEquals(16, writer.queueSize());
+      assertEquals(
+          1,
+          appender.list.stream()
+              .filter(e -> e.getFormattedMessage().contains("exposure dropped: queue full"))
+              .count());
+    } finally {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
     }
   }
 
