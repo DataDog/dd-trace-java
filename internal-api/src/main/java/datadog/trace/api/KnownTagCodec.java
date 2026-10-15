@@ -227,25 +227,11 @@ public final class KnownTagCodec {
 
   /**
    * The id for {@code name} in any namespace, or 0 when it is not a known tag. A name whose tag
-   * depends on the span's direction also resolves to 0; see {@link #keyOf(String, int)}.
+   * depends on the span's direction also resolves to 0; see {@link #directionalKeyOf}.
    */
   public static long keyOf(String name) {
     long key = Installed.RESOLVER.lookup(name);
     return key < 0 ? 0L : key;
-  }
-
-  /**
-   * The id for {@code name} on spans of {@code direction}, or 0 when it is not a known tag there.
-   * Costs the same as {@link #keyOf(String)} for every name but the few that depend on direction.
-   */
-  public static long keyOf(String name, int direction) {
-    Resolver resolver = Installed.RESOLVER;
-    long key = resolver.lookup(name);
-    if (key >= 0) {
-      return key;
-    }
-    long tagId = resolver.directionalKeyOf(name, direction);
-    return tagId > 0 ? tagId : 0L;
   }
 
   /**
@@ -321,14 +307,6 @@ public final class KnownTagCodec {
       }
       return mask;
     }
-  }
-
-  /**
-   * The raw registry lookup: {@code name}'s id, 0 when it is not a known tag, or {@link
-   * #DIRECTION_SCOPED_OTEL_NAME_SENTINEL} when its tag depends on direction.
-   */
-  static long lookup(String name) {
-    return Installed.RESOLVER.lookup(name);
   }
 
   /**

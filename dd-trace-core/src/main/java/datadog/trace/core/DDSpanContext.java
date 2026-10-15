@@ -136,19 +136,18 @@ public class DDSpanContext
 
   /**
    * The direction each span kind ordinal reads direction-dependent tag names in ({@code
-   * server.address} is {@code peer.hostname} on a client span). Broker and custom kinds have none.
-   * Mirrors {@link SpanTags#directionOfKind}, by ordinal.
+   * server.address} is {@code peer.hostname} on a client span), derived from {@link
+   * SpanTags#directionOfKind} so the two can't drift. Broker and custom kinds have none.
    */
-  private static final int[] TAG_DIRECTION_OF_SPAN_KIND = {
-    KnownTagCodec.DIRECTION_UNKNOWN, // UNSET
-    KnownTagCodec.DIRECTION_INBOUND, // SERVER
-    KnownTagCodec.DIRECTION_OUTBOUND, // CLIENT
-    KnownTagCodec.DIRECTION_OUTBOUND, // PRODUCER
-    KnownTagCodec.DIRECTION_INBOUND, // CONSUMER
-    KnownTagCodec.DIRECTION_NONE, // INTERNAL
-    KnownTagCodec.DIRECTION_UNKNOWN, // BROKER
-    KnownTagCodec.DIRECTION_UNKNOWN // CUSTOM
-  };
+  private static final int[] TAG_DIRECTION_OF_SPAN_KIND = tagDirectionOfSpanKind();
+
+  private static int[] tagDirectionOfSpanKind() {
+    int[] directions = new int[SPAN_KIND_VALUES.length];
+    for (int i = 0; i < directions.length; i++) {
+      directions[i] = SpanTags.directionOfKind(SPAN_KIND_VALUES[i]);
+    }
+    return directions;
+  }
 
   private volatile byte spanKindOrdinal = SPAN_KIND_UNSET;
 
@@ -1061,9 +1060,7 @@ public class DDSpanContext
   private long writeKeyOf(String tag) {
     long key = KnownTagCodec.keyOrAliasOf(tag);
     if (key > 0) {
-      if (KnownTagCodec.hasScopedAlias(key) && hasPendingAliases()) {
-        SpanTags.prepareWrite(unsafeTags, key, tagDirection());
-      }
+      supersedePendingAliases(key);
       return key;
     }
     if (key == 0) {
@@ -1124,9 +1121,7 @@ public class DDSpanContext
   private void storeEntry(TagMap.EntryReader entry) {
     long tagId = entry.tagId();
     if (tagId != 0) {
-      if (KnownTagCodec.hasScopedAlias(tagId) && hasPendingAliases()) {
-        SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
-      }
+      supersedePendingAliases(tagId);
       unsafeTags.set(entry);
     } else if (KnownTagCodec.mayBeScopedAlias(entry.tag())) {
       long aliasedId = SpanTags.prepareAliasWrite(unsafeTags, entry.tag(), tagDirection());
@@ -1228,6 +1223,16 @@ public class DDSpanContext
       return; // entry paths route on the constant mask; nothing to supersede
     }
     synchronized (unsafeTags) {
+      supersedePendingAliases(tagId);
+    }
+  }
+
+  /**
+   * Removes the pending aliases a write of {@code tagId} supersedes, if it has an alias and the
+   * span holds any. Callers hold the {@code unsafeTags} lock.
+   */
+  private void supersedePendingAliases(long tagId) {
+    if (KnownTagCodec.hasScopedAlias(tagId) && hasPendingAliases()) {
       SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
     }
   }

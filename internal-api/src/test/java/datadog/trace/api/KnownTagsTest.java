@@ -261,7 +261,8 @@ class KnownTagsTest {
     assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
     assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT));
     for (int direction = DIRECTION_UNKNOWN; direction <= DIRECTION_NONE; direction++) {
-      assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT, direction));
+      // peer.port is not an alias: no direction changes which tag it names
+      assertEquals(0L, KnownTagCodec.directionalKeyOf(Tags.PEER_PORT, direction));
     }
   }
 
@@ -282,16 +283,22 @@ class KnownTagsTest {
   @ParameterizedTest(name = "{0} on direction {1}")
   @MethodSource("directionalNames")
   void aDirectionalNameResolvesByDirection(String name, int direction, long expected) {
-    assertEquals(expected, KnownTagCodec.keyOf(name, direction));
+    long tagId = KnownTagCodec.directionalKeyOf(name, direction);
+    assertEquals(expected, tagId > 0 ? tagId : 0L);
     assertEquals(0L, KnownTagCodec.keyOf(name));
+    assertEquals(
+        KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, KnownTagCodec.keyOrAliasOf(name));
   }
 
   @Test
   void aDirectionFreeNameResolvesTheSameInEveryDirection() {
+    assertEquals(KnownTags.HTTP_METHOD_ID, KnownTagCodec.keyOf("http.request.method"));
+    assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTagCodec.keyOf(Tags.PEER_HOSTNAME));
     for (int direction = DIRECTION_UNKNOWN; direction <= DIRECTION_NONE; direction++) {
-      assertEquals(KnownTags.HTTP_METHOD_ID, KnownTagCodec.keyOf("http.request.method", direction));
-      assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTagCodec.keyOf(Tags.PEER_HOSTNAME, direction));
-      assertEquals(0L, KnownTagCodec.keyOf("my.custom.tag", direction));
+      for (String name :
+          new String[] {"http.request.method", Tags.PEER_HOSTNAME, "my.custom.tag"}) {
+        assertEquals(0L, KnownTagCodec.directionalKeyOf(name, direction), name);
+      }
     }
   }
 
