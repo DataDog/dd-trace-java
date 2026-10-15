@@ -331,7 +331,7 @@ class GitInfoProviderTest {
     assertEquals("author name", author.getName());
     assertEquals("author email", author.getEmail());
     assertEquals("author date", author.getIso8601Date());
-    
+
     PersonInfo committer = commit.getCommitter();
     assertEquals("committer name", committer.getName());
     assertEquals("committer email", committer.getEmail());
