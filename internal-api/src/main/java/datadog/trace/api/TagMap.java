@@ -53,7 +53,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
   // would fail with ArrayIndexOutOfBoundsException, size 1 works). Built by the factory, so it is
   // the one TagMap implementation this JVM loads; the constructor reads no TagMap statics.
-  public static final TagMap EMPTY = TagMapFactory.INSTANCE.empty();
+  public static final TagMap EMPTY = TagMapFactory.Default.INSTANCE.newEmpty();
 
   // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
   // tag, so it cannot represent "not computed".
@@ -76,11 +76,11 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
   }
 
   public static final TagMap create() {
-    return TagMapFactory.INSTANCE.create(null);
+    return TagMapFactory.Default.INSTANCE.create(null);
   }
 
   public static final TagMap create(int size) {
-    return TagMapFactory.INSTANCE.create(null);
+    return TagMapFactory.Default.INSTANCE.create(null);
   }
 
   /**
@@ -89,7 +89,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
    * implementation ignores the hint.
    */
   public static final TagMap create(@Nullable SizingHint hint) {
-    return TagMapFactory.INSTANCE.create(null, hint);
+    return TagMapFactory.Default.INSTANCE.create(null, hint);
   }
 
   /**
@@ -132,7 +132,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
         parent = null;
       }
     }
-    return TagMapFactory.INSTANCE.create(parent, hint);
+    return TagMapFactory.Default.INSTANCE.create(parent, hint);
   }
 
   /** Creates a new TagMap.Ledger */
@@ -2372,7 +2372,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
     // Construct with the same (frozen, shared) parent up front — the parent is fixed at
     // construction. putAll then clones this map's own (local) buckets + size. The copy stays
     // independently mutable (writes land on its local buckets, never the shared parent).
-    TagMap copy = TagMapFactory.INSTANCE.create(this.parent);
+    TagMap copy = TagMapFactory.Default.INSTANCE.create(this.parent);
     copy.putAllIntoEmptyMap(this);
     if (this.removedFromParent != null) {
       copy.removedFromParent = new HashSet<>(this.removedFromParent);

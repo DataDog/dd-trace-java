@@ -6,14 +6,25 @@ package datadog.trace.api;
  * legacy/optimized split: the hash-only map stays one flag away until the dense store is proven,
  * and is then folded away.
  *
- * <p>A class, not an interface, and its implementations are only reached through {@link #INSTANCE}:
- * the factory not chosen is loaded (to check the field's type) but never linked, so its methods are
- * never verified and its map class is never loaded. With one {@code TagMap} subclass loaded, class
- * hierarchy analysis devirtualizes every call on a {@code TagMap} without a guard.
+ * <p>A class, not an interface, and its implementations are only reached through {@link
+ * Default#INSTANCE}: the factory not chosen is loaded (to check the field's type) but never linked,
+ * so its methods are never verified and its map class is never loaded. With one {@code TagMap}
+ * subclass loaded, class hierarchy analysis devirtualizes every call on a {@code TagMap} without a
+ * guard.
+ *
+ * <p>Class initialization must work whichever of TagMap and the factories initializes first: an
+ * error in a static initializer poisons that class for the JVM's life, and a read of a class still
+ * initializing on the same thread silently sees null. So this class has no static state
+ * (initializing a subclass initializes it first, before the subclass's own {@code INSTANCE} is
+ * set), and {@link TagMap#EMPTY} is built fresh by {@link #newEmpty} rather than read from a
+ * factory's cache.
  */
 abstract class TagMapFactory {
-  static final TagMapFactory INSTANCE =
-      TagMap.DenseStore.ENABLED ? DenseTagMapFactory.INSTANCE : HashTagMapFactory.INSTANCE;
+  /** The JVM's store, chosen once by the dense-store flag. */
+  static final class Default {
+    static final TagMapFactory INSTANCE =
+        TagMap.DenseStore.ENABLED ? DenseTagMapFactory.INSTANCE : HashTagMapFactory.INSTANCE;
+  }
 
   /** A fresh mutable map that reads through to {@code parent} (may be null). */
   abstract TagMap create(TagMap parent);
@@ -24,14 +35,23 @@ abstract class TagMapFactory {
    */
   abstract TagMap create(TagMap parent, SizingHint hint);
 
-  /** The shared frozen empty map. */
+  /** A new frozen empty map of this store; {@link TagMap#EMPTY} is built with it. */
+  abstract TagMap newEmpty();
+
+  /**
+   * The shared frozen empty map: {@link TagMap#EMPTY} for the JVM's store, or one of this store's
+   * own for the other (only tests build maps of the store the JVM didn't choose).
+   */
   abstract TagMap empty();
 }
 
 final class HashTagMapFactory extends TagMapFactory {
   static final HashTagMapFactory INSTANCE = new HashTagMapFactory();
 
-  private static final TagMap EMPTY = new HashTagMap(new Object[1], 0);
+  /** This store's own empty map, when it isn't the JVM's store; see {@link #empty}. */
+  static final class OwnEmpty {
+    static final TagMap EMPTY = INSTANCE.newEmpty();
+  }
 
   private HashTagMapFactory() {}
 
@@ -46,15 +66,23 @@ final class HashTagMapFactory extends TagMapFactory {
   }
 
   @Override
+  TagMap newEmpty() {
+    return new HashTagMap(new Object[1], 0);
+  }
+
+  @Override
   TagMap empty() {
-    return EMPTY;
+    return this == Default.INSTANCE ? TagMap.EMPTY : OwnEmpty.EMPTY;
   }
 }
 
 final class DenseTagMapFactory extends TagMapFactory {
   static final DenseTagMapFactory INSTANCE = new DenseTagMapFactory();
 
-  private static final TagMap EMPTY = new DenseTagMap(new Object[1], 0);
+  /** This store's own empty map, when it isn't the JVM's store; see {@link #empty}. */
+  static final class OwnEmpty {
+    static final TagMap EMPTY = INSTANCE.newEmpty();
+  }
 
   private DenseTagMapFactory() {}
 
@@ -69,7 +97,12 @@ final class DenseTagMapFactory extends TagMapFactory {
   }
 
   @Override
+  TagMap newEmpty() {
+    return new DenseTagMap(new Object[1], 0);
+  }
+
+  @Override
   TagMap empty() {
-    return EMPTY;
+    return this == Default.INSTANCE ? TagMap.EMPTY : OwnEmpty.EMPTY;
   }
 }
