@@ -1560,7 +1560,7 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return SpanTags.get(unsafeTags, tag, tagDirection());
+    return SpanTags.get(unsafeTags, tag, tagDirection(), hasPendingAliases());
   }
 
   @Deprecated

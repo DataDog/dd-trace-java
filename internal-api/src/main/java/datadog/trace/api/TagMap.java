@@ -1682,6 +1682,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return tagId > 0 ? this.getEntry(tagId) : this.getEntry(tag, Entry.customHash(tag));
   }
 
+  /** The removal counterpart of {@link #setResolved(long, String, Object)}. */
+  public Entry removeResolved(long tagId, String tag) {
+    this.checkWriteAccess();
+
+    return tagId > 0 ? this.getAndRemove(tagId) : this.getAndRemove(tag, Entry.customHash(tag));
+  }
+
   /*
    * Id-keyed setters: the caller passes a KnownTags.*_ID, so the entry is built under the tag's
    * canonical name without the name lookup the String setters pay. The id must name a known tag;

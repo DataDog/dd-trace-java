@@ -147,11 +147,21 @@ public final class SpanTags {
    * single lookup as {@link TagMap#getObject}.
    */
   public static Object get(TagMap tags, String name, int direction) {
+    return get(tags, name, direction, true);
+  }
+
+  /**
+   * {@link #get(TagMap, String, int)} for a caller that tracks whether {@code tags} can hold a
+   * pending alias at all. With {@code mayHavePendingAliases} false, a tag with an alias skips
+   * probing for one, so it costs a single lookup like any other tag.
+   */
+  public static Object get(TagMap tags, String name, int direction, boolean mayHavePendingAliases) {
     long key = KnownTagCodec.keyOrAliasOf(name);
     if (key > 0) {
-      return get(tags, key, direction);
+      return get(tags, key, direction, mayHavePendingAliases);
     }
-    TagMap.Entry asWritten = tags.getEntryResolved(0L, name);
+    TagMap.Entry asWritten =
+        key == 0 || mayHavePendingAliases ? tags.getEntryResolved(0L, name) : null;
     if (key == 0 || asWritten != null) {
       return asWritten == null ? null : asWritten.objectValue();
     }
@@ -162,7 +172,14 @@ public final class SpanTags {
 
   /** The value of the known tag {@code tagId} on a span of {@code direction}; see {@link #get}. */
   public static Object get(TagMap tags, long tagId, int direction) {
-    if (KnownTagCodec.hasScopedAlias(tagId) && direction != DIRECTION_UNKNOWN) {
+    return get(tags, tagId, direction, true);
+  }
+
+  /** {@link #get(TagMap, long, int)}; see {@link #get(TagMap, String, int, boolean)}. */
+  public static Object get(TagMap tags, long tagId, int direction, boolean mayHavePendingAliases) {
+    if (mayHavePendingAliases
+        && KnownTagCodec.hasScopedAlias(tagId)
+        && direction != DIRECTION_UNKNOWN) {
       String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
       Object pending = alias == null ? null : tags.getObject(alias);
       if (pending != null) {
@@ -175,19 +192,23 @@ public final class SpanTags {
 
   /** Removes {@code name} from a span of {@code direction}: the tag and its alias together. */
   public static void remove(TagMap tags, String name, int direction) {
-    tags.remove(name);
+    // One lookup decides everything: a known tag, a custom tag, or a direction-scoped alias.
+    long key = KnownTagCodec.keyOrAliasOf(name);
+    if (key > 0) {
+      remove(tags, key, direction);
+      return;
+    }
+    tags.removeResolved(0L, name); // a custom tag, or an alias stored as written
+    if (key == 0) {
+      return;
+    }
     if (direction == DIRECTION_UNKNOWN) {
-      removeEveryMeaningOf(tags, name);
+      removeEveryTagOfAlias(tags, name);
       return;
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
     if (tagId > 0) {
       tags.getAndRemove(tagId);
-    } else {
-      String alias = KnownTagCodec.directionScopedNameOf(name, direction);
-      if (alias != null) {
-        tags.remove(alias);
-      }
     }
   }
 
@@ -200,24 +221,15 @@ public final class SpanTags {
   }
 
   /**
-   * A removal before the span has a direction counts as a write of every tag {@code name} could
-   * denote once it has one, so no older value can resurface when the kind arrives: removing a tag
-   * also removes every pending alias that could denote it, and removing an alias also removes every
-   * tag it could denote. Like the write rule, this can drop the other direction's tag.
+   * Removes every tag {@code alias} could denote, for a removal of the alias before the span has a
+   * direction. A removal counts as a write, so no older value can resurface when the kind arrives;
+   * like the write rule, this can drop the other direction's tag. (Removing a tag before then
+   * likewise removes the pending aliases that could denote it; see {@link #remove(TagMap, long,
+   * int)}.)
    */
-  private static void removeEveryMeaningOf(TagMap tags, String name) {
-    long tagId = KnownTagCodec.keyOf(name);
-    if (tagId != 0) {
-      if (KnownTagCodec.hasScopedAlias(tagId)) {
-        removePendingAliases(tags, tagId, DIRECTION_UNKNOWN);
-      }
-      return;
-    }
-    if (!KnownTagCodec.mayBeScopedAlias(name)) {
-      return;
-    }
+  private static void removeEveryTagOfAlias(TagMap tags, String alias) {
     for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
-      long aliasedId = KnownTagCodec.directionalKeyOf(name, direction);
+      long aliasedId = KnownTagCodec.directionalKeyOf(alias, direction);
       if (aliasedId > 0) {
         tags.getAndRemove(aliasedId);
       }

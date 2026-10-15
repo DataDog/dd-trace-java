@@ -290,7 +290,10 @@ public class TagInterceptor {
   public boolean interceptTag(DDSpanContext span, TagMap.EntryReader entry) {
     long tagId = entry.tagId();
     if (tagId != 0) {
-      return needsIntercept(tagId) && interceptTag(span, tagId, entry.objectValue());
+      // Only real routes: an entry that isn't routed is stored through DDSpanContext.storeEntry,
+      // which already supersedes any pending alias, so HAS_SCOPED_ALIAS needs no detour here.
+      return needsIntercept(tagId, (int) KnownTagCodec.INTERCEPTED)
+          && interceptTag(span, tagId, entry.objectValue());
     }
     return isSplitServiceTag(entry.tag()) && splitService(span, entry.objectValue());
   }
