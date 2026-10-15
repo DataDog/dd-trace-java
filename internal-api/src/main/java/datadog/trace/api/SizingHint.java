@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.util.FlatHashtable;
+import javax.annotation.Nullable;
 
 /**
  * Opaque per-operation dense-store sizing hint, and a self-contained {@link FlatHashtable.D1}
@@ -12,10 +13,10 @@ import datadog.trace.util.FlatHashtable;
  * racy publication (JMM final-field guarantee). That sidesteps the memory-ordering / visibility
  * problems parallel key/hash/value arrays would create, no volatile or atomics.
  *
- * <p>Opaque to everything outside {@code datadog.trace.api}: no public members. {@link TagMap}
- * reads {@link #size} to size a fresh dense store and writes it back (best-effort max, see {@link
- * TagMap#recordSize}) at a terminal point; {@link SizingHintTable} mints them. Callers only ever
- * hold the reference.
+ * <p>Opaque to everything outside {@code datadog.trace.api}: its only public member is the lookup,
+ * {@link #forOperation}. {@link TagMap} reads {@link #size} to size a fresh dense store and writes
+ * it back (best-effort max, see {@link TagMap#recordSize}) at a terminal point; {@link
+ * SizingHintTable} mints them. Callers only ever hold the reference.
  */
 public final class SizingHint extends FlatHashtable.D1.Entry<String> {
   // Payload: the tuned dense-store size. Plain racy int, updated best-effort max (see
@@ -33,6 +34,16 @@ public final class SizingHint extends FlatHashtable.D1.Entry<String> {
   /**
    * A fresh, uncapped hint for {@code operationName}, seeded at {@link SizingHintTable#SEED_SIZE}.
    */
+  /**
+   * The hint for spans of {@code operationName}, in the entry-span or child-span lane; null when
+   * the dense store is off (constant-folded) or there is no operation name. See {@link
+   * SizingHintTable#hintFor}.
+   */
+  @Nullable
+  public static SizingHint forOperation(@Nullable CharSequence operationName, boolean entrySpan) {
+    return SizingHintTable.hintFor(operationName, entrySpan);
+  }
+
   SizingHint(String operationName) {
     this(operationName, SizingHintTable.SEED_SIZE, false);
   }

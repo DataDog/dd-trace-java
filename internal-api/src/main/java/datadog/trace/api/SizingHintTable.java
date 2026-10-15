@@ -5,10 +5,10 @@ import javax.annotation.Nullable;
 
 /**
  * Process-wide, self-tuning registry of per-operation {@link SizingHint}s, keyed by operation name.
- * Pure static: the tracer resolves a hint here at span build and hands it to the span, which sizes
- * its dense {@link TagMap} from it and records the actual size back when it finishes — the hint
- * converges to the operation's real known-tag high-water mark, so later spans of that operation
- * size correctly.
+ * Pure static and package-private: the tracer resolves a hint at span build through {@link
+ * SizingHint#forOperation} and hands it to the span, which sizes its dense {@link TagMap} from it
+ * and records the actual size back when it finishes — the hint converges to the operation's real
+ * known-tag high-water mark, so later spans of that operation size correctly.
  *
  * <p>Only meaningful with the dense store on ({@link TagMap.DenseStore#ENABLED}); with it off,
  * {@link #hintFor} returns {@code null} before touching anything, so the default span path does no
@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
  * allocation-free on the hot path. A {@code null} operation name gets no hint (the span falls back
  * to the generic default capacity); a missed hint is benign, never wrong.
  */
-public final class SizingHintTable {
+final class SizingHintTable {
   private SizingHintTable() {}
 
   // Seed for a fresh per-operation hint: a small floor that self-tunes up via best-effort-max
@@ -80,7 +80,7 @@ public final class SizingHintTable {
    * the create path is warmup-rare.
    */
   @Nullable
-  public static SizingHint hintFor(@Nullable CharSequence operationName, boolean entrySpan) {
+  static SizingHint hintFor(@Nullable CharSequence operationName, boolean entrySpan) {
     if (!TagMap.DenseStore.ENABLED) {
       return null;
     }

@@ -43,7 +43,6 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.api.SizingHint;
-import datadog.trace.api.SizingHintTable;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
@@ -2333,11 +2332,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // Per-operation dense-store sizing: an entry (local-root) span carries the trace-metadata /
       // enriching tags a child doesn't, so pick the lane by whether we have a local parent. A
       // resolved hint sizes the span's TagMap and self-tunes as spans finish; null (dense store
-      // off, or no operation name) falls back to the generic default capacity. hintFor tests the
-      // dense-store flag first, so with it off -- the default -- this constant-folds to null and
+      // off, or no operation name) falls back to the generic default capacity. forOperation tests
+      // the dense-store flag first, so with it off -- the default -- this constant-folds to null
+      // and
       // the default span-creation path does no lookup (do no harm).
       final SizingHint sizingHint =
-          SizingHintTable.hintFor(
+          SizingHint.forOperation(
               operationName, !(resolvedParentSpanContext instanceof DDSpanContext));
 
       // some attributes are inherited from the parent
