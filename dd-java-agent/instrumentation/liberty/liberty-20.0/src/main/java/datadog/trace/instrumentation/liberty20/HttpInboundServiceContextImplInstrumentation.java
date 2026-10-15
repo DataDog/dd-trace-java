@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.liberty.LibertyBlockingHelper;
+import datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -34,8 +34,8 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.liberty.LibertyBlockingHelper",
-      "datadog.trace.instrumentation.liberty.LibertyBlockingHelper$WsByteBufferImpl",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper$WsByteBufferImpl",
     };
   }
 
