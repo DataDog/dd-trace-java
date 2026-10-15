@@ -1,10 +1,17 @@
 # How to Work with Gradle
 
-This guide covers the fundamentals of working with Gradle in this project. Understanding these concepts will help you navigate the build system and contribute effectively.
+This guide covers Gradle practices and how they apply in this repository, including where
+our current build cannot yet follow a best practice. The project-specific sections explain
+conventions used across the build.
+
+Update this guide when a change affects that shared advice. Keep implementation notes,
+workarounds and procedures for a single plugin or task with its source or local documentation.
 
 ## Quick Reference
 
 **Core Concepts:**
+
+- [Gradle skills](#gradle-skills) - Installing and using the required skill for agent-assisted changes
 - [Gradle Files](#what-are-gradle-files) — Groovy vs Kotlin DSL
 - [Build Lifecycle](#gradle-build-lifecycle) — Initialization → Configuration → Execution phases
 - [Tasks](#gradle-tasks) — Lifecycle tasks, inputs/outputs, lazy configuration
@@ -24,6 +31,46 @@ This guide covers the fundamentals of working with Gradle in this project. Under
 
 > [!TIP]
 > First time with Gradle? Start with [Gradle Files](#what-are-gradle-files), [Build Lifecycle](#gradle-build-lifecycle), and [Tasks](#gradle-tasks).
+
+## Gradle skills
+
+Gradle publishes a [best-practices skill](https://github.com/gradle/gradle-skills) for reviewing
+build scripts and plugin code. Run it in audit mode before an agent changes Gradle code in
+this repository. Review the code being changed and the modules that use it. Keep fixes
+within the requested task and report unrelated findings separately.
+
+Install the whole skill, including its reference files. If it is missing or incomplete,
+tell the contributor and point them to the setup below. Read-only investigation can continue;
+Gradle edits must wait until the skill is available. A link to the skill does not install it.
+
+Check the skill's catalog version against our Gradle wrapper and the JVMs that run the
+affected code. Some recommendations may describe newer or nightly APIs.
+
+### Codex
+
+Ask the built-in [skill installer](https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use)
+to install the skill from Gradle's repository:
+
+```text
+$skill-installer install https://github.com/gradle/gradle-skills/tree/main/skills/gradle-best-practices
+```
+
+Then invoke it with `$gradle-best-practices`. If it does not appear after installation,
+restart the session.
+
+### Claude Code
+
+Install Gradle's plugin:
+
+```text
+/plugin marketplace add gradle/gradle-skills
+/plugin install gradle-skills@gradle-skills
+```
+
+Invoke the skill with `/gradle-skills:gradle-best-practices`. Each contributor installs the
+plugin for their own setup; naming it in repository instructions does not fetch it.
+See the [upstream installation guide](https://github.com/gradle/gradle-skills#installation)
+for other agents and installation options.
 
 ## What are Gradle Files?
 
@@ -161,18 +208,32 @@ Only tasks required to complete the requested goal are executed.
 
 In a well-organized Gradle project, build logic lives in specific places:
 
-| Location              | Purpose                                                                                                                                                                                 |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `settings.gradle.kts` | Project structure, repository settings, plugin management                                                                                                                               |
-| `build.gradle.kts`    | Project-specific build configuration                                                                                                                                                    |
-| `buildSrc/`           | Build logic automatically included by Gradle; contains convention plugins and shared configuration. It's possible to use different location(s) but it requires explicit declaration(s). |
-| `gradle/`             | Version catalogs and wrapper files and script plugins                                                                                                                                   |
+| Location              | Purpose                                                            |
+|-----------------------|--------------------------------------------------------------------|
+| `settings.gradle.kts` | Project structure, repositories and plugin management              |
+| `build.gradle.kts`    | Configuration for one project                                      |
+| `buildSrc/`           | Build logic Gradle makes available automatically to the main build |
+| `build-logic/`        | Build logic included explicitly through plugin management          |
+| `gradle/`             | Version catalogs, wrapper files and remaining script plugins       |
+
+`buildSrc` and included builds have their own settings and dependencies. Repositories and
+version catalogs from the main build are not inherited; configure or import them explicitly.
 
 > [!CAUTION]
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
 > to create _convention plugins_ or _binary plugins_.
 
 ### Running Build Logic Tests
+
+Use unit tests for helpers and TestKit for behaviour that depends on Gradle, such as task
+wiring and plugin application. Reuse the existing fixtures. When changing how plugins work
+together, test the relevant application orders and try a module that uses them.
+See Gradle's [plugin testing guide](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html).
+
+Check task outcomes and generated files as well as the build result. For configuration-cache
+changes, run the same task twice with `--configuration-cache` and check that the second run
+reuses the entry. For incremental changes, check that unchanged inputs leave the task
+`UP-TO-DATE` and changed inputs update its output. Use a clean fixture to check `FROM-CACHE`.
 
 Running `buildSrc/` tests within IntelliJ IDEA works without special treatment because the build
 detects the injected `idea.active` system property.
@@ -253,6 +314,10 @@ In custom tasks, use annotations to declare inputs and outputs:
 
 More annotations are documented [here](https://docs.gradle.org/current/userguide/implementing_custom_tasks.html#annotating_inputs_and_outputs).
 
+Give each task its own outputs and choose path sensitivity to match what it reads. For custom
+task classes, use `@CacheableTask` when the outputs are reproducible from the declared inputs,
+or `@DisableCachingByDefault` with a reason when caching is unsuitable.
+
 ##### In custom tasks declared with DSL
 
 For ad-hoc tasks or when you can't use annotations, declare inputs and outputs programmatically via the `inputs` and `outputs` properties:
@@ -332,6 +397,17 @@ When running Gradle tasks, you'll see status labels indicating what happened dur
 | `SKIPPED`    | The task was excluded (e.g., via `-x` or `onlyIf` condition) |
 | `NO-SOURCE`  | The task had no input files to process                       |
 
+
+### Task Dependencies
+
+When a task reads another task's output, pass the output provider to the consuming task's
+input. Gradle can then infer the dependency; see [Using Providers](#using-providers).
+Keep an explicit `dependsOn` when a prerequisite has no output to wire, or when a lifecycle
+task collects other tasks.
+
+`mustRunAfter` and `shouldRunAfter` only order tasks already selected to run. They do not
+schedule a prerequisite. Use `finalizedBy` for work such as cleanup that must follow a task,
+including when that task fails. See [Controlling Task Execution](https://docs.gradle.org/current/userguide/controlling_task_execution.html).
 
 ### Tasks tips
 
@@ -1125,6 +1201,23 @@ common configuration patterns and can be applied like any other plugin.
 > Convention plugins promote consistency across modules. Instead of copy-pasting configuration,
 > define it once and apply it everywhere.
 
+### Keeping Plugins Independent
+
+Plugins in the same source root, including `buildSrc`, still have separate responsibilities.
+Use plugin IDs, documented extensions and Gradle model APIs to connect them. Depending on
+another plugin's implementation classes, internal helpers or undocumented task names makes
+either plugin harder to change. Share code when it represents the same knowledge and should change together;
+similar-looking code alone is not a reason to join two plugins.
+
+If a plugin requires another plugin, apply it explicitly with `pluginManager.apply`.
+For an optional integration, use `pluginManager.withPlugin` so it works in either application
+order. A one-time `hasPlugin` check misses plugins applied later.
+
+Use public Gradle APIs and keep configuration in the plugin that owns it. Prefer providers
+and plugin callbacks to `afterEvaluate` or changing another project's model. Keep plugin
+dependencies on the build classpath so they do not become application or agent dependencies.
+See Gradle's [plugin development guide](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_binary.html).
+
 ### Project Convention Plugins
 
 Files ending in `.gradle.kts` placed in `buildSrc/src/main/kotlin/` target `Project` and can configure tasks, dependencies, and extensions. The `buildSrc/` directory is automatically included by Gradle before the main build.
@@ -1357,21 +1450,22 @@ tasks.withType<JavaCompile>().configureEach {
 
 ### Using Providers
 
-```Gradle Kotlin DSL
-// ❌ Eager - version is read immediately
-tasks.register<Jar>("myJar") {
-    archiveVersion.set(project.version.toString())
-}
+Pass providers through to properties and file collections that accept them. Use `map` to
+transform a value and `flatMap` when the result is itself a provider, such as a task's
+output property.
 
-// ✅ Lazy - version is read when the jar task runs
-tasks.register<Jar>("myJar") {
-    archiveVersion.set(project.provider { project.version.toString() })
+With the Java plugin applied, this copies its JAR without resolving the path during configuration:
+
+```Gradle Kotlin DSL
+tasks.register<Copy>("stageJar") {
+    from(tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    into(layout.buildDirectory.dir("staged"))
 }
 ```
 
-> [!TIP]
-> In Gradle Kotlin DSL (and Groovy DSL) you can use `=` instead of `set(...)`, e.g.
-> `archiveVersion = project.version.toString()`
+Check the receiving API before passing it a provider. An `Any` or `Object` parameter may
+turn it into a string instead of reading its value. For JVM arguments, see
+[Lazy JVM Arguments and System Properties](#lazy-jvm-arguments-and-system-properties).
 
 ### Lazy JVM Arguments and System Properties
 
