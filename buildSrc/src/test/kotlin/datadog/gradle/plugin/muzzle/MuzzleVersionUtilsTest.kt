@@ -2,6 +2,7 @@ package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.muzzle.MuzzleVersionUtils.RANGE_COUNT_LIMIT
 import org.eclipse.aether.artifact.DefaultArtifact
+import org.eclipse.aether.repository.RemoteRepository
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
@@ -11,6 +12,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import org.assertj.core.api.Assertions.assertThat
+import java.time.Instant
 import kotlin.random.Random
 
 class MuzzleVersionUtilsTest {
@@ -143,6 +145,159 @@ class MuzzleVersionUtilsTest {
       MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), includeSnapshots = false)
 
     assertThat(filtered.map { it.toString() }).containsExactlyInAnyOrder(*versionStrings)
+  }
+
+  @Test
+  fun `checks age only after prerelease and skip exclusions`() {
+    val result = createVersionRangeResult("1.0.0", "1.1.0", "1.2.0-RC1", "1.3.0")
+    val checked = mutableListOf<String>()
+
+    val filtered = MuzzleVersionUtils.filterAndLimitVersions(result, setOf("1.1.0"), false) {
+      checked.add(it.toString())
+      it.toString() != "1.3.0"
+    }
+
+    assertThat(checked).containsExactly("1.0.0", "1.3.0")
+    assertThat(filtered.map { it.toString() }).containsExactly("1.0.0")
+  }
+
+  @Test
+  fun `skips exact prerelease spelling before checking age`() {
+    val result = createVersionRangeResult("1.0.0", "2.0.0-SNAPSHOT")
+    val checked = mutableListOf<String>()
+
+    val filtered = MuzzleVersionUtils.filterAndLimitVersions(result, setOf("2.0.0-SNAPSHOT"), true) {
+      checked.add(it.toString())
+      true
+    }
+
+    assertThat(checked).containsExactly("1.0.0")
+    assertThat(filtered.map { it.toString() }).containsExactly("1.0.0")
+  }
+
+  @Test
+  fun `selects the previous eligible patch before sampling a minor version`() {
+    val result = createVersionRangeResult("1.0.0", "1.0.1", "1.0.2")
+
+    val filtered = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false) {
+      it.toString() != "1.0.2"
+    }
+
+    assertThat(filtered.map { it.toString() }).containsExactlyInAnyOrder("1.0.0", "1.0.1")
+  }
+
+  @Test
+  fun `preserves eligible bounds when original bounds are deferred`() {
+    val result = createVersionRangeResult(*(0..49).map { "1.$it.0" }.toTypedArray())
+
+    repeat(10) {
+      val filtered = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false) {
+        it.toString() != "1.0.0" && it.toString() != "1.49.0"
+      }
+      assertThat(filtered.map { it.toString() })
+        .contains("1.1.0", "1.48.0").doesNotContain("1.0.0", "1.49.0")
+      assertThat(filtered).hasSizeLessThan(RANGE_COUNT_LIMIT)
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [true, false])
+  fun `large patch histories only look up timestamps for eligible boundaries`(timestampAvailable: Boolean) {
+    val now = Instant.parse("2026-10-01T00:00:00Z")
+    val proxy = RemoteRepository.Builder("central-proxy", "default", "https://proxy.example/maven2/").build()
+    val requests = mutableListOf<String>()
+    val warnings = mutableListOf<String>()
+    val age = MuzzleDependencyAge(48, now, { url ->
+      requests.add(url)
+      if (timestampAvailable && url.startsWith("https://repo1.maven.org/")) {
+        MuzzleDependencyAge.Timestamp(now.minusSeconds(72 * 3600L))
+      } else {
+        MuzzleDependencyAge.Timestamp(null, "missing Last-Modified header")
+      }
+    }, warnings::add)
+    val versions = (0..49).flatMap { minor -> (0..19).map { patch -> "1.$minor.$patch" } }
+
+    val filtered = MuzzleVersionUtils.filterAndLimitVersions(createVersionRangeResult(*versions.toTypedArray()), emptySet(), false) {
+      age.isEligible("com.example", "lib", it.toString(), listOf(proxy))
+    }
+
+    assertThat(filtered).hasSize(24)
+    assertThat(filtered.map { it.toString() }).contains("1.0.0", "1.49.19")
+    assertThat(requests).hasSize(48).doesNotHaveDuplicates()
+    assertThat(warnings).hasSize(if (timestampAvailable) 0 else 24)
+  }
+
+  @Test
+  fun `eligible ranges preserve the master sample for the same random seed`() {
+    val result = createVersionRangeResult(*(0..49).flatMap { minor -> (0..19).map { patch -> "1.$minor.$patch" } }.toTypedArray())
+    repeat(100) { seed ->
+      val expected = VersionSet(result.versions).lowAndHighForMajorMinor.shuffled(Random(seed)).toMutableList()
+      while (expected.size >= RANGE_COUNT_LIMIT) {
+        val removed = expected.removeAt(0)
+        if (removed == result.lowestVersion || removed == result.highestVersion) expected.add(removed)
+      }
+
+      val actual = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false, random = Random(seed), isEligible = { true })
+
+      assertThat(actual).containsExactlyInAnyOrderElementsOf(expected)
+    }
+  }
+
+  @Test
+  fun `sampled fresh boundaries are backfilled and still produce 24 checks`() {
+    val result = createVersionRangeResult(*(0..49).flatMap { minor -> (0..19).map { patch -> "1.$minor.$patch" } }.toTypedArray())
+    val checked = mutableListOf<String>()
+
+    val actual = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false, random = Random(17)) {
+      checked.add(it.toString())
+      !it.toString().endsWith(".19")
+    }
+
+    assertThat(actual).hasSize(24)
+    assertThat(actual.map { it.toString() }).contains("1.0.0", "1.49.18").noneMatch { it.endsWith(".19") }
+    assertThat(checked).doesNotHaveDuplicates().hasSizeLessThanOrEqualTo(48)
+  }
+
+  @Test
+  fun `walks past fresh boundaries without checking interior patches`() {
+    val versions = (0..999).map { "1.0.$it" }.toTypedArray()
+    val checked = mutableListOf<String>()
+
+    val filtered = MuzzleVersionUtils.filterAndLimitVersions(createVersionRangeResult(*versions), emptySet(), false) {
+      checked.add(it.toString())
+      it.toString() !in setOf("1.0.998", "1.0.999")
+    }
+
+    assertThat(filtered.map { it.toString() }).containsExactlyInAnyOrder("1.0.0", "1.0.997")
+    assertThat(checked).containsExactlyInAnyOrder("1.0.0", "1.0.999", "1.0.998", "1.0.997")
+  }
+
+  @Test
+  fun `retains the sole eligible interior patch and omits entirely deferred minor versions`() {
+    val result = createVersionRangeResult("1.0.0", "1.0.1", "1.0.2", "1.1.0", "1.1.1", "1.2.0")
+    val checked = mutableListOf<String>()
+
+    val filtered = MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), false) {
+      checked.add(it.toString())
+      it.toString() == "1.0.1"
+    }
+
+    assertThat(filtered.map { it.toString() }).containsExactly("1.0.1")
+    assertThat(checked).doesNotHaveDuplicates()
+  }
+
+  @Test
+  fun `empty and entirely deferred ranges produce no versions`() {
+    for (versions in listOf(emptyArray(), arrayOf("1.0.0"), arrayOf("1.0.0", "1.0.1", "1.1.0"))) {
+      val checked = mutableListOf<String>()
+      val filtered = MuzzleVersionUtils.filterAndLimitVersions(createVersionRangeResult(*versions), emptySet(), false) {
+        checked.add(it.toString())
+        false
+      }
+
+      assertThat(filtered).isEmpty()
+      assertThat(checked).containsExactlyInAnyOrder(*versions)
+    }
   }
 
   companion object {

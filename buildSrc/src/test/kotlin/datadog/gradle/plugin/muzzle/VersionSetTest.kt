@@ -2,6 +2,7 @@ package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.version.Version
 import org.junit.jupiter.api.Test
+import kotlin.random.Random
 import org.assertj.core.api.Assertions.assertThat
 
 class VersionSetTest {
@@ -70,6 +71,30 @@ class VersionSetTest {
     versionsCases.zip(expectedCases).forEach { (versions, expected) ->
       val versionSet = VersionSet(versions)
       assertThat(versionSet.lowAndHighForMajorMinor).isEqualTo(expected)
+    }
+  }
+
+  @Test
+  fun `eligible boundaries match eager filtering including equivalent repository spellings`() {
+    val random = Random(48)
+    val versions = (0..3).flatMap { minor -> (0..7).map { patch -> ver("1.$minor.$patch") } } +
+      listOf(ver("1.2.7-foo"), ver("1.2.7.foo"), ver("1.3.7-foo"), ver("1.3.7.foo"))
+
+    repeat(100) {
+      val shuffled = versions.shuffled(random)
+      val eligible = shuffled.filter { random.nextBoolean() }.toSet()
+      val checked = mutableListOf<Version>()
+      val actual = VersionSet(shuffled).sampleEligibleBoundaries(24, Random(17)) {
+        checked.add(it)
+        it in eligible
+      }
+      val expected = VersionSet(shuffled.filter { it in eligible }).lowAndHighForMajorMinor.toMutableSet()
+      // Maven ordering may differ from parsed major/minor ordering; retain both range endpoints.
+      eligible.minOrNull()?.let(expected::add)
+      eligible.maxOrNull()?.let(expected::add)
+
+      assertThat(actual).containsExactlyInAnyOrderElementsOf(expected)
+      assertThat(checked).doesNotHaveDuplicates()
     }
   }
 
