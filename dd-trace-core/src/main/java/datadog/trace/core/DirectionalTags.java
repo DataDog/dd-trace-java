@@ -1,11 +1,11 @@
-package datadog.trace.api;
+package datadog.trace.core;
 
 import static datadog.trace.api.KnownTagCodec.DIRECTION_INBOUND;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_NONE;
-import static datadog.trace.api.KnownTagCodec.DIRECTION_OUTBOUND;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.TagMap;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,41 +43,7 @@ import java.util.List;
  * ({@code client.port} on what becomes a client span) is removed by an earlier-direction write of a
  * tag it could have denoted ({@code peer.port}).
  */
-public final class SpanTags {
-  /** The direction of a span with these tags, from its {@code span.kind}. */
-  public static int directionOf(TagMap tags) {
-    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND_ID);
-    return kind == null ? DIRECTION_UNKNOWN : directionOfKind(kind.stringValue());
-  }
-
-  /** The direction of a span of {@code kind}; brokers and custom kinds have none. */
-  public static int directionOfKind(String kind) {
-    if (kind == null) {
-      return DIRECTION_UNKNOWN;
-    }
-    switch (kind) {
-      case Tags.SPAN_KIND_SERVER:
-      case Tags.SPAN_KIND_CONSUMER:
-        return DIRECTION_INBOUND;
-      case Tags.SPAN_KIND_CLIENT:
-      case Tags.SPAN_KIND_PRODUCER:
-        return DIRECTION_OUTBOUND;
-      case Tags.SPAN_KIND_INTERNAL:
-        return DIRECTION_NONE;
-      default:
-        return DIRECTION_UNKNOWN;
-    }
-  }
-
-  /**
-   * The name {@code entry} is emitted under in the OpenTelemetry namespace on a span of {@code
-   * direction}: {@code peer.port} is {@code server.port} on a client span. A custom tag keeps its
-   * own name.
-   */
-  public static String openTelemetryTagOf(TagMap.EntryReader entry, int direction) {
-    long tagId = entry.tagId();
-    return tagId == 0 ? entry.tag() : KnownTagCodec.openTelemetryTagOf(tagId, direction);
-  }
+final class DirectionalTags {
 
   /**
    * Prepares a write of {@code alias} to a span of {@code direction}. Returns the id of the tag to
@@ -87,7 +53,7 @@ public final class SpanTags {
    * pending-alias flag set it only for the sentinel, so a name that merely passed {@link
    * KnownTagCodec#mayBeScopedAlias}'s filter doesn't slow the span down.
    */
-  public static long prepareAliasWrite(TagMap tags, String alias, int direction) {
+  static long prepareAliasWrite(TagMap tags, String alias, int direction) {
     long tagId = KnownTagCodec.directionalKeyOf(alias, direction);
     if (tagId > 0) {
       tags.remove(alias); // a value pending under the alias is older than this write
@@ -100,25 +66,10 @@ public final class SpanTags {
    * has an alias ({@link KnownTagCodec#HAS_SCOPED_ALIAS}), removes the pending aliases the write
    * supersedes. A caller with a constant id that lacks the bit can skip the call.
    */
-  public static void prepareWrite(TagMap tags, long tagId, int direction) {
+  static void prepareWrite(TagMap tags, long tagId, int direction) {
     if (KnownTagCodec.hasScopedAlias(tagId)) {
       removePendingAliases(tags, tagId, direction);
     }
-  }
-
-  /**
-   * True if a span must route {@code entry} through {@link #prepareWrite} or {@link
-   * #prepareAliasWrite}: a tag with an alias, or an alias. A mask test for a known tag; a bit test
-   * on the hash, almost always, for a custom one.
-   */
-  public static boolean isDirectionDependent(TagMap.EntryReader entry) {
-    long tagId = entry.tagId();
-    if (tagId != 0) {
-      return KnownTagCodec.hasScopedAlias(tagId);
-    }
-    String tag = entry.tag();
-    return KnownTagCodec.mayBeScopedAlias(tag)
-        && KnownTagCodec.keyOrAliasOf(tag) == KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL;
   }
 
   /**
@@ -146,7 +97,7 @@ public final class SpanTags {
    * reads its alias; a pending alias, being the newer write, wins. Every other name costs the same
    * single lookup as {@link TagMap#getObject}.
    */
-  public static Object get(TagMap tags, String name, int direction) {
+  static Object get(TagMap tags, String name, int direction) {
     return get(tags, name, direction, true);
   }
 
@@ -155,7 +106,7 @@ public final class SpanTags {
    * pending alias at all. With {@code mayHavePendingAliases} false, a tag with an alias skips
    * probing for one, so it costs a single lookup like any other tag.
    */
-  public static Object get(TagMap tags, String name, int direction, boolean mayHavePendingAliases) {
+  static Object get(TagMap tags, String name, int direction, boolean mayHavePendingAliases) {
     long key = KnownTagCodec.keyOrAliasOf(name);
     if (key > 0) {
       return get(tags, key, direction, mayHavePendingAliases);
@@ -170,13 +121,16 @@ public final class SpanTags {
     return tag == null ? null : tag.objectValue();
   }
 
-  /** The value of the known tag {@code tagId} on a span of {@code direction}; see {@link #get}. */
-  public static Object get(TagMap tags, long tagId, int direction) {
+  /**
+   * The value of the known tag {@code tagId} on a span of {@code direction}; see {@link
+   * #get(TagMap, String, int)}.
+   */
+  static Object get(TagMap tags, long tagId, int direction) {
     return get(tags, tagId, direction, true);
   }
 
   /** {@link #get(TagMap, long, int)}; see {@link #get(TagMap, String, int, boolean)}. */
-  public static Object get(TagMap tags, long tagId, int direction, boolean mayHavePendingAliases) {
+  static Object get(TagMap tags, long tagId, int direction, boolean mayHavePendingAliases) {
     if (mayHavePendingAliases
         && KnownTagCodec.hasScopedAlias(tagId)
         && direction != DIRECTION_UNKNOWN) {
@@ -191,7 +145,7 @@ public final class SpanTags {
   }
 
   /** Removes {@code name} from a span of {@code direction}: the tag and its alias together. */
-  public static void remove(TagMap tags, String name, int direction) {
+  static void remove(TagMap tags, String name, int direction) {
     // One lookup decides everything: a known tag, a custom tag, or a direction-scoped alias.
     long key = KnownTagCodec.keyOrAliasOf(name);
     if (key > 0) {
@@ -213,7 +167,7 @@ public final class SpanTags {
   }
 
   /** Removes the known tag {@code tagId}, and its alias, from a span of {@code direction}. */
-  public static void remove(TagMap tags, long tagId, int direction) {
+  static void remove(TagMap tags, long tagId, int direction) {
     tags.getAndRemove(tagId);
     if (KnownTagCodec.hasScopedAlias(tagId)) {
       removePendingAliases(tags, tagId, direction);
@@ -241,7 +195,7 @@ public final class SpanTags {
    * The alias, being the newer write, overwrites its tag. An alias with no tag in {@code direction}
    * -- or any, while the direction is unknown -- stays as written, a custom tag.
    */
-  public static void resolveScopedNames(TagMap tags, int direction) {
+  static void resolveScopedNames(TagMap tags, int direction) {
     if (direction == DIRECTION_UNKNOWN || direction == DIRECTION_NONE) {
       return; // no alias names a tag on a span with no direction, or an internal one
     }
@@ -263,5 +217,5 @@ public final class SpanTags {
     }
   }
 
-  private SpanTags() {}
+  private DirectionalTags() {}
 }

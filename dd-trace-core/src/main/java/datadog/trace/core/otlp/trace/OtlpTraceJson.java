@@ -28,7 +28,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
-import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -169,7 +168,7 @@ public final class OtlpTraceJson {
     // OpenTelemetry names depend on the span's direction (peer.port is server.port on a client).
     String key =
         Config.get().isTraceOtelSemanticsEnabled()
-            ? SpanTags.openTelemetryTagOf(tagEntry, direction)
+            ? tagEntry.openTelemetryTag(direction)
             : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
@@ -255,7 +254,7 @@ public final class OtlpTraceJson {
 
       // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       TagMap tags = metadata.getTags();
-      Integer direction = SpanTags.directionOf(tags);
+      Integer direction = KnownTagCodec.directionOf(tags);
       tags.forEach(writer, direction, OtlpTraceJson::writeSpanTag);
 
       // reset for next span

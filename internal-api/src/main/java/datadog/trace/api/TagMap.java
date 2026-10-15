@@ -197,6 +197,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return otelTag != null ? otelTag : tag();
     }
 
+    /**
+     * {@link #openTelemetryTag()} on a span of {@code direction} (a {@code
+     * KnownTagCodec.DIRECTION_*} constant), which also applies a rename that holds only in that
+     * direction: {@code peer.port} is {@code server.port} on a client span.
+     */
+    default String openTelemetryTag(int direction) {
+      long tagId = tagId();
+      return tagId == 0 ? tag() : KnownTagCodec.openTelemetryTagOf(tagId, direction);
+    }
+
     byte type();
 
     boolean is(byte type);

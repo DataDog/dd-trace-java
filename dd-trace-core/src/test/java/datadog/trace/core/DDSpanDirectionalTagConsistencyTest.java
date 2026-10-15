@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.KnownTagCodec;
-import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
@@ -163,13 +162,14 @@ class DDSpanDirectionalTagConsistencyTest extends DDCoreJavaSpecification {
 
     // And when the span is emitted: the pending alias, if any, is folded into the tag.
     TagMap emitted = span.getTags().copy();
-    SpanTags.resolveScopedNames(emitted, direction);
+    DirectionalTags.resolveScopedNames(emitted, direction);
     assertEquals("second.example", emitted.getObject(tag));
     assertNull(emitted.getObject("server.address"));
   }
 
   /**
-   * The accepted corner (see SpanTags): a pre-kind write of either possible tag drops the alias.
+   * The accepted corner (see DirectionalTags): a pre-kind write of either possible tag drops the
+   * alias.
    */
   @Test
   void aPreKindWriteOfTheOtherPossibleTagDropsAPendingAlias() {

@@ -18,7 +18,6 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
-import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -137,14 +136,14 @@ public class DDSpanContext
   /**
    * The direction each span kind ordinal reads direction-dependent tag names in ({@code
    * server.address} is {@code peer.hostname} on a client span), derived from {@link
-   * SpanTags#directionOfKind} so the two can't drift. Broker and custom kinds have none.
+   * DirectionalTags#directionOfKind} so the two can't drift. Broker and custom kinds have none.
    */
   private static final int[] TAG_DIRECTION_OF_SPAN_KIND = tagDirectionOfSpanKind();
 
   private static int[] tagDirectionOfSpanKind() {
     int[] directions = new int[SPAN_KIND_VALUES.length];
     for (int i = 0; i < directions.length; i++) {
-      directions[i] = SpanTags.directionOfKind(SPAN_KIND_VALUES[i]);
+      directions[i] = KnownTagCodec.directionOfKind(SPAN_KIND_VALUES[i]);
     }
     return directions;
   }
@@ -960,7 +959,9 @@ public class DDSpanContext
     spanKindOrdinal = spanKindOrdinalOf(kind);
   }
 
-  /** The direction this span reads direction-dependent tag names in; see {@link SpanTags}. */
+  /**
+   * The direction this span reads direction-dependent tag names in; see {@link DirectionalTags}.
+   */
   private int tagDirection() {
     return TAG_DIRECTION_OF_SPAN_KIND[spanKindOrdinal];
   }
@@ -1051,10 +1052,10 @@ public class DDSpanContext
    * Store a tag that interception let through. The name is looked up once, as a plain write by
    * name would: the result is the id to store under, and also says whether the name takes part in
    * direction-scoped naming -- an id with KnownTagCodec.HAS_SCOPED_ALIAS, or the alias sentinel.
-   * Only those go through SpanTags, which applies last-write-wins between a tag and its alias
+   * Only those go through DirectionalTags, which applies last-write-wins between a tag and its alias
    * without ordering state; every other name costs nothing extra. Known corner, accepted: before
    * the span has a kind, writing an alias and then either of its possible tags drops the alias,
-   * even when the eventual kind maps it to the other tag (see SpanTags). Call while holding the
+   * even when the eventual kind maps it to the other tag (see DirectionalTags). Call while holding the
    * unsafeTags lock.
    */
   private long writeKeyOf(String tag) {
@@ -1066,7 +1067,7 @@ public class DDSpanContext
     if (key == 0) {
       return 0L;
     }
-    long aliasedId = SpanTags.prepareAliasWrite(unsafeTags, tag, tagDirection());
+    long aliasedId = DirectionalTags.prepareAliasWrite(unsafeTags, tag, tagDirection());
     if (aliasedId > 0) {
       return aliasedId;
     }
@@ -1125,7 +1126,7 @@ public class DDSpanContext
       supersedePendingAliases(tagId);
       unsafeTags.set(entry);
     } else if (KnownTagCodec.mayBeScopedAlias(entry.tag())) {
-      long aliasedId = SpanTags.prepareAliasWrite(unsafeTags, entry.tag(), tagDirection());
+      long aliasedId = DirectionalTags.prepareAliasWrite(unsafeTags, entry.tag(), tagDirection());
       if (aliasedId > 0) {
         unsafeTags.set(aliasedId, entry.objectValue());
       } else {
@@ -1146,7 +1147,7 @@ public class DDSpanContext
     }
     synchronized (unsafeTags) {
       // A direction-dependent name and the tag it denotes here are removed together.
-      SpanTags.remove(unsafeTags, tag, tagDirection());
+      DirectionalTags.remove(unsafeTags, tag, tagDirection());
     }
   }
 
@@ -1164,7 +1165,7 @@ public class DDSpanContext
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
-      SpanTags.remove(unsafeTags, tagId, tagDirection());
+      DirectionalTags.remove(unsafeTags, tagId, tagDirection());
     }
   }
 
@@ -1235,7 +1236,7 @@ public class DDSpanContext
    */
   private void supersedePendingAliases(long tagId) {
     if (KnownTagCodec.hasScopedAlias(tagId) && hasPendingAliases()) {
-      SpanTags.prepareWrite(unsafeTags, tagId, tagDirection());
+      DirectionalTags.prepareWrite(unsafeTags, tagId, tagDirection());
     }
   }
 
@@ -1560,7 +1561,7 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return SpanTags.get(unsafeTags, tag, tagDirection(), hasPendingAliases());
+    return DirectionalTags.get(unsafeTags, tag, tagDirection(), hasPendingAliases());
   }
 
   @Deprecated
@@ -1652,7 +1653,7 @@ public class DDSpanContext
       // Direction-scoped names: the span's kind is final now, so each resolves to its one tag.
       // Only a span that stored an alias as written has any; every other span skips the walk.
       if (hasPendingAliases()) {
-        SpanTags.resolveScopedNames(unsafeTags, tagDirection());
+        DirectionalTags.resolveScopedNames(unsafeTags, tagDirection());
       }
 
       // Tags

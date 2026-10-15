@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+
 /**
  * Resolves generated tag IDs and names. {@link KnownTags} owns the lookup tables; this class owns
  * the ID layout and namespace naming policy.
@@ -68,6 +70,45 @@ public final class KnownTagCodec {
    * time, so the alias handling folds away for every tag without it.
    */
   public static final long HAS_SCOPED_ALIAS = 1L << 0;
+
+  /** The direction of a span with these tags, from its {@code span.kind}. */
+  public static int directionOf(TagMap tags) {
+    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND_ID);
+    return kind == null ? DIRECTION_UNKNOWN : directionOfKind(kind.stringValue());
+  }
+
+  /** The direction of a span of {@code kind}; brokers and custom kinds have none. */
+  public static int directionOfKind(String kind) {
+    if (kind == null) {
+      return DIRECTION_UNKNOWN;
+    }
+    switch (kind) {
+      case Tags.SPAN_KIND_SERVER:
+      case Tags.SPAN_KIND_CONSUMER:
+        return DIRECTION_INBOUND;
+      case Tags.SPAN_KIND_CLIENT:
+      case Tags.SPAN_KIND_PRODUCER:
+        return DIRECTION_OUTBOUND;
+      case Tags.SPAN_KIND_INTERNAL:
+        return DIRECTION_NONE;
+      default:
+        return DIRECTION_UNKNOWN;
+    }
+  }
+
+  /**
+   * True if a span must apply its direction to {@code entry}: a known tag with {@link
+   * #HAS_SCOPED_ALIAS}, or a direction-scoped alias stored as written. A mask test for a known tag;
+   * a filter test, then one lookup, for a custom one.
+   */
+  public static boolean isDirectionDependent(TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    if (tagId != 0) {
+      return hasScopedAlias(tagId);
+    }
+    String tag = entry.tag();
+    return mayBeScopedAlias(tag) && keyOrAliasOf(tag) == DIRECTION_SCOPED_OTEL_NAME_SENTINEL;
+  }
 
   /** True if {@code tagId} has an OpenTelemetry name that holds in some directions only. */
   public static boolean hasScopedAlias(long tagId) {

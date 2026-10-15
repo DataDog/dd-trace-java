@@ -24,7 +24,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
-import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
@@ -142,12 +141,12 @@ public class TagInterceptor {
 
   /**
    * Whether {@code map} must be copied onto a span entry by entry: some entry may be routed, or
-   * holds a direction-dependent name, which the span resolves through {@link SpanTags}. Computed
-   * once for a tracer-level map, so a map with neither takes the bulk-copy fast path.
+   * holds a direction-dependent name, which the span resolves through {@code DirectionalTags}.
+   * Computed once for a tracer-level map, so a map with neither takes the bulk-copy fast path.
    */
   public boolean needsIntercept(TagMap map) {
     for (TagMap.EntryReader entry : map) {
-      if (needsIntercept(entry) || SpanTags.isDirectionDependent(entry)) return true;
+      if (needsIntercept(entry) || KnownTagCodec.isDirectionDependent(entry)) return true;
     }
     return false;
   }
