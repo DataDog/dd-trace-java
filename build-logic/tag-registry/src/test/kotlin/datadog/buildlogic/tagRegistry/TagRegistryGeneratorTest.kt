@@ -558,9 +558,9 @@ class TagRegistryGeneratorTest {
     val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(knownTags)
       .contains(
-        "COMPONENT_ID = 0x0001000000000000L",
-        "RESOURCE_NAME_ID = 0x0002000000000002L",
-        "SERVICE_ID = 0x0003000000000002L",
+        "COMPONENT_ID = 0x0001FFFF00000000L",
+        "RESOURCE_NAME_ID = 0x0002FFFF00000002L",
+        "SERVICE_ID = 0x0003FFFF00000002L",
         "public static final int SERVICE_SERIAL_NUM = 3;",
         "public static final int SERIAL_LIMIT = 4;"
       )
@@ -582,6 +582,44 @@ class TagRegistryGeneratorTest {
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated"), overlayFile) }
       .withMessageContaining(message)
+  }
+
+  @Test
+  fun `tags on one span type get distinct slots and tags that never co-occur share one`() {
+    val yaml = directory.conventionsFile(
+      """
+      trace_level:
+        tags: [{dd-name: env, required: required}]
+      span_types:
+        base:
+          abstract: true
+          tags: [{dd-name: service, required: required}]
+        http.server:
+          extends: base
+          span-kind: server
+          tags: [{dd-name: http.route, required: required}]
+        db.client:
+          extends: base
+          span-kind: client
+          tags: [{dd-name: db.type, required: required}, {dd-name: db.user}]
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    // service is on both span types, so it takes slot 0; db.type and db.user share db.client, so
+    // they take distinct slots, and http.route -- never on a span type with either -- reuses one of
+    // them; env is trace-level (its own TagMap) and reuses slot 0. Every level is slotted.
+    assertThat(contents(output).getValue("java/datadog/trace/api/KnownTags.java"))
+      .contains(
+        "DB_TYPE_ID = 0x0001000100000000L",
+        "DB_USER_ID = 0x0002000200000000L",
+        "ENV_ID = 0x0003000000000004L",
+        "HTTP_ROUTE_ID = 0x0004000100000000L",
+        "SERVICE_ID = 0x0005000000000000L",
+        "public static final int SLOT_COUNT = 3;"
+      )
   }
 
   private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(
