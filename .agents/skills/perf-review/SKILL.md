@@ -119,10 +119,8 @@ mechanism is certain or the severity is catastrophic.
 - **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
   For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
   (in the title, description, or commits) without JMH before/after numbers is a finding, not
-  a soft nudge. A new defensive copy returned from an internal accessor is a
-  flag-with-confidence #1 finding; the fix is a restrictive type, a shared empty constant,
-  and a read-only Javadoc contract. Elsewhere, including those modules' tests, benchmarks
-  and build files, keep the softer posture above.
+  a soft nudge. Elsewhere, including those modules' tests, benchmarks and build files, keep
+  the softer posture above.
 
 ## Workflow
 
