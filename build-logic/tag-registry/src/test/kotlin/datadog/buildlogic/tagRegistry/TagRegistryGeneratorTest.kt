@@ -599,6 +599,46 @@ class TagRegistryGeneratorTest {
       )
   }
 
+  @Test
+  fun `shared tags may share a slot with each other but not with tags that are always set`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        test:
+          span-kind: internal
+          tags:
+            - {dd-name: test.name, required: required}
+            - {dd-name: test.suite, required: required}
+            - {dd-name: test.is_retry, slot: shared}
+            - {dd-name: test.is_new, slot: shared}
+            - {dd-name: test.skip_reason, slot: shared}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    // test.name and test.suite take exact slots 0 and 1; the three shared tags all take slot 2.
+    val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(knownTags)
+      .contains(
+        "TEST_IS_NEW_ID = 0x0001000200000000L",
+        "TEST_IS_RETRY_ID = 0x0002000200000000L",
+        "TEST_NAME_ID = 0x0003000000000000L",
+        "TEST_SKIP_REASON_ID = 0x0004000200000000L",
+        "TEST_SUITE_ID = 0x0005000100000000L",
+        "public static final int SLOT_COUNT = 3;",
+        "+ shared-slot"
+      )
+  }
+
+  @Test
+  fun `a slot value other than shared is rejected`() {
+    assertThatIllegalArgumentException()
+      .isThrownBy { tagConventions("span_types: {base: {tags: [{dd-name: x.y, slot: rare}]}}") }
+      .withMessageContaining("the only value is 'shared'")
+  }
+
   private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(
     ObjectMapper(YAMLFactory()).readValue(
       directory.conventionsFile(yamlText),

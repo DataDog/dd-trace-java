@@ -86,6 +86,7 @@ object KnownTagsEmitter {
         append(if (t.slot == TagRegistry.NO_SLOT) " + no slot" else " + slot=${t.slot}")
         if (t.traceLevel) append(" + trace-level")
         if (t.intercepted) append(" + intercepted")
+        if (t.sharedSlot) append(" + shared-slot")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         for ((direction, otel) in t.scopedOtelNames) append(" -> ${escape(otel)} (${direction.yamlKey})")
         appendLine("  <${escape(t.required)}>")

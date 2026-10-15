@@ -11,7 +11,9 @@ package datadog.buildlogic.tagRegistry
  * resolved tags appear together on one span, so they form a clique and need distinct slots; the
  * trace-level tier is its own clique (it lives in a separate TagMap). Tags that never share a clique
  * may share a slot, so the slot count stays bounded by the largest clique, small enough for one
- * occupancy `long`. Every tag resolved onto a span type, or trace-level, is slotted whatever its
+ * occupancy `long`. A tag marked `slot: shared` (rarely set) is kept apart only from the tags in its
+ * cliques that aren't shared: shared tags may share slots with each other, so a span type with more
+ * tags than slots fits as long as its always-present tags do. Every tag resolved onto a span type, or trace-level, is slotted whatever its
  * requirement level; a tag on no modeled span type (the tracer overlay's routing-only keys, tags of
  * unmodeled span types) gets [NO_SLOT]. Nothing in the tracer reads slots yet: they are for
  * per-span structures that want an exact, compact presence word, such as a dense tag store or a
@@ -41,6 +43,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val otelName: String? = null,
     /** The tag's OpenTelemetry name on spans of each direction that renames it, when [otelName] is null. */
     val scopedOtelNames: Map<TagConventions.Direction, String> = emptyMap(),
+    /** Rarely set, so its slot may be shared with other shared tags; see [TagConventions.Tag.sharedSlot]. */
+    val sharedSlot: Boolean = false,
   ) {
     /** The tag as reports and generated constant names show it. */
     val name: String
@@ -81,6 +85,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
           require(decls.all { it.type == first.type }) {
             "'${first.ddName}' is declared per direction with different types: ${decls.map { it.type }}"
           }
+          require(decls.all { it.sharedSlot == first.sharedSlot }) {
+            "'${first.ddName}' is declared per direction with and without slot: shared"
+          }
           val serial = FIRST_SERIAL + i
           val isTraceLevel = first.ddName in traceLevel
           val isIntercepted = first.ddName in conv.interceptedNames
@@ -97,6 +104,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             id = encode(serial, isTraceLevel, isIntercepted, slot),
             otelName = otelName,
             scopedOtelNames = scoped,
+            sharedSlot = first.sharedSlot,
           )
         }
 
@@ -106,9 +114,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     /**
      * Colors the co-occurrence graph of slotted tags: tags resolved onto one concrete span type, or
-     * both trace-level, must get distinct slots. Greedy, most-constrained first (by clique count,
-     * then name), so the result is a pure function of the conventions. A name declared per direction
-     * is one tag, so it is one vertex.
+     * both trace-level, must get distinct slots -- except that two tags marked `slot: shared` may
+     * share one. Tags that aren't shared are colored first, most-constrained first (by clique count,
+     * then name), so they take the low slots; shared tags then fill the slots their cliques' other
+     * tags leave free. The result is a pure function of the conventions.
      */
     private fun colorSlots(conv: TagConventions): Map<String, Int> {
       val cliques = ArrayList<Set<String>>()
@@ -116,23 +125,28 @@ class TagRegistry private constructor(val tags: List<Tag>) {
         cliques.add(conv.resolve(type).map { it.ddName }.toSet())
       }
       cliques.add(conv.traceLevelTags().map { it.ddName }.toSet())
+      val shared = conv.allDeclaredTags().filter { it.sharedSlot }.map { it.ddName }.toSet()
 
       val neighbors = HashMap<String, MutableSet<String>>()
       for (clique in cliques) {
         for (a in clique) {
           val adjacent = neighbors.getOrPut(a) { HashSet() }
-          for (b in clique) if (a != b) adjacent.add(b)
+          for (b in clique) if (a != b && !(a in shared && b in shared)) adjacent.add(b)
         }
       }
       val cliqueCount = neighbors.keys.associateWith { tag -> cliques.count { tag in it } }
-      val order = neighbors.keys.sortedWith(compareByDescending<String> { cliqueCount.getValue(it) }.thenBy { it })
+      val order =
+        neighbors.keys.sortedWith(
+          compareBy<String> { it in shared }.thenByDescending { cliqueCount.getValue(it) }.thenBy { it }
+        )
       val slots = HashMap<String, Int>()
       for (tag in order) {
         val taken = neighbors.getValue(tag).mapNotNull { slots[it] }.toSet()
         var slot = 0
         while (slot in taken) slot++
         require(slot < MAX_SLOTS) {
-          "coloring needs more than $MAX_SLOTS slots at '$tag'; one occupancy long holds $MAX_SLOTS"
+          "coloring needs more than $MAX_SLOTS slots at '$tag'; one occupancy long holds $MAX_SLOTS. " +
+            "Mark tags set only some of the time `slot: shared`."
         }
         slots[tag] = slot
       }
