@@ -19,6 +19,16 @@ class DDAgentStatsDConnectionTest {
   }
 
   @Test
+  void namedPipeConnectionUsesPortZero() {
+    DDAgentStatsDConnection connection =
+        new DDAgentStatsDConnection(null, null, "dogstatsd", false);
+
+    connection.discoverConnectionSettings();
+
+    assertEquals(Integer.valueOf(0), connection.port);
+  }
+
+  @Test
   void writeErrorsAboutFifteenSecondsApartRecreateAfterThirtySeconds() {
     DDAgentStatsDConnection.WriteFailureStreak streak =
         new DDAgentStatsDConnection.WriteFailureStreak();

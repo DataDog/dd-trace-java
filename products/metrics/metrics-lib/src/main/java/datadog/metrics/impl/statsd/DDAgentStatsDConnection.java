@@ -42,7 +42,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
   private boolean usingDefaultPort;
   private volatile String host;
-  private volatile Integer port;
+  volatile Integer port;
   private final String namedPipe;
   private final boolean useAggregation;
 
@@ -251,8 +251,12 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   }
 
   @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
-  private void discoverConnectionSettings() {
+  void discoverConnectionSettings() {
     if (namedPipe != null) {
+      if (null == port) {
+        // the client ignores the port for a named pipe, but the builder needs one
+        port = 0;
+      }
       return;
     }
 
