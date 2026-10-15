@@ -1,11 +1,14 @@
 package datadog.gradle.plugin.muzzle
 
+import com.sun.net.httpserver.HttpServer
 import datadog.gradle.plugin.MavenRepoFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.net.InetSocketAddress
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
@@ -56,6 +59,62 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     val result = run(":dd-java-agent:instrumentation:demo:muzzle")
     assertThat(result.output).contains("BUILD SUCCESSFUL")
     assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `matching modules share Maven metadata within each build`() {
+    val repository = createMavenRepoFixture()
+    repository.publishVersions("com.example.test", "shared-lib", listOf("1.0.0", "2.0.0"))
+    val metadataRequests = AtomicInteger()
+    val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+    server.createContext("/") { exchange ->
+      try {
+        val path = exchange.requestURI.path.removePrefix("/")
+        if (path == "com/example/test/shared-lib/maven-metadata.xml") {
+          metadataRequests.incrementAndGet()
+        }
+        val file = repository.repoDir.resolve(path)
+        if (file.isFile) {
+          val content = file.readBytes()
+          exchange.sendResponseHeaders(200, content.size.toLong())
+          exchange.responseBody.write(content)
+        } else {
+          exchange.sendResponseHeaders(404, -1)
+        }
+      } finally {
+        exchange.close()
+      }
+    }
+    server.start()
+    try {
+      val script = """
+        plugins { id("java"); id("dd-trace-java.muzzle") }
+        muzzle {
+          pass { group = "com.example.test"; module = "shared-lib"; versions = "[1.0,3.0)" }
+        }
+      """
+      writeProject(script)
+      addSubproject("dd-java-agent:instrumentation:other", script)
+      val env = mapOf("MAVEN_REPOSITORY_PROXY" to "http://127.0.0.1:${server.address.port}/")
+
+      val unrelated = run(":dd-java-agent:instrumentation:demo:tasks", "--all", env = env)
+      assertThat(unrelated.output).contains("BUILD SUCCESSFUL").doesNotContain("muzzle-end")
+      assertThat(metadataRequests.get()).isZero()
+
+      repeat(2) { build ->
+        val result = run("muzzle", "--dry-run", "--parallel", env = env)
+        assertThat(result.output).contains("BUILD SUCCESSFUL")
+        for (module in listOf("demo", "other")) {
+          for (version in listOf("1.0.0", "2.0.0")) {
+            assertThat(result.output)
+              .contains(":dd-java-agent:instrumentation:$module:muzzle-AssertPass-com.example.test-shared-lib-$version SKIPPED")
+          }
+        }
+        assertThat(metadataRequests.get()).isEqualTo(build + 1)
+      }
+    } finally {
+      server.stop(0)
+    }
   }
 
   @Test
