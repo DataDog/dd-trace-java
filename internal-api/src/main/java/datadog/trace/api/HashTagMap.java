@@ -12,4 +12,9 @@ final class HashTagMap extends TagMap {
   HashTagMap(Object[] buckets, int size) {
     super(buckets, size);
   }
+
+  @Override
+  TagMapFactory factory() {
+    return HashTagMapFactory.INSTANCE;
+  }
 }

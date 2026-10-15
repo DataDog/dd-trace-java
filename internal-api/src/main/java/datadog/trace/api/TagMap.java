@@ -120,6 +120,13 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
    * #createFromParent(TagMap)}.
    */
   public static final TagMap createFromParent(TagMap parent, @Nullable SizingHint hint) {
+    return createFromParent(TagMapFactory.Default.INSTANCE, parent, hint);
+  }
+
+  /**
+   * {@link #createFromParent(TagMap, SizingHint)} through {@code factory}; tests pick the store.
+   */
+  static TagMap createFromParent(TagMapFactory factory, TagMap parent, @Nullable SizingHint hint) {
     if (parent != null) {
       if (!parent.frozen) {
         throw new IllegalStateException("read-through parent must be frozen");
@@ -132,8 +139,14 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
         parent = null;
       }
     }
-    return TagMapFactory.Default.INSTANCE.create(parent, hint);
+    return factory.create(parent, hint);
   }
+
+  /**
+   * The factory for this map's own implementation, so that instance methods that make a new map
+   * ({@link #copy}) keep its type rather than taking the JVM's default store.
+   */
+  abstract TagMapFactory factory();
 
   /** Creates a new TagMap.Ledger */
   public static final Ledger ledger() {
@@ -2372,7 +2385,7 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
     // Construct with the same (frozen, shared) parent up front — the parent is fixed at
     // construction. putAll then clones this map's own (local) buckets + size. The copy stays
     // independently mutable (writes land on its local buckets, never the shared parent).
-    TagMap copy = TagMapFactory.Default.INSTANCE.create(this.parent);
+    TagMap copy = this.factory().create(this.parent);
     copy.putAllIntoEmptyMap(this);
     if (this.removedFromParent != null) {
       copy.removedFromParent = new HashSet<>(this.removedFromParent);

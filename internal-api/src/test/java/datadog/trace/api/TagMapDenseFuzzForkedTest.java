@@ -81,11 +81,11 @@ class TagMapDenseFuzzForkedTest {
 
   private static void runRegime(Regime regime) {
     for (int i = 0; i < SINGLE_MAP_CASES; ++i) {
-      TagMapFuzzTest.test(generateTest(regime));
+      TagMapFuzzTest.test(TagMapType.DENSE, generateTest(regime));
     }
     for (int i = 0; i < MERGE_CASES; ++i) {
-      TagMap mapA = TagMapFuzzTest.test(generateTest(regime));
-      TagMap mapB = TagMapFuzzTest.test(generateTest(regime));
+      TagMap mapA = TagMapFuzzTest.test(TagMapType.DENSE, generateTest(regime));
+      TagMap mapB = TagMapFuzzTest.test(TagMapType.DENSE, generateTest(regime));
 
       HashMap<String, Object> hashA = new HashMap<>(mapA);
       HashMap<String, Object> hashB = new HashMap<>(mapB);

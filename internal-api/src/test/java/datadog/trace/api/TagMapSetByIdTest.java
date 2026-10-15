@@ -5,13 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.HashMap;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /** {@link TagMap#set(long, Object)} and its overloads: setting a known tag by its id. */
 class TagMapSetByIdTest {
-  @Test
-  void storesUnderTheCanonicalName() {
-    TagMap map = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void storesUnderTheCanonicalName(TagMapType type) {
+    TagMap map = type.create();
 
     map.set(KnownTags.PEER_HOSTNAME_ID, "db.internal");
 
@@ -19,10 +21,11 @@ class TagMapSetByIdTest {
     assertEquals(KnownTags.PEER_HOSTNAME_ID, map.getEntry(KnownTags.PEER_HOSTNAME_NAME).tagId());
   }
 
-  @Test
-  void anOpenTelemetryRenameIsStoredUnderTheDatadogName() {
-    TagMap byId = TagMap.create();
-    TagMap byOtelName = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void anOpenTelemetryRenameIsStoredUnderTheDatadogName(TagMapType type) {
+    TagMap byId = type.create();
+    TagMap byOtelName = type.create();
 
     byId.set(KnownTags.HTTP_METHOD_ID, "GET");
     byOtelName.set(KnownTags.HTTP_METHOD_OTEL_NAME, "GET");
@@ -30,9 +33,10 @@ class TagMapSetByIdTest {
     assertEquals(new HashMap<>(byOtelName), new HashMap<>(byId));
   }
 
-  @Test
-  void matchesTheNameKeyedSettersForEveryValueType() {
-    TagMap byId = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void matchesTheNameKeyedSettersForEveryValueType(TagMapType type) {
+    TagMap byId = type.create();
     byId.set(KnownTags.HTTP_STATUS_CODE_ID, 5432);
     byId.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
     byId.set(KnownTags.PEER_HOSTNAME_ID, (CharSequence) "db.internal");
@@ -41,7 +45,7 @@ class TagMapSetByIdTest {
     byId.set(KnownTags.DB_USER_ID, 1.5f);
     byId.set(KnownTags.DB_POOL_NAME_ID, 2.5d);
 
-    TagMap byName = TagMap.create();
+    TagMap byName = type.create();
     byName.set(KnownTags.HTTP_STATUS_CODE_NAME, 5432);
     byName.set(KnownTags.HTTP_RESEND_COUNT_NAME, 2L);
     byName.set(KnownTags.PEER_HOSTNAME_NAME, (CharSequence) "db.internal");
@@ -54,9 +58,10 @@ class TagMapSetByIdTest {
     assertEquals(5432, byId.getEntry(KnownTags.HTTP_STATUS_CODE_NAME).intValue());
   }
 
-  @Test
-  void getsAndRemovesById() {
-    TagMap map = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void getsAndRemovesById(TagMapType type) {
+    TagMap map = type.create();
     map.set(KnownTags.HTTP_METHOD_NAME, "GET");
 
     assertEquals("GET", map.getEntry(KnownTags.HTTP_METHOD_ID).stringValue());
@@ -65,23 +70,25 @@ class TagMapSetByIdTest {
     assertNull(map.getAndRemove(KnownTags.HTTP_METHOD_ID));
   }
 
-  @Test
-  void anUnknownIdIsRejected() {
-    TagMap map = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void anUnknownIdIsRejected(TagMapType type) {
+    TagMap map = type.create();
 
     assertThrows(IllegalArgumentException.class, () -> map.set(0L, "value"));
     assertThrows(IllegalArgumentException.class, () -> map.set(KnownTagCodec.makeTagId(9999), 1));
   }
 
-  @Test
-  void theCoresTrustedSetsStoreWhatTheCheckedSetsStore() {
-    TagMap checked = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void theCoresTrustedSetsStoreWhatTheCheckedSetsStore(TagMapType type) {
+    TagMap checked = type.create();
     checked.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
     checked.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
     checked.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
     checked.set(KnownTags.DD_PROFILING_ENABLED_ID, true);
 
-    TagMap trusted = TagMap.create();
+    TagMap trusted = type.create();
     trusted.internals().setKnown(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
     trusted.internals().setKnown(KnownTags.HTTP_STATUS_CODE_ID, 200);
     trusted.internals().setKnown(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
@@ -91,13 +98,14 @@ class TagMapSetByIdTest {
     assertEquals(KnownTags.HTTP_ROUTE_ID, trusted.getEntry(KnownTags.HTTP_ROUTE_NAME).tagId());
   }
 
-  @Test
-  void theCoresKnownValueReadMatchesGetEntry() {
-    TagMap parent = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void theCoresKnownValueReadMatchesGetEntry(TagMapType type) {
+    TagMap parent = type.create();
     parent.set(KnownTags.HTTP_ROUTE_ID, "/parent");
     parent.set(KnownTags.HTTP_METHOD_ID, "GET");
     parent.set(KnownTags.PEER_HOSTNAME_ID, "db.internal");
-    TagMap child = TagMap.createFromParent(parent.freeze());
+    TagMap child = type.createFromParent(parent.freeze());
     child.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
     child.set(KnownTags.HTTP_ROUTE_ID, "/child");
     child.remove(KnownTags.PEER_HOSTNAME_NAME);
@@ -113,15 +121,16 @@ class TagMapSetByIdTest {
     assertNull(child.internals().getKnownValue(KnownTags.DB_INSTANCE_ID));
   }
 
-  @Test
-  void theCoresTrustedSetsCoverTheRemainingValueShapes() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void theCoresTrustedSetsCoverTheRemainingValueShapes(TagMapType type) {
     Object component = new StringBuilder("jdbc"); // not a String: exercises the Object overload
-    TagMap checked = TagMap.create();
+    TagMap checked = type.create();
     checked.set(KnownTags.COMPONENT_ID, component);
     checked.set(KnownTags.DB_POOL_NAME_ID, 1.5f);
     checked.set(KnownTags.DB_INSTANCE_ID, 2.25d);
 
-    TagMap trusted = TagMap.create();
+    TagMap trusted = type.create();
     trusted.internals().setKnown(KnownTags.COMPONENT_ID, component);
     trusted.internals().setKnown(KnownTags.DB_POOL_NAME_ID, 1.5f);
     trusted.internals().setKnown(KnownTags.DB_INSTANCE_ID, 2.25d);

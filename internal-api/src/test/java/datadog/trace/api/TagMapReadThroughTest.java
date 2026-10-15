@@ -11,7 +11,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Read-through support, slice 1 (read path): a child {@link TagMap} with a frozen parent reads
@@ -20,17 +21,18 @@ import org.junit.jupiter.api.Test;
  */
 class TagMapReadThroughTest {
 
-  private static TagMap frozenParent() {
-    TagMap parent = TagMap.create();
+  private static TagMap frozenParent(TagMapType type) {
+    TagMap parent = type.create();
     parent.set("a", "parent-a");
     parent.set("b", "parent-b");
     parent.freeze();
     return parent;
   }
 
-  @Test
-  void readsThroughToParentOnMiss() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void readsThroughToParentOnMiss(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("c", "child-c");
 
     assertEquals("parent-a", child.getString("a")); // miss locally -> read through
@@ -41,18 +43,20 @@ class TagMapReadThroughTest {
     assertFalse(child.containsKey("missing"));
   }
 
-  @Test
-  void localEntryShadowsParent() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void localEntryShadowsParent(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b"); // same key as parent
 
     assertEquals("child-b", child.getString("b")); // local wins
     assertEquals("parent-a", child.getString("a")); // parent still visible
   }
 
-  @Test
-  void estimateSizeIsUpperBound() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void estimateSizeIsUpperBound(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b"); // shadows parent "b"
     child.set("c", "child-c");
 
@@ -61,31 +65,34 @@ class TagMapReadThroughTest {
     assertTrue(child.estimateSize() >= 3, "estimateSize must be an upper bound on the true size");
   }
 
-  @Test
-  void emptinessSemantics() {
-    TagMap emptyOverEmpty = TagMap.createFromParent(TagMap.create().freeze());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void emptinessSemantics(TagMapType type) {
+    TagMap emptyOverEmpty = type.createFromParent(type.create().freeze());
     assertTrue(emptyOverEmpty.isEmpty());
     assertTrue(emptyOverEmpty.isDefinitelyEmpty());
 
-    TagMap emptyOverNonEmpty = TagMap.createFromParent(frozenParent());
+    TagMap emptyOverNonEmpty = type.createFromParent(frozenParent(type));
     assertFalse(emptyOverNonEmpty.isEmpty(), "a non-empty parent makes the map non-empty");
     assertFalse(emptyOverNonEmpty.isDefinitelyEmpty());
 
-    assertTrue((TagMap.create()).isDefinitelyEmpty());
+    assertTrue((type.create()).isDefinitelyEmpty());
   }
 
-  @Test
-  void parentMustBeFrozen() {
-    TagMap mutableParent = TagMap.create();
-    assertThrows(IllegalStateException.class, () -> TagMap.createFromParent(mutableParent));
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void parentMustBeFrozen(TagMapType type) {
+    TagMap mutableParent = type.create();
+    assertThrows(IllegalStateException.class, () -> type.createFromParent(mutableParent));
   }
 
-  @Test
-  void emptyParentIsDroppedNotAttached() {
-    TagMap emptyFrozen = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void emptyParentIsDroppedNotAttached(TagMapType type) {
+    TagMap emptyFrozen = type.create();
     emptyFrozen.freeze();
 
-    TagMap overEmpty = TagMap.createFromParent(emptyFrozen);
+    TagMap overEmpty = type.createFromParent(emptyFrozen);
     // an empty frozen parent contributes nothing and never will -> dropped, no read-through cost
     assertNull(overEmpty.parent, "empty parent should be dropped");
     assertTrue(overEmpty.isDefinitelyEmpty());
@@ -93,17 +100,18 @@ class TagMapReadThroughTest {
     assertEquals("x-val", overEmpty.getString("x"));
 
     // a non-empty parent is still attached
-    TagMap overNonEmpty = TagMap.createFromParent(frozenParent());
+    TagMap overNonEmpty = type.createFromParent(frozenParent(type));
     assertNotNull(overNonEmpty.parent, "non-empty parent must be attached");
     assertEquals("parent-a", overNonEmpty.getString("a"));
   }
 
   // --- slice 2: removal / tombstones ---
 
-  @Test
-  void removingParentKeyHidesItFromChildButNotFromParent() {
-    TagMap parent = frozenParent();
-    TagMap child = TagMap.createFromParent(parent);
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void removingParentKeyHidesItFromChildButNotFromParent(TagMapType type) {
+    TagMap parent = frozenParent(type);
+    TagMap child = type.createFromParent(parent);
 
     assertEquals("parent-a", child.getString("a")); // visible before removal
     child.remove("a");
@@ -114,18 +122,20 @@ class TagMapReadThroughTest {
     assertEquals("parent-a", parent.getString("a")); // frozen parent untouched
   }
 
-  @Test
-  void removeReturnsPriorVisibleValueViaParent() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void removeReturnsPriorVisibleValueViaParent(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
 
     // Map.remove contract: the key was present (via read-through), so removal reports it.
     assertTrue(child.remove("a"), "removing a parent-exposed key should report it was present");
     assertNull(child.getString("a"));
   }
 
-  @Test
-  void reSettingARemovedKeyRestoresVisibility() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void reSettingARemovedKeyRestoresVisibility(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
 
     child.remove("a");
     assertNull(child.getString("a"));
@@ -134,16 +144,17 @@ class TagMapReadThroughTest {
     assertEquals("child-a", child.getString("a"));
   }
 
-  @Test
-  void removingAKeyThatIsBothLocalAndParentHidesBoth() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void removingAKeyThatIsBothLocalAndParentHidesBoth(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b"); // shadows parent "b"
 
     assertEquals("child-b", child.getString("b"));
     child.remove("b");
 
     assertNull(child.getString("b"), "removal must hide both the local entry and the parent's");
-    assertEquals("parent-b", frozenParent().getString("b")); // parent still has it
+    assertEquals("parent-b", frozenParent(type).getString("b")); // parent still has it
   }
 
   // --- slice 3a: bulk forEach union + exact size/isEmpty ---
@@ -154,9 +165,10 @@ class TagMapReadThroughTest {
     return out;
   }
 
-  @Test
-  void forEachEmitsDedupedUnionLocalWins() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void forEachEmitsDedupedUnionLocalWins(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type)); // parent {a, b}
     child.set("b", "child-b"); // shadows parent "b"
     child.set("c", "child-c");
 
@@ -167,9 +179,10 @@ class TagMapReadThroughTest {
     assertEquals("child-c", u.get("c"));
   }
 
-  @Test
-  void forEachSkipsTombstonedParentKeys() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void forEachSkipsTombstonedParentKeys(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("c", "child-c");
     child.remove("a"); // tombstone parent's "a"
 
@@ -180,9 +193,10 @@ class TagMapReadThroughTest {
     assertEquals("child-c", u.get("c"));
   }
 
-  @Test
-  void biConsumerForEachAlsoEmitsUnion() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void biConsumerForEachAlsoEmitsUnion(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("c", "child-c");
 
     Map<String, Object> out = new HashMap<>();
@@ -192,9 +206,10 @@ class TagMapReadThroughTest {
     assertEquals("child-c", out.get("c"));
   }
 
-  @Test
-  void sizeIsExactUnion() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void sizeIsExactUnion(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b"); // shadows
     child.set("c", "child-c");
     assertEquals(3, child.size()); // {a, b, c} — b deduped, not 4
@@ -203,9 +218,10 @@ class TagMapReadThroughTest {
     assertEquals(2, child.size()); // {b, c}
   }
 
-  @Test
-  void isEmptyExactWhenAllParentKeysTombstonedAndNoLocal() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void isEmptyExactWhenAllParentKeysTombstonedAndNoLocal(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type)); // parent {a, b}
     assertFalse(child.isEmpty());
 
     child.remove("a");
@@ -216,9 +232,10 @@ class TagMapReadThroughTest {
 
   // --- slice 3b: pull-based iterators / collection views ---
 
-  @Test
-  void iteratorEmitsDedupedUnion() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void iteratorEmitsDedupedUnion(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b"); // shadows parent "b"
     child.set("c", "child-c");
 
@@ -234,9 +251,10 @@ class TagMapReadThroughTest {
     assertEquals("child-c", u.get("c"));
   }
 
-  @Test
-  void keySetReflectsUnionAndTombstones() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void keySetReflectsUnionAndTombstones(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("c", "child-c");
 
     Set<String> keys = child.keySet();
@@ -249,9 +267,10 @@ class TagMapReadThroughTest {
     assertFalse(child.keySet().contains("a"));
   }
 
-  @Test
-  void valuesAndEntrySetReflectUnion() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void valuesAndEntrySetReflectUnion(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b"); // shadows parent "b"
 
     assertEquals(2, child.entrySet().size()); // {a, b} — b deduped
@@ -262,13 +281,14 @@ class TagMapReadThroughTest {
 
   // --- slice 3c: putAll from a read-through source copies the visible union, not just locals ---
 
-  @Test
-  void putAllFromReadThroughSourceCopiesFullVisibleUnion() {
-    TagMap source = TagMap.createFromParent(frozenParent()); // parent {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putAllFromReadThroughSourceCopiesFullVisibleUnion(TagMapType type) {
+    TagMap source = type.createFromParent(frozenParent(type)); // parent {a, b}
     source.set("b", "child-b"); // shadows parent b
     source.set("c", "child-c");
 
-    TagMap dest = TagMap.create(); // empty -> putAllIntoEmptyMap path
+    TagMap dest = type.create(); // empty -> putAllIntoEmptyMap path
     dest.putAll(source);
 
     // the parent-visible "a" must land too, not just source's local entries
@@ -278,11 +298,12 @@ class TagMapReadThroughTest {
     assertEquals("child-c", dest.getString("c"));
   }
 
-  @Test
-  void putAllMergeFromReadThroughSourceCopiesVisibleUnion() {
-    TagMap source = TagMap.createFromParent(frozenParent()); // {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putAllMergeFromReadThroughSourceCopiesVisibleUnion(TagMapType type) {
+    TagMap source = type.createFromParent(frozenParent(type)); // {a, b}
 
-    TagMap dest = TagMap.create();
+    TagMap dest = type.create();
     dest.set("z", "dest-z"); // dest non-empty -> putAllMerge path
 
     dest.putAll(source);
@@ -292,12 +313,13 @@ class TagMapReadThroughTest {
     assertEquals("dest-z", dest.getString("z"));
   }
 
-  @Test
-  void putAllFromReadThroughSourceHonorsTombstones() {
-    TagMap source = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putAllFromReadThroughSourceHonorsTombstones(TagMapType type) {
+    TagMap source = type.createFromParent(frozenParent(type));
     source.remove("a"); // tombstone parent's "a"
 
-    TagMap dest = TagMap.create();
+    TagMap dest = type.create();
     dest.putAll(source);
 
     assertEquals(1, dest.size());
@@ -307,9 +329,10 @@ class TagMapReadThroughTest {
 
   // --- slice 4: behavior-identical to a copy-down / flat map ---
 
-  @Test
-  void copyIsObservationallyIdentical() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void copyIsObservationallyIdentical(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type)); // {a, b}
     child.set("b", "child-b"); // shadows parent "b"
     child.set("c", "child-c");
 
@@ -321,9 +344,10 @@ class TagMapReadThroughTest {
     assertEquals(collect(child), collect(copy)); // same union
   }
 
-  @Test
-  void copyIsIndependentlyMutable() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void copyIsIndependentlyMutable(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("c", "child-c");
 
     TagMap copy = child.copy();
@@ -336,9 +360,10 @@ class TagMapReadThroughTest {
     assertNull(copy.getString("a"));
   }
 
-  @Test
-  void copyPreservesTombstones() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void copyPreservesTombstones(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.remove("a"); // tombstone "a"
 
     TagMap copy = child.copy();
@@ -347,13 +372,14 @@ class TagMapReadThroughTest {
   }
 
   /** The contract that lets the consumer flip mergedTracerTags to a parent. */
-  @Test
-  void readThroughMatchesAnEquivalentFlatMap() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void readThroughMatchesAnEquivalentFlatMap(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b");
     child.set("c", "child-c");
 
-    TagMap flat = TagMap.create();
+    TagMap flat = type.create();
     flat.set("a", "parent-a");
     flat.set("b", "child-b");
     flat.set("c", "child-c");
@@ -366,9 +392,10 @@ class TagMapReadThroughTest {
     }
   }
 
-  @Test
-  void immutableCopyOfReadThroughIsFrozenAndStillReadsThrough() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void immutableCopyOfReadThroughIsFrozenAndStillReadsThrough(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("c", "child-c");
 
     TagMap frozen = child.immutableCopy();
@@ -384,27 +411,28 @@ class TagMapReadThroughTest {
    * Builds a 3-level chain leaf -&gt; mid -&gt; grandparent (both ancestors frozen) and returns the
    * leaf. Visible union, nearest-level-wins: {a=gp-a, b=mid-b, c=leaf-c, d=mid-d, e=leaf-e}.
    */
-  private static TagMap threeLevelLeaf() {
-    TagMap grandparent = TagMap.create();
+  private static TagMap threeLevelLeaf(TagMapType type) {
+    TagMap grandparent = type.create();
     grandparent.set("a", "gp-a");
     grandparent.set("b", "gp-b");
     grandparent.set("c", "gp-c");
     grandparent.freeze();
 
-    TagMap mid = TagMap.createFromParent(grandparent);
+    TagMap mid = type.createFromParent(grandparent);
     mid.set("b", "mid-b"); // shadows grandparent b
     mid.set("d", "mid-d");
     mid.freeze();
 
-    TagMap leaf = TagMap.createFromParent(mid);
+    TagMap leaf = type.createFromParent(mid);
     leaf.set("c", "leaf-c"); // shadows grandparent c (mid doesn't define c)
     leaf.set("e", "leaf-e");
     return leaf;
   }
 
-  @Test
-  void getWalksTheWholeChainNearestWins() {
-    TagMap leaf = threeLevelLeaf();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void getWalksTheWholeChainNearestWins(TagMapType type) {
+    TagMap leaf = threeLevelLeaf(type);
     assertEquals("gp-a", leaf.getString("a")); // only in grandparent (two levels up)
     assertEquals("mid-b", leaf.getString("b")); // mid shadows grandparent
     assertEquals("leaf-c", leaf.getString("c")); // leaf shadows grandparent
@@ -413,14 +441,16 @@ class TagMapReadThroughTest {
     assertNull(leaf.getString("missing"));
   }
 
-  @Test
-  void sizeIsExactUnionAcrossChain() {
-    assertEquals(5, threeLevelLeaf().size()); // {a, b, c, d, e}, shadowed duplicates deduped
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void sizeIsExactUnionAcrossChain(TagMapType type) {
+    assertEquals(5, threeLevelLeaf(type).size()); // {a, b, c, d, e}, shadowed duplicates deduped
   }
 
-  @Test
-  void forEachEmitsDedupedUnionAcrossChain() {
-    Map<String, Object> u = collect(threeLevelLeaf());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void forEachEmitsDedupedUnionAcrossChain(TagMapType type) {
+    Map<String, Object> u = collect(threeLevelLeaf(type));
     assertEquals(5, u.size());
     assertEquals("gp-a", u.get("a"));
     assertEquals("mid-b", u.get("b")); // nearest ancestor wins over grandparent
@@ -429,10 +459,11 @@ class TagMapReadThroughTest {
     assertEquals("leaf-e", u.get("e"));
   }
 
-  @Test
-  void iteratorEmitsDedupedUnionAcrossChain() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void iteratorEmitsDedupedUnionAcrossChain(TagMapType type) {
     Map<String, Object> u = new HashMap<>();
-    Iterator<TagMap.EntryReader> it = threeLevelLeaf().iterator();
+    Iterator<TagMap.EntryReader> it = threeLevelLeaf(type).iterator();
     while (it.hasNext()) {
       TagMap.EntryReader e = it.next();
       u.put(e.tag(), e.objectValue());
@@ -443,18 +474,20 @@ class TagMapReadThroughTest {
     assertEquals("leaf-c", u.get("c"));
   }
 
-  @Test
-  void keySetReflectsChainUnion() {
-    Set<String> keys = threeLevelLeaf().keySet();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void keySetReflectsChainUnion(TagMapType type) {
+    Set<String> keys = threeLevelLeaf(type).keySet();
     assertEquals(5, keys.size());
     for (String k : new String[] {"a", "b", "c", "d", "e"}) {
       assertTrue(keys.contains(k), "missing key " + k);
     }
   }
 
-  @Test
-  void leafTombstoneHidesGrandparentOnlyKey() {
-    TagMap leaf = threeLevelLeaf();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void leafTombstoneHidesGrandparentOnlyKey(TagMapType type) {
+    TagMap leaf = threeLevelLeaf(type);
     leaf.remove("a"); // "a" lives only in the grandparent, two levels up
     assertNull(leaf.getString("a"));
     assertFalse(leaf.containsKey("a"));
@@ -462,21 +495,22 @@ class TagMapReadThroughTest {
     assertEquals(4, leaf.size()); // {b, c, d, e}
   }
 
-  @Test
-  void intermediateAncestorTombstoneIsHonoredByBulkViews() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void intermediateAncestorTombstoneIsHonoredByBulkViews(TagMapType type) {
     // mid removes an inherited grandparent key, THEN is frozen and reused as a parent. A non-leaf
     // level can therefore carry its own tombstones. Point lookups recurse through mid's tombstone
     // (correct); the bulk views must agree and not re-emit the key.
-    TagMap grandparent = TagMap.create();
+    TagMap grandparent = type.create();
     grandparent.set("a", "gp-a");
     grandparent.set("b", "gp-b");
     grandparent.freeze();
 
-    TagMap mid = TagMap.createFromParent(grandparent);
+    TagMap mid = type.createFromParent(grandparent);
     mid.remove("a"); // tombstone an inherited key before freezing
     mid.freeze();
 
-    TagMap leaf = TagMap.createFromParent(mid);
+    TagMap leaf = type.createFromParent(mid);
 
     // point lookups (recurse -> already correct)
     assertNull(leaf.getString("a"));
@@ -502,22 +536,23 @@ class TagMapReadThroughTest {
     assertFalse(viaIterator.containsKey("a"));
   }
 
-  @Test
-  void observationallyEmptyIntermediateParentIsDroppedNotAttached() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void observationallyEmptyIntermediateParentIsDroppedNotAttached(TagMapType type) {
     // A frozen mid level with no local entries whose every inherited key is tombstoned is
     // observationally empty even though a local (grandparent) level still holds entries.
     // createFromParent must drop it (exact isEmpty), so the leaf stays consistent: isEmpty() must
     // agree with size()/lookup/iteration.
-    TagMap grandparent = TagMap.create();
+    TagMap grandparent = type.create();
     grandparent.set("a", "gp-a");
     grandparent.freeze();
 
-    TagMap mid = TagMap.createFromParent(grandparent);
+    TagMap mid = type.createFromParent(grandparent);
     mid.remove("a"); // tombstone the only inherited key -> mid is observationally empty
     mid.freeze();
     assertTrue(mid.isEmpty());
 
-    TagMap leaf = TagMap.createFromParent(mid);
+    TagMap leaf = type.createFromParent(mid);
     assertEquals(0, leaf.size());
     assertTrue(leaf.isEmpty(), "isEmpty() must agree with size()==0");
     assertNull(leaf.getString("a"));
@@ -525,11 +560,12 @@ class TagMapReadThroughTest {
     assertFalse(leaf.iterator().hasNext());
   }
 
-  @Test
-  void chainReadThroughMatchesEquivalentFlatMap() {
-    TagMap leaf = threeLevelLeaf();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void chainReadThroughMatchesEquivalentFlatMap(TagMapType type) {
+    TagMap leaf = threeLevelLeaf(type);
 
-    TagMap flat = TagMap.create();
+    TagMap flat = type.create();
     flat.set("a", "gp-a");
     flat.set("b", "mid-b");
     flat.set("c", "leaf-c");
@@ -546,47 +582,53 @@ class TagMapReadThroughTest {
 
   // --- slice 6: put/getAndSet report the prior visible value, including inherited ---
 
-  @Test
-  void putReturnsInheritedParentValueAsPrior() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putReturnsInheritedParentValueAsPrior(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type)); // parent {a, b}
     Object prior = child.put("a", "child-a"); // "a" exists only in the parent
     assertEquals("parent-a", prior, "put must report the inherited value as the previous mapping");
     assertEquals("child-a", child.getString("a")); // new value stored locally
   }
 
-  @Test
-  void putReturnsNullForAKeyInNeitherLocalNorParent() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putReturnsNullForAKeyInNeitherLocalNorParent(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     assertNull(child.put("brand-new", "v"));
   }
 
-  @Test
-  void putReturnsLocalPriorWhenShadowingParent() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putReturnsLocalPriorWhenShadowingParent(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("a", "local-a"); // local now shadows the parent
     assertEquals("local-a", child.put("a", "local-a2"), "the local prior wins over the parent's");
   }
 
-  @Test
-  void putAfterRemoveReportsNoPriorNotTheParentValue() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putAfterRemoveReportsNoPriorNotTheParentValue(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.remove("a"); // tombstone the parent's "a": no longer visible
     assertNull(child.put("a", "child-a"), "a tombstoned key had no visible prior value");
     assertEquals("child-a", child.getString("a"));
   }
 
-  @Test
-  void getAndSetReturnsInheritedEntryAsPrior() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void getAndSetReturnsInheritedEntryAsPrior(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     TagMap.Entry prior = child.getAndSet("b", "child-b");
     assertEquals("parent-b", prior.objectValue());
   }
 
-  @Test
-  void getAndSetByIdReturnsTheInheritedEntryOfThatId() {
-    TagMap parent = TagMap.create();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void getAndSetByIdReturnsTheInheritedEntryOfThatId(TagMapType type) {
+    TagMap parent = type.create();
     parent.set(KnownTags.HTTP_ROUTE_ID, "/parent/{id}");
-    TagMap child = TagMap.createFromParent(parent.freeze());
+    TagMap child = type.createFromParent(parent.freeze());
 
     TagMap.Entry prior =
         child.getAndSet(TagMap.Entry.create(KnownTags.HTTP_ROUTE_ID, (Object) "/child/{id}"));
@@ -594,9 +636,10 @@ class TagMapReadThroughTest {
     assertEquals("/parent/{id}", prior.objectValue());
   }
 
-  @Test
-  void setDoesNotReportPriorButStillClearsTombstone() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void setDoesNotReportPriorButStillClearsTombstone(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.remove("b"); // tombstone
     child.set("b", "child-b"); // void set: no prior lookup, but must clear the tombstone
     assertEquals("child-b", child.getString("b"));
@@ -604,9 +647,10 @@ class TagMapReadThroughTest {
 
   // --- slice 7: clear() removes inherited mappings too (detaches the parent) ---
 
-  @Test
-  void clearRemovesInheritedMappingsAndDetachesParent() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void clearRemovesInheritedMappingsAndDetachesParent(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type)); // {a, b}
     child.set("c", "child-c");
 
     child.clear();
@@ -618,17 +662,19 @@ class TagMapReadThroughTest {
     assertFalse(child.containsKey("a"));
   }
 
-  @Test
-  void clearDoesNotAffectTheFrozenParent() {
-    TagMap parent = frozenParent();
-    TagMap child = TagMap.createFromParent(parent);
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void clearDoesNotAffectTheFrozenParent(TagMapType type) {
+    TagMap parent = frozenParent(type);
+    TagMap child = type.createFromParent(parent);
     child.clear();
     assertEquals("parent-a", parent.getString("a"), "the shared frozen parent is untouched");
   }
 
-  @Test
-  void putAfterClearBehavesAsAPlainMap() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void putAfterClearBehavesAsAPlainMap(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.clear();
     child.set("x", "x-val");
     assertEquals(1, child.size());
@@ -650,9 +696,10 @@ class TagMapReadThroughTest {
     return out;
   }
 
-  @Test
-  void fillMapMaterializesDedupedUnionLocalWins() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void fillMapMaterializesDedupedUnionLocalWins(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type)); // parent {a, b}
     child.set("b", "child-b"); // shadows parent "b"
     child.set("c", "child-c");
 
@@ -663,9 +710,10 @@ class TagMapReadThroughTest {
     assertEquals("child-c", out.get("c"));
   }
 
-  @Test
-  void fillMapHonorsTombstonedParentKeys() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void fillMapHonorsTombstonedParentKeys(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("c", "child-c");
     child.remove("a"); // tombstone parent's "a"
 
@@ -676,9 +724,10 @@ class TagMapReadThroughTest {
     assertEquals("child-c", out.get("c"));
   }
 
-  @Test
-  void fillStringMapMaterializesDedupedUnionLocalWins() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void fillStringMapMaterializesDedupedUnionLocalWins(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.set("b", "child-b"); // shadows parent "b"
     child.set("c", "child-c");
 
@@ -689,9 +738,10 @@ class TagMapReadThroughTest {
     assertEquals("child-c", out.get("c"));
   }
 
-  @Test
-  void fillStringMapHonorsTombstonedParentKeys() {
-    TagMap child = TagMap.createFromParent(frozenParent());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void fillStringMapHonorsTombstonedParentKeys(TagMapType type) {
+    TagMap child = type.createFromParent(frozenParent(type));
     child.remove("a"); // tombstone parent's "a"
 
     Map<String, String> out = fillStringMapCollect(child);
@@ -700,11 +750,12 @@ class TagMapReadThroughTest {
     assertEquals("parent-b", out.get("b"));
   }
 
-  @Test
-  void fillMapAcrossChainMatchesEquivalentFlatMap() {
-    TagMap leaf = threeLevelLeaf();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void fillMapAcrossChainMatchesEquivalentFlatMap(TagMapType type) {
+    TagMap leaf = threeLevelLeaf(type);
 
-    TagMap flat = TagMap.create();
+    TagMap flat = type.create();
     flat.set("a", "gp-a");
     flat.set("b", "mid-b");
     flat.set("c", "leaf-c");
@@ -715,10 +766,11 @@ class TagMapReadThroughTest {
     assertEquals(fillStringMapCollect(flat), fillStringMapCollect(leaf));
   }
 
-  @Test
-  void fillMapWithoutParentFillsOnlyLocalEntries() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void fillMapWithoutParentFillsOnlyLocalEntries(TagMapType type) {
     // regression: the no-parent fast path is unchanged
-    TagMap flat = TagMap.create();
+    TagMap flat = type.create();
     flat.set("x", "x-val");
     flat.set("y", "y-val");
 

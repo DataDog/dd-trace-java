@@ -72,6 +72,11 @@ final class DenseTagMap extends TagMap {
   private long knownOccupancy;
   private boolean knownTraceLevel;
 
+  @Override
+  TagMapFactory factory() {
+    return DenseTagMapFactory.INSTANCE;
+  }
+
   DenseTagMap(TagMap parent) {
     // start on the shared empty buckets; the first bucket write copies them
     super(parent, EMPTY_BUCKETS);
