@@ -77,10 +77,9 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @Test
   @DisplayName("testAddSourceFileProbeHugeInnerClasses")
   @Flaky
-  @Disabled
-  // @DisabledIf(
-  //     value = "datadog.environment.JavaVirtualMachine#isJ9",
-  //     disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testAddSourceFileProbeHugeInnerClasses() throws Exception {
     waitForSpecificLine(appUrl, " totalentries: 5");
     LogProbe logProbe =
