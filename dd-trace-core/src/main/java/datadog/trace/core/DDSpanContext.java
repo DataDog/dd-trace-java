@@ -1067,10 +1067,11 @@ public class DDSpanContext
       return 0L;
     }
     long aliasedId = SpanTags.prepareAliasWrite(unsafeTags, tag, tagDirection());
-    if (aliasedId == 0) {
-      notePendingAlias();
+    if (aliasedId > 0) {
+      return aliasedId;
     }
-    return aliasedId;
+    notePendingAlias(); // the registry said alias, so this is the sentinel: stored as written
+    return 0L;
   }
 
   /**
@@ -1085,7 +1086,7 @@ public class DDSpanContext
   }
 
   /** True once any alias has been stored as written; see {@link #routedTagFlags}. */
-  private boolean hasPendingAliases() {
+  boolean hasPendingAliases() {
     return (routedTagFlags & KnownTagCodec.HAS_SCOPED_ALIAS) != 0;
   }
 
@@ -1125,11 +1126,12 @@ public class DDSpanContext
       unsafeTags.set(entry);
     } else if (KnownTagCodec.mayBeScopedAlias(entry.tag())) {
       long aliasedId = SpanTags.prepareAliasWrite(unsafeTags, entry.tag(), tagDirection());
-      if (aliasedId != 0) {
+      if (aliasedId > 0) {
         unsafeTags.set(aliasedId, entry.objectValue());
       } else {
-        // An alias stored as written (or a filter false positive: then merely slower).
-        notePendingAlias();
+        if (aliasedId < 0) {
+          notePendingAlias(); // a real alias, stored as written; 0 is a filter false positive
+        }
         unsafeTags.set(entry);
       }
     } else {
@@ -1648,7 +1650,10 @@ public class DDSpanContext
     // - implementing an interface to read the spans that require making the read method public
     synchronized (unsafeTags) {
       // Direction-scoped names: the span's kind is final now, so each resolves to its one tag.
-      SpanTags.resolveScopedNames(unsafeTags, tagDirection());
+      // Only a span that stored an alias as written has any; every other span skips the walk.
+      if (hasPendingAliases()) {
+        SpanTags.resolveScopedNames(unsafeTags, tagDirection());
+      }
 
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);

@@ -2,9 +2,12 @@ package datadog.trace.core;
 
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -45,6 +48,42 @@ class DDSpanDirectionalTagConsistencyTest extends DDCoreJavaSpecification {
 
     assertEquals(81, span.getTag(Tags.PEER_PORT));
     assertEquals(1, entriesNamed(span.getTags(), Tags.PEER_PORT));
+  }
+
+  /**
+   * The alias filter passes some custom names that aren't aliases. Seeding one must not mark the
+   * span as holding a pending alias, which would keep its aliased-tag writes and its serialization
+   * on the slow path for the span's whole life.
+   */
+  @Test
+  void aCustomTagThatOnlyPassesTheAliasFilterLeavesTheSpanOnTheFastPath() {
+    String lookalike = "custom.tag18";
+    assertTrue(KnownTagCodec.mayBeScopedAlias(lookalike), "precondition: a filter false positive");
+
+    DDSpan built =
+        (DDSpan)
+            tracer
+                .buildSpan("datadog", "built")
+                .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
+                .withTag(lookalike, "value")
+                .start();
+    try {
+      assertFalse(built.spanContext().hasPendingAliases());
+      assertEquals("value", built.getTag(lookalike));
+    } finally {
+      built.finish();
+    }
+  }
+
+  @Test
+  void aRealAliasWrittenBeforeTheKindIsKnownMarksTheSpan() {
+    DDSpan built =
+        (DDSpan) tracer.buildSpan("datadog", "built").withTag("server.address", "host").start();
+    try {
+      assertTrue(built.spanContext().hasPendingAliases());
+    } finally {
+      built.finish();
+    }
   }
 
   @Test

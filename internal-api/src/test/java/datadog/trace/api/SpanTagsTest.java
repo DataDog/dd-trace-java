@@ -133,17 +133,18 @@ class SpanTagsTest {
   }
 
   @TableTest({
-    "scenario                | name           | direction",
-    "no direction yet        | server.address | -1       ",
-    "no tag in the direction | client.port    | 1        ",
-    "internal span           | server.address | 2        ",
-    "not an alias            | my.tag         | 1        "
+    "scenario                | name           | direction | result",
+    "no direction yet        | server.address | -1        | -3    ",
+    "no tag in the direction | client.port    | 1         | -3    ",
+    "internal span           | server.address | 2         | -3    ",
+    "not an alias            | my.tag         | 1         | 0     "
   })
-  void anAliasWriteThatCannotResolveIsStoredAsWritten(String name, int direction) {
+  void anAliasWriteThatCannotResolveIsStoredAsWritten(String name, int direction, long result) {
     TagMap tags = TagMap.create();
     tags.set(name, "pending");
 
-    assertEquals(0L, SpanTags.prepareAliasWrite(tags, name, direction));
+    // the sentinel (-3) marks a real alias left pending; 0 marks a name that is no alias at all
+    assertEquals(result, SpanTags.prepareAliasWrite(tags, name, direction));
     assertEquals("pending", tags.getObject(name));
   }
 

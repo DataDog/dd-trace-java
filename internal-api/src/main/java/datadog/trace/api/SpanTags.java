@@ -76,17 +76,18 @@ public final class SpanTags {
   }
 
   /**
-   * Prepares a write of the alias {@code alias} -- a name {@link KnownTagCodec#keyOrAliasOf}
-   * returned {@link KnownTagCodec#DIRECTION_SCOPED_OTEL_NAME_SENTINEL} for -- to a span of {@code
-   * direction}, returning the id of the tag to store the value under, or 0 to store it under the
-   * alias. Also safe for any other name, which returns 0.
+   * Prepares a write of {@code alias} to a span of {@code direction}. Returns the id of the tag to
+   * store the value under; {@link KnownTagCodec#NO_TAG_IN_DIRECTION_SENTINEL} when {@code alias} is
+   * a direction-scoped alias that can't resolve yet, so its value is stored as written, pending; or
+   * 0 when it is no alias at all, so its value is an ordinary custom tag. Callers that keep a
+   * pending-alias flag set it only for the sentinel, so a name that merely passed {@link
+   * KnownTagCodec#mayBeScopedAlias}'s filter doesn't slow the span down.
    */
   public static long prepareAliasWrite(TagMap tags, String alias, int direction) {
     long tagId = KnownTagCodec.directionalKeyOf(alias, direction);
-    if (tagId <= 0) {
-      return 0L; // not an alias, no direction yet, or no tag in it: stored as written
+    if (tagId > 0) {
+      tags.remove(alias); // a value pending under the alias is older than this write
     }
-    tags.remove(alias); // a value pending under the alias is older than this write
     return tagId;
   }
 
@@ -200,8 +201,8 @@ public final class SpanTags {
    * -- or any, while the direction is unknown -- stays as written, a custom tag.
    */
   public static void resolveScopedNames(TagMap tags, int direction) {
-    if (direction == DIRECTION_UNKNOWN) {
-      return;
+    if (direction == DIRECTION_UNKNOWN || direction == DIRECTION_NONE) {
+      return; // no alias names a tag on a span with no direction, or an internal one
     }
     List<TagMap.Entry> pending = null;
     for (TagMap.EntryReader entry : tags) {
