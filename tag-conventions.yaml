@@ -262,10 +262,14 @@ span_types:
   messaging.producer:
     extends: messaging
     span-kind: producer
+    include: [ peer, peer_address, outbound_peer ]
 
+  # TODO: RabbitMQ consumers also set peer.hostname, which outbound_peer declares for client spans only
+  # (as on websocket spans).
   messaging.consumer:
     extends: messaging
     span-kind: consumer
+    include: [ peer_address, inbound_peer ]
     tags:
       - { dd-name: record.queue_time_ms,   type: long, required: optional }  # from the message's timestamp, when it has one
       - { dd-name: record.e2e_duration_ms, type: long, required: optional }  # only when end-to-end durations are enabled
@@ -279,6 +283,7 @@ span_types:
   messaging.client:
     extends: messaging
     span-kind: client
+    include: [ peer, peer_address, outbound_peer ]
 
   # A consumer's poll for a batch (span.kind unset).
   messaging.poll:
@@ -379,11 +384,12 @@ mixins:
     tags:
       - { dd-name: peer.port, type: int, otel-name: client.port }
 
-  # code_origin — the debugger's code origin, on entry spans (and their local root) and @Trace spans.
+  # code_origin — the debugger's code origin, on entry spans (and their local root), annotated
+  # controller methods' handler spans, and @Trace spans.
   # Only the origin's type is registered: its frames are _dd.code_origin.frames.<N>.<field>, a name
   # pattern, which the registry doesn't model yet. (Only frame 0 is produced today.)
   code_origin:
-    applies: [ http.server, rpc.server, messaging.consumer, internal ]
+    applies: [ http.server, rpc.server, messaging.consumer, internal, web.handler ]
     tags:
       - { dd-name: _dd.code_origin.type, type: string, required: optional }
 
