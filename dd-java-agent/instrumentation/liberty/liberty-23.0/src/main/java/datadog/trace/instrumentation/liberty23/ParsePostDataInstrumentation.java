@@ -20,7 +20,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.instrumentation.liberty.LibertyBlockingHelper;
+import datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper;
 import java.util.Hashtable;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
@@ -43,8 +43,8 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.liberty.LibertyBlockingHelper",
-      "datadog.trace.instrumentation.liberty.LibertyBlockingHelper$WsByteBufferImpl",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper$WsByteBufferImpl",
     };
   }
 

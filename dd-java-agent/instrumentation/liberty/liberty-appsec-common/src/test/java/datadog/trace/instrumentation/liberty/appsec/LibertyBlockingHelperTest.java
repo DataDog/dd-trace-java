@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.liberty;
+package datadog.trace.instrumentation.liberty.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
