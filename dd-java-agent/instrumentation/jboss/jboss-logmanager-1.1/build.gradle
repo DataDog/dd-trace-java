@@ -17,8 +17,8 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 ["latestDepTest", "latestDepForkedTest"].each {
   tasks.named(it, Test) {
     testJvmConstraints {
-      // jboss-logmanager 3.x requires Java 11
-      minJavaVersion = JavaVersion.VERSION_11
+      // jboss-logmanager 3.2 requires Java 17
+      minJavaVersion = JavaVersion.VERSION_17
     }
   }
 }
