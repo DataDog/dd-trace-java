@@ -1,7 +1,7 @@
 package com.datadog.openfeature.internal.delivery;
 
 import com.datadog.openfeature.internal.ConfigurationService;
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import java.io.IOException;

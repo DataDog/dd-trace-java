@@ -1,4 +1,4 @@
-package com.datadog.openfeature.internal.connector;
+package com.datadog.openfeature.internal.bridge;
 
 import java.io.IOException;
 

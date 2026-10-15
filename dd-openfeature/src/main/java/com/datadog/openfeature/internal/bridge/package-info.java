@@ -5,4 +5,4 @@
  * instrumentation, which can run a different version than the SDK, so they must evolve in a
  * backward compatible way.
  */
-package com.datadog.openfeature.internal.connector;
+package com.datadog.openfeature.internal.bridge;

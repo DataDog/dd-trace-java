@@ -1,8 +1,8 @@
-package com.datadog.openfeature.internal.connector;
+package com.datadog.openfeature.internal.bridge;
 
 import javax.annotation.Nullable;
 
-final class NoConnector implements Connector {
+final class NoopAgentBridge implements AgentBridge {
   @Nullable
   @Override
   public String setting(final String key) {

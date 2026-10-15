@@ -1,4 +1,4 @@
-package com.datadog.openfeature.internal.connector;
+package com.datadog.openfeature.internal.bridge;
 
 import javax.annotation.Nullable;
 

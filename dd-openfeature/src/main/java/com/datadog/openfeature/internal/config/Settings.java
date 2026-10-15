@@ -1,6 +1,6 @@
 package com.datadog.openfeature.internal.config;
 
-import com.datadog.openfeature.internal.connector.Connector;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Locale;
 import java.util.function.UnaryOperator;
@@ -9,13 +9,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Resolves the SDK settings. A setting is looked up from the {@link Connector} first, then from the
- * {@code dd.}-prefixed system property, then from the {@code DD_}-prefixed environment variable.
+ * Resolves the SDK settings. A setting is looked up from the {@link AgentBridge} first, then from
+ * the {@code dd.}-prefixed system property, then from the {@code DD_}-prefixed environment
+ * variable.
  */
 public final class Settings {
   private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
 
-  /** The setting sources: connector, system properties, then environment variables. */
+  /** The setting sources: bridge, system properties, then environment variables. */
   private static final int SOURCE_COUNT = 3;
 
   public static final String CONFIGURATION_SOURCE_AGENTLESS = "agentless";
@@ -45,30 +46,30 @@ public final class Settings {
   static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
   static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 5;
 
-  private final Connector connector;
+  private final AgentBridge bridge;
   private final UnaryOperator<String> systemProperties;
   private final UnaryOperator<String> environment;
 
   Settings(
-      final Connector connector,
+      final AgentBridge bridge,
       final UnaryOperator<String> systemProperties,
       final UnaryOperator<String> environment) {
-    this.connector = connector;
+    this.bridge = bridge;
     this.systemProperties = systemProperties;
     this.environment = environment;
   }
 
   /**
-   * Creates the settings backed by the given connector, system properties and environment.
+   * Creates the settings backed by the given bridge, system properties and environment.
    *
-   * @param connector the connector to look settings up from first.
+   * @param bridge the bridge to look settings up from first.
    * @return the settings.
    */
   // Allowing VM properties and environment variable access
   // as the SDK does not ship the agent configuration helpers
   @SuppressForbidden
-  public static Settings load(final Connector connector) {
-    return new Settings(connector, System::getProperty, System::getenv);
+  public static Settings load(final AgentBridge bridge) {
+    return new Settings(bridge, System::getProperty, System::getenv);
   }
 
   /**
@@ -224,7 +225,7 @@ public final class Settings {
   private String value(final String key, final int source) {
     switch (source) {
       case 0:
-        return this.connector.setting(key);
+        return this.bridge.setting(key);
       case 1:
         return this.systemProperties.apply("dd." + key);
       default:
