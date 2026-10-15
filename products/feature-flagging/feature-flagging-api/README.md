@@ -216,7 +216,7 @@ Look for messages prefixed with `Feature Flagging`:
 - Startup reports the configuration source and effective environment. Agentless startup reports
   the endpoint origin and polling settings, and warns if the Datadog endpoint requires a missing
   `DD_API_KEY`.
-- Polling reports HTTP status, transport exception type, and retry delay. `unchanged` means HTTP
+- Polling reports HTTP status, transport exception details, and retry delay. `unchanged` means HTTP
   304; `applied` appears only after configuration dispatch succeeds. Rejected responses retain
   the current configuration. Remote Config removal and provider recovery are logged separately.
 - Evaluations report the flag key, variant, reason, and error code. An `ERROR` reason identifies
@@ -228,9 +228,11 @@ Look for messages prefixed with `Feature Flagging`:
   The exposure writer currently stops without flushing pending exposures on shutdown; its stop
   message makes that limitation explicit.
 
-Endpoint paths, queries, credentials, response bodies, and raw transport/parse error messages are
-omitted from these configuration diagnostics. Per-evaluation and per-exposure debug logs can be
-verbose; disable DEBUG after troubleshooting.
+Endpoint startup logs include only the origin, and configuration payloads are not logged directly.
+Transport failures and rejected configurations retain exception details and stack traces for
+troubleshooting and agent error telemetry. Rejected-flag warnings include the structural reason,
+but omit invalid semantic-version comparand values. Per-evaluation and per-exposure debug logs
+can be verbose; disable DEBUG after troubleshooting.
 
 Coverage follows the [SDK debug logging checklist](https://datadoghq.atlassian.net/wiki/spaces/PANA/pages/7276692209)
 and the [Node.js reference implementation](https://github.com/DataDog/dd-trace-js/pull/10468).

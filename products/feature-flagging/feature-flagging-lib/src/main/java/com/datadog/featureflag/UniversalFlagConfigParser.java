@@ -78,7 +78,8 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     } catch (IOException | RuntimeException e) {
       LOGGER.debug(
           "Feature Flagging remote_config configuration rejected: malformed UFC payload ({})",
-          e.getClass().getSimpleName());
+          e.getClass().getSimpleName(),
+          e);
       throw e;
     }
   }
@@ -240,9 +241,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
                         + allocIdx
                         + " rule has condition with operator \""
                         + condition.operator
-                        + "\" and invalid semantic version \""
-                        + condition.value
-                        + "\"");
+                        + "\" and invalid semantic version");
               }
               condition.semverComparand = parsed;
               break;
@@ -381,14 +380,15 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
             flags.put(flagKey, flag);
           }
         } catch (JsonDataException | IllegalArgumentException error) {
-          INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_FLAG);
-          if (error instanceof InvalidSemverComparandException) {
-            INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_SEMVER_COMPARAND);
-          }
+          final String reason =
+              error instanceof InvalidSemverComparandException
+                  ? INVALID_SEMVER_COMPARAND
+                  : INVALID_FLAG;
+          INVALID_FLAGS_HOLDER.get().put(flagKey, reason);
           LOGGER.warn(
               "Feature Flagging rejected flag {} during configuration parsing: {}",
               flagKey,
-              INVALID_FLAGS_HOLDER.get().get(flagKey));
+              error.toString());
         }
       }
       reader.endObject();
