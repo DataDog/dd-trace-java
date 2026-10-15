@@ -163,7 +163,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final long clockSyncPeriod;
 
   /** If the tracer can create inferred services */
-  final boolean allowInferredServices;
+  private final boolean allowInferredServices;
 
   /** Last time (in nanosecond ticks) the clock was checked for drift */
   private volatile long lastSyncTicks;
@@ -215,7 +215,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
-  volatile LocalRootSpanTags localRootSpanTags;
+  private volatile LocalRootSpanTags localRootSpanTags;
 
   /**
    * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
@@ -235,15 +235,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   private final HealthMetrics healthMetrics;
   private final Recording traceWriteTimer;
-  final IdGenerationStrategy idGenerationStrategy;
+  private final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
-  final DataStreamsMonitoring dataStreamsMonitoring;
+  private final DataStreamsMonitoring dataStreamsMonitoring;
   private final ExternalAgentLauncher externalAgentLauncher;
-  final boolean disableSamplingMechanismValidation;
+  private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
-  final ProfilingContextIntegration profilingContextIntegration;
-  final boolean injectBaggageAsTags;
-  final boolean injectLinksAsTags;
+  private final ProfilingContextIntegration profilingContextIntegration;
+  private final boolean injectBaggageAsTags;
+  private final boolean injectLinksAsTags;
   private final boolean flushOnClose;
   private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
 
@@ -268,7 +268,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final CallbackProvider callbackProviderIast;
   private final CallbackProvider universalCallbackProvider;
 
-  final PropagationTags.Factory propagationTagsFactory;
+  private final PropagationTags.Factory propagationTagsFactory;
 
   // DQH - storing into a static constant, so value will constant propagate and dead code eliminate
   // the other branch in singleSpanBuilder
@@ -278,7 +278,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   // Instance field (not static final) so it honors per-tracer config, e.g. an embedded tracer
   // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
   // singleton. See the tag-ordering block in buildSpanContext.
-  final boolean builderTagsPrecedence;
+  private final boolean builderTagsPrecedence;
 
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
@@ -1682,6 +1682,306 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return Collections.unmodifiableMap(inverted);
   }
 
+  /**
+   * Build the SpanContext, if the actual span has a parent, the following attributes must be
+   * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
+   *
+   * @return the context
+   */
+  DDSpanContext buildSpanContext(
+      long spanId,
+      String serviceName,
+      CharSequence operationName,
+      String resourceName,
+      AgentSpanContext resolvedParentSpanContext,
+      boolean errorFlag,
+      CharSequence spanType,
+      TagMap.Ledger tagLedger,
+      SpanPrototype spanPrototype,
+      List<AgentSpanLink> links,
+      Object builderRequestContextDataAppSec,
+      Object builderRequestContextDataIast,
+      Object builderCiVisibilityContextData) {
+    DDTraceId traceId;
+    long parentSpanId;
+    final Map<String, String> baggage;
+    final Baggage w3cBaggage;
+    final TraceCollector parentTraceCollector;
+    final int samplingPriority;
+    final CharSequence origin;
+    final TagMap coreTags;
+    final boolean coreTagsNeedsIntercept;
+    final TagMap rootSpanTags;
+    final boolean rootSpanTagsNeedsIntercept;
+    final DDSpanContext context;
+    Object requestContextDataAppSec;
+    Object requestContextDataIast;
+    Object ciVisibilityContextData;
+    final PathwayContext pathwayContext;
+    final PropagationTags propagationTags;
+
+    if (spanId == CoreSpanBuilder.AUTO_ASSIGN_SPAN_ID) {
+      spanId = this.idGenerationStrategy.generateSpanId();
+    }
+
+    String parentServiceName = null;
+    CharSequence serviceNameSource = MANUAL;
+    // Propagate internal trace.
+    // Note: if we are not in the context of distributed tracing, and we are starting the first
+    // root span, parentSpanContext will be null at this point.
+    if (resolvedParentSpanContext instanceof DDSpanContext) {
+      final DDSpanContext ddsc = (DDSpanContext) resolvedParentSpanContext;
+      traceId = ddsc.getTraceId();
+      parentSpanId = ddsc.getSpanId();
+      baggage = ddsc.getBaggageItems();
+      w3cBaggage = null;
+      parentTraceCollector = ddsc.getTraceCollector();
+      samplingPriority = PrioritySampling.UNSET;
+      origin = null;
+      coreTags = null;
+      coreTagsNeedsIntercept = false;
+      rootSpanTags = null;
+      rootSpanTagsNeedsIntercept = false;
+      parentServiceName = ddsc.getServiceName();
+      serviceNameSource = ddsc.getServiceNameSource();
+      if (serviceName == null) {
+        serviceName = parentServiceName;
+      }
+      RequestContext requestContext =
+          ((DDSpanContext) resolvedParentSpanContext).getRequestContext();
+      if (requestContext != null) {
+        requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
+        requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
+        ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
+      } else {
+        requestContextDataAppSec = null;
+        requestContextDataIast = null;
+        ciVisibilityContextData = null;
+      }
+      propagationTags = this.propagationTagsFactory.empty();
+    } else {
+      long endToEndStartTime;
+
+      if (resolvedParentSpanContext instanceof ExtractedContext) {
+        // Propagate external trace
+        final ExtractedContext extractedContext = (ExtractedContext) resolvedParentSpanContext;
+        traceId = extractedContext.getTraceId();
+        parentSpanId = extractedContext.getSpanId();
+        samplingPriority = extractedContext.getSamplingPriority();
+        endToEndStartTime = extractedContext.getEndToEndStartTime();
+        propagationTags = extractedContext.getPropagationTags();
+      } else if (resolvedParentSpanContext != null) {
+        traceId =
+            resolvedParentSpanContext.getTraceId() == DDTraceId.ZERO
+                ? this.idGenerationStrategy.generateTraceId()
+                : resolvedParentSpanContext.getTraceId();
+        parentSpanId = resolvedParentSpanContext.getSpanId();
+        samplingPriority = resolvedParentSpanContext.getSamplingPriority();
+        endToEndStartTime = 0;
+        propagationTags = this.propagationTagsFactory.empty();
+      } else {
+        // Start a new trace
+        traceId = this.idGenerationStrategy.generateTraceId();
+        parentSpanId = DDSpanId.ZERO;
+        samplingPriority = PrioritySampling.UNSET;
+        endToEndStartTime = 0;
+        propagationTags = this.propagationTagsFactory.empty();
+      }
+
+      ConfigSnapshot traceConfig;
+
+      // Get header tags and set origin whether propagating or not.
+      if (resolvedParentSpanContext instanceof TagContext) {
+        TagContext tc = (TagContext) resolvedParentSpanContext;
+        traceConfig = (ConfigSnapshot) tc.getTraceConfig();
+        coreTags = tc.getTags();
+        coreTagsNeedsIntercept = true; // maybe intercept isn't needed?
+        origin = tc.getOrigin();
+        baggage = tc.getBaggage();
+        w3cBaggage = tc.getW3CBaggage();
+        requestContextDataAppSec = tc.getRequestContextDataAppSec();
+        requestContextDataIast = tc.getRequestContextDataIast();
+        ciVisibilityContextData = tc.getCiVisibilityContextData();
+      } else {
+        traceConfig = null;
+        coreTags = null;
+        coreTagsNeedsIntercept = false;
+        origin = null;
+        baggage = null;
+        w3cBaggage = null;
+        requestContextDataAppSec = null;
+        requestContextDataIast = null;
+        ciVisibilityContextData = null;
+      }
+
+      LocalRootSpanTags localRootSpanTags = this.localRootSpanTags;
+      rootSpanTags = localRootSpanTags.tags;
+      rootSpanTagsNeedsIntercept = localRootSpanTags.needsIntercept;
+
+      parentTraceCollector = this.createTraceCollector(traceId, traceConfig);
+
+      if (endToEndStartTime > 0) {
+        parentTraceCollector.beginEndToEnd(endToEndStartTime);
+      }
+    }
+
+    ConfigSnapshot traceConfig = parentTraceCollector.getTraceConfig();
+
+    // Use parent pathwayContext if present and started
+    pathwayContext =
+        resolvedParentSpanContext != null
+                && resolvedParentSpanContext.getPathwayContext() != null
+                && resolvedParentSpanContext.getPathwayContext().isStarted()
+            ? resolvedParentSpanContext.getPathwayContext()
+            : this.dataStreamsMonitoring.newPathwayContext();
+
+    // when removing fake services the best upward service name to pick is the local root one
+    // since a split by tag (i.e. servlet context) might have happened on it.
+    if (!this.allowInferredServices) {
+      final DDSpan rootSpan = parentTraceCollector.getRootSpan();
+      if (rootSpan != null) {
+        // An inferred proxy represents the gateway, not the application service.
+        // Preserve the service and source already resolved for spans beneath it.
+        // Avoid the synchronized tag lookup when inferred proxies are disabled.
+        if (!this.initialConfig.isInferredProxyPropagationEnabled()
+            || rootSpan.getTag("_dd.inferred_span") == null) {
+          serviceName = rootSpan.getServiceName();
+          serviceNameSource = rootSpan.getServiceNameSource();
+        }
+      } else {
+        serviceName = null;
+      }
+    }
+    if (serviceName == null) {
+      final Pair<String, CharSequence> serviceNameAndSource =
+          traceConfig.getPreferredServiceNameAndSource();
+      ;
+      if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
+        serviceName = serviceNameAndSource.getLeft();
+        serviceNameSource = serviceNameAndSource.getRight();
+      }
+    }
+    Map<String, Object> contextualTags = null;
+    if (parentServiceName == null) {
+      // only fetch this on local root spans
+      final ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
+          ClassloaderConfigurationOverrides.maybeGetContextualInfo();
+      if (contextualInfo != null) {
+        // in this case we have a local root without service name.
+        // We can try to see if we can find one from the thread context classloader
+        if (serviceName == null) {
+          serviceName = contextualInfo.getServiceName();
+          if (serviceName != null) {
+            serviceNameSource = contextualInfo.getServiceNameSource();
+          }
+        }
+        contextualTags = contextualInfo.getTags();
+      }
+    }
+    if (serviceName == null) {
+      // it could be on the initial snapshot but may be overridden to null and service name
+      // cannot be null
+      serviceName = this.serviceName;
+      // do not mark as manual when the service name is coming from the tracer default
+      serviceNameSource = null;
+    }
+
+    if (operationName == null) {
+      operationName = resourceName;
+    }
+
+    final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
+    boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
+
+    final int tagsSize =
+        mergedTracerTags.size()
+            + (null == tagLedger ? 0 : tagLedger.estimateSize())
+            + (null == coreTags ? 0 : coreTags.size())
+            + (null == rootSpanTags ? 0 : rootSpanTags.size())
+            + (null == contextualTags ? 0 : contextualTags.size());
+
+    if (builderRequestContextDataAppSec != null) {
+      requestContextDataAppSec = builderRequestContextDataAppSec;
+    }
+    if (builderCiVisibilityContextData != null) {
+      ciVisibilityContextData = builderCiVisibilityContextData;
+    }
+    if (builderRequestContextDataIast != null) {
+      requestContextDataIast = builderRequestContextDataIast;
+    }
+
+    // some attributes are inherited from the parent
+    context =
+        new DDSpanContext(
+            traceId,
+            spanId,
+            parentSpanId,
+            parentServiceName,
+            serviceNameSource,
+            serviceName,
+            operationName,
+            resourceName,
+            samplingPriority,
+            origin,
+            baggage,
+            w3cBaggage,
+            errorFlag,
+            spanType,
+            tagsSize,
+            parentTraceCollector,
+            requestContextDataAppSec,
+            requestContextDataIast,
+            ciVisibilityContextData,
+            pathwayContext,
+            this.disableSamplingMechanismValidation,
+            propagationTags,
+            this.profilingContextIntegration,
+            this.injectBaggageAsTags,
+            this.injectLinksAsTags,
+            mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+
+    // By setting the tags on the context we apply decorators to any tags that have been set via
+    // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
+    // everything overrides them). The remaining contributors are applied last-wins; with
+    // `builderTagsPrecedence` enabled, `tagLedger` (the explicit builder tags) moves to last so
+    // it wins collisions instead of being overridden by `coreTags`/`rootSpanTags`/
+    // `contextualTags` -- see the PR description for the historical context on this ordering.
+    //
+    // mergedTracerTags is trace-level shared state and the precedence floor (everything below
+    // overrides it). When it carries no interceptable tags it is attached as a read-through
+    // PARENT at construction (shared by reference, no per-span copy). When it does need
+    // interception, copy its entries in (the interceptor's per-span side-effects can't be
+    // shared by reference).
+    if (mergedTracerTagsNeedsIntercept) {
+      context.setAllTags(mergedTracerTags, true);
+    }
+    if (spanPrototype != SpanPrototype.NONE) {
+      // Seed the prototype's constant tags + integration name as fallback defaults (span type was
+      // already seeded onto the builder). apply never clobbers, so tags set below still win, and
+      // this is the same seam decorator afterStart uses.
+      context.apply(spanPrototype);
+    }
+    if (this.builderTagsPrecedence) {
+      context.setAllTags(coreTags, coreTagsNeedsIntercept);
+      context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+      context.setAllTags(contextualTags);
+      context.setAllTags(tagLedger);
+    } else {
+      context.setAllTags(tagLedger);
+      context.setAllTags(coreTags, coreTagsNeedsIntercept);
+      context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+      context.setAllTags(contextualTags);
+    }
+    // Version is added later by the postProcessor (InternalTagsAdder), only if not already set
+    // during the request. Config version is kept out of the trace-level bundle (see
+    // withTracerTags), so this removal now only wipes a version set via the span builder —
+    // keeping the existing semantics where a builder-set version is replaced by the config
+    // version. Under read-through this is a cheap local removal (version isn't in the parent,
+    // so no tombstone).
+    context.removeTag(Tags.VERSION);
+    return context;
+  }
+
   /** Spans are built using this builder */
   public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     protected static final boolean USE_SCOPE = false;
@@ -1746,8 +2046,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           instrumentationName,
           timestampMicro,
           links,
-          buildSpanContext(
-              tracer,
+          tracer.buildSpanContext(
               spanId,
               serviceName,
               operationName,
@@ -2099,307 +2398,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     public final CoreSpanBuilder withSpanId(final long spanId) {
       this.spanId = spanId;
       return this;
-    }
-
-    /**
-     * Build the SpanContext, if the actual span has a parent, the following attributes must be
-     * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
-     *
-     * @return the context
-     */
-    protected static final DDSpanContext buildSpanContext(
-        final CoreTracer tracer,
-        long spanId,
-        String serviceName,
-        CharSequence operationName,
-        String resourceName,
-        AgentSpanContext resolvedParentSpanContext,
-        boolean errorFlag,
-        CharSequence spanType,
-        TagMap.Ledger tagLedger,
-        SpanPrototype spanPrototype,
-        List<AgentSpanLink> links,
-        Object builderRequestContextDataAppSec,
-        Object builderRequestContextDataIast,
-        Object builderCiVisibilityContextData) {
-      DDTraceId traceId;
-      long parentSpanId;
-      final Map<String, String> baggage;
-      final Baggage w3cBaggage;
-      final TraceCollector parentTraceCollector;
-      final int samplingPriority;
-      final CharSequence origin;
-      final TagMap coreTags;
-      final boolean coreTagsNeedsIntercept;
-      final TagMap rootSpanTags;
-      final boolean rootSpanTagsNeedsIntercept;
-      final DDSpanContext context;
-      Object requestContextDataAppSec;
-      Object requestContextDataIast;
-      Object ciVisibilityContextData;
-      final PathwayContext pathwayContext;
-      final PropagationTags propagationTags;
-
-      if (spanId == AUTO_ASSIGN_SPAN_ID) {
-        spanId = tracer.idGenerationStrategy.generateSpanId();
-      }
-
-      String parentServiceName = null;
-      CharSequence serviceNameSource = MANUAL;
-      // Propagate internal trace.
-      // Note: if we are not in the context of distributed tracing, and we are starting the first
-      // root span, parentSpanContext will be null at this point.
-      if (resolvedParentSpanContext instanceof DDSpanContext) {
-        final DDSpanContext ddsc = (DDSpanContext) resolvedParentSpanContext;
-        traceId = ddsc.getTraceId();
-        parentSpanId = ddsc.getSpanId();
-        baggage = ddsc.getBaggageItems();
-        w3cBaggage = null;
-        parentTraceCollector = ddsc.getTraceCollector();
-        samplingPriority = PrioritySampling.UNSET;
-        origin = null;
-        coreTags = null;
-        coreTagsNeedsIntercept = false;
-        rootSpanTags = null;
-        rootSpanTagsNeedsIntercept = false;
-        parentServiceName = ddsc.getServiceName();
-        serviceNameSource = ddsc.getServiceNameSource();
-        if (serviceName == null) {
-          serviceName = parentServiceName;
-        }
-        RequestContext requestContext =
-            ((DDSpanContext) resolvedParentSpanContext).getRequestContext();
-        if (requestContext != null) {
-          requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
-          requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
-          ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
-        } else {
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
-        }
-        propagationTags = tracer.propagationTagsFactory.empty();
-      } else {
-        long endToEndStartTime;
-
-        if (resolvedParentSpanContext instanceof ExtractedContext) {
-          // Propagate external trace
-          final ExtractedContext extractedContext = (ExtractedContext) resolvedParentSpanContext;
-          traceId = extractedContext.getTraceId();
-          parentSpanId = extractedContext.getSpanId();
-          samplingPriority = extractedContext.getSamplingPriority();
-          endToEndStartTime = extractedContext.getEndToEndStartTime();
-          propagationTags = extractedContext.getPropagationTags();
-        } else if (resolvedParentSpanContext != null) {
-          traceId =
-              resolvedParentSpanContext.getTraceId() == DDTraceId.ZERO
-                  ? tracer.idGenerationStrategy.generateTraceId()
-                  : resolvedParentSpanContext.getTraceId();
-          parentSpanId = resolvedParentSpanContext.getSpanId();
-          samplingPriority = resolvedParentSpanContext.getSamplingPriority();
-          endToEndStartTime = 0;
-          propagationTags = tracer.propagationTagsFactory.empty();
-        } else {
-          // Start a new trace
-          traceId = tracer.idGenerationStrategy.generateTraceId();
-          parentSpanId = DDSpanId.ZERO;
-          samplingPriority = PrioritySampling.UNSET;
-          endToEndStartTime = 0;
-          propagationTags = tracer.propagationTagsFactory.empty();
-        }
-
-        ConfigSnapshot traceConfig;
-
-        // Get header tags and set origin whether propagating or not.
-        if (resolvedParentSpanContext instanceof TagContext) {
-          TagContext tc = (TagContext) resolvedParentSpanContext;
-          traceConfig = (ConfigSnapshot) tc.getTraceConfig();
-          coreTags = tc.getTags();
-          coreTagsNeedsIntercept = true; // maybe intercept isn't needed?
-          origin = tc.getOrigin();
-          baggage = tc.getBaggage();
-          w3cBaggage = tc.getW3CBaggage();
-          requestContextDataAppSec = tc.getRequestContextDataAppSec();
-          requestContextDataIast = tc.getRequestContextDataIast();
-          ciVisibilityContextData = tc.getCiVisibilityContextData();
-        } else {
-          traceConfig = null;
-          coreTags = null;
-          coreTagsNeedsIntercept = false;
-          origin = null;
-          baggage = null;
-          w3cBaggage = null;
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
-        }
-
-        LocalRootSpanTags localRootSpanTags = tracer.localRootSpanTags;
-        rootSpanTags = localRootSpanTags.tags;
-        rootSpanTagsNeedsIntercept = localRootSpanTags.needsIntercept;
-
-        parentTraceCollector = tracer.createTraceCollector(traceId, traceConfig);
-
-        if (endToEndStartTime > 0) {
-          parentTraceCollector.beginEndToEnd(endToEndStartTime);
-        }
-      }
-
-      ConfigSnapshot traceConfig = parentTraceCollector.getTraceConfig();
-
-      // Use parent pathwayContext if present and started
-      pathwayContext =
-          resolvedParentSpanContext != null
-                  && resolvedParentSpanContext.getPathwayContext() != null
-                  && resolvedParentSpanContext.getPathwayContext().isStarted()
-              ? resolvedParentSpanContext.getPathwayContext()
-              : tracer.dataStreamsMonitoring.newPathwayContext();
-
-      // when removing fake services the best upward service name to pick is the local root one
-      // since a split by tag (i.e. servlet context) might have happened on it.
-      if (!tracer.allowInferredServices) {
-        final DDSpan rootSpan = parentTraceCollector.getRootSpan();
-        if (rootSpan != null) {
-          // An inferred proxy represents the gateway, not the application service.
-          // Preserve the service and source already resolved for spans beneath it.
-          // Avoid the synchronized tag lookup when inferred proxies are disabled.
-          if (!tracer.initialConfig.isInferredProxyPropagationEnabled()
-              || rootSpan.getTag("_dd.inferred_span") == null) {
-            serviceName = rootSpan.getServiceName();
-            serviceNameSource = rootSpan.getServiceNameSource();
-          }
-        } else {
-          serviceName = null;
-        }
-      }
-      if (serviceName == null) {
-        final Pair<String, CharSequence> serviceNameAndSource =
-            traceConfig.getPreferredServiceNameAndSource();
-        ;
-        if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
-          serviceName = serviceNameAndSource.getLeft();
-          serviceNameSource = serviceNameAndSource.getRight();
-        }
-      }
-      Map<String, Object> contextualTags = null;
-      if (parentServiceName == null) {
-        // only fetch this on local root spans
-        final ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
-            ClassloaderConfigurationOverrides.maybeGetContextualInfo();
-        if (contextualInfo != null) {
-          // in this case we have a local root without service name.
-          // We can try to see if we can find one from the thread context classloader
-          if (serviceName == null) {
-            serviceName = contextualInfo.getServiceName();
-            if (serviceName != null) {
-              serviceNameSource = contextualInfo.getServiceNameSource();
-            }
-          }
-          contextualTags = contextualInfo.getTags();
-        }
-      }
-      if (serviceName == null) {
-        // it could be on the initial snapshot but may be overridden to null and service name
-        // cannot be null
-        serviceName = tracer.serviceName;
-        // do not mark as manual when the service name is coming from the tracer default
-        serviceNameSource = null;
-      }
-
-      if (operationName == null) {
-        operationName = resourceName;
-      }
-
-      final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
-      boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
-
-      final int tagsSize =
-          mergedTracerTags.size()
-              + (null == tagLedger ? 0 : tagLedger.estimateSize())
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-              + (null == contextualTags ? 0 : contextualTags.size());
-
-      if (builderRequestContextDataAppSec != null) {
-        requestContextDataAppSec = builderRequestContextDataAppSec;
-      }
-      if (builderCiVisibilityContextData != null) {
-        ciVisibilityContextData = builderCiVisibilityContextData;
-      }
-      if (builderRequestContextDataIast != null) {
-        requestContextDataIast = builderRequestContextDataIast;
-      }
-
-      // some attributes are inherited from the parent
-      context =
-          new DDSpanContext(
-              traceId,
-              spanId,
-              parentSpanId,
-              parentServiceName,
-              serviceNameSource,
-              serviceName,
-              operationName,
-              resourceName,
-              samplingPriority,
-              origin,
-              baggage,
-              w3cBaggage,
-              errorFlag,
-              spanType,
-              tagsSize,
-              parentTraceCollector,
-              requestContextDataAppSec,
-              requestContextDataIast,
-              ciVisibilityContextData,
-              pathwayContext,
-              tracer.disableSamplingMechanismValidation,
-              propagationTags,
-              tracer.profilingContextIntegration,
-              tracer.injectBaggageAsTags,
-              tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
-
-      // By setting the tags on the context we apply decorators to any tags that have been set via
-      // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
-      // everything overrides them). The remaining contributors are applied last-wins; with
-      // `builderTagsPrecedence` enabled, `tagLedger` (the explicit builder tags) moves to last so
-      // it wins collisions instead of being overridden by `coreTags`/`rootSpanTags`/
-      // `contextualTags` -- see the PR description for the historical context on this ordering.
-      //
-      // mergedTracerTags is trace-level shared state and the precedence floor (everything below
-      // overrides it). When it carries no interceptable tags it is attached as a read-through
-      // PARENT at construction (shared by reference, no per-span copy). When it does need
-      // interception, copy its entries in (the interceptor's per-span side-effects can't be
-      // shared by reference).
-      if (mergedTracerTagsNeedsIntercept) {
-        context.setAllTags(mergedTracerTags, true);
-      }
-      if (spanPrototype != SpanPrototype.NONE) {
-        // Seed the prototype's constant tags + integration name as fallback defaults (span type was
-        // already seeded onto the builder). apply never clobbers, so tags set below still win, and
-        // this is the same seam decorator afterStart uses.
-        context.apply(spanPrototype);
-      }
-      if (tracer.builderTagsPrecedence) {
-        context.setAllTags(coreTags, coreTagsNeedsIntercept);
-        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
-        context.setAllTags(contextualTags);
-        context.setAllTags(tagLedger);
-      } else {
-        context.setAllTags(tagLedger);
-        context.setAllTags(coreTags, coreTagsNeedsIntercept);
-        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
-        context.setAllTags(contextualTags);
-      }
-      // Version is added later by the postProcessor (InternalTagsAdder), only if not already set
-      // during the request. Config version is kept out of the trace-level bundle (see
-      // withTracerTags), so this removal now only wipes a version set via the span builder —
-      // keeping the existing semantics where a builder-set version is replaced by the config
-      // version. Under read-through this is a cheap local removal (version isn't in the parent,
-      // so no tombstone).
-      context.removeTag(Tags.VERSION);
-      return context;
     }
   }
 
