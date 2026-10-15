@@ -144,11 +144,22 @@ git diff $MERGE_BASE --stat
 git diff $MERGE_BASE --name-status
 ```
 
+Also read the claims the change makes. A performance claim can live only in the PR title
+or description, which the diff doesn't show:
+
+```bash
+gh pr view --json title,body 2>/dev/null   # the branch's PR, if it has one
+git log --format='%s%n%b' $MERGE_BASE..HEAD   # commit messages
+```
+
+If the branch has no PR, or `gh` can't reach it, check the commit messages and say in the
+summary that the PR text wasn't available, so a claim made only there wasn't checked.
+
 If there are no changes, say so and stop. Otherwise read the diff **and the full
 content of the modified source files** (not just the hunks) — the interprocedural
 condition (who calls this, what a helper does, where a hook's sink lands) lives
 outside the diff window. Ignore the PR description if the user asks for an
-independent review.
+independent review, except to find performance claims.
 
 ### Step 2 — Map the changed code onto hot paths
 
