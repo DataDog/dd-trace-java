@@ -1,42 +1,25 @@
-# Agent context for build-logic
+# Working in build-logic
 
-Read the [root Gradle instructions](../AGENTS.md#gradle-changes), including the mandatory
-`gradle-best-practices` prerequisite, before changing build behaviour. Use the relevant
-sections of the [Gradle guide](../docs/how_to_work_with_gradle.md) for explanations.
+Use `gradle-best-practices` before changing Gradle code here. If it is missing or incomplete,
+follow the [skill setup](../docs/how_to_work_with_gradle.md#gradle-skills) before editing.
 
-## Scope and boundaries
+This included build holds project conventions and the smoke-test, tag-registry and
+testcontainers plugins. Its settings import `../gradle/libs.versions.toml` and configure
+repository proxies separately from the main build.
 
-`build-logic` is an included build, registered through `pluginManagement.includeBuild`.
-It owns project-facing conventions and plugins for smoke-test applications, tag registration,
-and testcontainers.
+The smoke-test plugin runs nested builds with older Gradle versions. Its tests use Java 21
+for that reason; keep that launcher when changing the tests or toolchain configuration.
 
-- Keep settings, repositories, plugin resolution, and dependency declarations explicit in
-  this build. Root-build configuration does not automatically propagate here. Reuse the
-  existing import of `../gradle/libs.versions.toml` and preserve repository proxy behaviour.
-- Place new project-facing conventions here when they fit the existing architecture.
-  Keep module-specific choices in consuming modules and expose only the needed extension
-  properties. Follow existing placement for changes to existing plugins.
-- Sharing a source root does not justify coupling plugin implementations. Follow the
-  root guardrails for explicit dependencies and narrow public contracts.
-- Preserve each subproject's JVM target and worker requirements. Smoke-test fixtures run
-  nested builds with older Gradle versions; preserve their Java 21 test launcher.
-- Keep optional plugin integrations independent of application order. Check both Groovy
-  and Kotlin consumers when changing a convention or extension API.
-- Keep plugin dependencies on the build-logic classpath. Verify packaging when changing
-  dependencies so consumer application or agent artifacts do not gain build-only libraries.
+## Tests
 
-## Verification
+The plugin tests use JUnit 5 and Kotlin. Reuse the module's TestKit setup, including its
+repository proxy handling and environment isolation.
 
-Use existing JUnit 5 tests and Kotlin fixtures. Reuse the affected module's TestKit setup,
-including repository proxy handling and environment isolation. Keep language migrations
-outside the requested change. Verify plugin integration independently and in composition
-where applicable, plus a representative consuming module.
-
-Start with the affected module's tests, for example:
+Run the tests for the module you changed, for example:
 
 ```shell
 ./gradlew -p build-logic :smoke-test:test
 ```
 
-For changes spanning modules, use `./gradlew :build-logic:check` from the repository root.
-Run the applicable formatting checks, inspect the diff, and run `git diff --check`.
+For changes across modules, `./gradlew :build-logic:check` runs the included build's checks
+from the repository root.

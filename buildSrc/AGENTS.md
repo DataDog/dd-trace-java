@@ -1,47 +1,25 @@
-# Agent context for buildSrc
+# Working in buildSrc
 
-Read the [root Gradle instructions](../AGENTS.md#gradle-changes), including the mandatory
-`gradle-best-practices` prerequisite, before changing build behaviour. Use the relevant
-sections of the [Gradle guide](../docs/how_to_work_with_gradle.md) for explanations.
+Use `gradle-best-practices` before changing Gradle code here. If it is missing or incomplete,
+follow the [skill setup](../docs/how_to_work_with_gradle.md#gradle-skills) before editing.
 
-## Scope and boundaries
+New project-facing conventions usually belong in `build-logic`. This folder still holds
+plugins and shared types that need the `buildSrc` classloader. Keep changes to existing
+plugins where they are unless the task includes moving them.
 
-`buildSrc` is built automatically before the main build. It contains binary plugins,
-precompiled conventions, shared types, and worker support, with subprojects for call-site
-instrumentation and the modifiable-config agent.
+The Java 8 target in `build.gradle.kts` is needed by build-time instrumentation and Muzzle
+workers. A newer Gradle daemon or compiler JVM does not remove that requirement.
 
-- Prefer `build-logic` for new project-facing conventions unless a shared-classloader
-  requirement justifies `buildSrc`. Follow existing placement for changes to existing plugins.
-- Preserve Java 8 compatibility for build-time instrumentation and Muzzle workers. The Gradle
-  daemon JVM, compiler JVM, bytecode target, and worker JVM are separate constraints.
-- Preserve plugin classloader boundaries. Do not add an optional external plugin to
-  `implementation` merely to make typed imports compile. Keep documented integrations such
-  as [JMH](src/main/kotlin/dd-trace-java.jmh-conventions.gradle.kts) working on the consumer's
-  plugin classpath.
-- Sharing this source root does not justify coupling plugin implementations. Follow the
-  root guardrails for explicit dependencies and narrow public contracts.
-- Check Groovy and Kotlin consumers when changing extension or convention APIs. Keep
-  existing defaults, repository proxies, and worker/toolchain selection working.
-- Treat settings, repositories, and dependency declarations as belonging to this build.
-  Import the shared version catalog through the existing settings configuration.
+JMH uses the consuming build's plugin classpath. Read the comments in
+[its convention](src/main/kotlin/dd-trace-java.jmh-conventions.gradle.kts) before changing
+that integration or adding JMH to `implementation`.
 
-## Verification
+## Tests
 
-Use existing JUnit 5 tests and Kotlin fixtures for plugin behaviour. Reuse
-[GradleFixture](src/test/kotlin/datadog/gradle/plugin/GradleFixture.kt) for TestKit coverage;
-keep language migrations outside the requested change. Check integrations with the involved
-plugins applied independently and together where applicable.
+The plugin tests use JUnit 5 and Kotlin. Reuse
+[GradleFixture](src/test/kotlin/datadog/gradle/plugin/GradleFixture.kt) for TestKit tests.
+CLI tests need `-PrunBuildSrcTests`; see [the test commands](../docs/how_to_work_with_gradle.md#running-build-logic-tests).
+Keep the `:test` selector when filtering so the filter does not reach unrelated subprojects.
 
-CLI tests require `-PrunBuildSrcTests`; a successful build with skipped tests is insufficient.
-Use the fully qualified `:test` selector when filtering tests, so the filter does not reach
-unrelated subprojects:
-
-```shell
-./gradlew -p buildSrc :test -PrunBuildSrcTests --tests '*ChangedPluginTest'
-./gradlew -p buildSrc spotlessCheck
-```
-
-Replace the example test filter with the affected test class. Run the affected subproject's
-own tests when changing call-site instrumentation or the modifiable-config agent. Verify a
-representative consuming module for changes to shared conventions, then inspect the diff
-and run `git diff --check`.
+Changes to `call-site-instrumentation-plugin` or `modifiable-config-agent` also need their
+own subproject tests. Run `./gradlew -p buildSrc spotlessCheck` for formatting.
