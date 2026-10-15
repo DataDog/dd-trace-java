@@ -101,7 +101,7 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(3);
+    final List<Hook> hooks = new ArrayList<>(4);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
@@ -111,6 +111,9 @@ public class Provider extends EventProvider implements Metadata {
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
+    // Exposure hook: always registered last; no-op when the evaluator is not a Datadog one or is
+    // not initialized.
+    hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
 
@@ -228,12 +231,17 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
-    final Evaluator current = this.evaluator;
-    if (!(current instanceof DDEvaluator)) {
+    final DDEvaluator current = datadogEvaluator();
+    if (current == null) {
       return null;
     }
-    final FeatureFlagsRuntime runtime = ((DDEvaluator) current).runtime();
+    final FeatureFlagsRuntime runtime = current.runtime();
     return runtime == null ? null : runtime.evaluations();
+  }
+
+  private DDEvaluator datadogEvaluator() {
+    final Evaluator current = this.evaluator;
+    return current instanceof DDEvaluator ? (DDEvaluator) current : null;
   }
 
   @Override

@@ -1,5 +1,7 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
@@ -31,16 +33,14 @@ class DDEvaluatorSpanEnrichmentTest {
     final ProviderEvaluation<?> result = evaluate(340132);
 
     assertNotNull(
-        result.getFlagMetadata().getBoolean(DDEvaluator.METADATA_DO_LOG),
+        result.getFlagMetadata().getBoolean(DO_LOG),
         "span enrichment must be on, or the assertions below pass vacuously");
-    assertEquals(
-        Integer.valueOf(340132),
-        result.getFlagMetadata().getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
+    assertEquals(Integer.valueOf(340132), result.getFlagMetadata().getInteger(SPLIT_SERIAL_ID));
   }
 
   @Test
   void enrichmentMetadataOmitsTheSerialIdWhenTheSplitHasNone() {
-    assertNull(evaluate(null).getFlagMetadata().getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
+    assertNull(evaluate(null).getFlagMetadata().getInteger(SPLIT_SERIAL_ID));
   }
 
   private static ProviderEvaluation<?> evaluate(final Integer serialId) {

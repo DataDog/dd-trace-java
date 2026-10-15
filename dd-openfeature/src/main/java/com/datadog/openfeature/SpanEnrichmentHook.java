@@ -1,6 +1,7 @@
 package com.datadog.openfeature;
 
 import com.datadog.openfeature.internal.connector.SpanEnricher;
+import com.datadog.openfeature.internal.evaluation.MetadataKeys;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -10,6 +11,7 @@ import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,9 +40,9 @@ class SpanEnrichmentHook implements Hook<Object> {
 
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentHook.class);
 
-  // The metadata keys the DDEvaluator attaches for span enrichment (single source of truth there).
-  static final String METADATA_SERIAL_ID = DDEvaluator.METADATA_SPLIT_SERIAL_ID;
-  static final String METADATA_DO_LOG = DDEvaluator.METADATA_DO_LOG;
+  // The metadata keys the evaluator attaches for span enrichment.
+  static final String METADATA_SERIAL_ID = MetadataKeys.SPLIT_SERIAL_ID;
+  static final String METADATA_DO_LOG = MetadataKeys.DO_LOG;
 
   private final SpanEnricher enricher;
 
@@ -58,10 +60,13 @@ class SpanEnrichmentHook implements Hook<Object> {
     }
     try {
       final ImmutableMetadata metadata = details.getFlagMetadata();
-      final Integer serialId = metadata != null ? metadata.getInteger(METADATA_SERIAL_ID) : null;
-      if (serialId != null) {
-        final boolean doLog = Boolean.TRUE.equals(metadata.getBoolean(METADATA_DO_LOG));
-        this.enricher.serialId(serialId, doLog, targetingKey(ctx));
+      // The ImmutableMetadata getters build a debug message for every absent key.
+      final Map<String, Object> values =
+          metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+      final Object serialValue = values.get(METADATA_SERIAL_ID);
+      if (serialValue instanceof Integer) {
+        final boolean doLog = Boolean.TRUE.equals(values.get(METADATA_DO_LOG));
+        this.enricher.serialId((Integer) serialValue, doLog, targetingKey(ctx));
       } else if (details.getVariant() == null) {
         // Runtime-default detection = MISSING VARIANT (never a reason enum). Unwrap any OpenFeature
         // Value to a native Java type here so the connector carries only JDK types.

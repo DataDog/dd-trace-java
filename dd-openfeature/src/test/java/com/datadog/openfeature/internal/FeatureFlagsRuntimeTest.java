@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal;
 
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -71,11 +72,33 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void exposuresDatadogLoggingKillSwitchDisablesTheExposurePipelineButKeepsTheCache() {
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestConnector(null, (route, json) -> {}),
+            TestSettings.of("feature.flags.exposures.datadog.logging.enabled", "false"));
+
+    assertFalse(runtime.isExposureDeliveryEnabled());
+    assertNotNull(runtime.exposureCache());
+    assertNotNull(runtime.evaluations(), "flag evaluation events are still sent");
+  }
+
+  @Test
+  void agentlessWithoutApiKeyOrProxyKeepsTheExposureCache() {
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(Connector.NONE, TestSettings.of());
+
+    assertFalse(runtime.isExposureDeliveryEnabled());
+    assertNotNull(runtime.exposureCache());
+  }
+
+  @Test
   void eventProxyEnablesBothPipelines() {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(new TestConnector(null, (route, json) -> {}), TestSettings.of());
 
     assertNotNull(runtime.evaluations());
+    assertTrue(runtime.isExposureDeliveryEnabled());
   }
 
   @Test

@@ -10,6 +10,7 @@ import com.datadog.openfeature.internal.delivery.CdnConfigurationSource;
 import com.datadog.openfeature.internal.delivery.DirectIntakeTransport;
 import com.datadog.openfeature.internal.delivery.FallbackTransport;
 import com.datadog.openfeature.internal.delivery.RemoteConfigurationService;
+import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.ExposurePipeline;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
@@ -36,6 +37,7 @@ public final class FeatureFlagsRuntime {
   private static int references;
 
   private final ConfigurationService source;
+  private final ExposureDeduplicationCache exposureCache = new ExposureDeduplicationCache();
   @Nullable private final ExposurePipeline exposures;
   @Nullable private final FlagEvaluationPipeline evaluations;
   private final List<Consumer<ServerConfiguration>> listeners = new CopyOnWriteArrayList<>();
@@ -118,13 +120,15 @@ public final class FeatureFlagsRuntime {
     }
     final Map<String, String> context = eventContext(settings);
     final ExposurePipeline exposures =
-        new ExposurePipeline(
-            ExposurePipeline.DEFAULT_CAPACITY,
-            ExposurePipeline.DEFAULT_FLUSH_INTERVAL_IN_SECONDS,
-            TimeUnit.SECONDS,
-            transport,
-            context,
-            services);
+        settings.isExposuresDatadogLoggingEnabled()
+            ? new ExposurePipeline(
+                ExposurePipeline.DEFAULT_CAPACITY,
+                ExposurePipeline.DEFAULT_FLUSH_INTERVAL_IN_SECONDS,
+                TimeUnit.SECONDS,
+                transport,
+                context,
+                services)
+            : null;
     final FlagEvaluationPipeline evaluations =
         settings.isEvaluationCountsEnabled()
             ? new FlagEvaluationPipeline(
@@ -209,6 +213,25 @@ public final class FeatureFlagsRuntime {
    */
   public void removeConfigurationListener(final Consumer<ServerConfiguration> listener) {
     this.listeners.remove(listener);
+  }
+
+  /**
+   * Gets the cache deduplicating the exposures of all the providers sharing this runtime. It is
+   * kept even when exposures are not sent, so exposure hooks get the same decisions.
+   *
+   * @return the exposure deduplication cache.
+   */
+  public ExposureDeduplicationCache exposureCache() {
+    return this.exposureCache;
+  }
+
+  /**
+   * Tells whether exposures are sent to Datadog.
+   *
+   * @return whether exposure delivery is enabled.
+   */
+  public boolean isExposureDeliveryEnabled() {
+    return this.exposures != null;
   }
 
   /**
