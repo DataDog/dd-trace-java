@@ -8,11 +8,13 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.visitResourceAttributes;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +40,21 @@ public final class OtlpResourceProto {
    */
   public static final byte[] TRACE_RESOURCE_MESSAGE =
       buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
+
+  /**
+   * Attributes carried by the OTLP trace resource ({@link #TRACE_RESOURCE_MESSAGE}, and the
+   * equivalent JSON fragment), so span encoders can avoid repeating them on every span.
+   */
+  public static final Map<String, String> TRACE_RESOURCE_ATTRIBUTES =
+      buildResourceAttributes(Config.get(), traceResourceAttributes(Config.get()));
+
+  static Map<String, String> buildResourceAttributes(
+      Config config, Map<String, Object> extraAttributes) {
+    Map<String, String> attributes = new HashMap<>();
+    visitResourceAttributes(
+        config, extraAttributes, (key, value) -> attributes.put(key, String.valueOf(value)));
+    return unmodifiableMap(attributes);
+  }
 
   static byte[] buildResourceMessage(Config config, Map<String, Object> extraAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);

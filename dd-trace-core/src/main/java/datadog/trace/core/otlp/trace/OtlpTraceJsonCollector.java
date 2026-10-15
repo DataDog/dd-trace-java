@@ -4,6 +4,7 @@ import static datadog.trace.core.otlp.common.OtlpCommonJson.writeScopeAndSchema;
 import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpProtoBuffer.MAX_CAPACITY_BYTES;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.TRACE_RESOURCE_FRAGMENT;
+import static datadog.trace.core.otlp.common.OtlpResourceProto.TRACE_RESOURCE_ATTRIBUTES;
 import static datadog.trace.core.otlp.trace.OtlpTraceJson.writeSpan;
 
 import datadog.json.JsonWriter;
@@ -35,6 +36,8 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
 
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
+
+  private final OtlpSpanTags spanTags = new OtlpSpanTags(TRACE_RESOURCE_ATTRIBUTES);
 
   private JsonWriter writer;
   private OtlpTraceJson.MetaWriter metaWriter;
@@ -91,7 +94,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   /** Prepare temporary elements to collect trace data. */
   private void start() {
     writer = new JsonWriter();
-    metaWriter = new OtlpTraceJson.MetaWriter(writer);
+    metaWriter = new OtlpTraceJson.MetaWriter(writer, spanTags);
 
     writer.beginObject();
     writer.name("resourceSpans").beginArray();
