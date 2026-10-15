@@ -138,9 +138,9 @@ This setting stops exposures only. Flag evaluation events have their own setting
 
 ## Design notes for contributors
 
-The SDK does not use any dd-trace-java internal module. Its parts that the agent can provide are behind the `com.datadog.openfeature.internal.connector` SPI:
+The SDK does not use any dd-trace-java internal module. Its parts that the agent can provide are behind the `com.datadog.openfeature.internal.bridge` SPI:
 
-* `Connectors.detect()` returns `Connector.NONE` without the agent.
-* The `:dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-connector` instrumentation replaces its result with a connector delegating to the agent backend (`products/feature-flagging/feature-flagging-lib`) through the bootstrap `FeatureFlaggingGateway`.
+* `AgentBridges.detect()` returns `AgentBridge.NONE` without the agent.
+* The `:dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-bridge` instrumentation replaces its result with a bridge delegating to the agent backend (`products/feature-flagging/feature-flagging-lib`) through the bootstrap `FeatureFlaggingGateway`.
 * The SPI is the only contract crossing SDK and agent versions. It must evolve in a backward compatible way, and the instrumentation references to it are checked by muzzle.
 * UFC parsing, evaluation, event payloads and batching stay in the SDK. The agent forwards raw Remote Configuration documents and event payloads.

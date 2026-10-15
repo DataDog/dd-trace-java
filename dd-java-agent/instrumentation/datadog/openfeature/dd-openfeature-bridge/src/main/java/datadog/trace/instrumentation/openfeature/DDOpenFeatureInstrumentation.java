@@ -31,7 +31,7 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
 
   @Override
   public String instrumentedType() {
-    return "com.datadog.openfeature.internal.connector.Connectors";
+    return "com.datadog.openfeature.internal.bridge.AgentBridges";
   }
 
   @Override
@@ -42,7 +42,7 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
       packageName + ".AgentEventProxy",
       packageName + ".AgentHealthMetrics",
       packageName + ".AgentSpanEnricher",
-      packageName + ".JavaAgentConnector",
+      packageName + ".JavaAgentBridge",
     };
   }
 
@@ -50,6 +50,6 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isStatic()).and(named("detect")).and(takesNoArguments()),
-        packageName + ".DetectConnectorAdvice");
+        packageName + ".DetectBridgeAdvice");
   }
 }

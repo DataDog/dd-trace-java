@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.openfeature;
 
-import com.datadog.openfeature.internal.connector.EventProxyUnavailableException;
-import com.datadog.openfeature.internal.connector.EventTransport;
+import com.datadog.openfeature.internal.bridge.EventProxyUnavailableException;
+import com.datadog.openfeature.internal.bridge.EventTransport;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.io.IOException;
 

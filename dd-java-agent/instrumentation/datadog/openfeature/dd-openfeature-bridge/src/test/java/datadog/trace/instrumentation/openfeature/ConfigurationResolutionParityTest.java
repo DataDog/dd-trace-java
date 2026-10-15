@@ -9,8 +9,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
-import com.datadog.openfeature.internal.connector.Connector;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.HashMap;
@@ -75,10 +75,10 @@ class ConfigurationResolutionParityTest {
    * for the agent, which hold the same values.
    */
   private static String sdkSource(final Map<String, String> settings) {
-    final Connector connector = mock(Connector.class);
-    when(connector.setting(anyString()))
+    final AgentBridge bridge = mock(AgentBridge.class);
+    when(bridge.setting(anyString()))
         .thenAnswer(invocation -> settings.get(invocation.<String>getArgument(0)));
-    return Settings.load(connector).configurationSource();
+    return Settings.load(bridge).configurationSource();
   }
 
   private static void putIfNotNull(
