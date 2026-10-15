@@ -45,6 +45,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Map<String, Object> hints) {
     try {
       if (details == null || details.getErrorCode() != null) {
+        log.debug("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
         return;
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
@@ -55,6 +56,8 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Map<String, Object> values = metadata.asUnmodifiableMap();
       if (!Boolean.TRUE.equals(values.get(DDEvaluator.METADATA_DO_LOG))
           || !Boolean.FALSE.equals(values.get(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT))) {
+        log.debug(
+            "Feature Flagging exposure suppressed: allocation logging disabled or exposure already recorded");
         return;
       }
       final String flag = details.getFlagKey();
@@ -81,6 +84,9 @@ class ExposureLoggingHook<T> implements Hook<T> {
                 serialId,
                 SplitFeatureMetadata.featuresWithPrefix(
                     metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)));
+        log.debug("Feature Flagging exposure dispatched to agent listeners");
+      } else {
+        log.debug("Feature Flagging exposure suppressed: Datadog exposure logging disabled");
       }
     } catch (LinkageError e) {
       // Never let exposure reporting break flag evaluation.

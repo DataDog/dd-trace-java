@@ -225,6 +225,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.activate();
     FeatureFlaggingGateway.addConfigListener(this);
+    log.debug(
+        "Feature Flagging provider configuration available at subscription: {}",
+        hasConfiguration());
     return initializationLatch.await(timeout, unit) || hasConfiguration();
   }
 

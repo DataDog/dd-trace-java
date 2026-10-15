@@ -17,6 +17,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.BackendApi;
@@ -39,6 +43,7 @@ import datadog.trace.api.featureflag.exposure.Variant;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.test.util.PollingConditions;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
@@ -53,6 +58,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,6 +74,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
@@ -150,6 +157,54 @@ class ExposureWriterTests {
             }
             assertExposures(allExposures(), exposures);
           });
+    }
+  }
+
+  @TableTest({
+    "Scenario            | Fails | Outcome                                    ",
+    "Successful delivery | false | 'flush delivered'                          ",
+    "Failed delivery     | true  | 'flush failed: IOException; dropping batch'"
+  })
+  void distinguishesQueuedFromDeliveredExposures(String scenario, boolean fails, String outcome)
+      throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.list = new CopyOnWriteArrayList<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    BackendApi backend = mock(BackendApi.class);
+    if (fails) {
+      when(backend.post(any(), any(), any(), any(), eq(false)))
+          .thenThrow(new IOException("secret-response"));
+    }
+    Config config = mockConfig("test-service");
+    BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, true)).thenReturn(backend);
+    FeatureFlagBackendApiFactory factory =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
+    ExposureWriterImpl writer = new ExposureWriterImpl(16, 1, MILLISECONDS, factory, config);
+    try {
+      writer.init();
+      writer.accept(buildExposures(1).get(0));
+      poll.eventually(
+          () ->
+              assertTrue(
+                  appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(outcome))));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("exposure queued")));
+      assertEquals(
+          !fails,
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("flush delivered")));
+      assertFalse(appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains("secret")));
+    } finally {
+      writer.close();
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+      appender.stop();
     }
   }
 

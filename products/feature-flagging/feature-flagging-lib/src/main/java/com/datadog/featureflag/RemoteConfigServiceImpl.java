@@ -10,9 +10,13 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RemoteConfigServiceImpl
     implements ConfigurationSourceService, ConfigurationChangesTypedListener<ServerConfiguration> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
 
   private final ConfigurationPoller configurationPoller;
 
@@ -22,6 +26,8 @@ public class RemoteConfigServiceImpl
 
   @Override
   public void init() {
+    LOGGER.debug(
+        "Feature Flagging starting remote_config configuration source (Agent Remote Configuration)");
     configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     configurationPoller.addListener(Product.FFE_FLAGS, UniversalFlagConfigParser.INSTANCE, this);
     configurationPoller.start();
@@ -32,6 +38,7 @@ public class RemoteConfigServiceImpl
     configurationPoller.removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     configurationPoller.removeListeners(Product.FFE_FLAGS);
     configurationPoller.stop();
+    LOGGER.debug("Feature Flagging remote_config configuration source stopped");
   }
 
   @Override
@@ -40,5 +47,15 @@ public class RemoteConfigServiceImpl
       @Nullable final ServerConfiguration configuration,
       final PollingRateHinter pollingRateHinter) {
     FeatureFlaggingGateway.dispatch(configuration);
+    if (configuration == null) {
+      LOGGER.debug("Feature Flagging remote_config configuration removed");
+    } else if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flagging remote_config configuration applied: key={}, flags={}, env={}, createdAt={}",
+          configKey,
+          configuration.flags == null ? 0 : configuration.flags.size(),
+          configuration.environment == null ? null : configuration.environment.name,
+          configuration.createdAt);
+    }
   }
 }

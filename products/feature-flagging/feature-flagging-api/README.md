@@ -202,3 +202,35 @@ This setting stops exposures only. Flag evaluation events have their own setting
   Configuration path. `offline` is reserved for startup-provided UFC bytes;
   until those bytes are implemented, no network source starts and evaluations
   use defaults.
+
+## Onboarding diagnostics
+
+Enable `DD_TRACE_DEBUG=true` for the Java agent's configuration and exposure-delivery logs.
+The provider uses the application's SLF4J backend: enable DEBUG for
+`datadog.trace.api.openfeature` before constructing the provider to include initialization,
+readiness changes, evaluation outcomes, and exposure suppression. The evaluation debug hook is
+registered only when its logger is enabled; no additional feature flag setting is required.
+
+Look for messages prefixed with `Feature Flagging`:
+
+- Startup reports the configuration source and effective environment. Agentless startup reports
+  the endpoint origin and polling settings, and warns if the Datadog endpoint requires a missing
+  `DD_API_KEY`.
+- Polling reports HTTP status, transport exception type, and retry delay. `unchanged` means HTTP
+  304; `applied` appears only after configuration dispatch succeeds. Rejected responses retain
+  the current configuration. Remote Config removal and provider recovery are logged separately.
+- Evaluations report the flag key, variant, reason, and error code. An `ERROR` reason identifies
+  fallback to the caller's default. Flag values, defaults, targeting keys and attributes, arbitrary
+  metadata, and error messages are omitted. Flag keys, variant identifiers, environment names,
+  configuration timestamps, and Remote Config keys are included for diagnosis.
+- Exposure logs distinguish suppression, queueing, queue overflow, flush attempts, delivery, and
+  failed batches that are dropped. Queueing or dispatch to listeners does not confirm delivery.
+  The exposure writer currently stops without flushing pending exposures on shutdown; its stop
+  message makes that limitation explicit.
+
+Endpoint paths, queries, credentials, response bodies, and raw transport/parse error messages are
+omitted from these configuration diagnostics. Per-evaluation and per-exposure debug logs can be
+verbose; disable DEBUG after troubleshooting.
+
+Coverage follows the [SDK debug logging checklist](https://datadoghq.atlassian.net/wiki/spaces/PANA/pages/7276692209)
+and the [Node.js reference implementation](https://github.com/DataDog/dd-trace-js/pull/10468).

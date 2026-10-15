@@ -75,6 +75,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       final ServerConfiguration configuration = parse(reader);
       requireEndOfDocument(reader);
       return configuration;
+    } catch (IOException | RuntimeException e) {
+      LOGGER.debug(
+          "Feature Flagging remote_config configuration rejected: malformed UFC payload ({})",
+          e.getClass().getSimpleName());
+      throw e;
     }
   }
 
@@ -381,9 +386,9 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
             INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_SEMVER_COMPARAND);
           }
           LOGGER.warn(
-              "Dropping malformed FFE flag {} during remote config deserialization: {}",
+              "Feature Flagging rejected flag {} during configuration parsing: {}",
               flagKey,
-              error.toString());
+              INVALID_FLAGS_HOLDER.get().get(flagKey));
         }
       }
       reader.endObject();

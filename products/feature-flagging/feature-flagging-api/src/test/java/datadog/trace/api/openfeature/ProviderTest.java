@@ -324,8 +324,9 @@ public class ProviderTest {
     Provider provider =
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
     List<Hook> hooks = provider.getProviderHooks();
-    // OTel FlagEvalMetricsHook (index 0), FlagEvalLoggingHook (index 1), ExposureLoggingHook (last)
-    assertThat(hooks.size(), equalTo(3));
+    // OTel FlagEvalMetricsHook (index 0), FlagEvalLoggingHook (index 1), ExposureLoggingHook (index
+    // 2), optional DebugLoggingHook (last)
+    assertThat(hooks.stream().filter(h -> !(h instanceof DebugLoggingHook)).count(), equalTo(3L));
     assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
     assertThat(hooks.get(1) instanceof FlagEvalLoggingHook, equalTo(true));
     assertThat(hooks.get(2) instanceof ExposureLoggingHook, equalTo(true));
@@ -343,7 +344,7 @@ public class ProviderTest {
 
     List<Hook> hooks = provider.getProviderHooks();
 
-    assertThat(hooks.size(), equalTo(2));
+    assertThat(hooks.stream().filter(h -> !(h instanceof DebugLoggingHook)).count(), equalTo(2L));
     assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
     assertThat(hooks.get(1) instanceof ExposureLoggingHook, equalTo(true));
   }
@@ -412,7 +413,9 @@ public class ProviderTest {
 
     verify(evaluator).shutdown();
     // After shutdown, getProviderHooks still returns the OTel, logging and exposure hooks
-    assertThat(provider.getProviderHooks().size(), equalTo(3));
+    assertThat(
+        provider.getProviderHooks().stream().filter(h -> !(h instanceof DebugLoggingHook)).count(),
+        equalTo(3L));
   }
 
   private static void assertHasFlagEvalMetricsHook(final Provider provider) {

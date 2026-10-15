@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
+import datadog.communication.HttpResponseException;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -83,7 +84,10 @@ public class ExposureWriterImpl implements ExposureWriter {
 
   @Override
   public void accept(final ExposureEvent event) {
-    queue.offer(event);
+    final boolean queued = queue.offer(event);
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("Feature Flagging exposure {}", queued ? "queued" : "dropped: queue full");
+    }
   }
 
   @VisibleForTesting
@@ -141,7 +145,8 @@ public class ExposureWriterImpl implements ExposureWriter {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
-      LOGGER.debug("exposure processor worker exited. submitting exposures stopped.");
+      LOGGER.debug(
+          "Feature Flagging exposure processor stopped; pending exposures are not flushed on shutdown");
     }
 
     private void runDutyCycle() throws InterruptedException {
@@ -168,6 +173,7 @@ public class ExposureWriterImpl implements ExposureWriter {
         buffer.add(event);
         return true;
       }
+      LOGGER.debug("Feature Flagging exposure suppressed: duplicate");
       return false;
     }
 
@@ -181,14 +187,27 @@ public class ExposureWriterImpl implements ExposureWriter {
           final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
           payload = evpPublisher.serialize(exposures);
         } catch (RuntimeException e) {
-          LOGGER.error(EXCLUDE_TELEMETRY, "Could not serialize exposures; dropping batch", e);
+          LOGGER.error(
+              EXCLUDE_TELEMETRY,
+              "Could not serialize exposures; dropping batch: {}",
+              e.getClass().getSimpleName());
           this.buffer.clear();
           return;
         }
         try {
+          LOGGER.debug("Feature Flagging exposure flush starting: count={}", this.buffer.size());
           evpPublisher.post(EXPOSURES_ROUTE, payload);
+          LOGGER.debug("Feature Flagging exposure flush delivered: count={}", this.buffer.size());
         } catch (Exception e) {
-          LOGGER.debug("Could not submit exposures", e);
+          if (e instanceof HttpResponseException) {
+            LOGGER.debug(
+                "Feature Flagging exposure flush failed: HTTP {}; dropping batch",
+                ((HttpResponseException) e).getStatusCode());
+          } else {
+            LOGGER.debug(
+                "Feature Flagging exposure flush failed: {}; dropping batch",
+                e.getClass().getSimpleName());
+          }
         } finally {
           // Best-effort delivery must not retry an ambiguously accepted batch. A later definitive
           // proxy rejection could otherwise replay the same exposures through direct intake.
