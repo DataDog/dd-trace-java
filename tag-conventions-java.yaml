@@ -138,6 +138,44 @@ span_types:
       - { dd-name: hystrix.group,        type: string,  required: optional }
       - { dd-name: hystrix.circuit-open, type: boolean, required: optional }
 
+  # Gradle and Maven specifics on CI Visibility's session and module spans.
+  test.gradle.session:
+    extends: test.session
+    tags:
+      - { dd-name: test.gradle.nested_build, type: boolean, required: optional, slot: shared }
+      - { dd-name: test.is_android,          type: boolean, required: optional, slot: shared }
+
+  test.gradle.module:
+    extends: test.module
+    tags:
+      - { ref: test.is_android }
+
+  test.maven.module:
+    extends: test.module
+    tags:
+      - { dd-name: test.execution, type: string, required: optional }  # artifactId:goal:executionId
+
+  # An Android test run under Robolectric.
+  test.android:
+    extends: test
+    tags:
+      - { dd-name: test.android.api_level,           type: int,    required: optional, slot: shared }
+      - { dd-name: test.android.release,             type: string, required: optional, slot: shared }
+      - { dd-name: test.android.codename,            type: string, required: optional, slot: shared }
+      - { dd-name: test.android.robolectric.version, type: string, required: optional, slot: shared }
+
+  # A JUnit 5 test, which may be a dynamic test.
+  test.junit5:
+    extends: test
+    tags:
+      - { dd-name: test.junit5.is_dynamic, type: boolean, required: optional, slot: shared }
+
+  # JUnit's before and after callbacks (span.kind unset).
+  junit.callback:
+    extends: internal
+    tags:
+      - { dd-name: test.callback, type: string, required: recommended }  # Before, AfterAll, ...
+
 tags:
   - { dd-name: resource.name,     type: string }
   - { dd-name: span.type,         type: string }
