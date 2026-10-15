@@ -214,22 +214,39 @@ span_types:
       - { dd-name: db.instance,  type: string, required: recommended }  # TODO(otel): db.namespace
       - { dd-name: db.operation, type: string, required: recommended, otel-name: db.operation.name, span-kind-neutral: true }
       - { dd-name: db.user,      type: string, required: recommended }
-      - { dd-name: db.pool.name, type: string, required: optional }
       - { dd-name: db.statement, type: string, required: recommended, otel-name: db.query.text, span-kind-neutral: true }
+      # A command's outcome (Redis, Memcached).
+      - { dd-name: db.command.cancelled,     type: boolean, required: optional }
+      - { dd-name: db.command.results.count, type: int,     required: optional }
+
+  # Relational databases (JDBC, R2DBC).
+  db.sql:
+    extends: db.client
+    tags:
+      - { dd-name: db.pool.name, type: string, required: optional }
       - { dd-name: db.schema,    type: string, required: optional }
       - { dd-name: db.warehouse, type: string, required: optional }
-      # System-specific: one db.client type rather than one per system; they only cost slots.
-      - { dd-name: db.cassandra.contact.points, type: string,  required: optional }
-      - { dd-name: db.couchbase.seed.nodes,     type: string,  required: optional }
-      - { dd-name: db.redis.dbIndex,            type: int,     required: optional }
-      - { dd-name: db.command.cancelled,        type: boolean, required: optional }
-      - { dd-name: db.command.results.count,    type: int,     required: optional }
-      # Database Monitoring (DBM) propagation, when enabled.
-      - { dd-name: _dd.dbm_trace_injected,      type: boolean, required: optional }
-      - { dd-name: _dd.propagated_hash,         type: string,  required: optional }
-      - { dd-name: _dd.instrumentation.time_ms, type: long,    required: optional }
-      - { dd-name: bucket,                      type: string,  required: optional }  # Couchbase
-      - { dd-name: couchbase.operation_id,      type: string,  required: optional }
+
+  db.cassandra:
+    extends: db.client
+    tags:
+      - { dd-name: db.cassandra.contact.points, type: string, required: optional }
+
+  db.couchbase:
+    extends: db.client
+    tags:
+      - { dd-name: db.couchbase.seed.nodes, type: string, required: optional }
+      - { dd-name: bucket,                  type: string, required: optional }
+      - { dd-name: couchbase.operation_id,  type: string, required: optional }
+
+  db.redis:
+    extends: db.client
+    tags:
+      - { dd-name: db.redis.dbIndex, type: int, required: optional }
+
+  # MongoDB: no tags of its own, but Database Monitoring applies to it.
+  db.mongo:
+    extends: db.client
 
   view.render:
     extends: base
@@ -369,6 +386,14 @@ mixins:
     applies: [ http.server, rpc.server, messaging.consumer, internal ]
     tags:
       - { dd-name: _dd.code_origin.type, type: string, required: optional }
+
+  # dbm — Database Monitoring propagation into queries, when enabled.
+  dbm:
+    applies: [ db.sql, db.mongo ]
+    tags:
+      - { dd-name: _dd.dbm_trace_injected,      type: boolean, required: optional }
+      - { dd-name: _dd.propagated_hash,         type: string,  required: optional }
+      - { dd-name: _dd.instrumentation.time_ms, type: long,    required: optional }
 
   # exception_replay — Exception Replay, on any span carrying an exception it captured.
   exception_replay:
