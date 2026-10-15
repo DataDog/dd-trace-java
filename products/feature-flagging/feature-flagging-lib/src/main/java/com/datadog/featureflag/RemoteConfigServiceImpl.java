@@ -39,6 +39,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       return;
     }
     this.started = true;
+    LOGGER.debug("Feature Flagging starting remote_config configuration source");
     this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     // Listen as serialized event to prevent depending on the deserializer from agent
     this.configurationPoller.addListener(FFE_FLAGS, content -> content, this);
@@ -70,6 +71,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       return;
     }
     this.started = false;
+    LOGGER.debug("Feature Flagging remote_config configuration source stopped");
     this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     this.configurationPoller.removeListeners(FFE_FLAGS);
     this.subscribers.clear();
@@ -81,6 +83,14 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       final String configKey,
       @Nullable final byte[] content,
       final PollingRateHinter pollingRateHinter) {
+    if (content == null) {
+      LOGGER.debug("Feature Flagging remote_config configuration removed: key={}", configKey);
+    } else {
+      LOGGER.debug(
+          "Feature Flagging remote_config configuration received: key={}, bytes={}",
+          configKey,
+          content.length);
+    }
     final Iterator<Consumer<byte[]>> snapshot;
     synchronized (this.subscribers) {
       this.current = content;
