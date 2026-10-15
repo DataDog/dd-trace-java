@@ -142,8 +142,8 @@ span_types:
   test.gradle.session:
     extends: test.session
     tags:
-      - { dd-name: test.gradle.nested_build, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.is_android,          type: boolean, required: optional, slot: shared }
+      - { dd-name: test.gradle.nested_build, type: boolean, required: optional }
+      - { dd-name: test.is_android,          type: boolean, required: optional }
 
   test.gradle.module:
     extends: test.module
@@ -153,22 +153,22 @@ span_types:
   test.maven.module:
     extends: test.module
     tags:
-      - { dd-name: test.execution, type: string, required: optional }  # artifactId:goal:executionId
+      - { dd-name: test.execution, type: string, required: recommended }  # artifactId:goal:executionId
 
   # An Android test run under Robolectric.
   test.android:
     extends: test
     tags:
-      - { dd-name: test.android.api_level,           type: int,    required: optional, slot: shared }
-      - { dd-name: test.android.release,             type: string, required: optional, slot: shared }
-      - { dd-name: test.android.codename,            type: string, required: optional, slot: shared }
-      - { dd-name: test.android.robolectric.version, type: string, required: optional, slot: shared }
+      - { dd-name: test.android.api_level,           type: int,    required: optional }
+      - { dd-name: test.android.release,             type: string, required: optional }
+      - { dd-name: test.android.codename,            type: string, required: optional }
+      - { dd-name: test.android.robolectric.version, type: string, required: optional }
 
   # A JUnit 5 test, which may be a dynamic test.
   test.junit5:
     extends: test
     tags:
-      - { dd-name: test.junit5.is_dynamic, type: boolean, required: optional, slot: shared }
+      - { dd-name: test.junit5.is_dynamic, type: boolean, required: optional }
 
   # JUnit's before and after callbacks (span.kind unset).
   junit.callback:

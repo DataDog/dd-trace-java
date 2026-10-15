@@ -314,8 +314,9 @@ span_types:
 
   # CI Visibility: one span per test session, module, suite and test. Their span.kind is
   # test_session_end, test_module_end, test_suite_end or test, none of which has a direction.
-  # Standard enrichment (TestDecoratorImpl.afterStart) puts the CI environment on every one of them;
-  # tags set only some of the time are `slot: shared`, so they don't crowd out the ones always set.
+  # Standard enrichment (TestDecoratorImpl.afterStart) puts the CI environment on every one of them,
+  # so its tags are recommended. A test span carries more tags than the dense store has slots; tags
+  # set only some of the time stay optional, and those share slots so the recommended ones don't.
   ci.span:
     abstract: true
     extends: base
@@ -324,57 +325,57 @@ span_types:
       - { dd-name: test.type, type: string, required: required }  # "browser" on Selenium tests
       - { dd-name: test.status, type: string, required: required }
       - { dd-name: test.framework, type: string, required: recommended }
-      - { dd-name: test.framework_version, type: string, required: optional }
+      - { dd-name: test.framework_version, type: string, required: recommended }
       - { dd-name: test_session_id, type: long, required: required }  # hoisted to a top-level field by the CI intake mapper
       - { dd-name: _dd.host.vcpu_count, type: int, required: recommended }
-      - { dd-name: _dd.ci.env_vars, type: string, required: optional }
+      - { dd-name: _dd.ci.env_vars, type: string, required: recommended }
       - { dd-name: library_version, type: string, required: recommended }  # every span of a CI trace
       # the CI provider and the commit, from the environment
-      - { dd-name: ci.provider.name, type: string, required: optional }
-      - { dd-name: ci.pipeline.id, type: string, required: optional }
-      - { dd-name: ci.pipeline.name, type: string, required: optional }
-      - { dd-name: ci.pipeline.display_name, type: string, required: optional }
-      - { dd-name: ci.pipeline.number, type: string, required: optional }
-      - { dd-name: ci.pipeline.url, type: string, required: optional }
-      - { dd-name: ci.stage.name, type: string, required: optional }
-      - { dd-name: ci.job.id, type: string, required: optional }
-      - { dd-name: ci.job.name, type: string, required: optional }
-      - { dd-name: ci.job.url, type: string, required: optional }
-      - { dd-name: ci.workspace_path, type: string, required: optional }
-      - { dd-name: ci.node.name, type: string, required: optional }
-      - { dd-name: ci.node.labels, type: string, required: optional }
-      - { dd-name: git.repository_url, type: string, required: optional }
-      - { dd-name: git.commit.sha, type: string, required: optional }
-      - { dd-name: git.branch, type: string, required: optional }
-      - { dd-name: git.tag, type: string, required: optional }
-      - { dd-name: git.commit.author.name, type: string, required: optional }
-      - { dd-name: git.commit.author.email, type: string, required: optional }
-      - { dd-name: git.commit.author.date, type: string, required: optional }
-      - { dd-name: git.commit.committer.name, type: string, required: optional }
-      - { dd-name: git.commit.committer.email, type: string, required: optional }
-      - { dd-name: git.commit.committer.date, type: string, required: optional }
-      - { dd-name: git.commit.message, type: string, required: optional }
+      - { dd-name: ci.provider.name, type: string, required: recommended }
+      - { dd-name: ci.pipeline.id, type: string, required: recommended }
+      - { dd-name: ci.pipeline.name, type: string, required: recommended }
+      - { dd-name: ci.pipeline.display_name, type: string, required: recommended }
+      - { dd-name: ci.pipeline.number, type: string, required: recommended }
+      - { dd-name: ci.pipeline.url, type: string, required: recommended }
+      - { dd-name: ci.stage.name, type: string, required: recommended }
+      - { dd-name: ci.job.id, type: string, required: recommended }
+      - { dd-name: ci.job.name, type: string, required: recommended }
+      - { dd-name: ci.job.url, type: string, required: recommended }
+      - { dd-name: ci.workspace_path, type: string, required: recommended }
+      - { dd-name: ci.node.name, type: string, required: recommended }
+      - { dd-name: ci.node.labels, type: string, required: recommended }
+      - { dd-name: git.repository_url, type: string, required: recommended }
+      - { dd-name: git.commit.sha, type: string, required: recommended }
+      - { dd-name: git.branch, type: string, required: recommended }
+      - { dd-name: git.tag, type: string, required: recommended }
+      - { dd-name: git.commit.author.name, type: string, required: recommended }
+      - { dd-name: git.commit.author.email, type: string, required: recommended }
+      - { dd-name: git.commit.author.date, type: string, required: recommended }
+      - { dd-name: git.commit.committer.name, type: string, required: recommended }
+      - { dd-name: git.commit.committer.email, type: string, required: recommended }
+      - { dd-name: git.commit.committer.date, type: string, required: recommended }
+      - { dd-name: git.commit.message, type: string, required: recommended }
       # pull request builds only
-      - { dd-name: git.pull_request.base_branch, type: string, required: optional, slot: shared }
-      - { dd-name: git.pull_request.base_branch_sha, type: string, required: optional, slot: shared }
-      - { dd-name: git.pull_request.base_branch_head_sha, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.sha, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.author.name, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.author.email, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.author.date, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.committer.name, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.committer.email, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.committer.date, type: string, required: optional, slot: shared }
-      - { dd-name: git.commit.head.message, type: string, required: optional, slot: shared }
-      - { dd-name: pr.number, type: string, required: optional, slot: shared }
-      - { dd-name: test.skip_reason, type: string, required: optional, slot: shared }
-      - { dd-name: test.itr.tests_skipping.enabled, type: boolean, required: optional, slot: shared }
+      - { dd-name: git.pull_request.base_branch, type: string, required: optional }
+      - { dd-name: git.pull_request.base_branch_sha, type: string, required: optional }
+      - { dd-name: git.pull_request.base_branch_head_sha, type: string, required: optional }
+      - { dd-name: git.commit.head.sha, type: string, required: optional }
+      - { dd-name: git.commit.head.author.name, type: string, required: optional }
+      - { dd-name: git.commit.head.author.email, type: string, required: optional }
+      - { dd-name: git.commit.head.author.date, type: string, required: optional }
+      - { dd-name: git.commit.head.committer.name, type: string, required: optional }
+      - { dd-name: git.commit.head.committer.email, type: string, required: optional }
+      - { dd-name: git.commit.head.committer.date, type: string, required: optional }
+      - { dd-name: git.commit.head.message, type: string, required: optional }
+      - { dd-name: pr.number, type: string, required: optional }
+      - { dd-name: test.skip_reason, type: string, required: optional }
+      - { dd-name: test.itr.tests_skipping.enabled, type: boolean, required: optional }
       # when fetching that part of the library configuration failed
-      - { dd-name: _dd.ci.library_configuration_error.settings, type: boolean, required: optional, slot: shared }
-      - { dd-name: _dd.ci.library_configuration_error.skippable_tests, type: boolean, required: optional, slot: shared }
-      - { dd-name: _dd.ci.library_configuration_error.flaky_tests, type: boolean, required: optional, slot: shared }
-      - { dd-name: _dd.ci.library_configuration_error.known_tests, type: boolean, required: optional, slot: shared }
-      - { dd-name: _dd.ci.library_configuration_error.test_management_tests, type: boolean, required: optional, slot: shared }
+      - { dd-name: _dd.ci.library_configuration_error.settings, type: boolean, required: optional }
+      - { dd-name: _dd.ci.library_configuration_error.skippable_tests, type: boolean, required: optional }
+      - { dd-name: _dd.ci.library_configuration_error.flaky_tests, type: boolean, required: optional }
+      - { dd-name: _dd.ci.library_configuration_error.known_tests, type: boolean, required: optional }
+      - { dd-name: _dd.ci.library_configuration_error.test_management_tests, type: boolean, required: optional }
 
   # Session and module spans: what a build-system run aggregates.
   ci.aggregate:
@@ -382,21 +383,21 @@ span_types:
     extends: ci.span
     tags:
       - { dd-name: test.command, type: string, required: recommended }
-      - { dd-name: test.code_coverage.enabled, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.code_coverage.lines_pct, type: long, required: optional, slot: shared }
-      - { dd-name: test.code_coverage.backfilled, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.itr.tests_skipping.type, type: string, required: optional, slot: shared }
-      - { dd-name: test.itr.tests_skipping.count, type: long, required: optional, slot: shared }
-      - { dd-name: test.early_flake.enabled, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.early_flake.abort_reason, type: string, required: optional, slot: shared }
-      - { dd-name: test.test_management.enabled, type: boolean, required: optional, slot: shared }
-      - { dd-name: _dd.ci.itr.tests_skipped, type: boolean, required: optional, slot: shared }
-      - { dd-name: _dd.test.has_failed_test_replay, type: boolean, required: optional, slot: shared }
+      - { dd-name: test.code_coverage.enabled, type: boolean, required: optional }
+      - { dd-name: test.code_coverage.lines_pct, type: long, required: optional }
+      - { dd-name: test.code_coverage.backfilled, type: boolean, required: optional }
+      - { dd-name: test.itr.tests_skipping.type, type: string, required: optional }
+      - { dd-name: test.itr.tests_skipping.count, type: long, required: optional }
+      - { dd-name: test.early_flake.enabled, type: boolean, required: optional }
+      - { dd-name: test.early_flake.abort_reason, type: string, required: optional }
+      - { dd-name: test.test_management.enabled, type: boolean, required: optional }
+      - { dd-name: _dd.ci.itr.tests_skipped, type: boolean, required: optional }
+      - { dd-name: _dd.test.has_failed_test_replay, type: boolean, required: optional }
 
   test.session:
     extends: ci.aggregate
     tags:
-      - { dd-name: test.toolchain, type: string, required: optional, slot: shared }  # build-system sessions
+      - { dd-name: test.toolchain, type: string, required: optional }  # build-system sessions
 
   test.module:
     extends: ci.aggregate
@@ -412,10 +413,10 @@ span_types:
       - { dd-name: test.suite, type: string, required: required }
       - { dd-name: test_suite_id, type: long, required: required }
       - { dd-name: test.source.file, type: string, required: recommended }
-      - { dd-name: test.source.start, type: int, required: optional }
-      - { dd-name: test.source.end, type: int, required: optional }
-      - { dd-name: test.codeowners, type: string, required: optional, slot: shared }
-      - { dd-name: test.traits, type: string, required: optional, slot: shared }
+      - { dd-name: test.source.start, type: int, required: recommended }
+      - { dd-name: test.source.end, type: int, required: recommended }
+      - { dd-name: test.codeowners, type: string, required: optional }
+      - { dd-name: test.traits, type: string, required: optional }
 
   test:
     extends: ci.span
@@ -432,41 +433,41 @@ span_types:
       - { dd-name: test.name, type: string, required: required }
       - { dd-name: test.final_status, type: string, required: recommended }
       - { dd-name: test.source.method, type: string, required: recommended }
-      - { dd-name: test.source.class, type: string, required: optional, slot: shared }  # when it differs from the suite
-      - { dd-name: test.parameters, type: string, required: optional, slot: shared }
-      - { dd-name: test.skipped_by_itr, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.itr.unskippable, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.itr.forced_run, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.is_new, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.is_modified, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.is_retry, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.has_failed_all_retries, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.failure_suppressed, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.test_management.is_quarantined, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.test_management.is_test_disabled, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.test_management.is_attempt_to_fix, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.test_management.attempt_to_fix_passed, type: boolean, required: optional, slot: shared }
-      - { dd-name: test.retry_reason, type: string, required: optional, slot: shared }
-      - { dd-name: itr_correlation_id, type: string, required: optional, slot: shared }
+      - { dd-name: test.source.class, type: string, required: optional }  # when it differs from the suite
+      - { dd-name: test.parameters, type: string, required: optional }
+      - { dd-name: test.skipped_by_itr, type: boolean, required: optional }
+      - { dd-name: test.itr.unskippable, type: boolean, required: optional }
+      - { dd-name: test.itr.forced_run, type: boolean, required: optional }
+      - { dd-name: test.is_new, type: boolean, required: optional }
+      - { dd-name: test.is_modified, type: boolean, required: optional }
+      - { dd-name: test.is_retry, type: boolean, required: optional }
+      - { dd-name: test.has_failed_all_retries, type: boolean, required: optional }
+      - { dd-name: test.failure_suppressed, type: boolean, required: optional }
+      - { dd-name: test.test_management.is_quarantined, type: boolean, required: optional }
+      - { dd-name: test.test_management.is_test_disabled, type: boolean, required: optional }
+      - { dd-name: test.test_management.is_attempt_to_fix, type: boolean, required: optional }
+      - { dd-name: test.test_management.attempt_to_fix_passed, type: boolean, required: optional }
+      - { dd-name: test.retry_reason, type: string, required: optional }
+      - { dd-name: itr_correlation_id, type: string, required: optional }
       # set as tags only when CI Visibility reports through the APM protocol; otherwise the CI intake
       # mapper writes them into its metadata header
-      - { dd-name: os.architecture, type: string, required: optional, slot: shared }
-      - { dd-name: os.platform, type: string, required: optional, slot: shared }
-      - { dd-name: os.version, type: string, required: optional, slot: shared }
-      - { dd-name: runtime.name, type: string, required: optional, slot: shared }
-      - { dd-name: runtime.vendor, type: string, required: optional, slot: shared }
-      - { dd-name: runtime.version, type: string, required: optional, slot: shared }
-      - { dd-name: _dd.test.is_user_provided_service, type: string, required: optional, slot: shared }
+      - { dd-name: os.architecture, type: string, required: optional }
+      - { dd-name: os.platform, type: string, required: optional }
+      - { dd-name: os.version, type: string, required: optional }
+      - { dd-name: runtime.name, type: string, required: optional }
+      - { dd-name: runtime.vendor, type: string, required: optional }
+      - { dd-name: runtime.version, type: string, required: optional }
+      - { dd-name: _dd.test.is_user_provided_service, type: string, required: optional }
 
   # A browser test (Selenium).
   test.browser:
     extends: test
     tags:
-      - { dd-name: test.browser.driver, type: string, required: optional, slot: shared }
-      - { dd-name: test.browser.driver_version, type: string, required: optional, slot: shared }
-      - { dd-name: test.browser.name, type: string, required: optional, slot: shared }
-      - { dd-name: test.browser.version, type: string, required: optional, slot: shared }
-      - { dd-name: test.is_rum_active, type: boolean, required: optional, slot: shared }
+      - { dd-name: test.browser.driver, type: string, required: optional }
+      - { dd-name: test.browser.driver_version, type: string, required: optional }
+      - { dd-name: test.browser.name, type: string, required: optional }
+      - { dd-name: test.browser.version, type: string, required: optional }
+      - { dd-name: test.is_rum_active, type: boolean, required: optional }
 
   # An internal span no other type models, e.g. an integration platform's process or action step.
   internal:
