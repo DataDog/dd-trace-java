@@ -22,8 +22,8 @@ final class HttpCall<T> {
   private final long startedNanos = System.nanoTime();
   private final long timeoutNanos;
   private final CompletableFuture<HttpResponse<T>> response;
-  private Flow.Subscription subscription;
-  private boolean cancelled;
+  private volatile Flow.Subscription subscription;
+  private volatile boolean cancelled;
 
   HttpCall(
       final HttpClient client,
@@ -72,16 +72,17 @@ final class HttpCall<T> {
   }
 
   /** Cancels the active exchange and any response body subscription. */
-  synchronized void cancel() {
+  void cancel() {
     if (!this.cancelled && this.response.cancel(true)) {
       this.cancelled = true;
-      if (this.subscription != null) {
-        this.subscription.cancel();
+      final Flow.Subscription subscription = this.subscription;
+      if (subscription != null) {
+        subscription.cancel();
       }
     }
   }
 
-  private synchronized void subscribe(final Flow.Subscription subscription) {
+  private void subscribe(final Flow.Subscription subscription) {
     this.subscription = subscription;
     if (this.cancelled) {
       subscription.cancel();
