@@ -19,8 +19,9 @@ import java.lang.annotation.Target;
  * inlining level in C2, so on a hot path it can push a callee past {@code MaxInlineLevel}.
  * Accessors also add methods and classes to load at startup.
  *
- * <p>The fix is to make the member package-private, or to stop using it across the nest. Which side
- * the accessor lands on doesn't matter to this contract: it covers the whole nest.
+ * <p>The fix is to make the member package-private, to stop using it across the nest, or, for a
+ * member only used off the hot path, to suppress the contract on it. Which side the accessor lands
+ * on doesn't matter to this contract: it covers the whole nest.
  *
  * <p>This marker changes no runtime behavior.
  *
@@ -31,7 +32,10 @@ import java.lang.annotation.Target;
  *       constructor.
  *   <li><b>Not a violation:</b> other synthetic members, such as lambda bodies ({@code lambda$})
  *       and bridge methods.
- *   <li><b>Exemption:</b> none. To accept accessors in a nest, don't annotate it.
+ *   <li><b>Exemption:</b> an accessor whose target member, the field, method or constructor it
+ *       reaches, carries {@link SuppressPerfContract} naming this contract, directly or through a
+ *       reusable suppression annotation. Use it for members used across the nest only off the hot
+ *       path, so they can stay {@code private}.
  * </ul>
  *
  * <p>The check is deterministic: tests call {@code
