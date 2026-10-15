@@ -1,6 +1,8 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -42,6 +44,34 @@ class FlagEvaluationPayloadsTest {
     assertNotNull(evalAttrs);
     assertEquals("us-east-1", evalAttrs.get("region"));
     assertFalse(ev.containsKey("reason"));
+  }
+
+  @Test
+  void omitsNullMapEntriesAndPreservesNullArrayElements() throws Exception {
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("present", "value");
+    attrs.put("missing", null);
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        new FlagEvaluationAggregator.EvalBucket(
+            "flag",
+            "on",
+            "alloc",
+            "user",
+            null,
+            EVAL_MS,
+            false,
+            attrs,
+            true,
+            singletonMap("items", asList(null, singletonMap("missing", null))));
+    final FlagEvaluationPayloads.FlagEvaluationEvent row =
+        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, true, true, EVAL_MS);
+
+    final Map<String, Object> event = firstEvent(onlyPayload(row));
+
+    final Map<?, ?> context = (Map<?, ?>) event.get("context");
+    assertEquals(singletonMap("present", "value"), context.get("evaluation"));
+    assertEquals(singletonMap("items", asList(null, emptyMap())), event.get("features"));
+    assertTrue(attrs.containsKey("missing"));
   }
 
   @Test
