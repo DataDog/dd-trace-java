@@ -1,8 +1,8 @@
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,12 +11,22 @@ import java.util.regex.Pattern;
 
 final class SourceFileResolver {
   private static final String UNKNOWN = "UNKNOWN";
-  // Kotlin's "enum class" declaration is indexed through its "class" keyword.
-  private static final Pattern TYPE_DECLARATION =
+  private static final String IDENTIFIER =
+      "\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*";
+  // Possessive repeats keep long string literals from exhausting the regex stack.
+  private static final Pattern COMMENTS_AND_STRINGS =
       Pattern.compile(
-          "\\b(?:class|interface|enum(?!\\s+class\\b)|record|object|trait)\\s+([A-Za-z_$][A-Za-z0-9_$]*)\\b");
+          "//[^\\r\\n]*|/\\*[\\s\\S]*?\\*/"
+              + "|\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''"
+              + "|\"(?:\\\\.|[^\"\\\\])*+\"|'(?:\\\\.|[^'\\\\])*+'");
+  // Kotlin's "enum class" declaration is indexed through its "class" keyword.
+  private static final Pattern TYPE_OR_SCOPE =
+      Pattern.compile(
+          "(?<![.:])\\b(?:class|interface|enum(?!\\s+class\\b)|record|object|trait)\\s+("
+              + IDENTIFIER
+              + ")|[{}()]");
   private static final Pattern PACKAGE_DECLARATION =
-      Pattern.compile("^\\s*package\\s+([A-Za-z_$][A-Za-z0-9_$.]*)");
+      Pattern.compile("\\bpackage\\s+(" + IDENTIFIER + "(?:\\s*\\.\\s*" + IDENTIFIER + ")*)");
 
   private final String workspacePrefix;
   private final Map<String, SourceIndex> indexes = new HashMap<>();
@@ -41,6 +51,7 @@ final class SourceFileResolver {
   }
 
   private String sourceRoot(String resultXmlPath) {
+    // Module names such as build-helper are not build output directories.
     var buildIndex = resultXmlPath.lastIndexOf("/build/");
     var projectPath = buildIndex >= 0 ? resultXmlPath.substring(0, buildIndex) : resultXmlPath;
     if (projectPath.startsWith(workspacePrefix)) {
@@ -89,6 +100,7 @@ final class SourceFileResolver {
         return UNKNOWN;
       }
 
+      // Duplicate binary names across source sets still fall back to their common directory.
       var commonRoot = commonRoot(locations);
       if (commonRoot == null) {
         return UNKNOWN;
@@ -103,6 +115,7 @@ final class SourceFileResolver {
           return locations;
         }
 
+        // Nested reports use binary names; never trim a '$' from the package.
         var innerClassSeparator = className.lastIndexOf('$');
         if (innerClassSeparator <= className.lastIndexOf('.')) {
           return List.of();
@@ -148,25 +161,55 @@ final class SourceFileResolver {
     }
 
     private void index(Path sourceFile) throws IOException {
-      try (BufferedReader reader = Files.newBufferedReader(sourceFile, StandardCharsets.UTF_8)) {
-        var packageName = "";
-        String line;
-        while ((line = reader.readLine()) != null) {
-          if (packageName.isEmpty()) {
-            var packageMatcher = PACKAGE_DECLARATION.matcher(line);
-            if (packageMatcher.find()) {
-              packageName = packageMatcher.group(1) + '.';
+      // shortcut: parse common JVM syntax; use compiler metadata if other syntax causes ambiguity.
+      // Comments and literals can contain declarations or braces that are not source structure.
+      var source =
+          COMMENTS_AND_STRINGS
+              .matcher(Files.readString(sourceFile, StandardCharsets.UTF_8))
+              .replaceAll(" ");
+      // Packages may span lines and contain Unicode identifiers or comments between segments.
+      var packageMatcher = PACKAGE_DECLARATION.matcher(source);
+      var packageName =
+          packageMatcher.find() ? packageMatcher.group(1).replaceAll("\\s+", "") + '.' : "";
+      var enclosingTypes = new ArrayDeque<TypeScope>();
+      var braceDepth = 0;
+      var parentheses = 0;
+      var declarationParentheses = 0;
+      String pendingType = null;
+      var matcher = TYPE_OR_SCOPE.matcher(source);
+      while (matcher.find()) {
+        var typeName = matcher.group(1);
+        if (typeName != null) {
+          // Helper.OuterTest must not be indexed as the top-level OuterTest.
+          pendingType =
+              (enclosingTypes.isEmpty() ? packageName : enclosingTypes.peek().name() + '$')
+                  + typeName;
+          classLocations.computeIfAbsent(pendingType, ignored -> new ArrayList<>()).add(sourceFile);
+          declarationParentheses = parentheses;
+          continue;
+        }
+        switch (matcher.group()) {
+          case "(" -> parentheses++;
+          case ")" -> parentheses--;
+          case "{" -> {
+            braceDepth++;
+            // Annotation arrays in a type header precede the actual type body.
+            if (pendingType != null && parentheses == declarationParentheses) {
+              enclosingTypes.push(new TypeScope(pendingType, braceDepth));
+              pendingType = null;
             }
           }
-          var matcher = TYPE_DECLARATION.matcher(line);
-          while (matcher.find()) {
-            classLocations
-                .computeIfAbsent(packageName + matcher.group(1), ignored -> new ArrayList<>())
-                .add(sourceFile);
+          case "}" -> {
+            if (!enclosingTypes.isEmpty() && enclosingTypes.peek().depth() == braceDepth) {
+              enclosingTypes.pop();
+            }
+            braceDepth--;
           }
         }
       }
     }
+
+    private record TypeScope(String name, int depth) {}
 
     private static Path commonRoot(List<Path> locations) {
       var commonRoot = locations.get(0);

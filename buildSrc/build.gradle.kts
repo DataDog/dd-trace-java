@@ -134,11 +134,6 @@ testing {
       targets.configureEach {
         testTask.configure {
           enabled = providers.gradleProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
-
-          // Collector tests launch these sources directly in a separate JVM.
-          inputs.dir("../.gitlab/collect-result")
-            .withPropertyName("ciResultCollector")
-            .withPathSensitivity(PathSensitivity.RELATIVE)
         }
       }
     }
