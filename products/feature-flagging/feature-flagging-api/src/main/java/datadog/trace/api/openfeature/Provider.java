@@ -89,7 +89,7 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(4);
+    final List<Hook> hooks = new ArrayList<>(5);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
@@ -117,6 +117,10 @@ public class Provider extends EventProvider implements Metadata {
     } catch (LinkageError e) {
       log.warn("Feature flag exposure reporting is unavailable with the installed agent", e);
     }
+    final DebugLoggingHook debugLoggingHook = DebugLoggingHook.createIfEnabled();
+    if (debugLoggingHook != null) {
+      hooks.add(debugLoggingHook);
+    }
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
 
@@ -131,26 +135,39 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public void initialize(final EvaluationContext context) throws Exception {
+    log.debug(
+        "Feature Flagging provider initializing; timeout={} {}",
+        options.getTimeout(),
+        options.getUnit());
     initializationState.set(InitializationState.INITIALIZING);
     try {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
         if (markInitialConfigReceivedReady()) {
+          log.debug("Feature Flagging provider initialized successfully");
           return;
         }
         markInitializationError();
+        log.debug(
+            "Feature Flagging provider initialization timed out waiting for usable configuration");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
       if (!evaluator.hasConfiguration() || !markSuccessfulInitializationReady()) {
         markInitializationError();
+        log.debug("Feature Flagging provider initialization failed: configuration unavailable");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
+      log.debug("Feature Flagging provider initialized successfully");
     } catch (final OpenFeatureError e) {
+      log.debug("Feature Flagging provider initialization failed: errorCode={}", e.getErrorCode());
       markInitializationError();
       throw e;
     } catch (final Throwable e) {
+      log.debug(
+          "Feature Flagging provider initialization failed: {}; verify the Java agent and feature flag configuration",
+          e.getClass().getSimpleName());
       markInitializationError();
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
     }
@@ -174,6 +191,7 @@ public class Provider extends EventProvider implements Metadata {
     if (state == InitializationState.ERROR
         && initializationState.compareAndSet(
             InitializationState.ERROR, InitializationState.READY)) {
+      log.debug("Feature Flagging provider ready after configuration recovery");
       emit(
           ProviderEvent.PROVIDER_READY,
           ProviderEventDetails.builder().message("Provider ready").build());
@@ -182,6 +200,7 @@ public class Provider extends EventProvider implements Metadata {
     if (initializationState.get() != InitializationState.READY) {
       return;
     }
+    log.debug("Feature Flagging provider configuration changed");
     emit(
         ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
         ProviderEventDetails.builder().message("New configuration received").build());
@@ -195,6 +214,7 @@ public class Provider extends EventProvider implements Metadata {
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
       return;
     }
+    log.debug("Feature Flagging provider configuration unavailable");
     emit(
         ProviderEvent.PROVIDER_ERROR,
         ProviderEventDetails.builder()
@@ -249,6 +269,7 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public void shutdown() {
+    log.debug("Feature Flagging provider shutting down");
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }

@@ -15,6 +15,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
@@ -49,12 +53,14 @@ import okhttp3.Protocol;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class AgentlessConfigurationSourceTest {
@@ -793,9 +799,9 @@ class AgentlessConfigurationSourceTest {
       assertEquals(3, requests.size());
       verify(ratelimitedLogger)
           .warn(
-              "Feature Flagging agentless endpoint request failed after {} attempts",
+              "Feature Flagging agentless endpoint request failed after {} attempts: {}",
               3,
-              finalFailure);
+              "SocketTimeoutException");
       verifyNoInteractions(listener);
     } finally {
       service.close();
@@ -1202,6 +1208,122 @@ class AgentlessConfigurationSourceTest {
       builder.body(ResponseBody.create(MediaType.get("application/json"), response.body));
     }
     return builder.build();
+  }
+
+  @Nested
+  class Diagnostics {
+    private final Logger logger =
+        (Logger) LoggerFactory.getLogger(AgentlessConfigurationSource.class);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private Level previousLevel;
+
+    @BeforeEach
+    void captureLogs() {
+      previousLevel = logger.getLevel();
+      logger.setLevel(Level.DEBUG);
+      appender.start();
+      logger.addAppender(appender);
+    }
+
+    @AfterEach
+    void restoreLogging() {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+    }
+
+    @Test
+    void reportsAppliedUnchangedAndRejectedConfigurationWithoutPayloads() throws Exception {
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any()))
+          .thenReturn(
+              response(200, "secret-etag", emptyConfig()),
+              response(304, null, null),
+              response(200, null, "{\"secret-payload\":"));
+      final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              HttpUrl.get("http://localhost" + CONFIG_PATH),
+              config("datadoghq.com", "production"),
+              30_000,
+              client,
+              executor);
+      try {
+        assertTrue(service.pollOnce());
+        assertTrue(service.pollOnce());
+        assertFalse(service.pollOnce());
+        assertLogged("configuration applied: flags=0, env=production, configurationEnv=Staging");
+        assertLogged("configuration unchanged (HTTP 304)");
+        assertLogged("configuration rejected: malformed UFC payload");
+        assertEquals(
+            1,
+            appender.list.stream()
+                .filter(e -> e.getFormattedMessage().contains("configuration applied:"))
+                .count());
+        assertNoSecrets();
+      } finally {
+        service.close();
+      }
+    }
+
+    @Test
+    void logsMissingCredentialsAndOnlyEndpointOrigin() throws Exception {
+      final Config config = config();
+      when(config.getApiKey()).thenReturn(null);
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any())).thenReturn(response(401, null, null));
+      final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              HttpUrl.get(
+                  "https://secret-user:secret-password@example.com/secret-path?key=secret-query"),
+              config,
+              30_000,
+              client,
+              executor);
+      try {
+        service.init();
+        assertLogged("source at https://example.com:443");
+        assertLogged("requires DD_API_KEY");
+        assertLogged("HTTP 401; verify endpoint authentication");
+        assertNoSecrets();
+      } finally {
+        service.close();
+      }
+    }
+
+    @Test
+    void logsTransportFailureAndBackoffWithoutExceptionMessages() throws Exception {
+      final List<okhttp3.Request> requests = new ArrayList<>();
+      final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+          scriptedClient(
+              requests,
+              delay -> {},
+              () -> 1.0,
+              new SocketTimeoutException("secret-url"),
+              response(503, null, null),
+              response(200, null, emptyConfig()));
+      client.fetch(HttpUrl.get("https://example.com"), config(), null);
+      assertLogged("attempt 1/3 failed: SocketTimeoutException");
+      assertLogged("attempt 2/3 returned HTTP 503");
+      assertLogged("retry in 5000 ms");
+      assertLogged("returned HTTP 200");
+      assertNoSecrets();
+    }
+
+    private void assertLogged(final String text) {
+      assertTrue(
+          appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(text)), text);
+    }
+
+    private void assertNoSecrets() {
+      for (final ILoggingEvent event : appender.list) {
+        assertFalse(event.getFormattedMessage().contains("secret"));
+        assertNull(event.getThrowableProxy());
+      }
+    }
   }
 
   private static Config config() {
