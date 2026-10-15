@@ -59,6 +59,42 @@ boolean enabled = client.getBooleanValue("my-feature", false,
     new MutableContext("user-123"));
 ```
 
+## Per-subject evaluation telemetry opt-out
+
+Applications can keep flag evaluation enabled while excluding selected subjects from evaluation
+telemetry. Configure the provider once, then pass the decision with each evaluation:
+
+```java
+import datadog.trace.api.openfeature.Provider;
+import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.ImmutableContext;
+import dev.openfeature.sdk.OpenFeatureAPI;
+import dev.openfeature.sdk.Value;
+import java.util.Collections;
+
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait(new Provider(
+    new Provider.Options().enableEvaluationTelemetryOptOutParameter(true)));
+Client client = api.getClient();
+
+// In a request handler, the application owns its consent and eligibility rules.
+boolean optedOut = user.hasDeclinedEvaluationTelemetry();
+boolean enabled = client.getBooleanValue("my-feature", false,
+    new ImmutableContext(user.getId(), Collections.singletonMap(
+        "dd_evaluation_telemetry_opt_out", new Value(optedOut))));
+```
+
+Use the per-evaluation context for concurrent requests. Do not replace the global context for each
+subject. The key is exactly `dd_evaluation_telemetry_opt_out`, as in other Datadog SDKs.
+
+Only boolean `true` suppresses telemetry. Missing, false, null, and other types preserve telemetry.
+The provider ignores the parameter unless the option is enabled before provider construction.
+
+Opt-out suppresses new evaluation EVP events and counts, OpenTelemetry evaluation metrics, and
+automatic flag-related span enrichment. It does not change flag values, evaluation details,
+application defaults, experiment assignment, or exposure logging. Application hooks and unrelated
+tracing remain active. Previously recorded or queued data is not removed.
+
 ## Evaluation metrics
 
 When `DD_METRICS_OTEL_ENABLED=true` and the OpenTelemetry API is on the classpath, the provider

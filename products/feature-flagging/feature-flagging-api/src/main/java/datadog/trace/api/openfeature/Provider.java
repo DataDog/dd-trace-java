@@ -104,6 +104,12 @@ public class Provider extends EventProvider implements Metadata {
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
+    if (options.evaluationTelemetryOptOutParameterEnabled) {
+      for (int i = 0; i < hooks.size(); i++) {
+        hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
+      }
+    }
+    // Exposure logging is independent of evaluation telemetry opt-out.
     try {
       hooks.add(buildExposureLoggingHook());
     } catch (LinkageError e) {
@@ -312,8 +318,25 @@ public class Provider extends EventProvider implements Metadata {
 
   public static class Options {
 
-    private long timeout;
-    private TimeUnit unit;
+    private long timeout = 30;
+    private TimeUnit unit = SECONDS;
+    private boolean evaluationTelemetryOptOutParameterEnabled;
+
+    /**
+     * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}
+     * context attribute. Disabled by default.
+     *
+     * <p>Only boolean {@code true} suppresses new Datadog evaluation events, evaluation metrics,
+     * and automatic flag span enrichment. Missing or other values preserve telemetry. This does not
+     * change flag results, exposure logging, application hooks, or previously recorded data.
+     *
+     * @param enabled whether to honor the attribute; configure before constructing the provider
+     * @return these options
+     */
+    public Options enableEvaluationTelemetryOptOutParameter(final boolean enabled) {
+      this.evaluationTelemetryOptOutParameterEnabled = enabled;
+      return this;
+    }
 
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       this.timeout = timeout;
