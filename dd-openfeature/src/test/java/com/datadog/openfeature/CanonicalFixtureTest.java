@@ -7,8 +7,8 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.mockito.Mockito.mock;
 
 import com.datadog.openfeature.internal.JsonReading;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -45,7 +45,7 @@ class CanonicalFixtureTest {
   @ParameterizedTest(name = "{0}")
   void evaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
     final DDEvaluator evaluator =
-        new DDEvaluator(mock(Runnable.class), Connector.NONE, TestSettings.of());
+        new DDEvaluator(mock(Runnable.class), AgentBridge.NONE, TestSettings.of());
     evaluator.accept(
         UniversalFlagConfigParser.parse(
             Files.readAllBytes(fixtureRoot().resolve("ufc-config.json"))));

@@ -3,9 +3,9 @@ package com.datadog.openfeature;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.Connectors;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -36,7 +36,7 @@ public class Provider extends EventProvider implements Metadata {
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
-  private final Connector connector;
+  private final AgentBridge bridge;
   private final Settings settings;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
@@ -76,8 +76,8 @@ public class Provider extends EventProvider implements Metadata {
       final Boolean spanEnrichmentEnabledOverride) {
     this.options = options;
     this.evaluator = evaluator;
-    this.connector = Connectors.detect();
-    this.settings = Settings.load(this.connector);
+    this.bridge = AgentBridges.detect();
+    this.settings = Settings.load(this.bridge);
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     try {
@@ -97,7 +97,7 @@ public class Provider extends EventProvider implements Metadata {
             ? spanEnrichmentEnabledOverride
             : this.settings.isSpanEnrichmentEnabled();
     this.spanEnrichmentHook =
-        spanEnrichmentEnabled ? new SpanEnrichmentHook(this.connector.spanEnricher()) : null;
+        spanEnrichmentEnabled ? new SpanEnrichmentHook(this.bridge.spanEnricher()) : null;
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
@@ -227,7 +227,7 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       return evaluator;
     }
-    return new DDEvaluator(this::onConfigurationChange, this.connector, this.settings);
+    return new DDEvaluator(this::onConfigurationChange, this.bridge, this.settings);
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {

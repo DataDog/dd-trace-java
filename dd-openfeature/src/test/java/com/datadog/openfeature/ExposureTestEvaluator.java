@@ -2,8 +2,8 @@ package com.datadog.openfeature;
 
 import static org.mockito.Mockito.mock;
 
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -28,7 +28,7 @@ class ExposureTestEvaluator extends DDEvaluator {
    * @param sendToDatadog whether exposures are sent to Datadog.
    */
   ExposureTestEvaluator(final ServerConfiguration configuration, final boolean sendToDatadog) {
-    super(mock(Runnable.class), Connector.NONE, TestSettings.of());
+    super(mock(Runnable.class), AgentBridge.NONE, TestSettings.of());
     this.sendToDatadog = sendToDatadog;
     accept(configuration);
   }

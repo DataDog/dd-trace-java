@@ -23,8 +23,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.ufc.Allocation;
@@ -63,7 +63,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 public class DDEvaluatorTest {
 
   private static DDEvaluator newEvaluator(final Runnable configCallback) {
-    return new DDEvaluator(configCallback, Connector.NONE, TestSettings.of());
+    return new DDEvaluator(configCallback, AgentBridge.NONE, TestSettings.of());
   }
 
   /** Creates an evaluator whose runtime polls a local CDN that has no configuration. */
@@ -71,7 +71,7 @@ public class DDEvaluatorTest {
       final Runnable configCallback, final LocalHttpServer cdn) {
     return new DDEvaluator(
         configCallback,
-        Connector.NONE,
+        AgentBridge.NONE,
         TestSettings.of(
             "feature.flags.configuration.source.agentless.base.url",
             cdn.uri("/").toString(),
@@ -387,7 +387,7 @@ public class DDEvaluatorTest {
     final List<ExposureEvent> dispatched = new ArrayList<>();
     final ExposureDeduplicationCache cache = new ExposureDeduplicationCache();
     final DDEvaluator evaluator =
-        new DDEvaluator(mock(Runnable.class), Connector.NONE, TestSettings.of()) {
+        new DDEvaluator(mock(Runnable.class), AgentBridge.NONE, TestSettings.of()) {
           @Override
           ExposureDeduplicationCache exposureCache() {
             return cache;

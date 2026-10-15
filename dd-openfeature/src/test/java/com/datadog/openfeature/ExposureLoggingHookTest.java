@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.Provider.Options;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -198,7 +198,8 @@ class ExposureLoggingHookTest {
   @Test
   void sendsNothingWithoutAnInitializedDatadogEvaluator() {
     final ExposureLoggingHook<Object> withoutEvaluator = new ExposureLoggingHook<>(() -> null);
-    final DDEvaluator uninitialized = new DDEvaluator(() -> {}, Connector.NONE, TestSettings.of());
+    final DDEvaluator uninitialized =
+        new DDEvaluator(() -> {}, AgentBridge.NONE, TestSettings.of());
     final ExposureLoggingHook<Object> withoutRuntime =
         new ExposureLoggingHook<>(() -> uninitialized);
 

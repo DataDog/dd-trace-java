@@ -10,12 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.LocalHttpServer;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.EventTransport;
-import com.datadog.openfeature.internal.connector.HealthMetrics;
-import com.datadog.openfeature.internal.connector.SpanEnricher;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -92,7 +92,7 @@ class DatadogExposureLoggingTest {
     final DDEvaluator evaluator =
         new DDEvaluator(
             () -> {},
-            new ProxyConnector((route, json) -> {}),
+            new ProxyAgentBridge((route, json) -> {}),
             TestSettings.of(settings.toArray(new String[0]))) {
           @Override
           void recordExposure(final ExposureEvent event) {
@@ -118,11 +118,11 @@ class DatadogExposureLoggingTest {
     return new ServerConfiguration("", "", false, null, flags);
   }
 
-  /** A connector only providing an event platform proxy. */
-  private static final class ProxyConnector implements Connector {
+  /** A bridge only providing an event platform proxy. */
+  private static final class ProxyAgentBridge implements AgentBridge {
     private final EventTransport proxy;
 
-    ProxyConnector(final EventTransport proxy) {
+    ProxyAgentBridge(final EventTransport proxy) {
       this.proxy = proxy;
     }
 
