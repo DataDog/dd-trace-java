@@ -166,6 +166,22 @@ class TagMapLedgerByIdTest {
   }
 
   @Test
+  void aLedgerOfKnownTagsNeverAllocatesItsNamesArray() {
+    TagMap.Ledger ledger =
+        TagMap.ledger(2)
+            .set(KnownTags.HTTP_ROUTE_ID, "/a")
+            .set(KnownTags.HTTP_METHOD_NAME, "GET")
+            .set(KnownTags.HTTP_URL_ID, "http://x") // grows past 2
+            .smartRemove("never.set");
+
+    assertNull(ledger.tags);
+
+    ledger.set("my.custom.tag", "x");
+    assertEquals("x", ledger.build().getString("my.custom.tag"));
+    assertEquals("/a", ledger.build().getString(KnownTags.HTTP_ROUTE_NAME));
+  }
+
+  @Test
   void theArraysGrowPastTheirInitialSize() {
     TagMap.Ledger ledger = TagMap.ledger(2);
     for (int i = 0; i < 20; ++i) {

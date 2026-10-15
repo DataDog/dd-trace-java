@@ -1014,7 +1014,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     /** A known tag's id, or a custom tag's {@link Entry#customHash} (upper 32 bits zero). */
     long[] tagHashes;
 
-    /** A custom tag's name; null for a known tag, whose name is {@code nameOf(id)}. */
+    /**
+     * A custom tag's name; null for a known tag, whose name is {@code nameOf(id)}. The array itself
+     * is allocated on the first custom tag, so a ledger of known tags never allocates it.
+     */
     String[] tags;
 
     /** The value set, or {@link #REMOVED}. */
@@ -1034,7 +1037,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     Ledger(int size) {
       this.tagHashes = new long[size];
-      this.tags = new String[size];
       this.values = new Object[size];
     }
 
@@ -1178,11 +1180,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (pos >= this.tagHashes.length) {
         int newCap = this.tagHashes.length << 1;
         this.tagHashes = Arrays.copyOf(this.tagHashes, newCap);
-        this.tags = Arrays.copyOf(this.tags, newCap);
         this.values = Arrays.copyOf(this.values, newCap);
+        if (this.tags != null) {
+          this.tags = Arrays.copyOf(this.tags, newCap);
+        }
       }
       this.tagHashes[pos] = tagHash;
-      this.tags[pos] = tag;
+      if (tag != null) {
+        String[] names = this.tags;
+        if (names == null) {
+          this.tags = names = new String[this.tagHashes.length];
+        }
+        names[pos] = tag;
+      } else if (this.tags != null) {
+        this.tags[pos] = null;
+      }
       this.values[pos] = value;
       this.nextPos = pos + 1;
       if (value == REMOVED) {
@@ -1205,9 +1217,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if ((this.occupancy & CUSTOM_OCCUPANCY) == 0L) {
         return false;
       }
+      String[] names = this.tags;
+      if (names == null) {
+        return false; // bit 63 came from a known tag with no slot
+      }
       long hash = Entry.customHash(tag);
       long[] hashes = this.tagHashes;
-      String[] names = this.tags;
       int lenClamp = Math.min(this.nextPos, Math.min(hashes.length, names.length));
       for (int i = 0; i < lenClamp; ++i) {
         if (hashes[i] == hash && tag.equals(names[i])) return true;
@@ -1235,7 +1250,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     public void reset() {
       int size = this.nextPos;
-      Arrays.fill(this.tags, 0, size, null);
+      if (this.tags != null) {
+        Arrays.fill(this.tags, 0, size, null);
+      }
       Arrays.fill(this.values, 0, size, null);
       this.nextPos = 0;
       this.containsRemovals = false;
@@ -1342,7 +1359,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public String tag() {
-      String tag = this.ledger.tags[this.pos];
+      String[] names = this.ledger.tags;
+      String tag = names != null ? names[this.pos] : null;
       return tag != null ? tag : KnownTagCodec.nameOf(this.ledger.tagHashes[this.pos]);
     }
 
