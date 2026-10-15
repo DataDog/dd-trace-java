@@ -1322,22 +1322,41 @@ public class DDSpanContext
     }
 
     synchronized (unsafeTags) {
-      for (final TagMap.EntryChange entryChange : ledger) {
-        String tag = entryChange.tag();
-        if (entryChange.isRemoval()) {
-          if (tagEquals(tag, Tags.SPAN_KIND)) {
-            // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
-            spanKindOrdinal = SPAN_KIND_UNSET;
-          }
-          unsafeTags.remove(tag);
-        } else {
-          TagMap.Entry entry = (TagMap.Entry) entryChange;
-
-          if (!tagInterceptor.interceptTag(this, entry)) {
-            unsafeTags.set(entry);
-          }
-        }
+      // Interception needs an intercepted id in the ledger, or a split-by-tags entry, which is
+      // config rather than an id bit. Without either, every change goes straight to storage.
+      if (ledger.hasInterceptedTags() || tagInterceptor.hasSplitServiceTags()) {
+        ledger.forEach(this, DDSpanContext::interceptOrApplyLedgerChange);
+      } else {
+        ledger.forEach(this, DDSpanContext::applyLedgerChange);
       }
+    }
+  }
+
+  /** Call while holding the {@code unsafeTags} lock. */
+  private static void interceptOrApplyLedgerChange(
+      DDSpanContext ctx, TagMap.EntryChangeReader change) {
+    if (change.isRemoval() || !ctx.tagInterceptor.interceptTag(ctx, change)) {
+      applyLedgerChange(ctx, change);
+    }
+  }
+
+  /** Call while holding the {@code unsafeTags} lock. */
+  private static void applyLedgerChange(DDSpanContext ctx, TagMap.EntryChangeReader change) {
+    long tagId = change.tagId();
+    if (change.isRemoval()) {
+      if (tagId == KnownTags.SPAN_KIND_ID) {
+        // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
+        ctx.spanKindOrdinal = SPAN_KIND_UNSET;
+      }
+      if (tagId != 0) {
+        ctx.unsafeTags.getAndRemove(tagId);
+      } else {
+        ctx.unsafeTags.remove(change.tag());
+      }
+    } else if (tagId != 0) {
+      ctx.unsafeTags.internals().setKnown(tagId, change.objectValue());
+    } else {
+      ctx.unsafeTags.set(change);
     }
   }
 

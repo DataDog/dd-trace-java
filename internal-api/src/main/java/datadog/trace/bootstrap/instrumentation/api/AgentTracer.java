@@ -436,6 +436,12 @@ public class AgentTracer {
 
     SpanBuilder withTag(String tag, Object value);
 
+    /**
+     * Sets a known tag by its {@code KnownTags} id; a null value removes it. An id that names no
+     * known tag is ignored.
+     */
+    SpanBuilder withTag(long tagId, Object value);
+
     SpanBuilder withStartTimestamp(long microseconds);
 
     SpanBuilder withServiceName(String serviceName);

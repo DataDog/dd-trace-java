@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -218,6 +219,26 @@ public class SpanCreationBenchmark {
             .withTag(Tags.HTTP_URL, HTTP_URL_VALUE)
             .withTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE)
             .withTag(Tags.PEER_PORT, PEER_PORT_VALUE)
+            .start();
+    span.finish();
+  }
+
+  /**
+   * {@link #webServerSpanViaBuilder}, setting each builder tag by its {@link KnownTags} id: no name
+   * lookup when the tag is recorded, and the ledger stores the id directly.
+   */
+  @Benchmark
+  public void webServerSpanViaBuilderById() {
+    AgentSpan span =
+        tracer
+            .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
+            .withTag(KnownTags.COMPONENT_ID, COMPONENT_VALUE)
+            .withTag(KnownTags.SPAN_KIND_ID, Tags.SPAN_KIND_SERVER)
+            .withTag(KnownTags.HTTP_METHOD_ID, HTTP_METHOD_VALUE)
+            .withTag(KnownTags.HTTP_ROUTE_ID, HTTP_ROUTE_VALUE)
+            .withTag(KnownTags.HTTP_URL_ID, HTTP_URL_VALUE)
+            .withTag(KnownTags.HTTP_STATUS_CODE_ID, HTTP_STATUS_VALUE)
+            .withTag(KnownTags.PEER_PORT_ID, PEER_PORT_VALUE)
             .start();
     span.finish();
   }

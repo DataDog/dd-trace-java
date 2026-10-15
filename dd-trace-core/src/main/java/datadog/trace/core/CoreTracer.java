@@ -43,6 +43,7 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -2071,6 +2072,24 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         tagLedger.smartRemove(tag);
       } else {
         tagLedger.set(tag, value);
+      }
+      return this;
+    }
+
+    @Override
+    public final CoreSpanBuilder withTag(final long tagId, final Object value) {
+      if (!KnownTagCodec.isKnown(tagId)) {
+        return this;
+      }
+      TagMap.Ledger tagLedger = this.tagLedger;
+      if (tagLedger == null) {
+        this.tagLedger = tagLedger = TagMap.ledger();
+      }
+      if (value == null) {
+        // see withTag(String, Object): only a removal of a tag this builder set is recorded
+        tagLedger.smartRemove(tagId);
+      } else {
+        tagLedger.set(tagId, value);
       }
       return this;
     }
