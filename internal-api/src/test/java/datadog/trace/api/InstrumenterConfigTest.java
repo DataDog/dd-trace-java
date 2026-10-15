@@ -1,8 +1,10 @@
 package datadog.trace.api;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_MAP_PER_STORE;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Collections.singletonList;
@@ -158,6 +160,31 @@ class InstrumenterConfigTest {
     injectSysConfig(RESOLVER_CACHE_CONFIG, preset);
 
     assertTrue(InstrumenterConfig.get().isResolverOutliningEnabled());
+  }
+
+  @Test
+  void sharedContextStorageIsDefaultFromJava25() {
+    assertEquals(!isJavaVersionAtLeast(25), InstrumenterConfig.get().isRuntimeContextMapPerStore());
+  }
+
+  @TableTest({
+    "scenario                            | property | environment | expected",
+    "Enable map per store with property  | true     |             | true    ",
+    "Disable map per store with property | false    |             | false   ",
+    "Enable map per store with env       |          | true        | true    ",
+    "Disable map per store with env      |          | false       | false   ",
+    "Property true overrides env false   | true     | false       | true    ",
+    "Property false overrides env true   | false    | true        | false   "
+  })
+  void contextMapPerStoreConfiguration(String property, String environment, boolean expected) {
+    if (environment != null) {
+      injectEnvConfig("DD_TRACE_RUNTIME_CONTEXT_MAP_PER_STORE", environment);
+    }
+    if (property != null) {
+      injectSysConfig(RUNTIME_CONTEXT_MAP_PER_STORE, property);
+    }
+
+    assertEquals(expected, InstrumenterConfig.get().isRuntimeContextMapPerStore());
   }
 
   @TableTest({
