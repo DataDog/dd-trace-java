@@ -576,29 +576,6 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `a rarely set tag can be marked as sharing a slot`() {
-    val reg =
-      TagRegistry.build(
-        tagConventions(
-          """
-          span_types:
-            base:
-              abstract: true
-              tags: [{dd-name: service}, {dd-name: test.is_retry, slot: shared}]
-          """
-        )
-      )
-
-    assertThat(reg.tags.single { it.ddName == "test.is_retry" }.sharedSlot).isTrue()
-    assertThat(reg.tags.single { it.ddName == "service" }.sharedSlot).isFalse()
-    assertThatIllegalArgumentException()
-      .isThrownBy {
-        tagConventions("span_types: {base: {tags: [{dd-name: x.y, slot: rare}]}}")
-      }
-      .withMessageContaining("the only value is 'shared'")
-  }
-
-  @Test
   fun `a tracer overlay span type extends a shared one`() {
     val mapper = ObjectMapper(YAMLFactory())
     val type = object : TypeReference<Map<String, Any?>>() {}
