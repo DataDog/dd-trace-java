@@ -2,10 +2,10 @@ package com.datadog.openfeature.internal;
 
 import static com.datadog.openfeature.internal.config.Settings.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.EventTransport;
 import com.datadog.openfeature.internal.config.Settings;
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.EventTransport;
 import com.datadog.openfeature.internal.delivery.CdnConfigurationSource;
 import com.datadog.openfeature.internal.delivery.DirectIntakeTransport;
 import com.datadog.openfeature.internal.delivery.FallbackTransport;
@@ -56,15 +56,15 @@ public final class FeatureFlagsRuntime {
    * Acquires the shared runtime, starting it on first acquisition. Each acquisition must be paired
    * with a {@link #release()}.
    *
-   * @param connector the connector to the Datadog Java agent.
+   * @param bridge the bridge to the Datadog Java agent.
    * @param settings the SDK settings.
    * @return the shared runtime.
    * @throws IllegalStateException if Feature Flags is disabled or misconfigured.
    */
-  public static FeatureFlagsRuntime acquire(final Connector connector, final Settings settings) {
+  public static FeatureFlagsRuntime acquire(final AgentBridge bridge, final Settings settings) {
     synchronized (SHARED_LOCK) {
       if (shared == null) {
-        final FeatureFlagsRuntime created = create(connector, settings);
+        final FeatureFlagsRuntime created = create(bridge, settings);
         created.start();
         shared = created;
       }
@@ -86,18 +86,18 @@ public final class FeatureFlagsRuntime {
     stopped.stop();
   }
 
-  static FeatureFlagsRuntime create(final Connector connector, final Settings settings) {
+  static FeatureFlagsRuntime create(final AgentBridge bridge, final Settings settings) {
     final String sourceName = settings.configurationSource();
     if (sourceName == null) {
       throw new IllegalStateException("Feature Flags is disabled");
     }
     final boolean remoteConfig = CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(sourceName);
-    final RuntimeServices services = new RuntimeServices(connector.healthMetrics());
+    final RuntimeServices services = new RuntimeServices(bridge.healthMetrics());
     final ConfigurationService source;
     final EventTransport transport;
     if (remoteConfig) {
       // TODO Support Remote Configuration without the Datadog Java agent.
-      final ConfigurationSource remoteConfiguration = connector.remoteConfiguration();
+      final ConfigurationSource remoteConfiguration = bridge.remoteConfiguration();
       if (remoteConfiguration == null) {
         throw new IllegalStateException(
             "Feature Flags Remote Configuration source requires the Datadog Java agent with"
@@ -105,10 +105,10 @@ public final class FeatureFlagsRuntime {
       }
       source = new RemoteConfigurationService(remoteConfiguration);
       // Remote Configuration never falls back to direct intake.
-      transport = connector.eventProxy();
+      transport = bridge.eventProxy();
     } else {
       source = new CdnConfigurationSource(settings, services);
-      final EventTransport proxy = connector.eventProxy();
+      final EventTransport proxy = bridge.eventProxy();
       final EventTransport direct = DirectIntakeTransport.create(settings);
       transport =
           proxy == null ? direct : direct == null ? proxy : new FallbackTransport(proxy, direct);

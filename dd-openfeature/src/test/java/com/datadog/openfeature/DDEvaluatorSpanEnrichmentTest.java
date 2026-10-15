@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -57,7 +57,7 @@ class DDEvaluatorSpanEnrichmentTest {
     final DDEvaluator evaluator =
         new DDEvaluator(
             mock(Runnable.class),
-            Connector.NONE,
+            AgentBridge.NONE,
             TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"));
     evaluator.accept(new ServerConfiguration("", "", true, null, flags));
 

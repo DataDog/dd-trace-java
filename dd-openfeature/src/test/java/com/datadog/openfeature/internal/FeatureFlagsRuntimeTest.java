@@ -11,12 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.EventTransport;
-import com.datadog.openfeature.internal.connector.HealthMetrics;
-import com.datadog.openfeature.internal.connector.SpanEnricher;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -35,7 +35,7 @@ class FeatureFlagsRuntimeTest {
             IllegalStateException.class,
             () ->
                 FeatureFlagsRuntime.create(
-                    Connector.NONE, TestSettings.of("feature.flags.enabled", "false")));
+                    AgentBridge.NONE, TestSettings.of("feature.flags.enabled", "false")));
 
     assertEquals("Feature Flags is disabled", error.getMessage());
   }
@@ -47,7 +47,7 @@ class FeatureFlagsRuntimeTest {
             IllegalStateException.class,
             () ->
                 FeatureFlagsRuntime.create(
-                    Connector.NONE,
+                    AgentBridge.NONE,
                     TestSettings.of("feature.flags.configuration.source", "remote_config")));
 
     assertTrue(error.getMessage().contains("requires the Datadog Java agent"));
@@ -56,7 +56,7 @@ class FeatureFlagsRuntimeTest {
   @Test
   void agentlessWithoutApiKeyOrProxyDisablesEventDelivery() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(Connector.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
 
     assertNull(runtime.evaluations());
   }
@@ -65,7 +65,7 @@ class FeatureFlagsRuntimeTest {
   void evaluationCountsKillSwitchDisablesTheEvaluationPipeline() {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestConnector(null, (route, json) -> {}),
+            new TestAgentBridge(null, (route, json) -> {}),
             TestSettings.of("flagging.evaluation.counts.enabled", "false"));
 
     assertNull(runtime.evaluations());
@@ -75,7 +75,7 @@ class FeatureFlagsRuntimeTest {
   void exposuresDatadogLoggingKillSwitchDisablesTheExposurePipelineButKeepsTheCache() {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestConnector(null, (route, json) -> {}),
+            new TestAgentBridge(null, (route, json) -> {}),
             TestSettings.of("feature.flags.exposures.datadog.logging.enabled", "false"));
 
     assertFalse(runtime.isExposureDeliveryEnabled());
@@ -86,7 +86,7 @@ class FeatureFlagsRuntimeTest {
   @Test
   void agentlessWithoutApiKeyOrProxyKeepsTheExposureCache() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(Connector.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
 
     assertFalse(runtime.isExposureDeliveryEnabled());
     assertNotNull(runtime.exposureCache());
@@ -95,7 +95,8 @@ class FeatureFlagsRuntimeTest {
   @Test
   void eventProxyEnablesBothPipelines() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(new TestConnector(null, (route, json) -> {}), TestSettings.of());
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(null, (route, json) -> {}), TestSettings.of());
 
     assertNotNull(runtime.evaluations());
     assertTrue(runtime.isExposureDeliveryEnabled());
@@ -106,7 +107,7 @@ class FeatureFlagsRuntimeTest {
     final TestConfigurationSource source = new TestConfigurationSource();
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestConnector(source, null),
+            new TestAgentBridge(source, null),
             TestSettings.of("feature.flags.configuration.source", "remote_config"));
     final List<ServerConfiguration> early = new CopyOnWriteArrayList<>();
     runtime.addConfigurationListener(early::add);
@@ -136,7 +137,7 @@ class FeatureFlagsRuntimeTest {
     final TestConfigurationSource source = new TestConfigurationSource();
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestConnector(source, null),
+            new TestAgentBridge(source, null),
             TestSettings.of("feature.flags.configuration.source", "remote_config"));
     @SuppressWarnings("unchecked")
     final Consumer<ServerConfiguration> listener = mock(Consumer.class);
@@ -157,7 +158,7 @@ class FeatureFlagsRuntimeTest {
     final TestConfigurationSource source = new TestConfigurationSource();
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestConnector(source, null),
+            new TestAgentBridge(source, null),
             TestSettings.of("feature.flags.configuration.source", "remote_config"));
     final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
     runtime.addConfigurationListener(
@@ -178,11 +179,11 @@ class FeatureFlagsRuntimeTest {
   @Test
   void sharedRuntimeIsReferenceCounted() {
     final TestConfigurationSource source = new TestConfigurationSource();
-    final Connector connector = new TestConnector(source, null);
+    final AgentBridge bridge = new TestAgentBridge(source, null);
     final FeatureFlagsRuntime first =
         FeatureFlagsRuntime.acquire(
-            connector, TestSettings.of("feature.flags.configuration.source", "remote_config"));
-    final FeatureFlagsRuntime second = FeatureFlagsRuntime.acquire(connector, TestSettings.of());
+            bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime second = FeatureFlagsRuntime.acquire(bridge, TestSettings.of());
     try {
       assertSame(first, second);
       FeatureFlagsRuntime.release();
@@ -205,13 +206,13 @@ class FeatureFlagsRuntimeTest {
         IllegalStateException.class,
         () ->
             FeatureFlagsRuntime.acquire(
-                new TestConnector(failing, null),
+                new TestAgentBridge(failing, null),
                 TestSettings.of("feature.flags.configuration.source", "remote_config")));
 
     final TestConfigurationSource source = new TestConfigurationSource();
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.acquire(
-            new TestConnector(source, null),
+            new TestAgentBridge(source, null),
             TestSettings.of("feature.flags.configuration.source", "remote_config"));
     try {
       assertNotNull(runtime);
@@ -224,7 +225,7 @@ class FeatureFlagsRuntimeTest {
   @Test
   void recordsExposuresOnlyWhenDeliveryIsEnabled() {
     final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(Connector.NONE, TestSettings.of());
+        FeatureFlagsRuntime.create(AgentBridge.NONE, TestSettings.of());
     // Must not throw without an exposure pipeline.
     runtime.recordExposure(
         new com.datadog.openfeature.internal.exposure.ExposureEvent(
@@ -247,11 +248,12 @@ class FeatureFlagsRuntimeTest {
     }
   }
 
-  private static final class TestConnector implements Connector {
+  private static final class TestAgentBridge implements AgentBridge {
     private final ConfigurationSource remoteConfiguration;
     private final EventTransport eventProxy;
 
-    TestConnector(final ConfigurationSource remoteConfiguration, final EventTransport eventProxy) {
+    TestAgentBridge(
+        final ConfigurationSource remoteConfiguration, final EventTransport eventProxy) {
       this.remoteConfiguration = remoteConfiguration;
       this.eventProxy = eventProxy;
     }

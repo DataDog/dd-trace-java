@@ -1,6 +1,6 @@
 package com.datadog.openfeature;
 
-import com.datadog.openfeature.internal.connector.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import com.datadog.openfeature.internal.evaluation.MetadataKeys;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -69,7 +69,7 @@ class SpanEnrichmentHook implements Hook<Object> {
         this.enricher.serialId((Integer) serialValue, doLog, targetingKey(ctx));
       } else if (details.getVariant() == null) {
         // Runtime-default detection = MISSING VARIANT (never a reason enum). Unwrap any OpenFeature
-        // Value to a native Java type here so the connector carries only JDK types.
+        // Value to a native Java type here so the bridge carries only JDK types.
         this.enricher.runtimeDefault(details.getFlagKey(), unwrapDefaultValue(details.getValue()));
       }
     } catch (final Throwable t) {

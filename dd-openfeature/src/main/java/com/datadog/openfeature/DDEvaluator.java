@@ -3,8 +3,8 @@ package com.datadog.openfeature;
 import static java.util.Arrays.asList;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
-import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.evaluation.ConfigurationStore;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
@@ -83,15 +83,15 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   static final int MAX_STRUCTURE_PROPERTIES = 256;
 
   private final Runnable configCallback;
-  private final Connector connector;
+  private final AgentBridge bridge;
   private final Settings settings;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
   private volatile FeatureFlagsRuntime runtime;
 
-  DDEvaluator(final Runnable configCallback, final Connector connector, final Settings settings) {
+  DDEvaluator(final Runnable configCallback, final AgentBridge bridge, final Settings settings) {
     this.configCallback = configCallback;
-    this.connector = connector;
+    this.bridge = bridge;
     this.settings = settings;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
     // evaluations of allocations logging exposures, for the exposure hook.
@@ -104,7 +104,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     if (this.runtime != null) {
       return hasConfiguration();
     }
-    final FeatureFlagsRuntime acquired = FeatureFlagsRuntime.acquire(this.connector, this.settings);
+    final FeatureFlagsRuntime acquired = FeatureFlagsRuntime.acquire(this.bridge, this.settings);
     this.runtime = acquired;
     acquired.addConfigurationListener(this);
     return this.configuration.await(timeout, unit) || hasConfiguration();

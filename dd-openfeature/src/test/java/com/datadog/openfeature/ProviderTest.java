@@ -21,12 +21,12 @@ import static org.mockito.Mockito.when;
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.LocalHttpServer;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.EventTransport;
-import com.datadog.openfeature.internal.connector.HealthMetrics;
-import com.datadog.openfeature.internal.connector.SpanEnricher;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -94,15 +94,15 @@ public class ProviderTest {
    * configuration. Configurations are then dispatched with {@link #dispatch}.
    */
   private Provider newProvider(final Options options) {
-    return newProvider(options, Connector.NONE);
+    return newProvider(options, AgentBridge.NONE);
   }
 
-  private Provider newProvider(final Options options, final Connector connector) {
+  private Provider newProvider(final Options options, final AgentBridge bridge) {
     final Provider[] providerRef = new Provider[1];
     this.evaluator =
         new DDEvaluator(
             () -> providerRef[0].onConfigurationChange(),
-            connector,
+            bridge,
             TestSettings.of(
                 "feature.flags.configuration.source.agentless.base.url",
                 this.cdn.uri("/").toString()));
@@ -358,7 +358,7 @@ public class ProviderTest {
     final DDEvaluator disabled =
         new DDEvaluator(
             () -> providerRef[0].onConfigurationChange(),
-            Connector.NONE,
+            AgentBridge.NONE,
             TestSettings.of("feature.flags.enabled", "false"));
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), disabled);
 
@@ -375,7 +375,7 @@ public class ProviderTest {
     final DDEvaluator remoteConfig =
         new DDEvaluator(
             () -> providerRef[0].onConfigurationChange(),
-            Connector.NONE,
+            AgentBridge.NONE,
             TestSettings.of("feature.flags.configuration.source", "remote_config"));
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), remoteConfig);
 
@@ -402,7 +402,7 @@ public class ProviderTest {
     final Provider provider =
         newProvider(
             new Options().initTimeout(10, SECONDS),
-            new ProxyConnector(
+            new ProxyAgentBridge(
                 (route, json) -> {
                   if ("flagevaluation".equals(route)) {
                     posted.add(json);
@@ -577,11 +577,11 @@ public class ProviderTest {
     return (Map<String, Object>) ((List<Object>) request.get("flagEvaluations")).get(0);
   }
 
-  /** A connector only providing an event platform proxy. */
-  private static final class ProxyConnector implements Connector {
+  /** A bridge only providing an event platform proxy. */
+  private static final class ProxyAgentBridge implements AgentBridge {
     private final EventTransport proxy;
 
-    ProxyConnector(final EventTransport proxy) {
+    ProxyAgentBridge(final EventTransport proxy) {
       this.proxy = proxy;
     }
 
