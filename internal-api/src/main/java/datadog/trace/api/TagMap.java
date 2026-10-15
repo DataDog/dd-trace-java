@@ -236,6 +236,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     Entry entry();
   }
 
+  /**
+   * A change in a {@link Ledger}: a set, readable as an {@link EntryReader}, or a removal, for
+   * which only {@link #tag()} and {@link #tagId()} apply.
+   */
+  public interface EntryChangeReader extends EntryReader {
+    boolean isRemoval();
+  }
+
   public static final class Entry extends EntryChange
       implements Map.Entry<String, Object>, EntryReader {
     /*
@@ -977,17 +985,57 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * An in-order ledger of changes to be made to a TagMap.
    * Ledger can also serves as a builder for TagMap-s via build & buildImmutable.
    */
-  public static final class Ledger implements Iterable<EntryChange> {
-    EntryChange[] entryChanges;
+  /**
+   * An ordered log of tag changes -- sets and removals -- replayed in order onto a span's tags.
+   * Changes are kept in parallel arrays rather than as {@link Entry} objects, so recording one
+   * allocates nothing once the arrays are sized, and a builder that reuses its ledger ({@link
+   * #reset}) allocates nothing at all. Consumers read changes through a reused {@link
+   * EntryChangeReader}.
+   *
+   * <p>A known tag is recorded under its id, a custom tag under its name. Two summaries ride along:
+   *
+   * <ul>
+   *   <li>{@code occupancy}, the OR of {@code 1L << slotOf(id)} over recorded known tags, with bit
+   *       63 also standing for every custom tag. Slots are colored so tags on one span type never
+   *       share one, so {@link #smartRemove} of a tag the ledger never recorded is a one-bit miss.
+   *   <li>{@code idFlags}, the OR of recorded ids' flag bits, so {@link #hasInterceptedTags} tells
+   *       a consumer whether any change may need interception by id.
+   * </ul>
+   *
+   * <p>Not thread-safe, like the span builder that owns it.
+   */
+  public static final class Ledger implements Iterable<EntryChangeReader> {
+    /** The value of a recorded removal; never a real tag value. */
+    static final Object REMOVED = new Object();
+
+    /** The occupancy bit every custom tag shares, with the known tags that have no slot. */
+    static final long CUSTOM_OCCUPANCY = 1L << 63;
+
+    /** A known tag's id, or a custom tag's {@link Entry#customHash} (upper 32 bits zero). */
+    long[] tagHashes;
+
+    /** A custom tag's name; null for a known tag, whose name is {@code nameOf(id)}. */
+    String[] tags;
+
+    /** The value set, or {@link #REMOVED}. */
+    Object[] values;
+
     int nextPos = 0;
     boolean containsRemovals = false;
+    long occupancy = 0L;
+    long idFlags = 0L;
+
+    /** The reader {@link #forEach} reuses; created on first use. */
+    LedgerReader reader;
 
     Ledger() {
       this(8);
     }
 
     Ledger(int size) {
-      this.entryChanges = new EntryChange[size];
+      this.tagHashes = new long[size];
+      this.tags = new String[size];
+      this.values = new Object[size];
     }
 
     public boolean isDefinitelyEmpty() {
@@ -1008,81 +1056,161 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.containsRemovals;
     }
 
+    /**
+     * Whether a recorded known tag carries {@link KnownTagCodec#INTERCEPTED}. Custom tags and
+     * split-by-tags entries are routed by tracer config, which the caller checks separately.
+     */
+    public boolean hasInterceptedTags() {
+      return (this.idFlags & KnownTagCodec.INTERCEPTED) != 0L;
+    }
+
     public Ledger set(String tag, Object value) {
-      return this.recordEntry(anyEntryFor(tag, value));
+      long tagId = KnownTagCodec.keyOf(tag);
+      return tagId != 0 ? this.recordKnown(tagId, value) : this.recordCustom(tag, value);
     }
 
     public Ledger set(String tag, CharSequence value) {
-      return this.recordEntry(objectEntryFor(tag, value));
+      return this.set(tag, (Object) value);
     }
 
     public Ledger set(String tag, boolean value) {
-      return this.recordEntry(booleanEntryFor(tag, value));
+      return this.set(tag, (Object) Boolean.valueOf(value));
     }
 
     public Ledger set(String tag, int value) {
-      return this.recordEntry(intEntryFor(tag, value));
+      return this.set(tag, (Object) Integer.valueOf(value));
     }
 
     public Ledger set(String tag, long value) {
-      return this.recordEntry(longEntryFor(tag, value));
+      return this.set(tag, (Object) Long.valueOf(value));
     }
 
     public Ledger set(String tag, float value) {
-      return this.recordEntry(floatEntryFor(tag, value));
+      return this.set(tag, (Object) Float.valueOf(value));
     }
 
     public Ledger set(String tag, double value) {
-      return this.recordEntry(doubleEntryFor(tag, value));
+      return this.set(tag, (Object) Double.valueOf(value));
+    }
+
+    /** Records a known tag by id; rejects an id that names no known tag. */
+    public Ledger set(long tagId, Object value) {
+      return this.recordKnown(requireKnownLedgerId(tagId), value);
+    }
+
+    public Ledger set(long tagId, CharSequence value) {
+      return this.set(tagId, (Object) value);
+    }
+
+    public Ledger set(long tagId, boolean value) {
+      return this.set(tagId, (Object) Boolean.valueOf(value));
+    }
+
+    public Ledger set(long tagId, int value) {
+      return this.set(tagId, (Object) Integer.valueOf(value));
+    }
+
+    public Ledger set(long tagId, long value) {
+      return this.set(tagId, (Object) Long.valueOf(value));
+    }
+
+    public Ledger set(long tagId, float value) {
+      return this.set(tagId, (Object) Float.valueOf(value));
+    }
+
+    public Ledger set(long tagId, double value) {
+      return this.set(tagId, (Object) Double.valueOf(value));
     }
 
     public Ledger set(Entry entry) {
-      return this.recordEntry(entry);
+      long tagId = entry.tagId();
+      return tagId != 0
+          ? this.recordKnown(tagId, entry.objectValue())
+          : this.recordCustom(entry.tag(), entry.objectValue());
     }
 
     public Ledger remove(String tag) {
-      return this.recordRemoval(EntryChange.newRemoval(tag));
+      long tagId = KnownTagCodec.keyOf(tag);
+      return tagId != 0 ? this.recordKnown(tagId, REMOVED) : this.recordCustom(tag, REMOVED);
     }
 
-    private Ledger recordEntry(Entry entry) {
-      this.recordChange(entry);
-      return this;
+    public Ledger remove(long tagId) {
+      return this.recordKnown(requireKnownLedgerId(tagId), REMOVED);
     }
 
-    private Ledger recordRemoval(EntryRemoval entry) {
-      this.recordChange(entry);
-      this.containsRemovals = true;
-
-      return this;
-    }
-
-    private void recordChange(EntryChange entryChange) {
-      if (this.nextPos >= this.entryChanges.length) {
-        this.entryChanges = Arrays.copyOf(this.entryChanges, this.entryChanges.length << 1);
-      }
-
-      this.entryChanges[this.nextPos++] = entryChange;
-    }
-
+    /**
+     * Records a removal only if the ledger already holds a change for {@code tag}, so a removal of
+     * a tag set elsewhere (another map applied to the same span) isn't clobbered.
+     */
     public Ledger smartRemove(String tag) {
-      if (this.contains(tag)) {
-        this.remove(tag);
+      long tagId = KnownTagCodec.keyOf(tag);
+      if (tagId != 0) {
+        return this.smartRemove(tagId);
+      }
+      if (this.containsCustom(tag)) {
+        this.recordCustom(tag, REMOVED);
       }
       return this;
     }
 
-    private boolean contains(String tag) {
-      // Entries and removals are both recorded under their canonical Datadog name (see newAnyEntry
-      // et al. and EntryRemoval's own constructor); canonicalize the query the same way or it
-      // would miss.
-      String canonicalTag = KnownTagCodec.canonicalTagName(tag);
+    /** {@link #smartRemove(String)} by id; a tag the ledger never recorded is a one-bit miss. */
+    public Ledger smartRemove(long tagId) {
+      if ((this.occupancy & (1L << KnownTagCodec.slotOf(tagId))) != 0L
+          && this.containsKnown(tagId)) {
+        this.recordKnown(tagId, REMOVED);
+      }
+      return this;
+    }
 
-      EntryChange[] thisChanges = this.entryChanges;
+    private Ledger recordKnown(long tagId, Object value) {
+      this.occupancy |= 1L << KnownTagCodec.slotOf(tagId);
+      this.idFlags |= tagId & 0xFFFFFFFFL;
+      return this.record(tagId, null, value);
+    }
 
+    private Ledger recordCustom(String tag, Object value) {
+      this.occupancy |= CUSTOM_OCCUPANCY;
+      return this.record(Entry.customHash(tag), tag, value);
+    }
+
+    private Ledger record(long tagHash, String tag, Object value) {
+      int pos = this.nextPos;
+      if (pos >= this.tagHashes.length) {
+        int newCap = this.tagHashes.length << 1;
+        this.tagHashes = Arrays.copyOf(this.tagHashes, newCap);
+        this.tags = Arrays.copyOf(this.tags, newCap);
+        this.values = Arrays.copyOf(this.values, newCap);
+      }
+      this.tagHashes[pos] = tagHash;
+      this.tags[pos] = tag;
+      this.values[pos] = value;
+      this.nextPos = pos + 1;
+      if (value == REMOVED) {
+        this.containsRemovals = true;
+      }
+      return this;
+    }
+
+    private boolean containsKnown(long tagId) {
+      long[] hashes = this.tagHashes;
       // min is to clamp, so bounds check elimination optimization works
-      int lenClamp = Math.min(this.nextPos, thisChanges.length);
+      int lenClamp = Math.min(this.nextPos, hashes.length);
       for (int i = 0; i < lenClamp; ++i) {
-        if (thisChanges[i].matches(canonicalTag)) return true;
+        if (hashes[i] == tagId) return true;
+      }
+      return false;
+    }
+
+    private boolean containsCustom(String tag) {
+      if ((this.occupancy & CUSTOM_OCCUPANCY) == 0L) {
+        return false;
+      }
+      long hash = Entry.customHash(tag);
+      long[] hashes = this.tagHashes;
+      String[] names = this.tags;
+      int lenClamp = Math.min(this.nextPos, Math.min(hashes.length, names.length));
+      for (int i = 0; i < lenClamp; ++i) {
+        if (hashes[i] == hash && tag.equals(names[i])) return true;
       }
       return false;
     }
@@ -1091,27 +1219,54 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * Just for testing
      */
     Entry findLastEntry(String tag) {
-      String canonicalTag = KnownTagCodec.canonicalTagName(tag);
-      EntryChange[] thisChanges = this.entryChanges;
-
-      // min is to clamp, so ArrayBoundsCheckElimination optimization works
-      int clampLen = Math.min(this.nextPos, thisChanges.length) - 1;
-      for (int i = clampLen; i >= 0; --i) {
-        EntryChange thisChange = thisChanges[i];
-        if (!thisChange.isRemoval() && thisChange.matches(canonicalTag)) return (Entry) thisChange;
+      long tagId = KnownTagCodec.keyOf(tag);
+      long hash = tagId != 0 ? tagId : Entry.customHash(tag);
+      for (int i = Math.min(this.nextPos, this.tagHashes.length) - 1; i >= 0; --i) {
+        if (this.tagHashes[i] == hash
+            && (tagId != 0 || tag.equals(this.tags[i]))
+            && this.values[i] != REMOVED) {
+          return tagId != 0
+              ? Entry.newAnyEntry(tagId, this.values[i])
+              : Entry.newAnyEntry(tag, this.values[i]);
+        }
       }
       return null;
     }
 
     public void reset() {
-      Arrays.fill(this.entryChanges, null);
+      int size = this.nextPos;
+      Arrays.fill(this.tags, 0, size, null);
+      Arrays.fill(this.values, 0, size, null);
       this.nextPos = 0;
       this.containsRemovals = false;
+      this.occupancy = 0L;
+      this.idFlags = 0L;
     }
 
+    /**
+     * Iterates the changes in order. Every {@code next()} returns the same reader, repositioned:
+     * read it before advancing, and call {@link EntryReader#entry()} to keep a change.
+     */
     @Override
-    public Iterator<EntryChange> iterator() {
-      return new IteratorImpl(this.entryChanges, this.nextPos);
+    public Iterator<EntryChangeReader> iterator() {
+      return new LedgerReader(this);
+    }
+
+    /**
+     * Calls {@code consumer} with each change in order, through one reader that this ledger reuses
+     * across calls: no allocation once the ledger has been read once. Not reentrant: don't iterate
+     * the same ledger from inside {@code consumer}. The reader is only valid during the call.
+     */
+    public <T> void forEach(T thisObj, BiConsumer<T, ? super EntryChangeReader> consumer) {
+      LedgerReader reader = this.reader;
+      if (reader == null) {
+        this.reader = reader = new LedgerReader(this);
+      }
+      int size = this.nextPos;
+      for (int i = 0; i < size; ++i) {
+        reader.pos = i;
+        consumer.accept(thisObj, reader);
+      }
     }
 
     public TagMap build() {
@@ -1121,15 +1276,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     void fill(TagMap map) {
-      EntryChange[] entryChanges = this.entryChanges;
-      int size = this.nextPos;
-      for (int i = 0; i < size && i < entryChanges.length; ++i) {
-        EntryChange change = entryChanges[i];
-
-        if (change.isRemoval()) {
-          map.remove(change.tag());
+      int size = Math.min(this.nextPos, this.tagHashes.length);
+      for (int i = 0; i < size; ++i) {
+        long tagHash = this.tagHashes[i];
+        Object value = this.values[i];
+        boolean known = (tagHash >>> 32) != 0;
+        if (value == REMOVED) {
+          if (known) {
+            map.getAndRemove(tagHash);
+          } else {
+            map.remove(this.tags[i]);
+          }
+        } else if (known) {
+          map.set(tagHash, value);
         } else {
-          map.set((Entry) change);
+          map.putEntry(Entry.newAnyEntry(this.tags[i], value));
         }
       }
     }
@@ -1142,30 +1303,136 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       }
     }
 
-    static final class IteratorImpl implements Iterator<EntryChange> {
-      private final EntryChange[] entryChanges;
-      private final int size;
-
-      private int pos;
-
-      IteratorImpl(EntryChange[] entryChanges, int size) {
-        this.entryChanges = entryChanges;
-        this.size = size;
-
-        this.pos = -1;
+    static long requireKnownLedgerId(long tagId) {
+      if (!KnownTagCodec.isKnown(tagId)) {
+        throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
       }
+      return tagId;
+    }
+  }
 
-      @Override
-      public boolean hasNext() {
-        return (this.pos + 1 < this.size);
+  /**
+   * A reusable cursor over a {@link Ledger}'s changes: both the iterator and the {@link
+   * EntryChangeReader} it returns. For a removal only {@link #tag()} and {@link #tagId()} apply.
+   */
+  static final class LedgerReader implements EntryChangeReader, Iterator<EntryChangeReader> {
+    final Ledger ledger;
+    int pos = -1;
+
+    LedgerReader(Ledger ledger) {
+      this.ledger = ledger;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return this.pos + 1 < this.ledger.nextPos;
+    }
+
+    @Override
+    public EntryChangeReader next() {
+      if (!this.hasNext()) throw new NoSuchElementException("no next");
+      ++this.pos;
+      return this;
+    }
+
+    @Override
+    public boolean isRemoval() {
+      return this.ledger.values[this.pos] == Ledger.REMOVED;
+    }
+
+    @Override
+    public String tag() {
+      String tag = this.ledger.tags[this.pos];
+      return tag != null ? tag : KnownTagCodec.nameOf(this.ledger.tagHashes[this.pos]);
+    }
+
+    @Override
+    public long tagId() {
+      long tagHash = this.ledger.tagHashes[this.pos];
+      // a known tag's hash is its id, whose upper 32 bits are never zero; a custom tag's are
+      return (tagHash >>> 32) != 0 ? tagHash : 0L;
+    }
+
+    private Object value() {
+      return this.ledger.values[this.pos];
+    }
+
+    @Override
+    public byte type() {
+      return TagValueConversions.typeOf(this.value());
+    }
+
+    @Override
+    public boolean is(byte type) {
+      return TagValueConversions.isA(this.value(), type);
+    }
+
+    @Override
+    public boolean isNumber() {
+      return TagValueConversions.isNumber(this.value());
+    }
+
+    @Override
+    public boolean isNumericPrimitive() {
+      return TagValueConversions.isNumericPrimitive(this.value());
+    }
+
+    @Override
+    public boolean isObject() {
+      return TagValueConversions.isObject(this.value());
+    }
+
+    @Override
+    public boolean booleanValue() {
+      return TagValueConversions.toBoolean(this.value());
+    }
+
+    @Override
+    public int intValue() {
+      return TagValueConversions.toInt(this.value());
+    }
+
+    @Override
+    public long longValue() {
+      return TagValueConversions.toLong(this.value());
+    }
+
+    @Override
+    public float floatValue() {
+      return TagValueConversions.toFloat(this.value());
+    }
+
+    @Override
+    public double doubleValue() {
+      return TagValueConversions.toDouble(this.value());
+    }
+
+    @Override
+    public String stringValue() {
+      return TagValueConversions.toString(this.value());
+    }
+
+    @Override
+    public Object objectValue() {
+      return this.value();
+    }
+
+    /** The change as an {@link Entry}, or null for a removal. */
+    @Override
+    public Entry entry() {
+      Object value = this.value();
+      if (value == Ledger.REMOVED) {
+        return null;
       }
+      long tagId = this.tagId();
+      return tagId != 0
+          ? Entry.newAnyEntry(tagId, value)
+          : Entry.newAnyEntry(this.ledger.tags[this.pos], value);
+    }
 
-      @Override
-      public EntryChange next() {
-        if (!this.hasNext()) throw new NoSuchElementException("no next");
-
-        return this.entryChanges[++this.pos];
-      }
+    @Override
+    public Map.Entry<String, Object> mapEntry() {
+      return this.entry();
     }
   }
 

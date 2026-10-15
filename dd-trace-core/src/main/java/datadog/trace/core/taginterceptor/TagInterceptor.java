@@ -61,6 +61,9 @@ public class TagInterceptor {
   /** split-by-tags entries naming custom tags; null when there are none. */
   private final Set<String> splitServiceCustomNames;
 
+  /** Whether any split-by-tags entry is configured; see {@link #hasSplitServiceTags}. */
+  private final boolean hasSplitServiceTags;
+
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
   private final boolean jeeSplitByDeployment;
@@ -84,6 +87,7 @@ public class TagInterceptor {
     this.inferredServiceName = inferredServiceName;
     this.splitServiceSerials = knownTagSerials(splitServiceTags);
     this.splitServiceCustomNames = customTagNames(splitServiceTags);
+    this.hasSplitServiceTags = !splitServiceTags.isEmpty();
     this.ruleFlags = ruleFlags;
     splitByServletContext = isSplitServiceTag(SERVLET_CONTEXT_ID);
 
@@ -127,6 +131,15 @@ public class TagInterceptor {
       }
     }
     return custom;
+  }
+
+  /**
+   * Whether any split-by-tags entry is configured. split-by-tags is tracer config, not an id bit,
+   * so a batch of tags needs no interception only when this is false and no id in the batch has
+   * {@link KnownTagCodec#INTERCEPTED}.
+   */
+  public boolean hasSplitServiceTags() {
+    return hasSplitServiceTags;
   }
 
   /** Requires a known id, whose serial is always in range of the table. */
