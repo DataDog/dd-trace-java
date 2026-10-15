@@ -8,8 +8,9 @@
 #               ids like any other tag (instrumentation can set them by id) but belong to no span type.
 #               Each is intercepted, so it is not listed again below. Same declaration syntax as
 #               tag-conventions.yaml; refs are not allowed.
-# mixins      — tags only this tracer sets (servlet, Spring, ...), each mixin pushed onto shared span
-#               types with `applies`, so its tags get slots like any other.
+# span_types  — span types only this tracer has, each extending a shared one with tags only this
+#               tracer sets (servlet's request extends http.server). Their tags get slots like any other.
+# mixins      — this tracer's cross-cutting tags, pushed onto span types with `applies`. (None yet.)
 # intercepted — tags declared in tag-conventions.yaml that TagInterceptor also routes. Each one's id carries
 #               the INTERCEPTED bit, so a setter called with a constant id folds the interception test
 #               away. TagInterceptor's switch is the authority on what each one does; a test there
@@ -31,43 +32,43 @@ tags:
   - { dd-name: _dd.measured,      type: boolean }
   - { dd-name: _dd1.sr.eausr,     type: double }
 
-mixins:
-  # Java Servlet: the server span's servlet context and path.
-  servlet:
-    applies: [ http.server ]
+span_types:
+  # Servlet requests: http.server spans from a Servlet container, with its context and path.
+  servlet.request:
+    extends: http.server
     tags:
       - { dd-name: servlet.context, type: string, required: optional }
       - { dd-name: servlet.path,    type: string, required: optional }
 
-  # Spring Web MVC: the rendered view's class.
-  spring_webmvc:
-    applies: [ view.render ]
+  # Spring Web MVC view rendering: the rendered view's class.
+  spring.view.render:
+    extends: view.render
     tags:
       - { dd-name: view.type, type: string, required: optional }
 
-  # Spring WebFlux: the handler's class, and a functional route's predicate.
-  spring_webflux:
-    applies: [ web.handler ]
+  # Spring WebFlux handlers: the handler's class, and a functional route's predicate.
+  spring.webflux.handler:
+    extends: web.handler
     tags:
       - { dd-name: handler.type,      type: string, required: optional }
       - { dd-name: request.predicate, type: string, required: optional }
 
   # Spring WebFlux's HTTP client: why a request was cancelled.
-  spring_webflux_client:
-    applies: [ http.client ]
+  spring.webflux.client:
+    extends: http.client
     tags:
       - { dd-name: message, type: string, required: optional }
 
-  # TIBCO BusinessWorks: the app node and version, on process and activity spans.
-  tibco:
-    applies: [ internal ]
+  # TIBCO BusinessWorks process and activity spans: the app node and version.
+  tibco.process:
+    extends: internal
     tags:
       - { dd-name: tibco.node,    type: string, required: optional }
       - { dd-name: tibco.version, type: string, required: optional }
 
-  # Mule: the action's correlation id, and its location when Mule supplies one.
-  mule:
-    applies: [ internal ]
+  # Mule action spans: the correlation id, and the location when Mule supplies one.
+  mule.action:
+    extends: internal
     tags:
       - { dd-name: mule.correlation_id, type: string, required: recommended }
       - { dd-name: mule.location,       type: string, required: optional }
