@@ -2,7 +2,7 @@ package com.datadog.openfeature.internal.flagevaluation;
 
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.connector.EventTransport;
+import com.datadog.openfeature.internal.bridge.EventTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
