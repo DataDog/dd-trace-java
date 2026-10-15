@@ -249,6 +249,25 @@ class TagConventions private constructor(
       )
     }
 
+    /** A mixin declaration, from the shared conventions or a tracer overlay. */
+    @Suppress("UNCHECKED_CAST")
+    private fun parseMixin(name: String, v: Any?): Mixin {
+      require(v is Map<*, *>) { "mixin '$name' must be a mapping" }
+      val m = v as Map<String, Any?>
+      val applies = m["applies"]
+      require(applies == null || applies == "all" || (applies is List<*> && applies.all { it is String })) {
+        "mixin '$name' applies must be 'all' or a list of span types"
+      }
+      return Mixin(
+        name = name,
+        appliesAll = applies == "all",
+        appliesTo = if (applies is List<*>) (applies as List<String>).toSet() else emptySet(),
+        tags = tagList(m["tags"]),
+        refs = refList(m["tags"]),
+        direction = parseDirection(m, "mixin '$name'"),
+      )
+    }
+
     /** Reads `span-kind` as the direction it sets, or null when absent. */
     private fun parseDirection(m: Map<String, Any?>, owner: String): Direction? {
       val spanKind = m["span-kind"]
@@ -262,17 +281,20 @@ class TagConventions private constructor(
     const val OVERLAY_MIXIN = "tracer overlay"
 
     /**
-     * Parses [root], the language-agnostic conventions, plus [overlay], this tracer's own set-path
-     * routing: `tags` declares keys that exist only to be routed (e.g. `resource.name`), so each is
-     * intercepted, and `intercepted` adds the tags declared in [root] that the tracer also routes.
+     * Parses [root], the language-agnostic conventions, plus [overlay], this tracer's own additions:
+     * `tags` declares keys that exist only to be routed (e.g. `resource.name`), so each is
+     * intercepted; `mixins` declares this tracer's own tags (e.g. servlet's), each mixin pushed onto
+     * shared span types with `applies`; and `intercepted` adds the declared tags the tracer also
+     * routes.
      */
     @Suppress("UNCHECKED_CAST")
     fun parse(root: Map<String, Any?>, overlay: Map<String, Any?> = emptyMap()): TagConventions {
       for (section in listOf("span_types", "mixins", "trace_level")) {
         require(root[section] == null || root[section] is Map<*, *>) { "$section must be a mapping" }
       }
-      require(overlay.keys.all { it == "tags" || it == "intercepted" }) {
-        "the tracer overlay may only declare `tags` and `intercepted`, not ${overlay.keys - setOf("tags", "intercepted")}"
+      val overlayKeys = setOf("tags", "mixins", "intercepted")
+      require(overlay.keys.all { it in overlayKeys }) {
+        "the tracer overlay may only declare $overlayKeys, not ${overlay.keys - overlayKeys}"
       }
       require(refList(overlay["tags"]).isEmpty()) { "tracer overlay tags must be declarations, not refs" }
       val interceptedRaw = overlay["intercepted"]
@@ -309,24 +331,24 @@ class TagConventions private constructor(
           )
         }
 
-      val mixinsRaw = (root["mixins"] as? Map<String, Any?>) ?: emptyMap()
-      val parsedMixins =
-        mixinsRaw.mapValues { (name, v) ->
-          require(v is Map<*, *>) { "mixin '$name' must be a mapping" }
-          val m = v as Map<String, Any?>
-          val applies = m["applies"]
-          require(applies == null || applies == "all" || (applies is List<*> && applies.all { it is String })) {
-            "mixin '$name' applies must be 'all' or a list of span types"
+      require(overlay["mixins"] == null || overlay["mixins"] is Map<*, *>) {
+        "tracer overlay mixins must be a mapping"
+      }
+      val rootMixins = ((root["mixins"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) -> parseMixin(name, v) }
+      // A shared span type can't `include` a tracer's mixin by name, so an overlay mixin pushes
+      // itself onto shared types with `applies`.
+      val overlayMixins =
+        ((overlay["mixins"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) ->
+          require(name !in rootMixins && name != OVERLAY_MIXIN) {
+            "tracer overlay mixin '$name' reuses the name of a shared mixin"
           }
-          Mixin(
-            name = name,
-            appliesAll = applies == "all",
-            appliesTo = if (applies is List<*>) (applies as List<String>).toSet() else emptySet(),
-            tags = tagList(m["tags"]),
-            refs = refList(m["tags"]),
-            direction = parseDirection(m, "mixin '$name'"),
-          )
-        } + overlayMixin(overlay)
+          val mixin = parseMixin(name, v)
+          require(mixin.appliesAll || mixin.appliesTo.isNotEmpty()) {
+            "tracer overlay mixin '$name' must say which span types it applies to"
+          }
+          mixin
+        }
+      val parsedMixins = rootMixins + overlayMixins + overlayMixin(overlay)
 
       for (spanType in parsedSpanTypes.values) {
         for (included in spanType.include) {
