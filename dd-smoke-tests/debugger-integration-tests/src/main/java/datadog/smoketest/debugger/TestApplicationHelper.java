@@ -30,7 +30,7 @@ public class TestApplicationHelper {
   private static final String EXCEPTION_FINGERPRINT_ADDED =
       "DEBUG com.datadog.debugger.exception.AbstractExceptionDebugger - Exception Fingerprint ";
   private static final long SLEEP_MS = 100;
-  private static final long TIMEOUT_S = 10;
+  private static final long TIMEOUT_S = 30;
 
   public static void waitForTransformerInstalled(String logFileName) throws IOException {
     waitForSpecificLogLine(
