@@ -87,6 +87,23 @@ class SettingsTest {
     assertEquals(5, settings.agentlessRequestTimeoutSeconds());
     assertFalse(settings.isSpanEnrichmentEnabled());
     assertTrue(settings.isEvaluationCountsEnabled());
+    assertTrue(settings.isExposuresDatadogLoggingEnabled());
+  }
+
+  @TableTest({
+    "scenario | value   | enabled",
+    "true     | 'true'  | true   ",
+    "one      | '1'     | true   ",
+    "false    | 'false' | false  ",
+    "zero     | '0'     | false  ",
+    "invalid  | 'nope'  | false  ",
+    "blank    | ' '     | true   "
+  })
+  void readsTheExposuresDatadogLoggingToggle(final String value, final boolean enabled) {
+    assertEquals(
+        enabled,
+        TestSettings.of("feature.flags.exposures.datadog.logging.enabled", value)
+            .isExposuresDatadogLoggingEnabled());
   }
 
   @TableTest({
