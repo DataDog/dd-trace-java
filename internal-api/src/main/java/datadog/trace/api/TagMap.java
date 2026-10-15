@@ -120,13 +120,21 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
    * #createFromParent(TagMap)}.
    */
   public static final TagMap createFromParent(TagMap parent, @Nullable SizingHint hint) {
-    return createFromParent(TagMapFactory.Default.INSTANCE, parent, hint);
+    // Calls the JVM's factory directly, a static final constant receiver, rather than through the
+    // factory-taking overload below: a factory parameter costs the span-creation path an inlining
+    // level and the constant receiver.
+    return TagMapFactory.Default.INSTANCE.create(readThroughParent(parent), hint);
   }
 
   /**
    * {@link #createFromParent(TagMap, SizingHint)} through {@code factory}; tests pick the store.
    */
   static TagMap createFromParent(TagMapFactory factory, TagMap parent, @Nullable SizingHint hint) {
+    return factory.create(readThroughParent(parent), hint);
+  }
+
+  /** {@code parent} checked for read-through: it must be frozen, and an empty one is dropped. */
+  private static TagMap readThroughParent(TagMap parent) {
     if (parent != null) {
       if (!parent.frozen) {
         throw new IllegalStateException("read-through parent must be frozen");
@@ -136,10 +144,10 @@ public abstract class TagMap implements Map<String, Object>, Iterable<TagMap.Ent
       // parent keeps isEmpty()'s no-tombstone fast path valid -- an attached parent always
       // contributes at least one visible entry.
       if (parent.isEmpty()) {
-        parent = null;
+        return null;
       }
     }
-    return factory.create(parent, hint);
+    return parent;
   }
 
   /**
