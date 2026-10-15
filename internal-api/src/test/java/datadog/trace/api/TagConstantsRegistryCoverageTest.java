@@ -73,24 +73,8 @@ class TagConstantsRegistryCoverageTest {
     NEVER_REGISTERED.put("Tags.SPAN_KIND_*", "values of span.kind");
   }
 
-  /** Families not registered yet, with the reason. */
+  /** Families not registered yet, with the reason. Empty: every family is registered. */
   static final Map<String, String> NOT_YET_REGISTERED_FAMILIES = new TreeMap<>();
-
-  static {
-    NOT_YET_REGISTERED_FAMILIES.put("Tags.OS_*", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("Tags.RUNTIME_*", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("DDTags.HOST_VCPU_COUNT", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put(
-        "DDTags.LIBRARY_VERSION_TAG_KEY", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("Tags.ITR_CORRELATION_ID", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("Tags.PULL_REQUEST_NUMBER", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("DDTags.CI_*", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("DDTags.TEST_*", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("Tags.CI_*", "CI Visibility, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put(
-        "Tags.GIT_*", "CI Visibility and source code metadata, in a follow-up PR");
-    NOT_YET_REGISTERED_FAMILIES.put("Tags.TEST_*", "CI Visibility, in a follow-up PR");
-  }
 
   /**
    * Single constants not registered yet. Remove an entry when its tag is registered. Empty: every
