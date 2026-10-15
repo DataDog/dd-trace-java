@@ -227,18 +227,15 @@ class SpanTagsTest {
   }
 
   @Test
-  void removingWithNoDirectionRemovesOnlyTheName() {
+  void removingATagWithNoAliasLeavesUnrelatedTags() {
     TagMap tags = TagMap.create();
     tags.set(Tags.PEER_HOSTNAME, "stored");
-    tags.set("server.address", "pending");
     tags.set("my.tag", "custom");
 
-    SpanTags.remove(tags, "server.address", DIRECTION_UNKNOWN);
     SpanTags.remove(tags, "my.tag", DIRECTION_OUTBOUND);
     SpanTags.remove(tags, KnownTags.HTTP_METHOD_ID, DIRECTION_OUTBOUND);
 
     assertEquals("stored", tags.getObject(Tags.PEER_HOSTNAME));
-    assertNull(tags.getObject("server.address"));
     assertNull(tags.getObject("my.tag"));
   }
 
@@ -287,5 +284,42 @@ class SpanTagsTest {
 
     assertEquals("stored", tags.getObject(Tags.PEER_HOSTNAME));
     assertEquals(1, tags.size());
+  }
+
+  @Test
+  void removingAnAliasBeforeTheDirectionIsKnownRemovesEveryTagItCouldDenote() {
+    TagMap tags = TagMap.create();
+    tags.set(Tags.PEER_HOSTNAME, "older");
+
+    SpanTags.remove(tags, "server.address", DIRECTION_UNKNOWN);
+
+    // once the span is a client, server.address names peer.hostname: the removal must stick
+    assertNull(SpanTags.get(tags, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+    assertNull(SpanTags.get(tags, "server.address", DIRECTION_OUTBOUND));
+  }
+
+  @Test
+  void removingATagBeforeTheDirectionIsKnownRemovesThePendingAliasesThatCouldDenoteIt() {
+    TagMap byName = TagMap.create();
+    byName.set("server.address", "pending");
+    SpanTags.remove(byName, Tags.PEER_HOSTNAME, DIRECTION_UNKNOWN);
+    assertNull(SpanTags.get(byName, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+
+    TagMap byId = TagMap.create();
+    byId.set("server.address", "pending");
+    SpanTags.remove(byId, KnownTags.PEER_HOSTNAME_ID, DIRECTION_UNKNOWN);
+    assertNull(SpanTags.get(byId, KnownTags.PEER_HOSTNAME_ID, DIRECTION_OUTBOUND));
+  }
+
+  @Test
+  void removingACustomTagBeforeTheDirectionIsKnownLeavesOtherTags() {
+    TagMap tags = TagMap.create();
+    tags.set(Tags.PEER_HOSTNAME, "kept");
+    tags.set("my.tag", "gone");
+
+    SpanTags.remove(tags, "my.tag", DIRECTION_UNKNOWN);
+
+    assertNull(tags.getObject("my.tag"));
+    assertEquals("kept", SpanTags.get(tags, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
   }
 }

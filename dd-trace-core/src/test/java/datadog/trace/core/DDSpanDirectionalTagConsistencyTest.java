@@ -86,6 +86,28 @@ class DDSpanDirectionalTagConsistencyTest extends DDCoreJavaSpecification {
     }
   }
 
+  /** A removal before the span has a kind must not let an older value resurface once it does. */
+  @Test
+  void removingAnAliasBeforeTheKindIsKnownSticksOnceTheKindArrives() {
+    span.setTag(Tags.PEER_HOSTNAME, "older");
+    span.setTag("server.address", (Object) null);
+
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+
+    assertNull(span.getTag(Tags.PEER_HOSTNAME));
+    assertNull(span.getTag("server.address"));
+  }
+
+  @Test
+  void removingATagBeforeTheKindIsKnownDropsAPendingAliasForIt() {
+    span.setTag("server.address", "pending");
+    span.setTag(Tags.PEER_HOSTNAME, (Object) null);
+
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+
+    assertNull(span.getTag(Tags.PEER_HOSTNAME));
+  }
+
   @Test
   void aBuilderTagWithASharedNameIsAKnownTag() {
     DDSpan built =

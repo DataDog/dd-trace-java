@@ -31,6 +31,10 @@ import java.util.List;
  *       resolved for emission.
  * </ul>
  *
+ * <p>A removal counts as a write. Before the span has a direction, removing a tag also removes the
+ * pending aliases that could denote it, and removing an alias also removes every tag it could
+ * denote, so a removed value can't resurface once the span learns its kind.
+ *
  * <p>The accepted corner: before the span has a direction, a write of either possible tag of an
  * alias removes the pending alias, even if the span's eventual direction maps the alias to the
  * other tag. Writing {@code server.address}, then {@code peer.hostname}, then making the span a
@@ -173,6 +177,7 @@ public final class SpanTags {
   public static void remove(TagMap tags, String name, int direction) {
     tags.remove(name);
     if (direction == DIRECTION_UNKNOWN) {
+      removeEveryMeaningOf(tags, name);
       return;
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
@@ -189,9 +194,33 @@ public final class SpanTags {
   /** Removes the known tag {@code tagId}, and its alias, from a span of {@code direction}. */
   public static void remove(TagMap tags, long tagId, int direction) {
     tags.getAndRemove(tagId);
-    String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
-    if (alias != null) {
-      tags.remove(alias);
+    if (KnownTagCodec.hasScopedAlias(tagId)) {
+      removePendingAliases(tags, tagId, direction);
+    }
+  }
+
+  /**
+   * A removal before the span has a direction counts as a write of every tag {@code name} could
+   * denote once it has one, so no older value can resurface when the kind arrives: removing a tag
+   * also removes every pending alias that could denote it, and removing an alias also removes every
+   * tag it could denote. Like the write rule, this can drop the other direction's tag.
+   */
+  private static void removeEveryMeaningOf(TagMap tags, String name) {
+    long tagId = KnownTagCodec.keyOf(name);
+    if (tagId != 0) {
+      if (KnownTagCodec.hasScopedAlias(tagId)) {
+        removePendingAliases(tags, tagId, DIRECTION_UNKNOWN);
+      }
+      return;
+    }
+    if (!KnownTagCodec.mayBeScopedAlias(name)) {
+      return;
+    }
+    for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
+      long aliasedId = KnownTagCodec.directionalKeyOf(name, direction);
+      if (aliasedId > 0) {
+        tags.getAndRemove(aliasedId);
+      }
     }
   }
 
