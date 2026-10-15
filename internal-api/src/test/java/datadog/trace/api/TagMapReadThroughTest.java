@@ -594,23 +594,6 @@ class TagMapReadThroughTest {
     assertEquals("/parent/{id}", prior.objectValue());
   }
 
-  /**
-   * A shared Datadog name ({@code peer.port}) resolves to no tag without a direction, so the
-   * inherited prior must be found by the entry's id, not by its name.
-   */
-  @Test
-  void getAndSetBySharedNameIdReturnsTheInheritedEntryOfThatId() {
-    TagMap parent = TagMap.create();
-    parent.set(KnownTags.PEER_PORT_OUTBOUND_ID, 5432);
-    TagMap child = TagMap.createFromParent(parent.freeze());
-
-    TagMap.Entry prior =
-        child.getAndSet(TagMap.Entry.create(KnownTags.PEER_PORT_OUTBOUND_ID, (Object) 443));
-
-    assertNotNull(prior, "the inherited peer.port@outbound is the previous value");
-    assertEquals(5432, prior.objectValue());
-  }
-
   @Test
   void setDoesNotReportPriorButStillClearsTombstone() {
     TagMap child = TagMap.createFromParent(frozenParent());

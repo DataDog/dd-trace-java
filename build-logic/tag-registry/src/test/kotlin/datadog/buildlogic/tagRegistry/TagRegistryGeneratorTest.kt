@@ -293,7 +293,10 @@ class TagRegistryGeneratorTest {
     TagRegistryGenerator.generate(yaml, output)
 
     val generated = contents(output)
-    assertThat(generated.getValue("java/datadog/trace/api/KnownTags.java")).doesNotContain("server.address")
+    val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source).doesNotContain("HTTP_HOSTNAME_OTEL_NAME")
+    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("server.address")
+    assertThat(source).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
     assertThat(generated.getValue("tag-assignment.txt"))
       .containsPattern("server\\.address +inbound +-> http\\.hostname")
   }
@@ -324,23 +327,21 @@ class TagRegistryGeneratorTest {
 
     val tags = TagRegistry.build(conventions).tags.associateBy { it.name }
 
-    assertThat(tags.getValue("http.hostname").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("server.address" to TagConventions.Direction.INBOUND)
-    assertThat(tags.getValue("peer.hostname").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("server.address" to TagConventions.Direction.OUTBOUND)
-    assertThat(tags.getValue("peer.port@outbound").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("server.port" to TagConventions.Direction.OUTBOUND)
-    assertThat(tags.getValue("peer.port@inbound").let { it.declaredOtelName to it.otelDirection })
-      .isEqualTo("client.port" to TagConventions.Direction.INBOUND)
-    assertThat(tags.values.filter { it.name.startsWith("peer.port") }.map { it.ddName })
-      .containsOnly("peer.port")
+    assertThat(tags.getValue("http.hostname").scopedOtelNames)
+      .isEqualTo(mapOf(TagConventions.Direction.INBOUND to "server.address"))
+    assertThat(tags.getValue("peer.hostname").scopedOtelNames)
+      .isEqualTo(mapOf(TagConventions.Direction.OUTBOUND to "server.address"))
+    assertThat(tags.getValue("peer.port").scopedOtelNames)
+      .isEqualTo(
+        mapOf(TagConventions.Direction.INBOUND to "client.port", TagConventions.Direction.OUTBOUND to "server.port")
+      )
     assertThat(tags.values.map { it.otelName }).containsOnlyNulls()
     assertThat(conventions.resolve("http.client").map { it.name }).contains("peer.port@outbound")
     assertThat(conventions.resolve("http.server").map { it.name }).contains("peer.port@inbound")
   }
 
   @Test
-  fun `a Datadog name declared per direction is not resolvable without a direction`() {
+  fun `a Datadog name declared per direction is one tag`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -358,12 +359,43 @@ class TagRegistryGeneratorTest {
     val generated = contents(output)
     val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source)
-      .contains("PEER_PORT_INBOUND_ID", "PEER_PORT_OUTBOUND_ID")
-      .contains("{@code peer.port} on outbound spans.", "{@code peer.port} on inbound spans.")
-      .doesNotContain("PEER_PORT_NAME", "PEER_PORT_INBOUND_NAME", "PEER_PORT_OUTBOUND_NAME")
-    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("PEER_PORT")
-    assertThat(generated.getValue("tag-assignment.txt"))
-      .containsPattern("peer\\.port +-> peer\\.port@inbound, peer\\.port@outbound")
+      .contains("PEER_PORT_NAME = \"peer.port\"", "PEER_PORT_ID")
+      .doesNotContain("PEER_PORT_INBOUND", "PEER_PORT_OUTBOUND", "shared")
+    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).contains("PEER_PORT_NAME,")
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};")).contains("PEER_PORT_ID,")
+    assertThat(generated.getValue("tag-assignment.txt").lines().filter { it.endsWith(" peer.port") })
+      .hasSize(1)
+  }
+
+  @Test
+  fun `a tag declared per direction is emitted under the OpenTelemetry name for the direction`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+        http.server:
+          span-kind: server
+          include: [inbound_peer]
+          tags: [{dd-name: http.hostname, otel-name: server.address}]
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int, otel-name: server.port}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int, otel-name: client.port}]}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    val emit = source.substringAfter("public String openTelemetryNameOf(long tagId, int direction)")
+    assertThat(emit).contains(
+      "return direction == KnownTagCodec.DIRECTION_INBOUND ? \"client.port\" : " +
+        "direction == KnownTagCodec.DIRECTION_OUTBOUND ? \"server.port\" : null;"
+    )
+    assertThat(emit).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
+    // Direction-scoped names are not resolved by name yet.
+    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};"))
+      .doesNotContain("client.port", "server.port", "server.address")
   }
 
   @Test
@@ -396,7 +428,7 @@ class TagRegistryGeneratorTest {
     val dbType = TagRegistry.build(conventions).tags.single()
 
     assertThat(dbType.otelName).isEqualTo("db.system")
-    assertThat(dbType.otelDirection).isNull()
+    assertThat(dbType.scopedOtelNames).isEmpty()
   }
 
   @TableTest(
@@ -437,12 +469,13 @@ class TagRegistryGeneratorTest {
       """
     )
 
-    assertThat(TagRegistry.build(conventions).tags.map { it.identity })
+    assertThat(conventions.allDeclaredTags().map { it.identity })
       .containsExactlyInAnyOrder(
         TagConventions.TagIdentity("x", TagConventions.Direction.INBOUND),
         TagConventions.TagIdentity("x", TagConventions.Direction.OUTBOUND),
         TagConventions.TagIdentity("x@inbound"),
       )
+    assertThat(TagRegistry.build(conventions).tags.map { it.ddName }).containsExactly("x", "x@inbound")
   }
 
   @Test
@@ -460,7 +493,7 @@ class TagRegistryGeneratorTest {
     )
 
     assertThat(TagRegistry.build(conventions).tags.map { it.name })
-      .containsExactlyInAnyOrder("peer.port@inbound", "peer.port@outbound", "user@domain")
+      .containsExactlyInAnyOrder("peer.port", "user@domain")
   }
 
   @Test
@@ -476,6 +509,56 @@ class TagRegistryGeneratorTest {
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
       .withMessageContaining("span-kind-neutral without an otel-name")
+  }
+
+  @Test
+  fun `the tracer overlay declares routed keys and marks intercepted tags`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        base:
+          abstract: true
+          tags: [{dd-name: service, otel-name: service.name}, {dd-name: component}]
+      """
+    )
+    val overlay = directory.writeFile(
+      "overlay.yaml",
+      """
+      tags: [{dd-name: resource.name}]
+      intercepted: [service]
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output, overlay)
+
+    val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(knownTags)
+      .contains(
+        "COMPONENT_ID = 0x0001000000000000L",
+        "RESOURCE_NAME_ID = 0x0002000000000002L",
+        "SERVICE_ID = 0x0003000000000002L",
+        "public static final int SERVICE_SERIAL_NUM = 3;",
+        "public static final int SERIAL_LIMIT = 4;"
+      )
+  }
+
+  @TableTest(
+    """
+          scenario           | overlay                      | message
+          undeclared name    | 'intercepted: [missing]'     | is not declared
+          ref in overlay     | 'tags: [{ref: service}]'     | must be declarations, not refs
+          unknown section    | 'span_types: {}'             | may only declare
+          duplicate of a tag | 'tags: [{dd-name: service}]' | declared in both
+          """
+  )
+  fun `invalid tracer overlays are rejected`(overlay: String, message: String) {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: service}]}}")
+    val overlayFile = directory.writeFile("overlay.yaml", overlay)
+
+    assertThatIllegalArgumentException()
+      .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated"), overlayFile) }
+      .withMessageContaining(message)
   }
 
   private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(
