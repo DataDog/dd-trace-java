@@ -86,7 +86,7 @@ docs/                     Developer documentation (see below)
 
 These rules are strict for changes under `dd-trace-core/`; elsewhere, treat them as advice.
 
-- **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
+- **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, JDK, JVM flags and benchmark settings, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
 - **No defensive copies from internal accessors.** Don't return defensive copies from accessors only the tracer calls, since they allocate on every call on hot paths such as serialization. Use a restrictive type (e.g. `List<? extends T>`), a shared immutable constant for the empty case, and a Javadoc read-only contract instead.
 
 ## Critical constraints
