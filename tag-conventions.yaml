@@ -173,12 +173,69 @@ span_types:
       - { dd-name: _dd.dbm_trace_injected,      type: boolean, required: optional }
       - { dd-name: _dd.propagated_hash,         type: string,  required: optional }
       - { dd-name: _dd.instrumentation.time_ms, type: long,    required: optional }
+      - { dd-name: bucket,                      type: string,  required: optional }  # Couchbase
 
   view.render:
     extends: base
     span-kind: internal
     tags:
       - { dd-name: view.name, type: string, required: recommended }
+
+  # Messaging: one type per span kind; each messaging system adds its tags with a mixin.
+  messaging:
+    abstract: true
+    extends: base
+
+  messaging.producer:
+    extends: messaging
+    span-kind: producer
+
+  messaging.consumer:
+    extends: messaging
+    span-kind: consumer
+    tags:
+      - { dd-name: record.queue_time_ms,   type: long, required: optional }  # from the message's timestamp, when it has one
+      - { dd-name: record.e2e_duration_ms, type: long, required: optional }  # only when end-to-end durations are enabled
+
+  # Time a message spent in the broker (span.kind broker). The registry gives broker no direction,
+  # and none of these tags depends on one.
+  messaging.broker:
+    extends: messaging
+
+  # A client command that neither publishes nor consumes (e.g. an AMQP queue declare).
+  messaging.client:
+    extends: messaging
+    span-kind: client
+
+  # A consumer's poll for a batch (span.kind unset).
+  messaging.poll:
+    extends: messaging
+    tags:
+      - { dd-name: kafka.records_count, type: int, required: optional }  # created only when Data Streams is enabled
+
+  # RPC: client and server calls, and their per-message child spans.
+  rpc:
+    abstract: true
+    extends: base
+    tags:
+      - { dd-name: rpc.service,          type: string, required: recommended }  # set on client spans (and SofaRPC servers)
+      - { dd-name: rpc.grpc.status_code, type: int,    required: conditional }
+      - { dd-name: message.type,         type: string, required: optional }     # on gRPC message child spans
+
+  rpc.client:
+    extends: rpc
+    span-kind: client
+    include: [ peer, peer_address, outbound_peer ]
+
+  rpc.server:
+    extends: rpc
+    span-kind: server
+    include: [ peer_address, inbound_peer ]
+
+  # An internal span no other type models, e.g. an integration platform's process or action step.
+  internal:
+    extends: base
+    span-kind: internal
 
   # A web framework's controller or handler span, inside the server span.
   web.handler:
@@ -246,6 +303,43 @@ mixins:
     span-kind: server
     tags:
       - { dd-name: peer.port, type: int, otel-name: client.port }
+
+  # data_streams — Data Streams Monitoring checkpoints, on the spans that carry or receive a pathway.
+  data_streams:
+    applies: [ http, messaging, rpc ]
+    tags:
+      - { dd-name: pathway.hash, type: string, required: optional }
+
+  # dsm_transactions — Data Streams transaction tracking, when an extractor matches.
+  dsm_transactions:
+    applies: [ http, messaging.producer, messaging.consumer ]
+    tags:
+      - { dd-name: dsm.transaction.id,         type: string, required: optional }
+      - { dd-name: dsm.transaction.checkpoint, type: string, required: optional }
+
+  # kafka — Kafka producer and consumer spans (and Kafka Streams consumers).
+  kafka:
+    applies: [ messaging.producer, messaging.consumer ]
+    tags:
+      - { dd-name: messaging.destination.name,        type: string,  required: recommended }  # the topic
+      - { dd-name: messaging.kafka.bootstrap.servers, type: string,  required: optional }
+      - { dd-name: messaging.kafka.cluster.id,        type: string,  required: optional }
+      - { dd-name: kafka.group,                       type: string,  required: optional }     # consumers
+      - { dd-name: partition,                         type: int,     required: optional }
+      - { dd-name: offset,                            type: long,    required: optional }
+      - { dd-name: tombstone,                         type: boolean, required: optional }     # a null record value
+      - { dd-name: processor.name,                    type: string,  required: optional }     # Kafka Streams
+
+  # amqp — RabbitMQ (AMQP) spans: publish, consume, other commands, and time in queue.
+  amqp:
+    applies: [ messaging.producer, messaging.consumer, messaging.broker, messaging.client ]
+    tags:
+      - { dd-name: amqp.command,       type: string, required: recommended }
+      - { dd-name: amqp.exchange,      type: string, required: optional }
+      - { dd-name: amqp.routing_key,   type: string, required: optional }
+      - { dd-name: amqp.queue,         type: string, required: optional }
+      - { dd-name: amqp.delivery_mode, type: int,    required: optional }
+      - { dd-name: message.size,       type: int,    required: optional }
 
   # inherited_sampling — a span that starts its own trace but inherits the sampling decision of the
   # span it came from (a websocket message, from its handshake).

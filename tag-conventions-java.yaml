@@ -52,6 +52,26 @@ mixins:
       - { dd-name: handler.type,      type: string, required: optional }
       - { dd-name: request.predicate, type: string, required: optional }
 
+  # Spring WebFlux's HTTP client: why a request was cancelled.
+  spring_webflux_client:
+    applies: [ http.client ]
+    tags:
+      - { dd-name: message, type: string, required: optional }
+
+  # TIBCO BusinessWorks: the app node and version, on process and activity spans.
+  tibco:
+    applies: [ internal ]
+    tags:
+      - { dd-name: tibco.node,    type: string, required: optional }
+      - { dd-name: tibco.version, type: string, required: optional }
+
+  # Mule: the action's correlation id, and its location when Mule supplies one.
+  mule:
+    applies: [ internal ]
+    tags:
+      - { dd-name: mule.correlation_id, type: string, required: recommended }
+      - { dd-name: mule.location,       type: string, required: optional }
+
 intercepted:
   - service
   - peer.service
