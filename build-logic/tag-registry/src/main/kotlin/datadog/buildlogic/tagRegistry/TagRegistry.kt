@@ -116,9 +116,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
      * Colors the co-occurrence graph of slotted tags: tags resolved onto one concrete span type, or
      * both trace-level, get distinct slots while the slots last. Tags that are `required`,
      * `conditional` or `recommended` on some span type are colored first, most-constrained first (by
-     * clique count, then name), so they take the low slots and always get exact ones. Two tags that
-     * are both `optional` or `opt_in` on a span type may share a slot there, but only when its other
-     * slots are taken, and then on the slot the fewest of them already hold. Returns the slots, and
+     * clique count, then name), so they take the low slots and always get exact ones. Only on a span
+     * type with more tags than slots may two tags that are both `optional` or `opt_in` there share a
+     * slot, and only once the free slots run out, on the slot the fewest of them already hold; a span
+     * type that fits never has two tags on one slot. Returns the slots, and
      * the tags that share one. The result is a pure function of the conventions.
      */
     private fun colorSlots(conv: TagConventions): Pair<Map<String, Int>, Set<String>> {
@@ -126,19 +127,20 @@ class TagRegistry private constructor(val tags: List<Tag>) {
       for (type in conv.concreteTypes()) cliques.add(conv.resolve(type))
       cliques.add(conv.traceLevelTags())
 
-      // Hard edges keep two tags apart; soft edges, between two occasional tags, are kept while the
-      // slots last.
+      // Hard edges keep two tags apart; soft edges, between two occasional tags on a span type that
+      // overflows, are kept while the slots last.
       val hard = HashMap<String, MutableSet<String>>()
       val soft = HashMap<String, MutableSet<String>>()
       val core = HashSet<String>()
       for (clique in cliques) {
+        val overflows = clique.size > MAX_SLOTS
         for (a in clique) {
           if (a.required !in OCCASIONAL) core.add(a.ddName)
           val hardAdjacent = hard.getOrPut(a.ddName) { HashSet() }
           val softAdjacent = soft.getOrPut(a.ddName) { HashSet() }
           for (b in clique) {
             if (a.ddName == b.ddName) continue
-            if (a.required in OCCASIONAL && b.required in OCCASIONAL) {
+            if (overflows && a.required in OCCASIONAL && b.required in OCCASIONAL) {
               softAdjacent.add(b.ddName)
             } else {
               hardAdjacent.add(b.ddName)
