@@ -47,4 +47,6 @@ dependencies {
   compileOnly(libs.bundles.spock)
 
   testImplementation(libs.junit.platform.launcher)
+  // @SuppressPerfContract fixtures; the checker matches annotation descriptors and never loads them.
+  testCompileOnly(project(":internal-api"))
 }
