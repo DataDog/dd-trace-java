@@ -159,6 +159,7 @@
 /internal-api/src/*/*/datadog/trace/api/metrics/BaggageMetrics*         @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/PropagationStyle*               @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/TracePropagation*               @DataDog/apm-sdk-capabilities
+/dd-trace-api/src/*/*/datadog/trace/api/metrics                         @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/bootstrap                           @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/api/propagation/                    @DataDog/apm-sdk-capabilities

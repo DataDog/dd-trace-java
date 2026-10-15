@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStore;
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStore;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;

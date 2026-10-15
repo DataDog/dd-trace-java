@@ -1,7 +1,9 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY;
@@ -379,6 +381,52 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(singletonMap(SOME_BAGGAGE, "mappedBaggageValue"), context.getBaggage());
+  }
+
+  /**
+   * With APM tracing disabled, an upstream sampling decision is only kept when {@code _dd.p.ts}
+   * marks the trace for ASM or AI Guard. Otherwise the local sampler sets the priority.
+   */
+  @Nested
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  class ApmTracingDisabled {
+    @Test
+    void upstreamPriorityDroppedWhenNoProductMarkedTheTrace() {
+      Map<String, String> headers = new HashMap<>();
+      headers.put(TRACE_ID_KEY, "1");
+      headers.put(SPAN_ID_KEY, "2");
+      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP));
+
+      ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+
+      assertEquals(UNSET, context.getSamplingPriority());
+    }
+
+    @Test
+    void upstreamPriorityKeptWhenProductMarkedTheTrace() {
+      Map<String, String> headers = new HashMap<>();
+      headers.put(TRACE_ID_KEY, "1");
+      headers.put(SPAN_ID_KEY, "2");
+      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP));
+      headers.put(DATADOG_TAGS_KEY, "_dd.p.ts=02");
+
+      ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+
+      assertEquals(SAMPLER_KEEP, context.getSamplingPriority());
+    }
+
+    @Test
+    void upstreamPriorityDroppedWhenOnlyDsmMarkedTheTrace() {
+      Map<String, String> headers = new HashMap<>();
+      headers.put(TRACE_ID_KEY, "1");
+      headers.put(SPAN_ID_KEY, "2");
+      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP));
+      headers.put(DATADOG_TAGS_KEY, "_dd.p.ts=04");
+
+      ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+
+      assertEquals(UNSET, context.getSamplingPriority());
+    }
   }
 
   @Nested
