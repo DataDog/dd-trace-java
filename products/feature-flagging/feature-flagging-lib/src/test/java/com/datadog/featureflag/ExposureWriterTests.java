@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.core.read.ListAppender;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -190,9 +192,9 @@ class ExposureWriterTests {
     logger.addAppender(appender);
     logger.setLevel(Level.DEBUG);
     BackendApi backend = mock(BackendApi.class);
+    IOException failure = new IOException("connection reset");
     if (fails) {
-      when(backend.post(any(), any(), any(), any(), eq(false)))
-          .thenThrow(new IOException("secret-response"));
+      when(backend.post(any(), any(), any(), any(), eq(false))).thenThrow(failure);
     }
     Config config = mockConfig("test-service");
     BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
@@ -214,7 +216,14 @@ class ExposureWriterTests {
           !fails,
           appender.list.stream()
               .anyMatch(e -> e.getFormattedMessage().contains("flush delivered")));
-      assertFalse(appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains("secret")));
+      if (fails) {
+        ILoggingEvent event =
+            appender.list.stream()
+                .filter(e -> e.getFormattedMessage().contains(outcome))
+                .findFirst()
+                .get();
+        assertSame(failure, ((ThrowableProxy) event.getThrowableProxy()).getThrowable());
+      }
     } finally {
       writer.close();
       logger.detachAppender(appender);
@@ -630,16 +639,36 @@ class ExposureWriterTests {
   void testSerializationFailureDoesNotPoisonFollowingExposures() throws Exception {
     Config config = mockConfig("test-service");
     ExposureEvent validExposure = buildExposure();
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.list = new CopyOnWriteArrayList<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.ERROR);
 
     try (ExposureWriterImpl writer =
         new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
       writer.init();
       writer.accept(buildExposure(singletonMap("invalid", (Object) Double.NaN)));
 
-      MILLISECONDS.sleep(300); // wait for the invalid batch to be dropped
+      poll.eventually(
+          () -> {
+            assertEquals(1, appender.list.size());
+            ILoggingEvent event = appender.list.get(0);
+            assertTrue(event.getFormattedMessage().contains("Could not serialize exposures"));
+            assertNotNull(event.getThrowableProxy());
+            assertEquals(
+                IllegalArgumentException.class.getName(), event.getThrowableProxy().getClassName());
+            assertTrue(event.getThrowableProxy().getMessage().contains("NaN"));
+          });
       writer.accept(validExposure);
 
       poll.eventually(() -> assertExposures(allExposures(), singletonList(validExposure)));
+    } finally {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
     }
   }
 

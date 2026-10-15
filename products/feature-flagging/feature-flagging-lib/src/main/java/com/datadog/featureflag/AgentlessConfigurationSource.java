@@ -198,7 +198,9 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       pollOnce();
     } catch (final RuntimeException e) {
       LOGGER.debug(
-          "Feature Flagging agentless configuration poll failed: {}", e.getClass().getSimpleName());
+          "Feature Flagging agentless configuration poll failed: {}",
+          e.getClass().getSimpleName(),
+          e);
     }
   }
 
@@ -221,9 +223,11 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     } catch (final IOException e) {
       if (!closed) {
         ratelimitedLogger.warn(
-            "Feature Flagging agentless endpoint request failed after {} attempts: {}",
+            "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}",
             MAX_ATTEMPTS,
-            e.getClass().getSimpleName());
+            e.getClass().getSimpleName(),
+            e.getMessage(),
+            e);
       }
       return false;
     }
@@ -259,7 +263,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug(
           "Feature Flagging agentless configuration rejected: malformed UFC payload ({}); retaining current configuration",
-          e.getClass().getSimpleName());
+          e.getClass().getSimpleName(),
+          e);
       return false;
     }
     if (configuration == null) {
@@ -503,7 +508,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
             "Feature Flagging agentless configuration poll attempt {}/{} failed: {}",
             retryAttempt + 1,
             MAX_ATTEMPTS,
-            exception.getClass().getSimpleName());
+            exception.getClass().getSimpleName(),
+            exception);
       }
       return exception instanceof IOException
           && !Thread.currentThread().isInterrupted()

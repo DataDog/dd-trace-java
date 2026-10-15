@@ -292,10 +292,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
         final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
         payload = evpPublisher.serialize(exposures);
       } catch (RuntimeException e) {
-        LOGGER.error(
-            EXCLUDE_TELEMETRY,
-            "Could not serialize exposures; dropping batch: {}",
-            e.getClass().getSimpleName());
+        LOGGER.error(EXCLUDE_TELEMETRY, "Could not serialize exposures; dropping batch", e);
         this.buffer.clear();
         return;
       }
@@ -309,11 +306,13 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
         if (e instanceof HttpResponseException) {
           LOGGER.debug(
               "Feature Flagging exposure flush failed: HTTP {}; dropping batch",
-              ((HttpResponseException) e).getStatusCode());
+              ((HttpResponseException) e).getStatusCode(),
+              e);
         } else {
           LOGGER.debug(
               "Feature Flagging exposure flush failed: {}; dropping batch",
-              e.getClass().getSimpleName());
+              e.getClass().getSimpleName(),
+              e);
         }
       } finally {
         // Best-effort delivery must not retry an ambiguously accepted batch. A later definitive
