@@ -2,12 +2,20 @@ package datadog.buildlogic.tagRegistry
 
 /**
  * Assigns tag ids from a parsed [TagConventions]. The id encoding mirrors KnownTagCodec: [63-48
- * serial][47-32 reserved][31-0 flags].
+ * serial][47-32 slot][31-0 flags].
  *
- * <p>An id is a globally unique serial plus two classification bits: trace-level and intercepted. It
- * carries no storage-layout coordinate -- bits [47-32] are held vacant for the co-occurrence slot
- * that the dense tag store assigns by graph coloring, which lands with the dense store itself.
- * Nothing here needs to know how (or whether) a tag is stored.
+ * <p>An id is a globally unique serial, a slot, and two classification bits: trace-level and
+ * intercepted.
+ *
+ * <p>The slot comes from GRAPH COLORING the tag co-occurrence graph. Each concrete span type's
+ * resolved tags appear together on one span, so they form a clique and need distinct slots; the
+ * trace-level tier is its own clique (it lives in a separate TagMap). Tags that never share a clique
+ * may share a slot, so the slot count stays bounded by the largest clique, small enough for one
+ * occupancy `long`. Every tag resolved onto a span type, or trace-level, is slotted whatever its
+ * requirement level; a tag on no modeled span type (the tracer overlay's routing-only keys, tags of
+ * unmodeled span types) gets [NO_SLOT]. Nothing in the tracer reads slots yet: they are for
+ * per-span structures that want an exact, compact presence word, such as a dense tag store or a
+ * span builder's tag ledger.
  *
  * <p>The intercepted bit marks a tag the tracer may route on the set-path (to a span field or a
  * sampling directive instead of tag storage), as listed by the tracer overlay. A setter called with
@@ -26,6 +34,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val serial: Int,
     val traceLevel: Boolean,
     val intercepted: Boolean,
+    /** The tag's slot, or [NO_SLOT] for a tag on no modeled span type. */
+    val slot: Int,
     val id: Long,
     /** The tag's OpenTelemetry name in every direction; null when not renamed, or renamed per direction. */
     val otelName: String? = null,
@@ -42,13 +52,17 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
 
+    const val SLOT_SHIFT = 32 // slot window [47-32]; mirrors KnownTagCodec.SLOT_SHIFT
+    const val NO_SLOT = 0xFFFF // all-ones slot: no modeled span type; mirrors KnownTagCodec.NO_SLOT
+    const val MAX_SLOTS = 63 // fits one occupancy long; bit 63 is left for unslotted tags to share
+
     /**
-     * Mirrors KnownTagCodec.makeTagId(serial) + intercepted() + traceLevel() -- must stay in sync.
-     * INTERCEPTED at bit 1, LEVEL_TRACE at bit 2, other low bits and the reserved [47-32] window
-     * zero.
+     * Mirrors KnownTagCodec's layout -- must stay in sync: serial at [63-48], slot at [47-32],
+     * INTERCEPTED at bit 1, LEVEL_TRACE at bit 2, other low bits zero.
      */
-    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean): Long {
-      var id = serial.toLong() shl 48
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, slot: Int = NO_SLOT): Long {
+      require(slot == NO_SLOT || slot in 0 until MAX_SLOTS) { "slot $slot is outside [0, $MAX_SLOTS)" }
+      var id = (serial.toLong() shl 48) or (slot.toLong() shl SLOT_SHIFT)
       if (traceLevel) id = id or LEVEL_TRACE
       if (intercepted) id = id or INTERCEPTED
       return id
@@ -57,6 +71,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     fun build(conv: TagConventions): TagRegistry {
       val traceLevel = conv.traceLevelTags().map { it.ddName }.toSet()
       val renames = conv.otelMappings().groupBy { it.tag.ddName }
+      val slots = colorSlots(conv)
 
       // One tag per Datadog name, in a stable order (by name) so serials -- and therefore ids -- are
       // a pure function of the input. A name's declarations per direction merge into its one tag.
@@ -70,6 +85,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
           val isTraceLevel = first.ddName in traceLevel
           val isIntercepted = first.ddName in conv.interceptedNames
           val (otelName, scoped) = otelNamesOf(first.ddName, renames[first.ddName].orEmpty())
+          val slot = slots[first.ddName] ?: NO_SLOT
           Tag(
             first.ddName,
             first.type,
@@ -77,7 +93,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             isTraceLevel,
             isIntercepted,
-            id = encode(serial, isTraceLevel, isIntercepted),
+            slot,
+            id = encode(serial, isTraceLevel, isIntercepted, slot),
             otelName = otelName,
             scopedOtelNames = scoped,
           )
@@ -85,6 +102,41 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
       validateOtelNames(tags)
       return TagRegistry(tags)
+    }
+
+    /**
+     * Colors the co-occurrence graph of slotted tags: tags resolved onto one concrete span type, or
+     * both trace-level, must get distinct slots. Greedy, most-constrained first (by clique count,
+     * then name), so the result is a pure function of the conventions. A name declared per direction
+     * is one tag, so it is one vertex.
+     */
+    private fun colorSlots(conv: TagConventions): Map<String, Int> {
+      val cliques = ArrayList<Set<String>>()
+      for (type in conv.concreteTypes()) {
+        cliques.add(conv.resolve(type).map { it.ddName }.toSet())
+      }
+      cliques.add(conv.traceLevelTags().map { it.ddName }.toSet())
+
+      val neighbors = HashMap<String, MutableSet<String>>()
+      for (clique in cliques) {
+        for (a in clique) {
+          val adjacent = neighbors.getOrPut(a) { HashSet() }
+          for (b in clique) if (a != b) adjacent.add(b)
+        }
+      }
+      val cliqueCount = neighbors.keys.associateWith { tag -> cliques.count { tag in it } }
+      val order = neighbors.keys.sortedWith(compareByDescending<String> { cliqueCount.getValue(it) }.thenBy { it })
+      val slots = HashMap<String, Int>()
+      for (tag in order) {
+        val taken = neighbors.getValue(tag).mapNotNull { slots[it] }.toSet()
+        var slot = 0
+        while (slot in taken) slot++
+        require(slot < MAX_SLOTS) {
+          "coloring needs more than $MAX_SLOTS slots at '$tag'; one occupancy long holds $MAX_SLOTS"
+        }
+        slots[tag] = slot
+      }
+      return slots
     }
 
     /**
