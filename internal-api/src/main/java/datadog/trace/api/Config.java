@@ -440,6 +440,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
@@ -1782,7 +1783,9 @@ public class Config {
 
     lambdaStripInjectedContextEnabled =
         configProvider.getBoolean(
-            LAMBDA_STRIP_INJECTED_CONTEXT, DEFAULT_LAMBDA_STRIP_INJECTED_CONTEXT);
+            LAMBDA_STRIP_INJECTED_CONTEXT,
+            DEFAULT_LAMBDA_STRIP_INJECTED_CONTEXT,
+            TRACE_LAMBDA_STRIP_INJECTED_CONTEXT);
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
