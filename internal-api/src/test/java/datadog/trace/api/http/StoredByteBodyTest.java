@@ -190,7 +190,7 @@ class StoredByteBodyTest {
   }
 
   @Test
-  void bytebufferAppendVariant() {
+  void byteBufferAppendVariant() {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0);
     StoredByteBody.ByteBufferWriteCallback mockCb =
         mock(StoredByteBody.ByteBufferWriteCallback.class);

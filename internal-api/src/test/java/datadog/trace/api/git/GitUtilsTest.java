@@ -85,54 +85,46 @@ class GitUtilsTest {
   }
 
   @TableTest({
-    "scenario                           | ref                  | valid",
-    "full branch ref                    | refs/heads/main      | true ",
-    "branch with slash and dots         | feature/branch-1.0   | true ",
-    "tag ref                            | refs/tags/v1.2.3     | true ",
-    "remote branch                      | origin/main          | true ",
-    "branch with dash                   | refs/heads/feature-1 | true ",
-    "short tag                          | v1.2.3               | true ",
-    "main                               | main                 | true ",
-    "develop                            | develop              | true ",
-    "empty                              | ''                   | false",
-    "whitespace only                    | '   '                | false",
-    "null                               |                      | false",
-    "starts with /                      | /refs/heads/main     | false",
-    "ends with .lock                    | refs/heads/main.lock | false",
-    "contains ..                        | refs/heads/ma..in    | false",
-    "contains space                     | 'refs/heads/ma in'   | false",
-    "contains ~                         | 'refs/heads/ma~in'   | false",
-    "contains ^                         | 'refs/heads/ma^in'   | false",
-    "contains :                         | 'refs/heads/ma:in'   | false",
-    "contains ?                         | 'refs/heads/ma?in'   | false",
-    "contains [                         | 'refs/heads/ma[in'   | false",
-    "'contains | (shell metacharacter)' | 'refs/heads/ma|in'   | false",
-    "contains & (shell metacharacter)   | 'refs/heads/ma&in'   | false",
-    "contains ` (shell metacharacter)   | 'refs/heads/ma`in`'  | false",
-    "contains $ (shell metacharacter)   | 'refs/heads/ma$in'   | false",
-    "contains ; (shell metacharacter)   | 'refs/heads/ma;in'   | false",
-    "ends with /                        | refs/heads/main/     | false",
-    "ends with .                        | refs/heads/main.     | false",
-    "contains @{                        | 'refs/heads/@{main'  | false",
-    "only @                             | '@'                  | false",
-    "contains //                        | refs//heads/main     | false",
-    "contains /./                       | refs/./heads/main    | false",
-    "component starts with .            | refs/heads/.hidden   | false",
-    "ends with .lock again              | refs/heads/main.lock | false"
+    "scenario                           | ref                     | valid",
+    "full branch ref                    | refs/heads/main         | true ",
+    "branch with slash and dots         | feature/branch-1.0      | true ",
+    "tag ref                            | refs/tags/v1.2.3        | true ",
+    "remote branch                      | origin/main             | true ",
+    "branch with dash                   | refs/heads/feature-1    | true ",
+    "short tag                          | v1.2.3                  | true ",
+    "main                               | main                    | true ",
+    "develop                            | develop                 | true ",
+    "empty                              | ''                      | false",
+    "whitespace only                    | '   '                   | false",
+    "null                               |                         | false",
+    "starts with /                      | /refs/heads/main        | false",
+    "ends with .lock                    | refs/heads/main.lock    | false",
+    "contains ..                        | refs/heads/ma..in       | false",
+    "contains space                     | 'refs/heads/ma in'      | false",
+    "contains ~                         | 'refs/heads/ma~in'      | false",
+    "contains ^                         | 'refs/heads/ma^in'      | false",
+    "contains :                         | 'refs/heads/ma:in'      | false",
+    "contains ?                         | 'refs/heads/ma?in'      | false",
+    "contains [                         | 'refs/heads/ma[in'      | false",
+    "'contains | (shell metacharacter)' | 'refs/heads/ma|in'      | false",
+    "contains & (shell metacharacter)   | 'refs/heads/ma&in'      | false",
+    "contains ` (shell metacharacter)   | 'refs/heads/ma`in`'     | false",
+    "contains $ (shell metacharacter)   | 'refs/heads/ma$in'      | false",
+    "contains ; (shell metacharacter)   | 'refs/heads/ma;in'      | false",
+    "ends with /                        | refs/heads/main/        | false",
+    "ends with .                        | refs/heads/main.        | false",
+    "contains @{                        | 'refs/heads/@{main'     | false",
+    "only @                             | '@'                     | false",
+    "contains //                        | refs//heads/main        | false",
+    "contains /./                       | refs/./heads/main       | false",
+    "component starts with .            | refs/heads/.hidden      | false",
+    "ends with .lock again              | refs/heads/main.lock    | false",
+    "contains tab (control char)        | 'refs/heads/ma\tin'     | false",
+    "contains null char                 | 'refs/heads/ma\u0000in' | false",
+    "contains \\\\                      | 'refs/heads/ma\\\\in'   | false"
   })
-  @MethodSource("testReferenceValidationArguments")
   void testReferenceValidation(String ref, boolean valid) {
     assertEquals(valid, GitUtils.isValidRef(ref));
-  }
-
-  static Stream<Arguments> testReferenceValidationArguments() {
-    return Stream.of(
-        // contains tab (control char)
-        arguments(named("contains tab (control char)", "refs/heads/ma\tin"), false),
-        // contains null char
-        arguments(named("contains null char", "refs/heads/ma\u0000in"), false),
-        // contains \\
-        arguments(named("contains \\\\", "refs/heads/ma\\\\in"), false));
   }
 
   @TableTest({
@@ -176,7 +168,9 @@ class GitUtilsTest {
     "contains %                  | 'path/with/percent%'       | false",
     "contains { or }             | 'path/with/curly{}'        | false",
     "contains [ or ]             | 'path/with/square[]'       | false",
-    "contains ( or )             | 'path/with/parens()'       | false"
+    "contains ( or )             | 'path/with/parens()'       | false",
+    "contains tab                | 'path/with/\ttab'          | false",
+    "contains \\                 | 'path/with/backslash\\'    | false"
   })
   @MethodSource("testPathValidationArguments")
   void testPathValidation(String path, boolean valid) {
@@ -184,12 +178,7 @@ class GitUtilsTest {
   }
 
   static Stream<Arguments> testPathValidationArguments() {
-    return Stream.of(
-        // contains tab
-        arguments(named("contains tab", "path/with/\ttab"), false),
-        // contains newline
-        arguments(named("contains newline", "path/with/new\nline"), false),
-        // contains \
-        arguments(named("contains \\", "path/with/backslash\\"), false));
+    // a newline cannot be put in a @TableTest cell as it is the row separator
+    return Stream.of(arguments(named("contains newline", "path/with/new\nline"), false));
   }
 }

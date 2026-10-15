@@ -1,13 +1,6 @@
 package datadog.trace.api.git;
 
 import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_BRANCH;
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_DATE;
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_EMAIL;
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_NAME;
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_DATE;
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_EMAIL;
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_NAME;
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_MESSAGE;
 import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA;
 import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL;
 import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_TAG;
@@ -16,21 +9,23 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSy
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.ConfigStrings.toEnvVar;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.test.junit.utils.converter.MethodRefGetterConverter;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.converter.ConvertWith;
+import org.tabletest.junit.TableTest;
 
 class UserSuppliedGitInfoBuilderTest extends DDJavaSpecification {
 
@@ -44,10 +39,11 @@ class UserSuppliedGitInfoBuilderTest extends DDJavaSpecification {
     assertTrue(gitInfo.isEmpty());
   }
 
-  @ParameterizedTest(name = "user supplied git info: env var {0}")
-  @MethodSource("userSuppliedGitInfoArguments")
+  @UserSuppliedGitInfoTable
   void userSuppliedGitInfoEnvVar(
-      String envVariable, String value, Function<GitInfo, String> gitInfoValueProvider) {
+      String envVariable,
+      String value,
+      @ConvertWith(MethodRefGetterConverter.class) Function<GitInfo, String> gitInfoValueProvider) {
     injectEnvConfig(propertyNameToEnvironmentVariableName(envVariable), value);
 
     GitInfo gitInfo = new UserSuppliedGitInfoBuilder().build(null);
@@ -56,10 +52,11 @@ class UserSuppliedGitInfoBuilderTest extends DDJavaSpecification {
     assertEquals(value, gitInfoValueProvider.apply(gitInfo));
   }
 
-  @ParameterizedTest(name = "user supplied git info: system property {0}")
-  @MethodSource("userSuppliedGitInfoArguments")
+  @UserSuppliedGitInfoTable
   void userSuppliedGitInfoSystemProperty(
-      String systemProperty, String value, Function<GitInfo, String> gitInfoValueProvider) {
+      String systemProperty,
+      String value,
+      @ConvertWith(MethodRefGetterConverter.class) Function<GitInfo, String> gitInfoValueProvider) {
     injectSysConfig(propertyNameToSystemPropertyName(systemProperty), value);
 
     GitInfo gitInfo = new UserSuppliedGitInfoBuilder().build(null);
@@ -68,49 +65,24 @@ class UserSuppliedGitInfoBuilderTest extends DDJavaSpecification {
     assertEquals(value, gitInfoValueProvider.apply(gitInfo));
   }
 
-  static Stream<Arguments> userSuppliedGitInfoArguments() {
-    return Stream.of(
-        arguments(
-            DD_GIT_REPOSITORY_URL,
-            "git repo URL",
-            (Function<GitInfo, String>) GitInfo::getRepositoryURL),
-        arguments(DD_GIT_BRANCH, "git branch", (Function<GitInfo, String>) GitInfo::getBranch),
-        arguments(DD_GIT_TAG, "git tag", (Function<GitInfo, String>) GitInfo::getTag),
-        arguments(
-            DD_GIT_COMMIT_SHA,
-            "commit SHA",
-            (Function<GitInfo, String>) gitInfo -> gitInfo.getCommit().getSha()),
-        arguments(
-            DD_GIT_COMMIT_MESSAGE,
-            "commit message",
-            (Function<GitInfo, String>) gitInfo -> gitInfo.getCommit().getFullMessage()),
-        arguments(
-            DD_GIT_COMMIT_AUTHOR_NAME,
-            "commit author",
-            (Function<GitInfo, String>) gitInfo -> gitInfo.getCommit().getAuthor().getName()),
-        arguments(
-            DD_GIT_COMMIT_AUTHOR_EMAIL,
-            "commit author mail",
-            (Function<GitInfo, String>) gitInfo -> gitInfo.getCommit().getAuthor().getEmail()),
-        arguments(
-            DD_GIT_COMMIT_AUTHOR_DATE,
-            "2022-12-29T11:38:44.254Z",
-            (Function<GitInfo, String>)
-                gitInfo -> gitInfo.getCommit().getAuthor().getIso8601Date()),
-        arguments(
-            DD_GIT_COMMIT_COMMITTER_NAME,
-            "committer",
-            (Function<GitInfo, String>) gitInfo -> gitInfo.getCommit().getCommitter().getName()),
-        arguments(
-            DD_GIT_COMMIT_COMMITTER_EMAIL,
-            "committer mail",
-            (Function<GitInfo, String>) gitInfo -> gitInfo.getCommit().getCommitter().getEmail()),
-        arguments(
-            DD_GIT_COMMIT_COMMITTER_DATE,
-            "2022-12-29T10:38:44.254Z",
-            (Function<GitInfo, String>)
-                gitInfo -> gitInfo.getCommit().getCommitter().getIso8601Date()));
-  }
+  /** Data shared by the env var and system property variants of the user supplied git info test. */
+  @Target(METHOD)
+  @Retention(RUNTIME)
+  @TableTest({
+    "scenario               | key                        | value                      | gitInfoValueProvider                            ",
+    "repository URL         | git.repository.url         | git repo URL               | GitInfo::getRepositoryURL                       ",
+    "branch                 | git.branch                 | git branch                 | GitInfo::getBranch                              ",
+    "tag                    | git.tag                    | git tag                    | GitInfo::getTag                                 ",
+    "commit SHA             | git.commit.sha             | commit SHA                 | GitInfo::getCommit::getSha                      ",
+    "commit message         | git.commit.message         | commit message             | GitInfo::getCommit::getFullMessage              ",
+    "commit author name     | git.commit.author.name     | commit author              | GitInfo::getCommit::getAuthor::getName          ",
+    "commit author email    | git.commit.author.email    | commit author mail         | GitInfo::getCommit::getAuthor::getEmail         ",
+    "commit author date     | git.commit.author.date     | '2022-12-29T11:38:44.254Z' | GitInfo::getCommit::getAuthor::getIso8601Date   ",
+    "commit committer name  | git.commit.committer.name  | committer                  | GitInfo::getCommit::getCommitter::getName       ",
+    "commit committer email | git.commit.committer.email | committer mail             | GitInfo::getCommit::getCommitter::getEmail      ",
+    "commit committer date  | git.commit.committer.date  | '2022-12-29T10:38:44.254Z' | GitInfo::getCommit::getCommitter::getIso8601Date"
+  })
+  @interface UserSuppliedGitInfoTable {}
 
   @Test
   void branchNameIsNormalized() {

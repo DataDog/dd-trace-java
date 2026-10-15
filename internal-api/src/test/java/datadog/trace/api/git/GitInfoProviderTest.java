@@ -322,13 +322,16 @@ class GitInfoProviderTest {
 
   private static void assertFallbackCommitInfo(GitInfo actualGitInfo) {
     assertEquals("repoUrl", actualGitInfo.getRepositoryURL());
+
     CommitInfo commit = actualGitInfo.getCommit();
     assertEquals("sha", commit.getSha());
     assertEquals("message", commit.getFullMessage());
+
     PersonInfo author = commit.getAuthor();
     assertEquals("author name", author.getName());
     assertEquals("author email", author.getEmail());
     assertEquals("author date", author.getIso8601Date());
+    
     PersonInfo committer = commit.getCommitter();
     assertEquals("committer name", committer.getName());
     assertEquals("committer email", committer.getEmail());
