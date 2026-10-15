@@ -1,5 +1,6 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -55,6 +56,9 @@ final class FlagEvaluationAggregator {
   final Map<String, Integer> perFlagCount = new HashMap<>();
   final AtomicLong droppedDegradedOverflow = new AtomicLong(0);
   final AtomicInteger globalFullCount = new AtomicInteger(0);
+  // One shared key and map for each distinct feature set in the flush window, so buckets of many
+  // subjects do not each keep their own copy until the flush.
+  final Map<String, FeatureSet> featureSets = new HashMap<>();
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
@@ -64,7 +68,11 @@ final class FlagEvaluationAggregator {
     // and spills every subsequent evaluation into the degraded tier.
     final Map<String, Object> prunedAttrs = observeFullEvaluationData ? event.attrs : null;
     final String ctxKey = observeFullEvaluationData ? canonicalContextKey(prunedAttrs) : "";
-    final FullKey fullKey = buildFullKey(event, ctxKey);
+    // Features come from the flag configuration, not the evaluation context, so they split buckets
+    // in both tiers and whatever the consent: rows with different features must not merge.
+    final FeatureSet featureSet = featureSet(event.features);
+    final String featuresKey = featureSet.key;
+    final FullKey fullKey = buildFullKey(event, ctxKey, featuresKey);
 
     EvalBucket bucket = fullTier.get(fullKey);
     if (bucket != null) {
@@ -86,13 +94,14 @@ final class FlagEvaluationAggregator {
               event.evalTimeMs,
               isDefault,
               prunedAttrs,
-              observeFullEvaluationData));
+              observeFullEvaluationData,
+              featureSet.features));
       globalFullCount.incrementAndGet();
       perFlagCount.put(event.flagKey, flagCount + 1);
       return;
     }
 
-    final DegradedKey degradedKey = buildDegradedKey(event);
+    final DegradedKey degradedKey = buildDegradedKey(event, featuresKey);
     bucket = degradedTier.get(degradedKey);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
@@ -112,7 +121,8 @@ final class FlagEvaluationAggregator {
               event.evalTimeMs,
               isDefault,
               null,
-              observeFullEvaluationData));
+              observeFullEvaluationData,
+              featureSet.features));
       return;
     }
 
@@ -150,8 +160,34 @@ final class FlagEvaluationAggregator {
   void clear() {
     fullTier.clear();
     degradedTier.clear();
+    this.featureSets.clear();
     perFlagCount.clear();
     globalFullCount.set(0);
+  }
+
+  private FeatureSet featureSet(final Map<String, Object> features) {
+    if (features == null || features.isEmpty()) {
+      return FeatureSet.NONE;
+    }
+    final String key = canonicalContextKey(features);
+    FeatureSet featureSet = this.featureSets.get(key);
+    if (featureSet == null) {
+      featureSet = new FeatureSet(key, features);
+      this.featureSets.put(key, featureSet);
+    }
+    return featureSet;
+  }
+
+  static final class FeatureSet {
+    static final FeatureSet NONE = new FeatureSet("", Collections.<String, Object>emptyMap());
+
+    final String key;
+    final Map<String, Object> features;
+
+    FeatureSet(final String key, final Map<String, Object> features) {
+      this.key = key;
+      this.features = features;
+    }
   }
 
   AggregatedState snapshot() {
@@ -163,8 +199,8 @@ final class FlagEvaluationAggregator {
     for (int i = globalFullCount.get(); i < GLOBAL_CAP; i++) {
       final String key = "synthetic-full-" + i;
       fullTier.put(
-          new FullKey(key, "on", "alloc", false, null, null, "", false),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
+          new FullKey(key, "on", "alloc", false, null, null, "", false, ""),
+          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false, null));
       globalFullCount.incrementAndGet();
       perFlagCount.merge(key, 1, Integer::sum);
     }
@@ -174,8 +210,8 @@ final class FlagEvaluationAggregator {
     for (int i = degradedTier.size(); i < DEGRADED_CAP; i++) {
       final String key = "synthetic-dg-" + i;
       degradedTier.put(
-          new DegradedKey(key, "on", "alloc", false, null),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
+          new DegradedKey(key, "on", "alloc", false, null, ""),
+          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false, null));
     }
   }
 
@@ -186,7 +222,7 @@ final class FlagEvaluationAggregator {
       final String errorMessage,
       final long evalTimeMs) {
     degradedTier.put(
-        new DegradedKey(flagKey, variant, allocationKey, variant == null, errorMessage),
+        new DegradedKey(flagKey, variant, allocationKey, variant == null, errorMessage, ""),
         new EvalBucket(
             flagKey,
             variant,
@@ -196,10 +232,12 @@ final class FlagEvaluationAggregator {
             evalTimeMs,
             variant == null,
             null,
-            false));
+            false,
+            null));
   }
 
-  private static FullKey buildFullKey(final FlagEvalEvent event, final String ctxKey) {
+  private static FullKey buildFullKey(
+      final FlagEvalEvent event, final String ctxKey, final String featuresKey) {
     return new FullKey(
         event.flagKey,
         event.variant,
@@ -208,16 +246,18 @@ final class FlagEvaluationAggregator {
         event.errorMessage,
         event.targetingKey,
         ctxKey,
-        event.observeFullEvaluationData);
+        event.observeFullEvaluationData,
+        featuresKey);
   }
 
-  private static DegradedKey buildDegradedKey(final FlagEvalEvent event) {
+  private static DegradedKey buildDegradedKey(final FlagEvalEvent event, final String featuresKey) {
     return new DegradedKey(
         event.flagKey,
         event.variant,
         event.allocationKey,
         event.variant == null,
-        event.errorMessage);
+        event.errorMessage,
+        featuresKey);
   }
 
   static String canonicalContextKey(final Map<String, Object> prunedAttrs) {
@@ -280,6 +320,8 @@ final class FlagEvaluationAggregator {
     String targetingKey;
     String errorMessage;
     Map<String, Object> prunedAttrs;
+    // Identical for every evaluation in the bucket, because the features key is a bucket dimension.
+    Map<String, Object> features;
     // Consent to emit raw PII. For full-tier buckets this is uniform (consent is a FullKey
     // dimension) and the AND-fold on merge is defensive. For degraded-tier buckets consent is NOT
     // a key dimension — mixed-consent events merge here — so the AND-fold produces false whenever
@@ -297,7 +339,8 @@ final class FlagEvaluationAggregator {
         final long evalTimeMs,
         final boolean runtimeDefaultUsed,
         final Map<String, Object> prunedAttrs,
-        final boolean observeFullEvaluationData) {
+        final boolean observeFullEvaluationData,
+        final Map<String, Object> features) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
@@ -309,6 +352,7 @@ final class FlagEvaluationAggregator {
       this.runtimeDefaultUsed = runtimeDefaultUsed;
       this.prunedAttrs = prunedAttrs;
       this.observeFullEvaluationData = observeFullEvaluationData;
+      this.features = features;
     }
 
     int prunedContextFieldCount() {
@@ -341,6 +385,7 @@ final class FlagEvaluationAggregator {
     // serializer branches on this to hash the targeting key and drop the context, so events with
     // different consent produce different wire rows and belong in different buckets.
     private final boolean observeFullEvaluationData;
+    private final String featuresKey;
 
     FullKey(
         final String flagKey,
@@ -350,7 +395,8 @@ final class FlagEvaluationAggregator {
         final String errorMessage,
         final String targetingKey,
         final String contextKey,
-        final boolean observeFullEvaluationData) {
+        final boolean observeFullEvaluationData,
+        final String featuresKey) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
@@ -359,6 +405,7 @@ final class FlagEvaluationAggregator {
       this.targetingKey = targetingKey;
       this.contextKey = contextKey;
       this.observeFullEvaluationData = observeFullEvaluationData;
+      this.featuresKey = featuresKey;
     }
 
     @Override
@@ -377,7 +424,8 @@ final class FlagEvaluationAggregator {
           && Objects.equals(allocationKey, fullKey.allocationKey)
           && Objects.equals(errorMessage, fullKey.errorMessage)
           && Objects.equals(targetingKey, fullKey.targetingKey)
-          && Objects.equals(contextKey, fullKey.contextKey);
+          && Objects.equals(contextKey, fullKey.contextKey)
+          && Objects.equals(featuresKey, fullKey.featuresKey);
     }
 
     @Override
@@ -389,7 +437,8 @@ final class FlagEvaluationAggregator {
       result = addToHash(result, errorMessage);
       result = addToHash(result, targetingKey);
       result = addToHash(result, contextKey);
-      return addToHash(result, observeFullEvaluationData);
+      result = addToHash(result, observeFullEvaluationData);
+      return addToHash(result, featuresKey);
     }
   }
 
@@ -406,18 +455,21 @@ final class FlagEvaluationAggregator {
     private final String allocationKey;
     private final boolean runtimeDefaultUsed;
     private final String errorMessage;
+    private final String featuresKey;
 
     DegradedKey(
         final String flagKey,
         final String variant,
         final String allocationKey,
         final boolean runtimeDefaultUsed,
-        final String errorMessage) {
+        final String errorMessage,
+        final String featuresKey) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
       this.runtimeDefaultUsed = runtimeDefaultUsed;
       this.errorMessage = errorMessage;
+      this.featuresKey = featuresKey;
     }
 
     @Override
@@ -433,7 +485,8 @@ final class FlagEvaluationAggregator {
           && Objects.equals(flagKey, that.flagKey)
           && Objects.equals(variant, that.variant)
           && Objects.equals(allocationKey, that.allocationKey)
-          && Objects.equals(errorMessage, that.errorMessage);
+          && Objects.equals(errorMessage, that.errorMessage)
+          && Objects.equals(featuresKey, that.featuresKey);
     }
 
     @Override
@@ -442,7 +495,8 @@ final class FlagEvaluationAggregator {
       // on this hot bucket-lookup path.
       int result = hash(flagKey, variant, allocationKey);
       result = addToHash(result, runtimeDefaultUsed);
-      return addToHash(result, errorMessage);
+      result = addToHash(result, errorMessage);
+      return addToHash(result, featuresKey);
     }
   }
 

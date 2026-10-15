@@ -29,6 +29,19 @@ class ExposuresRequestTest {
   }
 
   @Test
+  void serializesExposureFeaturesAfterTheSerialId() {
+    final String json = exposureJson(7, singletonMap("bandit.policy_id", "p2"));
+
+    assertTrue(json.contains("\"serial_id\":7,\"features\":{\"bandit.policy_id\":\"p2\"}"));
+  }
+
+  @Test
+  void omitsFeaturesKeyWhenAbsentOrEmpty() {
+    assertFalse(exposureJson(7).contains("features"));
+    assertFalse(exposureJson(7, emptyMap()).contains("features"));
+  }
+
+  @Test
   void serializesContextAndSubject() {
     final ExposureEvent event =
         new ExposureEvent(
@@ -49,6 +62,10 @@ class ExposuresRequestTest {
   }
 
   private static String exposureJson(final Integer serialId) {
+    return exposureJson(serialId, null);
+  }
+
+  private static String exposureJson(final Integer serialId, final Map<String, Object> features) {
     final ExposureEvent event =
         new ExposureEvent(
             1234L,
@@ -56,7 +73,8 @@ class ExposuresRequestTest {
             new Flag("flag"),
             new Variant("variant"),
             new Subject("subject", emptyMap()),
-            serialId);
+            serialId,
+            features);
     return new String(new ExposuresRequest(emptyMap(), singletonList(event)).serialize(), UTF_8);
   }
 }

@@ -119,6 +119,10 @@ final class FlagEvaluationPayloads {
             generator.writeStringField("message", event.error.message);
             generator.writeEndObject();
           }
+          if (event.features != null) {
+            generator.writeFieldName("features");
+            writeValue(generator, event.features);
+          }
           generator.writeEndObject();
         });
   }
@@ -213,6 +217,7 @@ final class FlagEvaluationPayloads {
     public final Boolean runtime_default_used;
     public final EventContext context;
     public final ErrorObject error;
+    public final Map<String, Object> features;
 
     FlagEvaluationEvent(
         final long timestamp,
@@ -225,7 +230,8 @@ final class FlagEvaluationPayloads {
         final String targetingKey,
         final boolean runtimeDefaultUsed,
         final String errorMessage,
-        final Map<String, Object> evaluationAttrs) {
+        final Map<String, Object> evaluationAttrs,
+        final Map<String, Object> features) {
       this.timestamp = timestamp;
       this.flag = new FlagKeyObject(flagKey);
       this.first_evaluation = firstEvalMs;
@@ -242,6 +248,7 @@ final class FlagEvaluationPayloads {
               : null;
       this.error =
           (errorMessage != null && !errorMessage.isEmpty()) ? new ErrorObject(errorMessage) : null;
+      this.features = (features != null && !features.isEmpty()) ? features : null;
     }
 
     static FlagEvaluationEvent fromBucket(
@@ -261,7 +268,10 @@ final class FlagEvaluationPayloads {
           resolveTargetingKey(bucket.targetingKey, isFullTier, observeFullEvaluationData),
           bucket.runtimeDefaultUsed,
           bucket.errorMessage,
-          includeRawContext ? bucket.prunedAttrs : null);
+          includeRawContext ? bucket.prunedAttrs : null,
+          // Features come from the flag configuration, so both tiers keep them whatever the
+          // consent.
+          bucket.features);
     }
 
     private static String resolveTargetingKey(
@@ -292,7 +302,8 @@ final class FlagEvaluationPayloads {
           null,
           Boolean.TRUE.equals(runtime_default_used),
           messageOf(error),
-          null);
+          null,
+          features);
     }
   }
 
