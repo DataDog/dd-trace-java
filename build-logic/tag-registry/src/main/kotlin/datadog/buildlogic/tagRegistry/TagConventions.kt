@@ -249,6 +249,28 @@ class TagConventions private constructor(
       )
     }
 
+    /** A span type declaration, from the shared conventions or a tracer overlay. */
+    @Suppress("UNCHECKED_CAST")
+    private fun parseSpanType(name: String, v: Any?): SpanType {
+      require(v is Map<*, *>) { "span type '$name' must be a mapping" }
+      val m = v as Map<String, Any?>
+      require(m["abstract"] == null || m["abstract"] is Boolean) { "span type '$name' abstract must be a boolean" }
+      require(m["extends"] == null || m["extends"] is String) { "span type '$name' extends must be a span type name" }
+      val include = m["include"]
+      require(include == null || (include is List<*> && include.all { it is String })) {
+        "span type '$name' include must be a list of mixin names"
+      }
+      return SpanType(
+        name = name,
+        abstract = (m["abstract"] as? Boolean) ?: false,
+        extends = m["extends"] as? String,
+        include = (m["include"] as? List<String>) ?: emptyList(),
+        tags = tagList(m["tags"]),
+        refs = refList(m["tags"]),
+        direction = parseDirection(m, "span type '$name'"),
+      )
+    }
+
     /** A mixin declaration, from the shared conventions or a tracer overlay. */
     @Suppress("UNCHECKED_CAST")
     private fun parseMixin(name: String, v: Any?): Mixin {
@@ -283,16 +305,17 @@ class TagConventions private constructor(
     /**
      * Parses [root], the language-agnostic conventions, plus [overlay], this tracer's own additions:
      * `tags` declares keys that exist only to be routed (e.g. `resource.name`), so each is
-     * intercepted; `mixins` declares this tracer's own tags (e.g. servlet's), each mixin pushed onto
-     * shared span types with `applies`; and `intercepted` adds the declared tags the tracer also
-     * routes.
+     * intercepted; `span_types` declares this tracer's own span types, each extending a shared one
+     * (e.g. servlet's request extends http.server); `mixins` declares this tracer's cross-cutting
+     * tags, each mixin pushed onto span types with `applies`; and `intercepted` adds the declared
+     * tags the tracer also routes.
      */
     @Suppress("UNCHECKED_CAST")
     fun parse(root: Map<String, Any?>, overlay: Map<String, Any?> = emptyMap()): TagConventions {
       for (section in listOf("span_types", "mixins", "trace_level")) {
         require(root[section] == null || root[section] is Map<*, *>) { "$section must be a mapping" }
       }
-      val overlayKeys = setOf("tags", "mixins", "intercepted")
+      val overlayKeys = setOf("tags", "span_types", "mixins", "intercepted")
       require(overlay.keys.all { it in overlayKeys }) {
         "the tracer overlay may only declare $overlayKeys, not ${overlay.keys - overlayKeys}"
       }
@@ -305,31 +328,20 @@ class TagConventions private constructor(
       val intercepted =
         ((interceptedRaw as? List<String>) ?: emptyList()).toSet() +
           tagList(overlay["tags"]).map { it.ddName }
-      val spanTypesRaw = (root["span_types"] as? Map<String, Any?>) ?: emptyMap()
-      val parsedSpanTypes =
-        spanTypesRaw.mapValues { (name, v) ->
-          require(v is Map<*, *>) { "span type '$name' must be a mapping" }
-          val m = v as Map<String, Any?>
-          require(m["abstract"] == null || m["abstract"] is Boolean) {
-            "span type '$name' abstract must be a boolean"
-          }
-          require(m["extends"] == null || m["extends"] is String) {
-            "span type '$name' extends must be a span type name"
-          }
-          val include = m["include"]
-          require(include == null || (include is List<*> && include.all { it is String })) {
-            "span type '$name' include must be a list of mixin names"
-          }
-          SpanType(
-            name = name,
-            abstract = (m["abstract"] as? Boolean) ?: false,
-            extends = m["extends"] as? String,
-            include = (m["include"] as? List<String>) ?: emptyList(),
-            tags = tagList(m["tags"]),
-            refs = refList(m["tags"]),
-            direction = parseDirection(m, "span type '$name'"),
-          )
+      val rootSpanTypes = ((root["span_types"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) -> parseSpanType(name, v) }
+      require(overlay["span_types"] == null || overlay["span_types"] is Map<*, *>) {
+        "tracer overlay span_types must be a mapping"
+      }
+      // A tracer's span type extends a shared concept with tags only this tracer sets (servlet's
+      // request on http.server, say).
+      val overlaySpanTypes =
+        ((overlay["span_types"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) ->
+          require(name !in rootSpanTypes) { "tracer overlay span type '$name' reuses the name of a shared span type" }
+          val spanType = parseSpanType(name, v)
+          require(spanType.extends != null) { "tracer overlay span type '$name' must extend a span type" }
+          spanType
         }
+      val parsedSpanTypes = rootSpanTypes + overlaySpanTypes
 
       require(overlay["mixins"] == null || overlay["mixins"] is Map<*, *>) {
         "tracer overlay mixins must be a mapping"
