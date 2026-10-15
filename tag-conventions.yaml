@@ -83,6 +83,8 @@ trace_level:
     # local root span tags
     - { dd-name: _dd.trace_span_attribute_schema, type: int, required: required }
     - { dd-name: _dd.profiling.ctx,      type: string,  required: optional }     # once the profiling context integration is available
+    - { dd-name: process_id,             type: long,    required: required }
+    - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
 
 span_types:
   # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
@@ -100,6 +102,7 @@ span_types:
       - { dd-name: error.message,   type: string, required: recommended }
       - { dd-name: error.stack,     type: string, required: recommended }
       - { dd-name: _dd.span_links,  type: string, required: optional }  # JSON; only for a span with links, when links are injected as tags
+      - { dd-name: events,          type: string, required: optional }  # span events as JSON, when the writer can't encode them natively
 
   http:
     abstract: true
@@ -226,6 +229,7 @@ span_types:
       - { dd-name: _dd.propagated_hash,         type: string,  required: optional }
       - { dd-name: _dd.instrumentation.time_ms, type: long,    required: optional }
       - { dd-name: bucket,                      type: string,  required: optional }  # Couchbase
+      - { dd-name: couchbase.operation_id,      type: string,  required: optional }
 
   view.render:
     extends: base
@@ -273,6 +277,8 @@ span_types:
       - { dd-name: rpc.service,          type: string, required: recommended }  # set on client spans (and SofaRPC servers)
       - { dd-name: rpc.grpc.status_code, type: int,    required: conditional }
       - { dd-name: message.type,         type: string, required: optional }     # on gRPC message child spans
+      - { dd-name: status.code,          type: string, required: conditional }  # gRPC status code name, on close
+      - { dd-name: status.description,   type: string, required: optional }
 
   rpc.client:
     extends: rpc
@@ -363,6 +369,12 @@ mixins:
     applies: [ http.server, rpc.server, messaging.consumer, internal ]
     tags:
       - { dd-name: _dd.code_origin.type, type: string, required: optional }
+
+  # exception_replay — Exception Replay, on any span carrying an exception it captured.
+  exception_replay:
+    applies: all
+    tags:
+      - { dd-name: error.debug_info_captured, type: boolean, required: optional }
 
   # data_streams — Data Streams Monitoring checkpoints, on the spans that carry or receive a pathway.
   data_streams:

@@ -44,6 +44,17 @@ class TagConstantsRegistryCoverageTest {
   static final Map<String, String> NEVER_REGISTERED = new TreeMap<>();
 
   static {
+    NEVER_REGISTERED.put(
+        "DDTags.RUNTIME_VERSION_TAG", "a profiling and telemetry tag, not a span tag");
+    NEVER_REGISTERED.put(
+        "DDTags.THREAD_ID", "a span field, written by the serializers; never stored as a tag");
+    NEVER_REGISTERED.put(
+        "DDTags.THREAD_NAME", "a span field, written by the serializers; never stored as a tag");
+    NEVER_REGISTERED.put(
+        "DDTags.TRACE_START_TIME", "a baggage key (legacy end-to-end timing), not a tag");
+    NEVER_REGISTERED.put("Tags.DD_ENV", "a log correlation (MDC) key, not a span tag");
+    NEVER_REGISTERED.put("Tags.DD_SERVICE", "a log correlation (MDC) key, not a span tag");
+    NEVER_REGISTERED.put("Tags.DD_VERSION", "a log correlation (MDC) key, not a span tag");
     NEVER_REGISTERED.put("DDTags.DB_STATEMENT", "unused, but public API");
     NEVER_REGISTERED.put(
         "DDTags.DD_CODE_ORIGIN_FRAME_*",
@@ -66,6 +77,13 @@ class TagConstantsRegistryCoverageTest {
   static final Map<String, String> NOT_YET_REGISTERED_FAMILIES = new TreeMap<>();
 
   static {
+    NOT_YET_REGISTERED_FAMILIES.put("Tags.OS_*", "CI Visibility, in a follow-up PR");
+    NOT_YET_REGISTERED_FAMILIES.put("Tags.RUNTIME_*", "CI Visibility, in a follow-up PR");
+    NOT_YET_REGISTERED_FAMILIES.put("DDTags.HOST_VCPU_COUNT", "CI Visibility, in a follow-up PR");
+    NOT_YET_REGISTERED_FAMILIES.put(
+        "DDTags.LIBRARY_VERSION_TAG_KEY", "CI Visibility, in a follow-up PR");
+    NOT_YET_REGISTERED_FAMILIES.put("Tags.ITR_CORRELATION_ID", "CI Visibility, in a follow-up PR");
+    NOT_YET_REGISTERED_FAMILIES.put("Tags.PULL_REQUEST_NUMBER", "CI Visibility, in a follow-up PR");
     NOT_YET_REGISTERED_FAMILIES.put("DDTags.CI_*", "CI Visibility, in a follow-up PR");
     NOT_YET_REGISTERED_FAMILIES.put("DDTags.TEST_*", "CI Visibility, in a follow-up PR");
     NOT_YET_REGISTERED_FAMILIES.put("Tags.CI_*", "CI Visibility, in a follow-up PR");
@@ -74,37 +92,11 @@ class TagConstantsRegistryCoverageTest {
     NOT_YET_REGISTERED_FAMILIES.put("Tags.TEST_*", "CI Visibility, in a follow-up PR");
   }
 
-  /** Single constants not registered yet. Remove an entry when its tag is registered. */
-  static final Set<String> NOT_YET_REGISTERED =
-      new HashSet<>(
-          Arrays.asList(
-              "DDTags.HOST_VCPU_COUNT",
-              "DDTags.LIBRARY_VERSION_TAG_KEY",
-              "DDTags.PID_TAG",
-              "DDTags.RUNTIME_VERSION_TAG",
-              "DDTags.SPAN_EVENTS",
-              "DDTags.THREAD_ID",
-              "DDTags.THREAD_NAME",
-              "DDTags.TRACE_START_TIME",
-              "DDTags.USER_NAME",
-              "InstrumentationTags.COUCHBASE_OPERATION_ID",
-              "InstrumentationTags.EVENT",
-              "InstrumentationTags.STATUS_CODE",
-              "InstrumentationTags.STATUS_DESCRIPTION",
-              "InstrumentationTags.TIMEOUT",
-              "Tags.AI_GUARD_EVENT",
-              "Tags.DD_ENV",
-              "Tags.DD_SERVICE",
-              "Tags.DD_VERSION",
-              "Tags.ERROR_DEBUG_INFO_CAPTURED",
-              "Tags.ITR_CORRELATION_ID",
-              "Tags.OS_ARCHITECTURE",
-              "Tags.OS_PLATFORM",
-              "Tags.OS_VERSION",
-              "Tags.PULL_REQUEST_NUMBER",
-              "Tags.RUNTIME_NAME",
-              "Tags.RUNTIME_VENDOR",
-              "Tags.RUNTIME_VERSION"));
+  /**
+   * Single constants not registered yet. Remove an entry when its tag is registered. Empty: every
+   * constant outside the families above is registered or deliberately never registered.
+   */
+  static final Set<String> NOT_YET_REGISTERED = new HashSet<>();
 
   @Test
   void everyTagConstantIsRegisteredOrListed() {

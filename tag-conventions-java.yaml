@@ -39,6 +39,8 @@ span_types:
     tags:
       - { dd-name: servlet.context, type: string, required: optional }
       - { dd-name: servlet.path,    type: string, required: optional }
+      - { dd-name: user.principal,  type: string, required: optional }  # the authenticated principal's name
+      - { dd-name: timeout,         type: long,   required: optional }  # Servlet 3 async timeout, when it fires
 
   # Spring Web MVC view rendering: the rendered view's class.
   spring.view.render:
@@ -58,6 +60,7 @@ span_types:
     extends: http.client
     tags:
       - { dd-name: message, type: string, required: optional }
+      - { dd-name: event,   type: string, required: optional }  # "cancelled"
 
   # TIBCO BusinessWorks process and activity spans: the app node and version.
   tibco.process:
