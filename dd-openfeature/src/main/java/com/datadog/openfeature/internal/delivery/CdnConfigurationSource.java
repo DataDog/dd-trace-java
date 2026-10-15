@@ -222,6 +222,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
       return false;
     }
     if (status != HttpURLConnection.HTTP_OK || response.body() == null) {
+      warn("Feature Flags configuration endpoint returned HTTP {}", status);
       return false;
     }
     final ServerConfiguration configuration;

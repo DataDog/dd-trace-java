@@ -258,7 +258,11 @@ public final class Settings {
       }
       try {
         final int parsed = Integer.parseInt(value);
-        return parsed > 0 ? parsed : defaultValue;
+        if (parsed > 0) {
+          return parsed;
+        }
+        LOGGER.warn("Invalid value for {}: {}. The value must be positive", key, value);
+        return defaultValue;
       } catch (final NumberFormatException e) {
         LOGGER.warn("Invalid value for {}: {}", key, value);
       }
