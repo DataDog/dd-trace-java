@@ -150,6 +150,65 @@ span_types:
     tags:
       - { dd-name: http.resend_count, type: int,    required: recommended }
 
+  # AWS SDK calls: HTTP client spans, one type per AWS service (a span never carries two services'
+  # tags). aws.client itself covers the services not modeled below. The request tags shared with SQS
+  # consumer spans are the aws_request mixin.
+  aws.client:
+    extends: http.client
+
+  aws.s3:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.bucket.name,   type: string, required: optional }
+      - { dd-name: bucketname,        type: string, required: optional }
+      - { dd-name: aws.object.key,    type: string, required: optional }
+      - { dd-name: aws.storage.class, type: string, required: optional }
+      # Data Streams payload sizes, when Data Streams is enabled.
+      - { dd-name: http.request_content_length,  type: long, required: optional }
+      - { dd-name: http.response_content_length, type: long, required: optional }
+      # Span pointer input, removed before serialization (SpanPointersProcessor).
+      - { dd-name: s3.eTag,           type: string, required: optional }
+
+  aws.sqs:
+    extends: aws.client
+
+  aws.sns:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.topic.arn,  type: string, required: optional }
+      - { dd-name: aws.topic.name, type: string, required: optional }
+      - { dd-name: topicname,      type: string, required: optional }
+
+  aws.kinesis:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.stream.name, type: string, required: optional }
+      - { dd-name: streamname,      type: string, required: optional }
+      - { dd-name: aws.stream.arn,  type: string, required: optional }
+
+  aws.dynamodb:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.table.name, type: string, required: optional }
+      - { dd-name: tablename,      type: string, required: optional }
+      # Span pointer input, removed before serialization (SpanPointersProcessor).
+      - { dd-name: dynamodb.primary_key_1,       type: string, required: optional }
+      - { dd-name: dynamodb.primary_key_1_value, type: string, required: optional }
+      - { dd-name: dynamodb.primary_key_2,       type: string, required: optional }
+      - { dd-name: dynamodb.primary_key_2_value, type: string, required: optional }
+
+  aws.sfn:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.state_machine.arn, type: string, required: optional }
+      - { dd-name: aws.execution.arn,     type: string, required: optional }
+
+  aws.lambda:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.function.name, type: string, required: optional }
+      - { dd-name: aws.function.arn,  type: string, required: optional }  # when the function is named by ARN
+
   db.client:
     extends: base
     span-kind: client
@@ -316,6 +375,26 @@ mixins:
     tags:
       - { dd-name: dsm.transaction.id,         type: string, required: optional }
       - { dd-name: dsm.transaction.checkpoint, type: string, required: optional }
+
+  # aws_request — an AWS SDK request: on AWS client spans, and on the SQS consumer and broker spans that
+  # receive its messages.
+  aws_request:
+    applies: [ aws.client, messaging.consumer, messaging.broker ]
+    tags:
+      - { dd-name: aws.agent,     type: string, required: recommended }
+      - { dd-name: aws.service,   type: string, required: recommended }
+      - { dd-name: aws_service,   type: string, required: recommended }
+      - { dd-name: aws.operation, type: string, required: recommended }
+      - { dd-name: aws.endpoint,  type: string, required: optional }     # SDK v1 only
+      - { dd-name: aws.requestId, type: string, required: optional }
+
+  # aws_sqs_queue — the SQS queue, on SQS client spans and on SQS consumer and broker spans.
+  aws_sqs_queue:
+    applies: [ aws.sqs, messaging.consumer, messaging.broker ]
+    tags:
+      - { dd-name: aws.queue.url,  type: string, required: optional }
+      - { dd-name: aws.queue.name, type: string, required: optional }
+      - { dd-name: queuename,      type: string, required: optional }
 
   # kafka — Kafka producer and consumer spans (and Kafka Streams consumers).
   kafka:
