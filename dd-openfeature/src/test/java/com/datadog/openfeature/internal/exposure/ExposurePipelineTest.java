@@ -105,30 +105,18 @@ class ExposurePipelineTest {
   }
 
   @Test
-  void testLruCache() throws Exception {
-    final List<ExposureEvent> exposures = buildExposures(6);
+  void sendsEveryExposureAsTheProviderDeduplicatesThem() throws Exception {
+    final List<ExposureEvent> exposures = buildExposures(3);
 
     try (ExposurePipeline pipeline = pipeline(emptyMap())) {
       pipeline.start();
-      // populating the cache
+      exposures.forEach(pipeline);
       exposures.forEach(pipeline);
 
-      // all events are written
-      eventually(() -> allExposures().size() == exposures.size());
-
-      // publishing duplicate events
-      exposures.forEach(pipeline);
-
-      // no events are written
-      MILLISECONDS.sleep(300); // wait until a flush happens
-      assertEquals(exposures.size(), allExposures().size());
-
-      // a new event is generated
-      pipeline.accept(buildExposure());
-
-      // oldest event is evicted and the new one is submitted
-      eventually(() -> allExposures().size() == exposures.size() + 1);
+      eventually(() -> allExposures().size() == 2 * exposures.size());
     }
+
+    assertEquals(keys(exposures), exposureKeys(allExposures()));
   }
 
   @Test

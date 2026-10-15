@@ -1,5 +1,10 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 /**
  * Unit tests for {@link FlagEvalLoggingHook}: context capture, non-blocking enqueue, eval-time
@@ -111,6 +117,83 @@ class FlagEvalLoggingHookTest {
     assertEquals("my-flag", e.flagKey);
     assertEquals("on", e.variant, "variant must be the OpenFeature variant key");
     assertEquals("alloc-1", e.allocationKey);
+  }
+
+  @TableTest({
+    "scenario    | consent",
+    "consent on  | true   ",
+    "consent off | false  "
+  })
+  void finallyAfterAddsEvaluationFeaturesWhateverTheConsent(final boolean consent) {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    hook.finallyAfter(
+        null,
+        details(
+            "my-flag",
+            "on-value",
+            "on",
+            Reason.TARGETING_MATCH.name(),
+            ImmutableMetadata.builder()
+                .addString("allocationKey", "alloc-1")
+                .addBoolean(OBSERVE_FULL_EVALUATION_DATA, consent)
+                .addString(EVALUATION_FEATURE_PREFIX + "bandit.policy_id", "p2")
+                .addBoolean(HAS_EVALUATION_FEATURES, true)
+                .addString(FEATURE_PREFIX + "holdout.key", "q4-global")
+                .addString(EXPOSURE_FEATURE_PREFIX + "bandit.arm", "a")
+                .build()),
+        Collections.emptyMap());
+
+    assertEquals(
+        Collections.singletonMap("bandit.policy_id", "p2"),
+        captured.get().features,
+        "only EVALUATION features reach the event, whatever the consent");
+  }
+
+  @Test
+  void finallyAfterSkipsEvaluationFeaturesWithoutTheMarker() {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    hook.finallyAfter(
+        null,
+        details(
+            "my-flag",
+            "on-value",
+            "on",
+            Reason.TARGETING_MATCH.name(),
+            ImmutableMetadata.builder()
+                .addString(EVALUATION_FEATURE_PREFIX + "bandit.policy_id", "p2")
+                .build()),
+        Collections.emptyMap());
+
+    assertTrue(captured.get().features.isEmpty());
+  }
+
+  @Test
+  void finallyAfterIgnoresMetadataOfTheWrongType() {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    hook.finallyAfter(
+        null,
+        details(
+            "my-flag",
+            "on-value",
+            "on",
+            Reason.TARGETING_MATCH.name(),
+            ImmutableMetadata.builder()
+                .addInteger("allocationKey", 1)
+                .addString("__dd_eval_timestamp_ms", "now")
+                .addString(OBSERVE_FULL_EVALUATION_DATA, "true")
+                .build()),
+        Collections.emptyMap());
+
+    final FlagEvalEvent event = captured.get();
+    assertNull(event.allocationKey);
+    assertFalse(event.observeFullEvaluationData);
+    assertTrue(event.evalTimeMs > 0);
   }
 
   // ---- variant comes from details.getVariant(), NOT details.getValue() ----
@@ -599,9 +682,7 @@ class FlagEvalLoggingHookTest {
             .ctx(context)
             .build();
     final ImmutableMetadata consentOff =
-        ImmutableMetadata.builder()
-            .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
-            .build();
+        ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, false).build();
 
     hook.finallyAfter(
         hookCtx,
@@ -623,9 +704,7 @@ class FlagEvalLoggingHookTest {
     final ImmutableMetadata metadata =
         consent == null
             ? null
-            : ImmutableMetadata.builder()
-                .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, consent)
-                .build();
+            : ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, consent).build();
     hook.finallyAfter(
         hookCtxWithTargetingKey("obs-flag", "user-1"),
         details("obs-flag", "on", "on", Reason.TARGETING_MATCH.name(), metadata),
@@ -635,14 +714,10 @@ class FlagEvalLoggingHookTest {
   }
 
   private static ImmutableMetadata consentOnMetadata() {
-    return ImmutableMetadata.builder()
-        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
-        .build();
+    return ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, true).build();
   }
 
   private static ImmutableMetadata consentOffMetadata() {
-    return ImmutableMetadata.builder()
-        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
-        .build();
+    return ImmutableMetadata.builder().addBoolean(OBSERVE_FULL_EVALUATION_DATA, false).build();
   }
 }

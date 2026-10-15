@@ -1,5 +1,6 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -122,8 +123,7 @@ public class FlagEvalHookHotPathBenchmark {
             ImmutableMetadata.builder()
                 .addString("allocationKey", "alloc-1")
                 .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
-                .addBoolean(
-                    DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+                .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
                 .build())
         .build();
   }

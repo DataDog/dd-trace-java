@@ -1,5 +1,6 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static dev.openfeature.sdk.Reason.ERROR;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -23,6 +25,7 @@ import static org.mockito.Mockito.when;
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.connector.Connector;
+import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
@@ -38,6 +41,9 @@ import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.FlagValueType;
+import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -256,9 +262,7 @@ public class DDEvaluatorTest {
 
     assertThat(details.getReason(), equalTo("STATIC"));
     assertThat(details.getVariant(), equalTo("on"));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(true));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(true));
   }
 
   @Test
@@ -270,9 +274,7 @@ public class DDEvaluatorTest {
 
     assertThat(details.getReason(), equalTo("STATIC"));
     assertThat(details.getVariant(), equalTo("on"));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(false));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(false));
   }
 
   // -- DISABLED path: flag.enabled=false --
@@ -282,9 +284,7 @@ public class DDEvaluatorTest {
     final ProviderEvaluation<?> details = evaluateDisabledFlag(true);
 
     assertThat(details.getReason(), equalTo("DISABLED"));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(true));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(true));
   }
 
   @Test
@@ -292,9 +292,7 @@ public class DDEvaluatorTest {
     final ProviderEvaluation<?> details = evaluateDisabledFlag(false);
 
     assertThat(details.getReason(), equalTo("DISABLED"));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(false));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(false));
   }
 
   // -- DEFAULT path: no allocation matches --
@@ -306,9 +304,7 @@ public class DDEvaluatorTest {
     final ProviderEvaluation<?> details = evaluateWithEmptySplits(true);
 
     assertThat(details.getReason(), equalTo("DEFAULT"));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(true));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(true));
   }
 
   @Test
@@ -316,9 +312,7 @@ public class DDEvaluatorTest {
     final ProviderEvaluation<?> details = evaluateWithEmptySplits(false);
 
     assertThat(details.getReason(), equalTo("DEFAULT"));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(false));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(false));
   }
 
   // -- error paths: FLAG_NOT_FOUND / PROVIDER_NOT_READY (via consentMetadata in error()) --
@@ -335,9 +329,7 @@ public class DDEvaluatorTest {
         evaluator.evaluate(Integer.class, "unknown-flag", 23, ctx);
 
     assertThat(details.getErrorCode(), equalTo(ErrorCode.FLAG_NOT_FOUND));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(true));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(true));
   }
 
   @Test
@@ -346,9 +338,7 @@ public class DDEvaluatorTest {
     final ProviderEvaluation<?> details =
         evaluator.evaluate(Integer.class, "test", 23, mock(EvaluationContext.class));
     assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(false));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(false));
   }
 
   @Test
@@ -366,9 +356,7 @@ public class DDEvaluatorTest {
 
     // Flags still evaluate — availability preserved despite the malformed consent field.
     assertThat(details.getReason(), equalTo("DEFAULT"));
-    assertThat(
-        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
-        equalTo(false));
+    assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(false));
   }
 
   // ---- exposure events carry the split's serial id ----
@@ -389,14 +377,27 @@ public class DDEvaluatorTest {
   }
 
   /**
-   * Evaluates a logging allocation whose split carries the given serial id and returns the single
-   * dispatched exposure. Span enrichment is off here, as it is by default, so this also pins that
-   * the serial id does not travel via the enrichment-gated evaluation metadata.
+   * Evaluates a logging allocation whose split carries the given serial id, then runs the exposure
+   * hook as OpenFeature would after a successful evaluation, and returns the single dispatched
+   * exposure. Span enrichment is off here, as it is by default, so this also pins that the serial
+   * id reaches the hook without span enrichment.
    */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   private static ExposureEvent exposureFor(final Integer serialId) {
     final List<ExposureEvent> dispatched = new ArrayList<>();
+    final ExposureDeduplicationCache cache = new ExposureDeduplicationCache();
     final DDEvaluator evaluator =
         new DDEvaluator(mock(Runnable.class), Connector.NONE, TestSettings.of()) {
+          @Override
+          ExposureDeduplicationCache exposureCache() {
+            return cache;
+          }
+
+          @Override
+          boolean isExposureDeliveryEnabled() {
+            return true;
+          }
+
           @Override
           void recordExposure(final ExposureEvent event) {
             dispatched.add(event);
@@ -412,8 +413,24 @@ public class DDEvaluatorTest {
         "target",
         new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
     evaluator.accept(new ServerConfiguration("", "", true, null, flags));
-    evaluator.evaluate(
-        Integer.class, "target", 23, new MutableContext("target").setTargetingKey("user-1"));
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
+
+    final ProviderEvaluation<Integer> evaluation =
+        evaluator.evaluate(Integer.class, "target", 23, ctx);
+    assertTrue(dispatched.isEmpty(), "resolving a flag must not send an exposure by itself");
+    final HookContext<Object> hookContext =
+        HookContext.<Object>builder()
+            .flagKey("target")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(23)
+            .ctx(ctx)
+            .build();
+    new ExposureLoggingHook<>(() -> evaluator)
+        .finallyAfter(
+            hookContext,
+            (FlagEvaluationDetails) FlagEvaluationDetails.from(evaluation, "target"),
+            emptyMap());
+
     assertEquals(1, dispatched.size());
     return dispatched.get(0);
   }

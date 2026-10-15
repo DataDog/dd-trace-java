@@ -1,5 +1,11 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVAL_TIMESTAMP_MS;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
+
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -73,11 +79,16 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final ImmutableMetadata metadata = details.getFlagMetadata();
 
       // allocationKey: "allocationKey" (camelCase) - consistent with FlagEvalMetricsHook.java
-      final String allocationKey = metadata != null ? metadata.getString("allocationKey") : null;
+      // The ImmutableMetadata getters build a debug message for every absent key.
+      final Map<String, Object> values =
+          metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+      final Object allocationValue = values.get(ALLOCATION_KEY);
+      final String allocationKey =
+          allocationValue instanceof String ? (String) allocationValue : null;
 
       // eval-time: from flag metadata "__dd_eval_timestamp_ms" (Long), fallback to hook-fire time.
-      // ImmutableMetadata.getLong available since sdk 1.4+.
-      final Long evalTimeObj = metadata != null ? metadata.getLong("__dd_eval_timestamp_ms") : null;
+      final Object evalTimeValue = values.get(EVAL_TIMESTAMP_MS);
+      final Long evalTimeObj = evalTimeValue instanceof Long ? (Long) evalTimeValue : null;
       final long evalTimeMs = evalTimeObj != null ? evalTimeObj : System.currentTimeMillis();
 
       // variant: the OpenFeature variant key (same source as the OTel FlagEvalMetricsHook), NOT the
@@ -90,10 +101,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
 
       // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
       // Missing key = non-DD provider → false, the privacy-preserving default.
+      final Object consentValue = values.get(OBSERVE_FULL_EVALUATION_DATA);
       final Boolean consentFromMetadata =
-          metadata != null
-              ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
-              : null;
+          consentValue instanceof Boolean ? (Boolean) consentValue : null;
       final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
 
       // Error message: prefer the human-readable message under consent-on; under consent-off the
@@ -126,6 +136,12 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
         attrs = Collections.emptyMap();
       }
 
+      // Features come from the flag configuration, not the evaluation context, so they are sent
+      // whatever the consent.
+      final Map<String, Object> features =
+          Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
+              ? SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
+              : Collections.<String, Object>emptyMap();
       w.enqueue(
           new FlagEvalEvent(
               flagKey,
@@ -135,7 +151,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
               errorMessage,
               evalTimeMs,
               observeFullEvaluationData,
-              attrs));
+              attrs,
+              features));
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }

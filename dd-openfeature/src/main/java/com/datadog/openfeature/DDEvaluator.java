@@ -7,13 +7,13 @@ import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.connector.Connector;
 import com.datadog.openfeature.internal.evaluation.ConfigurationStore;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
+import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.Subject;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import dev.openfeature.sdk.EvaluationContext;
-import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Structure;
@@ -82,15 +82,6 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
    */
   static final int MAX_STRUCTURE_PROPERTIES = 256;
 
-  // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
-  // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
-  static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
-  static final String METADATA_DO_LOG = "__dd_do_log";
-
-  // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
-  // key = non-DD provider; the hook falls back to false (fail-closed).
-  static final String METADATA_OBSERVE_FULL_EVALUATION_DATA = "observe_full_evaluation_data";
-
   private final Runnable configCallback;
   private final Connector connector;
   private final Settings settings;
@@ -102,9 +93,9 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     this.configCallback = configCallback;
     this.connector = connector;
     this.settings = settings;
-    // When span enrichment is off, the __dd_* span-enrichment metadata is not attached to
-    // evaluations, so an enabled provider pays nothing extra.
-    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::dispatchExposure);
+    // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
+    // evaluations of allocations logging exposures, for the exposure hook.
+    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::isExposed);
   }
 
   @Override
@@ -173,25 +164,62 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     return FlagEvaluator.mapValue(target, value);
   }
 
-  private void dispatchExposure(
+  private boolean isExposed(
       final String flag,
-      final ProviderEvaluation<?> evaluation,
+      final String subject,
+      final String allocation,
+      final String variant,
+      final Integer serialId) {
+    final ExposureDeduplicationCache cache = exposureCache();
+    return cache != null && cache.contains(flag, subject, allocation, variant, serialId);
+  }
+
+  /**
+   * Gets the exposure deduplication cache of the runtime.
+   *
+   * @return the cache, or {@code null} if the evaluator is not initialized.
+   */
+  ExposureDeduplicationCache exposureCache() {
+    final FeatureFlagsRuntime current = this.runtime;
+    return current == null ? null : current.exposureCache();
+  }
+
+  /**
+   * Tells whether exposures are sent to Datadog.
+   *
+   * @return whether the evaluator is initialized with exposure delivery enabled.
+   */
+  boolean isExposureDeliveryEnabled() {
+    final FeatureFlagsRuntime current = this.runtime;
+    return current != null && current.isExposureDeliveryEnabled();
+  }
+
+  /**
+   * Builds the exposure of an evaluation.
+   *
+   * @param flag the flag key.
+   * @param allocationKey the allocation key.
+   * @param variantKey the variant key.
+   * @param context the evaluation context.
+   * @param serialId the split serial id, or {@code null} if absent.
+   * @param features the split features sent with the exposure, possibly empty.
+   * @return the exposure event.
+   */
+  static ExposureEvent exposureEvent(
+      final String flag,
+      final String allocationKey,
+      final String variantKey,
+      final EvaluationContext context,
       final Integer serialId,
-      final EvaluationContext context) {
-    final String allocationKey = allocationKey(evaluation);
-    final String variantKey = evaluation.getVariant();
-    if (allocationKey == null || variantKey == null) {
-      return;
-    }
-    final ExposureEvent event =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new com.datadog.openfeature.internal.exposure.Allocation(allocationKey),
-            new com.datadog.openfeature.internal.exposure.Flag(flag),
-            new com.datadog.openfeature.internal.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)),
-            serialId);
-    recordExposure(event);
+      final Map<String, Object> features) {
+    return new ExposureEvent(
+        System.currentTimeMillis(),
+        new com.datadog.openfeature.internal.exposure.Allocation(allocationKey),
+        new com.datadog.openfeature.internal.exposure.Flag(flag),
+        new com.datadog.openfeature.internal.exposure.Variant(variantKey),
+        new Subject(context.getTargetingKey(), flattenContext(context)),
+        serialId,
+        features.isEmpty() ? null : features);
   }
 
   /**
@@ -204,11 +232,6 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     if (current != null) {
       current.recordExposure(event);
     }
-  }
-
-  private static String allocationKey(final ProviderEvaluation<?> resolution) {
-    final ImmutableMetadata meta = resolution.getFlagMetadata();
-    return meta == null ? null : meta.getString("allocationKey");
   }
 
   static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {
