@@ -23,42 +23,55 @@ import org.junit.jupiter.api.Test;
  *
  * <p>{@link #NOT_YET_REGISTERED} is a ratchet: registering a tag makes this test fail until its
  * entry is removed, so the list only gets shorter, and a new constant must be registered or added
- * to a list. {@link #NOT_TAG_NAMES} holds constants that are tag values or name prefixes, not
- * names.
+ * to a list. {@link #NEVER_REGISTERED} holds constants that are deliberately never registered, each
+ * with its reason.
  */
 class TagConstantsRegistryCoverageTest {
   static final List<Class<?>> TAG_CONSTANT_CLASSES =
       Arrays.asList(Tags.class, InstrumentationTags.class, DDTags.class);
 
-  /** Constants that aren't tag names: values of a tag (span kinds), and name prefixes. */
-  static final Set<String> NOT_TAG_NAMES =
-      new HashSet<>(
-          Arrays.asList(
-              "DDTags.DD_CODE_ORIGIN_PREFIX",
-              "DDTags.LANGUAGE_TAG_VALUE",
-              "Tags.LLMOBS_AGENT_SPAN_KIND",
-              "Tags.LLMOBS_EMBEDDING_SPAN_KIND",
-              "Tags.LLMOBS_LLM_SPAN_KIND",
-              "Tags.LLMOBS_RETRIEVAL_SPAN_KIND",
-              "Tags.LLMOBS_TASK_SPAN_KIND",
-              "Tags.LLMOBS_TOOL_SPAN_KIND",
-              "Tags.LLMOBS_WORKFLOW_SPAN_KIND",
-              "Tags.SPAN_KIND_BROKER",
-              "Tags.SPAN_KIND_CLIENT",
-              "Tags.SPAN_KIND_CONSUMER",
-              "Tags.SPAN_KIND_INTERNAL",
-              "Tags.SPAN_KIND_PRODUCER",
-              "Tags.SPAN_KIND_SERVER",
-              "Tags.SPAN_KIND_TEST",
-              "Tags.SPAN_KIND_TEST_MODULE",
-              "Tags.SPAN_KIND_TEST_SESSION",
-              "Tags.SPAN_KIND_TEST_SUITE"));
+  /**
+   * Constants deliberately never registered, with the reason: values of a tag, name prefixes,
+   * operation names, and names only the serializers write.
+   */
+  static final Map<String, String> NEVER_REGISTERED = new TreeMap<>();
+
+  static {
+    NEVER_REGISTERED.put("DDTags.DB_STATEMENT", "unused, but public API");
+    NEVER_REGISTERED.put("DDTags.DD_CODE_ORIGIN_PREFIX", "a name prefix");
+    NEVER_REGISTERED.put("DDTags.LANGUAGE_TAG_VALUE", "a value of language");
+    NEVER_REGISTERED.put(
+        "DDTags.PROCESS_TAGS", "written by the serializers, never stored as a span tag");
+    NEVER_REGISTERED.put(
+        "DDTags.SDK_OTLP_EXPORT", "written by the serializers, never stored as a span tag");
+    NEVER_REGISTERED.put("InstrumentationTags.SERVLET_DISPATCH", "an operation name, not a tag");
+    NEVER_REGISTERED.put(
+        "Tags.LLMOBS_AGENT_SPAN_KIND", "a value of an LLM Observability span kind");
+    NEVER_REGISTERED.put(
+        "Tags.LLMOBS_EMBEDDING_SPAN_KIND", "a value of an LLM Observability span kind");
+    NEVER_REGISTERED.put("Tags.LLMOBS_LLM_SPAN_KIND", "a value of an LLM Observability span kind");
+    NEVER_REGISTERED.put(
+        "Tags.LLMOBS_RETRIEVAL_SPAN_KIND", "a value of an LLM Observability span kind");
+    NEVER_REGISTERED.put("Tags.LLMOBS_TASK_SPAN_KIND", "a value of an LLM Observability span kind");
+    NEVER_REGISTERED.put("Tags.LLMOBS_TOOL_SPAN_KIND", "a value of an LLM Observability span kind");
+    NEVER_REGISTERED.put(
+        "Tags.LLMOBS_WORKFLOW_SPAN_KIND", "a value of an LLM Observability span kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_BROKER", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_CLIENT", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_CONSUMER", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_INTERNAL", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_PRODUCER", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_SERVER", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_TEST", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_TEST_MODULE", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_TEST_SESSION", "a value of span.kind");
+    NEVER_REGISTERED.put("Tags.SPAN_KIND_TEST_SUITE", "a value of span.kind");
+  }
 
   /** Tag names not registered yet. Remove an entry when its tag is registered. */
   static final Set<String> NOT_YET_REGISTERED =
       new HashSet<>(
           Arrays.asList(
-              "DDTags.APM_ENABLED",
               "DDTags.CI_ENV_VARS",
               "DDTags.CI_ITR_TESTS_SKIPPED",
               "DDTags.CI_LIBRARY_CONFIGURATION_ERROR_FLAKY_TESTS",
@@ -66,29 +79,12 @@ class TagConstantsRegistryCoverageTest {
               "DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SETTINGS",
               "DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SKIPPABLE_TESTS",
               "DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS",
-              "DDTags.DB_STATEMENT",
-              "DDTags.DD_CODE_ORIGIN_FRAME_FILE",
-              "DDTags.DD_CODE_ORIGIN_FRAME_LINE",
-              "DDTags.DD_CODE_ORIGIN_FRAME_METHOD",
-              "DDTags.DD_CODE_ORIGIN_FRAME_SIGNATURE",
-              "DDTags.DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID",
-              "DDTags.DD_CODE_ORIGIN_FRAME_TYPE",
-              "DDTags.DD_CODE_ORIGIN_TYPE",
-              "DDTags.DECISION_MAKER_INHERITED",
-              "DDTags.DECISION_MAKER_RESOURCE",
-              "DDTags.DECISION_MAKER_SERVICE",
               "DDTags.HOST_VCPU_COUNT",
-              "DDTags.HTTP_FRAGMENT",
               "DDTags.LIBRARY_VERSION_TAG_KEY",
               "DDTags.PATHWAY_HASH",
               "DDTags.PID_TAG",
-              "DDTags.PROCESS_TAGS",
-              "DDTags.PROFILING_CONTEXT_ENGINE",
               "DDTags.RUNTIME_VERSION_TAG",
-              "DDTags.SCHEMA_VERSION_TAG_KEY",
-              "DDTags.SDK_OTLP_EXPORT",
               "DDTags.SPAN_EVENTS",
-              "DDTags.SPAN_LINKS",
               "DDTags.TEST_HAS_FAILED_TEST_REPLAY",
               "DDTags.TEST_IS_USER_PROVIDED_SERVICE",
               "DDTags.THREAD_ID",
@@ -121,14 +117,8 @@ class TagConstantsRegistryCoverageTest {
               "InstrumentationTags.AWS_TOPIC_NAME",
               "InstrumentationTags.BUCKET",
               "InstrumentationTags.BUCKET_NAME",
-              "InstrumentationTags.CASSANDRA_CONTACT_POINTS",
               "InstrumentationTags.CONSUMER_GROUP",
               "InstrumentationTags.COUCHBASE_OPERATION_ID",
-              "InstrumentationTags.COUCHBASE_SEED_NODES",
-              "InstrumentationTags.DBM_TRACE_INJECTED",
-              "InstrumentationTags.DB_COMMAND_CANCELLED",
-              "InstrumentationTags.DB_COMMAND_RESULTS_COUNT",
-              "InstrumentationTags.DB_REDIS_DBINDEX",
               "InstrumentationTags.DYNAMO_PRIMARY_KEY_1",
               "InstrumentationTags.DYNAMO_PRIMARY_KEY_1_VALUE",
               "InstrumentationTags.DYNAMO_PRIMARY_KEY_2",
@@ -153,11 +143,9 @@ class TagConstantsRegistryCoverageTest {
               "InstrumentationTags.ELASTICSEARCH_VERSION",
               "InstrumentationTags.EVENT",
               "InstrumentationTags.GRPC_STATUS_CODE",
-              "InstrumentationTags.HANDLER_TYPE",
               "InstrumentationTags.HYSTRIX_CIRCUIT_OPEN",
               "InstrumentationTags.HYSTRIX_COMMAND",
               "InstrumentationTags.HYSTRIX_GROUP",
-              "InstrumentationTags.INSTRUMENTATION_TIME_MS",
               "InstrumentationTags.JMS_PRODUCE",
               "InstrumentationTags.JSP_CLASSFQCN",
               "InstrumentationTags.JSP_COMPILER",
@@ -181,9 +169,7 @@ class TagConstantsRegistryCoverageTest {
               "InstrumentationTags.QUEUE_NAME",
               "InstrumentationTags.RECORD_END_TO_END_DURATION_MS",
               "InstrumentationTags.RECORD_QUEUE_TIME_MS",
-              "InstrumentationTags.REQUEST_PREDICATE",
               "InstrumentationTags.S3_ETAG",
-              "InstrumentationTags.SERVLET_DISPATCH",
               "InstrumentationTags.STATUS_CODE",
               "InstrumentationTags.STATUS_DESCRIPTION",
               "InstrumentationTags.STREAM_NAME",
@@ -199,16 +185,7 @@ class TagConstantsRegistryCoverageTest {
               "InstrumentationTags.TWILIO_SID",
               "InstrumentationTags.TWILIO_STATUS",
               "InstrumentationTags.TWILIO_TYPE",
-              "InstrumentationTags.VIEW_TYPE",
-              "InstrumentationTags.WEBSOCKET_CLOSE_CODE",
-              "InstrumentationTags.WEBSOCKET_CLOSE_REASON",
-              "InstrumentationTags.WEBSOCKET_MESSAGE_FRAMES",
-              "InstrumentationTags.WEBSOCKET_MESSAGE_LENGTH",
-              "InstrumentationTags.WEBSOCKET_MESSAGE_RECEIVE_TIME",
-              "InstrumentationTags.WEBSOCKET_MESSAGE_TYPE",
-              "InstrumentationTags.WEBSOCKET_SESSION_ID",
               "Tags.AI_GUARD_EVENT",
-              "Tags.BASE_HASH",
               "Tags.CI_JOB_ID",
               "Tags.CI_JOB_NAME",
               "Tags.CI_JOB_URL",
@@ -222,9 +199,6 @@ class TagConstantsRegistryCoverageTest {
               "Tags.CI_PROVIDER_NAME",
               "Tags.CI_STAGE_NAME",
               "Tags.CI_WORKSPACE_PATH",
-              "Tags.DB_HOST",
-              "Tags.DB_SCHEMA",
-              "Tags.DB_WAREHOUSE",
               "Tags.DD_ENV",
               "Tags.DD_SERVICE",
               "Tags.DD_VERSION",
@@ -253,15 +227,7 @@ class TagConstantsRegistryCoverageTest {
               "Tags.GIT_PULL_REQUEST_BASE_BRANCH_SHA",
               "Tags.GIT_REPOSITORY_URL",
               "Tags.GIT_TAG",
-              "Tags.HTTP_ENDPOINT",
-              "Tags.HTTP_FORWARDED",
-              "Tags.HTTP_FORWARDED_HOST",
-              "Tags.HTTP_FORWARDED_IP",
-              "Tags.HTTP_FORWARDED_PORT",
-              "Tags.HTTP_FORWARDED_PROTO",
               "Tags.HTTP_REQUEST_CONTENT_LENGTH",
-              "Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN",
-              "Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST",
               "Tags.HTTP_RESPONSE_CONTENT_LENGTH",
               "Tags.ITR_CORRELATION_ID",
               "Tags.MESSAGE_BUS_DESTINATION",
@@ -336,7 +302,7 @@ class TagConstantsRegistryCoverageTest {
       String name = constant.getKey();
       if (!isRegistered(constant.getValue())
           && !NOT_YET_REGISTERED.contains(name)
-          && !NOT_TAG_NAMES.contains(name)) {
+          && !NEVER_REGISTERED.containsKey(name)) {
         unlisted.add(name + " = \"" + constant.getValue() + "\"");
       }
     }
@@ -367,7 +333,7 @@ class TagConstantsRegistryCoverageTest {
     for (String listed : NOT_YET_REGISTERED) {
       assertTrue(names.contains(listed), "no such constant: " + listed);
     }
-    for (String listed : NOT_TAG_NAMES) {
+    for (String listed : NEVER_REGISTERED.keySet()) {
       assertTrue(names.contains(listed), "no such constant: " + listed);
     }
   }
