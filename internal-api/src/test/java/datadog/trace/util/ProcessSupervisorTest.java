@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -50,6 +51,36 @@ class ProcessSupervisorTest {
           Process process = processSupervisor.getCurrentProcess();
           assertTrue(process == null || !process.isAlive());
         });
+  }
+
+  @Test
+  void faultBackoffDoublesUpToSixtySecondsAndNeverStops() {
+    ProcessSupervisor.FaultBackoff backoff = new ProcessSupervisor.FaultBackoff();
+
+    assertEquals(2_000, backoff.recordFault());
+    assertEquals(4_000, backoff.recordFault());
+    assertEquals(8_000, backoff.recordFault());
+    assertEquals(16_000, backoff.recordFault());
+    assertEquals(32_000, backoff.recordFault());
+    assertEquals(60_000, backoff.recordFault());
+    for (int i = 0; i < 1_000; i++) {
+      assertEquals(60_000, backoff.recordFault());
+    }
+  }
+
+  @Test
+  void faultBackoffResetsOnlyAfterStableUptime() {
+    ProcessSupervisor.FaultBackoff backoff = new ProcessSupervisor.FaultBackoff();
+    backoff.recordFault();
+    backoff.recordFault();
+
+    // a start that exits again quickly keeps the earlier faults
+    backoff.recordUptime(59_999);
+    assertEquals(8_000, backoff.recordFault());
+
+    // staying up for the stable period forgets them
+    backoff.recordUptime(60_000);
+    assertEquals(2_000, backoff.recordFault());
   }
 
   @Test
