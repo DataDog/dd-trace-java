@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -36,6 +37,31 @@ public final class PidHelper {
   /** Returns 0 if the PID is not a number. */
   public static long getPidAsLong() {
     return PID_AS_LONG;
+  }
+
+  private static final Function<Process, String> CHILD_PID = findChildPidFunction();
+
+  /** Returns the PID of a child process, or an empty string when the JVM cannot provide it. */
+  public static String getPid(Process process) {
+    if (null == process || null == CHILD_PID) {
+      return "";
+    }
+    return CHILD_PID.apply(process);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Function<Process, String> findChildPidFunction() {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      try {
+        return (Function<Process, String>)
+            Class.forName("datadog.trace.util.JDK9ProcessPidFunction")
+                .getDeclaredConstructor()
+                .newInstance();
+      } catch (Throwable e) {
+        log.debug("JDK9ProcessPidFunction not available", e);
+      }
+    }
+    return null; // Java 8 has no public API for the PID of a child process
   }
 
   @SuppressWarnings("unchecked")

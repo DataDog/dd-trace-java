@@ -6,6 +6,7 @@ import static datadog.trace.util.ProcessSupervisor.Health.FAULTED;
 import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.INTERRUPTED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -38,6 +39,14 @@ public class ProcessSupervisor implements Closeable {
   private static final long FAULTED_DELAY_MILLIS = 2_000;
   private static final int MAX_FAULTS = 5;
 
+  // Lifecycle events are logged at info level. A process that keeps failing quickly would flood
+  // the log, so after this many failures in a row the details go to debug level until the
+  // process stays up for STABLE_RUN_MILLIS.
+  private static final int QUIET_AFTER_FAILURES = 5;
+  private static final long STABLE_RUN_MILLIS = 60_000;
+
+  private static final long STOP_WAIT_MILLIS = 200;
+
   private final String imageName;
   private final ProcessBuilder processBuilder;
   private final HealthCheck healthCheck;
@@ -45,8 +54,10 @@ public class ProcessSupervisor implements Closeable {
 
   private long nextCheckMillis = 0;
   private Health currentHealth = Health.NEVER_CHECKED;
+  private Health lastCheckResult = Health.NEVER_CHECKED;
   private Process currentProcess;
   private int faults;
+  private int failuresInARow;
 
   private volatile boolean stopping = false;
 
@@ -80,6 +91,7 @@ public class ProcessSupervisor implements Closeable {
             Thread.sleep(delayMillis);
           }
           currentHealth = healthCheck.run(currentHealth);
+          logHealthCheckChange(currentHealth);
           if (currentHealth == READY_TO_START) {
             startProcessAndWait();
           }
@@ -93,6 +105,28 @@ public class ProcessSupervisor implements Closeable {
       }
     } finally {
       stopProcess();
+    }
+  }
+
+  private void logHealthCheckChange(Health result) {
+    Health previous = lastCheckResult;
+    lastCheckResult = result;
+    if (result == previous) {
+      return;
+    }
+    if (result == HEALTHY) {
+      // Health checks only run while this supervisor has no running process of its own,
+      // so a healthy result means another process (usually another worker) is serving it.
+      failuresInARow = 0;
+      log.info(
+          "Process [{}] is already running and was not started by this process (pid {}); using it",
+          imageName,
+          PidHelper.getPid());
+    } else if (result == READY_TO_START && previous == HEALTHY) {
+      logLifecycle(
+          "Process [{}] that this process (pid {}) was using is no longer available",
+          imageName,
+          PidHelper.getPid());
     }
   }
 
@@ -115,12 +149,38 @@ public class ProcessSupervisor implements Closeable {
       }
       currentHealth = HEALTHY;
       faults = 0;
+      logLifecycle(
+          "Started process [{}] with pid {} from this process (pid {})",
+          imageName,
+          pidOrUnknown(currentProcess),
+          PidHelper.getPid());
     }
+
+    long startedMillis = System.currentTimeMillis();
+    String childPid = pidOrUnknown(currentProcess);
 
     // Block until the process exits
     int code = currentProcess.waitFor();
-    log.debug("Process [{}] has exited with code {}", imageName, code);
     currentHealth = code == 0 ? INTERRUPTED : FAULTED;
+
+    long ranMillis = System.currentTimeMillis() - startedMillis;
+    if (ranMillis >= STABLE_RUN_MILLIS) {
+      failuresInARow = 0;
+    }
+    logLifecycle(
+        "Process [{}] with pid {} exited with code {} after {} ms",
+        imageName,
+        childPid,
+        code,
+        ranMillis);
+    if (code != 0 && ++failuresInARow == QUIET_AFTER_FAILURES) {
+      log.warn(
+          "Process [{}] has exited with an error {} times in a row; "
+              + "further starts and exits are logged at debug level until it stays up for {} seconds",
+          imageName,
+          failuresInARow,
+          MILLISECONDS.toSeconds(STABLE_RUN_MILLIS));
+    }
 
     // Process is dead, no longer needs to be tracked
     currentProcess = null;
@@ -128,13 +188,45 @@ public class ProcessSupervisor implements Closeable {
 
   private void stopProcess() {
     if (currentProcess != null) {
-      log.debug("Stopping process: [{}]", imageName);
-      currentProcess.destroy();
-      if (currentProcess.isAlive()) {
+      String childPid = pidOrUnknown(currentProcess);
+      log.info("Stopping process [{}] with pid {}", imageName, childPid);
+      boolean stopped = false;
+      try {
+        currentProcess.destroy();
+        stopped = currentProcess.waitFor(STOP_WAIT_MILLIS, MILLISECONDS);
+        if (!stopped) {
+          currentProcess.destroyForcibly();
+          stopped = currentProcess.waitFor(STOP_WAIT_MILLIS, MILLISECONDS);
+        }
+      } catch (InterruptedException e) {
         currentProcess.destroyForcibly();
+        Thread.currentThread().interrupt();
+      }
+      if (stopped) {
+        log.info("Stopped process [{}] with pid {}", imageName, childPid);
+      } else {
+        log.warn(
+            "Process [{}] with pid {} was still running after the stop request",
+            imageName,
+            childPid);
       }
       currentProcess = null;
+    } else {
+      log.debug("No process [{}] started by this process to stop", imageName);
     }
+  }
+
+  private void logLifecycle(String format, Object... arguments) {
+    if (failuresInARow < QUIET_AFTER_FAILURES) {
+      log.info(format, arguments);
+    } else {
+      log.debug(format, arguments);
+    }
+  }
+
+  private static String pidOrUnknown(Process process) {
+    String pid = PidHelper.getPid(process);
+    return pid.isEmpty() ? "unknown" : pid;
   }
 
   @Override
@@ -144,6 +236,13 @@ public class ProcessSupervisor implements Closeable {
     try {
       supervisorThread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (Throwable ignored) {
+    }
+    if (supervisorThread.isAlive()) {
+      log.warn(
+          "Supervisor for process [{}] did not finish stopping within {} ms; "
+              + "the process may be left running",
+          imageName,
+          THREAD_JOIN_TIMOUT_MS);
     }
   }
 
