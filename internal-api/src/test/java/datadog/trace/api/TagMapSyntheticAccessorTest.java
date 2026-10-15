@@ -10,7 +10,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * TagMap and its nested classes have no synthetic accessors. Targeting Java 8, javac reaches a
+ * TagMap and its implementations have no synthetic accessors. Targeting Java 8, javac reaches a
  * private member of a nested or outer class through a generated {@code access$NNN} method, or a
  * constructor taking a dummy {@code $1} class. C2 refuses to inline a call whose signature names a
  * never-loaded class, and every accessor adds a level of inlining depth, so on TagMap's hot paths a
@@ -21,7 +21,14 @@ class TagMapSyntheticAccessorTest {
   @Test
   void theTagMapFamilyHasNoSyntheticAccessors() {
     List<Class<?>> classes = new ArrayList<>();
-    for (Class<?> root : Arrays.asList(TagMap.class)) {
+    for (Class<?> root :
+        Arrays.asList(
+            TagMap.class,
+            HashTagMap.class,
+            DenseTagMap.class,
+            TagMapFactory.class,
+            HashTagMapFactory.class,
+            DenseTagMapFactory.class)) {
       collect(root, classes);
     }
     List<String> accessors = new ArrayList<>();

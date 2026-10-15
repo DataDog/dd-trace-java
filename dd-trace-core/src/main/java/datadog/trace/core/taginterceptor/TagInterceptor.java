@@ -2,6 +2,7 @@ package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.KnownTags.COMPONENT_ID;
+import static datadog.trace.api.KnownTags.LANGUAGE_ID;
 import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
@@ -361,10 +362,10 @@ public class TagInterceptor {
         return;
       }
     }
-    if (isSplitServiceTag(DDTags.LANGUAGE_TAG_KEY)) {
-      Object language = prototypeTags.getObject(DDTags.LANGUAGE_TAG_KEY);
+    if (isSplitServiceTag(LANGUAGE_ID)) {
+      TagMap.Entry language = prototypeTags.getEntry(LANGUAGE_ID);
       if (language != null) {
-        splitService(span, language);
+        splitService(span, language.objectValue());
       }
     }
   }

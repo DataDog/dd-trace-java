@@ -13,25 +13,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 public final class TagMapFuzzTest {
   static final int NUM_KEYS = 128;
   static final int MAX_NUM_ACTIONS = 32;
   static final int MIN_NUM_ACTIONS = 8;
 
-  @Test
-  void test() {
-    test(generateTest());
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void test(TagMapType type) {
+    test(type, generateTest());
   }
 
-  @Test
-  void testMerge() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void testMerge(TagMapType type) {
     TestCase mapACase = generateTest();
     TestCase mapBCase = generateTest();
 
-    TagMap tagMapA = test(mapACase);
-    TagMap tagMapB = test(mapBCase);
+    TagMap tagMapA = test(type, mapACase);
+    TagMap tagMapB = test(type, mapBCase);
 
     HashMap<String, Object> hashMapA = new HashMap<>(tagMapA);
     HashMap<String, Object> hashMapB = new HashMap<>(tagMapB);
@@ -42,10 +45,12 @@ public final class TagMapFuzzTest {
     assertMapEquals(hashMapA, tagMapA);
   }
 
-  @Test
-  void priorFailingCase0() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void priorFailingCase0(TagMapType type) {
     TagMap map =
         makeTagMap(
+            type,
             remove("key-4"),
             put("key-71", "values-443049055"),
             put("key-2", "values-1227065898"),
@@ -302,9 +307,11 @@ public final class TagMapFuzzTest {
     failingAction.verifyTestMap(map);
   }
 
-  @Test
-  void priorFailingCase1() {
-    TagMap map = makeTagMap(put("key-68", "values--37178328"), put("key-93", "values--2093086281"));
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void priorFailingCase1(TagMapType type) {
+    TagMap map =
+        makeTagMap(type, put("key-68", "values--37178328"), put("key-93", "values--2093086281"));
 
     MapAction failingAction =
         putAllTagMap(
@@ -522,8 +529,9 @@ public final class TagMapFuzzTest {
     failingAction.verifyTestMap(map);
   }
 
-  @Test
-  void priorFailingCase2() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  void priorFailingCase2(TagMapType type) {
     TestCase testCase =
         new TestCase(
             remove("key-34"),
@@ -858,7 +866,7 @@ public final class TagMapFuzzTest {
             put("key-41", "values--904162962"));
 
     Map<String, Object> expected = makeMap(testCase);
-    TagMap actual = makeTagMap(testCase);
+    TagMap actual = makeTagMap(type, testCase);
 
     MapAction failingAction = remove("key-127");
     failingAction.applyToExpectedMap(expected);
@@ -869,8 +877,8 @@ public final class TagMapFuzzTest {
     assertMapEquals(expected, actual);
   }
 
-  public static final TagMap test(MapAction... actions) {
-    return test(new TestCase(Arrays.asList(actions)));
+  public static final TagMap test(TagMapType type, MapAction... actions) {
+    return test(type, new TestCase(Arrays.asList(actions)));
   }
 
   public static final Map<String, Object> makeMap(TestCase testCase) {
@@ -889,27 +897,27 @@ public final class TagMapFuzzTest {
     return map;
   }
 
-  public static final TagMap makeTagMap(TestCase testCase) {
-    return makeTagMap(testCase.actions);
+  public static final TagMap makeTagMap(TagMapType type, TestCase testCase) {
+    return makeTagMap(type, testCase.actions);
   }
 
-  public static final TagMap makeTagMap(MapAction... actions) {
-    return makeTagMap(Arrays.asList(actions));
+  public static final TagMap makeTagMap(TagMapType type, MapAction... actions) {
+    return makeTagMap(type, Arrays.asList(actions));
   }
 
-  public static final TagMap makeTagMap(List<MapAction> actions) {
-    TagMap map = new TagMap();
+  public static final TagMap makeTagMap(TagMapType type, List<MapAction> actions) {
+    TagMap map = type.create();
     for (MapAction action : actions) {
       action.applyToTestMap(map);
     }
     return map;
   }
 
-  public static final TagMap test(TestCase test) {
+  public static final TagMap test(TagMapType type, TestCase test) {
     List<MapAction> actions = test.actions();
 
     Map<String, Object> hashMap = new HashMap<>();
-    TagMap tagMap = new TagMap();
+    TagMap tagMap = type.create();
 
     int actionIndex = 0;
     try {
@@ -1099,8 +1107,8 @@ public final class TagMapFuzzTest {
     return map;
   }
 
-  static final TagMap tagMapOf(String... keysAndValues) {
-    TagMap map = new TagMap();
+  static final TagMap tagMapOf(TagMapType type, String... keysAndValues) {
+    TagMap map = type.create();
     for (int i = 0; i < keysAndValues.length; i += 2) {
       String key = keysAndValues[i];
       String value = keysAndValues[i + 1];
@@ -1110,6 +1118,10 @@ public final class TagMapFuzzTest {
     map.checkIntegrity();
 
     return map;
+  }
+
+  static final TagMapType typeOf(TagMap map) {
+    return map instanceof DenseTagMap ? TagMapType.DENSE : TagMapType.HASH;
   }
 
   static final TagMap.Ledger ledgerOf(String... keysAndValues) {
@@ -1359,27 +1371,26 @@ public final class TagMapFuzzTest {
 
   static final class PutAllTagMap extends BasicAction {
     final String[] keysAndValues;
-    final TagMap tagMap;
 
     PutAllTagMap(String... keysAndValues) {
       this.keysAndValues = keysAndValues;
-      this.tagMap = tagMapOf(keysAndValues);
     }
 
     @Override
     protected void _applyToTestMap(TagMap testMap) {
-      testMap.putAll(this.tagMap);
+      // the source map is built through the test map's own store, so the two never mix stores
+      testMap.putAll(tagMapOf(typeOf(testMap), this.keysAndValues));
     }
 
     @Override
     protected void _applyToExpectedMap(Map<String, Object> expectedMap) {
-      expectedMap.putAll(this.tagMap);
+      expectedMap.putAll(mapOf(this.keysAndValues));
     }
 
     @Override
     public void verifyTestMap(TagMap expectedMap) {
-      for (TagMap.EntryReader entry : this.tagMap) {
-        assertEquals(entry.objectValue(), expectedMap.get(entry.tag()), "key=" + entry.tag());
+      for (Map.Entry<String, String> entry : mapOf(this.keysAndValues).entrySet()) {
+        assertEquals(entry.getValue(), expectedMap.get(entry.getKey()), "key=" + entry.getKey());
       }
     }
 

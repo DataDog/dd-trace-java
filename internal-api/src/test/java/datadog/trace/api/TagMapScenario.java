@@ -24,4 +24,12 @@ public enum TagMapScenario {
     }
     return map;
   }
+
+  public final TagMap create(TagMapType type) {
+    TagMap map = type.create();
+    for (int i = 0; i < this.size; ++i) {
+      map.put("filler-key-" + i, "filler-value-" + i);
+    }
+    return map;
+  }
 }

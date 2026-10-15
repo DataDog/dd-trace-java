@@ -18,6 +18,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.SpanTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
@@ -58,6 +59,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,6 +181,15 @@ public class DDSpanContext
    * then be wrapped around bulk operations to minimize the costly atomic operations.
    */
   private final TagMap unsafeTags;
+
+  /**
+   * Per-operation sizing hint (from SizingHintTable, keyed by operation name) this span's dense
+   * store was sized from, if any. Held so the span can feed its dense-store size back when it
+   * finishes and when it is serialized (recordDenseSize) -- the self-tuning loop that lets the
+   * reused hint converge to the operation's real known-tag high-water mark. Null when unsized,
+   * which is always the case with the dense store off.
+   */
+  @Nullable private final SizingHint sizingHint;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -418,6 +429,64 @@ public class DDSpanContext
       final boolean injectBaggageAsTags,
       final boolean injectLinksAsTags,
       final TagMap readThroughParent) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceNameSource,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        w3cBaggage,
+        errorFlag,
+        spanType,
+        tagsSize,
+        traceCollector,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        CiVisibilityContextData,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        profilingContextIntegration,
+        injectBaggageAsTags,
+        injectLinksAsTags,
+        readThroughParent,
+        null);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final CharSequence serviceNameSource,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final Baggage w3cBaggage,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final TraceCollector traceCollector,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final Object CiVisibilityContextData,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration,
+      final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags,
+      final TagMap readThroughParent,
+      @Nullable final SizingHint sizingHint) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -448,8 +517,9 @@ public class DDSpanContext
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags =
         readThroughParent != null
-            ? TagMap.createFromParent(readThroughParent)
-            : TagMap.create(capacity);
+            ? TagMap.createFromParent(readThroughParent, sizingHint)
+            : sizingHint != null ? TagMap.create(sizingHint) : TagMap.create(capacity);
+    this.sizingHint = sizingHint;
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -1269,8 +1339,8 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      this.setBox(tagId, value);
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
@@ -1282,8 +1352,8 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      this.setBox(tagId, value);
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
@@ -1295,8 +1365,8 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      this.setBox(tagId, value);
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
@@ -1308,8 +1378,8 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      this.setBox(tagId, value);
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
@@ -1321,11 +1391,26 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      this.setBox(tagId, value);
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  /**
+   * The boxed path of the primitive id setters, which box at most once: always for the dense store,
+   * which keeps the box ({@code STORES_BOXES} is a static final, so the test folds), and for a tag
+   * that may be intercepted, since the interceptor takes an Object. The hash store's plain path
+   * stores the primitive unboxed. One shared path keeps each setter's compiled code small.
+   */
+  private void setKnownBox(long tagId, Object box) {
+    if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
+        || !tagInterceptor.interceptTag(this, tagId, box)) {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1339,26 +1424,6 @@ public class DDSpanContext
     if (!tagInterceptor.interceptTag(this, entry)) {
       synchronized (unsafeTags) {
         storeEntry(entry);
-      }
-    }
-  }
-
-  /*
-   * Used when the interceptor's precheck says the tag may be intercepted, so boxing is unavoidable
-   *
-   * Either because the tagInterceptor needs to be fully checked (which requires boxing)
-   * In that case, a box has already been created so it makes sense to pass the box
-   * onto TagMap, since optimized TagMap will cache the box
-   *
-   * -- OR --
-   *
-   * The TagMap isn't optimized and will need to box the primitive regardless of
-   * tag interception
-   */
-  private void setBox(long tagId, Object box) {
-    if (!tagInterceptor.interceptTag(this, tagId, box)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1624,6 +1689,21 @@ public class DDSpanContext
    * @param restrictedSpan The span to read links and events from.
    * @param options The {@link CoreSpan} options describing what the serialization protocol needs.
    */
+  /**
+   * Feeds this span's known-tag count back into its operation's {@link SizingHint}, so later spans
+   * of the operation are presized. Called when the span finishes, so every span tunes its hint even
+   * if it is never serialized (dropped by sampling, say), and again at serialization, after the
+   * serialization-time tags are added, so the hint also covers the span's final footprint. At
+   * finish the {@code knownCount} read is unlocked and may be stale; the hint is a best-effort racy
+   * max anyway (see {@link TagMap#recordSize}). With the dense store off the hint is always null,
+   * so this is a single null check.
+   */
+  void recordDenseSize() {
+    if (sizingHint != null) {
+      unsafeTags.recordSize(sizingHint);
+    }
+  }
+
   void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan, int options) {
     boolean injectLinksAsTags = this.injectLinksAsTags && (options & STRUCTURED_LINKS) == 0;
@@ -1664,6 +1744,10 @@ public class DDSpanContext
           unsafeTags.set(SPAN_EVENTS, eventsTag);
         }
       }
+
+      // Self-tune the per-operation sizing hint now that every tag (incl. the just-appended
+      // serialization-time tags) is present -- the terminal point shared by all finish modes.
+      recordDenseSize();
 
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
