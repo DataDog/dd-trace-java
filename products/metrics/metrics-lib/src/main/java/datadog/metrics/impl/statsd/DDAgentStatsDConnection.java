@@ -3,6 +3,7 @@ package datadog.metrics.impl.statsd;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_SOCKET_PATH;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.STATSD_CLIENT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.timgroup.statsd.NoOpDirectStatsDClient;
@@ -11,6 +12,7 @@ import com.timgroup.statsd.StatsDClientErrorHandler;
 import datadog.common.filesystem.Files;
 import datadog.environment.OperatingSystem;
 import datadog.logging.IOLogger;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
@@ -23,6 +25,8 @@ import org.slf4j.LoggerFactory;
 final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final Logger log = LoggerFactory.getLogger(DDAgentStatsDConnection.class);
   private static final IOLogger ioLogger = new IOLogger(log);
+  private static final RatelimitedLogger connectRetryLogger =
+      new RatelimitedLogger(log, 5, MINUTES);
 
   private static final com.timgroup.statsd.StatsDClient NO_OP = new NoOpDirectStatsDClient();
 
@@ -31,8 +35,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final AgentThreadFactory STATSD_CLIENT_THREAD_FACTORY =
       new AgentThreadFactory(STATSD_CLIENT);
 
-  private static final int RETRY_DELAY = 10;
-  private static final int MAX_RETRIES = 20;
+  private static final long RETRY_DELAY = 10;
+  private static final long MAX_RETRY_DELAY = 60;
 
   private boolean usingDefaultPort;
   private volatile String host;
@@ -159,24 +163,40 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
         try {
           statsd = clientBuilder.build();
-          if (log.isDebugEnabled()) {
+          int failedAttempts = retries.getAndSet(0);
+          if (failedAttempts > 0) {
+            log.info(
+                "StatsD connected to {} after {} failed attempts", statsDAddress(), failedAttempts);
+          } else if (log.isDebugEnabled()) {
             log.debug("StatsD connected to {}", statsDAddress());
           }
         } catch (final Exception e) {
-          if (retries.getAndIncrement() < MAX_RETRIES) {
-            if (log.isDebugEnabled()) {
-              log.debug(
-                  "Scheduling StatsD connection in {} seconds - {}", RETRY_DELAY, statsDAddress());
-            }
-            AgentTaskScheduler.get()
-                .scheduleWithJitter(ConnectTask.INSTANCE, this, RETRY_DELAY, SECONDS);
-          } else {
+          int failedAttempts = retries.incrementAndGet();
+          long delaySeconds = connectRetryDelaySeconds(failedAttempts);
+          boolean warned = false;
+          if (failedAttempts == 1) {
             log.warn(
-                "Unable to create StatsD client - {} - after {} attempts. Will not retry: {}",
+                "Unable to create StatsD client - {} - Will keep retrying, at least every {} seconds: {}",
                 statsDAddress(),
-                retries.get(),
+                MAX_RETRY_DELAY,
                 e.getMessage());
+            warned = true;
+          } else if (delaySeconds >= MAX_RETRY_DELAY) {
+            // keep a lasting failure visible without debug logs
+            warned =
+                connectRetryLogger.warn(
+                    "Still unable to create StatsD client - {} - {} failed attempts, retrying every {} seconds: {}",
+                    statsDAddress(),
+                    failedAttempts,
+                    MAX_RETRY_DELAY,
+                    e.getMessage());
           }
+          if (!warned && log.isDebugEnabled()) {
+            log.debug(
+                "Scheduling StatsD connection in {} seconds - {}", delaySeconds, statsDAddress());
+          }
+          // no jitter, so the delay stays within MAX_RETRY_DELAY
+          AgentTaskScheduler.get().schedule(ConnectTask.INSTANCE, this, delaySeconds, SECONDS);
         } catch (Throwable t) {
           if (log.isDebugEnabled()) {
             // Display full stack traces on debug logs
@@ -197,6 +217,19 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         }
       }
     }
+  }
+
+  /**
+   * Delay before the next connection attempt: doubles from {@link #RETRY_DELAY} up to {@link
+   * #MAX_RETRY_DELAY} seconds. Attempts never stop, so a DogStatsD that comes up late is still
+   * picked up.
+   */
+  static long connectRetryDelaySeconds(int failedAttempts) {
+    long delaySeconds = RETRY_DELAY;
+    for (int i = 1; i < failedAttempts && delaySeconds < MAX_RETRY_DELAY; i++) {
+      delaySeconds *= 2;
+    }
+    return Math.min(delaySeconds, MAX_RETRY_DELAY);
   }
 
   @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
