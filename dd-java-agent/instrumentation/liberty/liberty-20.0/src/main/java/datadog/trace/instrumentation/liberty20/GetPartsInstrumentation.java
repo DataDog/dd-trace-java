@@ -18,6 +18,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.liberty.LibertyBlockingHelper;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -43,8 +44,8 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.liberty20.PartHelper",
-      "datadog.trace.instrumentation.liberty20.LibertyBlockingHelper",
-      "datadog.trace.instrumentation.liberty20.LibertyBlockingHelper$WsByteBufferImpl",
+      "datadog.trace.instrumentation.liberty.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty.LibertyBlockingHelper$WsByteBufferImpl",
     };
   }
 

@@ -325,6 +325,7 @@
 /dd-java-agent/instrumentation/**/*BlockResponseFunction.java                                        @DataDog/asm-java
 /dd-java-agent/instrumentation/undertow/undertow-common/src/main/java/**/UndertowBlockingHandler.java @DataDog/asm-java
 /dd-java-agent/instrumentation/jetty/jetty-server/*/src/main/*/**/JettyCommitResponse*.java          @DataDog/asm-java
+/dd-java-agent/instrumentation/liberty/liberty-common/                                               @DataDog/asm-java
 
 # bootstrap / internal-api blocking and RASP glue
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/blocking/                       @DataDog/asm-java
