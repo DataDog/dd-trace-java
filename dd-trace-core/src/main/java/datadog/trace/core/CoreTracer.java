@@ -34,6 +34,7 @@ import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.perfcontract.NoSyntheticAccessors;
+import datadog.perfcontract.SuppressPerfContract;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -228,7 +229,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    * builder. A remote config {@code tracing_tags} override replaces these along with the global
    * tags while it's active.
    */
-  final TagMap defaultSpanTags;
+  @SuppressPerfContract(
+      value = NoSyntheticAccessors.class,
+      reason = "read by ConfigSnapshot, once per config snapshot")
+  private final TagMap defaultSpanTags;
 
   /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
@@ -259,7 +263,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
    * to be concurrent.
    */
-  final TagInterceptor tagInterceptor;
+  @SuppressPerfContract(
+      value = NoSyntheticAccessors.class,
+      reason = "read by ConfigSnapshot, on a config reload that changes tracing tags")
+  private final TagInterceptor tagInterceptor;
 
   private final TraceInterceptors interceptors = new TraceInterceptors();
 
@@ -653,7 +660,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   // These field names must be stable to ensure the builder api is stable.
-  CoreTracer(
+  @SuppressPerfContract(
+      value = NoSyntheticAccessors.class,
+      reason = "called once, by CoreTracerBuilder.build()")
+  private CoreTracer(
       final Config config,
       final String serviceName,
       SharedCommunicationObjects sharedCommunicationObjects,
@@ -1675,7 +1685,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return traceWriteTimer.start();
   }
 
-  static <K, V> Map<V, K> invertMap(Map<K, V> map) {
+  @SuppressPerfContract(
+      value = NoSyntheticAccessors.class,
+      reason = "called once, while building the tracer")
+  private static <K, V> Map<V, K> invertMap(Map<K, V> map) {
     Map<V, K> inverted = new HashMap<>(map.size());
     for (Map.Entry<K, V> entry : map.entrySet()) {
       inverted.put(entry.getValue(), entry.getKey());
@@ -2574,7 +2587,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static class ShutdownHook extends Thread {
     private final WeakReference<CoreTracer> reference;
 
-    ShutdownHook(final CoreTracer tracer) {
+    @SuppressPerfContract(
+        value = NoSyntheticAccessors.class,
+        reason = "constructed once, when the tracer registers its shutdown hook")
+    private ShutdownHook(final CoreTracer tracer) {
       super(AGENT_THREAD_GROUP, "dd-tracer-shutdown-hook");
       reference = new WeakReference<>(tracer);
     }
