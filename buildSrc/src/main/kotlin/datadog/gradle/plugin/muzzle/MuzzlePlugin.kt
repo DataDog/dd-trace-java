@@ -103,11 +103,8 @@ class MuzzlePlugin : Plugin<Project> {
 
     val validationTasks = MuzzleValidationTasks(project.providers) {
       val startTime = System.currentTimeMillis()
-      val system = MuzzleMavenRepoUtils.newRepositorySystem()
-      val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-      val taskPlanner = MuzzleTaskPlanner.from(system, session)
       val directives = project.extensions.getByType<MuzzleExtension>().directives
-      val checks = taskPlanner.plan(directives).map { plan ->
+      val checks = sharedTaskPlanner(project).plan(directives).map { plan ->
         val check = registerMuzzleTask(plan.directive, plan.artifact, project, muzzleBootstrap, muzzleTooling)
         project.logger.info("configured ${plan.directive}")
         check
@@ -139,6 +136,24 @@ class MuzzlePlugin : Plugin<Project> {
     }
     muzzleTask.configure {
       finalizedBy(validationTasks.tasks)
+    }
+  }
+
+  private fun sharedTaskPlanner(project: Project): MuzzleTaskPlanner {
+    val properties = project.rootProject.extensions.extraProperties
+    val key = "datadogMuzzleTaskPlanners"
+    if (!properties.has(key)) {
+      properties.set(key, mutableMapOf<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>())
+    }
+    @Suppress("UNCHECKED_CAST")
+    val planners = properties.get(key) as MutableMap<List<List<Triple<String, String, String>>>, MuzzleTaskPlanner>
+    // Repository IDs can be reused for different URLs, so keep their local metadata separate.
+    val repositories = project.extensions.getByType<MuzzleExtension>().directives
+      .map { it.additionalRepositories.toList() }.distinct()
+    return planners.getOrPut(repositories) {
+      val system = MuzzleMavenRepoUtils.newRepositorySystem()
+      val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
+      MuzzleTaskPlanner.from(system, session)
     }
   }
 
