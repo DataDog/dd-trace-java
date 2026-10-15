@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
+import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
@@ -23,8 +24,13 @@ import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -145,6 +151,57 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertTrue(flushed);
       assertEquals(1, flushCount.get());
       assertTrue(worker.getPrimaryQueue().isEmpty());
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Test 3b: a flush should dispatch the secondary queue before completing
+  // -------------------------------------------------------------------------
+
+  /**
+   * The flush marker is only offered to the primary queue, so a trace on the secondary queue has to
+   * be swept into the dispatcher before the flush completes — otherwise {@code close()} interrupts
+   * the serializer thread and the trace is never dispatched. Sampled-out APM traces can afford
+   * that, but with APM tracing disabled the dropped trace also carries the LLM Observability spans.
+   */
+  @Test
+  void testAFlushShouldDispatchTheSecondaryQueueBeforeCompleting() {
+    List<String> calls = Collections.synchronizedList(new ArrayList<>());
+    PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
+    doAnswer(
+            inv -> {
+              calls.add("addTrace");
+              return null;
+            })
+        .when(dispatcher)
+        .addTrace(any());
+    doAnswer(
+            inv -> {
+              calls.add("flush");
+              return null;
+            })
+        .when(dispatcher)
+        .flush();
+
+    try (TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            mock(HealthMetrics.class),
+            dispatcher,
+            () -> false,
+            FAST_LANE,
+            100,
+            TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
+            null)) {
+      List<DDSpan> trace = Collections.singletonList(mock(DDSpan.class));
+      worker.getSecondaryQueue().offer(trace);
+      worker.start();
+      boolean flushed = worker.flush(10, TimeUnit.SECONDS);
+
+      assertTrue(flushed);
+      assertTrue(worker.getSecondaryQueue().isEmpty());
+      // the trace reached the dispatcher, and it did so before the flush was reported complete
+      assertEquals(Arrays.asList("addTrace", "flush"), calls);
     }
   }
 
@@ -610,6 +667,87 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertEquals(expectedChunks, chunksCount.get());
       assertEquals(expectedSpans, spansCount.get());
       assertEquals(sampledSingleSpans, sampledSpansCount.get());
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Test 10: flush times out when the queue is full and the serializer is blocked
+  // -------------------------------------------------------------------------
+
+  @Test
+  void testFlushTimesOutWhenQueueIsFullAndSerializerIsBlocked() throws Exception {
+    CountDownLatch flushStarted = new CountDownLatch(1);
+    CountDownLatch releaseFlush = new CountDownLatch(1);
+    PayloadDispatcher dispatcher = mock(PayloadDispatcher.class);
+    doAnswer(
+            inv -> {
+              flushStarted.countDown();
+              releaseFlush.await();
+              return null;
+            })
+        .when(dispatcher)
+        .flush();
+    TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            2,
+            mock(HealthMetrics.class),
+            dispatcher,
+            () -> false,
+            FAST_LANE,
+            0, // disable periodic flushes
+            TimeUnit.SECONDS,
+            null);
+    ExecutorService caller = Executors.newSingleThreadExecutor();
+    try {
+      // block the serializer inside a flush, then fill the primary queue behind it
+      assertTrue(worker.getPrimaryQueue().offer(new FlushEvent(new CountDownLatch(1))));
+      worker.start();
+      assertTrue(flushStarted.await(5, TimeUnit.SECONDS));
+      while (worker.getPrimaryQueue().offer(Collections.singletonList(mock(DDSpan.class)))) {
+        // fill the queue
+      }
+
+      // the flush marker can't be enqueued, so the flush must give up once its timeout elapses
+      Future<Boolean> flushed = caller.submit(() -> worker.flush(100, TimeUnit.MILLISECONDS));
+      assertFalse(flushed.get(5, TimeUnit.SECONDS));
+    } finally {
+      releaseFlush.countDown();
+      worker.close();
+      caller.shutdownNow();
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Test 11: flush succeeds when the serializer starts after the flush begins
+  // -------------------------------------------------------------------------
+
+  @Test
+  void testFlushSucceedsWhenSerializerStartsAfterFlushBegins() throws Exception {
+    AtomicInteger flushCount = new AtomicInteger();
+    TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            mock(HealthMetrics.class),
+            flushCountingPayloadDispatcher(flushCount),
+            () -> false,
+            FAST_LANE,
+            100,
+            TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
+            null);
+    ExecutorService caller = Executors.newSingleThreadExecutor();
+    try {
+      // the agent can delay starting the writer (e.g. on IBM JDK 8) past a short-lived app's exit
+      Future<Boolean> flushed = caller.submit(() -> worker.flush(10, TimeUnit.SECONDS));
+      while (worker.getPrimaryQueue().isEmpty() && !flushed.isDone()) {
+        Thread.yield();
+      }
+      worker.start();
+
+      assertTrue(flushed.get(5, TimeUnit.SECONDS));
+      assertEquals(1, flushCount.get());
+    } finally {
+      worker.close();
+      caller.shutdownNow();
     }
   }
 }

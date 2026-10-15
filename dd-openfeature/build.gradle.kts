@@ -5,6 +5,7 @@ plugins {
   `java-library`
   idea
   id("dd-trace-java.conventions.java")
+  id("dd-trace-java.version-file")
 }
 
 description = "Datadog OpenFeature provider SDK."

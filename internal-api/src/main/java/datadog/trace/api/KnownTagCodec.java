@@ -73,17 +73,21 @@ public final class KnownTagCodec {
 
   /**
    * The tag's slot, or {@link #NO_SLOT}. The generator colors tags that appear together on a span
-   * type with distinct slots, so a span's slotted tags never collide: {@code 1L << slotOf(id)} is
-   * an exact presence bit for them. Every tag without a slot shares bit 63, which no real slot
-   * uses.
+   * type with distinct slots, so when instrumentation follows its span type, {@code 1L <<
+   * slotOf(id)} gives each of a span's tags its own presence bit. A span can still hold two tags
+   * that share a slot, so a clear bit means the tag is absent, but a set bit only means it may be
+   * present. Every tag without a slot shares bit 63, which no real slot uses.
    */
   public static int slotOf(long tagId) {
     return (int) (tagId >>> SLOT_SHIFT) & 0xFFFF;
   }
 
-  /** True if the tag has a slot, below {@link #slotCount()}. */
+  /**
+   * True if the tag has a slot, below {@link #slotCount()}. False for {@code 0L}, the id {@link
+   * #keyOf} gives a custom tag, which would otherwise decode as slot 0.
+   */
   public static boolean hasSlot(long tagId) {
-    return slotOf(tagId) != NO_SLOT;
+    return tagId != 0L && slotOf(tagId) != NO_SLOT;
   }
 
   /** Slots in use: every slotted tag's slot is below this. */
