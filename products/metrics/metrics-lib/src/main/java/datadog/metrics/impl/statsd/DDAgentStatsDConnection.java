@@ -171,7 +171,11 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
             AgentTaskScheduler.get()
                 .scheduleWithJitter(ConnectTask.INSTANCE, this, RETRY_DELAY, SECONDS);
           } else {
-            log.debug("Max retries have been reached. Will not attempt again.");
+            log.warn(
+                "Unable to create StatsD client - {} - after {} attempts. Will not retry: {}",
+                statsDAddress(),
+                retries.get(),
+                e.getMessage());
           }
         } catch (Throwable t) {
           if (log.isDebugEnabled()) {
