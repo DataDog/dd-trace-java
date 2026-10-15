@@ -600,43 +600,52 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `shared tags may share a slot with each other but not with tags that are always set`() {
+  fun `optional tags share slots only when a span type overflows`() {
+    // 60 required tags and 6 optional ones on one span type: 66 tags, over the 63 slots.
+    val required = (0 until 60).joinToString("\n") { "        - {dd-name: t.req$it, required: required}" }
+    val optional = (0 until 6).joinToString("\n") { "        - {dd-name: t.opt$it}" }
+    val yaml = directory.conventionsFile("span_types:\n  test:\n    span-kind: internal\n    tags:\n$required\n$optional\n")
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    // The required tags take exact slots 0-59; the optional ones spread over the 3 left, 2 each.
+    val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    val slotOf = Regex("""T_(\w+)_ID = 0x[0-9A-F]{4}([0-9A-F]{4})""").findAll(knownTags)
+      .associate { it.groupValues[1] to it.groupValues[2].toInt(16) }
+    assertThat((0 until 60).map { slotOf.getValue("REQ$it") }.toSet()).isEqualTo((0 until 60).toSet())
+    assertThat((0 until 6).map { slotOf.getValue("OPT$it") }.groupingBy { it }.eachCount())
+      .isEqualTo(mapOf(60 to 2, 61 to 2, 62 to 2))
+    assertThat(Regex("shares slot").findAll(knownTags).count()).isEqualTo(6)
+    assertThat(knownTags).contains("public static final int SLOT_COUNT = 63;")
+  }
+
+  @Test
+  fun `optional tags keep exact slots when the span type fits`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
         test:
           span-kind: internal
-          tags:
-            - {dd-name: test.name, required: required}
-            - {dd-name: test.suite, required: required}
-            - {dd-name: test.is_retry, slot: shared}
-            - {dd-name: test.is_new, slot: shared}
-            - {dd-name: test.skip_reason, slot: shared}
+          tags: [{dd-name: test.name, required: required}, {dd-name: test.is_retry}, {dd-name: test.is_new}]
       """
     )
     val output = File(directory, "generated")
 
     TagRegistryGenerator.generate(yaml, output)
 
-    // test.name and test.suite take exact slots 0 and 1; the three shared tags all take slot 2.
     val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
-    assertThat(knownTags)
-      .contains(
-        "TEST_IS_NEW_ID = 0x0001000200000000L",
-        "TEST_IS_RETRY_ID = 0x0002000200000000L",
-        "TEST_NAME_ID = 0x0003000000000000L",
-        "TEST_SKIP_REASON_ID = 0x0004000200000000L",
-        "TEST_SUITE_ID = 0x0005000100000000L",
-        "public static final int SLOT_COUNT = 3;",
-        "+ shared-slot"
-      )
+    assertThat(knownTags).contains("public static final int SLOT_COUNT = 3;").doesNotContain("shares slot")
   }
 
   @Test
-  fun `a slot value other than shared is rejected`() {
+  fun `a span type whose non-optional tags need more than 63 slots is rejected`() {
+    val tags = (0 until 64).joinToString("\n") { "        - {dd-name: t.req$it, required: recommended}" }
+    val yaml = directory.conventionsFile("span_types:\n  test:\n    span-kind: internal\n    tags:\n$tags\n")
+
     assertThatIllegalArgumentException()
-      .isThrownBy { tagConventions("span_types: {base: {tags: [{dd-name: x.y, slot: rare}]}}") }
-      .withMessageContaining("the only value is 'shared'")
+      .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
+      .withMessageContaining("coloring needs more than 63 slots")
   }
 
   private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(
