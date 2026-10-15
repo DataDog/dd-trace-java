@@ -3,6 +3,7 @@ package datadog.gradle.plugin.muzzle
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.version.Version
 import java.util.Locale
+import kotlin.random.Random
 
 internal object MuzzleVersionUtils {
   private val END_NMN_PATTERN = Regex("^.*\\.[0-9]+[mM][0-9]+$")
@@ -19,10 +20,11 @@ internal object MuzzleVersionUtils {
   fun filterAndLimitVersions(
     result: VersionRangeResult,
     skipVersions: Set<String>,
-    includeSnapshots: Boolean
+    includeSnapshots: Boolean,
+    random: Random = Random.Default
   ): Set<Version> {
     val filtered = filterVersion(result.versions.toSet(), skipVersions, includeSnapshots)
-    return limitLargeRanges(result, filtered, skipVersions)
+    return limitLargeRanges(result, filtered, skipVersions, random)
   }
 
   /**
@@ -81,7 +83,8 @@ internal object MuzzleVersionUtils {
   private fun limitLargeRanges(
     result: VersionRangeResult,
     versions: Set<Version>,
-    skipVersions: Set<String>
+    skipVersions: Set<String>,
+    random: Random
   ): Set<Version> {
     if (versions.size <= 1) return versions
     val beforeSize = versions.size
@@ -89,7 +92,7 @@ internal object MuzzleVersionUtils {
       removeAll { skipVersions.contains(it.toString()) }
     }
     val versionSet = VersionSet(filteredVersions)
-    val shuffled = versionSet.lowAndHighForMajorMinor.shuffled().toMutableList()
+    val shuffled = versionSet.lowAndHighForMajorMinor.shuffled(random).toMutableList()
     var afterSize = shuffled.size
     while (RANGE_COUNT_LIMIT <= afterSize) {
       val version = shuffled.removeAt(0)
