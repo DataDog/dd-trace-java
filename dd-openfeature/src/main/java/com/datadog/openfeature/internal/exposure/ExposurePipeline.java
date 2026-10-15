@@ -2,7 +2,7 @@ package com.datadog.openfeature.internal.exposure;
 
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.connector.EventTransport;
+import com.datadog.openfeature.internal.bridge.EventTransport;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

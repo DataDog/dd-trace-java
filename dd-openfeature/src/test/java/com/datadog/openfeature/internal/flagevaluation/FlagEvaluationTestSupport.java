@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.connector.EventTransport;
-import com.datadog.openfeature.internal.connector.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.HealthMetrics;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
