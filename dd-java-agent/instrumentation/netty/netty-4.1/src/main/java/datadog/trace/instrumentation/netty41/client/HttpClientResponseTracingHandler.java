@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty41.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.isNestedClientSpanSuppressed;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
@@ -29,13 +30,15 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
+    final boolean clientSpanSuppressed = isNestedClientSpanSuppressed(storedContext, span);
+    final AgentSpan callbackParent = clientSpanSuppressed ? span : parent;
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(callbackParent));
     }
 
-    if (span != null) {
+    if (span != null && !clientSpanSuppressed) {
       final boolean finishSpan =
           msg instanceof HttpResponse
               && (!HttpResponseStatus.SWITCHING_PROTOCOLS.equals(((HttpResponse) msg).status())
@@ -54,8 +57,8 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
       }
     }
 
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
+    // Run the callback under the span that initiated the transport request.
+    try (final ContextScope scope = activateSpan(callbackParent)) {
       ctx.fireChannelRead(msg);
     }
   }
@@ -67,13 +70,15 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
+    final boolean clientSpanSuppressed = isNestedClientSpanSuppressed(storedContext, span);
+    final AgentSpan callbackParent = clientSpanSuppressed ? span : parent;
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(callbackParent));
     }
 
-    if (span != null) {
+    if (span != null && !clientSpanSuppressed) {
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
       try (final ContextScope scope = activateSpan(span)) {
@@ -82,8 +87,8 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
         span.finish();
       }
     }
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
+    // Run the callback under the span that initiated the transport request.
+    try (final ContextScope scope = activateSpan(callbackParent)) {
       super.exceptionCaught(ctx, cause);
     }
   }
@@ -95,20 +100,22 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
+    final boolean clientSpanSuppressed = isNestedClientSpanSuppressed(storedContext, span);
+    final AgentSpan callbackParent = clientSpanSuppressed ? span : parent;
 
     // Set parent context back to maintain the same functionality  as getAndSet(parent)
     if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(callbackParent));
     }
 
-    if (span != null && span != parent) {
+    if (span != null && span != parent && !clientSpanSuppressed) {
       try (final ContextScope scope = activateSpan(span)) {
         DECORATE.beforeFinish(span);
         span.finish();
       }
     }
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
+    // Run the callback under the span that initiated the transport request.
+    try (final ContextScope scope = activateSpan(callbackParent)) {
       super.channelInactive(ctx);
     }
   }
