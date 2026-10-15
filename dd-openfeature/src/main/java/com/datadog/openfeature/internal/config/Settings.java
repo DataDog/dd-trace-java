@@ -33,6 +33,8 @@ public final class Settings {
   static final String SPAN_ENRICHMENT_ENABLED =
       "experimental.flagging.provider.span.enrichment.enabled";
   static final String EVALUATION_COUNTS_ENABLED = "flagging.evaluation.counts.enabled";
+  static final String EXPOSURES_DATADOG_LOGGING_ENABLED =
+      "feature.flags.exposures.datadog.logging.enabled";
   static final String API_KEY = "api-key";
   static final String SITE = "site";
   static final String ENV = "env";
@@ -147,6 +149,16 @@ public final class Settings {
    */
   public boolean isEvaluationCountsEnabled() {
     return !Boolean.FALSE.equals(getBoolean(EVALUATION_COUNTS_ENABLED));
+  }
+
+  /**
+   * Tells whether exposures are sent to Datadog. When off, exposures are still deduplicated so
+   * exposure hooks get the same decisions, and flag evaluation events are still sent.
+   *
+   * @return whether exposures are sent to Datadog (on by default).
+   */
+  public boolean isExposuresDatadogLoggingEnabled() {
+    return !Boolean.FALSE.equals(getBoolean(EXPOSURES_DATADOG_LOGGING_ENABLED));
   }
 
   /**
