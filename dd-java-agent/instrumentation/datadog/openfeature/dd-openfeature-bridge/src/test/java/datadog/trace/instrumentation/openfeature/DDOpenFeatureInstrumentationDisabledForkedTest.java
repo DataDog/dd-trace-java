@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.openfeature;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.Connectors;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.AgentBridges;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -21,6 +21,6 @@ class DDOpenFeatureInstrumentationDisabledForkedTest extends AbstractInstrumenta
   @Test
   void doesNotInstrumentWhenFeatureFlagsIsDisabled() {
     FeatureFlaggingGateway.register(mock(FeatureFlaggingGateway.Backend.class));
-    assertSame(Connector.NONE, Connectors.detect());
+    assertSame(AgentBridge.NONE, AgentBridges.detect());
   }
 }

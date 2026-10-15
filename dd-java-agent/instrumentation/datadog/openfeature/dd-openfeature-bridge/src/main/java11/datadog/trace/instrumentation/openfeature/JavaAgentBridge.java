@@ -1,20 +1,20 @@
 package datadog.trace.instrumentation.openfeature;
 
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.EventTransport;
-import com.datadog.openfeature.internal.connector.HealthMetrics;
-import com.datadog.openfeature.internal.connector.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import javax.annotation.Nullable;
 
-/** The connector backed by the agent Feature Flags backend. */
-public final class JavaAgentConnector implements Connector {
+/** The bridge backed by the agent Feature Flags backend. */
+public final class JavaAgentBridge implements AgentBridge {
   private final FeatureFlaggingGateway.Backend backend;
   private final HealthMetrics healthMetrics;
   private final SpanEnricher spanEnricher;
 
-  JavaAgentConnector(final FeatureFlaggingGateway.Backend backend) {
+  JavaAgentBridge(final FeatureFlaggingGateway.Backend backend) {
     this.backend = backend;
     this.healthMetrics = new AgentHealthMetrics(backend);
     this.spanEnricher = new AgentSpanEnricher(backend);
@@ -23,12 +23,12 @@ public final class JavaAgentConnector implements Connector {
   /**
    * Connects the SDK to the agent backend.
    *
-   * @param fallback the connector to use if the agent backend is not started.
-   * @return the agent connector, or the fallback one.
+   * @param fallback the bridge to use if the agent backend is not started.
+   * @return the agent bridge, or the fallback one.
    */
-  public static Connector connect(final Connector fallback) {
+  public static AgentBridge connect(final AgentBridge fallback) {
     final FeatureFlaggingGateway.Backend backend = FeatureFlaggingGateway.backend();
-    return backend == null ? fallback : new JavaAgentConnector(backend);
+    return backend == null ? fallback : new JavaAgentBridge(backend);
   }
 
   @Nullable

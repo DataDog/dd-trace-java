@@ -11,11 +11,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.datadog.openfeature.internal.connector.ConfigurationSource;
-import com.datadog.openfeature.internal.connector.Connector;
-import com.datadog.openfeature.internal.connector.Connectors;
-import com.datadog.openfeature.internal.connector.EventProxyUnavailableException;
-import com.datadog.openfeature.internal.connector.EventTransport;
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.AgentBridges;
+import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.EventProxyUnavailableException;
+import com.datadog.openfeature.internal.bridge.EventTransport;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.util.function.Consumer;
@@ -30,15 +30,15 @@ class DDOpenFeatureInstrumentationTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void detectsTheAgentConnector() {
+  void detectsTheAgentBridge() {
     final FeatureFlaggingGateway.Backend backend = mock(FeatureFlaggingGateway.Backend.class);
     FeatureFlaggingGateway.register(backend);
-    assertInstanceOf(JavaAgentConnector.class, Connectors.detect());
+    assertInstanceOf(JavaAgentBridge.class, AgentBridges.detect());
   }
 
   @Test
-  void keepsTheDefaultConnectorWithoutBackend() {
-    assertSame(Connector.NONE, Connectors.detect());
+  void keepsTheDefaultBridgeWithoutBackend() {
+    assertSame(AgentBridge.NONE, AgentBridges.detect());
   }
 
   @Test
@@ -46,10 +46,10 @@ class DDOpenFeatureInstrumentationTest extends AbstractInstrumentationTest {
     final FeatureFlaggingGateway.Backend backend = mock(FeatureFlaggingGateway.Backend.class);
     FeatureFlaggingGateway.register(backend);
     when(backend.setting("site")).thenReturn("datadoghq.eu");
-    final Connector connector = Connectors.detect();
+    final AgentBridge bridge = AgentBridges.detect();
 
-    assertEquals("datadoghq.eu", connector.setting("site"));
-    connector.healthMetrics().count("metric", 2, "reason");
+    assertEquals("datadoghq.eu", bridge.setting("site"));
+    bridge.healthMetrics().count("metric", 2, "reason");
     verify(backend).count("metric", 2, "reason");
   }
 
@@ -57,13 +57,13 @@ class DDOpenFeatureInstrumentationTest extends AbstractInstrumentationTest {
   void exposesRemoteConfigurationOnlyWhenAvailable() throws Exception {
     final FeatureFlaggingGateway.Backend backend = mock(FeatureFlaggingGateway.Backend.class);
     FeatureFlaggingGateway.register(backend);
-    final Connector connector = Connectors.detect();
-    assertNull(connector.remoteConfiguration());
+    final AgentBridge bridge = AgentBridges.detect();
+    assertNull(bridge.remoteConfiguration());
 
     when(backend.isRemoteConfigAvailable()).thenReturn(true);
     final AutoCloseable subscription = mock(AutoCloseable.class);
     when(backend.subscribeRemoteConfig(any())).thenReturn(subscription);
-    final ConfigurationSource source = connector.remoteConfiguration();
+    final ConfigurationSource source = bridge.remoteConfiguration();
     final Consumer<byte[]> listener = content -> {};
 
     assertSame(subscription, source.subscribe(listener));
@@ -74,11 +74,11 @@ class DDOpenFeatureInstrumentationTest extends AbstractInstrumentationTest {
   void postsThroughTheEventProxyOnlyWhenAvailable() throws Exception {
     final FeatureFlaggingGateway.Backend backend = mock(FeatureFlaggingGateway.Backend.class);
     FeatureFlaggingGateway.register(backend);
-    final Connector connector = Connectors.detect();
-    assertNull(connector.eventProxy());
+    final AgentBridge bridge = AgentBridges.detect();
+    assertNull(bridge.eventProxy());
 
     when(backend.isEventProxyAvailable()).thenReturn(true);
-    final EventTransport proxy = connector.eventProxy();
+    final EventTransport proxy = bridge.eventProxy();
     final byte[] payload = "{}".getBytes(UTF_8);
     when(backend.postEvent("exposures", payload)).thenReturn(true);
     proxy.post("exposures", payload);
@@ -92,10 +92,10 @@ class DDOpenFeatureInstrumentationTest extends AbstractInstrumentationTest {
   void delegatesSpanEnrichment() {
     final FeatureFlaggingGateway.Backend backend = mock(FeatureFlaggingGateway.Backend.class);
     FeatureFlaggingGateway.register(backend);
-    final Connector connector = Connectors.detect();
+    final AgentBridge bridge = AgentBridges.detect();
 
-    connector.spanEnricher().serialId(42, true, "user");
-    connector.spanEnricher().runtimeDefault("flag", "default");
+    bridge.spanEnricher().serialId(42, true, "user");
+    bridge.spanEnricher().runtimeDefault("flag", "default");
 
     verify(backend).enrichSerialId(42, true, "user");
     verify(backend).enrichRuntimeDefault("flag", "default");
