@@ -1339,24 +1339,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (TagMap.Internals.STORES_BOXES) {
-      // The dense store keeps the box: box once, shared by the interceptor and the store.
-      final Boolean box = value;
-      if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
-          || !tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
-    } else if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      final Boolean box = value;
-      if (!tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
-      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
       }
@@ -1367,24 +1352,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (TagMap.Internals.STORES_BOXES) {
-      // The dense store keeps the box: box once, shared by the interceptor and the store.
-      final Integer box = value;
-      if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
-          || !tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
-    } else if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      final Integer box = value;
-      if (!tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
-      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
       }
@@ -1395,24 +1365,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (TagMap.Internals.STORES_BOXES) {
-      // The dense store keeps the box: box once, shared by the interceptor and the store.
-      final Long box = value;
-      if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
-          || !tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
-    } else if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      final Long box = value;
-      if (!tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
-      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
       }
@@ -1423,24 +1378,9 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (TagMap.Internals.STORES_BOXES) {
-      // The dense store keeps the box: box once, shared by the interceptor and the store.
-      final Float box = value;
-      if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
-          || !tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
-    } else if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      final Float box = value;
-      if (!tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
-      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
       }
@@ -1451,26 +1391,26 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (TagMap.Internals.STORES_BOXES) {
-      // The dense store keeps the box: box once, shared by the interceptor and the store.
-      final Double box = value;
-      if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
-          || !tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
-    } else if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
-      final Double box = value;
-      if (!tagInterceptor.interceptTag(this, tagId, box)) {
-        synchronized (unsafeTags) {
-          unsafeTags.internals().setKnown(tagId, box);
-        }
-      }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownBox(tagId, value); // the one boxing site
     } else {
-      // The hash store keeps the primitive: no box.
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  /**
+   * The boxed path of the primitive id setters, which box at most once: always for the dense store,
+   * which keeps the box ({@code STORES_BOXES} is a static final, so the test folds), and for a tag
+   * that may be intercepted, since the interceptor takes an Object. The hash store's plain path
+   * stores the primitive unboxed. One shared path keeps each setter's compiled code small.
+   */
+  private void setKnownBox(long tagId, Object box) {
+    if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
+        || !tagInterceptor.interceptTag(this, tagId, box)) {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
