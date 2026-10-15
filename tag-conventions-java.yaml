@@ -73,6 +73,83 @@ span_types:
       - { dd-name: mule.correlation_id, type: string, required: recommended }
       - { dd-name: mule.location,       type: string, required: optional }
 
+  # Elasticsearch REST client requests.
+  elasticsearch.rest:
+    extends: db.client
+    tags:
+      - { ref: http.method }
+      - { ref: http.url }  # the endpoint path
+      - { dd-name: elasticsearch.body,   type: string, required: optional }  # off by default
+      - { dd-name: elasticsearch.params, type: string, required: optional }
+
+  # Elasticsearch transport client actions.
+  elasticsearch.transport:
+    extends: db.client
+    tags:
+      - { dd-name: elasticsearch.action,                  type: string, required: recommended }
+      - { dd-name: elasticsearch.request,                 type: string, required: recommended }
+      - { dd-name: elasticsearch.request.indices,         type: string, required: optional }
+      - { dd-name: elasticsearch.request.search.types,    type: string, required: optional }
+      - { dd-name: elasticsearch.request.write.type,      type: string, required: optional }
+      - { dd-name: elasticsearch.request.write.routing,   type: string, required: optional }
+      - { dd-name: elasticsearch.request.write.version,   type: long,   required: optional }
+      - { dd-name: elasticsearch.type,                    type: string, required: optional }
+      - { dd-name: elasticsearch.id,                      type: string, required: optional }
+      - { dd-name: elasticsearch.version,                 type: long,   required: optional }
+      - { dd-name: elasticsearch.shard.broadcast.total,   type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.broadcast.successful, type: int, required: optional }
+      - { dd-name: elasticsearch.shard.broadcast.failed,  type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.replication.total, type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.replication.successful, type: int, required: optional }
+      - { dd-name: elasticsearch.shard.replication.failed, type: int,   required: optional }
+      - { dd-name: elasticsearch.response.status,         type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.bulk.id,           type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.bulk.index,        type: string, required: optional }
+      - { dd-name: elasticsearch.node.failures,           type: int,    required: optional }
+      - { dd-name: elasticsearch.node.cluster.name,       type: string, required: optional }
+
+  # Twilio SDK calls: client spans typed http, though they set no HTTP tags.
+  twilio.sdk:
+    extends: http.client
+    tags:
+      - { dd-name: twilio.type,      type: string, required: recommended }
+      - { dd-name: twilio.account,   type: string, required: optional }
+      - { dd-name: twilio.sid,       type: string, required: optional }
+      - { dd-name: twilio.status,    type: string, required: optional }
+      - { dd-name: twilio.parentSid, type: string, required: optional }  # calls only
+
+  # JSP compilation and rendering (span.kind unset at runtime).
+  jsp.compile:
+    extends: internal
+    tags:
+      - { ref: servlet.context }
+      - { dd-name: jsp.compiler,  type: string, required: optional }
+      - { dd-name: jsp.classFQCN, type: string, required: recommended }
+
+  jsp.render:
+    extends: view.render
+    tags:
+      - { ref: servlet.context }
+      - { dd-name: jsp.forwardOrigin, type: string, required: optional }
+      - { dd-name: jsp.requestURL,    type: string, required: optional }
+
+  # Quartz scheduled job executions (span.kind unset at runtime).
+  quartz.job:
+    extends: internal
+    tags:
+      - { dd-name: quartz.job.name,      type: string, required: optional }
+      - { dd-name: quartz.job.group,     type: string, required: optional }
+      - { dd-name: quartz.trigger.name,  type: string, required: optional }
+      - { dd-name: quartz.trigger.group, type: string, required: optional }
+
+  # Hystrix commands, when Hystrix tags are enabled (span.kind unset at runtime).
+  hystrix.command:
+    extends: internal
+    tags:
+      - { dd-name: hystrix.command,      type: string,  required: optional }
+      - { dd-name: hystrix.group,        type: string,  required: optional }
+      - { dd-name: hystrix.circuit-open, type: boolean, required: optional }
+
 intercepted:
   - service
   - peer.service
