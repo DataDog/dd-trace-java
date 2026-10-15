@@ -83,21 +83,14 @@ public class CategoryInstrumentation extends InstrumenterModule.ContextTracking
 
   public static class SubmitLogAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean onEnter(@Advice.Argument(0) LoggingEvent event) {
+    public static void onEnter(@Advice.Argument(0) LoggingEvent event) {
       if (event == null
           || CallDepthThreadLocalMap.incrementCallDepth(AgentlessLogSubmission.class) > 0) {
-        return false;
+        return;
       }
       try {
         LogsIntakeHelper.submit(event);
-      } catch (Throwable ignored) {
-      }
-      return true;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter boolean shouldReset) {
-      if (shouldReset) {
+      } finally {
         CallDepthThreadLocalMap.reset(AgentlessLogSubmission.class);
       }
     }
