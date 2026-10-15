@@ -100,14 +100,6 @@ span_types:
       - { dd-name: error.message,   type: string, required: recommended }
       - { dd-name: error.stack,     type: string, required: recommended }
       - { dd-name: _dd.span_links,  type: string, required: optional }  # JSON; only for a span with links, when links are injected as tags
-      # code origin: set by the debugger on an entry or @Trace span (and its local root). Only frame 0 is produced.
-      - { dd-name: _dd.code_origin.type,                 type: string, required: optional }
-      - { dd-name: _dd.code_origin.frames.0.file,        type: string, required: optional }
-      - { dd-name: _dd.code_origin.frames.0.method,      type: string, required: optional }
-      - { dd-name: _dd.code_origin.frames.0.line,        type: string, required: optional }
-      - { dd-name: _dd.code_origin.frames.0.type,        type: string, required: optional }
-      - { dd-name: _dd.code_origin.frames.0.signature,   type: string, required: optional }
-      - { dd-name: _dd.code_origin.frames.0.snapshot_id, type: string, required: optional }
 
   http:
     abstract: true
@@ -139,7 +131,8 @@ span_types:
       - { dd-name: http.forwarded.host,  type: string, required: optional }
       - { dd-name: http.forwarded.ip,    type: string, required: optional }
       - { dd-name: http.forwarded.port,  type: string, required: optional }
-      # Security-testing request headers, when present.
+      # Security-testing request headers, when present. Fixed members of the http.request.headers.<header>
+      # family, which the security-testing code always checks for.
       - { dd-name: http.request.headers.x-datadog-endpoint-scan, type: string, required: optional }
       - { dd-name: http.request.headers.x-datadog-security-test, type: string, required: optional }
 
@@ -362,6 +355,14 @@ mixins:
     span-kind: server
     tags:
       - { dd-name: peer.port, type: int, otel-name: client.port }
+
+  # code_origin — the debugger's code origin, on entry spans (and their local root) and @Trace spans.
+  # Only the origin's type is registered: its frames are _dd.code_origin.frames.<N>.<field>, a name
+  # pattern, which the registry doesn't model yet. (Only frame 0 is produced today.)
+  code_origin:
+    applies: [ http.server, rpc.server, messaging.consumer, internal ]
+    tags:
+      - { dd-name: _dd.code_origin.type, type: string, required: optional }
 
   # data_streams — Data Streams Monitoring checkpoints, on the spans that carry or receive a pathway.
   data_streams:

@@ -31,13 +31,31 @@ class TagConstantsRegistryCoverageTest {
       Arrays.asList(Tags.class, InstrumentationTags.class, DDTags.class);
 
   /**
-   * Constants deliberately never registered, with the reason: values of a tag, name prefixes,
-   * operation names, and names only the serializers write.
+   * Constants deliberately never registered, with the reason: values of a tag, name prefixes and
+   * patterns, operation names, and names only the serializers write.
    */
   static final Map<String, String> NEVER_REGISTERED = new TreeMap<>();
 
   static {
     NEVER_REGISTERED.put("DDTags.DB_STATEMENT", "unused, but public API");
+    NEVER_REGISTERED.put(
+        "DDTags.DD_CODE_ORIGIN_FRAME_FILE",
+        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet");
+    NEVER_REGISTERED.put(
+        "DDTags.DD_CODE_ORIGIN_FRAME_LINE",
+        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet");
+    NEVER_REGISTERED.put(
+        "DDTags.DD_CODE_ORIGIN_FRAME_METHOD",
+        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet");
+    NEVER_REGISTERED.put(
+        "DDTags.DD_CODE_ORIGIN_FRAME_SIGNATURE",
+        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet");
+    NEVER_REGISTERED.put(
+        "DDTags.DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID",
+        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet");
+    NEVER_REGISTERED.put(
+        "DDTags.DD_CODE_ORIGIN_FRAME_TYPE",
+        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet");
     NEVER_REGISTERED.put("DDTags.DD_CODE_ORIGIN_PREFIX", "a name prefix");
     NEVER_REGISTERED.put("DDTags.LANGUAGE_TAG_VALUE", "a value of language");
     NEVER_REGISTERED.put(
