@@ -21,6 +21,10 @@ dependencies {
   compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
+
+  // otel-shim is compiled against otel-bootstrap classes (e.g. OtelInstrument) that the agent loads on the bootstrap
+  // class-path, so muzzle checks this module against the same bootstrap classes, like the sibling opentelemetry modules.
+  muzzleBootstrap project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: openTelemetryVersion
   latest1xDepTestImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1+'
