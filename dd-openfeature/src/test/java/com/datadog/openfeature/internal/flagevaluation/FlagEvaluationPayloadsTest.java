@@ -48,7 +48,7 @@ class FlagEvaluationPayloadsTest {
   void eventFromFullBucketUsesFlushTimeAndEvaluationBounds() throws Exception {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "ts-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, emptyMap(), true);
+            "ts-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, emptyMap(), true, null);
     bucket.merge(EVAL_MS + 10, false);
     final long flushTimeMs = EVAL_MS + 5_000;
 
@@ -72,7 +72,7 @@ class FlagEvaluationPayloadsTest {
   void degradedTierEventOmitsTargetingKeyAndContext() throws Exception {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "dg-flag", "on", "alloc1", null, null, EVAL_MS, false, null, false);
+            "dg-flag", "on", "alloc1", null, null, EVAL_MS, false, null, false, null);
 
     final Map<String, Object> json =
         firstPayload(
@@ -102,7 +102,8 @@ class FlagEvaluationPayloadsTest {
             EVAL_MS,
             false,
             attrs,
-            true);
+            true,
+            null);
 
     final Map<String, Object> json =
         firstPayload(
@@ -137,7 +138,8 @@ class FlagEvaluationPayloadsTest {
             EVAL_MS,
             false,
             attrs,
-            false);
+            false,
+            null);
 
     final FlagEvaluationPayloads.EncodedPayloads payloads =
         FlagEvaluationPayloads.buildPayloads(
@@ -298,6 +300,7 @@ class FlagEvaluationPayloadsTest {
                         null,
                         true,
                         "type mismatch",
+                        null,
                         null)),
                 CONTEXT,
                 1_000_000));
@@ -333,6 +336,7 @@ class FlagEvaluationPayloadsTest {
                 "user-1",
                 true,
                 null,
+                null,
                 null)
             .withoutTargetingKeyAndContext();
 
@@ -351,7 +355,7 @@ class FlagEvaluationPayloadsTest {
     attrs.put("tier", "gold");
     final FlagEvaluationPayloads.FlagEvaluationEvent event =
         new FlagEvaluationPayloads.FlagEvaluationEvent(
-            EVAL_MS, "empty-optionals", EVAL_MS, EVAL_MS, 1, "", "", null, false, "", attrs);
+            EVAL_MS, "empty-optionals", EVAL_MS, EVAL_MS, 1, "", "", null, false, "", attrs, null);
 
     assertNull(event.variant);
     assertNull(event.allocation);
@@ -383,7 +387,8 @@ class FlagEvaluationPayloadsTest {
         targetingKey,
         false,
         null,
-        attrs);
+        attrs,
+        null);
   }
 
   private static Map<String, Object> firstPayload(
@@ -426,5 +431,44 @@ class FlagEvaluationPayloadsTest {
     final Map<String, String> context = new HashMap<>();
     context.put("service", "test-service");
     return context;
+  }
+
+  @Test
+  void rowsCarryFeaturesInEveryTierAndWithoutConsent() throws Exception {
+    final Map<String, Object> features = new HashMap<>();
+    features.put("bandit.policy_id", "p2");
+    features.put("bandit.weight", 0.5);
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        new FlagEvaluationAggregator.EvalBucket(
+            "feature-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, null, false, features);
+
+    final FlagEvaluationPayloads.FlagEvaluationEvent full =
+        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, true, false, EVAL_MS);
+    final FlagEvaluationPayloads.FlagEvaluationEvent degraded =
+        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, false, false, EVAL_MS);
+
+    assertEquals(features, firstEvent(onlyPayload(full)).get("features"));
+    assertEquals(features, firstEvent(onlyPayload(degraded)).get("features"));
+    assertEquals(features, full.withoutTargetingKeyAndContext().features);
+  }
+
+  @Test
+  void rowsWithoutFeaturesOmitTheField() throws Exception {
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        new FlagEvaluationAggregator.EvalBucket(
+            "plain-flag", "on", "alloc1", null, null, EVAL_MS, false, null, false, emptyMap());
+
+    final FlagEvaluationPayloads.FlagEvaluationEvent row =
+        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, false, false, EVAL_MS);
+
+    assertNull(row.features);
+    assertFalse(firstEvent(onlyPayload(row)).containsKey("features"));
+  }
+
+  private static Map<String, Object> onlyPayload(
+      final FlagEvaluationPayloads.FlagEvaluationEvent row) throws Exception {
+    return firstPayload(
+        FlagEvaluationPayloads.buildPayloads(
+            java.util.Collections.singletonList(row), CONTEXT, 1_000_000));
   }
 }

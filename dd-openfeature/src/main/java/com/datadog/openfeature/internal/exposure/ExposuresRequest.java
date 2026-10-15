@@ -44,6 +44,10 @@ public class ExposuresRequest {
             if (exposure.serial_id != null) {
               generator.writeNumberField("serial_id", exposure.serial_id);
             }
+            if (exposure.features != null && !exposure.features.isEmpty()) {
+              generator.writeFieldName("features");
+              writeValue(generator, exposure.features);
+            }
             generator.writeEndObject();
           }
           generator.writeEndArray();
