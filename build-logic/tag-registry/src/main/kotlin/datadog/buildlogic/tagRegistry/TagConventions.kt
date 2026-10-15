@@ -56,6 +56,12 @@ class TagConventions private constructor(
      * The flag requires an `otel-name` and cannot be used on a tag declared per direction.
      */
     val spanKindNeutral: Boolean = false,
+    /**
+     * `slot: shared`: the tag is rarely set, so it may share a dense-store slot with other shared
+     * tags. It still gets its own slot apart from every tag that isn't shared, so tags that are
+     * always present keep exact presence bits.
+     */
+    val sharedSlot: Boolean = false,
   ) {
     /** The identity's label, as reports show it; see [TagIdentity.label]. */
     val name: String
@@ -572,6 +578,7 @@ class TagConventions private constructor(
           required = (m["required"] as? String) ?: "optional",
           otelName = parseOtelName(m),
           spanKindNeutral = parseSpanKindNeutral(m),
+          sharedSlot = parseSlot(m),
         )
       } ?: emptyList()
     }
@@ -581,6 +588,14 @@ class TagConventions private constructor(
       val raw = m["dd-name"]
       require(raw is String && raw.isNotBlank()) { "tag declaration has no valid dd-name: $m" }
       return raw
+    }
+
+    /** Reads `slot`, whose only value is `shared`; absent means the tag gets a slot of its own. */
+    private fun parseSlot(m: Map<String, Any?>): Boolean {
+      if (!m.containsKey("slot")) return false
+      val raw = m["slot"]
+      require(raw == "shared") { "tag '${m["dd-name"]}' has slot '$raw'; the only value is 'shared'" }
+      return true
     }
 
     private fun parseSpanKindNeutral(m: Map<String, Any?>): Boolean {

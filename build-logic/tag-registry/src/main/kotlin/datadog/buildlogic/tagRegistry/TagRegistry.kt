@@ -31,6 +31,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val otelName: String? = null,
     /** The tag's OpenTelemetry name on spans of each direction that renames it, when [otelName] is null. */
     val scopedOtelNames: Map<TagConventions.Direction, String> = emptyMap(),
+    /** Rarely set, so it may share a dense-store slot with other shared tags; see [TagConventions.Tag.sharedSlot]. */
+    val sharedSlot: Boolean = false,
   ) {
     /** The tag as reports and generated constant names show it. */
     val name: String
@@ -66,6 +68,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
           require(decls.all { it.type == first.type }) {
             "'${first.ddName}' is declared per direction with different types: ${decls.map { it.type }}"
           }
+          require(decls.all { it.sharedSlot == first.sharedSlot }) {
+            "'${first.ddName}' is declared per direction with and without slot: shared"
+          }
           val serial = FIRST_SERIAL + i
           val isTraceLevel = first.ddName in traceLevel
           val isIntercepted = first.ddName in conv.interceptedNames
@@ -80,6 +85,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             id = encode(serial, isTraceLevel, isIntercepted),
             otelName = otelName,
             scopedOtelNames = scoped,
+            sharedSlot = first.sharedSlot,
           )
         }
 
