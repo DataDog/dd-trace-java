@@ -30,6 +30,9 @@ public final class EventQueue<E> {
    * @return {@code true} if the element was queued, {@code false} if the queue is full.
    */
   public boolean offer(final E element) {
+    if (element == null) {
+      throw new NullPointerException("element");
+    }
     if (this.size.incrementAndGet() > this.capacity) {
       this.size.decrementAndGet();
       return false;

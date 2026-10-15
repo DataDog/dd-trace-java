@@ -18,6 +18,20 @@ import org.junit.jupiter.api.Test;
 
 class EventQueueTest {
   @Test
+  void rejectsNullWithoutConsumingCapacity() {
+    final EventQueue<String> queue = new EventQueue<>(1);
+
+    assertThrows(NullPointerException.class, () -> queue.offer(null));
+    assertEquals(0, queue.size());
+    assertTrue(queue.offer("a"));
+
+    assertThrows(NullPointerException.class, () -> queue.offer(null));
+    assertEquals(1, queue.size());
+    assertEquals("a", queue.poll());
+    assertEquals(0, queue.size());
+  }
+
+  @Test
   void rejectsOffersBeyondCapacity() {
     final EventQueue<String> queue = new EventQueue<>(2);
 
