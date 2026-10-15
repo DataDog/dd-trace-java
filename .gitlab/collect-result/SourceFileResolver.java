@@ -11,8 +11,12 @@ import java.util.regex.Pattern;
 
 final class SourceFileResolver {
   private static final String UNKNOWN = "UNKNOWN";
-  private static final Pattern CLASS_DECLARATION =
-      Pattern.compile("\\b(?:static\\s+)?class\\s+([A-Za-z_$][A-Za-z0-9_$]*)\\b");
+  // Kotlin's "enum class" declaration is indexed through its "class" keyword.
+  private static final Pattern TYPE_DECLARATION =
+      Pattern.compile(
+          "\\b(?:class|interface|enum(?!\\s+class\\b)|record|object|trait)\\s+([A-Za-z_$][A-Za-z0-9_$]*)\\b");
+  private static final Pattern PACKAGE_DECLARATION =
+      Pattern.compile("^\\s*package\\s+([A-Za-z_$][A-Za-z0-9_$.]*)");
 
   private final String workspacePrefix;
   private final Map<String, SourceIndex> indexes = new HashMap<>();
@@ -37,7 +41,7 @@ final class SourceFileResolver {
   }
 
   private String sourceRoot(String resultXmlPath) {
-    var buildIndex = resultXmlPath.indexOf("/build");
+    var buildIndex = resultXmlPath.lastIndexOf("/build/");
     var projectPath = buildIndex >= 0 ? resultXmlPath.substring(0, buildIndex) : resultXmlPath;
     if (projectPath.startsWith(workspacePrefix)) {
       projectPath = projectPath.substring(workspacePrefix.length());
@@ -61,15 +65,6 @@ final class SourceFileResolver {
       name = name.substring(testPrefix + "TEST-".length());
     }
 
-    var packageSeparator = name.lastIndexOf('.');
-    if (packageSeparator >= 0) {
-      name = name.substring(packageSeparator + 1);
-    }
-
-    var innerClassSeparator = name.lastIndexOf('$');
-    if (innerClassSeparator >= 0) {
-      name = name.substring(innerClassSeparator + 1);
-    }
     return name;
   }
 
@@ -102,13 +97,18 @@ final class SourceFileResolver {
     }
 
     private List<Path> locations(String className) {
-      var locations = new ArrayList<Path>();
-      for (var entry : classLocations.entrySet()) {
-        if (entry.getKey().startsWith(className)) {
-          locations.addAll(entry.getValue());
+      while (true) {
+        var locations = classLocations.get(className);
+        if (locations != null) {
+          return locations;
         }
+
+        var innerClassSeparator = className.lastIndexOf('$');
+        if (innerClassSeparator <= className.lastIndexOf('.')) {
+          return List.of();
+        }
+        className = className.substring(0, innerClassSeparator);
       }
-      return locations;
     }
 
     private void indexIfNecessary() throws IOException {
@@ -149,12 +149,19 @@ final class SourceFileResolver {
 
     private void index(Path sourceFile) throws IOException {
       try (BufferedReader reader = Files.newBufferedReader(sourceFile, StandardCharsets.UTF_8)) {
+        var packageName = "";
         String line;
         while ((line = reader.readLine()) != null) {
-          var matcher = CLASS_DECLARATION.matcher(line);
+          if (packageName.isEmpty()) {
+            var packageMatcher = PACKAGE_DECLARATION.matcher(line);
+            if (packageMatcher.find()) {
+              packageName = packageMatcher.group(1) + '.';
+            }
+          }
+          var matcher = TYPE_DECLARATION.matcher(line);
           while (matcher.find()) {
             classLocations
-                .computeIfAbsent(matcher.group(1), ignored -> new ArrayList<>())
+                .computeIfAbsent(packageName + matcher.group(1), ignored -> new ArrayList<>())
                 .add(sourceFile);
           }
         }
