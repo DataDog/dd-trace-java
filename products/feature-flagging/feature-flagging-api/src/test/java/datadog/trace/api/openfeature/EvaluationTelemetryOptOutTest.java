@@ -16,6 +16,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
@@ -58,12 +59,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Exercises real OpenFeature resolution and telemetry hooks, with capture at each output boundary.
  */
 class EvaluationTelemetryOptOutTest {
   private static final String PARAMETER = "dd_evaluation_telemetry_opt_out";
+  private static final String ENVIRONMENT_VARIABLE =
+      "DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED";
+  private static final String SYSTEM_PROPERTY =
+      "dd.feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
+  private EnvironmentVariables.EnvironmentVariablesProvider previousEnvironment;
+  private String previousProperty;
+  private String configuredEnvironmentValue;
 
   private final List<FlagEvalEvent> events = new CopyOnWriteArrayList<>();
   private final List<SpanEnrichmentEvent> spans = new CopyOnWriteArrayList<>();
@@ -79,6 +89,18 @@ class EvaluationTelemetryOptOutTest {
 
   @BeforeEach
   void setUp() {
+    previousEnvironment = EnvironmentVariables.provider;
+    previousProperty = System.getProperty(SYSTEM_PROPERTY);
+    System.clearProperty(SYSTEM_PROPERTY);
+    EnvironmentVariables.provider =
+        new EnvironmentVariables.EnvironmentVariablesProvider() {
+          @Override
+          public String get(final String name) {
+            return ENVIRONMENT_VARIABLE.equals(name)
+                ? configuredEnvironmentValue
+                : previousEnvironment.get(name);
+          }
+        };
     api.setEvaluationContext(new MutableContext());
     GlobalOpenTelemetry.resetForTest();
     final OpenTelemetry otel = mock(OpenTelemetry.class, RETURNS_DEEP_STUBS);
@@ -109,6 +131,12 @@ class EvaluationTelemetryOptOutTest {
 
   @AfterEach
   void tearDown() {
+    EnvironmentVariables.provider = previousEnvironment;
+    if (previousProperty == null) {
+      System.clearProperty(SYSTEM_PROPERTY);
+    } else {
+      System.setProperty(SYSTEM_PROPERTY, previousProperty);
+    }
     api.clearHooks();
     api.setEvaluationContext(new MutableContext());
     api.shutdown();
@@ -119,6 +147,73 @@ class EvaluationTelemetryOptOutTest {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(previousEnqueueEnabled);
     ExposureDeduplicationCache.INSTANCE.clear();
     GlobalOpenTelemetry.resetForTest();
+  }
+
+  @Test
+  void environmentEnablesPerSubjectOptOut() throws Exception {
+    configuredEnvironmentValue = "true";
+    start(new Provider.Options());
+    final FlagEvaluationDetails<Integer> details = evaluate("subject-1", new Value(true));
+    assertEquals(1, details.getValue());
+    assertEquals("on", details.getVariant());
+    assertTelemetryCounts(0);
+    assertEquals(1, exposures.size());
+    evaluate("subject-2", new Value(false));
+    evaluate("subject-3", null);
+    assertTelemetryCounts(2);
+    assertEquals(3, exposures.size());
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"false", "invalid", ""})
+  void environmentDefaultsToDisabled(final String value) throws Exception {
+    configuredEnvironmentValue = value;
+    start(new Provider.Options());
+    evaluate("subject-1", new Value(true));
+    assertTelemetryCounts(1);
+    assertEquals(1, exposures.size());
+  }
+
+  @Test
+  void explicitFalseOverridesEnabledEnvironment() throws Exception {
+    configuredEnvironmentValue = "true";
+    start(new Provider.Options().enableEvaluationTelemetryOptOutParameter(false));
+    evaluate("subject-1", new Value(true));
+    assertTelemetryCounts(1);
+    assertEquals(1, exposures.size());
+  }
+
+  @Test
+  void explicitTrueOverridesDisabledEnvironment() throws Exception {
+    configuredEnvironmentValue = "false";
+    start(new Provider.Options().enableEvaluationTelemetryOptOutParameter(true));
+    evaluate("subject-1", new Value(true));
+    assertTelemetryCounts(0);
+    assertEquals(1, exposures.size());
+  }
+
+  @Test
+  void systemPropertyOverridesEnvironment() throws Exception {
+    configuredEnvironmentValue = "true";
+    System.setProperty(SYSTEM_PROPERTY, "false");
+    start(new Provider.Options());
+    evaluate("subject-1", new Value(true));
+    assertTelemetryCounts(1);
+  }
+
+  @Test
+  void environmentIsCapturedAtProviderConstruction() throws Exception {
+    configuredEnvironmentValue = "true";
+    final Provider.Options options = new Provider.Options();
+    start(options);
+    configuredEnvironmentValue = "false";
+    evaluate("subject-1", new Value(true));
+    assertTelemetryCounts(0);
+    api.shutdown();
+    start(options);
+    evaluate("subject-2", new Value(true));
+    assertTelemetryCounts(1);
   }
 
   @Test

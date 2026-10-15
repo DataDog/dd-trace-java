@@ -2,6 +2,8 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -104,7 +106,7 @@ public class Provider extends EventProvider implements Metadata {
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
-    if (options.evaluationTelemetryOptOutParameterEnabled) {
+    if (options.isEvaluationTelemetryOptOutParameterEnabled()) {
       for (int i = 0; i < hooks.size(); i++) {
         hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
       }
@@ -320,11 +322,14 @@ public class Provider extends EventProvider implements Metadata {
 
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
-    private boolean evaluationTelemetryOptOutParameterEnabled;
+    private Boolean evaluationTelemetryOptOutParameterEnabled;
 
     /**
      * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}
-     * context attribute. Disabled by default.
+     * context attribute. Overrides {@code
+     * DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED}, including when false.
+     * Without an explicit option, the provider reads configuration at construction. Disabled by
+     * default.
      *
      * <p>Only boolean {@code true} suppresses new Datadog evaluation events, evaluation metrics,
      * and automatic flag span enrichment. Missing or other values preserve telemetry. This does not
@@ -336,6 +341,22 @@ public class Provider extends EventProvider implements Metadata {
     public Options enableEvaluationTelemetryOptOutParameter(final boolean enabled) {
       this.evaluationTelemetryOptOutParameterEnabled = enabled;
       return this;
+    }
+
+    private boolean isEvaluationTelemetryOptOutParameterEnabled() {
+      if (evaluationTelemetryOptOutParameterEnabled != null) {
+        return evaluationTelemetryOptOutParameterEnabled;
+      }
+      try {
+        return ConfigProvider.getInstance()
+            .getBoolean(
+                FeatureFlaggingConfig
+                    .FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED,
+                false);
+      } catch (final LinkageError | Exception e) {
+        // Keep provider construction compatible when agent configuration classes are unavailable.
+        return false;
+      }
     }
 
     public Options initTimeout(final long timeout, final TimeUnit unit) {

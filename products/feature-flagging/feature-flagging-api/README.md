@@ -87,6 +87,17 @@ boolean enabled = client.getBooleanValue("my-feature", false,
 Use the per-evaluation context for concurrent requests. Do not replace the global context for each
 subject. The key is exactly `dd_evaluation_telemetry_opt_out`, as in other Datadog SDKs.
 
+Alternatively, enable support through deployment configuration and use `new Provider()`:
+
+```shell
+DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED=true
+```
+
+The equivalent JVM property is `-Ddd.feature.flags.evaluation.telemetry.per.subject.opt.out.enabled=true`.
+The provider reads the normal Datadog configuration sources at construction. The default is `false`.
+An explicit provider option overrides these sources, including an explicit `false`.
+This setting only enables support for the subject attribute. It does not suppress telemetry for all subjects.
+
 Only boolean `true` suppresses telemetry. Missing, false, null, and other types preserve telemetry.
 The provider ignores the parameter unless the option is enabled before provider construction.
 
