@@ -9,7 +9,8 @@ public interface ConfigurationService extends AutoCloseable {
    * Starts delivering configurations. Implementations may deliver the first configuration before
    * returning.
    *
-   * @param listener the listener receiving configurations, or {@code null} when removed.
+   * @param listener the listener receiving configurations, and {@code null} when the configuration
+   *     is removed.
    */
   void start(Consumer<ServerConfiguration> listener);
 
