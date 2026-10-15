@@ -9,7 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/** {@link KnownTagCodec}'s dense-store slot: bits [47-32] of an id, assigned by graph coloring. */
+/** {@link KnownTagCodec}'s slot: bits [47-32] of an id, assigned by graph coloring. */
 class KnownTagCodecSlotTest {
   @Test
   void everySlotIsBelowTheSlotCount() throws IllegalAccessException {

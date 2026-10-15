@@ -115,7 +115,7 @@ object KnownTagsEmitter {
       // Every known tag's serial is below SERIAL_LIMIT; serial 0 is no tag.
       val serialLimit = (reg.tags.maxOfOrNull { it.serial } ?: 0) + 1
       appendLine("  public static final int SERIAL_LIMIT = $serialLimit;")
-      // Dense-store slots in use: every slotted tag's slot is below SLOT_COUNT.
+      // Slots in use: every slotted tag's slot is below SLOT_COUNT.
       val slotCount = (reg.tags.filter { it.slot != TagRegistry.NO_SLOT }.maxOfOrNull { it.slot } ?: -1) + 1
       appendLine("  public static final int SLOT_COUNT = $slotCount;")
 

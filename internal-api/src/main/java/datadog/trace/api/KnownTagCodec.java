@@ -5,8 +5,9 @@ package datadog.trace.api;
  * the ID layout and namespace naming policy.
  *
  * <p>Datadog and OpenTelemetry names can resolve to the same ID. {@link #canonicalTagName(String)}
- * provides the Datadog key used by {@link TagMap}; the namespace readers choose output names. The
- * ID does not determine whether a tag is intercepted or where it is stored.
+ * provides the Datadog key used by {@link TagMap}; the namespace readers choose output names. An ID
+ * marks a tag that may be intercepted ({@link #INTERCEPTED}), but {@code TagInterceptor} decides
+ * whether to consume the value. The ID says nothing about where the tag is stored.
  */
 public final class KnownTagCodec {
   /*
@@ -14,11 +15,16 @@ public final class KnownTagCodec {
    * [31-0 flags]. Keeping bit 63 clear makes every id positive, so 0 (unknown) and the negative
    * lookup sentinels below can never be ids; the generator enforces it. serialNum is globally
    * unique per known tag and is the whole of the tag's identity — nameOf/openTelemetryNameOf key on
-   * it, and the generator emits each id as a literal. Bits [47-32] hold the tag's dense-store slot
-   * ({@link #slotOf}), assigned by graph coloring so tags on one span type never share a slot, or
-   * {@link #NO_SLOT} for a tag on no modeled span type. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for
-   * them.
+   * it, and the generator emits each id as a literal. Bits [47-32] hold the tag's slot ({@link
+   * #slotOf}), assigned by graph coloring so tags on one span type never share a slot, or {@link
+   * #NO_SLOT} for a tag on no modeled span type. Of the low 32 flag bits, bit 2 is the trace/span
+   * LEVEL bit (set ⟹ trace-level), bit 1 is the INTERCEPTED bit, and bit 0 is the
+   * HAS_SCOPED_ALIAS bit. Unknown (string-only) custom tags are NOT known ids — {@code keyOf}
+   * returns 0 for them.
+   *
+   * <p>There is one id per Datadog name. A tag the conventions declare once per direction, such as
+   * {@code peer.port}, is still one tag: only its OpenTelemetry name depends on the span's
+   * direction, so direction applies when a tag is named, never when it is stored.
    *
    * <p>The INTERCEPTED bit marks a tag TagInterceptor may route on the set-path, to a span field or
    * a sampling directive instead of tag storage. It is a hint, not a decision: the interceptor's
@@ -73,29 +79,28 @@ public final class KnownTagCodec {
     return (tagId & HAS_SCOPED_ALIAS) != 0L;
   }
 
-  /** Bit position of the dense-store slot: bits [47-32] of an id. */
+  /** Bit position of the slot: bits [47-32] of an id. */
   public static final int SLOT_SHIFT = 32;
 
-  /**
-   * The slot of a known tag on no modeled span type. The dense store still stores it densely; its
-   * occupancy bit is bit 63, shared by every such tag.
-   */
+  /** The slot of a known tag on no modeled span type. */
   public static final int NO_SLOT = 0xFFFF;
 
   /**
-   * The tag's dense-store slot, or {@link #NO_SLOT}. The generator colors tags that appear together
-   * on a span type with distinct slots, so a span's slotted tags never collide.
+   * The tag's slot, or {@link #NO_SLOT}. The generator colors tags that appear together on a span
+   * type with distinct slots, so a span's slotted tags never collide: {@code 1L << slotOf(id)} is
+   * an exact presence bit for them. Every tag without a slot shares bit 63, which no real slot
+   * uses.
    */
   public static int slotOf(long tagId) {
     return (int) (tagId >>> SLOT_SHIFT) & 0xFFFF;
   }
 
-  /** True if the tag has a dense-store slot, below {@link #slotCount()}. */
+  /** True if the tag has a slot, below {@link #slotCount()}. */
   public static boolean hasSlot(long tagId) {
     return slotOf(tagId) != NO_SLOT;
   }
 
-  /** Dense-store slots in use: every slotted tag's slot is below this. */
+  /** Slots in use: every slotted tag's slot is below this. */
   public static int slotCount() {
     return KnownTags.SLOT_COUNT;
   }

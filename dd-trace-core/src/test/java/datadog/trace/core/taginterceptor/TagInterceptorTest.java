@@ -376,6 +376,36 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals("my-component", span.getServiceName());
   }
 
+  /**
+   * Without a {@code component}, a prototype's {@code language} is re-applied after the prototype's
+   * tags are intercepted, so it wins over another split-by-tags candidate the prototype sets.
+   * Called directly: the prototype's map is intercepted in hash order, so a full application can't
+   * pin the order that needs this.
+   */
+  @Test
+  void splitByTagsLanguageIsReappliedWithoutAComponent() {
+    TagInterceptor interceptor =
+        new TagInterceptor(
+            true,
+            "my-service",
+            new HashSet<>(Arrays.asList("tenant", DDTags.LANGUAGE_TAG_KEY)),
+            new RuleFlags(),
+            false);
+    CoreTracer tracer =
+        tracerBuilder().writer(new LoggingWriter()).tagInterceptor(interceptor).build();
+    AgentSpan span = tracer.buildSpan("datadog", "some span").start();
+    span.setTag("tenant", "acme"); // as if the prototype's tenant was intercepted last
+    assertEquals("acme", span.getServiceName());
+
+    TagMap prototypeTags = TagMap.create();
+    prototypeTags.set(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+    prototypeTags.set("tenant", "acme");
+    interceptor.resolveSplitByTagsPrecedence((DDSpanContext) span.spanContext(), prototypeTags);
+    span.finish();
+
+    assertEquals(DDTags.LANGUAGE_TAG_VALUE, span.getServiceName());
+  }
+
   /** Separate tag writes stay last-writer-wins, whichever split-by-tags candidate they set. */
   @Test
   void splitByTagsSeparateWritesAreLastWriterWins() {
