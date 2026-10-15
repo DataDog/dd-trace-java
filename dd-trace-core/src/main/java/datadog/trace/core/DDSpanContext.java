@@ -1713,22 +1713,39 @@ public class DDSpanContext
     }
 
     synchronized (knownTags) {
-      for (final TagMap.EntryChange entryChange : ledger) {
-        String tag = entryChange.tag();
-        if (entryChange.isRemoval()) {
-          if (tagEquals(tag, Tags.SPAN_KIND)) {
-            // mirror removeTag(String): keep the cached ordinal in sync with the tags
-            spanKindOrdinal = SPAN_KIND_UNSET;
-          }
-          routeRemoval(tag);
-        } else {
-          TagMap.Entry entry = (TagMap.Entry) entryChange;
-
-          if (!tagInterceptor.interceptTag(this, entry)) {
-            routePut(entry);
-          }
-        }
+      // Interception needs an intercepted id in the ledger, or a split-by-tags entry, which is
+      // config rather than an id bit. Without either, every change goes straight to storage.
+      if (ledger.hasInterceptedTags() || tagInterceptor.hasSplitServiceTags()) {
+        ledger.forEach(this, DDSpanContext::interceptOrApplyLedgerChange);
+      } else {
+        ledger.forEach(this, DDSpanContext::applyLedgerChange);
       }
+    }
+  }
+
+  /** Call while holding the {@code knownTags} lock. */
+  private static void interceptOrApplyLedgerChange(
+      DDSpanContext ctx, TagMap.EntryChangeReader change) {
+    if (change.isRemoval() || !ctx.tagInterceptor.interceptTag(ctx, change)) {
+      applyLedgerChange(ctx, change);
+    }
+  }
+
+  /** Call while holding the {@code knownTags} lock. */
+  private static void applyLedgerChange(DDSpanContext ctx, TagMap.EntryChangeReader change) {
+    long tagId = change.tagId();
+    if (change.isRemoval()) {
+      if (tagId == KnownTags.SPAN_KIND) {
+        // mirror removeTag(String): keep the cached ordinal in sync with the tags
+        ctx.spanKindOrdinal = SPAN_KIND_UNSET;
+      }
+      if (tagId != 0) {
+        ctx.knownTags.remove(tagId);
+      } else {
+        ctx.routeRemoval(change.tag());
+      }
+    } else {
+      ctx.routePut(change);
     }
   }
 
