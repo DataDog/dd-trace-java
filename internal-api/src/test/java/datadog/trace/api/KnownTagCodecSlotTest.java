@@ -68,10 +68,17 @@ class KnownTagCodecSlotTest {
   }
 
   @Test
+  void aCustomTagHasNoSlot() {
+    // keyOf gives a custom tag the id 0L, whose slot bits decode as slot 0
+    assertEquals(0L, KnownTagCodec.keyOf("my.custom.tag"));
+    assertFalse(KnownTagCodec.hasSlot(0L));
+  }
+
+  @Test
   void anUnslottedTagSharesTheReservedTopBit() {
     // An occupancy bit of 1L << slotOf(id) needs no branch for NO_SLOT: a long shift uses only the
     // low 6 bits of its count, so 0xFFFF lands on bit 63, which no real slot uses
     assertEquals(1L << 63, 1L << KnownTagCodec.slotOf(KnownTags.RESOURCE_NAME_ID));
-    assertTrue(KnownTagCodec.slotCount() < 63, "real slots must stay below the shared bit 63");
+    assertTrue(KnownTagCodec.slotCount() <= 63, "real slots must stay below the shared bit 63");
   }
 }

@@ -79,9 +79,12 @@ public final class KnownTagCodec {
     return (int) (tagId >>> SLOT_SHIFT) & 0xFFFF;
   }
 
-  /** True if the tag has a slot, below {@link #slotCount()}. */
+  /**
+   * True if the tag has a slot, below {@link #slotCount()}. False for {@code 0L}, the id {@link
+   * #keyOf} gives a custom tag, which would otherwise decode as slot 0.
+   */
   public static boolean hasSlot(long tagId) {
-    return slotOf(tagId) != NO_SLOT;
+    return tagId != 0L && slotOf(tagId) != NO_SLOT;
   }
 
   /** Slots in use: every slotted tag's slot is below this. */
