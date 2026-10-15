@@ -198,6 +198,25 @@ abstract class AbstractLog4j1LogsIntakeForkedTest extends AbstractInstrumentatio
   }
 
   @Test
+  void submitsDistinctEventsLoggedByAppenders() {
+    Logger nested = Logger.getLogger(LOGGER_NAME + ".nested");
+    nested.setLevel(Level.DEBUG);
+    logger.addAppender(
+        new ContextAppender() {
+          @Override
+          protected void append(LoggingEvent event) {
+            if (event.categoryName.equals(logger.getName())) {
+              nested.error("nested");
+            }
+          }
+        });
+
+    logger.warn("outer");
+
+    assertEquals(agentless() ? asList("outer", "nested") : emptyList(), values("message"));
+  }
+
+  @Test
   void submitsOnceWithProducerContextWhenDeliveryIsAsynchronous() throws Exception {
     CountDownLatch release = new CountDownLatch(1);
     CountDownLatch delivered = new CountDownLatch(1);
