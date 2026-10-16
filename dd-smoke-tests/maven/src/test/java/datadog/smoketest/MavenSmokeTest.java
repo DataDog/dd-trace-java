@@ -531,6 +531,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     if (mavenRepositoryProxy != null) {
       processBuilder.environment().put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy);
     }
+    disableCdsOnLinuxArm64(processBuilder.environment());
 
     return processBuilder;
   }

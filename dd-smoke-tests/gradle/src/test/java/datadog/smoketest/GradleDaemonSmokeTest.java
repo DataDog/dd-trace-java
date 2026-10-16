@@ -557,6 +557,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       buildEnv.put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy);
     }
     GradleDistribution.propagateMassReadUrl(buildEnv);
+    disableCdsOnLinuxArm64(buildEnv);
 
     GradleRunner gradleRunner =
         GradleDistribution.withDistribution(
