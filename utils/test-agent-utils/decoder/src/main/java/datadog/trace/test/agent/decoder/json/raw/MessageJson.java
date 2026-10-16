@@ -1,10 +1,12 @@
 package datadog.trace.test.agent.decoder.json.raw;
 
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Collections.unmodifiableList;
 
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
+import com.squareup.moshi.JsonQualifier;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
@@ -14,12 +16,15 @@ import datadog.trace.test.agent.decoder.DecodedMessage;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.io.IOException;
+import java.lang.annotation.Retention;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import okio.Buffer;
+import okio.BufferedSink;
 
 /**
  * MessageJson decodes a JSON trace payload — a JSON array of traces, each a JSON array of spans in
@@ -35,6 +40,7 @@ public final class MessageJson implements DecodedMessage {
       new Moshi.Builder()
           .add(new MetricNumberAdapter())
           .add(new MetaStructObjectAdapter())
+          .add(new RawJsonAdapter())
           .build()
           .adapter(LIST_OF_TRACES);
 
@@ -74,6 +80,7 @@ public final class MessageJson implements DecodedMessage {
                     + span);
           }
           span.resolveLinks();
+          span.resolveEvents();
           decodedSpans.add(span);
         }
         traces.add(new TraceJson(decodedSpans));
@@ -184,6 +191,86 @@ public final class MessageJson implements DecodedMessage {
       } catch (NumberFormatException overflowsLong) {
         // Integral magnitude beyond long range: keep it exact as a BigInteger.
         return new BigInteger(literal);
+      }
+    }
+  }
+
+  /** Marks a {@code String} field that holds a JSON value as compact JSON text. */
+  @Retention(RUNTIME)
+  @JsonQualifier
+  @interface RawJson {}
+
+  /**
+   * Decodes a {@link RawJson} field by copying the JSON value token by token into compact JSON
+   * text. Number literals are copied verbatim rather than materialized as {@code Double}, so values
+   * above 2^53 or beyond {@code long} range, and fractional values, keep their exact textual form.
+   * A JSON {@code null} decodes to a {@code null} field.
+   */
+  static final class RawJsonAdapter {
+    @FromJson
+    @RawJson
+    String fromJson(JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      Buffer buffer = new Buffer();
+      JsonWriter writer = JsonWriter.of(buffer);
+      // Keep null members ("key":null) rather than dropping them.
+      writer.setSerializeNulls(true);
+      copyValue(reader, writer);
+      writer.flush();
+      return buffer.readUtf8();
+    }
+
+    @ToJson
+    void toJson(JsonWriter writer, @RawJson String value) throws IOException {
+      if (value == null) {
+        writer.nullValue();
+        return;
+      }
+      try (BufferedSink sink = writer.valueSink()) {
+        sink.writeUtf8(value);
+      }
+    }
+
+    private static void copyValue(JsonReader reader, JsonWriter writer) throws IOException {
+      switch (reader.peek()) {
+        case BEGIN_OBJECT:
+          reader.beginObject();
+          writer.beginObject();
+          while (reader.hasNext()) {
+            writer.name(reader.nextName());
+            copyValue(reader, writer);
+          }
+          reader.endObject();
+          writer.endObject();
+          break;
+        case BEGIN_ARRAY:
+          reader.beginArray();
+          writer.beginArray();
+          while (reader.hasNext()) {
+            copyValue(reader, writer);
+          }
+          reader.endArray();
+          writer.endArray();
+          break;
+        case STRING:
+          writer.value(reader.nextString());
+          break;
+        case NUMBER:
+          try (BufferedSink sink = writer.valueSink()) {
+            sink.writeUtf8(reader.nextString());
+          }
+          break;
+        case BOOLEAN:
+          writer.value(reader.nextBoolean());
+          break;
+        case NULL:
+          reader.nextNull();
+          writer.nullValue();
+          break;
+        default:
+          throw new JsonDataException("Unexpected JSON token: " + reader.peek());
       }
     }
   }
