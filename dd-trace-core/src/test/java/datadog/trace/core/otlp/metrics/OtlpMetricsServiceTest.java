@@ -10,7 +10,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -20,7 +19,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.common.writer.RemoteApi;
@@ -85,17 +83,17 @@ class OtlpMetricsServiceTest {
   }
 
   @Test
-  void collectionAndTransportExceptionsCompleteFalse() {
+  void collectionAndTransportExceptionsAreRecordedAsFailures() {
     drainMetricsTelemetry();
     TestService collectionFailure = service(PAYLOAD);
     when(collectionFailure.collector.collectMetrics()).thenThrow(new IllegalStateException("boom"));
 
-    assertFalse(collectionFailure.service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(collectionFailure.service.exportThenShutdown(5, SECONDS));
 
     TestService transportFailure = service(PAYLOAD);
     when(transportFailure.sender.send(PAYLOAD)).thenThrow(new IllegalStateException("boom"));
 
-    assertFalse(transportFailure.service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(transportFailure.service.exportThenShutdown(5, SECONDS));
 
     Map<String, OtlpTelemetry.OtlpMetric> metrics = drainMetricsTelemetry();
     assertEquals(1L, metrics.get("otel.metrics_export_attempts").value);
@@ -109,12 +107,29 @@ class OtlpMetricsServiceTest {
     CountDownLatch release = new CountDownLatch(1);
     when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(entered, release));
 
-    CompletableResultCode result = test.service.exportThenShutdown();
+    assertFalse(test.service.exportThenShutdown(100, MILLISECONDS));
 
     assertTrue(entered.await(5, SECONDS));
-    assertFalse(result.isDone());
     release.countDown();
-    assertTrue(result.join(5, SECONDS).isSuccess());
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+  }
+
+  @Test
+  void interruptedExportThenShutdownRestoresInterruptStatus() throws Exception {
+    TestService test = service(PAYLOAD);
+    CountDownLatch entered = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(entered, release));
+    assertFalse(test.service.exportThenShutdown(100, MILLISECONDS));
+    assertTrue(entered.await(5, SECONDS));
+
+    Thread.currentThread().interrupt();
+    try {
+      assertFalse(test.service.exportThenShutdown(5, SECONDS));
+      assertTrue(Thread.interrupted());
+    } finally {
+      release.countDown();
+    }
   }
 
   @Test
@@ -141,7 +156,7 @@ class OtlpMetricsServiceTest {
     test.service.flush();
     release.countDown();
 
-    assertTrue(test.service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
     assertEquals(1, maximum.get());
     verify(test.sender, times(3)).send(PAYLOAD);
   }
@@ -151,12 +166,9 @@ class OtlpMetricsServiceTest {
     TestService test = service(PAYLOAD);
     when(test.sender.send(PAYLOAD)).thenReturn(success(200));
 
-    CompletableResultCode first = test.service.exportThenShutdown();
-    CompletableResultCode second = test.service.exportThenShutdown();
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
 
-    assertTrue(first.join(5, SECONDS).isSuccess());
-    assertTrue(second.join(5, SECONDS).isSuccess());
-    assertNotSame(first, second);
     verify(test.collector).collectMetrics();
     verify(test.sender).send(PAYLOAD);
     verify(test.sender).shutdown();
@@ -169,7 +181,7 @@ class OtlpMetricsServiceTest {
     TestService test = service(PAYLOAD);
     when(test.sender.send(PAYLOAD)).thenReturn(failed(500));
 
-    assertFalse(test.service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
 
     verify(test.sender).shutdown();
   }
@@ -180,7 +192,7 @@ class OtlpMetricsServiceTest {
     when(test.sender.send(PAYLOAD)).thenReturn(success(200));
     doThrow(new IllegalStateException("boom")).when(test.sender).shutdown();
 
-    assertTrue(test.service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
 
     verify(test.sender).shutdown();
   }
@@ -192,7 +204,7 @@ class OtlpMetricsServiceTest {
     OtlpMetricsService service = new OtlpMetricsService(scheduler, null, null, 10_000);
 
     service.flush();
-    assertTrue(service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(service.exportThenShutdown(5, SECONDS));
   }
 
   @Test
@@ -224,7 +236,7 @@ class OtlpMetricsServiceTest {
   }
 
   @Test
-  void concurrentExportThenShutdownWaitsForInflightFlushAndCompletesAllViews() throws Exception {
+  void exportThenShutdownWaitsForInflightFlush() throws Exception {
     TestService test = service(PAYLOAD);
     CountDownLatch entered = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
@@ -232,56 +244,12 @@ class OtlpMetricsServiceTest {
 
     test.service.flush();
     assertTrue(entered.await(5, SECONDS));
-    CompletableResultCode shutdown = test.service.exportThenShutdown();
-    assertFalse(shutdown.isDone());
-    CompletableResultCode throwing = test.service.exportThenShutdown();
-    throwing.whenComplete(
-        () -> {
-          throw new IllegalStateException("boom");
-        });
-    CompletableResultCode unaffected = test.service.exportThenShutdown();
-    assertNotSame(shutdown, throwing);
-    shutdown.fail();
+    assertFalse(test.service.exportThenShutdown(100, MILLISECONDS));
     release.countDown();
 
-    assertFalse(shutdown.join(5, SECONDS).isSuccess());
-    assertTrue(throwing.join(5, SECONDS).isSuccess());
-    assertTrue(unaffected.join(5, SECONDS).isSuccess());
-    assertTrue(test.service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
     verify(test.sender, times(2)).send(PAYLOAD);
     verify(test.sender).shutdown();
-  }
-
-  @Test
-  void blockedCallbackOnOneShutdownViewDoesNotDelayAnotherView() throws Exception {
-    TestService test = service(PAYLOAD);
-    CountDownLatch exportEntered = new CountDownLatch(1);
-    CountDownLatch releaseExport = new CountDownLatch(1);
-    CountDownLatch callbackEntered = new CountDownLatch(1);
-    CountDownLatch releaseCallback = new CountDownLatch(1);
-    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(exportEntered, releaseExport));
-
-    CompletableResultCode blocking = test.service.exportThenShutdown();
-    blocking.whenComplete(
-        () -> {
-          callbackEntered.countDown();
-          try {
-            assertTrue(releaseCallback.await(5, SECONDS));
-          } catch (InterruptedException ignored) {
-            Thread.currentThread().interrupt();
-          }
-        });
-    CompletableResultCode unaffected = test.service.exportThenShutdown();
-
-    assertTrue(exportEntered.await(5, SECONDS));
-    releaseExport.countDown();
-    assertTrue(callbackEntered.await(5, SECONDS));
-    try {
-      assertTrue(unaffected.join(1, SECONDS).isSuccess());
-    } finally {
-      releaseCallback.countDown();
-    }
-    assertTrue(blocking.join(5, SECONDS).isSuccess());
   }
 
   private static Answer<RemoteApi.Response> blockingSend(

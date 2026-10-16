@@ -1,15 +1,14 @@
 package datadog.opentelemetry.shim.metrics;
 
-import datadog.trace.api.CompletableResultCode;
-import datadog.trace.api.metrics.DatadogMeterProvider;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.util.Strings;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
+import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
@@ -18,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
-public final class OtelMeterProvider implements MeterProvider, DatadogMeterProvider {
+public final class OtelMeterProvider implements MeterProvider, Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeterProvider.class);
   private static final String DEFAULT_METER_NAME = "unknown";
 
@@ -46,9 +45,13 @@ public final class OtelMeterProvider implements MeterProvider, DatadogMeterProvi
     return new OtelMeterBuilder(this, instrumentationScopeName);
   }
 
+  /**
+   * Performs a final export of the recorded metrics, then stops exporting them. Waits a bounded
+   * time for the final export to complete.
+   */
   @Override
-  public CompletableResultCode shutdown() {
-    return AgentTracer.get().shutdownOtelMetrics();
+  public void close() {
+    OtelMetricRegistry.INSTANCE.shutdownExporter();
   }
 
   OtelMeter getMeterShim(

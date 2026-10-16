@@ -20,6 +20,8 @@ public final class OtelMetricRegistry {
   private final Map<OtelInstrumentationScope, List<OtelObservable>> scopedObservables =
       new ConcurrentHashMap<>();
 
+  private volatile Runnable exporterShutdown;
+
   public OtelMetricStorage registerStorage(
       OtelInstrumentationScope instrumentationScope,
       OtelInstrumentDescriptor descriptor,
@@ -46,6 +48,23 @@ public final class OtelMetricRegistry {
     }
     synchronized (observables) {
       return observables.remove(observable);
+    }
+  }
+
+  /**
+   * Registers the action that performs a final export, then shuts down the metrics exporter.
+   *
+   * @param exporterShutdown the action to run when the {@code MeterProvider} is closed
+   */
+  public void registerExporterShutdown(Runnable exporterShutdown) {
+    this.exporterShutdown = exporterShutdown;
+  }
+
+  /** Performs a final export, then shuts down the metrics exporter, if one is registered. */
+  public void shutdownExporter() {
+    Runnable exporterShutdown = this.exporterShutdown;
+    if (exporterShutdown != null) {
+      exporterShutdown.run();
     }
   }
 
