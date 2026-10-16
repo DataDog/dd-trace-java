@@ -956,11 +956,13 @@ public class DDSpanContext
    */
   public void setSpanKindOrdinal(String kind) {
     spanKindOrdinal = spanKindOrdinalOf(kind);
-    if (hasPendingAliases()) {
-      // The span now has a direction: fold pending aliases into the tags they denote, so every
-      // later reader (peer service naming, stats, sampling rules, serialization) sees them
-      // resolved.
-      synchronized (unsafeTags) {
+    // Checked under the lock alias registration takes: a writer that read no direction registers
+    // its pending alias before this sees the flag, or reads the new kind and resolves at write.
+    synchronized (unsafeTags) {
+      if (hasPendingAliases()) {
+        // The span now has a direction: fold pending aliases into the tags they denote, so every
+        // later reader (peer service naming, stats, sampling rules, serialization) sees them
+        // resolved.
         DirectionalTags.resolveScopedNames(unsafeTags, tagDirection());
       }
     }
@@ -1196,7 +1198,7 @@ public class DDSpanContext
    */
   private long idForWrite(String tag) {
     long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId == 0 && KnownTagCodec.mayBeScopedAlias(tag)) {
+    if (tagId == 0 && KnownTagCodec.mayBeScopedAlias(tag) && !splitsOnAliasName(tag)) {
       long aliasedId = KnownTagCodec.directionalKeyOf(tag, tagDirection());
       if (aliasedId > 0) {
         return aliasedId;
@@ -1206,12 +1208,23 @@ public class DDSpanContext
   }
 
   /**
+   * Whether split-by-tags names {@code alias} itself ({@code
+   * dd.trace.split-by-tags=server.address}). Such a write stays on the custom path, where the
+   * interceptor matches the configured name, instead of being routed as the tag the alias denotes.
+   */
+  private boolean splitsOnAliasName(String alias) {
+    return tagInterceptor.needsInterceptCustomTag(alias);
+  }
+
+  /**
    * {@link TagInterceptor#interceptTag(DDSpanContext, TagMap.EntryReader)} for an entry about to be
    * stored through {@link #storeEntry}, which resolves a direction-scoped alias to its tag: such an
    * entry is intercepted as that tag, so routing sees the tag it is stored as.
    */
   private boolean interceptEntry(TagMap.EntryReader entry) {
-    if (entry.tagId() == 0 && KnownTagCodec.mayBeScopedAlias(entry.tag())) {
+    if (entry.tagId() == 0
+        && KnownTagCodec.mayBeScopedAlias(entry.tag())
+        && !splitsOnAliasName(entry.tag())) {
       long aliasedId = KnownTagCodec.directionalKeyOf(entry.tag(), tagDirection());
       if (aliasedId > 0) {
         return tagInterceptor.needsIntercept(aliasedId, (int) KnownTagCodec.INTERCEPTED)
@@ -1539,7 +1552,8 @@ public class DDSpanContext
             // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
             spanKindOrdinal = SPAN_KIND_UNSET;
           }
-          unsafeTags.remove(tag);
+          // as removeTag(String): a direction-dependent name and the tag it denotes go together
+          DirectionalTags.remove(unsafeTags, tag, tagDirection());
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 

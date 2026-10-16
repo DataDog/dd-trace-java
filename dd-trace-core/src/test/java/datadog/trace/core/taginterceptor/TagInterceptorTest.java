@@ -439,6 +439,27 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals("bulk-host", inBulk.getServiceName());
   }
 
+  /** Split-by-tags that names the alias itself still splits on it, by name and from the builder. */
+  @Test
+  void splitByTagsOnAnAliasNameStillSplitsOnIt() {
+    CoreTracer tracer = createSplittingTracer("server.address");
+
+    AgentSpan byName = tracer.buildSpan("datadog", "by name").start();
+    byName.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    byName.setTag("server.address", "by-name-host");
+    byName.finish();
+    assertEquals("by-name-host", byName.getServiceName());
+
+    AgentSpan built =
+        tracer
+            .buildSpan("datadog", "built")
+            .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
+            .withTag("server.address", "built-host")
+            .start();
+    built.finish();
+    assertEquals("built-host", built.getServiceName());
+  }
+
   @Test
   void setResourceName() throws Exception {
     ListWriter writer = new ListWriter();

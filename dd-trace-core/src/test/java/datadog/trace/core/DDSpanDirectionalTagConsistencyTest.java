@@ -134,6 +134,25 @@ class DDSpanDirectionalTagConsistencyTest extends DDCoreJavaSpecification {
     assertEquals("explicit", span.getTag(Tags.PEER_HOSTNAME));
   }
 
+  /** A builder removal of an alias also removes the tag a direction-aware write stored it as. */
+  @Test
+  void aBuilderRemovalOfAnAliasRemovesTheTagItWasStoredAs() {
+    DDSpan built =
+        (DDSpan)
+            tracer
+                .buildSpan("datadog", "built")
+                .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
+                .withTag("server.address", "host")
+                .withTag("server.address", (Object) null)
+                .start();
+    try {
+      assertNull(built.getTag(Tags.PEER_HOSTNAME));
+      assertNull(built.getTags().getObject(Tags.PEER_HOSTNAME));
+    } finally {
+      built.finish();
+    }
+  }
+
   @Test
   void aBuilderTagWithASharedNameIsAKnownTag() {
     DDSpan built =
