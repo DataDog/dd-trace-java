@@ -9,6 +9,7 @@ import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,6 +53,12 @@ public final class SpanJson implements DecodedSpan {
   // Ony present in V1 payload. Decoded from meta by #resolveLinks otherwise
   @Json(name = "span_links")
   List<SpanLinkJson> spanLinks;
+
+  // Only present in V1 payload. Kept as compact JSON text (number literals verbatim, see
+  // MessageJson.RawJsonAdapter) and exposed as the events meta tag by #resolveEvents
+  @Json(name = "span_events")
+  @MessageJson.RawJson
+  String spanEvents;
 
   // Decoded from span links meta tag or #spanLinks
   // transient so Moshi does not try to decode it
@@ -144,6 +151,21 @@ public final class SpanJson implements DecodedSpan {
       decoded.add(spanLink.toDecodedSpanLink());
     }
     this.links = unmodifiableList(decoded);
+  }
+
+  /**
+   * Exposes the {@code span_events} field, when the agent filled it (the tracer submitted a {@code
+   * v1.0} payload), as the {@code events} meta tag, replacing any such tag. The value is the
+   * agent's JSON re-emitted compactly; its member order and attribute shape are the agent's, not
+   * those of the tag the tracer writes for older protocols.
+   */
+  void resolveEvents() {
+    if (this.spanEvents != null) {
+      if (this.meta == null) {
+        this.meta = new HashMap<>();
+      }
+      this.meta.put("events", this.spanEvents);
+    }
   }
 
   @Override
