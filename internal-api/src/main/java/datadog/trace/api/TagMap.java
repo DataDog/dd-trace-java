@@ -1657,34 +1657,59 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * second lookup.
    */
   public void setResolved(long tagId, @Nonnull String tag, @Nonnull Object value) {
-    this.putEntry(tagId > 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value));
+    if (tagId > 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newAnyEntry(tag, value));
+    }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, @Nonnull CharSequence value) {
-    this.putEntry(
-        tagId > 0 ? Entry.newObjectEntry(tagId, value) : Entry.newObjectEntry(tag, value));
+    if (tagId > 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newObjectEntry(tag, value));
+    }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, boolean value) {
-    this.putEntry(
-        tagId > 0 ? Entry.newBooleanEntry(tagId, value) : Entry.newBooleanEntry(tag, value));
+    if (tagId > 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newBooleanEntry(tag, value));
+    }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, int value) {
-    this.putEntry(tagId > 0 ? Entry.newIntEntry(tagId, value) : Entry.newIntEntry(tag, value));
+    if (tagId > 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newIntEntry(tag, value));
+    }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, long value) {
-    this.putEntry(tagId > 0 ? Entry.newLongEntry(tagId, value) : Entry.newLongEntry(tag, value));
+    if (tagId > 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newLongEntry(tag, value));
+    }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, float value) {
-    this.putEntry(tagId > 0 ? Entry.newFloatEntry(tagId, value) : Entry.newFloatEntry(tag, value));
+    if (tagId > 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newFloatEntry(tag, value));
+    }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, double value) {
-    this.putEntry(
-        tagId > 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value));
+    if (tagId > 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newDoubleEntry(tag, value));
+    }
   }
 
   /** The read counterpart of {@link #setResolved(long, String, Object)}. */
@@ -1758,6 +1783,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     public void setKnown(long tagId, double value) {
       this.map.putEntry(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
     }
+
+    /**
+     * The value of the known tag {@code tagId}, boxed if necessary, or null: {@code
+     * getEntry(tagId)}'s value, including read-through, for a caller that needs only the value. A
+     * store that keeps known tags without an Entry per tag can answer without building one.
+     */
+    public Object getKnownValue(long tagId) {
+      return this.map.getKnownValue(tagId);
+    }
+  }
+
+  /** {@code getEntry(tagId)}'s value, or null; see {@link Internals#getKnownValue}. */
+  Object getKnownValue(long tagId) {
+    Entry entry = this.getEntry(tagId);
+    return entry == null ? null : entry.objectValue();
   }
 
   public void set(long tagId, @Nonnull Object value) {

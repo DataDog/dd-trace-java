@@ -117,8 +117,7 @@ final class DirectionalTags {
       return asWritten == null ? null : asWritten.objectValue();
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-    TagMap.Entry tag = tagId > 0 ? tags.getEntry(tagId) : null;
-    return tag == null ? null : tag.objectValue();
+    return tagId > 0 ? tags.internals().getKnownValue(tagId) : null;
   }
 
   /**
@@ -140,8 +139,7 @@ final class DirectionalTags {
         return pending;
       }
     }
-    TagMap.Entry tag = tags.getEntry(tagId);
-    return tag == null ? null : tag.objectValue();
+    return tags.internals().getKnownValue(tagId);
   }
 
   /** Removes {@code name} from a span of {@code direction}: the tag and its alias together. */
