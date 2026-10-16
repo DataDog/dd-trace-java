@@ -22,6 +22,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeT
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isNativeMemoryProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isNativeSocketProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isRemoteSymbolicationEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
@@ -421,6 +422,10 @@ public final class DatadogProfiler {
     // Default is true
     if (enableJMethodIDOptim(configProvider)) {
       cmd.append(",fjmethodid=false");
+    }
+
+    if (isRemoteSymbolicationEnabled(configProvider)) {
+      cmd.append(",remotesym=true");
     }
 
     if (profilingModes.contains(CPU)) {
