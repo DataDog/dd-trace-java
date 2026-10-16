@@ -167,6 +167,10 @@ public final class DatadogThreadContextElement
   public Context updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
     Context current = context;
     if (current == null) {
+      if (owner == null) {
+        // an already-cancelled coroutine can skip constructor capture but still install context
+        owner = coroutineContext.get(Job.Key);
+      }
       captureInitialContext();
       current = context;
     }

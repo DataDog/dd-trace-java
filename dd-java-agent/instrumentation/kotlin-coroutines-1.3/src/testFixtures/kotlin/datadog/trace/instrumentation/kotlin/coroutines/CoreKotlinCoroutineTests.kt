@@ -30,8 +30,29 @@ import kotlinx.coroutines.yield
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 
 abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
+
+  fun launchWithCancelledParent() {
+    val queuedDispatcher = object : CoroutineDispatcher() {
+      var pending: Runnable? = null
+
+      override fun dispatch(context: CoroutineContext, block: Runnable) {
+        check(pending == null) { "Unexpected second dispatch" }
+        pending = block
+      }
+    }
+    val parent = Job()
+    parent.cancel()
+
+    val child = CoroutineScope(parent + queuedDispatcher).launch {
+      error("A child of an already-cancelled parent must not execute")
+    }
+
+    checkNotNull(queuedDispatcher.pending) { "Cancellation was not dispatched" }.run()
+    check(child.isCompleted && child.isCancelled) { "Child did not complete cancellation" }
+  }
 
   @Trace
   open fun tracePreventedByCancellation(): Int {

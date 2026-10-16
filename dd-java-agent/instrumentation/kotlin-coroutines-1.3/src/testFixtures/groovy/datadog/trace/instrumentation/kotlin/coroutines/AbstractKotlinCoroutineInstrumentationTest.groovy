@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.kotlin.coroutines
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 import kotlinx.coroutines.CoroutineDispatcher
@@ -10,6 +12,19 @@ import spock.lang.Shared
 abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCoroutineTests> extends InstrumentationSpecification {
 
   protected abstract T getCoreKotlinCoroutineTestsInstance(CoroutineDispatcher dispatcher)
+
+  def "already-cancelled parent does not leave a trace continuation open"() {
+    when:
+    runUnderTrace("parent") {
+      getCoreKotlinCoroutineTestsInstance(Dispatchers.Default).launchWithCancelledParent()
+    }
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.size() == 1
+    TEST_WRITER.get(0).size() == 1
+    TEST_WRITER.get(0).get(0).operationName.toString() == "parent"
+  }
 
   @Shared
   static dispatchersToTest = [
