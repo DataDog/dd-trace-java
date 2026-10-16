@@ -72,11 +72,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext,
-        RequestContext,
-        TraceSegment,
-        ProfilerContext,
-        TagMap.DirectionSource {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -1015,10 +1011,9 @@ public class DDSpanContext
     TagMap view = this.tagView;
     if (view == null) {
       // a view handed to the post-processor chain escapes, so allocate it once per span
-      this.tagView = view = TagMap.viewOf(tagIds, customTags, customTagsBorrowed, this);
-    } else {
-      view.attachCustomStore(customTags, customTagsBorrowed);
+      this.tagView = view = TagMap.viewOf(tagIds, customTags, customTagsBorrowed);
     }
+    view.attach(customTags, customTagsBorrowed, tagDirection(), pendingAliases != null);
     return view;
   }
 
@@ -1157,8 +1152,7 @@ public class DDSpanContext
   /**
    * The direction this span reads direction-dependent tag names in; see {@link DirectionalTags}.
    */
-  @Override
-  public int tagDirection() {
+  private int tagDirection() {
     return TAG_DIRECTION_OF_SPAN_KIND[spanKindOrdinal];
   }
 
@@ -1290,8 +1284,7 @@ public class DDSpanContext
   }
 
   /** True while the span holds an alias stored as written; see {@link #pendingAliases}. */
-  @Override
-  public boolean hasPendingAliases() {
+  boolean hasPendingAliases() {
     return pendingAliases != null;
   }
 

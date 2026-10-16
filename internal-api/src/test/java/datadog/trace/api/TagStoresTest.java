@@ -275,9 +275,9 @@ class TagStoresTest {
     IdStore ids = TagRouting.newIdStore(null);
     ids.set(KnownTags.HTTP_HOSTNAME_ID, "inbound.example");
     ids.set(KnownTags.PEER_HOSTNAME_ID, "outbound.example");
-    TagMap inbound = TagMap.viewOf(ids, null, false, direction(DIRECTION_INBOUND, false));
-    TagMap outbound = TagMap.viewOf(ids, null, false, direction(DIRECTION_OUTBOUND, false));
-    TagMap plain = TagMap.viewOf(ids, null, false, null);
+    TagMap inbound = view(ids, null, false, DIRECTION_INBOUND, false);
+    TagMap outbound = view(ids, null, false, DIRECTION_OUTBOUND, false);
+    TagMap plain = TagMap.viewOf(ids, null, false);
 
     assertEquals("inbound.example", inbound.getString("server.address"));
     assertEquals("outbound.example", outbound.getString("server.address"));
@@ -291,9 +291,9 @@ class TagStoresTest {
     ids.set(KnownTags.PEER_HOSTNAME_ID, "older");
     HashStore names = TagRouting.newCustomStore(null);
     names.set("server.address", "pending");
-    TagMap pending = TagMap.viewOf(ids, names, false, direction(DIRECTION_OUTBOUND, true));
-    TagMap noPending = TagMap.viewOf(ids, names, false, direction(DIRECTION_OUTBOUND, false));
-    TagMap unknown = TagMap.viewOf(ids, names, false, direction(DIRECTION_UNKNOWN, true));
+    TagMap pending = view(ids, names, false, DIRECTION_OUTBOUND, true);
+    TagMap noPending = view(ids, names, false, DIRECTION_OUTBOUND, false);
+    TagMap unknown = view(ids, names, false, DIRECTION_UNKNOWN, true);
 
     assertEquals("pending", pending.getString(KnownTags.PEER_HOSTNAME_NAME));
     assertEquals("pending", pending.getString("server.address"));
@@ -303,9 +303,7 @@ class TagStoresTest {
     assertNull(noPending.getString("client.port")); // no tag in this direction
     // with no custom store, the alias reads the tag it denotes
     assertEquals(
-        "older",
-        TagMap.viewOf(ids, null, false, direction(DIRECTION_OUTBOUND, true))
-            .getString("server.address"));
+        "older", view(ids, null, false, DIRECTION_OUTBOUND, true).getString("server.address"));
   }
 
   @Test
@@ -313,7 +311,7 @@ class TagStoresTest {
     TagMap parent = TagRouting.readThroughParent(frozenParent());
     IdStore ids = TagRouting.newIdStore(parent);
     HashStore borrowed = TagRouting.inheritedCustomStore(parent);
-    TagMap view = TagMap.viewOf(ids, borrowed, true, direction(DIRECTION_UNKNOWN, false));
+    TagMap view = view(ids, borrowed, true, DIRECTION_UNKNOWN, false);
     assertSame(borrowed, view.customStore());
     assertTrue(view.isCustomStoreBorrowed());
 
@@ -324,7 +322,7 @@ class TagStoresTest {
     assertNotSame(borrowed, view.customStore());
     assertEquals("o", view.customStore().get("own").stringValue());
 
-    view.attachCustomStore(null, false);
+    view.attach(null, false, DIRECTION_UNKNOWN, false);
     assertNull(view.getString("own"));
     assertNull(view.customStore());
   }
@@ -489,17 +487,11 @@ class TagStoresTest {
     assertThrows(AssertionError.class, () -> names.remove(KnownTags.HTTP_ROUTE_NAME));
   }
 
-  private static TagMap.DirectionSource direction(int direction, boolean pendingAliases) {
-    return new TagMap.DirectionSource() {
-      @Override
-      public int tagDirection() {
-        return direction;
-      }
-
-      @Override
-      public boolean hasPendingAliases() {
-        return pendingAliases;
-      }
-    };
+  /** A span-style view over {@code ids} and {@code names}, attached to a direction. */
+  private static TagMap view(
+      IdStore ids, HashStore names, boolean namesBorrowed, int direction, boolean pendingAliases) {
+    TagMap view = TagMap.viewOf(ids, names, namesBorrowed);
+    view.attach(names, namesBorrowed, direction, pendingAliases);
+    return view;
   }
 }

@@ -108,7 +108,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         parent = null;
       }
     }
-    return new TagMap(parent, null);
+    return new TagMap(parent);
   }
 
   /** Creates a new TagMap.Ledger */
@@ -1254,10 +1254,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   boolean namesBorrowed;
 
   /**
-   * For a span's view ({@link #viewOf}), the span, which says what direction-scoped names read as;
-   * null for a TagMap of its own, which reads every name as written.
+   * For a span's view ({@link #viewOf}), the span's direction (a {@code KnownTagCodec.DIRECTION_*}
+   * constant), set by {@link #attach} before each use; {@code DIRECTION_UNKNOWN} for a TagMap of
+   * its own, which reads every name as written.
    */
-  final DirectionSource direction;
+  private int direction = KnownTagCodec.DIRECTION_UNKNOWN;
+
+  /**
+   * For a span's view, whether the span may hold an alias stored as written; see {@link #attach}.
+   */
+  private boolean pendingAliases;
 
   private boolean frozen;
 
@@ -1271,7 +1277,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @VisibleForTesting TagMap parent;
 
   public TagMap() {
-    this(null, null);
+    this((TagMap) null);
   }
 
   /**
@@ -1279,27 +1285,20 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * construction and never re-pointed (only detached to null by {@link #clear()}), so read-through
    * optimizations can treat it as fixed.
    */
-  private TagMap(TagMap parent, DirectionSource direction) {
+  private TagMap(TagMap parent) {
     this.ids = new HashIdStore(parent == null ? null : parent.ids);
     HashStore parentNames = parent == null ? null : parent.names;
     this.names = parentNames;
     this.namesBorrowed = parentNames != null;
-    this.direction = direction;
     this.frozen = false;
     this.parent = parent;
   }
 
   /** A map over {@code ids} and {@code names}: a copy ({@link #copy()}) or a view. */
-  private TagMap(
-      TagMap parent,
-      IdStore ids,
-      HashStore names,
-      boolean namesBorrowed,
-      DirectionSource direction) {
+  private TagMap(TagMap parent, IdStore ids, HashStore names, boolean namesBorrowed) {
     this.ids = ids;
     this.names = names;
     this.namesBorrowed = namesBorrowed;
-    this.direction = direction;
     this.frozen = false;
     this.parent = parent;
   }
@@ -1309,20 +1308,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.ids = new HashIdStore(buckets, size);
     this.names = null;
     this.namesBorrowed = false;
-    this.direction = null;
     this.frozen = true;
     this.parent = null;
-  }
-
-  /**
-   * What direction-scoped names read as on a span: its direction (a {@code
-   * KnownTagCodec.DIRECTION_*} constant), and whether it may hold an alias stored as written.
-   */
-  @Restricted(allowedIn = {"datadog.trace.core"})
-  public interface DirectionSource {
-    int tagDirection();
-
-    boolean hasPendingAliases();
   }
 
   /**
@@ -1330,21 +1317,27 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * serializers) and its snapshot copy; never on the span's own set/get paths. Name-keyed reads
    * honor the span's direction. Not thread-safe: use it under the span's tag lock.
    *
-   * <p>The span owns the stores. Before each use it hands the view its current custom store ({@link
-   * #attachCustomStore}), which it creates lazily; after, it adopts any the view created ({@link
-   * #customStore}), since a reader may write a custom tag.
+   * <p>The span owns the stores. Before each use it {@link #attach attaches} the view to its
+   * current custom store, which it creates lazily, and its current direction; after, it adopts any
+   * custom store the view created ({@link #customStore}), since a reader may write a custom tag.
    */
   @Restricted(allowedIn = {"datadog.trace.core"})
-  public static TagMap viewOf(
-      IdStore ids, HashStore names, boolean namesBorrowed, DirectionSource direction) {
-    return new TagMap(null, ids, names, namesBorrowed, direction);
+  public static TagMap viewOf(IdStore ids, HashStore names, boolean namesBorrowed) {
+    return new TagMap(null, ids, names, namesBorrowed);
   }
 
-  /** Points this view at its span's current custom store; see {@link #viewOf}. */
+  /**
+   * Points this view at its span's current custom store and direction; see {@link #viewOf}. {@code
+   * pendingAliases} says whether the span may hold an alias stored as written, which a read of the
+   * tag it denotes then prefers.
+   */
   @Restricted(allowedIn = {"datadog.trace.core"})
-  public void attachCustomStore(HashStore names, boolean namesBorrowed) {
+  public void attach(
+      HashStore names, boolean namesBorrowed, int direction, boolean pendingAliases) {
     this.names = names;
     this.namesBorrowed = namesBorrowed;
+    this.direction = direction;
+    this.pendingAliases = pendingAliases;
   }
 
   /** This map's custom store: null, borrowed ({@link #isCustomStoreBorrowed}), or its own. */
@@ -1526,12 +1519,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
     // an OpenTelemetry rename must resolve to the same id, or it would silently miss the entry.
     long key = TagRouting.keyOf(tag);
-    DirectionSource direction = this.direction;
-    if (direction == null || key == 0) {
+    int direction = this.direction;
+    if (direction == KnownTagCodec.DIRECTION_UNKNOWN || key == 0) {
       return TagRouting.get(this.ids, this.names, key, tag);
     }
-    return TagRouting.getEntry(
-        this.ids, this.names, key, tag, direction.tagDirection(), direction.hasPendingAliases());
+    return TagRouting.getEntry(this.ids, this.names, key, tag, direction, this.pendingAliases);
   }
 
   /** The entry for a known tag id. */
@@ -1963,11 +1955,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     HashStore names = this.names;
     boolean borrowed = this.namesBorrowed;
     return new TagMap(
-        this.parent,
-        this.ids.copy(),
-        names == null || borrowed ? names : names.copy(),
-        borrowed,
-        null);
+        this.parent, this.ids.copy(), names == null || borrowed ? names : names.copy(), borrowed);
   }
 
   public TagMap immutableCopy() {

@@ -58,7 +58,7 @@ class DirectionalTagsTest {
     }
 
     int size() {
-      return TagMap.viewOf(ids, custom, borrowed, null).size();
+      return TagMap.viewOf(ids, custom, borrowed).size();
     }
 
     Object get(PendingAliases pending, String name, int direction) {
