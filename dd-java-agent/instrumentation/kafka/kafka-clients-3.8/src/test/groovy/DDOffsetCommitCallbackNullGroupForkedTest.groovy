@@ -4,6 +4,7 @@ import datadog.trace.instrumentation.kafka_clients38.KafkaConsumerInfo
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.consumer.OffsetCommitCallback
 import org.apache.kafka.common.TopicPartition
+import spock.util.concurrent.PollingConditions
 
 /**
  * Unit test to verify that DSM backlog tracking works even when consumer group is null.
@@ -51,15 +52,15 @@ class DDOffsetCommitCallbackNullGroupForkedTest extends VersionedNamingTestBase 
     // Verify the consumer group is indeed empty
     assert !kafkaConsumerInfo.getConsumerGroup().isPresent() : "Consumer group should be empty for this test"
 
-    def callbackInvoked = false
+    def callbacks = []
     def innerCallback = new OffsetCommitCallback() {
         @Override
         void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
-          callbackInvoked = true
+          callbacks.add([offsets, exception, Thread.currentThread()])
         }
       }
 
-    def ddCallback = new DDOffsetCommitCallback(innerCallback, kafkaConsumerInfo)
+    def ddCallback = new DDOffsetCommitCallback(innerCallback, kafkaConsumerInfo, null)
 
     def offsets = [
       (new TopicPartition("test-topic", 0)): new OffsetAndMetadata(100L)
@@ -73,24 +74,25 @@ class DDOffsetCommitCallbackNullGroupForkedTest extends VersionedNamingTestBase 
 
     then:
     // Inner callback should have been invoked
-    callbackInvoked
+    callbacks == [[offsets, null, Thread.currentThread()]]
 
     // No exception was thrown (implicit - test would fail otherwise)
     noExceptionThrown()
+    awaitBacklog(null)
   }
 
   def "test DDOffsetCommitCallback handles null KafkaConsumerInfo"() {
     setup:
-    def callbackInvoked = false
+    def callbacks = []
     def innerCallback = new OffsetCommitCallback() {
         @Override
         void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
-          callbackInvoked = true
+          callbacks.add([offsets, exception, Thread.currentThread()])
         }
       }
 
     // KafkaConsumerInfo is completely null
-    def ddCallback = new DDOffsetCommitCallback(innerCallback, null)
+    def ddCallback = new DDOffsetCommitCallback(innerCallback, null, null)
 
     def offsets = [
       (new TopicPartition("test-topic", 0)): new OffsetAndMetadata(100L)
@@ -100,8 +102,9 @@ class DDOffsetCommitCallbackNullGroupForkedTest extends VersionedNamingTestBase 
     ddCallback.onComplete(offsets, null)
 
     then:
-    callbackInvoked
+    callbacks == [[offsets, null, Thread.currentThread()]]
     noExceptionThrown()
+    awaitBacklog(null)
   }
 
   def "test DDOffsetCommitCallback with valid consumer group still works"() {
@@ -111,15 +114,15 @@ class DDOffsetCommitCallbackNullGroupForkedTest extends VersionedNamingTestBase 
     assert kafkaConsumerInfo.getConsumerGroup().isPresent()
     assert kafkaConsumerInfo.getConsumerGroup().get() == "test-group"
 
-    def callbackInvoked = false
+    def callbacks = []
     def innerCallback = new OffsetCommitCallback() {
         @Override
         void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
-          callbackInvoked = true
+          callbacks.add([offsets, exception, Thread.currentThread()])
         }
       }
 
-    def ddCallback = new DDOffsetCommitCallback(innerCallback, kafkaConsumerInfo)
+    def ddCallback = new DDOffsetCommitCallback(innerCallback, kafkaConsumerInfo, null)
 
     def offsets = [
       (new TopicPartition("test-topic", 0)): new OffsetAndMetadata(100L)
@@ -129,7 +132,20 @@ class DDOffsetCommitCallbackNullGroupForkedTest extends VersionedNamingTestBase 
     ddCallback.onComplete(offsets, null)
 
     then:
-    callbackInvoked
+    callbacks == [[offsets, null, Thread.currentThread()]]
     noExceptionThrown()
+    awaitBacklog("test-group")
+  }
+
+  private void awaitBacklog(String group) {
+    new PollingConditions(timeout: 15).eventually {
+      assert TEST_DATA_STREAMS_WRITER.payloads.any { bucket ->
+        bucket.backlogs.any { entry ->
+          entry.value == 100L && entry.key.kafkaClusterId == null &&
+            entry.key.consumerGroup == (group == null ? null : "consumer_group:$group".toString()) &&
+            entry.key.hasAllTags("type:kafka_commit", "topic:test-topic", "partition:0")
+        }
+      }
+    }
   }
 }
