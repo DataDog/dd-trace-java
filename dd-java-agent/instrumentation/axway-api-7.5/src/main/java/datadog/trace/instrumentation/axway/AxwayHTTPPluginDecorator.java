@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.axway;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -205,9 +206,9 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
       if (OTEL_SEMANTICS) {
         setOtelTransactionTags(span, stateInstance);
       } else {
-        setStringTagFromStateField(span, Tags.PEER_HOSTNAME, stateInstance, hostField_mh);
-        setStringTagFromStateField(span, Tags.PEER_PORT, stateInstance, portField_mh);
-        setStringTagFromStateField(span, Tags.HTTP_METHOD, stateInstance, methodField_mh);
+        setStringTagFromStateField(span, KnownTags.PEER_HOSTNAME_ID, stateInstance, hostField_mh);
+        setStringTagFromStateField(span, KnownTags.PEER_PORT_ID, stateInstance, portField_mh);
+        setStringTagFromStateField(span, KnownTags.HTTP_METHOD_ID, stateInstance, methodField_mh);
         setURLTagFromUriStateField(span, stateInstance);
       }
     }
@@ -225,10 +226,10 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
     if (uri != null) {
       scheme = uri.getScheme();
       if (uri.getPath() != null) {
-        span.setTag(KnownTags.URL_PATH_NAME, uri.getPath());
+        span.setTag(KnownTags.URL_PATH_ID, uri.getPath());
       }
       if (uri.getRawQuery() != null && !uri.getRawQuery().isEmpty()) {
-        span.setTag(KnownTags.URL_QUERY_NAME, uri.getRawQuery());
+        span.setTag(KnownTags.URL_QUERY_ID, uri.getRawQuery());
       }
       if (host == null || host.isEmpty()) {
         host = uri.getHost();
@@ -238,7 +239,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
       }
     }
     if (scheme != null) {
-      span.setTag(KnownTags.URL_SCHEME_NAME, scheme);
+      span.setTag(KnownTags.URL_SCHEME_ID, scheme);
     }
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, scheme, host, port);
   }
@@ -272,15 +273,19 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   }
 
   private static void setStringTagFromStateField(
-      AgentSpan span, String tag, Object stateInstance, MethodHandle mh) {
+      AgentSpan span, long tagId, Object stateInstance, MethodHandle mh) {
     String v = "";
     try {
       v = (String) mh.invoke(stateInstance);
     } catch (Throwable e) {
       log.debug(
-          "Can't invoke '{}' on instance '{}'; ; Tag '{}' not set.", mh, stateInstance, tag, e);
+          "Can't invoke '{}' on instance '{}'; ; Tag '{}' not set.",
+          mh,
+          stateInstance,
+          KnownTagCodec.nameOf(tagId),
+          e);
     }
-    span.setTag(tag, v);
+    span.setTag(tagId, v);
   }
 
   private static String getStringFromStateField(Object stateInstance, MethodHandle mh) {
@@ -295,7 +300,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
 
   private static void setURLTagFromUriStateField(AgentSpan span, Object stateInstance) {
     try {
-      span.setTag(Tags.HTTP_URL, uriField_mh.invoke(stateInstance).toString());
+      span.setTag(KnownTags.HTTP_URL_ID, uriField_mh.invoke(stateInstance).toString());
     } catch (Throwable e) {
       log.debug(
           "Can't invoke '{}' on instance '{}'; Tag '{}' not set.",

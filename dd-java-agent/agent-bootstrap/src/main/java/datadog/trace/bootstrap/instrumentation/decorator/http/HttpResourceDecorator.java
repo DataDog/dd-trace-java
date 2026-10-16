@@ -1,11 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
@@ -53,7 +53,7 @@ public class HttpResourceDecorator {
     if (encoded) {
       routeTag = URIUtils.decode(route.toString());
     }
-    span.setTag(Tags.HTTP_ROUTE, routeTag);
+    span.setTag(KnownTags.HTTP_ROUTE_ID, routeTag);
     if (OTEL_SEMANTICS) {
       final CharSequence resourceName =
           HttpResourceNames.join(OtelHttpSemantics.spanNameMethod(method), routeTag);

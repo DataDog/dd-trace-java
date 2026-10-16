@@ -30,8 +30,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setRequestMethod(span, method);
 
-    verify(span).setTag(KnownTags.HTTP_METHOD_OTEL_NAME, method);
-    verify(span, never()).setTag(eq(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME), anyString());
+    verify(span).setTag(KnownTags.HTTP_METHOD_ID, method);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID), anyString());
   }
 
   @ParameterizedTest
@@ -41,8 +41,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setRequestMethod(span, method);
 
-    verify(span).setTag(KnownTags.HTTP_METHOD_OTEL_NAME, OtelHttpSemantics.OTHER_METHOD);
-    verify(span).setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME, method);
+    verify(span).setTag(KnownTags.HTTP_METHOD_ID, OtelHttpSemantics.OTHER_METHOD);
+    verify(span).setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID, method);
   }
 
   @TableTest({
@@ -91,14 +91,14 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setClientUrl(span, URI.create("https://u:p@host/a?token=secret#fragment"));
 
-    verify(span).setTag(eq(KnownTags.HTTP_URL_OTEL_NAME), (Object) urlCaptor.capture());
+    verify(span).setTag(eq(KnownTags.HTTP_URL_ID), (Object) urlCaptor.capture());
     LazyUrl url = urlCaptor.getValue();
 
     // Reading the path must leave the full URL unrendered.
     assertEquals("/a", url.path());
     assertNull(url.lazy);
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.toString());
-    verify(span).setTag(KnownTags.URL_QUERY_NAME, "token=secret");
+    verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
   }
 
   @Test
@@ -107,7 +107,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setClientUrl(span, URI.create("http://host/a"));
 
-    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_NAME), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
   }
 
   @TableTest({
@@ -164,7 +164,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setErrorType(span, 500);
 
-    verify(span).setTag(DDTags.ERROR_TYPE, "500");
+    verify(span).setTag(KnownTags.ERROR_TYPE_ID, "500");
   }
 
   @Test
@@ -174,7 +174,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setErrorType(span, 500);
 
-    verify(span, never()).setTag(eq(DDTags.ERROR_TYPE), any(String.class));
+    verify(span, never()).setTag(eq(KnownTags.ERROR_TYPE_ID), any(String.class));
   }
 
   @TableTest({
@@ -244,8 +244,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, "host");
-    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 8080);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "host");
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 8080);
   }
 
   @Test
@@ -254,8 +254,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "https", "host", -1);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, "host");
-    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 443);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "host");
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 443);
   }
 
   @Test
@@ -264,8 +264,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "ftp", null, -1);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_NAME), anyString());
-    verify(span, never()).setTag(eq(KnownTags.SERVER_PORT_NAME), anyInt());
+    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_PORT_ID), anyInt());
   }
 
   @Test
@@ -274,8 +274,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "http", "", -1);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_NAME), anyString());
-    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 80);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_ID), anyString());
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 80);
   }
 
   @Test
@@ -284,8 +284,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, "proxy:8443", "9443", "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, "proxy");
-    verify(span).setTag(KnownTags.SERVER_PORT_NAME, 9443);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "proxy");
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 9443);
   }
 
   @TableTest({
@@ -302,7 +302,7 @@ class OtelHttpSemanticsTest {
     OtelHttpSemantics.setServerAddressAndPort(
         span, forwardedHost, forwardedPort, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.SERVER_PORT_NAME, expectedPort);
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, expectedPort);
   }
 
   @TableTest({
@@ -322,8 +322,8 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, forwardedHost, null, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, expectedAddress);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, expectedAddress);
     // A forwarded host suppresses the request port, so the scheme default applies instead.
-    verify(span).setTag(KnownTags.SERVER_PORT_NAME, expectedPort);
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, expectedPort);
   }
 }

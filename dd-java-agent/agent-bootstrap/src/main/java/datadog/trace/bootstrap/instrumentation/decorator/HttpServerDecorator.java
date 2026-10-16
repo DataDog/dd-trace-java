@@ -327,7 +327,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       String userAgent = extracted.getUserAgent();
       if (userAgent != null) {
-        span.setTag(Tags.HTTP_USER_AGENT, userAgent);
+        span.setTag(KnownTags.HTTP_USERAGENT_ID, userAgent);
       }
     }
 
@@ -337,7 +337,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         OtelHttpSemantics.setRequestMethod(span, method);
         OtelHttpSemantics.setMethodResourceName(span, method);
       } else {
-        span.setTag(Tags.HTTP_METHOD, method);
+        span.setTag(KnownTags.HTTP_METHOD_ID, method);
       }
 
       // Copy of HttpClientDecorator url handling
@@ -357,7 +357,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
             if (valid) {
               if (scheme != null) {
-                span.setTag(KnownTags.URL_SCHEME_NAME, scheme);
+                span.setTag(KnownTags.URL_SCHEME_ID, scheme);
               }
               // Ensure that path components have a leading '/'
               if (path == null || path.isEmpty()) {
@@ -365,9 +365,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
               } else if (path.charAt(0) != '/') {
                 path = "/" + path;
               }
-              span.setTag(KnownTags.URL_PATH_NAME, path);
+              span.setTag(KnownTags.URL_PATH_ID, path);
             } else if (supportsRaw) {
-              span.setTag(KnownTags.URL_PATH_NAME, url.raw());
+              span.setTag(KnownTags.URL_PATH_ID, url.raw());
             }
             OtelHttpSemantics.setServerAddressAndPort(
                 span,
@@ -379,14 +379,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           } else {
             if (valid) {
               span.setTag(
-                  Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+                  KnownTags.HTTP_URL_ID,
+                  URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
             } else if (supportsRaw) {
-              span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
+              span.setTag(KnownTags.HTTP_URL_ID, URIUtils.lazyInvalidUrl(url.raw()));
             }
             if (extracted != null && extracted.getXForwardedHost() != null) {
-              span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
+              span.setTag(KnownTags.HTTP_HOSTNAME_ID, extracted.getXForwardedHost());
             } else if (url.host() != null) {
-              span.setTag(Tags.HTTP_HOSTNAME, url.host());
+              span.setTag(KnownTags.HTTP_HOSTNAME_ID, url.host());
             }
           }
 
@@ -398,7 +399,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
                 span.setTag(DDTags.HTTP_QUERY_OTEL_NAME, query);
               }
             } else {
-              span.setTag(DDTags.HTTP_QUERY, query);
+              span.setTag(KnownTags.HTTP_QUERY_STRING_ID, query);
               span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
             }
           }
@@ -443,7 +444,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
-          span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+          span.setTag(KnownTags.HTTP_CLIENT_IP_ID, inferredAddressStr);
         }
       }
     } else if (shouldTagIps && span.getLocalRootSpan() != span) {
@@ -455,20 +456,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       AgentSpan localRootSpan = span.getLocalRootSpan();
       Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
       if (clientIp != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
+        span.setTag(KnownTags.HTTP_CLIENT_IP_ID, clientIp);
       }
     }
 
     if (peerIp != null) {
       if (peerIp.indexOf(':') > 0) {
-        span.setTag(Tags.PEER_HOST_IPV6, peerIp);
+        span.setTag(KnownTags.PEER_IPV6_ID, peerIp);
       } else {
-        span.setTag(Tags.PEER_HOST_IPV4, peerIp);
+        span.setTag(KnownTags.PEER_IPV4_ID, peerIp);
       }
       if (shouldTagIps) {
-        span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+        span.setTag(KnownTags.NETWORK_CLIENT_IP_ID, peerIp);
         if (OTEL_SEMANTICS && span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME) == null) {
-          span.setTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME, peerIp);
+          span.setTag(KnownTags.HTTP_CLIENT_IP_ID, peerIp);
         }
       }
     }

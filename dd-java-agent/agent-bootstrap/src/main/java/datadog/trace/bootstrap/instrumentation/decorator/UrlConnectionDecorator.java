@@ -1,13 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -57,7 +57,7 @@ public class UrlConnectionDecorator extends UriBasedClientDecorator {
     if (OTEL_SEMANTICS) {
       OtelHttpSemantics.setClientUrl(span, uri);
     } else {
-      span.setTag(Tags.HTTP_URL, uri.toString());
+      span.setTag(KnownTags.HTTP_URL_ID, uri.toString());
     }
   }
 

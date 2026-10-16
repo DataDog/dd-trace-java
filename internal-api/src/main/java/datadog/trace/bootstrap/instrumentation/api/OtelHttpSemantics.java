@@ -26,10 +26,10 @@ public final class OtelHttpSemantics {
 
   public static void setRequestMethod(final AgentSpan span, final String method) {
     if (method != null && !KNOWN_METHODS.contains(method)) {
-      span.setTag(KnownTags.HTTP_METHOD_OTEL_NAME, OTHER_METHOD);
-      span.setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME, method);
+      span.setTag(KnownTags.HTTP_METHOD_ID, OTHER_METHOD);
+      span.setTag(KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID, method);
     } else {
-      span.setTag(KnownTags.HTTP_METHOD_OTEL_NAME, method);
+      span.setTag(KnownTags.HTTP_METHOD_ID, method);
     }
   }
 
@@ -40,12 +40,12 @@ public final class OtelHttpSemantics {
   public static void setClientUrl(final AgentSpan span, final URI url) {
     // Use the object tag setter rather than the CharSequence overload, which checks length(), which
     // would render the URL immediately.
-    span.setTag(KnownTags.HTTP_URL_OTEL_NAME, (Object) new ClientUrl(url));
+    span.setTag(KnownTags.HTTP_URL_ID, (Object) new ClientUrl(url));
     if (Config.get().isHttpClientTagQueryString()) {
       // QueryObfuscator scrubs this before rebuilding url.full and removes it from client spans.
       final String query = url.getRawQuery();
       if (query != null) {
-        span.setTag(DDTags.HTTP_QUERY_OTEL_NAME, query);
+        span.setTag(KnownTags.URL_QUERY_ID, query);
       }
     }
   }
@@ -91,7 +91,7 @@ public final class OtelHttpSemantics {
 
   public static void setErrorType(final AgentSpan span, final int status) {
     if (span.getTag(DDTags.ERROR_TYPE) == null) {
-      span.setTag(DDTags.ERROR_TYPE, RadixTreeCache.HTTP_STATUSES.get(status).toString());
+      span.setTag(KnownTags.ERROR_TYPE_ID, RadixTreeCache.HTTP_STATUSES.get(status).toString());
     }
   }
 
@@ -153,7 +153,7 @@ public final class OtelHttpSemantics {
     }
 
     if (serverAddress != null && !serverAddress.isEmpty()) {
-      span.setTag(KnownTags.HTTP_HOSTNAME_NAME, serverAddress);
+      span.setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, serverAddress);
     }
 
     int serverPort = parsePort(forwardedValue(forwardedPortHeader));
@@ -164,7 +164,7 @@ public final class OtelHttpSemantics {
       serverPort = forwardedHost == null && requestPort > 0 ? requestPort : serverPort(scheme, -1);
     }
     if (serverPort > 0) {
-      span.setTag(KnownTags.SERVER_PORT_NAME, serverPort);
+      span.setTag(KnownTags.Inbound.SERVER_PORT_ID, serverPort);
     }
   }
 

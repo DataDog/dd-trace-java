@@ -9,6 +9,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.HttpClientRequest;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
@@ -24,7 +25,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
@@ -126,7 +126,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           OtelHttpSemantics.setMethodResourceName(span, method);
         }
       } else {
-        span.setTag(Tags.HTTP_METHOD, method);
+        span.setTag(KnownTags.HTTP_METHOD_ID, method);
       }
 
       if (CLIENT_TAG_HEADERS) {
@@ -152,7 +152,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
             }
           } else {
             span.setTag(
-                Tags.HTTP_URL,
+                KnownTags.HTTP_URL_ID,
                 URIUtils.lazyValidURL(
                     url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
             if (Config.get().isHttpClientTagQueryString()) {

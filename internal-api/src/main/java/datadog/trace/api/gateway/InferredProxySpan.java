@@ -1,17 +1,11 @@
 package datadog.trace.api.gateway;
 
 import static datadog.context.ContextKey.named;
-import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.HTTP_SERVER_DECORATOR;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_USER_AGENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 
 import datadog.context.Context;
@@ -106,32 +100,32 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     span.setServiceName(serviceName, INSTRUMENTATION_NAME);
 
     // Component: aws-apigateway or aws-httpapi
-    span.setTag(COMPONENT, proxySystem);
+    span.setTag(KnownTags.COMPONENT_ID, proxySystem);
 
     // Span kind: server
-    span.setTag(SPAN_KIND, SPAN_KIND_SERVER);
+    span.setTag(KnownTags.SPAN_KIND_ID, SPAN_KIND_SERVER);
 
     // SpanType: web
-    span.setTag(SPAN_TYPE, "web");
+    span.setTag(KnownTags.SPAN_TYPE_ID, "web");
 
     if (OTEL_SEMANTICS) {
       OtelHttpSemantics.setRequestMethod(span, httpMethod);
-      span.setTag(KnownTags.URL_PATH_NAME, path);
+      span.setTag(KnownTags.URL_PATH_ID, path);
       if (domainName != null && !domainName.isEmpty()) {
-        span.setTag(KnownTags.URL_SCHEME_NAME, "https");
-        span.setTag(KnownTags.HTTP_HOSTNAME_NAME, domainName);
+        span.setTag(KnownTags.URL_SCHEME_ID, "https");
+        span.setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, domainName);
       }
     } else {
-      span.setTag(HTTP_METHOD, httpMethod);
+      span.setTag(KnownTags.HTTP_METHOD_ID, httpMethod);
       span.setTag(
-          HTTP_URL,
+          KnownTags.HTTP_URL_ID,
           domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
     }
 
     // A concrete path is not a route under the OTel conventions. Keep the legacy fallback only
     // while Datadog semantics are active.
     String route = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : null;
-    span.setTag(HTTP_ROUTE, OTEL_SEMANTICS ? route : route != null ? route : path);
+    span.setTag(KnownTags.HTTP_ROUTE_ID, OTEL_SEMANTICS ? route : route != null ? route : path);
 
     // "stage" - value of x-dd-proxy-stage
     span.setTag("stage", header(STAGE));
@@ -314,7 +308,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
 
     Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
     if (userAgent != null) {
-      this.span.setTag(HTTP_USER_AGENT, userAgent.toString());
+      this.span.setTag(KnownTags.HTTP_USERAGENT_ID, userAgent.toString());
     }
 
     // Forward the Datadog scan/test markers so the API endpoint reducer can keep
