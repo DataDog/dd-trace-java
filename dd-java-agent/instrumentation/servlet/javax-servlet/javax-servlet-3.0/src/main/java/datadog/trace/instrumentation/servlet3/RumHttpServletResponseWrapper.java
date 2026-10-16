@@ -23,6 +23,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
   private PrintWriter printWriter;
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
+  private boolean retired;
   private String contentEncoding = null;
 
   private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
@@ -183,19 +184,75 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void reset() {
+    super.reset();
+    discardBufferedContent();
+    setActiveFilters(false);
     this.outputStream = null;
     this.wrappedPipeWriter = null;
     this.printWriter = null;
-    this.shouldInject = false;
-    super.reset();
+    this.shouldInject = !retired;
+    this.contentEncoding = null;
   }
 
   @Override
   public void resetBuffer() {
-    this.outputStream = null;
-    this.wrappedPipeWriter = null;
-    this.printWriter = null;
     super.resetBuffer();
+    discardBufferedContent();
+    setActiveFilters(shouldInject);
+  }
+
+  @Override
+  public void flushBuffer() throws IOException {
+    flushBufferedContent();
+    super.flushBuffer();
+  }
+
+  @Override
+  public void sendError(int sc) throws IOException {
+    boolean rejected = false;
+    try {
+      super.sendError(sc);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
+    } finally {
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
+    }
+  }
+
+  @Override
+  public void sendError(int sc, String msg) throws IOException {
+    boolean rejected = false;
+    try {
+      super.sendError(sc, msg);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
+    } finally {
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
+    }
+  }
+
+  @Override
+  public void sendRedirect(String location) throws IOException {
+    boolean rejected = false;
+    try {
+      super.sendRedirect(location);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
+    } finally {
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
+    }
   }
 
   public void onInjected() {
@@ -214,7 +271,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
     }
     if (wasInjecting && !shouldInject) {
       commit();
-      stopFiltering();
+      disableFiltering();
     }
   }
 
@@ -248,12 +305,39 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void stopFiltering() {
+    retired = true;
+    disableFiltering();
+  }
+
+  private void disableFiltering() {
     shouldInject = false;
+    setActiveFilters(false);
+  }
+
+  private void flushBufferedContent() throws IOException {
     if (wrappedPipeWriter != null) {
-      wrappedPipeWriter.setFilter(false);
+      wrappedPipeWriter.commit();
     }
     if (outputStream != null) {
-      outputStream.setFilter(false);
+      outputStream.commit();
+    }
+  }
+
+  private void discardBufferedContent() {
+    if (wrappedPipeWriter != null) {
+      wrappedPipeWriter.discard();
+    }
+    if (outputStream != null) {
+      outputStream.discard();
+    }
+  }
+
+  private void setActiveFilters(boolean filter) {
+    if (wrappedPipeWriter != null) {
+      wrappedPipeWriter.setFilter(filter);
+    }
+    if (outputStream != null) {
+      outputStream.setFilter(filter);
     }
   }
 }
