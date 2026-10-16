@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
@@ -27,6 +28,7 @@ public final class MicronautInstrumentation extends InstrumenterModule.Tracing
       "io.micronaut.http.server.ResponseLifecycle",
       "io.micronaut.http.server.RouteExecutor",
       "io.micronaut.http.server.netty.NettyRequestLifecycle",
+      "io.micronaut.http.server.RequestLifecycle",
     };
   }
 
@@ -54,6 +56,22 @@ public final class MicronautInstrumentation extends InstrumenterModule.Tracing
             .and(takesArgument(0, named("io.micronaut.http.HttpRequest")))
             .and(takesArgument(1, named("java.lang.Throwable"))),
         packageName + ".CreateDefaultErrorResponseAdvice");
+
+    // every exception passes here before Micronaut picks an @Error route, an ExceptionHandler
+    // bean or the default error response, so handled exceptions are recorded too
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("onErrorNoFilter"))
+            .and(takesArguments(3))
+            .and(takesArgument(0, named("io.micronaut.http.HttpRequest")))
+            .and(takesArgument(1, named("java.lang.Throwable"))),
+        packageName + ".HandleErrorAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("onErrorNoFilter"))
+            .and(takesArguments(2))
+            .and(takesArgument(0, named("java.lang.Throwable"))),
+        packageName + ".HandleErrorAdvice2");
 
     transformer.applyAdvice(
         isMethod()
