@@ -47,7 +47,6 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -158,18 +157,17 @@ public class DDSpanContext
   private volatile byte spanKindOrdinal = SPAN_KIND_UNSET;
 
   /**
-   * The tag id flags the id setters route through {@link TagInterceptor}: {@link
-   * KnownTagCodec#INTERCEPTED}, plus {@link KnownTagCodec#HAS_SCOPED_ALIAS} once a direction-scoped
-   * alias has been stored as written (see {@link #notePendingAlias}). Until then -- almost always
-   * -- a write of a tag with an alias takes the plain store path: no second lock, no boxing.
+   * The direction-scoped aliases this span stored as written, with their values (see {@link
+   * DirectionalTags}): null until the first one, and again once the span's kind resolves them all.
+   * While null -- almost always -- a write of a tag with an alias takes the plain store path: no
+   * second lock, no boxing.
    *
-   * <p>Sticky: it is never cleared, so a span that once held a pending alias keeps routing those
-   * tags. Written under the {@code tagStore} lock but read without it, deliberately: a setter on
-   * another thread that has not yet seen the flag is racing the alias write, and the order of two
-   * unsynchronized writes is undefined anyway. The writing thread always sees its own update, so no
-   * value is lost relative to routing every such write.
+   * <p>Written under the {@code tagStore} lock. {@link #routedTagFlags()} reads it without the
+   * lock, deliberately: a setter on another thread that has not yet seen the holder is racing the
+   * alias write, and the order of two unsynchronized writes is undefined anyway. The writing thread
+   * always sees its own update, so no value is lost relative to routing every such write.
    */
-  private int routedTagFlags = (int) KnownTagCodec.INTERCEPTED;
+  private DirectionalTags.PendingAliases pendingAliases;
 
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
@@ -976,13 +974,27 @@ public class DDSpanContext
     // Checked under the lock alias registration takes: a writer that read no direction registers
     // its pending alias before this sees the flag, or reads the new kind and resolves at write.
     synchronized (tagStore) {
-      if (hasPendingAliases()) {
+      DirectionalTags.PendingAliases pending = pendingAliases;
+      if (pending != null) {
         // The span now has a direction: fold pending aliases into the tags they denote, so every
         // later reader (peer service naming, stats, sampling rules, serialization) sees them
-        // resolved.
-        DirectionalTags.resolveScopedNames(tagIds, tagStore, tagDirection());
+        // resolved. Once none is left, the span is back on the fast path.
+        pendingAliases = DirectionalTags.resolvePending(tagIds, tagStore, pending, tagDirection());
       }
     }
+  }
+
+  /**
+   * {@link #tagView()} for emitting the span's tags: first copies any pending aliases into the
+   * HashStore under their literal names, so a span that never learns its kind still emits them. The
+   * holder stays the span's record of them. Call under the {@code tagStore} lock.
+   */
+  private TagMap emittableTags() {
+    DirectionalTags.PendingAliases pending = pendingAliases;
+    if (pending != null) {
+      DirectionalTags.copyPending(pending, tagStore);
+    }
+    return tagView();
   }
 
   /**
@@ -1108,57 +1120,109 @@ public class DDSpanContext
     if (key == 0) {
       return 0L;
     }
-    long aliasedId = DirectionalTags.prepareAliasWrite(tagIds, tagStore, tag, tagDirection());
+    long aliasedId =
+        DirectionalTags.prepareAliasWrite(tagIds, tagStore, pendingAliases, tag, tagDirection());
     if (aliasedId > 0) {
+      dropPendingAliasesIfEmpty();
       return aliasedId;
     }
-    notePendingAlias(); // the registry said alias, so this is the sentinel: stored as written
-    return 0L;
+    return PENDING_ALIAS; // the registry said alias, so this is the sentinel: stored as written
+  }
+
+  /** {@link #writeKeyOf}'s answer for an alias that is stored as written, pending. */
+  private static final long PENDING_ALIAS = -1L;
+
+  /** Stores {@code value} under {@code alias} as written, pending. Call under the lock. */
+  private void storePendingAlias(String alias, Object value) {
+    pendingAliases = DirectionalTags.addPending(pendingAliases, alias, value);
+  }
+
+  /** Drops the pending-alias holder once empty, so the span is back on the fast path. */
+  private void dropPendingAliasesIfEmpty() {
+    DirectionalTags.PendingAliases pending = pendingAliases;
+    if (pending != null && pending.isEmpty()) {
+      pendingAliases = null;
+    }
   }
 
   /**
-   * Notes that an alias is being stored as written, so later writes of a tag with an alias are
-   * routed to supersede it. Call while holding the {@code tagStore} lock.
+   * The tag id flags the id setters route through {@link TagInterceptor}: {@link
+   * KnownTagCodec#INTERCEPTED}, plus {@link KnownTagCodec#HAS_SCOPED_ALIAS} while the span holds a
+   * pending alias, so a write of a tag with an alias is routed to supersede it.
    */
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "A stale read only races an unordered alias write; see routedTagFlags")
-  private void notePendingAlias() {
-    routedTagFlags = (int) (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS);
+  private int routedTagFlags() {
+    return pendingAliases == null
+        ? (int) KnownTagCodec.INTERCEPTED
+        : (int) (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS);
   }
 
-  /** True once any alias has been stored as written; see {@link #routedTagFlags}. */
+  /** True while the span holds an alias stored as written; see {@link #pendingAliases}. */
   @Override
   public boolean hasPendingAliases() {
-    return (routedTagFlags & KnownTagCodec.HAS_SCOPED_ALIAS) != 0;
+    return pendingAliases != null;
   }
 
   private void storeTag(String tag, Object value) {
-    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
+    long key = writeKeyOf(tag);
+    if (key == PENDING_ALIAS) {
+      storePendingAlias(tag, value);
+    } else {
+      TagRouting.set(tagIds, tagStore, key, tag, value);
+    }
   }
 
   private void storeTag(String tag, CharSequence value) {
-    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
+    long key = writeKeyOf(tag);
+    if (key == PENDING_ALIAS) {
+      storePendingAlias(tag, value);
+    } else {
+      TagRouting.set(tagIds, tagStore, key, tag, value);
+    }
   }
 
   private void storeTag(String tag, boolean value) {
-    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
+    long key = writeKeyOf(tag);
+    if (key == PENDING_ALIAS) {
+      storePendingAlias(tag, value);
+    } else {
+      TagRouting.set(tagIds, tagStore, key, tag, value);
+    }
   }
 
   private void storeTag(String tag, int value) {
-    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
+    long key = writeKeyOf(tag);
+    if (key == PENDING_ALIAS) {
+      storePendingAlias(tag, value);
+    } else {
+      TagRouting.set(tagIds, tagStore, key, tag, value);
+    }
   }
 
   private void storeTag(String tag, long value) {
-    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
+    long key = writeKeyOf(tag);
+    if (key == PENDING_ALIAS) {
+      storePendingAlias(tag, value);
+    } else {
+      TagRouting.set(tagIds, tagStore, key, tag, value);
+    }
   }
 
   private void storeTag(String tag, float value) {
-    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
+    long key = writeKeyOf(tag);
+    if (key == PENDING_ALIAS) {
+      storePendingAlias(tag, value);
+    } else {
+      TagRouting.set(tagIds, tagStore, key, tag, value);
+    }
   }
 
   private void storeTag(String tag, double value) {
-    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
+    long key = writeKeyOf(tag);
+    if (key == PENDING_ALIAS) {
+      storePendingAlias(tag, value);
+    } else {
+      TagRouting.set(tagIds, tagStore, key, tag, value);
+    }
   }
 
   /** {@link #storeTag} for an entry, which carries its id: no lookup unless it may be an alias. */
@@ -1169,14 +1233,15 @@ public class DDSpanContext
       putEntry(entry);
     } else if (KnownTagCodec.mayBeScopedAlias(entry.tag())) {
       long aliasedId =
-          DirectionalTags.prepareAliasWrite(tagIds, tagStore, entry.tag(), tagDirection());
+          DirectionalTags.prepareAliasWrite(
+              tagIds, tagStore, pendingAliases, entry.tag(), tagDirection());
       if (aliasedId > 0) {
+        dropPendingAliasesIfEmpty();
         TagRouting.setKnown(tagIds, tagStore, aliasedId, entry.objectValue());
+      } else if (aliasedId < 0) {
+        storePendingAlias(entry.tag(), entry.objectValue()); // a real alias, stored as written
       } else {
-        if (aliasedId < 0) {
-          notePendingAlias(); // a real alias, stored as written; 0 is a filter false positive
-        }
-        putEntry(entry);
+        putEntry(entry); // 0 is a filter false positive: an ordinary custom tag
       }
     } else {
       putEntry(entry);
@@ -1198,7 +1263,8 @@ public class DDSpanContext
     }
     synchronized (tagStore) {
       // A direction-dependent name and the tag it denotes here are removed together.
-      DirectionalTags.remove(tagIds, tagStore, tag, tagDirection());
+      DirectionalTags.remove(tagIds, tagStore, pendingAliases, tag, tagDirection());
+      dropPendingAliasesIfEmpty();
     }
   }
 
@@ -1216,7 +1282,8 @@ public class DDSpanContext
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (tagStore) {
-      DirectionalTags.remove(tagIds, tagStore, tagId, tagDirection());
+      DirectionalTags.remove(tagIds, tagStore, pendingAliases, tagId, tagDirection());
+      dropPendingAliasesIfEmpty();
     }
   }
 
@@ -1282,7 +1349,7 @@ public class DDSpanContext
    */
   private boolean isPresent(TagMap.EntryReader entry) {
     if (KnownTagCodec.isDirectionDependent(entry)) {
-      return DirectionalTags.get(tagIds, tagStore, entry.tag(), tagDirection(), hasPendingAliases())
+      return DirectionalTags.get(tagIds, tagStore, pendingAliases, entry.tag(), tagDirection())
           != null;
     }
     String tag = entry.tag();
@@ -1325,7 +1392,7 @@ public class DDSpanContext
    * Removes the pending aliases a write of {@code tagId} supersedes. Called by {@link
    * TagInterceptor} for a tag with {@link KnownTagCodec#HAS_SCOPED_ALIAS}, which the id setters
    * route like an intercepted tag only once the span holds a pending alias ({@link
-   * #routedTagFlags}), so their fast path carries no alias handling at all. The tag itself is
+   * #routedTagFlags()}), so their fast path carries no alias handling at all. The tag itself is
    * stored right after, under its own lock acquisition; a concurrent write of the alias from
    * another thread in between has no defined order anyway.
    */
@@ -1343,8 +1410,10 @@ public class DDSpanContext
    * span holds any. Callers hold the {@code tagStore} lock.
    */
   private void supersedePendingAliases(long tagId) {
-    if (KnownTagCodec.hasScopedAlias(tagId) && hasPendingAliases()) {
-      DirectionalTags.prepareWrite(tagIds, tagStore, tagId, tagDirection());
+    DirectionalTags.PendingAliases pending = pendingAliases;
+    if (pending != null && KnownTagCodec.hasScopedAlias(tagId)) {
+      DirectionalTags.prepareWrite(tagIds, tagStore, pending, tagId, tagDirection());
+      dropPendingAliasesIfEmpty();
     }
   }
 
@@ -1359,7 +1428,7 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
+    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags())
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (tagStore) {
         TagRouting.setKnown(tagIds, tagStore, tagId, value);
@@ -1373,7 +1442,7 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
+    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags())
         || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (tagStore) {
         TagRouting.setKnown(tagIds, tagStore, tagId, value);
@@ -1385,7 +1454,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagStore) {
@@ -1398,7 +1467,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagStore) {
@@ -1411,7 +1480,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagStore) {
@@ -1424,7 +1493,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagStore) {
@@ -1437,7 +1506,7 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagStore) {
@@ -1596,7 +1665,8 @@ public class DDSpanContext
             spanKindOrdinal = SPAN_KIND_UNSET;
           }
           // as removeTag(String): a direction-dependent name and the tag it denotes go together
-          DirectionalTags.remove(tagIds, tagStore, tag, tagDirection());
+          DirectionalTags.remove(tagIds, tagStore, pendingAliases, tag, tagDirection());
+          dropPendingAliasesIfEmpty();
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
@@ -1675,13 +1745,17 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return DirectionalTags.get(tagIds, tagStore, tag, tagDirection(), hasPendingAliases());
+    return DirectionalTags.get(tagIds, tagStore, pendingAliases, tag, tagDirection());
   }
 
   @Deprecated
   public TagMap getTags() {
     synchronized (tagStore) {
       TagMap tags = tagView().copy();
+      DirectionalTags.PendingAliases pending = pendingAliases;
+      if (pending != null) {
+        DirectionalTags.copyPending(pending, tags.hashStore()); // under their literal names
+      }
 
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
@@ -1734,7 +1808,7 @@ public class DDSpanContext
 
   void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (tagStore) {
-      TagsPostProcessorFactory.eagerProcessor().processTags(tagView(), this, links);
+      TagsPostProcessorFactory.eagerProcessor().processTags(emittableTags(), this, links);
     }
   }
 
@@ -1765,7 +1839,7 @@ public class DDSpanContext
     // - implementing an interface to read the spans that require making the read method public
     synchronized (tagStore) {
       // One live view of the tag stores, for the post-processors and the serializer
-      TagMap tags = tagView();
+      TagMap tags = emittableTags();
 
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(tags, this, restrictedSpan);
