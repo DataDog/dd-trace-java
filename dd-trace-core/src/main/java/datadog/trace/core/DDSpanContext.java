@@ -47,6 +47,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -1030,6 +1031,9 @@ public class DDSpanContext
   }
 
   /** The custom store to write to: created on the first custom write, ending any borrowing. */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "Written and read only under the tagIds lock")
   private HashStore customTagsForWrite() {
     HashStore custom = this.customTags;
     if (custom == null || this.customTagsBorrowed) {
