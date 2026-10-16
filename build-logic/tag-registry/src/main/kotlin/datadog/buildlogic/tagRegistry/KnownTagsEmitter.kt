@@ -191,6 +191,21 @@ object KnownTagsEmitter {
           };
 
           /**
+           * Each tag's id, indexed by serial; slot 0 (no tag) is 0. Lets a store that keeps only the
+           * 16-bit serial recover the full id, flag and slot bits included.
+           */
+          static final long[] IDS_BY_SERIAL = {
+            0L,
+        """.trimIndent()
+      )
+      for (t in reg.tags.sortedBy { it.serial }) {
+        appendLine("    ${idC(t.ddName)},")
+      }
+      appendLine(
+        """
+          };
+
+          /**
            * The registry's name&harr;id tables, as a {@link KnownTagCodec.Resolver}. {@code KnownTagCodec}
            * reads this field from its own holder, so the two classes complete each other: the codec owns
            * the bit layout and the naming policy, this class owns the data. Nothing has to be called first.
@@ -201,6 +216,11 @@ object KnownTagsEmitter {
                 public String nameOf(long tagId) {
                   int serial = KnownTagCodec.serialNum(tagId);
                   return serial < NAMES_BY_SERIAL.length ? NAMES_BY_SERIAL[serial] : null;
+                }
+
+                @Override
+                public long idOf(int serial) {
+                  return IDS_BY_SERIAL[serial];
                 }
         
                 // openTelemetryNameOf: id -> OTel-namespace name on spans of a direction, null when

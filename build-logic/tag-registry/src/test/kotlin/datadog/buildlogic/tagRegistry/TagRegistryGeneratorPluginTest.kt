@@ -252,6 +252,7 @@ class TagRegistryGeneratorPluginTest {
         public static final long NO_TAG_IN_DIRECTION_SENTINEL = -3L;
         public interface Resolver {
           String nameOf(long id);
+          long idOf(int serial);
           String openTelemetryNameOf(long id, int direction);
           long lookup(String name);
           long directionalKeyOf(String name, int direction);

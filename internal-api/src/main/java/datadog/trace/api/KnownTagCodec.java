@@ -203,6 +203,9 @@ public final class KnownTagCodec {
     /** The tag's Datadog-namespace (canonical) name. */
     String nameOf(long tagId);
 
+    /** The full id of the known tag with {@code serial}, which must be below the serial limit. */
+    long idOf(int serial);
+
     /**
      * The tag's OpenTelemetry-namespace name on spans of {@code direction}, or {@code null} when it
      * declares none there. {@link #DIRECTION_UNKNOWN} returns only a name that holds in every
@@ -227,6 +230,15 @@ public final class KnownTagCodec {
    */
   private static final class Installed {
     static final Resolver RESOLVER = KnownTags.RESOLVER;
+  }
+
+  /**
+   * The full id of the known tag with {@code serial} (flag and slot bits included), for a store
+   * that keeps only the 16-bit serial. {@code serial} must be a known tag's: {@code 0 < serial <
+   * serialLimit()}.
+   */
+  public static long idOf(int serial) {
+    return Installed.RESOLVER.idOf(serial);
   }
 
   /** The tag's canonical (Datadog-namespace) name, or {@code null} when the id is not known. */
