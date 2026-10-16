@@ -33,11 +33,14 @@ final class HashIdStore extends IdStore {
     this.parent = (HashIdStore) parent;
   }
 
-  /** A parentless store over {@code buckets}; reads no statics, so TagMap.EMPTY can use it. */
-  HashIdStore(Object[] buckets, int count) {
+  /** An empty parentless store over one bucket, for {@link TagMap#EMPTY}, which is frozen. */
+  static HashIdStore newEmpty() {
+    return new HashIdStore(new Object[1]);
+  }
+
+  private HashIdStore(Object[] buckets) {
     super(null);
     this.buckets = buckets;
-    this.count = count;
     this.parent = null;
   }
 
@@ -273,6 +276,45 @@ final class HashIdStore extends IdStore {
           }
         }
       }
+    }
+  }
+
+  @Override
+  Cursor cursor() {
+    return new HashCursor(this);
+  }
+
+  /** Walks the leaf's buckets, then each ancestor's, skipping tombstones and shadowed entries. */
+  private static final class HashCursor extends Cursor {
+    private final HashIdStore leaf;
+    private HashIdStore level;
+    private final HashSupport.BucketWalker walker = new HashSupport.BucketWalker();
+
+    HashCursor(HashIdStore leaf) {
+      this.leaf = leaf;
+      this.level = leaf;
+      this.walker.reset(leaf.buckets);
+    }
+
+    @Override
+    EntryReader next() {
+      HashIdStore level = this.level;
+      while (level != null) {
+        Entry entry = this.walker.next();
+        if (entry != null) {
+          if (!entry.tombstone
+              && (level == this.leaf || this.leaf.parentEntryVisible(entry, level))) {
+            return entry;
+          }
+          continue;
+        }
+        level = level.parent;
+        this.level = level;
+        if (level != null) {
+          this.walker.reset(level.buckets);
+        }
+      }
+      return null;
     }
   }
 

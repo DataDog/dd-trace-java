@@ -57,7 +57,7 @@ public final class TagRouting {
 
   /** A fresh id store reading through to {@code parent}'s known tags (parent may be null). */
   public static IdStore newIdStore(TagMap parent) {
-    return new HashIdStore(parent == null ? null : parent.ids);
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.ids);
   }
 
   /**

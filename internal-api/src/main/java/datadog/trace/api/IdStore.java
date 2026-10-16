@@ -16,9 +16,9 @@ import java.util.function.Consumer;
  * <p>A span in the tracer core owns its id store directly ({@link TagRouting#newIdStore}); a {@link
  * TagMap} owns one too.
  *
- * <p>Each implementation is its own class: {@link HashIdStore} today, a dense store later. Nothing
- * that is always loaded may extend this class, so that a call through it stays monomorphic. No
- * locking: guarded by the owner's lock.
+ * <p>Each implementation is its own class -- {@link HashIdStore} or {@link DenseIdStore}, one per
+ * JVM, chosen by {@link IdStoreFactory} -- and nothing that is always loaded may extend this class,
+ * so a call through it stays monomorphic. No locking: guarded by the owner's lock.
  *
  * <p>The base keeps the slot masks an implementation shares: a tag's slot ({@link
  * KnownTagCodec#slotOf}) maps it to one bit of a {@code long}. A bit is a may-be-present hint --
@@ -143,6 +143,18 @@ public abstract class IdStore {
 
   abstract <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer);
+
+  /**
+   * A cursor over the visible entries, local then inherited, for an iterator. Each entry it returns
+   * is valid until its next call, as with a point read.
+   */
+  abstract Cursor cursor();
+
+  /** Visits a store's visible entries one at a time. */
+  abstract static class Cursor {
+    /** The next visible entry, or null when there are none left. */
+    abstract EntryReader next();
+  }
 
   /** An independently mutable copy with the same parent, sharing Entry objects. */
   abstract IdStore copy();

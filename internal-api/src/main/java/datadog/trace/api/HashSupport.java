@@ -416,4 +416,54 @@ final class HashSupport {
     }
     return ledger.toString();
   }
+
+  /** Walks a bucket array's raw entries, tombstones included, for an iterator. */
+  static final class BucketWalker {
+    private Object[] buckets;
+    private int bucketIndex;
+    private BucketGroup group;
+    private int groupIndex;
+
+    /** Starts over on {@code buckets}. */
+    void reset(Object[] buckets) {
+      this.buckets = buckets;
+      this.bucketIndex = -1;
+      this.group = null;
+      this.groupIndex = 0;
+    }
+
+    /** The next raw entry, or null when the array is done. */
+    Entry next() {
+      while (this.bucketIndex < this.buckets.length) {
+        if (this.group != null) {
+          for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
+            Entry tagEntry = this.group._entryAt(this.groupIndex);
+            if (tagEntry != null) return tagEntry;
+          }
+
+          // done processing - that group, go to next group
+          this.group = this.group.prev;
+          this.groupIndex = -1;
+        }
+
+        // if the group is null, then we've finished the current bucket - so advance the bucket
+        if (this.group == null) {
+          for (++this.bucketIndex; this.bucketIndex < this.buckets.length; ++this.bucketIndex) {
+            Object bucket = this.buckets[this.bucketIndex];
+
+            if (bucket instanceof Entry) {
+              return (Entry) bucket;
+            } else if (bucket instanceof BucketGroup) {
+              this.group = (BucketGroup) bucket;
+              this.groupIndex = -1;
+
+              break;
+            }
+          }
+        }
+      }
+
+      return null;
+    }
+  }
 }

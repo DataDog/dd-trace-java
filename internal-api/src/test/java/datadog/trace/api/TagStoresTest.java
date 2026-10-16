@@ -92,8 +92,8 @@ class TagStoresTest {
     for (TagMap.EntryReader entry : child) {
       assertNotEquals(KnownTags.HTTP_ROUTE_ID, entry.tagId());
     }
-    HashIdStore ids = (HashIdStore) child.ids;
-    assertEquals(0, ids.count);
+    IdStore ids = child.ids;
+    assertEquals(0, ids.computeSize());
     assertNotEquals(0L, ids.tombstoneMask);
     child.checkIntegrity();
 

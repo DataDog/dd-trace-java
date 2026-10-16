@@ -51,7 +51,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
   // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
   // reads no statics, so this is safe to build directly during TagMap's <clinit>.
-  public static final TagMap EMPTY = new TagMap(new Object[1], 0);
+  public static final TagMap EMPTY = new TagMap(IdStoreFactory.Default.INSTANCE.newEmpty());
 
   // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
   // tag, so it cannot represent "not computed".
@@ -1286,7 +1286,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * optimizations can treat it as fixed.
    */
   private TagMap(TagMap parent) {
-    this.ids = new HashIdStore(parent == null ? null : parent.ids);
+    this.ids = IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.ids);
     HashStore parentNames = parent == null ? null : parent.names;
     this.names = parentNames;
     this.namesBorrowed = parentNames != null;
@@ -1303,9 +1303,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.parent = parent;
   }
 
-  /** Used for inexpensive immutable */
-  private TagMap(Object[] buckets, int size) {
-    this.ids = new HashIdStore(buckets, size);
+  /** A frozen map over the empty parentless store {@code ids}: {@link #EMPTY}. */
+  private TagMap(IdStore ids) {
+    this.ids = ids;
     this.names = null;
     this.namesBorrowed = false;
     this.frozen = true;
@@ -2013,7 +2013,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // clear() removes ALL mappings, including any inherited through read-through. Fresh parentless
     // stores (rather than tombstoning every inherited key) are simpler and cheaper, and leave an
     // empty, parent-less map. Detach is one-way -- the parent is never re-pointed.
-    this.ids = new HashIdStore(null);
+    this.ids = IdStoreFactory.Default.INSTANCE.create(null);
     this.names = null;
     this.namesBorrowed = false;
     this.parent = null;
@@ -2113,27 +2113,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   abstract static class IteratorBase {
-    // Two phases: the id store's chain, then the custom store's. In each, the level whose buckets
-    // are being walked is the leaf first, then each ancestor in turn (read-through union).
-    // (A dense id store will need its own walk.)
-    private final HashIdStore idLeaf;
+    // Two phases: the id store's visible entries, through its own cursor, then the custom store's
+    // chain -- the leaf's buckets first, then each ancestor's in turn (read-through union).
+    private IdStore.Cursor ids; // null once the id phase is done
     private final HashStore nameLeaf;
-    private HashIdStore idLevel;
-    private HashStore nameLevel; // non-null once in the custom phase
-    private Object[] buckets;
+    private HashStore nameLevel; // the custom level being walked; null before and after
+    private HashSupport.BucketWalker walker;
 
-    private Entry nextEntry;
-
-    private int bucketIndex = -1;
-
-    private BucketGroup group = null;
-    private int groupIndex = 0;
+    private EntryReader nextEntry;
 
     IteratorBase(TagMap map) {
-      this.idLeaf = (HashIdStore) map.ids;
+      this.ids = map.ids.cursor();
       this.nameLeaf = map.names;
-      this.idLevel = this.idLeaf;
-      this.buckets = this.idLeaf.buckets;
     }
 
     public final boolean hasNext() {
@@ -2143,9 +2134,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.nextEntry != null;
     }
 
-    final Entry nextEntryOrThrowNoSuchElement() {
+    final EntryReader nextEntryOrThrowNoSuchElement() {
       if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
+        EntryReader nextEntry = this.nextEntry;
         this.nextEntry = null;
         return nextEntry;
       }
@@ -2157,104 +2148,38 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       }
     }
 
-    final Entry nextEntryOrNull() {
-      if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
-        this.nextEntry = null;
-        return nextEntry;
-      }
-
-      return this.hasNext() ? this.nextEntry : null;
-    }
-
-    private final Entry advance() {
-      while (true) {
-        Entry tagEntry = this.rawAdvance();
-        if (tagEntry != null) {
-          // leaf entries emit as-is; ancestor entries only if visible from the leaf -- not shadowed
-          // by a nearer level and not tombstoned. (parentEntryVisible walks the nearer levels.)
-          if (this.isVisible(tagEntry)) {
-            return tagEntry;
-          }
-          continue; // tombstone, or ancestor entry shadowed/tombstoned -> skip
+    private EntryReader advance() {
+      IdStore.Cursor ids = this.ids;
+      if (ids != null) {
+        EntryReader reader = ids.next();
+        if (reader != null) {
+          return reader;
         }
-
-        // current level exhausted; advance to the next ancestor's buckets (read-through union),
-        // then from the id chain to the custom chain
-        Object[] next = this.nextLevel();
-        if (next == null) {
-          return null;
-        }
-        this.buckets = next;
-        this.bucketIndex = -1;
-        this.group = null;
-        this.groupIndex = 0;
-      }
-    }
-
-    private boolean isVisible(Entry entry) {
-      HashStore nameLevel = this.nameLevel;
-      if (nameLevel == null) {
-        return !entry.tombstone
-            && (this.idLevel == this.idLeaf || this.idLeaf.parentEntryVisible(entry, this.idLevel));
-      }
-      return nameLevel == this.nameLeaf || this.nameLeaf.parentEntryVisible(entry, nameLevel);
-    }
-
-    /** Moves to the next level's buckets, or returns null when both chains are done. */
-    private Object[] nextLevel() {
-      HashStore nameLevel = this.nameLevel;
-      if (nameLevel == null) {
-        HashIdStore idParent = this.idLevel.parent;
-        if (idParent != null) {
-          this.idLevel = idParent;
-          return idParent.buckets;
-        }
+        this.ids = null;
         if (this.nameLeaf == null) {
           return null;
         }
         this.nameLevel = this.nameLeaf;
-        return this.nameLeaf.buckets;
+        this.walker = new HashSupport.BucketWalker();
+        this.walker.reset(this.nameLeaf.buckets);
       }
-      HashStore nameParent = nameLevel.parent;
-      if (nameParent == null) {
-        return null;
-      }
-      this.nameLevel = nameParent;
-      return nameParent.buckets;
-    }
 
-    /** Next raw entry in the current bucket array, ignoring shadowing/tombstones. */
-    private final Entry rawAdvance() {
-      while (this.bucketIndex < this.buckets.length) {
-        if (this.group != null) {
-          for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
-            Entry tagEntry = this.group._entryAt(this.groupIndex);
-            if (tagEntry != null) return tagEntry;
+      HashStore level = this.nameLevel;
+      while (level != null) {
+        Entry entry = this.walker.next();
+        if (entry != null) {
+          // leaf entries emit as-is; ancestor entries only if not shadowed by a nearer level
+          if (level == this.nameLeaf || this.nameLeaf.parentEntryVisible(entry, level)) {
+            return entry;
           }
-
-          // done processing - that group, go to next group
-          this.group = this.group.prev;
-          this.groupIndex = -1;
+          continue;
         }
-
-        // if the group is null, then we've finished the current bucket - so advance the bucket
-        if (this.group == null) {
-          for (++this.bucketIndex; this.bucketIndex < this.buckets.length; ++this.bucketIndex) {
-            Object bucket = this.buckets[this.bucketIndex];
-
-            if (bucket instanceof Entry) {
-              return (Entry) bucket;
-            } else if (bucket instanceof BucketGroup) {
-              this.group = (BucketGroup) bucket;
-              this.groupIndex = -1;
-
-              break;
-            }
-          }
+        level = level.parent;
+        this.nameLevel = level;
+        if (level != null) {
+          this.walker.reset(level.buckets);
         }
       }
-
       return null;
     }
   }
@@ -2698,9 +2623,23 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public Iterator<Map.Entry<String, Object>> iterator() {
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      Iterator<Map.Entry<String, Object>> iter = (Iterator) this.map.iterator();
-      return iter;
+      return new EntriesIterator(this.map);
+    }
+  }
+
+  /**
+   * Map entries for the {@link Map} view: an Entry is its own, while a flyweight reader (a dense
+   * store's) builds one, since a caller may keep it.
+   */
+  static final class EntriesIterator extends IteratorBase
+      implements Iterator<Map.Entry<String, Object>> {
+    EntriesIterator(TagMap map) {
+      super(map);
+    }
+
+    @Override
+    public Map.Entry<String, Object> next() {
+      return this.nextEntryOrThrowNoSuchElement().mapEntry();
     }
   }
 
@@ -2785,9 +2724,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
 final class EntryReadingHelper implements TagMap.EntryReader {
   private Map.Entry<String, Object> mapEntry;
-  private String tag;
+  private String tag; // null when set by id: resolved lazily via nameOf on first tag() access
   private Object value;
   private long tagId;
+
+  /** A known tag's value by id, as a dense id store reads it: no name, no Entry. */
+  void set(long tagId, Object value) {
+    this.mapEntry = null;
+    this.tag = null;
+    this.value = value;
+    this.tagId = tagId;
+  }
 
   void set(String tag, Object value) {
     this.mapEntry = null;
@@ -2805,7 +2752,12 @@ final class EntryReadingHelper implements TagMap.EntryReader {
 
   @Override
   public String tag() {
-    return this.tag;
+    String tag = this.tag;
+    if (tag != null) return tag;
+
+    tag = KnownTagCodec.nameOf(this.tagId);
+    this.tag = tag;
+    return tag;
   }
 
   @Override
@@ -2880,7 +2832,10 @@ final class EntryReadingHelper implements TagMap.EntryReader {
 
   @Override
   public TagMap.Entry entry() {
-    return TagMap.anyEntryFor(this.tag, this.value);
+    long id = this.tagId;
+    return id != TagMap.TAG_ID_NOT_COMPUTED && KnownTagCodec.isKnown(id)
+        ? TagMap.Entry.newAnyEntry(id, this.value)
+        : TagMap.anyEntryFor(this.tag, this.value);
   }
 
   @Override
