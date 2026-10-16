@@ -1636,6 +1636,14 @@
         "aliases": []
       }
     ],
+    "DD_EXTERNAL_ENV": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
       {
         "version": "A",

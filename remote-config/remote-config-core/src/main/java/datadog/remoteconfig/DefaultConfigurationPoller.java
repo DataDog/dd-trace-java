@@ -67,6 +67,7 @@ public class DefaultConfigurationPoller
   private final String tracerVersion;
   private final String containerId;
   private final String entityId;
+  private final String externalEnv;
   private final OkHttpClient httpClient;
   private final RatelimitedLogger ratelimitedLogger;
   private final Supplier<String> urlSupplier;
@@ -91,6 +92,7 @@ public class DefaultConfigurationPoller
       String tracerVersion,
       String containerId,
       String entityId,
+      String externalEnv,
       Supplier<String> urlSupplier,
       OkHttpClient client) {
     this(
@@ -98,6 +100,7 @@ public class DefaultConfigurationPoller
         tracerVersion,
         containerId,
         entityId,
+        externalEnv,
         urlSupplier,
         client,
         new AgentTaskScheduler(AgentThreadFactory.AgentThread.REMOTE_CONFIG));
@@ -109,6 +112,7 @@ public class DefaultConfigurationPoller
       String tracerVersion,
       String containerId,
       String entityId,
+      String externalEnv,
       Supplier<String> urlSupplier,
       OkHttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
@@ -116,6 +120,7 @@ public class DefaultConfigurationPoller
     this.tracerVersion = tracerVersion;
     this.containerId = containerId;
     this.entityId = entityId;
+    this.externalEnv = externalEnv;
     this.urlSupplier = urlSupplier;
     this.keyId = config.getRemoteConfigTargetsKeyId();
     String keyStr = config.getRemoteConfigTargetsKey();
@@ -279,7 +284,8 @@ public class DefaultConfigurationPoller
               .build();
       this.responseFactory = new RemoteConfigResponse.Factory(moshi);
       this.requestFactory =
-          new PollerRequestFactory(config, tracerVersion, containerId, entityId, url, moshi);
+          new PollerRequestFactory(
+              config, tracerVersion, containerId, entityId, externalEnv, url, moshi);
     } catch (Exception e) {
       // We can't recover from this, so we'll not try to initialize again.
       fatalOnInitialization = true;

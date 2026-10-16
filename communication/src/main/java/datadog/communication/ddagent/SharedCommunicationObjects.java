@@ -166,6 +166,7 @@ public class SharedCommunicationObjects {
   private ConfigurationPoller createPoller(Config config) {
     String containerId = ContainerInfo.get().getContainerId();
     String entityId = ContainerInfo.getEntityId();
+    String externalEnv = ContainerInfo.getExternalEnv();
     Supplier<String> configUrlSupplier;
     String remoteConfigUrl = config.getFinalRemoteConfigUrl();
     if (remoteConfigUrl != null) {
@@ -175,7 +176,13 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
+        config,
+        TRACER_VERSION,
+        containerId,
+        entityId,
+        externalEnv,
+        configUrlSupplier,
+        agentHttpClient);
   }
 
   // for testing
