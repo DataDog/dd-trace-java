@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,9 +20,13 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
   public static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
   private static final String EXPOSURES_ROUTE = "exposures";
+  private static final long SHUTDOWN_TIMEOUT_MILLIS = 800;
 
   private final EventQueue<ExposureEvent> queue;
+  private final ExposureSerializingHandler serializer;
   private final Thread serializerThread;
+  private final Object lifecycleLock = new Object();
+  private final AtomicBoolean closed = new AtomicBoolean();
 
   public ExposurePipeline(
       final int capacity,
@@ -31,26 +36,44 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
       final Map<String, String> context,
       final RuntimeServices services) {
     this.queue = new EventQueue<>(capacity);
-    final ExposureSerializingHandler serializer =
-        new ExposureSerializingHandler(transport, queue, flushInterval, timeUnit, context);
-    this.serializerThread = services.newThread("exposures", serializer);
+    this.serializer =
+        new ExposureSerializingHandler(transport, this.queue, flushInterval, timeUnit, context);
+    this.serializerThread = services.newThread("exposures", this.serializer);
   }
 
   /** Starts the background serializing thread. */
   public void start() {
-    this.serializerThread.start();
+    synchronized (this.lifecycleLock) {
+      if (!this.closed.get()) {
+        this.serializerThread.start();
+      }
+    }
   }
 
   @Override
   public void close() {
-    if (this.serializerThread.isAlive()) {
-      this.serializerThread.interrupt();
+    final long deadline =
+        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_TIMEOUT_MILLIS);
+    synchronized (this.lifecycleLock) {
+      if (this.closed.compareAndSet(false, true)) {
+        this.serializer.requestShutdown();
+      }
+    }
+    final long remaining = deadline - System.nanoTime();
+    if (Thread.currentThread() != this.serializerThread && remaining > 0) {
+      try {
+        TimeUnit.NANOSECONDS.timedJoin(this.serializerThread, remaining);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
   @Override
   public void accept(final ExposureEvent event) {
-    queue.offer(event);
+    if (!this.closed.get()) {
+      this.queue.offer(event);
+    }
   }
 
   boolean isSerializerThreadAlive() {
@@ -70,6 +93,7 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
     private final Map<String, String> context;
 
     private final List<ExposureEvent> buffer = new ArrayList<>();
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
     ExposureSerializingHandler(
         final EventTransport transport,
@@ -87,19 +111,32 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
       LOGGER.debug("starting exposure serializer");
     }
 
+    void requestShutdown() {
+      this.shutdownRequested.set(true);
+    }
+
     @Override
     public void run() {
       try {
         runDutyCycle();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+      } finally {
+        final boolean wasInterrupted = Thread.interrupted();
+        try {
+          drainAndFlush();
+        } finally {
+          if (wasInterrupted) {
+            Thread.currentThread().interrupt();
+          }
+        }
       }
       LOGGER.debug("exposure processor worker exited. submitting exposures stopped.");
     }
 
     private void runDutyCycle() throws InterruptedException {
       final Thread thread = Thread.currentThread();
-      while (!thread.isInterrupted()) {
+      while (!thread.isInterrupted() && !this.shutdownRequested.get()) {
         // The provider already deduplicated the exposures.
         final ExposureEvent event = queue.poll(100, TimeUnit.MILLISECONDS);
         if (event != null) {
@@ -114,28 +151,40 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
       queue.drain(this.buffer::add, queue.size());
     }
 
+    private void drainAndFlush() {
+      ExposureEvent event;
+      while ((event = this.queue.poll()) != null) {
+        this.buffer.add(event);
+      }
+      flush();
+    }
+
     protected void flushIfNecessary() {
-      if (buffer.isEmpty()) {
+      if (!this.buffer.isEmpty() && shouldFlush()) {
+        flush();
+      }
+    }
+
+    private void flush() {
+      if (this.buffer.isEmpty()) {
         return;
       }
-      if (shouldFlush()) {
-        final byte[] payload;
-        try {
-          final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
-          payload = exposures.serialize();
-        } catch (RuntimeException e) {
-          LOGGER.error("Could not serialize exposures; dropping batch", e);
-          this.buffer.clear();
-          return;
-        }
-        try {
-          transport.post(EXPOSURES_ROUTE, payload);
-        } catch (Exception e) {
-          LOGGER.debug("Could not submit exposures", e);
-        } finally {
-          // Best-effort delivery must not retry an ambiguously accepted batch.
-          this.buffer.clear();
-        }
+      final byte[] payload;
+      try {
+        final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
+        payload = exposures.serialize();
+      } catch (RuntimeException e) {
+        LOGGER.error("Could not serialize exposures; dropping batch", e);
+        this.buffer.clear();
+        return;
+      }
+      try {
+        this.transport.post(EXPOSURES_ROUTE, payload);
+      } catch (Exception e) {
+        LOGGER.debug("Could not submit exposures", e);
+      } finally {
+        // Best-effort delivery must not retry an ambiguously accepted batch.
+        this.buffer.clear();
       }
     }
 

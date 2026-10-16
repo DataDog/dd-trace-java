@@ -20,6 +20,7 @@ import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
@@ -194,6 +195,48 @@ class FeatureFlagsRuntimeTest {
     assertTrue(source.closed);
     // Extra releases are ignored.
     FeatureFlagsRuntime.release();
+  }
+
+  @Test
+  void lastReleaseFlushesPendingExposures() {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final List<Map<String, Object>> requests = new CopyOnWriteArrayList<>();
+    final AgentBridge bridge =
+        new TestAgentBridge(
+            source,
+            (route, json) -> {
+              assertEquals("exposures", route);
+              requests.add(JsonReading.readObject(json));
+            });
+    final FeatureFlagsRuntime first =
+        FeatureFlagsRuntime.acquire(
+            bridge,
+            TestSettings.of(
+                "feature.flags.configuration.source", "remote_config",
+                "flagging.evaluation.counts.enabled", "false"));
+    try {
+      final FeatureFlagsRuntime second = FeatureFlagsRuntime.acquire(bridge, TestSettings.of());
+      try {
+        assertSame(first, second);
+      } finally {
+        FeatureFlagsRuntime.release();
+      }
+      assertFalse(source.closed);
+      first.recordExposure(
+          new com.datadog.openfeature.internal.exposure.ExposureEvent(
+              1L,
+              new com.datadog.openfeature.internal.exposure.Allocation("a"),
+              new com.datadog.openfeature.internal.exposure.Flag("f"),
+              new com.datadog.openfeature.internal.exposure.Variant("v"),
+              new com.datadog.openfeature.internal.exposure.Subject("s", emptyMap()),
+              null));
+    } finally {
+      FeatureFlagsRuntime.release();
+    }
+
+    assertTrue(source.closed);
+    assertEquals(1, requests.size());
+    assertEquals(1, ((List<?>) requests.get(0).get("exposures")).size());
   }
 
   @Test

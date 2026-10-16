@@ -3,6 +3,7 @@ package com.datadog.openfeature.internal.exposure;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,6 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
@@ -205,6 +207,112 @@ class ExposurePipelineTest {
 
     eventually(() -> !pipeline.isSerializerThreadAlive());
     assertFalse(pipeline.isSerializerThreadAlive());
+  }
+
+  @TableTest({
+    "Scenario        | Buffered",
+    "immediate close | false   ",
+    "buffered close  | true    "
+  })
+  void closeFlushesPendingExposures(final boolean buffered) throws Exception {
+    final List<ExposureEvent> exposures = buildExposures(3);
+    final ExposurePipeline pipeline =
+        new ExposurePipeline(
+            16,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            (route, json) -> {
+              assertFalse(Thread.currentThread().isInterrupted());
+              this.transport.post(route, json);
+            },
+            emptyMap(),
+            new RuntimeServices(HealthMetrics.NOOP));
+    try {
+      pipeline.start();
+      exposures.forEach(pipeline);
+      if (buffered) {
+        eventually(() -> pipeline.queueSize() == 0);
+      }
+
+      pipeline.close();
+
+      assertFalse(pipeline.isSerializerThreadAlive());
+      assertEquals(1, this.posts.get());
+      assertEquals(exposures.size(), allExposures().size());
+      assertEquals(keys(exposures), exposureKeys(allExposures()));
+
+      pipeline.close();
+      pipeline.accept(buildExposure());
+      assertEquals(0, pipeline.queueSize());
+      assertEquals(1, this.posts.get());
+    } finally {
+      pipeline.close();
+    }
+  }
+
+  @TableTest({
+    "Scenario       | In flight",
+    "final POST     | false    ",
+    "in-flight POST | true     "
+  })
+  void closeWaitIsBoundedWithoutInterruptingDelivery(final boolean inFlight) throws Exception {
+    final CountDownLatch postStarted = new CountDownLatch(1);
+    final CountDownLatch releasePost = new CountDownLatch(1);
+    final AtomicBoolean interrupted = new AtomicBoolean();
+    final ExposurePipeline pipeline =
+        new ExposurePipeline(
+            16,
+            inFlight ? 0 : Long.MAX_VALUE,
+            NANOSECONDS,
+            (route, json) -> {
+              postStarted.countDown();
+              try {
+                releasePost.await();
+              } catch (final InterruptedException e) {
+                interrupted.set(true);
+                Thread.currentThread().interrupt();
+                throw new IOException(e);
+              }
+              this.transport.post(route, json);
+            },
+            emptyMap(),
+            new RuntimeServices(HealthMetrics.NOOP));
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      pipeline.start();
+      pipeline.accept(buildExposure());
+      if (inFlight) {
+        assertTrue(postStarted.await(5, SECONDS));
+      }
+
+      executor.submit(pipeline::close).get(5, SECONDS);
+
+      assertTrue(postStarted.await(5, SECONDS));
+      assertEquals(1L, releasePost.getCount());
+      assertFalse(interrupted.get());
+      assertTrue(pipeline.isSerializerThreadAlive());
+    } finally {
+      releasePost.countDown();
+      executor.shutdownNow();
+      pipeline.close();
+      eventually(() -> !pipeline.isSerializerThreadAlive());
+    }
+    assertEquals(1, this.posts.get());
+  }
+
+  @Test
+  void closeBeforeStartRejectsEventsAndPreventsStart() {
+    final ExposurePipeline pipeline = pipeline(emptyMap());
+    try {
+      pipeline.close();
+      pipeline.start();
+      pipeline.accept(buildExposure());
+
+      assertFalse(pipeline.isSerializerThreadAlive());
+      assertEquals(0, pipeline.queueSize());
+    } finally {
+      pipeline.close();
+    }
   }
 
   private ExposurePipeline pipeline(final Map<String, String> context) {
