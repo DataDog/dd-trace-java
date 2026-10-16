@@ -6,23 +6,35 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;
 import javax.annotation.Nonnull;
 
 public abstract class UriBasedClientDecorator extends ClientDecorator {
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+
   public void onURI(@Nonnull final AgentSpan span, @Nonnull final URI uri) {
     String host = uri.getHost();
-    int port = uri.getPort();
     if (null != host && !host.isEmpty()) {
-      span.setTag(Tags.PEER_HOSTNAME, host);
+      if (OTEL_SEMANTICS) {
+        span.setTag(KnownTags.SERVER_ADDRESS_NAME, host);
+        int serverPort = OtelHttpSemantics.serverPort(uri);
+        if (serverPort > 0) {
+          span.setTag(KnownTags.SERVER_PORT_NAME, serverPort);
+        }
+      } else {
+        span.setTag(Tags.PEER_HOSTNAME, host);
+        int port = uri.getPort();
+        if (port > 0) {
+          setPeerPort(span, port);
+        }
+      }
       if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
         span.setServiceName(host, component());
-      }
-      if (port > 0) {
-        setPeerPort(span, port);
       }
     }
   }

@@ -156,6 +156,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
@@ -164,6 +165,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.env.FixedCapturedEnvironment.useFixedEnv;
@@ -699,6 +701,33 @@ class ConfigTest {
   }
 
   @Test
+  void otelSemanticsForcesItsRequiredConfiguration() {
+    ConfigCollector.get().collect();
+    Properties prop = new Properties();
+    prop.setProperty(TRACE_OTEL_SEMANTICS_ENABLED, "true");
+    prop.setProperty(TRACE_OTEL_EXPORTER, "agent");
+    prop.setProperty(WRITER_TYPE, "LoggingWriter");
+    prop.setProperty(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v1");
+    prop.setProperty(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true");
+
+    Config config = Config.get(prop);
+    Map<String, ConfigSetting> calculated =
+        ConfigCollector.get().collect().get(ConfigOrigin.CALCULATED);
+
+    assertTrue(config.isTraceOtelSemanticsEnabled());
+    assertTrue(config.isTraceOtlpExporterEnabled());
+    assertEquals("OtlpWriter", config.getWriterType());
+    assertEquals(0, config.getSpanAttributeSchemaVersion());
+    assertFalse(config.isPeerServiceDefaultsEnabled());
+    assertEquals(toBitSet(400, 599), config.getHttpClientErrorStatuses());
+
+    assertEquals("otlp", calculated.get(TRACE_OTEL_EXPORTER).value);
+    assertEquals("OtlpWriter", calculated.get(WRITER_TYPE).value);
+    assertEquals("v0", calculated.get(TRACE_SPAN_ATTRIBUTE_SCHEMA).value);
+    assertEquals(false, calculated.get(TRACE_PEER_SERVICE_DEFAULTS_ENABLED).value);
+  }
+
+  @Test
   void otelCheckSyntaxForOtlpHeaders() {
     Properties prop = new Properties();
     prop.setProperty(OTLP_METRICS_HEADERS, "api,key=key");
@@ -1001,7 +1030,7 @@ class ConfigTest {
     assertEquals("new site", config.getSite());
     assertEquals("something else", config.getServiceName());
     assertFalse(config.isTraceEnabled());
-    assertEquals("LoggingWriter", config.getWriterType());
+    assertEquals("OtlpWriter", config.getWriterType());
     assertEquals("somehost", config.getAgentHost());
     assertEquals(123, config.getAgentPort());
     assertEquals("somepath", config.getAgentUnixDomainSocket());

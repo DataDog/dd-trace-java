@@ -96,6 +96,18 @@ class OtlpTraceJsonCollectorTest {
         attrKeys.contains("http.method"),
         "renamed tag must not also appear under its Datadog name; got " + attrKeys);
     assertTrue(
+        attrKeys.contains("network.peer.address"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("network.client.ip"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.address"),
+        "canonical OpenTelemetry tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.port"),
+        "canonical OpenTelemetry tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
         attrKeys.contains("custom.unregistered"),
         "a tag the registry does not name passes through unchanged; got " + attrKeys);
   }
@@ -114,16 +126,32 @@ class OtlpTraceJsonCollectorTest {
         "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
             + attrKeys);
     assertTrue(
+        attrKeys.contains("network.client.ip"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("network.peer.address"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.address"),
+        "canonical tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.port"),
+        "canonical tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
         attrKeys.contains("custom.unregistered"),
         "a tag the registry does not name passes through unchanged; got " + attrKeys);
   }
 
+  // Restore the commented out pairings when an OTel name can also be qualified by a direction.
+  // Currently, OTel tags server.address and server.port represent the "peer" on client spans
+  // and the "self" on server spans
   @TableTest({
     "scenario         | kind   | tag               | otelName            ",
-    "client hostname  | client | peer.hostname     | server.address      ",
-    "server hostname  | server | http.hostname     | server.address      ",
+    // "client hostname  | client | peer.hostname     | server.address      ",
+    // "server hostname  | server | http.hostname     | server.address      ",
     "server client ip | server | network.client.ip | network.peer.address",
-    "client peer port | client | peer.port         | server.port         ",
+    // "client peer port | client | peer.port         | server.port         ",
     "server peer port | server | peer.port         | client.port         "
   })
   void aDirectionScopedTagIsEmittedUnderTheNameForTheSpansKind(
@@ -148,6 +176,29 @@ class OtlpTraceJsonCollectorTest {
     }
   }
 
+  @TableTest({
+    "Scenario | Kind    ",
+    "client   | client  ",
+    "producer | producer"
+  })
+  void outboundNetworkPeerAddressDoesNotSetClientIp(String kind) throws IOException {
+    AgentSpan agentSpan = TRACER.startSpan("test", "op.peer-address");
+    agentSpan.setTag(SPAN_KIND, kind);
+    agentSpan.setTag("network.peer.address", "192.0.2.10");
+    agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+    agentSpan.finish();
+
+    assertEquals("192.0.2.10", agentSpan.getTag("network.peer.address"));
+    assertNull(agentSpan.getTag("network.client.ip"));
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) agentSpan));
+    Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+
+    assertTrue(attrKeys.contains("network.peer.address"));
+    assertFalse(attrKeys.contains("network.client.ip"));
+  }
+
   private static Set<String> collectTagsAttributeKeys(boolean otelSemanticsEnabled)
       throws IOException {
     Config realConfig = Config.get();
@@ -157,8 +208,12 @@ class OtlpTraceJsonCollectorTest {
       configMock.when(Config::get).thenReturn(config);
 
       AgentSpan agentSpan = TRACER.startSpan("test", "op.tagged");
+      agentSpan.setTag(SPAN_KIND, SPAN_KIND_SERVER);
       agentSpan.setResourceName("GET /api");
       agentSpan.setTag("http.method", "GET");
+      agentSpan.setTag("network.client.ip", "192.0.2.10");
+      agentSpan.setTag("server.address", "example.com");
+      agentSpan.setTag("server.port", 443);
       agentSpan.setTag("custom.unregistered", "value");
       agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
       agentSpan.finish();

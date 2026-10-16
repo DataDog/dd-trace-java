@@ -14,6 +14,7 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
@@ -34,6 +35,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -68,13 +70,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
   protected static final boolean SHOULD_SET_404_RESOURCE_NAME =
-      Config.get().isRuleEnabled("URLAsResourceNameRule")
+      !OTEL_SEMANTICS
+          && Config.get().isRuleEnabled("URLAsResourceNameRule")
           && Config.get().isRuleEnabled("Status404Rule")
           && Config.get().isRuleEnabled("Status404Decorator");
   private static final boolean SHOULD_SET_URL_RESOURCE_NAME =
-      Config.get().isRuleEnabled("URLAsResourceNameRule");
+      !OTEL_SEMANTICS && Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
   private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
@@ -329,7 +333,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     if (request != null) {
       String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
+      if (OTEL_SEMANTICS) {
+        OtelHttpSemantics.setRequestMethod(span, method);
+        OtelHttpSemantics.setMethodResourceName(span, method);
+      } else {
+        span.setTag(Tags.HTTP_METHOD, method);
+      }
 
       // Copy of HttpClientDecorator url handling
       try {
@@ -339,23 +348,59 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-          if (valid) {
-            span.setTag(
-                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
-          } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
-          }
-          if (extracted != null && extracted.getXForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
-          } else if (url.host() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, url.host());
+          if (OTEL_SEMANTICS) {
+            String scheme =
+                OtelHttpSemantics.forwardedValue(
+                    extracted == null ? null : extracted.getXForwardedProto());
+            if (scheme == null) {
+              scheme = url.scheme();
+            }
+            if (valid) {
+              if (scheme != null) {
+                span.setTag(KnownTags.URL_SCHEME_NAME, scheme);
+              }
+              // Ensure that path components have a leading '/'
+              if (path == null || path.isEmpty()) {
+                path = "/";
+              } else if (path.charAt(0) != '/') {
+                path = "/" + path;
+              }
+              span.setTag(KnownTags.URL_PATH_NAME, path);
+            } else if (supportsRaw) {
+              span.setTag(KnownTags.URL_PATH_NAME, url.raw());
+            }
+            OtelHttpSemantics.setServerAddressAndPort(
+                span,
+                extracted == null ? null : extracted.getXForwardedHost(),
+                extracted == null ? null : extracted.getXForwardedPort(),
+                scheme,
+                url.host(),
+                url.port());
+          } else {
+            if (valid) {
+              span.setTag(
+                  Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+            } else if (supportsRaw) {
+              span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
+            }
+            if (extracted != null && extracted.getXForwardedHost() != null) {
+              span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
+            } else if (url.host() != null) {
+              span.setTag(Tags.HTTP_HOSTNAME, url.host());
+            }
           }
 
           if (valid && config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-            span.setTag(DDTags.HTTP_QUERY, query);
-            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+            if (OTEL_SEMANTICS) {
+              if (query != null && !query.isEmpty()) {
+                span.setTag(KnownTags.URL_QUERY_NAME, query);
+              }
+            } else {
+              span.setTag(DDTags.HTTP_QUERY, query);
+              span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+            }
           }
           Flow<Void> flow = callIGCallbackURI(span, url, method);
           if (flow.getAction() instanceof RequestBlockingAction) {
@@ -422,6 +467,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       if (shouldTagIps) {
         span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+        if (OTEL_SEMANTICS && span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME) == null) {
+          span.setTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME, peerIp);
+        }
       }
     }
     if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
@@ -483,6 +531,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       // Anyway, we def don't want it applied to blocked requests
       if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
         span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+      }
+      if (OTEL_SEMANTICS && SERVER_ERROR_STATUSES.get(status)) {
+        OtelHttpSemantics.setErrorType(span, status);
       }
     }
 
