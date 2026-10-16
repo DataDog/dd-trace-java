@@ -38,6 +38,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     command.addAll(defaultJavaProperties)
     command.add('-Ddd.trace.debug=true')
     command.add('-Ddd.remote_config.enabled=true')
+    command.add('-Dsmoketest.experimentationOptOutParameterEnabled=true')
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
     command.addAll(['-jar', springBootShadowJar, "--server.port=${httpPort}".toString()])
     final builder = new ProcessBuilder(command).directory(new File(buildDirectory))
@@ -177,6 +178,77 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
     where:
     testCase << parseTestCases()
+  }
+
+  @Unroll("test experimentation opt-out contract - #testCase.id")
+  void 'test experimentation opt-out through the provider and agent'() {
+    setup:
+    final configuration = new JsonSlurper().parse(fetchResource(
+    'ffe-system-test-data/experimentation-opt-out/v1/configurations/supported.json'))
+    setRemoteConfig('datadog/2/FFE_FLAGS/1/config', JsonOutput.toJson(configuration))
+    final request = new Request.Builder()
+    .url("http://localhost:${httpPort}/openfeature/evaluate")
+    .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson([
+      flag: testCase.evaluation.flag,
+      variationType: testCase.evaluation.variationType,
+      defaultValue: testCase.evaluation.defaultValue,
+      targetingKey: testCase.context.targetingKey,
+      attributes: testCase.context.attributes
+    ])))
+    .build()
+
+    expect:
+    // Wait for Remote Configuration delivery. These fixtures have no time-dependent allocations.
+    new PollingConditions(timeout: 10).eventually {
+      final response = client.newCall(request).execute()
+      try {
+        assert response.code() == 200
+        final body = new JsonSlurper().parse(response.body().byteStream())
+        assert body.value == testCase.expected.value
+        assert body.errorCode == null
+        final assignment = testCase.expected.assignment
+        if (assignment == null) {
+          assert body.flagMetadata?.allocationKey == null
+          assert body.reason == 'DEFAULT'
+        } else {
+          assert body.variant == assignment.variationKey
+          assert body.flagMetadata.allocationKey == assignment.allocationKey
+          assert body.flagMetadata.__dd_split_serial_id == assignment.serialId
+          assert body.flagMetadata.__dd_do_log == assignment.doLog
+          final prefixes = [HOOK: '__dd_feature.', EXPOSURE: '__dd_exposure_feature.', EVALUATION: '__dd_evaluation_feature.']
+          final expectedFeatures = expectedFeatureMetadata(assignment, prefixes)
+          assert body.flagMetadata.findAll { key, value ->
+            prefixes.values().any { key.startsWith(it) }
+          } == expectedFeatures
+        }
+      } finally {
+        response.close()
+      }
+    }
+
+    where:
+    testCase << parseExperimentationOptOutCases()
+  }
+
+  private static List<Map<String, Object>> parseExperimentationOptOutCases() {
+    final slurper = new JsonSlurper()
+    final cases = ['activation', 'evaluation', 'holdouts'].collectMany { name ->
+      slurper.parse(fetchResource("ffe-system-test-data/experimentation-opt-out/v1/cases/${name}.json"))
+    }.findAll {
+      it.configuration == 'supported' && it.providerOptions.enableExperimentationOptOutParameter == true
+    }
+    assert !cases.isEmpty()
+    return cases
+  }
+
+  private static Map<String, Object> expectedFeatureMetadata(final Map assignment, final Map prefixes) {
+    final result = [:]
+    assignment.features?.each { feature ->
+      feature.destinations.each { destination ->
+        result[prefixes[destination] + feature.key] = feature.value
+      }
+    }
+    return result
   }
 
   private static URL fetchResource(final String name) {

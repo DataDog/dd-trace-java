@@ -12,7 +12,11 @@ public class OpenFeatureConfiguration {
   @Bean
   public Client openFeatureClient() {
     OpenFeatureAPI api = OpenFeatureAPI.getInstance();
-    api.setProviderAndWait(new Provider());
+    api.setProviderAndWait(
+        new Provider(
+            new Provider.Options()
+                .enableExperimentationOptOutParameter(
+                    Boolean.getBoolean("smoketest.experimentationOptOutParameterEnabled"))));
     return api.getClient();
   }
 }

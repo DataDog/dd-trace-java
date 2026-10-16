@@ -25,6 +25,22 @@ import org.junit.jupiter.params.provider.ValueSource;
 class JsonApiUfcResponseParserTest {
 
   @Test
+  void preservesCompilerEvaluationCapabilities() throws Exception {
+    final String configuration =
+        emptyConfig()
+            .replaceFirst("\\{", "{\"evaluationCapabilities\":[\"experimentation-opt-out-v1\"],");
+    final ServerConfiguration direct =
+        UniversalFlagConfigParser.INSTANCE.deserialize(configuration.getBytes(UTF_8));
+    final ServerConfiguration wrapped = parse(wrap(configuration));
+    assertEquals(
+        Collections.singletonList("experimentation-opt-out-v1"), direct.evaluationCapabilities);
+    assertEquals(direct.evaluationCapabilities, wrapped.evaluationCapabilities);
+    assertNull(
+        UniversalFlagConfigParser.INSTANCE.deserialize(emptyConfig().getBytes(UTF_8))
+            .evaluationCapabilities);
+  }
+
+  @Test
   void parsesJsonApiMembersInAnyOrder() throws Exception {
     final ServerConfiguration configuration =
         parse(
