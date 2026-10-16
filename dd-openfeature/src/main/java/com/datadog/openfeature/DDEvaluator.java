@@ -99,15 +99,19 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   }
 
   @Override
-  public synchronized boolean initialize(
+  public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
-    if (this.runtime != null) {
-      return hasConfiguration();
+    final FeatureFlagsRuntime acquired;
+    synchronized (this) {
+      if (this.runtime != null) {
+        return hasConfiguration();
+      }
+      acquired = FeatureFlagsRuntime.acquire(this.bridge, this.settings);
+      this.runtime = acquired;
+      acquired.addConfigurationListener(this);
     }
-    final FeatureFlagsRuntime acquired = FeatureFlagsRuntime.acquire(this.bridge, this.settings);
-    this.runtime = acquired;
-    acquired.addConfigurationListener(this);
-    return this.configuration.await(timeout, unit) || hasConfiguration();
+    final boolean ready = this.configuration.await(timeout, unit) || hasConfiguration();
+    return this.runtime == acquired && ready;
   }
 
   @Override
