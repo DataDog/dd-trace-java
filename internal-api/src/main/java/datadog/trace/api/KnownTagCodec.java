@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.Arrays;
 
 /**
  * Resolves generated tag IDs and names. {@link KnownTags} owns the lookup tables; this class owns
@@ -323,6 +324,75 @@ public final class KnownTagCodec {
   }
 
   /**
+   * The tag whose Datadog name is {@code name}, even when the name depends on the span's direction
+   * ({@code server.port} is also {@code peer.port}'s outbound alias, so {@link #keyOf} returns 0
+   * for it); 0 when no tag has that Datadog name. For a span that has no direction yet.
+   */
+  public static long datadogKeyOf(String name) {
+    long key = keyOrAliasOf(name);
+    if (key != DIRECTION_SCOPED_OTEL_NAME_SENTINEL) {
+      return key < 0 ? 0L : key;
+    }
+    for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
+      long tagId = directionalKeyOf(name, direction);
+      if (tagId > 0 && name.equals(nameOf(tagId))) {
+        return tagId;
+      }
+    }
+    return 0L;
+  }
+
+  /**
+   * True if {@code entry} must yield its emitted name on a span of {@code direction}: it is a tag
+   * named for another tag's alias there ({@code server.port}, on a client span that also holds
+   * {@code peer.port}). The alias's tag wins, so the span emits each attribute name once.
+   */
+  public static boolean yieldsName(TagMap tags, TagMap.EntryReader entry, int direction) {
+    long tagId = entry.tagId();
+    if (tagId == 0 || !hasScopedAlias(tagId) || direction == DIRECTION_UNKNOWN) {
+      return false;
+    }
+    long owner = directionalKeyOf(openTelemetryTagOf(tagId, direction), direction);
+    return owner > 0 && owner != tagId && tags.getKnownValue(owner) != null;
+  }
+
+  /**
+   * True if any entry of {@code tags} {@link #yieldsName yields its name} on spans of {@code
+   * direction}.
+   */
+  public static boolean hasYieldingName(TagMap tags, int direction) {
+    if (direction == DIRECTION_UNKNOWN) {
+      return false;
+    }
+    for (long tagId : SharedNames.TAG_IDS) {
+      if (tags.getKnownValue(tagId) != null) {
+        long owner = directionalKeyOf(nameOf(tagId), direction);
+        if (owner > 0 && owner != tagId && tags.getKnownValue(owner) != null) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** The tags whose Datadog name is also another tag's alias, built once from the registry. */
+  private static final class SharedNames {
+    static final long[] TAG_IDS = sharedNameTagIds();
+
+    private static long[] sharedNameTagIds() {
+      long[] ids = new long[0];
+      for (int serial = 1; serial < serialLimit(); serial++) {
+        String name = nameOf(makeTagId(serial));
+        if (keyOrAliasOf(name) == DIRECTION_SCOPED_OTEL_NAME_SENTINEL) {
+          ids = Arrays.copyOf(ids, ids.length + 1);
+          ids[ids.length - 1] = datadogKeyOf(name);
+        }
+      }
+      return ids;
+    }
+  }
+
+  /**
    * A cheap pre-check for a name that may be a direction-scoped alias: false for nearly every other
    * name, at the cost of a bit test on its (cached) hash. A true answer still needs {@link
    * #directionalKeyOf} to confirm.
@@ -338,7 +408,14 @@ public final class KnownTagCodec {
     private static long aliasMask() {
       long mask = 0L;
       for (int serial = 1; serial < serialLimit(); serial++) {
-        long tagId = keyOf(nameOf(makeTagId(serial)));
+        String name = nameOf(makeTagId(serial));
+        long tagId = keyOrAliasOf(name);
+        if (tagId == DIRECTION_SCOPED_OTEL_NAME_SENTINEL) {
+          // A Datadog name that is also an alias (server.port): the tag's only scoped name is its
+          // own, which another tag's alias already put in the filter.
+          mask |= 1L << name.hashCode();
+          continue;
+        }
         for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
           String alias = directionScopedNameOf(tagId, direction);
           if (alias != null) {

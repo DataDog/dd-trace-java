@@ -142,6 +142,53 @@ class DDSpanDirectionalTagsTest extends DDCoreJavaSpecification {
     assertEquals(5432, span.getTag(Tags.PEER_PORT));
   }
 
+  @Test
+  void aDatadogNameThatIsAlsoAnAliasIsItsOwnTagOnAServerSpan() {
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+    span.setTag("server.port", 8080);
+
+    assertEquals(8080, storedValue(KnownTags.SERVER_PORT_ID));
+    assertEquals(8080, span.getTag("server.port"));
+    assertNull(storedValue(KnownTags.PEER_PORT_ID));
+  }
+
+  @Test
+  void aDatadogNameThatIsAlsoAnAliasIsTheAliasedTagOnAClientSpan() {
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    span.setTag("server.port", 443);
+
+    assertEquals(443, storedValue(KnownTags.PEER_PORT_ID));
+    assertEquals(443, span.getTag("server.port"));
+    assertNull(storedValue(KnownTags.SERVER_PORT_ID));
+  }
+
+  @Test
+  void aDatadogNameThatIsAlsoAnAliasIsItsOwnTagOnAnInternalSpan() {
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
+    span.setTag("server.port", 8080);
+
+    assertEquals(8080, storedValue(KnownTags.SERVER_PORT_ID));
+    assertNull(storedValue(KnownTags.PEER_PORT_ID));
+  }
+
+  @Test
+  void aDatadogNameThatIsAlsoAnAliasResolvesOnceTheSpanHasAKind() {
+    span.setTag("server.port", 443);
+    assertEquals(443, span.getTag("server.port"));
+
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+
+    assertEquals(443, storedValue(KnownTags.PEER_PORT_ID));
+    assertNull(storedValue(KnownTags.SERVER_PORT_ID));
+  }
+
+  @Test
+  void aTagWrittenByIdIsReadByItsDatadogNameBeforeTheSpanHasAKind() {
+    span.setTag(KnownTags.SERVER_PORT_ID, 8080);
+
+    assertEquals(8080, span.getTag("server.port"));
+  }
+
   private Object storedValue(long tagId) {
     TagMap.Entry entry = span.getTags().getEntry(tagId);
     return entry == null ? null : entry.objectValue();

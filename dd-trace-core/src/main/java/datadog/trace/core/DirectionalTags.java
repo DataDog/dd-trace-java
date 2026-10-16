@@ -20,6 +20,10 @@ import java.util.List;
  * inbound and {@code peer.hostname} outbound -- denotes its tag by the rule {@code (alias,
  * direction) -> tag}.
  *
+ * <p>An alias can also be another tag's Datadog name: {@code server.port} is {@code peer.port} on
+ * outbound spans, and its own tag on every other kind. It is handled like any other alias; only a
+ * read before the span has a direction falls back to the tag it names itself.
+ *
  * <p>Between a tag and its alias, the last write wins, with no ordering state (a TagMap has no
  * insertion order):
  *
@@ -120,7 +124,10 @@ final class DirectionalTags {
     if (key == 0 || asWritten != null) {
       return asWritten == null ? null : asWritten.objectValue();
     }
-    long tagId = KnownTagCodec.directionalKeyOf(name, direction);
+    long tagId =
+        direction == DIRECTION_UNKNOWN
+            ? KnownTagCodec.datadogKeyOf(name) // server.port, written by id, is still server.port
+            : KnownTagCodec.directionalKeyOf(name, direction);
     return tagId > 0 ? tags.internals().getKnownValue(tagId) : null;
   }
 
@@ -198,8 +205,8 @@ final class DirectionalTags {
    * -- or any, while the direction is unknown -- stays as written, a custom tag.
    */
   static void resolveScopedNames(TagMap tags, int direction) {
-    if (direction == DIRECTION_UNKNOWN || direction == DIRECTION_NONE) {
-      return; // no alias names a tag on a span with no direction, or an internal one
+    if (direction == DIRECTION_UNKNOWN) {
+      return;
     }
     List<TagMap.Entry> pending = null;
     for (TagMap.EntryReader entry : tags) {

@@ -245,7 +245,8 @@ class KnownTagsTest {
           KnownTags.PEER_HOSTNAME_ID,
           KnownTags.HTTP_HOSTNAME_ID,
           KnownTags.NETWORK_CLIENT_IP_ID,
-          KnownTags.PEER_PORT_ID
+          KnownTags.PEER_PORT_ID,
+          KnownTags.SERVER_PORT_ID
         }) {
       assertTrue(KnownTagCodec.hasScopedAlias(tagId), KnownTagCodec.nameOf(tagId));
     }
@@ -266,13 +267,35 @@ class KnownTagsTest {
     }
   }
 
+  /**
+   * server.port is a tag's own Datadog name and peer.port's outbound alias, so like any alias it
+   * names no single tag without a direction; datadogKeyOf still finds the tag it names itself.
+   */
+  @Test
+  void aDatadogNameThatIsAlsoAnAliasDependsOnDirection() {
+    assertEquals("server.port", KnownTagCodec.nameOf(KnownTags.SERVER_PORT_ID));
+    assertEquals(0L, KnownTagCodec.keyOf("server.port"));
+    assertEquals(KnownTags.SERVER_PORT_ID, KnownTagCodec.datadogKeyOf("server.port"));
+    assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.datadogKeyOf(Tags.PEER_PORT));
+    assertEquals(0L, KnownTagCodec.datadogKeyOf("server.address"));
+    assertEquals(0L, KnownTagCodec.datadogKeyOf("my.custom.tag"));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.SERVER_PORT_ID, DIRECTION_INBOUND));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND));
+  }
+
   static Stream<Arguments> directionalNames() {
     return Stream.of(
         Arguments.of("server.address", DIRECTION_INBOUND, KnownTags.HTTP_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_OUTBOUND, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of("server.address", DIRECTION_UNKNOWN, 0L),
         Arguments.of("server.port", DIRECTION_OUTBOUND, KnownTags.PEER_PORT_ID),
-        Arguments.of("server.port", DIRECTION_INBOUND, 0L),
+        Arguments.of("server.port", DIRECTION_INBOUND, KnownTags.SERVER_PORT_ID),
+        Arguments.of("server.port", DIRECTION_NONE, KnownTags.SERVER_PORT_ID),
+        Arguments.of("server.port", DIRECTION_UNKNOWN, 0L),
         Arguments.of("client.port", DIRECTION_INBOUND, KnownTags.PEER_PORT_ID),
         Arguments.of("client.port", DIRECTION_OUTBOUND, 0L),
         Arguments.of("client.port", DIRECTION_NONE, 0L),

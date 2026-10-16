@@ -346,6 +346,44 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `a Datadog name can be another tag's OpenTelemetry name in some directions`() {
+    val domain =
+      """
+      span_types:
+        http.server:
+          span-kind: server
+          tags: [{dd-name: server.port, type: int}]
+        http.client: {span-kind: client, include: [outbound_peer]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int, otel-name: server.port}]}
+      """
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(directory.conventionsFile(domain), output)
+
+    val tags = TagRegistry.build(tagConventions(domain)).tags.associateBy { it.name }
+    assertThat(tags.getValue("server.port").scopedOtelNames)
+      .isEqualTo(
+        mapOf(TagConventions.Direction.INBOUND to "server.port", TagConventions.Direction.NONE to "server.port")
+      )
+    assertThat(tags.getValue("server.port").id and TagRegistry.HAS_SCOPED_ALIAS).isNotZero()
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source.substringAfter("case \"server.port\":").substringBefore("default:"))
+      .contains(
+        "case KnownTagCodec.DIRECTION_INBOUND:",
+        "return SERVER_PORT_ID;",
+        "case KnownTagCodec.DIRECTION_OUTBOUND:",
+        "return PEER_PORT_ID;",
+        "case KnownTagCodec.DIRECTION_NONE:",
+      )
+    val keyOf = source.substringAfter("KEYOF_NAMES = {").substringBefore("private static final int[]")
+    assertThat(Regex("\"server\\.port\"|SERVER_PORT_NAME").findAll(keyOf).count()).isEqualTo(1)
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
+      .contains("KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, // server.port")
+      .doesNotContain("SERVER_PORT_ID,")
+  }
+
+  @Test
   fun `a Datadog name declared per direction is one tag`() {
     val yaml = directory.conventionsFile(
       """
@@ -440,6 +478,8 @@ class TagRegistryGeneratorTest {
   @TableTest(
     """
           scenario                     | domain                                                                                                                                                               | message
+          scoped rename to own name    | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: x}]}}                                                                                             | collides with canonical
+          shared name renamed itself   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: x}]}}                                  | so it cannot be renamed itself
           same name in one direction   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: consumer, tags: [{dd-name: y, otel-name: o}]}}                                | claimed by both 'x' and 'y' on inbound spans
           neutral contradicts scoped   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o, span-kind-neutral: true}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: o}]}}         | on outbound spans
           map-form otel-name           | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                  | invalid otel-name

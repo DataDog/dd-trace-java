@@ -61,15 +61,16 @@ object KnownTagsEmitter {
     val keyOfOrder = reg.tags.map { it.ddName } // stable emit order
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
     val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.ddName to it } }.toMap()
-    // OpenTelemetry names that denote a tag only on spans of some directions. keyOf(name) resolves
-    // none of them; directionalKeyOf(name, direction) switches on each one's tag per direction.
+    // Names that denote a different tag depending on the span's direction. keyOf(name) resolves
+    // none of them; directionalKeyOf(name, direction) switches on each one's tag per direction. Most
+    // are OpenTelemetry names only; a few are also a tag's Datadog name (server.port).
     val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, String>>()
     for (t in reg.tags) {
       for ((direction, otel) in t.scopedOtelNames) {
         directional.getOrPut(otel) { mutableMapOf() }[direction] = t.ddName
       }
     }
-    check(directional.keys.none { name -> name in nameOfConst || name in otelName.values }) {
+    check(directional.keys.none { name -> name in otelName.values }) {
       "a direction-dependent name is also direction-free: ${directional.keys}"
     }
     return buildString {
@@ -135,19 +136,25 @@ object KnownTagsEmitter {
       otelByCanonical.forEach { (otel, _) ->
         appendLine("    \"${escape(otel)}\",")
       }
-      directional.keys.forEach { appendLine("    \"${escape(it)}\",") }
+      directional.keys.filter { it !in nameOfConst }.forEach { appendLine("    \"${escape(it)}\",") }
       appendLine(
         """
           };
           private static final long[] KEYOF_VALUES = {
         """.trimIndent()
       )
-      keyOfOrder.forEach { appendLine("    ${idC(it)},") }
+      for (name in keyOfOrder) {
+        if (name in directional) {
+          appendLine("    KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, // $name")
+        } else {
+          appendLine("    ${idC(name)},")
+        }
+      }
       otelByCanonical.forEach { (_, canonical) ->
         appendLine("    ${idC(canonical)},")
       }
       // A direction-dependent name's value is not an id but a marker saying it depends on direction.
-      for (name in directional.keys) {
+      for (name in directional.keys.filter { it !in nameOfConst }) {
         appendLine("    KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, // $name")
       }
       // Resolver. KnownTagCodec.Installed links to this field directly, so merely resolving a tag
