@@ -1,10 +1,13 @@
 package datadog.trace.agent.test.utils;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -111,10 +114,23 @@ public class PortUtils {
     }
   }
 
+  @SuppressForbidden
   public static void waitForPortToOpen(
       final int port, final long timeout, final TimeUnit unit, final Process process) {
     final long startedAt = System.currentTimeMillis();
     final long waitUntil = startedAt + unit.toMillis(timeout);
+    final long progressIntervalMillis = TimeUnit.SECONDS.toMillis(30);
+    long nextProgressAt = startedAt + progressIntervalMillis;
+    final long pid = tryGetPid(process);
+
+    System.err.println(
+        "[PortUtils] Waiting up to "
+            + unit.toMillis(timeout)
+            + "ms for port "
+            + port
+            + " to open (process pid="
+            + pid
+            + ")");
 
     while (System.currentTimeMillis() < waitUntil) {
       try {
@@ -138,9 +154,44 @@ public class PortUtils {
       }
 
       if (isPortOpen(port)) {
+        System.err.println(
+            "[PortUtils] Port "
+                + port
+                + " opened after "
+                + (System.currentTimeMillis() - startedAt)
+                + "ms");
         return;
       }
+
+      long now = System.currentTimeMillis();
+      if (now >= nextProgressAt) {
+        System.err.println(
+            "[PortUtils] Still waiting for port "
+                + port
+                + " (pid="
+                + pid
+                + ") elapsed="
+                + (now - startedAt)
+                + "ms alive="
+                + process.isAlive());
+        nextProgressAt = now + progressIntervalMillis;
+      }
     }
+
+    // Timeout: capture diagnostics before throwing so the next failure tells us what was hung.
+    System.err.println(
+        "[PortUtils] Timed out waiting for port "
+            + port
+            + " after "
+            + unit.toMillis(timeout)
+            + "ms; pid="
+            + pid
+            + " alive="
+            + process.isAlive());
+    if (pid > 0) {
+      requestChildThreadDump(pid);
+    }
+    dumpTestJvmThreads();
 
     throw new RuntimeException(
         "Timed out waiting for port "
@@ -149,6 +200,56 @@ public class PortUtils {
             + startedAt
             + ", timed out at: "
             + System.currentTimeMillis());
+  }
+
+  @SuppressForbidden
+  private static long tryGetPid(Process process) {
+    try {
+      Field pidField = process.getClass().getDeclaredField("pid");
+      pidField.setAccessible(true);
+      return pidField.getLong(process);
+    } catch (Throwable t) {
+      System.err.println("[PortUtils] Could not extract child pid: " + t);
+      return -1;
+    }
+  }
+
+  @SuppressForbidden
+  private static void requestChildThreadDump(long pid) {
+    String osName = System.getProperty("os.name", "").toLowerCase();
+    if (osName.startsWith("windows")) {
+      System.err.println("[PortUtils] Skipping SIGQUIT thread dump on Windows (pid=" + pid + ")");
+      return;
+    }
+    try {
+      System.err.println(
+          "[PortUtils] Sending SIGQUIT (kill -3) to pid " + pid + " to trigger thread dump");
+      Process kill =
+          new ProcessBuilder("kill", "-3", String.valueOf(pid)).redirectErrorStream(true).start();
+      kill.waitFor(5, TimeUnit.SECONDS);
+      // HotSpot writes the dump to the child stderr (captured in the test process log).
+      // IBM J9 writes a javacore.* file (see -Xdump:directory, default /tmp in smoke tests).
+      // Give the JVM a moment to finish writing before we throw.
+      Thread.sleep(2000);
+      System.err.println("[PortUtils] SIGQUIT delivered; check child process log / javacore files");
+    } catch (Throwable t) {
+      System.err.println("[PortUtils] Failed to send SIGQUIT to pid " + pid + ": " + t);
+    }
+  }
+
+  @SuppressForbidden
+  private static void dumpTestJvmThreads() {
+    System.err.println("[PortUtils] === Test JVM thread dump ===");
+    Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
+    for (Map.Entry<Thread, StackTraceElement[]> entry : stacks.entrySet()) {
+      Thread t = entry.getKey();
+      System.err.println("\"" + t.getName() + "\" id=" + t.getId() + " state=" + t.getState());
+      for (StackTraceElement ste : entry.getValue()) {
+        System.err.println("\tat " + ste);
+      }
+      System.err.println();
+    }
+    System.err.println("[PortUtils] === End of test JVM thread dump ===");
   }
 
   public static void waitForPortToOpen(String host, int port, long timeout, TimeUnit unit) {
