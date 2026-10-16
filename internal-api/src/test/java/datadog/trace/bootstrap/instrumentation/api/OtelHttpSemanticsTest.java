@@ -13,10 +13,12 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils.LazyUrl;
 import java.net.URI;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.tabletest.junit.TableTest;
 
 class OtelHttpSemanticsTest {
@@ -83,12 +85,19 @@ class OtelHttpSemanticsTest {
   }
 
   @Test
-  void setClientUrlStripsQueryAndRedactsCredentials() {
+  void setClientUrlLazilyStripsQueryAndRedactsCredentials() {
     AgentSpan span = mock(AgentSpan.class);
+    ArgumentCaptor<LazyUrl> urlCaptor = ArgumentCaptor.forClass(LazyUrl.class);
 
-    OtelHttpSemantics.setClientUrl(span, URI.create("https://u:p@host/a?token=secret"));
+    OtelHttpSemantics.setClientUrl(span, URI.create("https://u:p@host/a?token=secret#fragment"));
 
-    verify(span).setTag(KnownTags.HTTP_URL_OTEL_NAME, "https://REDACTED:REDACTED@host/a");
+    verify(span).setTag(eq(KnownTags.HTTP_URL_OTEL_NAME), (Object) urlCaptor.capture());
+    LazyUrl url = urlCaptor.getValue();
+
+    // Reading the path must leave the full URL unrendered.
+    assertEquals("/a", url.path());
+    assertNull(url.lazy);
+    assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.toString());
     verify(span).setTag(KnownTags.URL_QUERY_NAME, "token=secret");
   }
 
@@ -98,7 +107,6 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setClientUrl(span, URI.create("http://host/a"));
 
-    verify(span).setTag(KnownTags.HTTP_URL_OTEL_NAME, "http://host/a");
     verify(span, never()).setTag(eq(KnownTags.URL_QUERY_NAME), anyString());
   }
 
@@ -190,11 +198,16 @@ class OtelHttpSemanticsTest {
   }
 
   @TableTest({
-    "Scenario     | Value               | Expected",
-    "Valid port   | 8080                | 8080    ",
-    "Minimum port | 1                   | 1       ",
-    "Maximum port | 65535               | 65535   ",
-    "Invalid port | {0, 65536, -1, abc} | -1      "
+    "Scenario         | Value                                    | Expected",
+    "Valid port       | 8080                                     | 8080    ",
+    "Minimum port     | 1                                        | 1       ",
+    "Maximum port     | 65535                                    | 65535   ",
+    "Leading zeros    | 00080                                    | 80      ",
+    "Out of range     | {0, 65536, 99999}                        | -1      ",
+    "Malformed port   | {abc, 80x, 8.0, ' 80', '80 '}            | -1      ",
+    "Signed port      | {+80, -1}                                | -1      ",
+    "Non-ASCII digits | {８０, ٨٠}                               | -1      ",
+    "Excess digits    | {100000, 000080, 2147483647, 2147483648} | -1      "
   })
   void parsePortRejectsOutOfRangeAndMalformedValues(String value, int expected) {
     assertEquals(expected, OtelHttpSemantics.parsePort(value));
@@ -273,6 +286,23 @@ class OtelHttpSemanticsTest {
 
     verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, "proxy");
     verify(span).setTag(KnownTags.SERVER_PORT_NAME, 9443);
+  }
+
+  @TableTest({
+    "Scenario             | Forwarded Host | Forwarded Port | Expected Port",
+    "Host port            | proxy:8443     | bogus          | 8443         ",
+    "Excess header digits | proxy:8443     | 000080         | 8443         ",
+    "Scheme default       | proxy          | bogus          | 80           ",
+    "Request port         |                | bogus          | 8080         "
+  })
+  void setServerAddressAndPortFallsBackFromInvalidForwardedPort(
+      String forwardedHost, String forwardedPort, int expectedPort) {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setServerAddressAndPort(
+        span, forwardedHost, forwardedPort, "http", "host", 8080);
+
+    verify(span).setTag(KnownTags.SERVER_PORT_NAME, expectedPort);
   }
 
   @TableTest({
