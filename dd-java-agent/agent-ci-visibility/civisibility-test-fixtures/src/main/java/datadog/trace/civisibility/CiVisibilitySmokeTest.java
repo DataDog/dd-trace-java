@@ -105,6 +105,9 @@ public abstract class CiVisibilitySmokeTest {
   protected List<String> buildJvmArguments(
       String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
     List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx512m"));
+    if (isLinuxArm64()) {
+      arguments.add(DISABLE_CDS);
+    }
 
     arguments.add(preventJulPrefsFileLock());
 
@@ -158,7 +161,7 @@ public abstract class CiVisibilitySmokeTest {
    * processes, to avoid SIGSEGVs on Linux arm64.
    */
   protected static void disableCdsOnLinuxArm64(Map<String, String> environment) {
-    if (!OperatingSystem.isLinux() || !OperatingSystem.architecture().isArm64()) {
+    if (!isLinuxArm64()) {
       return;
     }
     String options = environment.get(JAVA_TOOL_OPTIONS);
@@ -168,6 +171,10 @@ public abstract class CiVisibilitySmokeTest {
     environment.put(
         JAVA_TOOL_OPTIONS,
         options == null || options.isEmpty() ? DISABLE_CDS : options + " " + DISABLE_CDS);
+  }
+
+  private static boolean isLinuxArm64() {
+    return OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64();
   }
 
   private static Path tempUserPrefsPath() {
