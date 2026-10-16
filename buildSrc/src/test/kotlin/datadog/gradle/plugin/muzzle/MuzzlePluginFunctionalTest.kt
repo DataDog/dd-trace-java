@@ -1,13 +1,17 @@
 package datadog.gradle.plugin.muzzle
 
-import com.sun.net.httpserver.HttpServer
 import datadog.gradle.plugin.MavenRepoFixture
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
+import okio.Buffer
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import java.net.InetSocketAddress
+import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.readText
 
@@ -66,27 +70,22 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     val repository = createMavenRepoFixture()
     repository.publishVersions("com.example.test", "shared-lib", listOf("1.0.0", "2.0.0"))
     val metadataRequests = AtomicInteger()
-    val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-    server.createContext("/") { exchange ->
-      try {
-        val path = exchange.requestURI.path.removePrefix("/")
-        if (path == "com/example/test/shared-lib/maven-metadata.xml") {
-          metadataRequests.incrementAndGet()
+    MockWebServer().use { server ->
+      server.setDispatcher(object : Dispatcher() {
+        override fun dispatch(request: RecordedRequest): MockResponse {
+          val path = request.path.orEmpty().removePrefix("/")
+          if (path == "com/example/test/shared-lib/maven-metadata.xml") {
+            metadataRequests.incrementAndGet()
+          }
+          val file = repository.repoDir.resolve(path)
+          return if (file.isFile) {
+            MockResponse().setBody(Buffer().write(file.readBytes()))
+          } else {
+            MockResponse().setResponseCode(404)
+          }
         }
-        val file = repository.repoDir.resolve(path)
-        if (file.isFile) {
-          val content = file.readBytes()
-          exchange.sendResponseHeaders(200, content.size.toLong())
-          exchange.responseBody.write(content)
-        } else {
-          exchange.sendResponseHeaders(404, -1)
-        }
-      } finally {
-        exchange.close()
-      }
-    }
-    server.start()
-    try {
+      })
+      server.start(InetAddress.getByName("127.0.0.1"), 0)
       val script = """
         plugins { id("java"); id("dd-trace-java.muzzle") }
         muzzle {
@@ -95,7 +94,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       """
       writeProject(script)
       addSubproject("dd-java-agent:instrumentation:other", script)
-      val env = mapOf("MAVEN_REPOSITORY_PROXY" to "http://127.0.0.1:${server.address.port}/")
+      val env = mapOf("MAVEN_REPOSITORY_PROXY" to "http://127.0.0.1:${server.port}/")
 
       val unrelated = run(":dd-java-agent:instrumentation:demo:tasks", "--all", env = env)
       assertThat(unrelated.output).contains("BUILD SUCCESSFUL").doesNotContain("muzzle-end")
@@ -112,8 +111,6 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
         }
         assertThat(metadataRequests.get()).isEqualTo(build + 1)
       }
-    } finally {
-      server.stop(0)
     }
   }
 
