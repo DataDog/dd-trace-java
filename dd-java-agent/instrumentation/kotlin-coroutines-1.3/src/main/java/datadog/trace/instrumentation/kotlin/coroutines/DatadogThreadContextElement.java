@@ -27,6 +27,8 @@ public final class DatadogThreadContextElement
   private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
       new CoroutineContext.Key<DatadogThreadContextElement>() {};
 
+  private static final Object COMPLETED = new Object();
+
   /** Coroutines built by coroutineScope, withContext, etc. that their caller waits for. */
   private static final ClassValue<Boolean> SCOPED_COROUTINE =
       GenericClassValue.of(
@@ -58,8 +60,8 @@ public final class DatadogThreadContextElement
   private volatile Context context;
   private volatile ContextContinuation continuation;
 
-  /** The coroutine this element was created for. */
-  @Nullable private volatile Job owner;
+  /** The owning Job, null before initialization, or COMPLETED after releasing the owner. */
+  @Nullable private volatile Object owner;
 
   /** The local root of the trace kept open by this coroutine or its parent. */
   @Nullable private volatile AgentSpan localRootSpan;
@@ -137,6 +139,7 @@ public final class DatadogThreadContextElement
       // scoped coroutines share their caller's element, but must not release its trace hold
       return;
     }
+    datadog.owner = COMPLETED;
     datadog.localRootSpan = null;
     ContextContinuation continuation = CONTINUATION.getAndSet(datadog, null);
     if (continuation != null) {

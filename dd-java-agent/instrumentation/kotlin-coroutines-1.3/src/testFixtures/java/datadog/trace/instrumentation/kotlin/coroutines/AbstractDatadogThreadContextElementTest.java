@@ -1,12 +1,17 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
 import static datadog.trace.instrumentation.kotlin.coroutines.DatadogThreadContextElement.addDatadogElement;
+import static datadog.trace.instrumentation.kotlin.coroutines.DatadogThreadContextElement.cancelDatadogContext;
+import static datadog.trace.instrumentation.kotlin.coroutines.DatadogThreadContextElement.captureDatadogContext;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import kotlin.Unit;
 import kotlin.coroutines.AbstractCoroutineContextElement;
 import kotlin.coroutines.Continuation;
 import kotlin.coroutines.ContinuationInterceptor;
@@ -14,11 +19,52 @@ import kotlin.coroutines.CoroutineContext;
 import kotlin.coroutines.EmptyCoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.ThreadContextElement;
+import kotlinx.coroutines.internal.ScopeCoroutine;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /** Context replacement checks shared by the oldest and latest dependency suites. */
 public abstract class AbstractDatadogThreadContextElementTest {
+  @Test
+  void completionReleasesOwnerWithoutAllowingAnotherCoroutineToClaimElement() throws Exception {
+    DatadogThreadContextElement element =
+        (DatadogThreadContextElement) addDatadogElement(EmptyCoroutineContext.INSTANCE);
+    Continuation<Unit> completion =
+        new Continuation<Unit>() {
+          @Override
+          public CoroutineContext getContext() {
+            return EmptyCoroutineContext.INSTANCE;
+          }
+
+          @Override
+          public void resumeWith(Object result) {}
+        };
+    ScopeCoroutine<Unit> owner = new ScopeCoroutine<>(element, completion);
+    captureDatadogContext(owner);
+    Field ownerField = DatadogThreadContextElement.class.getDeclaredField("owner");
+    ownerField.setAccessible(true);
+    assertSame(owner, ownerField.get(element));
+
+    ScopeCoroutine<Unit> scoped = new ScopeCoroutine<>(owner.getContext(), completion);
+    captureDatadogContext(scoped);
+    scoped.resumeWith(Unit.INSTANCE);
+    cancelDatadogContext(scoped);
+    assertSame(owner, ownerField.get(element), "Scoped completion must preserve the owner");
+
+    owner.resumeWith(Unit.INSTANCE);
+    cancelDatadogContext(owner);
+    Object completed = ownerField.get(element);
+    assertNotNull(completed, "Completed elements must remain distinct from uninitialized elements");
+    assertNotSame(owner, completed, "Completed elements must release the owning coroutine");
+
+    ScopeCoroutine<Unit> later = new ScopeCoroutine<>(element, completion);
+    captureDatadogContext(later);
+    later.resumeWith(Unit.INSTANCE);
+    cancelDatadogContext(later);
+    assertSame(
+        completed, ownerField.get(element), "Completed elements must not acquire a new owner");
+  }
+
   @TableTest({
     "Scenario          | Ordinary before | Ordinary after | Hooks before | Hooks after | Dispatcher | Custom view",
     "Singleton         | 0               | 0              | 0            | 0           | false      | false      ",
