@@ -31,6 +31,20 @@ public class GetTagBenchmark {
 
   private DDSpan span;
 
+  /**
+   * The known tags the span holds, read in turn by the {@code *_cycle} arms so a read's cost is
+   * averaged over the span's tags rather than decided by whether one particular tag collides in
+   * its bucket. A power-of-two length lets the index wrap with a mask.
+   */
+  private static final String[] KNOWN_HELD = {
+    "span.kind",
+    KnownTags.HTTP_ROUTE_NAME,
+    KnownTags.PEER_HOSTNAME_NAME,
+    KnownTags.HTTP_STATUS_CODE_NAME
+  };
+
+  private int next;
+
   @Setup
   public void setup() {
     span = (DDSpan) TRACER.startSpan("benchmark", "get.tag");
@@ -81,6 +95,17 @@ public class GetTagBenchmark {
   @Benchmark
   public Object knownTag_unsafeGetTag() {
     return span.unsafeGetTag(KnownTags.HTTP_ROUTE_NAME);
+  }
+
+  /** Every known tag the span holds, in turn; see {@link #KNOWN_HELD}. */
+  @Benchmark
+  public Object knownTags_cycle_unsafeGetTag() {
+    return span.unsafeGetTag(KNOWN_HELD[next++ & (KNOWN_HELD.length - 1)]);
+  }
+
+  @Benchmark
+  public Object knownTags_cycle_getTag() {
+    return span.getTag(KNOWN_HELD[next++ & (KNOWN_HELD.length - 1)]);
   }
 
   @Benchmark
