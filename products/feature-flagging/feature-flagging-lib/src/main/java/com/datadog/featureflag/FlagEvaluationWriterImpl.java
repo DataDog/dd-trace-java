@@ -48,10 +48,11 @@ import org.slf4j.LoggerFactory;
  * contend only on the MPSC queue, never on a monitor, so evaluation threads do not serialize
  * against each other. Shutdown: close() drains the queue and performs a final flush before the
  * worker thread exits. Because enqueue is lock-free, a producer can still offer during shutdown;
- * close() sweeps the queue once the worker has been joined, counting any remainder as a closed drop
- * so shutdown loss is observable rather than silent.
+ * close() sweeps the queue once the worker has been joined, counting the observed remainder as
+ * closed drops. A producer paused before offer can resume after this sweep; shutdown is best-effort
+ * for events racing close, not a producer fence.
  */
-public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
+public class FlagEvaluationWriterImpl implements FlagEvaluationWriter, FeatureFlagEventWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
 
@@ -99,12 +100,17 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts =
       new ConcurrentHashMap<>();
 
-  public FlagEvaluationWriterImpl(final SharedCommunicationObjects sco, final Config config) {
+  FlagEvaluationWriterImpl(
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final FeatureFlagRouteSelector routeSelector) {
     this(
         DEFAULT_CAPACITY,
         FLUSH_INTERVAL_SECONDS,
         SECONDS,
-        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.FLAG_EVALUATION)::create,
+        new FeatureFlagBackendApiFactory(
+                config, sco, FeatureFlagEventType.FLAG_EVALUATION, routeSelector)
+            ::create,
         config);
   }
 
@@ -158,7 +164,13 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   @Override
   public void close() {
-    final boolean workerRunning;
+    final long deadline = FeatureFlagEventWriter.shutdownDeadline();
+    requestShutdown();
+    awaitTermination(deadline);
+  }
+
+  @Override
+  public void requestShutdown() {
     synchronized (lifecycleLock) {
       if (!closed.compareAndSet(false, true)) {
         return;
@@ -166,31 +178,26 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       // Disable and deregister from the gateway so no new events are enqueued.
       FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
       FeatureFlaggingGateway.setFlagEvalWriter(null);
-      workerRunning = this.serializerThread.isAlive();
-      if (workerRunning) {
-        // Ask the worker to drain the queue and final-flush, then interrupt to wake it from poll().
-        serializer.requestShutdown();
-        this.serializerThread.interrupt();
-      }
+      // Polling wakes within 100 ms; do not interrupt a current or final HTTP request.
+      serializer.requestShutdown();
     }
+  }
+
+  @Override
+  public void awaitTermination(final long deadlineNanos) {
     if (Thread.currentThread() == this.serializerThread) {
       return;
     }
-    if (workerRunning) {
-      try {
-        // Bounded wait for the worker's final flush so queued events are not lost on shutdown.
-        this.serializerThread.join(TimeUnit.SECONDS.toMillis(5));
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    FeatureFlagEventWriter.awaitThread(serializerThread, deadlineNanos);
     // enqueue() is lock-free, so a producer that passed the closed check before close() ran can
     // still land an event after the worker's final drain. Sweep the remainder so that loss is
     // counted rather than silently stranded in a queue nobody polls again. Only safe once the
     // worker is gone: the queue is single-consumer, so sweeping alongside a live worker would
     // break that contract. If join() timed out the worker is still draining, so skip the sweep.
-    if (!this.serializerThread.isAlive()) {
-      sweepAndCountResidualEvents();
+    synchronized (lifecycleLock) {
+      if (!this.serializerThread.isAlive()) {
+        sweepAndCountResidualEvents();
+      }
     }
   }
 
@@ -218,8 +225,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     // Deliberately lock-free: the hand-off queue is MPSC by design, so serializing producers on a
     // monitor here would negate that and turn every evaluation in every application thread into
     // contention on one lock. A producer that passed the check above can still offer after close()
-    // has started; that residue is accounted for by the worker's bounded post-drain passes and by
-    // close()'s post-join sweep, so shutdown loss stays observable.
+    // has started. The final drain and post-join sweep handle observed residue, but cannot account
+    // for an offer from a producer that resumes after both have finished.
     //
     // Safe publication of the event (including the context snapshot built by the hook) comes from
     // the queue's own offer/poll ordering, not from any monitor held here.
@@ -349,12 +356,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         // On exit (interrupt or shutdown request), drain everything still buffered and flush it so
         // queued events are not lost on shutdown.
         //
-        // close() interrupts this thread to break it out of poll(). The final flush does socket
-        // I/O, and OkHttp fails fast on a thread whose interrupt flag is set, so clear the flag
-        // for the duration of the drain and restore it afterwards. Without this the flush that
-        // close() exists to guarantee throws IOException, the aggregated rows are discarded by
-        // the clear() in flush(), and the loss is invisible to the drop counters because those
-        // rows already left the queue.
+        // Normal close only signals shutdown. If an unrelated interrupt ends the duty cycle,
+        // clear it during the final socket I/O and restore it afterwards; OkHttp otherwise fails
+        // immediately without attempting the remaining batch.
         final boolean wasInterrupted = Thread.interrupted();
         try {
           drainAndFlush();
@@ -468,6 +472,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         for (final byte[] payload : payloads.bodies) {
           evpPublisher.post(FLAG_EVALUATION_ROUTE, payload);
         }
+      } catch (AgentlessFeatureFlagBackendApi.UnavailableRouteException ignored) {
+        // The shared selector reports unavailable/recovered transitions once for both writers.
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);
       } finally {
