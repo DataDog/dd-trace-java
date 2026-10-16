@@ -1,6 +1,7 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public class ServerConfiguration {
@@ -15,6 +16,9 @@ public class ServerConfiguration {
   public final Environment environment;
   public final Map<String, Flag> flags;
 
+  /** Compiler guarantees required by optional evaluation behavior. */
+  public final List<String> evaluationCapabilities;
+
   // Flags that could not be parsed or validated. The key is the flag key; the value is the error
   // type (e.g. "invalid_semver_comparand"). Set during configuration preprocessing, not from JSON.
   public transient Map<String, String> invalidFlags = Collections.emptyMap();
@@ -25,10 +29,21 @@ public class ServerConfiguration {
       final Boolean observeFullEvaluationData,
       final Environment environment,
       final Map<String, Flag> flags) {
+    this(createdAt, format, observeFullEvaluationData, environment, flags, null);
+  }
+
+  public ServerConfiguration(
+      final String createdAt,
+      final String format,
+      final Boolean observeFullEvaluationData,
+      final Environment environment,
+      final Map<String, Flag> flags,
+      final List<String> evaluationCapabilities) {
     this.createdAt = createdAt;
     this.format = format;
     this.observeFullEvaluationData = observeFullEvaluationData;
     this.environment = environment;
     this.flags = flags;
+    this.evaluationCapabilities = evaluationCapabilities;
   }
 }

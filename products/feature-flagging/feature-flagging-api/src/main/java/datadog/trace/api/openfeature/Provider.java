@@ -35,6 +35,7 @@ public class Provider extends EventProvider implements Metadata {
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
+  private final boolean experimentationOptOutParameterEnabled;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -66,6 +67,7 @@ public class Provider extends EventProvider implements Metadata {
       final Evaluator evaluator,
       final Boolean spanEnrichmentEnabledOverride) {
     this.options = options;
+    this.experimentationOptOutParameterEnabled = options.experimentationOptOutParameterEnabled;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
@@ -278,31 +280,45 @@ public class Provider extends EventProvider implements Metadata {
   @Override
   public ProviderEvaluation<Boolean> getBooleanEvaluation(
       final String key, final Boolean defaultValue, final EvaluationContext ctx) {
-    return evaluator.evaluate(Boolean.class, key, defaultValue, ctx);
+    return evaluate(Boolean.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<String> getStringEvaluation(
       final String key, final String defaultValue, final EvaluationContext ctx) {
-    return evaluator.evaluate(String.class, key, defaultValue, ctx);
+    return evaluate(String.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Integer> getIntegerEvaluation(
       final String key, final Integer defaultValue, final EvaluationContext ctx) {
-    return evaluator.evaluate(Integer.class, key, defaultValue, ctx);
+    return evaluate(Integer.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Double> getDoubleEvaluation(
       final String key, final Double defaultValue, final EvaluationContext ctx) {
-    return evaluator.evaluate(Double.class, key, defaultValue, ctx);
+    return evaluate(Double.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Value> getObjectEvaluation(
       final String key, final Value defaultValue, final EvaluationContext ctx) {
-    return evaluator.evaluate(Value.class, key, defaultValue, ctx);
+    return evaluate(Value.class, key, defaultValue, ctx);
+  }
+
+  private <T> ProviderEvaluation<T> evaluate(
+      final Class<T> target,
+      final String key,
+      final T defaultValue,
+      final EvaluationContext context) {
+    if (experimentationOptOutParameterEnabled && context != null) {
+      final Value value = context.getValue("dd_experimentation_opt_out");
+      if (value != null && value.isBoolean() && Boolean.TRUE.equals(value.asBoolean())) {
+        return evaluator.evaluate(target, key, defaultValue, context, true);
+      }
+    }
+    return evaluator.evaluate(target, key, defaultValue, context);
   }
 
   @SuppressForbidden // Class#forName(String) used to lazy-load the evaluator implementation
@@ -323,6 +339,25 @@ public class Provider extends EventProvider implements Metadata {
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
+    private boolean experimentationOptOutParameterEnabled;
+
+    /**
+     * Enables experimentation opt-out through the {@code dd_experimentation_opt_out} context
+     * attribute. Disabled by default.
+     *
+     * <p>Only boolean {@code true} excludes the subject from experimental allocations. Evaluation
+     * continues with ordinary allocations, including completed winner rollouts. Skipped allocations
+     * do not produce exposures. Evaluation telemetry remains independent. Incompatible
+     * configuration produces an error and the application's default value instead of an
+     * experimental assignment.
+     *
+     * @param enabled whether to honor the attribute; configure before constructing the provider
+     * @return these options
+     */
+    public Options enableExperimentationOptOutParameter(final boolean enabled) {
+      this.experimentationOptOutParameterEnabled = enabled;
+      return this;
+    }
 
     /**
      * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}

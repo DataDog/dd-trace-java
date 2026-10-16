@@ -106,6 +106,40 @@ automatic flag-related span enrichment. It does not change flag values, evaluati
 application defaults, experiment assignment, or exposure logging. Application hooks and unrelated
 tracing remain active. Previously recorded or queued data is not removed.
 
+## Per-subject experimentation opt-out
+
+Enable experimentation opt-out once. Pass the subject's decision with each evaluation:
+
+```java
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait(new Provider(new Provider.Options()
+    .enableExperimentationOptOutParameter(true)));
+Client client = api.getClient();
+
+boolean enabled = client.getBooleanValue("my-feature", false,
+    new ImmutableContext(user.getId(), Collections.singletonMap(
+        "dd_experimentation_opt_out", new Value(user.hasDeclinedExperimentation()))));
+```
+
+Only boolean `true` activates exclusion. Missing, false, null, and other values preserve ordinary
+evaluation. The provider ignores the attribute unless the option is enabled at construction.
+
+An excluded subject skips entire experimental allocations, including control, treatment, and
+holdout groups. Evaluation continues with ordinary allocations. A completed winner rollout remains
+available. Exclusion does not force the flag value to `false` or select experimental control.
+Skipped allocations produce no exposures. Evaluation telemetry remains enabled unless its separate
+opt-out control applies. Applications can enable both controls independently.
+
+The configuration must declare `experimentation-opt-out-v1` in `evaluationCapabilities`.
+If this compiler guarantee is absent, an opted-out evaluation returns an error and the application's
+default value. Use compatible Datadog agent and provider versions; an older agent cannot preserve
+this guarantee. Ordinary evaluations keep their existing behavior.
+
+The evaluator tests use the fixture submodule at
+`dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data`. Its
+`experimentation-opt-out/v1/manifest.json` defines all 136 evaluation cases and eligible-subject
+parity checks. The Java runner tests JSON, which is the Java agent's configuration format.
+
 ## Evaluation metrics
 
 When `DD_METRICS_OTEL_ENABLED=true` and the OpenTelemetry API is on the classpath, the provider

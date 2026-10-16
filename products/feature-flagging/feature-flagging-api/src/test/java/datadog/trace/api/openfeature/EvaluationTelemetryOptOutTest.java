@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
@@ -555,6 +556,114 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(1, customerEvaluations.size());
   }
 
+  @ParameterizedTest
+  @MethodSource("independentOptOutControls")
+  void experimentationAndEvaluationTelemetryRemainIndependent(
+      final boolean experimentationOptOut, final boolean telemetryOptOut) throws Exception {
+    startWithOrdinaryFallback();
+    final MutableContext context =
+        new MutableContext("subject-1")
+            .add("dd_experimentation_opt_out", experimentationOptOut)
+            .add(PARAMETER, telemetryOptOut);
+
+    final FlagEvaluationDetails<Integer> result = client.getIntegerDetails("flag", 0, context);
+
+    assertNull(result.getErrorCode());
+    assertEquals(experimentationOptOut ? 2 : 1, result.getValue());
+    assertEquals(
+        experimentationOptOut ? "ordinary" : "experiment",
+        result.getFlagMetadata().getString("allocationKey"));
+    assertEquals(experimentationOptOut ? 0 : 1, exposures.size());
+    // The regular test JVM has the evaluator's span-enrichment gate off. Ordinary allocations
+    // then carry no serial metadata, independently of either opt-out setting.
+    assertTelemetryCounts(
+        telemetryOptOut ? 0 : 1, telemetryOptOut || experimentationOptOut ? 0 : 1);
+    assertEquals(1, customerEvaluations.size());
+  }
+
+  static Stream<Arguments> independentOptOutControls() {
+    return Stream.of(
+        Arguments.of(false, false),
+        Arguments.of(false, true),
+        Arguments.of(true, false),
+        Arguments.of(true, true));
+  }
+
+  @Test
+  void excludedEvaluationDoesNotReserveAnExposureDeduplicationEntry() throws Exception {
+    startWithOrdinaryFallback();
+    final MutableContext context =
+        new MutableContext("subject-1").add("dd_experimentation_opt_out", true);
+    assertEquals(2, client.getIntegerValue("flag", 0, context));
+    assertEquals(0, exposures.size());
+
+    context.add("dd_experimentation_opt_out", false);
+    assertEquals(1, client.getIntegerValue("flag", 0, context));
+    assertEquals(1, exposures.size());
+    assertEquals(1, client.getIntegerValue("flag", 0, context));
+    assertEquals(1, exposures.size());
+    assertTelemetryCounts(3, 2);
+  }
+
+  @Test
+  void applicationBeforeHookCanSetExperimentationPreference() throws Exception {
+    startWithOrdinaryFallback();
+    api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public Optional<EvaluationContext> before(
+              final HookContext<Object> context, final Map<String, Object> hints) {
+            return Optional.of(new MutableContext().add("dd_experimentation_opt_out", true));
+          }
+        });
+    assertEquals(2, client.getIntegerValue("flag", 0, new MutableContext("subject-1")));
+    assertEquals(0, exposures.size());
+    assertTelemetryCounts(1, 0);
+  }
+
+  private void startWithOrdinaryFallback() throws Exception {
+    final Map<String, Variant> variants = new java.util.HashMap<>();
+    variants.put("on", new Variant("on", 1));
+    variants.put("ordinary", new Variant("ordinary", 2));
+    final Flag flag =
+        new Flag(
+            "flag",
+            true,
+            ValueType.INTEGER,
+            variants,
+            asList(
+                new Allocation(
+                    "experiment",
+                    null,
+                    null,
+                    null,
+                    singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+                    true),
+                new Allocation(
+                    "ordinary",
+                    null,
+                    null,
+                    null,
+                    singletonList(new Split(emptyList(), "ordinary", emptyMap(), 8)),
+                    false)));
+    FeatureFlaggingGateway.dispatch(
+        new ServerConfiguration(
+            "",
+            "",
+            false,
+            null,
+            singletonMap("flag", flag),
+            singletonList("experimentation-opt-out-v1")));
+    api.setProviderAndWait(
+        new Provider(
+            new Provider.Options()
+                .enableExperimentationOptOutParameter(true)
+                .enableEvaluationTelemetryOptOutParameter(true),
+            new DDEvaluator(() -> {}),
+            true));
+    client = api.getClient();
+  }
+
   private void start() throws Exception {
     start(new Provider.Options().enableEvaluationTelemetryOptOutParameter(true));
   }
@@ -591,9 +700,13 @@ class EvaluationTelemetryOptOutTest {
   }
 
   private void assertTelemetryCounts(final int expected) {
+    assertTelemetryCounts(expected, expected);
+  }
+
+  private void assertTelemetryCounts(final int expected, final int expectedSpans) {
     assertAll(
         () -> assertEquals(expected, events.size(), "evaluation EVP enqueue count"),
         () -> assertEquals(expected, metrics.get(), "OTel evaluation count"),
-        () -> assertEquals(expected, spans.size(), "automatic span enrichment count"));
+        () -> assertEquals(expectedSpans, spans.size(), "automatic span enrichment count"));
   }
 }

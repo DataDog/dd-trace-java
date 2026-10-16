@@ -29,6 +29,7 @@ import dev.openfeature.sdk.Value;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -213,11 +214,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
+  private final Clock clock;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
 
   public DDEvaluator(final Runnable configCallback) {
+    this(configCallback, Clock.systemUTC());
+  }
+
+  DDEvaluator(final Runnable configCallback, final Clock clock) {
     this.configCallback = configCallback;
+    this.clock = clock;
   }
 
   @Override
@@ -255,6 +262,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
+    return evaluate(target, key, defaultValue, context, false);
+  }
+
+  @Override
+  public <T> ProviderEvaluation<T> evaluate(
+      final Class<T> target,
+      final String key,
+      final T defaultValue,
+      final EvaluationContext context,
+      final boolean experimentationOptOut) {
     // Snapshot the config once and thread observeFullEvaluationData through every
     // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
@@ -270,6 +287,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
       if (context == null) {
         return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
+      }
+
+      if (experimentationOptOut && !supportsExperimentationOptOut(config)) {
+        return error(
+            defaultValue,
+            ErrorCode.GENERAL,
+            "Configuration does not support experimentation opt-out",
+            observeFullEvaluationData);
       }
 
       final Flag flag = config.flags.get(key);
@@ -300,11 +325,28 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             observeFullEvaluationData);
       }
 
-      final Instant now = Instant.now();
+      if (experimentationOptOut) {
+        // Validate the whole flag before resolving an earlier ordinary allocation. Missing
+        // classification must not silently allow participation with a malformed configuration.
+        for (final Allocation allocation : flag.allocations) {
+          if (allocation == null || allocation.doLog == null) {
+            return error(
+                defaultValue,
+                ErrorCode.PARSE_ERROR,
+                "Missing experimentation classification for flag " + key,
+                observeFullEvaluationData);
+          }
+        }
+      }
+
+      final Instant now = clock.instant();
       final long evalTimestampMs = now.toEpochMilli();
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
+        if (experimentationOptOut && Boolean.TRUE.equals(allocation.doLog)) {
+          continue;
+        }
         if (!isAllocationActive(allocation, now)) {
           continue;
         }
@@ -372,6 +414,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
     } catch (final Exception e) {
       return error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
+    }
+  }
+
+  private static boolean supportsExperimentationOptOut(final ServerConfiguration config) {
+    try {
+      return config.evaluationCapabilities != null
+          && config.evaluationCapabilities.contains("experimentation-opt-out-v1");
+    } catch (final NoSuchFieldError e) {
+      // An older agent cannot preserve the compiler capability. Do not admit an opted-out subject.
+      return false;
     }
   }
 
