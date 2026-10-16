@@ -1201,10 +1201,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * through to its own parent chain and keeps its own tombstones, and precedence never crosses
    * stores.
    *
-   * In hash mode -- the only mode so far -- one HashStore serves as both (ids == names), so the
-   * split costs no extra object. A whole-map operation (size, iteration, copy, putAll, clear) runs
-   * on that one store and so covers both halves; a separate IdStore implementation would have to
-   * visit ids as well.
+   * In hash mode -- the only mode so far -- one HashStore serves as both (ids == names), so a map
+   * is the view plus one store, and no tag costs more than before. A whole-map operation (size,
+   * iteration, copy, putAll, clear) runs on that one store and so covers both halves; a separate
+   * IdStore implementation (a dense store) would have to visit ids as well, and would be chosen,
+   * by a global mode, in the constructor that pairs the stores.
    */
 
   /** The known tags, by id. In hash mode the same object as {@link #names}. */
