@@ -74,39 +74,6 @@ class TagMapSetByIdTest {
   }
 
   @Test
-  void theCoresKnownValueReadMatchesTheEntrysValue() {
-    TagMap parent = TagMap.create();
-    parent.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
-    TagMap tags = TagMap.createFromParent(parent.freeze());
-    tags.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
-
-    assertEquals("/users/{id}", tags.internals().getKnownValue(KnownTags.HTTP_ROUTE_ID));
-    assertEquals(
-        200, tags.internals().getKnownValue(KnownTags.HTTP_STATUS_CODE_ID)); // read-through
-    assertNull(tags.internals().getKnownValue(KnownTags.HTTP_METHOD_ID));
-  }
-
-  @Test
-  void aResolvedWriteOfAKnownTagStoresWhatAnIdWriteStores() {
-    TagMap byId = TagMap.create();
-    byId.set(KnownTags.HTTP_ROUTE_ID, "/a");
-    byId.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
-    byId.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
-    byId.set(KnownTags.DD_PROFILING_ENABLED_ID, true);
-
-    TagMap resolved = TagMap.create();
-    resolved.setResolved(KnownTags.HTTP_ROUTE_ID, KnownTags.HTTP_ROUTE_NAME, "/a");
-    resolved.setResolved(KnownTags.HTTP_STATUS_CODE_ID, "ignored", 200);
-    resolved.setResolved(KnownTags.HTTP_RESEND_COUNT_ID, "ignored", 2L);
-    resolved.setResolved(KnownTags.DD_PROFILING_ENABLED_ID, "ignored", true);
-    resolved.setResolved(0L, "my.custom.tag", "custom");
-
-    assertEquals("custom", resolved.getObject("my.custom.tag"));
-    resolved.remove("my.custom.tag");
-    assertEquals(new HashMap<>(byId), new HashMap<>(resolved));
-  }
-
-  @Test
   void theCoresTrustedSetsStoreWhatTheCheckedSetsStore() {
     TagMap checked = TagMap.create();
     checked.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");

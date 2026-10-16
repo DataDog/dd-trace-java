@@ -295,10 +295,7 @@ class TagRegistryGeneratorTest {
     val generated = contents(output)
     val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source).doesNotContain("HTTP_HOSTNAME_OTEL_NAME")
-    assertThat(source).contains("KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, // server.address")
-    assertThat(source.substringAfter("case \"server.address\":").substringBefore("default:"))
-      .contains("case KnownTagCodec.DIRECTION_INBOUND:", "return HTTP_HOSTNAME_ID;")
-      .doesNotContain("DIRECTION_OUTBOUND")
+    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("server.address")
     assertThat(source).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
     assertThat(generated.getValue("tag-assignment.txt"))
       .containsPattern("server\\.address +inbound +-> http\\.hostname")
@@ -339,8 +336,6 @@ class TagRegistryGeneratorTest {
         mapOf(TagConventions.Direction.INBOUND to "client.port", TagConventions.Direction.OUTBOUND to "server.port")
       )
     assertThat(tags.values.map { it.otelName }).containsOnlyNulls()
-    assertThat(tags.values.filter { it.id and TagRegistry.HAS_SCOPED_ALIAS != 0L }.map { it.name })
-      .containsExactlyInAnyOrder("http.hostname", "peer.hostname", "peer.port")
     assertThat(conventions.resolve("http.client").map { it.name }).contains("peer.port@outbound")
     assertThat(conventions.resolve("http.server").map { it.name }).contains("peer.port@inbound")
   }
@@ -366,7 +361,6 @@ class TagRegistryGeneratorTest {
       .isEqualTo(
         mapOf(TagConventions.Direction.INBOUND to "server.port", TagConventions.Direction.NONE to "server.port")
       )
-    assertThat(tags.getValue("server.port").id and TagRegistry.HAS_SCOPED_ALIAS).isNotZero()
     val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source.substringAfter("case \"server.port\":").substringBefore("default:"))
       .contains(
@@ -376,12 +370,56 @@ class TagRegistryGeneratorTest {
         "return PEER_PORT_ID;",
         "case KnownTagCodec.DIRECTION_NONE:",
       )
-    val keyOf = source.substringAfter("KEYOF_NAMES = {").substringBefore("private static final int[]")
-    assertThat(Regex("\"server\\.port\"|SERVER_PORT_NAME").findAll(keyOf).count()).isEqualTo(1)
+    // Without a direction the Datadog name is its own tag; only directionalKeyOf maps it elsewhere.
     assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
-      .contains("KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, // server.port")
-      .doesNotContain("SERVER_PORT_ID,")
+      .contains("SERVER_PORT_ID,")
+      .doesNotContain("SENTINEL")
   }
+
+  @Test
+  fun `each direction gets its OpenTelemetry names as the ids of the tags they name`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        base: {abstract: true, tags: [{dd-name: http.method, otel-name: http.request.method}]}
+        http.server:
+          span-kind: server
+          tags:
+            - {dd-name: http.hostname, otel-name: server.address}
+            - {dd-name: server.port, type: int}
+        http.client: {span-kind: client, include: [outbound_peer]}
+      mixins:
+        outbound_peer:
+          span-kind: client
+          tags:
+            - {dd-name: peer.hostname, otel-name: server.address}
+            - {dd-name: peer.port, type: int, otel-name: server.port}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    fun holder(name: String) =
+      source.substringAfter("public static final class $name {").substringBefore("private $name() {}")
+    assertThat(holder("Outbound"))
+      .contains(
+        "SERVER_ADDRESS_ID = KnownTags.PEER_HOSTNAME_ID;",
+        "SERVER_PORT_ID = KnownTags.PEER_PORT_ID;",
+        "HTTP_REQUEST_METHOD_ID = KnownTags.HTTP_METHOD_ID;",
+      )
+    assertThat(holder("Inbound"))
+      .contains(
+        "SERVER_ADDRESS_ID = KnownTags.HTTP_HOSTNAME_ID;",
+        "SERVER_PORT_ID = KnownTags.SERVER_PORT_ID;",
+        "HTTP_REQUEST_METHOD_ID = KnownTags.HTTP_METHOD_ID;",
+      )
+    assertThat(holder("Internal"))
+      .contains("SERVER_PORT_ID = KnownTags.SERVER_PORT_ID;")
+      .doesNotContain("SERVER_ADDRESS_ID")
+  }
+
 
   @Test
   fun `a Datadog name declared per direction is one tag`() {
@@ -403,10 +441,9 @@ class TagRegistryGeneratorTest {
     val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source)
       .contains("PEER_PORT_NAME = \"peer.port\"", "PEER_PORT_ID")
-      .doesNotContain("PEER_PORT_INBOUND", "PEER_PORT_OUTBOUND", "case \"peer.port\":")
-    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
-      .contains("PEER_PORT_ID,")
-      .doesNotContain("SENTINEL")
+      .doesNotContain("PEER_PORT_INBOUND", "PEER_PORT_OUTBOUND", "shared")
+    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).contains("PEER_PORT_NAME,")
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};")).contains("PEER_PORT_ID,")
     assertThat(generated.getValue("tag-assignment.txt").lines().filter { it.endsWith(" peer.port") })
       .hasSize(1)
   }
@@ -437,9 +474,9 @@ class TagRegistryGeneratorTest {
         "direction == KnownTagCodec.DIRECTION_OUTBOUND ? \"server.port\" : null;"
     )
     assertThat(emit).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
-    assertThat(source.substringAfter("case \"server.port\":").substringBefore("default:"))
-      .contains("case KnownTagCodec.DIRECTION_OUTBOUND:", "return PEER_PORT_ID;")
-      .doesNotContain("DIRECTION_INBOUND")
+    // Direction-scoped names are not resolved by name yet.
+    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};"))
+      .doesNotContain("client.port", "server.port", "server.address")
   }
 
   @Test
@@ -499,23 +536,6 @@ class TagRegistryGeneratorTest {
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
       .withMessageContaining(message)
-  }
-
-  @Test
-  fun `every tag id is positive, at both ends of the serial range`() {
-    for (serial in listOf(TagRegistry.FIRST_SERIAL, TagRegistry.SERIAL_CAPACITY - 1)) {
-      assertThat(TagRegistry.encode(serial, traceLevel = false, intercepted = false)).isPositive()
-      assertThat(TagRegistry.encode(serial, traceLevel = true, intercepted = false)).isPositive()
-    }
-  }
-
-  @Test
-  fun `a serial outside the range that keeps ids positive is rejected`() {
-    for (serial in listOf(0, TagRegistry.SERIAL_CAPACITY, Short.MAX_VALUE + 1)) {
-      assertThatIllegalArgumentException()
-        .isThrownBy { TagRegistry.encode(serial, traceLevel = false, intercepted = false) }
-        .withMessageContaining("serial $serial is outside")
-    }
   }
 
   @Test

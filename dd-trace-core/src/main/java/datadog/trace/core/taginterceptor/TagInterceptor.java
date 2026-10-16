@@ -139,14 +139,9 @@ public class TagInterceptor {
     return names != null && names.contains(customTag);
   }
 
-  /**
-   * Whether {@code map} must be copied onto a span entry by entry: some entry may be routed, or
-   * holds a direction-dependent name, which the span resolves through {@code DirectionalTags}.
-   * Computed once for a tracer-level map, so a map with neither takes the bulk-copy fast path.
-   */
   public boolean needsIntercept(TagMap map) {
     for (TagMap.EntryReader entry : map) {
-      if (needsIntercept(entry) || KnownTagCodec.isDirectionDependent(entry)) return true;
+      if (needsIntercept(entry)) return true;
     }
     return false;
   }
@@ -169,23 +164,12 @@ public class TagInterceptor {
   }
 
   /**
-   * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag, or must see it to
-   * supersede a pending direction-scoped alias ({@link KnownTagCodec#HAS_SCOPED_ALIAS}). With a
-   * constant id, the bit test folds to a constant, leaving only the split-by-tags table load at run
-   * time. {@code tagId} must be a known id.
+   * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag. With a constant
+   * id, the {@link KnownTagCodec#INTERCEPTED} test folds to a constant, leaving only the
+   * split-by-tags table load at run time. {@code tagId} must be a known id.
    */
   public boolean needsIntercept(long tagId) {
-    return needsIntercept(
-        tagId, (int) (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS));
-  }
-
-  /**
-   * {@link #needsIntercept(long)} for a span that routes only the id flags in {@code routedFlags}:
-   * a span adds {@link KnownTagCodec#HAS_SCOPED_ALIAS} only once it holds a pending alias. One mask
-   * test, as for the constant mask.
-   */
-  public boolean needsIntercept(long tagId, int routedFlags) {
-    return ((int) tagId & routedFlags) != 0 || isSplitServiceTag(tagId);
+    return KnownTagCodec.isIntercepted(tagId) || isSplitServiceTag(tagId);
   }
 
   public boolean needsIntercept(String tag) {
@@ -207,10 +191,6 @@ public class TagInterceptor {
    * {@code DDSpanContext.setTag}'s compiled code; {@code TagInterceptorInliningTest} pins that.
    */
   public boolean interceptTag(DDSpanContext span, long tagId, Object value) {
-    if (KnownTagCodec.hasScopedAlias(tagId)) {
-      // Not a route: the tag is still stored. A write of it supersedes any pending alias.
-      span.supersedeAliases(tagId);
-    }
     switch (KnownTagCodec.serialNum(tagId)) {
       case KnownTags.RESOURCE_NAME_SERIAL_NUM:
         return interceptResourceName(span, value);
@@ -289,10 +269,7 @@ public class TagInterceptor {
   public boolean interceptTag(DDSpanContext span, TagMap.EntryReader entry) {
     long tagId = entry.tagId();
     if (tagId != 0) {
-      // Only real routes: an entry that isn't routed is stored through DDSpanContext.storeEntry,
-      // which already supersedes any pending alias, so HAS_SCOPED_ALIAS needs no detour here.
-      return needsIntercept(tagId, (int) KnownTagCodec.INTERCEPTED)
-          && interceptTag(span, tagId, entry.objectValue());
+      return needsIntercept(tagId) && interceptTag(span, tagId, entry.objectValue());
     }
     return isSplitServiceTag(entry.tag()) && splitService(span, entry.objectValue());
   }

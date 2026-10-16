@@ -421,45 +421,6 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals(DDTags.LANGUAGE_TAG_VALUE, span.getServiceName());
   }
 
-  /** Split-by-tags on a tag also splits on its direction-scoped alias, by name or in bulk. */
-  @Test
-  void splitByTagsSeesAnAliasAsTheTagItDenotes() {
-    CoreTracer tracer = createSplittingTracer(Tags.PEER_HOSTNAME);
-
-    AgentSpan byName = tracer.buildSpan("datadog", "by name").start();
-    byName.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
-    byName.setTag("server.address", "by-name-host");
-    byName.finish();
-    assertEquals("by-name-host", byName.getServiceName());
-
-    AgentSpan inBulk = tracer.buildSpan("datadog", "in bulk").start();
-    inBulk.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
-    inBulk.setAllTags(Collections.singletonMap("server.address", "bulk-host"));
-    inBulk.finish();
-    assertEquals("bulk-host", inBulk.getServiceName());
-  }
-
-  /** Split-by-tags that names the alias itself still splits on it, by name and from the builder. */
-  @Test
-  void splitByTagsOnAnAliasNameStillSplitsOnIt() {
-    CoreTracer tracer = createSplittingTracer("server.address");
-
-    AgentSpan byName = tracer.buildSpan("datadog", "by name").start();
-    byName.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
-    byName.setTag("server.address", "by-name-host");
-    byName.finish();
-    assertEquals("by-name-host", byName.getServiceName());
-
-    AgentSpan built =
-        tracer
-            .buildSpan("datadog", "built")
-            .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
-            .withTag("server.address", "built-host")
-            .start();
-    built.finish();
-    assertEquals("built-host", built.getServiceName());
-  }
-
   @Test
   void setResourceName() throws Exception {
     ListWriter writer = new ListWriter();
@@ -1106,16 +1067,9 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         consumed |= interceptor.interceptTag(span, tagId, value);
       }
 
-      // Superseding a pending alias is not a case: the tag is still stored.
-      boolean hasCase =
-          consumed
-              || mockingDetails(span).getInvocations().stream()
-                  .anyMatch(i -> !i.getMethod().getName().equals("supersedeAliases"));
+      boolean hasCase = consumed || !mockingDetails(span).getInvocations().isEmpty();
       assertEquals(KnownTagCodec.isIntercepted(tagId), hasCase, field.getName());
-      assertEquals(
-          KnownTagCodec.isIntercepted(tagId) || KnownTagCodec.hasScopedAlias(tagId),
-          interceptor.needsIntercept(tagId),
-          field.getName());
+      assertEquals(KnownTagCodec.isIntercepted(tagId), interceptor.needsIntercept(tagId));
     }
   }
 
@@ -1154,28 +1108,11 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void splitByTagsOnANameDeclaredPerDirectionMatchesItsTag() {
+  void splitByTagsOnANameDeclaredPerDirectionMatchesItsOneTag() {
     TagInterceptor interceptor = splittingInterceptor(Tags.PEER_PORT);
 
     assertTrue(interceptor.needsIntercept(KnownTags.PEER_PORT_ID));
     assertTrue(interceptor.needsIntercept(Tags.PEER_PORT));
-  }
-
-  /** A map with a direction-dependent name must be copied entry by entry, not in bulk. */
-  @Test
-  void aMapWithADirectionDependentNameIsNotBulkCopied() {
-    TagInterceptor interceptor = splittingInterceptor("unrelated.tag");
-    TagMap plain = TagMap.create();
-    plain.set("my.custom.tag", "value");
-    plain.set(KnownTags.HTTP_ROUTE_NAME, "/users");
-    TagMap alias = TagMap.create();
-    alias.set("server.address", "example.com");
-    TagMap aliasTarget = TagMap.create();
-    aliasTarget.set(Tags.PEER_HOSTNAME, "example.com");
-
-    assertFalse(interceptor.needsIntercept(plain));
-    assertTrue(interceptor.needsIntercept(alias));
-    assertTrue(interceptor.needsIntercept(aliasTarget));
   }
 
   private static TagInterceptor splittingInterceptor(String splitByTag) {

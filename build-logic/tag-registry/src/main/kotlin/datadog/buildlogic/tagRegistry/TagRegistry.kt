@@ -39,31 +39,18 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
   companion object {
     const val FIRST_SERIAL = 1
-    const val HAS_SCOPED_ALIAS = 1L shl 0 // low-32 carve bit 0; mirrors KnownTagCodec.HAS_SCOPED_ALIAS
     const val INTERCEPTED = 1L shl 1 // low-32 carve bit 1; mirrors KnownTagCodec.INTERCEPTED
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
 
     /**
-     * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
-     * (unknown) and of KnownTagCodec's negative lookup sentinels.
-     */
-    const val SERIAL_CAPACITY = 1 shl 15
-
-    /**
      * Mirrors KnownTagCodec.makeTagId(serial) + intercepted() + traceLevel() -- must stay in sync.
-     * HAS_SCOPED_ALIAS at bit 0 (the tag has an OpenTelemetry name in some directions only),
      * INTERCEPTED at bit 1, LEVEL_TRACE at bit 2, other low bits and the reserved [47-32] window
-     * zero. Every id is made here, and the range check makes each one positive by construction.
+     * zero.
      */
-    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, hasScopedAlias: Boolean = false): Long {
-      require(serial in FIRST_SERIAL until SERIAL_CAPACITY) {
-        "serial $serial is outside [$FIRST_SERIAL, $SERIAL_CAPACITY): more tags would make tag ids " +
-          "negative, where KnownTagCodec's lookup sentinels live"
-      }
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean): Long {
       var id = serial.toLong() shl 48
       if (traceLevel) id = id or LEVEL_TRACE
       if (intercepted) id = id or INTERCEPTED
-      if (hasScopedAlias) id = id or HAS_SCOPED_ALIAS
       return id
     }
 
@@ -90,7 +77,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             isTraceLevel,
             isIntercepted,
-            id = encode(serial, isTraceLevel, isIntercepted, scoped.isNotEmpty()),
+            id = encode(serial, isTraceLevel, isIntercepted),
             otelName = otelName,
             scopedOtelNames = scoped,
           )
@@ -102,10 +89,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     /**
      * A tag whose Datadog name is also another tag's direction-scoped OpenTelemetry name keeps that
-     * name in every direction the other tag doesn't claim it. `server.port` is the inbound server
-     * port's own name, and `peer.port` on outbound spans: a write of `server.port` on a client span
-     * is `peer.port`, and on a server or internal span the tag itself. So the name depends on the
-     * span's direction like any other scoped alias, and the tag carries [HAS_SCOPED_ALIAS].
+     * name in every direction the other tag doesn't claim it: `server.port` is its own tag (the
+     * server's port), except on outbound spans, where it is `peer.port`. The Datadog name still
+     * resolves to the tag without a direction; only OpenTelemetry-side resolution by direction maps
+     * it to the other tag.
      */
     private fun claimSharedNames(tags: List<Tag>): List<Tag> {
       val claimedBy = HashMap<String, MutableSet<TagConventions.Direction>>()
@@ -121,7 +108,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             "spans, so it cannot be renamed itself"
         }
         val own = TagConventions.Direction.entries.filter { it !in claimed }.associateWith { t.ddName }
-        t.copy(id = t.id or HAS_SCOPED_ALIAS, scopedOtelNames = own.toSortedMap())
+        t.copy(scopedOtelNames = own.toSortedMap())
       }
     }
 

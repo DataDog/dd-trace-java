@@ -1,18 +1,18 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.KnownTagCodec.DIRECTION_INBOUND;
-import static datadog.trace.api.KnownTagCodec.DIRECTION_NONE;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_OUTBOUND;
-import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -164,192 +164,39 @@ class KnownTagsTest {
   }
 
   /**
-   * {@code peer.port} means the server's port on outbound spans and the client's on inbound ones,
-   * but it is one tag either way: one id, one stored value. Only its OpenTelemetry name depends on
-   * the span's direction.
+   * {@code peer.port} is declared once per direction, but it is one tag with one id: only its
+   * OpenTelemetry name depends on the span's direction ({@code client.port} inbound, {@code
+   * server.port} outbound).
    */
-  @Test
-  void flagsAndRangeChecks() {
-    assertTrue(KnownTagCodec.isIntercepted(KnownTags.SPAN_KIND_ID));
-    assertFalse(KnownTagCodec.isIntercepted(KnownTags.HTTP_ROUTE_ID));
-    assertTrue(KnownTagCodec.isKnown(KnownTags.HTTP_ROUTE_ID));
-    assertFalse(KnownTagCodec.isKnown(0L));
-    assertFalse(KnownTagCodec.isKnown(KnownTagCodec.makeTagId(KnownTagCodec.serialLimit())));
-  }
-
-  @TableTest({
-    "scenario         | name              | direction | expected            ",
-    "client hostname  | peer.hostname     | 1         | server.address      ",
-    "server hostname  | http.hostname     | 0         | server.address      ",
-    "server client ip | network.client.ip | 0         | network.peer.address",
-    "client peer port | peer.port         | 1         | server.port         ",
-    "server peer port | peer.port         | 0         | client.port         "
-  })
-  void aTagsDirectionScopedNameByDatadogName(String name, int direction, String expected) {
-    assertEquals(expected, KnownTagCodec.directionScopedNameOf(name, direction));
-    assertEquals(
-        expected, KnownTagCodec.directionScopedNameOf(KnownTagCodec.keyOf(name), direction));
-  }
-
-  @TableTest({
-    "scenario                   | name          | direction",
-    "no direction               | peer.hostname | -1       ",
-    "no alias in this direction | peer.hostname | 0        ",
-    "internal span              | peer.port     | 2        ",
-    "renamed in every direction | http.method   | 1        ",
-    "custom tag                 | my.tag        | 1        "
-  })
-  void noDirectionScopedName(String name, int direction) {
-    assertNull(KnownTagCodec.directionScopedNameOf(name, direction));
-  }
-
-  @Test
-  void directionalKeyOfResolvesOnlyAliases() {
-    assertEquals(
-        KnownTags.PEER_HOSTNAME_ID,
-        KnownTagCodec.directionalKeyOf("server.address", DIRECTION_OUTBOUND));
-    assertEquals(0L, KnownTagCodec.directionalKeyOf(Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
-    assertEquals(
-        KnownTagCodec.NO_TAG_IN_DIRECTION_SENTINEL,
-        KnownTagCodec.directionalKeyOf("server.address", DIRECTION_UNKNOWN));
-  }
-
-  @Test
-  void theAliasFilterRejectsMostOtherNames() {
-    int rejected = 0;
-    String[] names = {"my.tag", "http.route", "component", "db.statement", "error.message"};
-    for (String name : names) {
-      if (!KnownTagCodec.mayBeScopedAlias(name)) {
-        rejected++;
-      }
-    }
-    assertTrue(rejected > 0, "a 64-bit filter over 4 aliases should reject most other names");
-  }
-
-  @Test
-  void canonicalNames() {
-    assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName("http.request.method"));
-    assertEquals("my.tag", KnownTagCodec.canonicalTagName("my.tag"));
-  }
-
-  /** The direction role rides on the one lookup a write by name already does. */
-  @Test
-  void theLookupCarriesTheDirectionRole() {
-    assertEquals(
-        KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL,
-        KnownTagCodec.keyOrAliasOf("server.address"));
-    assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTagCodec.keyOrAliasOf(Tags.PEER_HOSTNAME));
-    assertEquals(0L, KnownTagCodec.keyOrAliasOf("my.custom.tag"));
-    for (long tagId :
-        new long[] {
-          KnownTags.PEER_HOSTNAME_ID,
-          KnownTags.HTTP_HOSTNAME_ID,
-          KnownTags.NETWORK_CLIENT_IP_ID,
-          KnownTags.PEER_PORT_ID,
-          KnownTags.SERVER_PORT_ID
-        }) {
-      assertTrue(KnownTagCodec.hasScopedAlias(tagId), KnownTagCodec.nameOf(tagId));
-    }
-    assertFalse(KnownTagCodec.hasScopedAlias(KnownTags.HTTP_METHOD_ID));
-    for (String alias :
-        new String[] {"server.address", "server.port", "client.port", "network.peer.address"}) {
-      assertTrue(KnownTagCodec.mayBeScopedAlias(alias), alias);
-    }
-  }
-
   @Test
   void aNameDeclaredPerDirectionIsOneTag() {
-    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
     assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT));
-    for (int direction = DIRECTION_UNKNOWN; direction <= DIRECTION_NONE; direction++) {
-      // peer.port is not an alias: no direction changes which tag it names
-      assertEquals(0L, KnownTagCodec.directionalKeyOf(Tags.PEER_PORT, direction));
-    }
-  }
-
-  /**
-   * server.port is a tag's own Datadog name and peer.port's outbound alias, so like any alias it
-   * names no single tag without a direction; datadogKeyOf still finds the tag it names itself.
-   */
-  @Test
-  void aDatadogNameThatIsAlsoAnAliasDependsOnDirection() {
-    assertEquals("server.port", KnownTagCodec.nameOf(KnownTags.SERVER_PORT_ID));
-    assertEquals(0L, KnownTagCodec.keyOf("server.port"));
-    assertEquals(KnownTags.SERVER_PORT_ID, KnownTagCodec.datadogKeyOf("server.port"));
-    assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.datadogKeyOf(Tags.PEER_PORT));
-    assertEquals(0L, KnownTagCodec.datadogKeyOf("server.address"));
-    assertEquals(0L, KnownTagCodec.datadogKeyOf("my.custom.tag"));
-    assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.SERVER_PORT_ID, DIRECTION_INBOUND));
-    assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND));
-  }
-
-  static Stream<Arguments> directionalNames() {
-    return Stream.of(
-        Arguments.of("server.address", DIRECTION_INBOUND, KnownTags.HTTP_HOSTNAME_ID),
-        Arguments.of("server.address", DIRECTION_OUTBOUND, KnownTags.PEER_HOSTNAME_ID),
-        Arguments.of("server.address", DIRECTION_UNKNOWN, 0L),
-        Arguments.of("server.port", DIRECTION_OUTBOUND, KnownTags.PEER_PORT_ID),
-        Arguments.of("server.port", DIRECTION_INBOUND, KnownTags.SERVER_PORT_ID),
-        Arguments.of("server.port", DIRECTION_NONE, KnownTags.SERVER_PORT_ID),
-        Arguments.of("server.port", DIRECTION_UNKNOWN, 0L),
-        Arguments.of("client.port", DIRECTION_INBOUND, KnownTags.PEER_PORT_ID),
-        Arguments.of("client.port", DIRECTION_OUTBOUND, 0L),
-        Arguments.of("client.port", DIRECTION_NONE, 0L),
-        Arguments.of("network.peer.address", DIRECTION_INBOUND, KnownTags.NETWORK_CLIENT_IP_ID));
-  }
-
-  /** A name whose tag depends on the span's direction resolves only once the direction is known. */
-  @ParameterizedTest(name = "{0} on direction {1}")
-  @MethodSource("directionalNames")
-  void aDirectionalNameResolvesByDirection(String name, int direction, long expected) {
-    long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-    assertEquals(expected, tagId > 0 ? tagId : 0L);
-    assertEquals(0L, KnownTagCodec.keyOf(name));
-    assertEquals(
-        KnownTagCodec.DIRECTION_SCOPED_OTEL_NAME_SENTINEL, KnownTagCodec.keyOrAliasOf(name));
-  }
-
-  @Test
-  void aDirectionFreeNameResolvesTheSameInEveryDirection() {
-    assertEquals(KnownTags.HTTP_METHOD_ID, KnownTagCodec.keyOf("http.request.method"));
-    assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTagCodec.keyOf(Tags.PEER_HOSTNAME));
-    for (int direction = DIRECTION_UNKNOWN; direction <= DIRECTION_NONE; direction++) {
-      for (String name :
-          new String[] {"http.request.method", Tags.PEER_HOSTNAME, "my.custom.tag"}) {
-        assertEquals(0L, KnownTagCodec.directionalKeyOf(name, direction), name);
-      }
-    }
-  }
-
-  @Test
-  void aDirectionScopedRenameIsEmittedOnlyInItsDirection() {
-    assertEquals(
-        "server.address",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID, DIRECTION_INBOUND));
-    assertEquals(
-        Tags.HTTP_HOSTNAME,
-        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID, DIRECTION_OUTBOUND));
-    assertEquals(
-        "http.request.method",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_METHOD_ID, DIRECTION_UNKNOWN));
-    assertEquals(Tags.HTTP_HOSTNAME, KnownTagCodec.openTelemetryTagOf(KnownTags.HTTP_HOSTNAME_ID));
-  }
-
-  /** One tag, named for the span's direction; with no direction it keeps its Datadog name. */
-  @Test
-  void aTagDeclaredPerDirectionIsEmittedUnderTheNameForTheDirection() {
-    assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND));
-    assertEquals(
-        "client.port", KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_INBOUND));
-    assertEquals(
-        Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_NONE));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.PEER_PORT_ID));
     assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID));
+    assertEquals(
+        "client.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_INBOUND));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND));
+    assertEquals(
+        Tags.PEER_PORT,
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_NONE));
+  }
+
+  @TableTest({
+    "scenario | kind     | direction",
+    "server   | server   | 0        ",
+    "consumer | consumer | 0        ",
+    "client   | client   | 1        ",
+    "producer | producer | 1        ",
+    "internal | internal | 2        ",
+    "broker   | broker   | -1       ",
+    "custom   | custom   | -1       "
+  })
+  void theDirectionOfASpanFollowsItsKind(String kind, int direction) {
+    assertEquals(direction, KnownTagCodec.directionOfKind(kind));
   }
 
   @Test
@@ -436,5 +283,116 @@ class KnownTagsTest {
     assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName(KnownTags.HTTP_METHOD_OTEL_NAME));
     assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName(Tags.HTTP_METHOD));
     assertEquals("my.custom.tag", KnownTagCodec.canonicalTagName("my.custom.tag"));
+  }
+
+  @TableTest({
+    "scenario | kind       | direction",
+    "no kind  |            | -1       ",
+    "server   | 'server'   | 0        ",
+    "consumer | 'consumer' | 0        ",
+    "client   | 'client'   | 1        ",
+    "producer | 'producer' | 1        ",
+    "internal | 'internal' | 2        ",
+    "broker   | 'broker'   | -1       "
+  })
+  void directionOfKind(String kind, int direction) {
+    assertEquals(direction, KnownTagCodec.directionOfKind(kind));
+  }
+
+  @Test
+  void directionOfReadsTheMapsSpanKind() {
+    TagMap tags = TagMap.create();
+    assertEquals(KnownTagCodec.DIRECTION_UNKNOWN, KnownTagCodec.directionOf(tags));
+
+    tags.set(KnownTags.SPAN_KIND_ID, Tags.SPAN_KIND_CLIENT);
+    assertEquals(KnownTagCodec.DIRECTION_OUTBOUND, KnownTagCodec.directionOf(tags));
+  }
+
+  @Test
+  void anEntrysDirectionalOpenTelemetryTagFallsBackToItsNameForACustomTag() {
+    TagMap.Entry custom = TagMap.Entry.newAnyEntry("my.custom.tag", "value");
+    assertEquals("my.custom.tag", custom.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
+
+    TagMap.Entry peerPort = TagMap.Entry.newAnyEntry(KnownTags.PEER_PORT_ID, 443);
+    assertEquals(
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND),
+        peerPort.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
+  }
+
+  /** OpenTelemetry names whose tag depends on the span's direction, resolved by that direction. */
+  @TableTest({
+    "scenario                    | name                 | direction | expected         ",
+    "server.address inbound      | server.address       | 0         | http.hostname    ",
+    "server.address outbound     | server.address       | 1         | peer.hostname    ",
+    "server.address internal     | server.address       | 2         |                  ",
+    "server.address no direction | server.address       | -1        |                  ",
+    "server.port outbound        | server.port          | 1         | peer.port        ",
+    "server.port inbound         | server.port          | 0         | server.port      ",
+    "server.port internal        | server.port          | 2         | server.port      ",
+    "client.port inbound         | client.port          | 0         | peer.port        ",
+    "client.port outbound        | client.port          | 1         |                  ",
+    "client address inbound      | network.peer.address | 0         | network.client.ip",
+    "direction-free name         | http.request.method  | 1         |                  ",
+    "Datadog name                | peer.hostname        | 1         |                  "
+  })
+  void aDirectionScopedNameResolvesByDirection(String name, int direction, String expected) {
+    long tagId = KnownTagCodec.directionalKeyOf(name, direction);
+    assertEquals(expected, tagId == 0 ? null : KnownTagCodec.nameOf(tagId));
+  }
+
+  @Test
+  void onlyDirectionScopedNamesAreReportedAsSuch() {
+    assertTrue(KnownTagCodec.isDirectionScoped("server.address"));
+    assertTrue(KnownTagCodec.isDirectionScoped("server.port"));
+    assertTrue(KnownTagCodec.isDirectionScoped("client.port"));
+    assertFalse(KnownTagCodec.isDirectionScoped("http.request.method"));
+    assertFalse(KnownTagCodec.isDirectionScoped(Tags.PEER_HOSTNAME));
+    assertFalse(KnownTagCodec.isDirectionScoped("my.custom.tag"));
+  }
+
+  /**
+   * server.port is a Datadog name too: without a direction it is its own tag, the server's port.
+   * Only OpenTelemetry-side resolution maps it to peer.port on outbound spans.
+   */
+  @Test
+  void aSharedNameIsItsOwnTagWithoutADirection() {
+    assertEquals(KnownTags.SERVER_PORT_ID, KnownTagCodec.keyOf("server.port"));
+    assertEquals("server.port", KnownTagCodec.nameOf(KnownTags.SERVER_PORT_ID));
+    assertEquals(0L, KnownTagCodec.keyOf("server.address"));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.SERVER_PORT_ID, DIRECTION_INBOUND));
+  }
+
+  @Test
+  void eachDirectionNamesItsTagsInOpenTelemetryTerms() {
+    assertEquals(KnownTags.PEER_HOSTNAME_ID, KnownTags.Outbound.SERVER_ADDRESS_ID);
+    assertEquals(KnownTags.PEER_PORT_ID, KnownTags.Outbound.SERVER_PORT_ID);
+    assertEquals(KnownTags.HTTP_HOSTNAME_ID, KnownTags.Inbound.SERVER_ADDRESS_ID);
+    assertEquals(KnownTags.SERVER_PORT_ID, KnownTags.Inbound.SERVER_PORT_ID);
+    assertEquals(KnownTags.PEER_PORT_ID, KnownTags.Inbound.CLIENT_PORT_ID);
+    assertEquals(KnownTags.HTTP_URL_ID, KnownTags.Outbound.URL_FULL_ID);
+  }
+
+  /** Every per-direction alias names, in its direction, a tag emitted under that alias. */
+  @TableTest({
+    "scenario | holder   | direction",
+    "inbound  | Inbound  | 0        ",
+    "outbound | Outbound | 1        ",
+    "internal | Internal | 2        "
+  })
+  void perDirectionAliasesAgreeWithTheDirectionalName(String holder, int direction)
+      throws Exception {
+    Field[] fields = Class.forName(KnownTags.class.getName() + "$" + holder).getFields();
+    assertTrue(fields.length > 0, holder);
+    for (Field field : fields) {
+      long tagId = field.getLong(null);
+      String otelName = KnownTagCodec.openTelemetryTagOf(tagId, direction);
+      String expected = otelName.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_") + "_ID";
+      assertEquals(expected, field.getName(), holder + "." + field.getName());
+    }
   }
 }
