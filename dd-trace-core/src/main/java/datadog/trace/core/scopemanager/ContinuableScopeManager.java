@@ -362,23 +362,25 @@ public final class ContinuableScopeManager {
     ContinuableScope oldScope = oldStack.top();
 
     ScopeStack newStack;
-    ContinuableScope newScope;
     if (context instanceof ScopeStackContext) {
       // restore previously swapped context stack
       newStack = ((ScopeStackContext) context).restore(profilingContextIntegration);
-      newScope = newStack.top();
     } else if (context != Context.root()) {
       // start a new stack and record the new context as active
       newStack = new ScopeStack(profilingContextIntegration);
-      newScope = new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));
+      ContinuableScope newScope =
+          new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));
       newStack.top = newScope;
     } else {
       // start a new stack with no active context
       newStack = new ScopeStack(profilingContextIntegration);
-      newScope = null;
     }
 
     tlsScopeStack.set(newStack);
+    if (newStack instanceof SharedScopeStack) {
+      ((SharedScopeStack) newStack).pruneClosedTop();
+    }
+    ContinuableScope newScope = newStack.top();
     if (oldScope != newScope && newScope != null) {
       newScope.beforeActivated();
       newScope.afterActivated();

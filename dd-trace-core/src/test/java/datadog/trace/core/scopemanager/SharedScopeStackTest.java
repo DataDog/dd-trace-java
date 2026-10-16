@@ -1,5 +1,7 @@
 package datadog.trace.core.scopemanager;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -505,6 +507,71 @@ class SharedScopeStackTest extends DDCoreJavaSpecification {
     assertSame(parent, activeSpans.get(0));
     assertSame(child, activeSpans.get(1));
     assertSame(parent, activeSpans.get(2), "parent reactivated");
+  }
+
+  @TableTest({
+    "Scenario         | Seed parent | Close child",
+    "Restore parent   | true        | true       ",
+    "Empty stack      | false       | true       ",
+    "No closed scopes | true        | false      "
+  })
+  void deferredCleanupListenersSeeTheRestoredStack(boolean seedParent, boolean closeChild) {
+    AgentSpan parent = tracer.buildSpan("test", "coroutine-parent").start();
+    AgentSpan child = tracer.buildSpan("test", "coroutine-child").start();
+    AgentSpan worker = tracer.buildSpan("test", "worker-unrelated").start();
+    List<AgentSpan> activeSpans = new ArrayList<>();
+    List<ScopeStack> closedStacks = new ArrayList<>();
+    scopeManager.addScopeListener(
+        new ScopeListener() {
+          @Override
+          public void afterScopeActivated() {
+            activeSpans.add(scopeManager.activeSpan());
+          }
+
+          @Override
+          public void afterScopeClosed() {
+            closedStacks.add(scopeManager.scopeStack());
+          }
+        });
+
+    try {
+      Context shared = scopeManager.sharedContextStack(seedParent ? parent : Context.root());
+      ContextScope childScope;
+      ScopeStack sharedStack;
+      Context original = scopeManager.swap(shared);
+      try {
+        sharedStack = scopeManager.scopeStack();
+        childScope = scopeManager.activateSpan(child);
+      } finally {
+        scopeManager.swap(original);
+      }
+
+      try (ContextScope ignored = scopeManager.activateSpan(worker)) {
+        if (closeChild) {
+          // The shared stack retains the closed child until it is restored.
+          childScope.close();
+        }
+        activeSpans.clear();
+        closedStacks.clear();
+
+        Context workerContext = scopeManager.swap(shared);
+        try {
+          AgentSpan expected = closeChild ? (seedParent ? parent : null) : child;
+          assertSame(expected, scopeManager.activeSpan());
+          assertEquals(expected == null ? emptyList() : singletonList(expected), activeSpans);
+          assertEquals(closeChild ? singletonList(sharedStack) : emptyList(), closedStacks);
+        } finally {
+          if (!closeChild) {
+            childScope.close();
+          }
+          scopeManager.swap(workerContext);
+        }
+      }
+    } finally {
+      child.finish();
+      parent.finish();
+      worker.finish();
+    }
   }
 
   private void assertSeedHoldsOnlyItsOriginalReference(Context shared) throws Exception {

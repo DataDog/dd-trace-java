@@ -20,8 +20,6 @@ final class SharedScopeContext extends ScopeStackContext {
 
   @Override
   ScopeStack restore(ProfilingContextIntegration profilingContextIntegration) {
-    // drop any scopes closed elsewhere since this stack was last swapped in
-    sharedStack.cleanupClosedTop();
     return sharedStack;
   }
 

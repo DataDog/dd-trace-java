@@ -59,14 +59,14 @@ final class SharedScopeStack extends ScopeStack {
     return super.parent();
   }
 
-  /** Removes closed scopes from the top, such as scopes closed by another thread. */
-  void cleanupClosedTop() {
+  /** Removes closed scopes after swapping in; the swap activates the surviving top. */
+  void pruneClosedTop() {
     ContinuableScope current = liveTop;
     // only take the lock when there's something to remove
     if (current != null && !current.alive()) {
       synchronized (this) {
         if (top != null && !top.alive()) {
-          cleanup();
+          cleanup(false);
         }
       }
     }
@@ -92,6 +92,11 @@ final class SharedScopeStack extends ScopeStack {
   // copies ScopeStack.cleanup(), so listeners see the new top when it's reactivated
   @Override
   synchronized void cleanup() {
+    cleanup(true);
+  }
+
+  // only reactivates the new top when asked, as swap() activates it after swapping in
+  private void cleanup(boolean activateTop) {
     ContinuableScope curScope = top;
     boolean changedTop = false;
     while (curScope != null && !curScope.alive()) {
@@ -107,7 +112,7 @@ final class SharedScopeStack extends ScopeStack {
       publishTop(null);
     } else if (changedTop) {
       publishTop(curScope);
-      if (curScope != null) {
+      if (activateTop && curScope != null) {
         curScope.beforeActivated();
         curScope.afterActivated();
       }
