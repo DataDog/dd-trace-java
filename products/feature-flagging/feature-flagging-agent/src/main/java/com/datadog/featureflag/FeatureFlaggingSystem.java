@@ -6,6 +6,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGU
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -80,6 +81,12 @@ public class FeatureFlaggingSystem {
       final SharedCommunicationObjects sco,
       final Config config,
       final SystemInitializer systemInitializer) {
+    if (!FeatureFlaggingGateway.claimRuntime(RuntimeMode.AGENT)) {
+      LOGGER.debug(
+          "Feature Flagging agent runtime not started because {} already owns the subsystem",
+          FeatureFlaggingGateway.activeRuntime());
+      return;
+    }
     try {
       systemInitializer.initialize(sco, config);
     } catch (final RuntimeException | Error e) {
@@ -180,6 +187,7 @@ public class FeatureFlaggingSystem {
     SPAN_ENRICHMENT_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
+    FeatureFlaggingGateway.releaseRuntime(RuntimeMode.AGENT);
     if (activationListener != null) {
       FeatureFlaggingGateway.removeActivationListener(activationListener);
     }

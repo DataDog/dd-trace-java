@@ -1,5 +1,10 @@
 package datadog.trace.api.featureflag;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -41,6 +46,8 @@ class FeatureFlaggingGatewayTest {
     FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    FeatureFlaggingGateway.releaseRuntime(FeatureFlaggingGateway.RuntimeMode.AGENT);
+    FeatureFlaggingGateway.releaseRuntime(FeatureFlaggingGateway.RuntimeMode.STANDALONE);
   }
 
   @Test
@@ -51,6 +58,30 @@ class FeatureFlaggingGatewayTest {
 
     verify(activationListener).activate();
     verifyNoMoreInteractions(activationListener);
+  }
+
+  @Test
+  void runtimeOwnershipIsExclusiveAndIdempotent() {
+    assertNull(FeatureFlaggingGateway.activeRuntime());
+
+    assertTrue(FeatureFlaggingGateway.claimRuntime(FeatureFlaggingGateway.RuntimeMode.STANDALONE));
+    assertTrue(FeatureFlaggingGateway.claimRuntime(FeatureFlaggingGateway.RuntimeMode.STANDALONE));
+    assertFalse(FeatureFlaggingGateway.claimRuntime(FeatureFlaggingGateway.RuntimeMode.AGENT));
+    assertEquals(
+        FeatureFlaggingGateway.RuntimeMode.STANDALONE, FeatureFlaggingGateway.activeRuntime());
+
+    FeatureFlaggingGateway.releaseRuntime(FeatureFlaggingGateway.RuntimeMode.AGENT);
+    assertEquals(
+        FeatureFlaggingGateway.RuntimeMode.STANDALONE, FeatureFlaggingGateway.activeRuntime());
+
+    FeatureFlaggingGateway.releaseRuntime(FeatureFlaggingGateway.RuntimeMode.STANDALONE);
+    assertNull(FeatureFlaggingGateway.activeRuntime());
+    assertTrue(FeatureFlaggingGateway.claimRuntime(FeatureFlaggingGateway.RuntimeMode.AGENT));
+  }
+
+  @Test
+  void runtimeOwnershipRejectsNull() {
+    assertThrows(NullPointerException.class, () -> FeatureFlaggingGateway.claimRuntime(null));
   }
 
   @Test
