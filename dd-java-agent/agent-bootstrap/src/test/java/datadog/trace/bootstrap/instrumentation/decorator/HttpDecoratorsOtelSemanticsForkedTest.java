@@ -150,8 +150,8 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
     assertEquals("example.com", span.getTag(KnownTags.SERVER_ADDRESS_NAME));
     assertEquals(8443, span.getTag(KnownTags.SERVER_PORT_NAME));
-    assertNull(span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
-    assertNull(span.getTag(KnownTags.NETWORK_CLIENT_IP_OTEL_NAME));
+    assertNull(span.getTag(Tags.HTTP_CLIENT_IP));
+    assertNull(span.getTag(Tags.NETWORK_CLIENT_IP));
     assertEquals(503, span.getHttpStatusCode());
     assertEquals("503", span.getTag("error.type"));
     assertTrue(span.isError());
@@ -190,8 +190,8 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.onRequest(
         span, new Connection("192.0.2.10", 32100), request, AgentSpan.fromSpanContext(extracted));
 
-    assertNull(span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
-    assertNull(span.getTag(KnownTags.NETWORK_CLIENT_IP_OTEL_NAME));
+    assertNull(span.getTag(Tags.HTTP_CLIENT_IP));
+    assertNull(span.getTag(Tags.NETWORK_CLIENT_IP));
     assertNull(span.getTag(Tags.HTTP_FORWARDED_IP));
     assertNull(span.getTag(Tags.HTTP_FORWARDED));
   }
@@ -219,7 +219,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
         forwardedIp == null ? root() : AgentSpan.fromSpanContext(extracted));
 
     assertEquals(expectedClientIp, span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
-    assertEquals("192.0.2.10", span.getTag(KnownTags.NETWORK_CLIENT_IP_OTEL_NAME));
+    assertEquals("192.0.2.10", span.getTag(Tags.NETWORK_CLIENT_IP));
     assertEquals(forwardedIp, span.getTag(Tags.HTTP_FORWARDED_IP));
     assertEquals(headers.forwarded, span.getTag(Tags.HTTP_FORWARDED));
   }

@@ -76,7 +76,6 @@ class KnownTagsTest {
         Arguments.of("url.full", KnownTags.HTTP_URL_ID, "http.url"),
         Arguments.of("user_agent.original", KnownTags.HTTP_USERAGENT_ID, "http.useragent"),
         Arguments.of("client.address", KnownTags.HTTP_CLIENT_IP_ID, "http.client_ip"),
-        Arguments.of("network.peer.address", KnownTags.NETWORK_CLIENT_IP_ID, "network.client.ip"),
         Arguments.of("db.system", KnownTags.DB_TYPE_ID, "db.type"),
         Arguments.of("db.operation.name", KnownTags.DB_OPERATION_ID, "db.operation"),
         Arguments.of("db.query.text", KnownTags.DB_STATEMENT_ID, "db.statement"),
@@ -170,6 +169,28 @@ class KnownTagsTest {
     assertEquals(0L, KnownTagCodec.keyOf("definitely.not.a.known.tag"));
     assertEquals(0L, KnownTagCodec.keyOf("http.statuscode")); // close-but-not-listed
     assertEquals(0L, KnownTagCodec.keyOf(""));
+  }
+
+  @Test
+  void networkPeerAddressIsNotADirectionFreeAliasForClientIp() {
+    assertEquals(0L, KnownTagCodec.keyOf("network.peer.address"));
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.NETWORK_CLIENT_IP_ID));
+  }
+
+  @TableTest({
+    "Scenario     | Kind     | Expected Name       ",
+    "server       | server   | network.peer.address",
+    "consumer     | consumer | network.peer.address",
+    "client       | client   | network.client.ip   ",
+    "producer     | producer | network.client.ip   ",
+    "internal     | internal | network.client.ip   ",
+    "unknown kind |          | network.client.ip   "
+  })
+  void networkClientIpIsRenamedOnlyOnInboundSpans(String kind, String expectedName) {
+    assertEquals(
+        expectedName,
+        KnownTagCodec.openTelemetryTagOf(
+            KnownTags.NETWORK_CLIENT_IP_ID, KnownTagCodec.directionOfKind(kind)));
   }
 
   /**

@@ -228,6 +228,29 @@ class OtlpTraceJsonCollectorTest {
     }
   }
 
+  @TableTest({
+    "Scenario | Kind    ",
+    "client   | client  ",
+    "producer | producer"
+  })
+  void outboundNetworkPeerAddressDoesNotSetClientIp(String kind) throws IOException {
+    AgentSpan agentSpan = TRACER.startSpan("test", "op.peer-address");
+    agentSpan.setTag(SPAN_KIND, kind);
+    agentSpan.setTag("network.peer.address", "192.0.2.10");
+    agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+    agentSpan.finish();
+
+    assertEquals("192.0.2.10", agentSpan.getTag("network.peer.address"));
+    assertNull(agentSpan.getTag("network.client.ip"));
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) agentSpan));
+    Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+
+    assertTrue(attrKeys.contains("network.peer.address"));
+    assertFalse(attrKeys.contains("network.client.ip"));
+  }
+
   private static Set<String> collectTagsAttributeKeys(boolean otelSemanticsEnabled)
       throws IOException {
     Config realConfig = Config.get();
@@ -237,6 +260,7 @@ class OtlpTraceJsonCollectorTest {
       configMock.when(Config::get).thenReturn(config);
 
       AgentSpan agentSpan = TRACER.startSpan("test", "op.tagged");
+      agentSpan.setTag(SPAN_KIND, SPAN_KIND_SERVER);
       agentSpan.setResourceName("GET /api");
       agentSpan.setTag("http.method", "GET");
       agentSpan.setTag("network.client.ip", "192.0.2.10");

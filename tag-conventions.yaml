@@ -137,7 +137,7 @@ span_types:
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
       # Inbound only: the client's socket address. Server spans also carry that address in peer.ipv4 /
       # peer.ipv6, so do not map those inbound too, or the attribute is exported twice.
-      - { dd-name: network.client.ip, type: string, required: recommended, otel-name: network.peer.address, span-kind-neutral: true }  # Temporary direction-free alias until name resolution is span-kind-aware
+      - { dd-name: network.client.ip, type: string, required: recommended, otel-name: network.peer.address }
       # Forwarding headers, when client IPs are tagged and the header is present.
       - { dd-name: http.forwarded,       type: string, required: optional }
       - { dd-name: http.forwarded.proto, type: string, required: optional }
