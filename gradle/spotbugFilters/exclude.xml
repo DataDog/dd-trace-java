@@ -23,4 +23,21 @@
       <Package name="com.datadog.appsec.report.raw.events" />
     </Or>
   </Match>
+
+  <!--
+    Grandfathered findings for the unclosed-resource check that test and JMH sources run
+    (see gradle/spotbugs.gradle). These predate the check; they are suppressed one method at a time
+    so the check can be required for everything else, and they are not a licence for new code to
+    leave resources unclosed. Fix the method and drop its entry rather than adding more.
+  -->
+  <Match>
+    <Class name="com.datadog.profiling.uploader.ProfileUploaderTest" />
+    <Method name="recordingStream" />
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE" />
+  </Match>
+  <Match>
+    <Class name="com.datadog.profiling.uploader.util.JfrCliHelperTest" />
+    <Method name="recordingStream" />
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE" />
+  </Match>
 </FindBugsFilter>
