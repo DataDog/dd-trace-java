@@ -45,6 +45,12 @@ docs/                     Developer documentation (see below)
 
 **When working on a topic above, read the linked file first** — they are the source of truth maintained by humans.
 
+## Gradle changes
+
+Follow the [Gradle guide](docs/how_to_work_with_gradle.md), including its
+[required skill](docs/how_to_work_with_gradle.md#gradle-skills). Before editing files under
+`buildSrc/` or `build-logic/`, also read that folder's `AGENTS.md`.
+
 ## Build quick reference
 
 ```shell
