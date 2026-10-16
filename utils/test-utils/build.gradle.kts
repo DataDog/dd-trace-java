@@ -23,6 +23,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.test.util.FlakySpockExtension*",
   "datadog.trace.test.util.MultipartRequestParser*",
   "datadog.trace.test.util.NonRetryable",
+  "datadog.trace.test.util.SyntheticAccessors",
 )
 
 dependencies {
@@ -46,4 +47,6 @@ dependencies {
   compileOnly(libs.bundles.spock)
 
   testImplementation(libs.junit.platform.launcher)
+  // @SuppressPerfContract fixtures; the checker matches annotation descriptors and never loads them.
+  testCompileOnly(project(":internal-api"))
 }

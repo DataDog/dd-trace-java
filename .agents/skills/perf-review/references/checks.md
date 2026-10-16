@@ -34,6 +34,7 @@ Fixed-signature, mechanically checkable:
 - boxing in specific hot APIs
 - using a string-API where an id-API exists on a hot decorator
 - the existing convention rules (e.g. don't extract one-shot instrumentation methods to constants)
+- synthetic accessors (`access$*` methods, synthetic constructors) in a nest marked `@NoSyntheticAccessors` (`datadog.perfcontract.NoSyntheticAccessors`) — **already a real check**: a test per annotated class calls `datadog.trace.test.util.SyntheticAccessors.assertNone`, so don't spend AI review on it
 - *(grows as patterns prove mechanically checkable — migrate them off the AI as they stabilize; the `@NoEscape` and `@StaticLifetime` field-storage checks above belong here once their checkers land)*
 
 ## Java addendum (JVM-specific — mechanism authored with JIT-developer authority; **calibrate production-priority against your own escalation history**)
