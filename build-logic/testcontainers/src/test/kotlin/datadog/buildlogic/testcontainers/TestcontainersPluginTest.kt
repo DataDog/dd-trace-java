@@ -319,6 +319,10 @@ class TestcontainersPluginTest {
       .content()
       .contains("registry-1.docker.io/library/$image")
 
+    assertThat(testReport()).content().contains(directory.resolve("build/reports/docker-images/test").toString())
+    assertThat(testReport("integrationTest")).content()
+      .contains(directory.resolve("build/reports/docker-images/integrationTest").toString())
+
     val reused = run("test", "integrationTest")
 
     assertThat(reused.output).contains("Reusing configuration cache")
@@ -450,6 +454,7 @@ class TestcontainersPluginTest {
         @Test public void imageIsPinned() {
           String image = System.getProperty("test.cassandra.image");
           assertTrue(image.matches(".+@sha256:[a-f0-9]{64}"), image);
+          System.out.println(System.getProperty("testcontainers.image.log.dir"));
           System.out.println(image);
           System.out.println(System.getProperty("test.redis.image", ""));
         }
