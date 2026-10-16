@@ -80,10 +80,9 @@ class TagMapSetByIdTest {
     TagMap tags = TagMap.createFromParent(parent.freeze());
     tags.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
 
-    assertEquals("/users/{id}", tags.internals().getKnownValue(KnownTags.HTTP_ROUTE_ID));
-    assertEquals(
-        200, tags.internals().getKnownValue(KnownTags.HTTP_STATUS_CODE_ID)); // read-through
-    assertNull(tags.internals().getKnownValue(KnownTags.HTTP_METHOD_ID));
+    assertEquals("/users/{id}", tags.getKnownValue(KnownTags.HTTP_ROUTE_ID));
+    assertEquals(200, tags.getKnownValue(KnownTags.HTTP_STATUS_CODE_ID)); // read-through
+    assertNull(tags.getKnownValue(KnownTags.HTTP_METHOD_ID));
   }
 
   @Test
@@ -104,41 +103,5 @@ class TagMapSetByIdTest {
     assertEquals("custom", resolved.getObject("my.custom.tag"));
     resolved.remove("my.custom.tag");
     assertEquals(new HashMap<>(byId), new HashMap<>(resolved));
-  }
-
-  @Test
-  void theCoresTrustedSetsStoreWhatTheCheckedSetsStore() {
-    TagMap checked = TagMap.create();
-    checked.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
-    checked.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
-    checked.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
-    checked.set(KnownTags.DD_PROFILING_ENABLED_ID, true);
-
-    TagMap trusted = TagMap.create();
-    trusted.internals().setKnown(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
-    trusted.internals().setKnown(KnownTags.HTTP_STATUS_CODE_ID, 200);
-    trusted.internals().setKnown(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
-    trusted.internals().setKnown(KnownTags.DD_PROFILING_ENABLED_ID, true);
-
-    assertEquals(new HashMap<>(checked), new HashMap<>(trusted));
-    assertEquals(KnownTags.HTTP_ROUTE_ID, trusted.getEntry(KnownTags.HTTP_ROUTE_NAME).tagId());
-  }
-
-  @Test
-  void theCoresTrustedSetsCoverTheRemainingValueShapes() {
-    Object component = new StringBuilder("jdbc"); // not a String: exercises the Object overload
-    TagMap checked = TagMap.create();
-    checked.set(KnownTags.COMPONENT_ID, component);
-    checked.set(KnownTags.DB_POOL_NAME_ID, 1.5f);
-    checked.set(KnownTags.DB_INSTANCE_ID, 2.25d);
-
-    TagMap trusted = TagMap.create();
-    trusted.internals().setKnown(KnownTags.COMPONENT_ID, component);
-    trusted.internals().setKnown(KnownTags.DB_POOL_NAME_ID, 1.5f);
-    trusted.internals().setKnown(KnownTags.DB_INSTANCE_ID, 2.25d);
-
-    assertEquals(new HashMap<>(checked), new HashMap<>(trusted));
-    assertEquals(1.5f, trusted.getEntry(KnownTags.DB_POOL_NAME_ID).floatValue());
-    assertEquals(2.25d, trusted.getEntry(KnownTags.DB_INSTANCE_ID).doubleValue());
   }
 }

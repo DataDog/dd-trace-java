@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.apicontract.Restricted;
 import datadog.trace.api.TagMap.BucketGroup;
 import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.TagMap.EntryReader;
@@ -16,16 +17,22 @@ import java.util.function.Consumer;
  * keyed by the 64-bit tag hash (a known tag's id, or a custom tag's name hash in the low 32 bits;
  * the two never collide, see {@link Entry#tagHashOf}).
  *
- * <p>It is always a TagMap's name store, holding the custom tags. In hash mode it is also the map's
- * {@link IdStore}, holding the known tags too -- one object serves both roles, so splitting the
- * stores costs no extra allocation. No locking: guarded by the owner's lock.
+ * <p>It is the name store, holding the custom tags by name. Through the tag-hash scheme it can hold
+ * known tags too, by id: in hash mode it holds both, and {@link #idStore()} adapts its known-tag
+ * half to the {@link IdStore} API. Other IdStore implementations (a dense store) are separate
+ * classes. No locking: guarded by the owner's lock.
+ *
+ * <p>Owned by a {@link TagMap}, or directly by a span in the tracer core, which routes to it with
+ * {@link TagRouting}. Name-keyed methods take only custom tag names: a known tag is resolved to its
+ * id first, and goes through the id-keyed methods.
  *
  * <p>For memory efficiency, a bucket holds a lone Entry directly. Because Entries are shared
  * between maps, they cannot form a linked list to handle collisions; colliding entries share a
  * fixed-size {@link BucketGroup} instead, chained when one fills. Removals are assumed rare, so
  * groups are never consolidated, but an emptied group is unlinked from its chain.
  */
-final class HashStore extends IdStore {
+@Restricted(allowedIn = {"datadog.trace.core"})
+public final class HashStore {
   final Object[] buckets;
   int size;
 
@@ -49,8 +56,16 @@ final class HashStore extends IdStore {
    */
   private Set<String> removedFromParent;
 
-  /** A fresh, empty store reading through to {@code parent} (may be null). */
-  HashStore(HashStore parent) {
+  /** A fresh, empty store with no parent. */
+  public HashStore() {
+    this((HashStore) null);
+  }
+
+  /**
+   * A fresh, empty store reading through to {@code parent} (may be null), which must be frozen --
+   * see {@link TagMap#readThroughStore}.
+   */
+  public HashStore(HashStore parent) {
     // needs to be a power of 2 for bucket masking calculation to work as intended
     this.buckets = new Object[1 << 4];
     this.size = 0;
@@ -135,24 +150,71 @@ final class HashStore extends IdStore {
     return total;
   }
 
+  /** A new {@link IdStore} over this store's known tags. */
+  public IdStore idStore() {
+    return new HashIdStore(this);
+  }
+
   /*
-   * Known tags, by id (the IdStore role). The id is validated as the TagMap id-keyed API requires.
+   * Known tags, by id.
    */
 
-  @Override
-  Entry get(long tagId) {
+  /**
+   * The known tag {@code tagId}'s entry, reading through to the parent chain.
+   *
+   * @throws IllegalArgumentException if {@code tagId} names no known tag
+   */
+  public Entry getById(long tagId) {
     return this.get(Entry.requireKnownName(tagId), tagId);
   }
 
-  @Override
-  Object getKnownValue(long tagId) {
-    Entry entry = this.get(tagId);
+  /** {@link #getById}'s value, boxed if necessary, or null. */
+  public Object getKnownValue(long tagId) {
+    Entry entry = this.getById(tagId);
     return entry == null ? null : entry.objectValue();
   }
 
-  @Override
-  Entry remove(long tagId) {
+  /**
+   * Removes the known tag {@code tagId}, returning the prior visible entry.
+   *
+   * @throws IllegalArgumentException if {@code tagId} names no known tag
+   */
+  public Entry removeById(long tagId) {
     return this.remove(Entry.requireKnownName(tagId), tagId);
+  }
+
+  /*
+   * Sets a known tag by id without validating it: the caller has checked KnownTagCodec.isKnown.
+   */
+
+  public void setKnown(long tagId, Object value) {
+    this.put(new Entry(tagId, null, Entry.ANY, 0L, value));
+  }
+
+  public void setKnown(long tagId, CharSequence value) {
+    this.put(new Entry(tagId, null, EntryReader.OBJECT, 0L, value));
+  }
+
+  public void setKnown(long tagId, boolean value) {
+    this.put(
+        new Entry(
+            tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
+  }
+
+  public void setKnown(long tagId, int value) {
+    this.put(new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value), null));
+  }
+
+  public void setKnown(long tagId, long value) {
+    this.put(new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value), null));
+  }
+
+  public void setKnown(long tagId, float value) {
+    this.put(new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value), null));
+  }
+
+  public void setKnown(long tagId, double value) {
+    this.put(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
   }
 
   /*
@@ -161,15 +223,47 @@ final class HashStore extends IdStore {
    */
 
   /** The custom tag {@code tag}'s entry, reading through to the parent chain. */
-  Entry get(String tag) {
+  public Entry get(String tag) {
     assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; look it up by its id";
     return this.get(tag, Entry.customHash(tag));
   }
 
   /** Removes the custom tag {@code tag}; see {@link #remove(String, long)}. */
-  Entry remove(String tag) {
+  public Entry remove(String tag) {
     assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; remove it by its id";
     return this.remove(tag, Entry.customHash(tag));
+  }
+
+  /*
+   * Sets the custom tag {@code tag}, which must not be a known tag's name.
+   */
+
+  public void set(String tag, Object value) {
+    this.put(Entry.newAnyEntry(tag, value));
+  }
+
+  public void set(String tag, CharSequence value) {
+    this.put(Entry.newObjectEntry(tag, value));
+  }
+
+  public void set(String tag, boolean value) {
+    this.put(Entry.newBooleanEntry(tag, value));
+  }
+
+  public void set(String tag, int value) {
+    this.put(Entry.newIntEntry(tag, value));
+  }
+
+  public void set(String tag, long value) {
+    this.put(Entry.newLongEntry(tag, value));
+  }
+
+  public void set(String tag, float value) {
+    this.put(Entry.newFloatEntry(tag, value));
+  }
+
+  public void set(String tag, double value) {
+    this.put(Entry.newDoubleEntry(tag, value));
   }
 
   /*
@@ -199,10 +293,10 @@ final class HashStore extends IdStore {
   /**
    * Inserts or replaces a local entry, returning the replaced local Entry (or null if none). Does
    * NOT consult the read-through parent -- set paths use this so they never pay for a prior-value
-   * lookup they discard; {@link #getAndPut(Entry)} layers the parent fallback on top.
+   * lookup they discard; {@link #getAndPut(Entry)} layers the parent fallback on top. Takes either
+   * kind of entry: the entry already carries its id or its name.
    */
-  @Override
-  Entry put(Entry newEntry) {
+  public Entry put(Entry newEntry) {
     // Re-setting a key clears any read-through tombstone for it (the new value overrides the
     // removal). Gated on the lazy field, so this is a no-op for the common no-tombstone case.
     if (this.removedFromParent != null) {
@@ -255,8 +349,7 @@ final class HashStore extends IdStore {
   }
 
   /** {@link #put(Entry)}, returning the prior visible entry -- local, else read through. */
-  @Override
-  Entry getAndPut(Entry newEntry) {
+  public Entry getAndPut(Entry newEntry) {
     // Capture whether the key was tombstoned BEFORE put clears it: a tombstoned key had no visible
     // prior value (it was removed), so getAndPut must report null rather than the parent's.
     boolean wasTombstoned =

@@ -208,7 +208,7 @@ class DDSpanDirectionalTagConsistencyTest extends DDCoreJavaSpecification {
 
     // And when the span is emitted: the pending alias, if any, is folded into the tag.
     TagMap emitted = span.getTags().copy();
-    DirectionalTags.resolveScopedNames(emitted, direction);
+    DirectionalTags.resolveScopedNames(emitted.idStore(), emitted.hashStore(), direction);
     assertEquals("second.example", emitted.getObject(tag));
     assertNull(emitted.getObject("server.address"));
   }

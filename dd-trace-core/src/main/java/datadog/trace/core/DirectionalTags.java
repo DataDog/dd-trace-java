@@ -4,15 +4,20 @@ import static datadog.trace.api.KnownTagCodec.DIRECTION_INBOUND;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_NONE;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 
+import datadog.trace.api.HashStore;
+import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TagRouting;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A span's reading of the few tag names that depend on its direction. {@link TagMap} stores every
- * name as written and knows nothing of span kinds -- baggage is a TagMap too -- so the direction is
- * applied here, by the span layer, when a tag is written, read, removed or emitted.
+ * A span's reading of the few tag names that depend on its direction. The tag stores ({@link
+ * HashStore}, {@link IdStore}) keep every name as written and know nothing of span kinds -- baggage
+ * is a TagMap too -- so the direction is applied here, by the span layer, to the span's stores when
+ * a tag is written, read, removed or emitted. The read rule itself is {@link TagRouting}'s, so a
+ * span's {@link TagMap#viewOf view} reads the same way.
  *
  * <p>A tag is stored once, under its id, whatever the direction: {@code peer.port} is one tag that
  * is emitted as {@code client.port} inbound and {@code server.port} outbound. A direction-scoped
@@ -57,7 +62,7 @@ final class DirectionalTags {
    * pending-alias flag set it only for the sentinel, so a name that merely passed {@link
    * KnownTagCodec#mayBeScopedAlias}'s filter doesn't slow the span down.
    */
-  static long prepareAliasWrite(TagMap tags, String alias, int direction) {
+  static long prepareAliasWrite(IdStore ids, HashStore tags, String alias, int direction) {
     long tagId = KnownTagCodec.directionalKeyOf(alias, direction);
     if (tagId > 0) {
       tags.remove(alias); // a value pending under the alias is older than this write
@@ -70,9 +75,9 @@ final class DirectionalTags {
    * has an alias ({@link KnownTagCodec#HAS_SCOPED_ALIAS}), removes the pending aliases the write
    * supersedes. A caller with a constant id that lacks the bit can skip the call.
    */
-  static void prepareWrite(TagMap tags, long tagId, int direction) {
+  static void prepareWrite(IdStore ids, HashStore tags, long tagId, int direction) {
     if (KnownTagCodec.hasScopedAlias(tagId)) {
-      removePendingAliases(tags, tagId, direction);
+      removePendingAliases(ids, tags, tagId, direction);
     }
   }
 
@@ -80,7 +85,7 @@ final class DirectionalTags {
    * Removes the aliases a write of {@code tagId} supersedes: the one it has in {@code direction},
    * or, with no direction yet, any it could have.
    */
-  private static void removePendingAliases(TagMap tags, long tagId, int direction) {
+  private static void removePendingAliases(IdStore ids, HashStore tags, long tagId, int direction) {
     if (direction != DIRECTION_UNKNOWN) {
       String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
       if (alias != null) {
@@ -101,78 +106,68 @@ final class DirectionalTags {
    * reads its alias; a pending alias, being the newer write, wins. Every other name costs the same
    * single lookup as {@link TagMap#getObject}.
    */
-  static Object get(TagMap tags, String name, int direction) {
-    return get(tags, name, direction, true);
+  static Object get(IdStore ids, HashStore tags, String name, int direction) {
+    return get(ids, tags, name, direction, true);
   }
 
   /**
-   * {@link #get(TagMap, String, int)} for a caller that tracks whether {@code tags} can hold a
-   * pending alias at all. With {@code mayHavePendingAliases} false, a tag with an alias skips
-   * probing for one, so it costs a single lookup like any other tag.
+   * {@link #get(IdStore, HashStore, String, int)} for a caller that tracks whether {@code tags} can
+   * hold a pending alias at all. With {@code mayHavePendingAliases} false, a tag with an alias
+   * skips probing for one, so it costs a single lookup like any other tag.
    */
-  static Object get(TagMap tags, String name, int direction, boolean mayHavePendingAliases) {
-    long key = KnownTagCodec.keyOrAliasOf(name);
-    if (key > 0) {
-      return get(tags, key, direction, mayHavePendingAliases);
-    }
-    TagMap.Entry asWritten =
-        key == 0 || mayHavePendingAliases ? tags.getEntryResolved(0L, name) : null;
-    if (key == 0 || asWritten != null) {
-      return asWritten == null ? null : asWritten.objectValue();
-    }
-    long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-    return tagId > 0 ? tags.internals().getKnownValue(tagId) : null;
+  static Object get(
+      IdStore ids, HashStore tags, String name, int direction, boolean mayHavePendingAliases) {
+    TagMap.Entry entry =
+        TagRouting.getEntry(
+            ids, tags, TagRouting.keyOf(name), name, direction, mayHavePendingAliases);
+    return entry == null ? null : entry.objectValue();
   }
 
   /**
    * The value of the known tag {@code tagId} on a span of {@code direction}; see {@link
-   * #get(TagMap, String, int)}.
+   * #get(IdStore, HashStore, String, int)}.
    */
-  static Object get(TagMap tags, long tagId, int direction) {
-    return get(tags, tagId, direction, true);
+  static Object get(IdStore ids, HashStore tags, long tagId, int direction) {
+    return get(ids, tags, tagId, direction, true);
   }
 
-  /** {@link #get(TagMap, long, int)}; see {@link #get(TagMap, String, int, boolean)}. */
-  static Object get(TagMap tags, long tagId, int direction, boolean mayHavePendingAliases) {
-    if (mayHavePendingAliases
-        && KnownTagCodec.hasScopedAlias(tagId)
-        && direction != DIRECTION_UNKNOWN) {
-      String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
-      Object pending = alias == null ? null : tags.getObject(alias);
-      if (pending != null) {
-        return pending;
-      }
-    }
-    return tags.internals().getKnownValue(tagId);
+  /**
+   * {@link #get(IdStore, HashStore, long, int)}; see {@link #get(IdStore, HashStore, String, int,
+   * boolean)}.
+   */
+  static Object get(
+      IdStore ids, HashStore tags, long tagId, int direction, boolean mayHavePendingAliases) {
+    TagMap.Entry entry = TagRouting.getById(ids, tags, tagId, direction, mayHavePendingAliases);
+    return entry == null ? null : entry.objectValue();
   }
 
   /** Removes {@code name} from a span of {@code direction}: the tag and its alias together. */
-  static void remove(TagMap tags, String name, int direction) {
+  static void remove(IdStore ids, HashStore tags, String name, int direction) {
     // One lookup decides everything: a known tag, a custom tag, or a direction-scoped alias.
     long key = KnownTagCodec.keyOrAliasOf(name);
     if (key > 0) {
-      remove(tags, key, direction);
+      remove(ids, tags, key, direction);
       return;
     }
-    tags.removeResolved(0L, name); // a custom tag, or an alias stored as written
+    tags.remove(name); // a custom tag, or an alias stored as written
     if (key == 0) {
       return;
     }
     if (direction == DIRECTION_UNKNOWN) {
-      removeEveryTagOfAlias(tags, name);
+      removeEveryTagOfAlias(ids, tags, name);
       return;
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
     if (tagId > 0) {
-      tags.getAndRemove(tagId);
+      TagRouting.removeById(ids, tags, tagId);
     }
   }
 
   /** Removes the known tag {@code tagId}, and its alias, from a span of {@code direction}. */
-  static void remove(TagMap tags, long tagId, int direction) {
-    tags.getAndRemove(tagId);
+  static void remove(IdStore ids, HashStore tags, long tagId, int direction) {
+    TagRouting.removeById(ids, tags, tagId);
     if (KnownTagCodec.hasScopedAlias(tagId)) {
-      removePendingAliases(tags, tagId, direction);
+      removePendingAliases(ids, tags, tagId, direction);
     }
   }
 
@@ -180,14 +175,14 @@ final class DirectionalTags {
    * Removes every tag {@code alias} could denote, for a removal of the alias before the span has a
    * direction. A removal counts as a write, so no older value can resurface when the kind arrives;
    * like the write rule, this can drop the other direction's tag. (Removing a tag before then
-   * likewise removes the pending aliases that could denote it; see {@link #remove(TagMap, long,
-   * int)}.)
+   * likewise removes the pending aliases that could denote it; see {@link #remove(IdStore,
+   * HashStore, long, int)}.)
    */
-  private static void removeEveryTagOfAlias(TagMap tags, String alias) {
+  private static void removeEveryTagOfAlias(IdStore ids, HashStore tags, String alias) {
     for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
       long aliasedId = KnownTagCodec.directionalKeyOf(alias, direction);
       if (aliasedId > 0) {
-        tags.getAndRemove(aliasedId);
+        TagRouting.removeById(ids, tags, aliasedId);
       }
     }
   }
@@ -197,12 +192,13 @@ final class DirectionalTags {
    * The alias, being the newer write, overwrites its tag. An alias with no tag in {@code direction}
    * -- or any, while the direction is unknown -- stays as written, a custom tag.
    */
-  static void resolveScopedNames(TagMap tags, int direction) {
+  static void resolveScopedNames(IdStore ids, HashStore tags, int direction) {
     if (direction == DIRECTION_UNKNOWN || direction == DIRECTION_NONE) {
       return; // no alias names a tag on a span with no direction, or an internal one
     }
     List<TagMap.Entry> pending = null;
-    for (TagMap.EntryReader entry : tags) {
+    // Pending aliases are custom tags, so they are all in the HashStore.
+    for (TagMap.EntryReader entry : TagMap.viewOf(ids, tags, null)) {
       if (entry.tagId() == 0 && KnownTagCodec.directionalKeyOf(entry.tag(), direction) > 0) {
         if (pending == null) {
           pending = new ArrayList<>(2);
@@ -215,7 +211,8 @@ final class DirectionalTags {
     }
     for (TagMap.Entry entry : pending) {
       tags.remove(entry.tag());
-      tags.set(KnownTagCodec.directionalKeyOf(entry.tag(), direction), entry.objectValue());
+      TagRouting.setKnown(
+          ids, tags, KnownTagCodec.directionalKeyOf(entry.tag(), direction), entry.objectValue());
     }
   }
 

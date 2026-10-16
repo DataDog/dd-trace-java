@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import datadog.apicontract.Restricted;
-import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
@@ -1208,11 +1207,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * by a global mode, in the constructor that pairs the stores.
    */
 
-  /** The known tags, by id. In hash mode the same object as {@link #names}. */
+  /** The known tags, by id; null in hash mode, where {@link #names} holds them. */
   final IdStore ids;
 
   /** The custom tags, by name; in hash mode it holds the known tags too. */
   final HashStore names;
+
+  /**
+   * For a span's view ({@link #viewOf}), the span, which says what direction-scoped names read as;
+   * null for a TagMap of its own, which reads every name as written.
+   */
+  final DirectionSource direction;
 
   private boolean frozen;
 
@@ -1243,17 +1248,80 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * store mode is chosen: hash mode uses the one store for both halves.
    */
   private TagMap(TagMap parent, HashStore store) {
-    this.ids = store;
+    this.ids = TagRouting.idStoreFor(store);
     this.names = store;
+    this.direction = null;
     this.frozen = false;
     this.parent = parent;
+  }
+
+  /** A live view over stores the caller owns; see {@link #viewOf}. */
+  private TagMap(IdStore ids, HashStore names, DirectionSource direction) {
+    this.ids = ids;
+    this.names = names;
+    this.direction = direction;
+    this.frozen = false;
+    this.parent = null;
+  }
+
+  /**
+   * What direction-scoped names read as on a span: its direction (a {@code
+   * KnownTagCodec.DIRECTION_*} constant), and whether it may hold an alias stored as written.
+   */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public interface DirectionSource {
+    int tagDirection();
+
+    boolean hasPendingAliases();
+  }
+
+  /**
+   * A live, mutable TagMap over a span's stores, for the span's internal readers (tag
+   * post-processors, serializers). It owns nothing: reads and writes go straight to the stores, and
+   * name-keyed reads honor the span's direction. Not thread-safe; use it under the lock that guards
+   * the stores, and only as long as the caller holds it. Small, so a local view is scalar-replaced.
+   */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public static TagMap viewOf(IdStore ids, HashStore names, DirectionSource direction) {
+    return new TagMap(ids, names, direction);
+  }
+
+  /**
+   * The store a span's HashStore reads through to for the tags in {@code parent}, or null when
+   * there is nothing to read through to; the stores-level {@link #createFromParent}.
+   *
+   * @throws IllegalStateException if {@code parent} is not frozen
+   */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public static HashStore readThroughStore(TagMap parent) {
+    if (parent == null) {
+      return null;
+    }
+    if (!parent.frozen) {
+      throw new IllegalStateException("read-through parent must be frozen");
+    }
+    // An empty parent is dropped, as createFromParent does.
+    return parent.isEmpty() ? null : parent.names;
+  }
+
+  /** This map's HashStore. */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public HashStore hashStore() {
+    return this.names;
+  }
+
+  /** This map's IdStore, null in hash mode; see {@link TagRouting#idStoreFor}. */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public IdStore idStore() {
+    return this.ids;
   }
 
   /** Used for inexpensive immutable */
   private TagMap(Object[] buckets, int size) {
     HashStore store = new HashStore(buckets, size);
-    this.ids = store;
+    this.ids = TagRouting.idStoreFor(store);
     this.names = store;
+    this.direction = null;
     this.frozen = true;
     this.parent = null;
   }
@@ -1387,12 +1455,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry getEntry(String tag) {
     // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
     // an OpenTelemetry rename must resolve to the same id, or it would silently miss the entry.
-    return TagRouting.get(this.ids, this.names, TagRouting.keyOf(tag), tag);
+    long key = TagRouting.keyOf(tag);
+    DirectionSource direction = this.direction;
+    if (direction == null || key == 0) {
+      return TagRouting.get(this.ids, this.names, key, tag);
+    }
+    return TagRouting.getEntry(
+        this.ids, this.names, key, tag, direction.tagDirection(), direction.hasPendingAliases());
   }
 
   /** The entry for a known tag id. */
   public Entry getEntry(long tagId) {
-    return this.ids.get(tagId);
+    return TagRouting.getById(this.ids, this.names, tagId);
   }
 
   @Deprecated
@@ -1607,74 +1681,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * canonical name without the name lookup the String setters pay. The id must name a known tag;
    * custom tags have no id and use the String setters.
    */
-  /**
-   * The tracer core's trusted operations on this map, which skip checks the core has already made.
-   * Restricted to the core; instrumentation uses the checked methods.
-   */
-  @Restricted(allowedIn = {"datadog.trace.core"})
-  public Internals internals() {
-    return new Internals(this);
-  }
 
-  /**
-   * See {@link TagMap#internals()}. Created per call so escape analysis removes it: use it within
-   * the expression ({@code map.internals().setKnown(...)}) rather than storing it.
-   */
-  @NoEscape
-  public static final class Internals {
-    private final TagMap map;
-
-    Internals(TagMap map) {
-      this.map = map;
-    }
-
-    /*
-     * Sets a known tag by id without validating it, unlike TagMap.set(long, ...): the caller has
-     * already checked KnownTagCodec.isKnown(tagId).
-     */
-    public void setKnown(long tagId, @Nonnull Object value) {
-      this.map.putKnown(new Entry(tagId, null, Entry.ANY, 0L, value));
-    }
-
-    public void setKnown(long tagId, @Nonnull CharSequence value) {
-      this.map.putKnown(new Entry(tagId, null, EntryReader.OBJECT, 0L, value));
-    }
-
-    public void setKnown(long tagId, boolean value) {
-      this.map.putKnown(
-          new Entry(
-              tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
-    }
-
-    public void setKnown(long tagId, int value) {
-      this.map.putKnown(new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value), null));
-    }
-
-    public void setKnown(long tagId, long value) {
-      this.map.putKnown(new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value), null));
-    }
-
-    public void setKnown(long tagId, float value) {
-      this.map.putKnown(new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value), null));
-    }
-
-    public void setKnown(long tagId, double value) {
-      this.map.putKnown(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
-    }
-
-    /**
-     * The value of the known tag {@code tagId}, boxed if necessary, or null: {@code
-     * getEntry(tagId)}'s value, including read-through, for a caller that needs only the value. A
-     * store that keeps known tags without an Entry per tag can answer without building one.
-     */
-    public Object getKnownValue(long tagId) {
-      return this.map.getKnownValue(tagId);
-    }
-  }
-
-  /** {@code getEntry(tagId)}'s value, or null; see {@link Internals#getKnownValue}. */
+  /** {@code getEntry(tagId)}'s value, or null, for a caller that needs only the value. */
   Object getKnownValue(long tagId) {
-    return this.ids.getKnownValue(tagId);
+    return TagRouting.getKnownValue(this.ids, this.names, tagId);
   }
 
   public void set(long tagId, @Nonnull Object value) {
@@ -1736,7 +1746,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   void putKnown(Entry knownEntry) {
     this.checkWriteAccess();
 
-    this.ids.put(knownEntry);
+    TagRouting.put(this.ids, this.names, knownEntry);
   }
 
   /** {@link #putEntry} for an entry known to be a custom tag's. */
@@ -1805,7 +1815,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   private void putAllOptimizedMap(TagMap that) {
-    if (that.parent != null) {
+    if (that.names.parent != null) {
       // read-through source: the bucket-copy paths only see that's local entries, so they would
       // drop entries visible only through that's ancestor chain (and ignore its tombstones).
       // Union-copy the full visible set instead -- still shares the source Entry objects.
@@ -1816,7 +1826,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void fillMap(Map<? super String, Object> map) {
-    if (this.parent != null) {
+    if (this.names.parent != null) {
       // read-through source: the bucket-only loop below sees just local entries, so it would drop
       // tags visible only through the parent chain (and ignore shadowing/tombstones). Walk the full
       // visible union instead -- mirrors putAllOptimizedMap.
@@ -1827,7 +1837,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
-    if (this.parent != null) {
+    if (this.names.parent != null) {
       // read-through source: walk the visible union so parent-only tags aren't dropped -- see
       // fillMap.
       this.forEach(stringMap, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
@@ -1860,7 +1870,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry getAndRemove(long tagId) {
     this.checkWriteAccess();
 
-    return this.ids.remove(tagId);
+    return TagRouting.removeById(this.ids, this.names, tagId);
   }
 
   public TagMap copy() {

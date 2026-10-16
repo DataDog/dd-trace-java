@@ -15,10 +15,13 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.HashStore;
+import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TagRouting;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -69,7 +72,11 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
+    implements AgentSpanContext,
+        RequestContext,
+        TraceSegment,
+        ProfilerContext,
+        TagMap.DirectionSource {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -157,7 +164,7 @@ public class DDSpanContext
    * -- a write of a tag with an alias takes the plain store path: no second lock, no boxing.
    *
    * <p>Sticky: it is never cleared, so a span that once held a pending alias keeps routing those
-   * tags. Written under the {@code unsafeTags} lock but read without it, deliberately: a setter on
+   * tags. Written under the {@code tagStore} lock but read without it, deliberately: a setter on
    * another thread that has not yet seen the flag is racing the alias write, and the order of two
    * unsynchronized writes is undefined anyway. The writing thread always sees its own update, so no
    * value is lost relative to routing every such write.
@@ -175,8 +182,15 @@ public class DDSpanContext
    * threads, they will rarely, if ever, be read and modified concurrently by multiple threads but
    * rather read and accessed in a serial fashion on thread after thread. The synchronization can
    * then be wrapped around bulk operations to minimize the costly atomic operations.
+   *
+   * <p>The span owns its tag stores directly: {@code tagStore} holds the custom tags, and the known
+   * tags too in hash mode; {@code tagIds} holds the known tags otherwise (null in hash mode). Every
+   * access goes through {@link TagRouting}, under one lock that guards both: {@code tagStore}
+   * itself. Internal readers get a {@link #tagView() view}.
    */
-  private final TagMap unsafeTags;
+  private final HashStore tagStore;
+
+  private final IdStore tagIds;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -441,13 +455,9 @@ public class DDSpanContext
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
 
-    // The +1 is the magic number from the tags below that we set at the end,
-    // and "* 4 / 3" is to make sure that we don't resize immediately
-    final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags =
-        readThroughParent != null
-            ? TagMap.createFromParent(readThroughParent)
-            : TagMap.create(capacity);
+    // Reads through to the frozen tracer-level tags, if any.
+    this.tagStore = new HashStore(TagMap.readThroughStore(readThroughParent));
+    this.tagIds = TagRouting.idStoreFor(this.tagStore);
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -696,7 +706,7 @@ public class DDSpanContext
     if (map == null) {
       return;
     }
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       map.forEach(
           this,
           (ctx, tagEntry) -> {
@@ -829,7 +839,7 @@ public class DDSpanContext
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
@@ -958,20 +968,29 @@ public class DDSpanContext
     spanKindOrdinal = spanKindOrdinalOf(kind);
     // Checked under the lock alias registration takes: a writer that read no direction registers
     // its pending alias before this sees the flag, or reads the new kind and resolves at write.
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       if (hasPendingAliases()) {
         // The span now has a direction: fold pending aliases into the tags they denote, so every
         // later reader (peer service naming, stats, sampling rules, serialization) sees them
         // resolved.
-        DirectionalTags.resolveScopedNames(unsafeTags, tagDirection());
+        DirectionalTags.resolveScopedNames(tagIds, tagStore, tagDirection());
       }
     }
   }
 
   /**
+   * A live view of this span's tag stores, for its internal readers: post-processors and the
+   * serializer. Use it only under the {@code tagStore} lock, and only while holding it.
+   */
+  private TagMap tagView() {
+    return TagMap.viewOf(tagIds, tagStore, this);
+  }
+
+  /**
    * The direction this span reads direction-dependent tag names in; see {@link DirectionalTags}.
    */
-  private int tagDirection() {
+  @Override
+  public int tagDirection() {
     return TAG_DIRECTION_OF_SPAN_KIND[spanKindOrdinal];
   }
 
@@ -1006,8 +1025,9 @@ public class DDSpanContext
       return SPAN_KIND_VALUES[ordinal];
     }
     // UNSET or CUSTOM -- fall through to tag map
-    synchronized (unsafeTags) {
-      return unsafeTags.getString(Tags.SPAN_KIND);
+    synchronized (tagStore) {
+      TagMap.Entry kind = TagRouting.getById(tagIds, tagStore, KnownTags.SPAN_KIND_ID);
+      return kind == null ? null : kind.stringValue();
     }
   }
 
@@ -1018,31 +1038,31 @@ public class DDSpanContext
   }
 
   public void setMetric(final CharSequence key, final Number value) {
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       unsafeSetTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final int value) {
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       storeTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final long value) {
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       storeTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final float value) {
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       storeTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final double value) {
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       storeTag(key.toString(), value);
     }
   }
@@ -1052,7 +1072,7 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       storeEntry(entry);
     }
   }
@@ -1065,7 +1085,7 @@ public class DDSpanContext
    * without ordering state; every other name costs nothing extra. Known corner, accepted: before
    * the span has a kind, writing an alias and then either of its possible tags drops the alias,
    * even when the eventual kind maps it to the other tag (see DirectionalTags). Call while holding the
-   * unsafeTags lock.
+   * tagStore lock.
    */
   private long writeKeyOf(String tag) {
     long key = KnownTagCodec.keyOrAliasOf(tag);
@@ -1076,7 +1096,7 @@ public class DDSpanContext
     if (key == 0) {
       return 0L;
     }
-    long aliasedId = DirectionalTags.prepareAliasWrite(unsafeTags, tag, tagDirection());
+    long aliasedId = DirectionalTags.prepareAliasWrite(tagIds, tagStore, tag, tagDirection());
     if (aliasedId > 0) {
       return aliasedId;
     }
@@ -1086,7 +1106,7 @@ public class DDSpanContext
 
   /**
    * Notes that an alias is being stored as written, so later writes of a tag with an alias are
-   * routed to supersede it. Call while holding the {@code unsafeTags} lock.
+   * routed to supersede it. Call while holding the {@code tagStore} lock.
    */
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
@@ -1096,36 +1116,37 @@ public class DDSpanContext
   }
 
   /** True once any alias has been stored as written; see {@link #routedTagFlags}. */
-  boolean hasPendingAliases() {
+  @Override
+  public boolean hasPendingAliases() {
     return (routedTagFlags & KnownTagCodec.HAS_SCOPED_ALIAS) != 0;
   }
 
   private void storeTag(String tag, Object value) {
-    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
+    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, CharSequence value) {
-    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
+    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, boolean value) {
-    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
+    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, int value) {
-    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
+    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, long value) {
-    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
+    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, float value) {
-    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
+    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, double value) {
-    unsafeTags.setResolved(writeKeyOf(tag), tag, value);
+    TagRouting.set(tagIds, tagStore, writeKeyOf(tag), tag, value);
   }
 
   /** {@link #storeTag} for an entry, which carries its id: no lookup unless it may be an alias. */
@@ -1133,30 +1154,39 @@ public class DDSpanContext
     long tagId = entry.tagId();
     if (tagId != 0) {
       supersedePendingAliases(tagId);
-      unsafeTags.set(entry);
+      putEntry(entry);
     } else if (KnownTagCodec.mayBeScopedAlias(entry.tag())) {
-      long aliasedId = DirectionalTags.prepareAliasWrite(unsafeTags, entry.tag(), tagDirection());
+      long aliasedId =
+          DirectionalTags.prepareAliasWrite(tagIds, tagStore, entry.tag(), tagDirection());
       if (aliasedId > 0) {
-        unsafeTags.set(aliasedId, entry.objectValue());
+        TagRouting.setKnown(tagIds, tagStore, aliasedId, entry.objectValue());
       } else {
         if (aliasedId < 0) {
           notePendingAlias(); // a real alias, stored as written; 0 is a filter false positive
         }
-        unsafeTags.set(entry);
+        putEntry(entry);
       }
     } else {
-      unsafeTags.set(entry);
+      putEntry(entry);
+    }
+  }
+
+  /** Stores {@code entry} as is, sharing its Entry; a reader with no entry is a no-op. */
+  private void putEntry(TagMap.EntryReader entry) {
+    TagMap.Entry e = entry.entry();
+    if (e != null) {
+      TagRouting.put(tagIds, tagStore, e);
     }
   }
 
   public void removeTag(String tag) {
     if (tagEquals(tag, Tags.SPAN_KIND)) {
-      // Clear the cached ordinal; unsafeTags still needs to be updated below.
+      // Clear the cached ordinal; the tag store still needs to be updated below.
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       // A direction-dependent name and the tag it denotes here are removed together.
-      DirectionalTags.remove(unsafeTags, tag, tagDirection());
+      DirectionalTags.remove(tagIds, tagStore, tag, tagDirection());
     }
   }
 
@@ -1173,8 +1203,8 @@ public class DDSpanContext
     if (tagId == KnownTags.SPAN_KIND_ID) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
-    synchronized (unsafeTags) {
-      DirectionalTags.remove(unsafeTags, tagId, tagDirection());
+    synchronized (tagStore) {
+      DirectionalTags.remove(tagIds, tagStore, tagId, tagDirection());
     }
   }
 
@@ -1240,10 +1270,11 @@ public class DDSpanContext
    */
   private boolean isPresent(TagMap.EntryReader entry) {
     if (KnownTagCodec.isDirectionDependent(entry)) {
-      return DirectionalTags.get(unsafeTags, entry.tag(), tagDirection(), hasPendingAliases())
+      return DirectionalTags.get(tagIds, tagStore, entry.tag(), tagDirection(), hasPendingAliases())
           != null;
     }
-    return unsafeTags.containsKey(entry.tag());
+    String tag = entry.tag();
+    return TagRouting.get(tagIds, tagStore, TagRouting.keyOf(tag), tag) != null;
   }
 
   public void setTag(final String tag, final Object value) {
@@ -1256,7 +1287,7 @@ public class DDSpanContext
     } else if (null == value) {
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeTag(tag, value);
       }
     }
@@ -1272,7 +1303,7 @@ public class DDSpanContext
     } else if (null == value) {
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeTag(tag, value);
       }
     }
@@ -1290,18 +1321,18 @@ public class DDSpanContext
     if (!hasPendingAliases()) {
       return; // entry paths route on the constant mask; nothing to supersede
     }
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       supersedePendingAliases(tagId);
     }
   }
 
   /**
    * Removes the pending aliases a write of {@code tagId} supersedes, if it has an alias and the
-   * span holds any. Callers hold the {@code unsafeTags} lock.
+   * span holds any. Callers hold the {@code tagStore} lock.
    */
   private void supersedePendingAliases(long tagId) {
     if (KnownTagCodec.hasScopedAlias(tagId) && hasPendingAliases()) {
-      DirectionalTags.prepareWrite(unsafeTags, tagId, tagDirection());
+      DirectionalTags.prepareWrite(tagIds, tagStore, tagId, tagDirection());
     }
   }
 
@@ -1318,8 +1349,8 @@ public class DDSpanContext
       removeTag(tagId);
     } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, value);
       }
     }
   }
@@ -1332,8 +1363,8 @@ public class DDSpanContext
       removeTag(tagId);
     } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
         || !tagInterceptor.interceptTag(this, tagId, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, value);
       }
     }
   }
@@ -1345,8 +1376,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, value);
       }
     }
   }
@@ -1358,8 +1389,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, value);
       }
     }
   }
@@ -1371,8 +1402,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, value);
       }
     }
   }
@@ -1384,8 +1415,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, value);
       }
     }
   }
@@ -1397,8 +1428,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, value);
       }
     }
   }
@@ -1410,7 +1441,7 @@ public class DDSpanContext
 
     // the interceptor prechecks the entry, to avoid boxing
     if (!interceptEntry(entry)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeEntry(entry);
       }
     }
@@ -1430,8 +1461,8 @@ public class DDSpanContext
    */
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
+      synchronized (tagStore) {
+        TagRouting.setKnown(tagIds, tagStore, tagId, box);
       }
     }
   }
@@ -1445,7 +1476,7 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeTag(tag, value);
       }
     }
@@ -1460,7 +1491,7 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeTag(tag, value);
       }
     }
@@ -1475,7 +1506,7 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeTag(tag, value);
       }
     }
@@ -1490,7 +1521,7 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeTag(tag, value);
       }
     }
@@ -1505,7 +1536,7 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         storeTag(tag, value);
       }
     }
@@ -1520,7 +1551,7 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       if (needsIntercept) {
         // forEach out-performs the iterator of TagMap
         // Taking advantage of ability to pass through other context arguments
@@ -1534,7 +1565,7 @@ public class DDSpanContext
             });
       } else {
         // needsIntercept(TagMap) is also true for a map with a direction-dependent name.
-        unsafeTags.putAll(map);
+        TagRouting.putAll(tagIds, tagStore, map);
       }
     }
   }
@@ -1544,16 +1575,16 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       for (final TagMap.EntryChange entryChange : ledger) {
         String tag = entryChange.tag();
         if (entryChange.isRemoval()) {
           if (tagEquals(tag, Tags.SPAN_KIND)) {
-            // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
+            // mirror removeTag(String): keep the cached ordinal in sync with the tags
             spanKindOrdinal = SPAN_KIND_UNSET;
           }
           // as removeTag(String): a direction-dependent name and the tag it denotes go together
-          DirectionalTags.remove(unsafeTags, tag, tagDirection());
+          DirectionalTags.remove(tagIds, tagStore, tag, tagDirection());
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
@@ -1571,7 +1602,7 @@ public class DDSpanContext
     } else if (map instanceof TagMap) {
       setAllTags((TagMap) map);
     } else if (!map.isEmpty()) {
-      synchronized (unsafeTags) {
+      synchronized (tagStore) {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
           long tagId = idForWrite(tag.getKey());
           boolean intercepted =
@@ -1616,7 +1647,7 @@ public class DDSpanContext
         return getSpanKindString();
       default:
         Object value;
-        synchronized (unsafeTags) {
+        synchronized (tagStore) {
           value = unsafeGetTag(key);
         }
         // maintain previously observable type of http url :|
@@ -1632,13 +1663,13 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return DirectionalTags.get(unsafeTags, tag, tagDirection(), hasPendingAliases());
+    return DirectionalTags.get(tagIds, tagStore, tag, tagDirection(), hasPendingAliases());
   }
 
   @Deprecated
   public TagMap getTags() {
-    synchronized (unsafeTags) {
-      TagMap tags = unsafeTags.copy();
+    synchronized (tagStore) {
+      TagMap tags = tagView().copy();
 
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
@@ -1690,8 +1721,8 @@ public class DDSpanContext
   }
 
   void earlyProcessTags(AppendableSpanLinks links) {
-    synchronized (unsafeTags) {
-      TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
+    synchronized (tagStore) {
+      TagsPostProcessorFactory.eagerProcessor().processTags(tagView(), this, links);
     }
   }
 
@@ -1720,15 +1751,18 @@ public class DDSpanContext
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
+      // One live view of the tag stores, for the post-processors and the serializer
+      TagMap tags = tagView();
+
       // Tags
-      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
+      TagsPostProcessorFactory.lazyProcessor().processTags(tags, this, restrictedSpan);
 
       // Links
       if (injectLinksAsTags) {
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
-          unsafeTags.set(SPAN_LINKS, linksTag);
+          tags.set(SPAN_LINKS, linksTag);
         }
       }
 
@@ -1737,7 +1771,7 @@ public class DDSpanContext
       if (injectEventsAsTags) {
         String eventsTag = spanEventsToTag(events);
         if (eventsTag != null) {
-          unsafeTags.set(SPAN_EVENTS, eventsTag);
+          tags.set(SPAN_EVENTS, eventsTag);
         }
       }
 
@@ -1762,7 +1796,7 @@ public class DDSpanContext
           new Metadata(
               threadId,
               threadName,
-              unsafeTags,
+              tags,
               baggageItemsWithPropagationTags,
               getSamplingPriority(),
               measured,
@@ -1925,7 +1959,7 @@ public class DDSpanContext
       s.append(" *measured*");
     }
 
-    synchronized (unsafeTags) {
+    synchronized (tagStore) {
       s.append(" tags=").append(new TreeMap<>(getTags()));
     }
     return s.toString();
