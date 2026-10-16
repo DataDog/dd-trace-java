@@ -40,8 +40,17 @@ public final class SmokeDiagnosticsBridge {
     }
     enabledChecks = checks;
     exclusionReason = reason;
+    String corePackage = "datadog.trace.agent.core";
+    try {
+      Class.forName(
+          corePackage + ".scopemanager.ScopeContinuation",
+          false,
+          SmokeDiagnosticsBridge.class.getClassLoader());
+    } catch (ClassNotFoundException unrelocatedAgent) {
+      corePackage = "datadog.trace.core";
+    }
     ScopeContinuationTransformer.install(
-        instrumentation, "datadog.trace.agent.core", new ClassFileLocator.Simple(classes));
+        instrumentation, corePackage, new ClassFileLocator.Simple(classes));
   }
 
   public static synchronized void start() {

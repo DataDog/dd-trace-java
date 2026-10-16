@@ -266,7 +266,7 @@ abstract class ProcessManager extends Specification {
     builder.environment().replaceAll { String key, String value ->
       if (value.contains(SCOPE_DIAGNOSTICS_ARGUMENT)) {
         found = true
-        return value.replace(SCOPE_DIAGNOSTICS_ARGUMENT, argument)
+        return value.replace(SCOPE_DIAGNOSTICS_ARGUMENT, argument.replace(' ', '\\ '))
       }
       value
     }
