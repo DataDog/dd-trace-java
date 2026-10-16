@@ -1,11 +1,18 @@
 package com.datadog.profiling.controller;
 
+import com.datadoghq.profiler.LibraryLoader;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.libs.ddprof.DdprofLibraryLoader;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.TempLocationManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -28,8 +35,42 @@ public final class EnvironmentChecker {
     sbSupplier.get().append(System.lineSeparator());
   }
 
+  /** Checks a candidate temporary location for standalone CLI diagnostics. */
   @SuppressForbidden
   public static boolean checkEnvironment(String temp, StringBuilder sb) {
+    if (!checkJvm(sb)) {
+      return false;
+    }
+    if (!checkTempLocation(temp, sb)) {
+      appendLine("Profiler will not work properly due to issues with temp directory location.", sb);
+      return false;
+    } else {
+      if (!temp.equals(SystemProperties.get("java.io.tmpdir"))) {
+        appendLine(
+            () ->
+                sb.append("! Make sure to add '-Ddd.profiling.tempdir=")
+                    .append(temp)
+                    .append("' to your JVM command line !"));
+      }
+    }
+    appendLine("Profiler is ready to be used.", sb);
+    return true;
+  }
+
+  /** Checks the current application's profiling environment using the profiler's own loader. */
+  public static boolean checkEnvironment(StringBuilder sb) {
+    if (!checkJvm(sb)) {
+      return false;
+    }
+
+    boolean result = checkProfilerTempDir(sb);
+    result &= checkProfilerLibrary(sb);
+    appendLine(result ? "Profiler is ready to be used." : "Profiler environment check failed.", sb);
+    return result;
+  }
+
+  @SuppressForbidden
+  private static boolean checkJvm(StringBuilder sb) {
     if (!JavaVirtualMachine.isJavaVersionAtLeast(8)) {
       appendLine("Profiler requires Java 8 or newer", sb);
       return false;
@@ -55,20 +96,103 @@ public final class EnvironmentChecker {
       appendLine("Profiler is supported on this JVM.", sb);
     }
     sb.append(System.lineSeparator());
-    if (!checkTempLocation(temp, sb)) {
-      appendLine("Profiler will not work properly due to issues with temp directory location.", sb);
+    return true;
+  }
+
+  private static boolean checkProfilerTempDir(StringBuilder sb) {
+    Path tempDir;
+    try {
+      tempDir = TempLocationManager.getInstance().getTempDir();
+    } catch (Throwable t) {
+      appendLine("Unable to obtain profiler temporary directory.", sb);
+      appendStackTrace(t, sb);
       return false;
-    } else {
-      if (!temp.equals(SystemProperties.get("java.io.tmpdir"))) {
+    }
+
+    appendLine(() -> sb.append("Checking profiler temporary directory: ").append(tempDir));
+    try {
+      Files.delete(Files.createTempFile(tempDir, "env-check", ".tmp"));
+      appendLine("Profiler temporary directory is writable", sb);
+      return true;
+    } catch (Throwable t) {
+      appendLine(() -> sb.append("Unable to create test file in ").append(tempDir));
+      if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+        appendLine(() -> sb.append("Permissions: ").append(getPermissionsStringSafe(tempDir)));
+      }
+      appendStackTrace(t, sb);
+      return false;
+    }
+  }
+
+  private static boolean checkProfilerLibrary(StringBuilder sb) {
+    if (!OperatingSystem.isLinux()) {
+      appendLine("Skipping native library check on non-linux platform", sb);
+      return true;
+    }
+
+    DdprofLibraryLoader.JavaProfilerHolder profiler = DdprofLibraryLoader.javaProfiler();
+    if (profiler.isLoaded()) {
+      appendLine("Native library loaded successfully", sb);
+      return true;
+    }
+    if (profiler.isLoadAttempted()) {
+      appendLine("Datadog profiler failed to load earlier in this JVM:", sb);
+      appendStackTrace(profiler.getReasonNotLoaded(), sb);
+      return false;
+    }
+
+    appendLine("Checking native library loading using the profiling library loader.", sb);
+    Throwable failure;
+    try {
+      ConfigProvider configuration = ConfigProvider.getInstance();
+      LibraryLoader.Result result =
+          LibraryLoader.builder()
+              .withLibraryLocation(
+                  configuration.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH))
+              .withScratchDir(DdprofLibraryLoader.getScratchDir(configuration))
+              .load();
+
+      if (result.succeeded) {
+        appendLine("Native library loaded successfully", sb);
+        return true;
+      }
+
+      // the loader reports the original error only once; look it up in the components which
+      // may have attempted the load earlier
+      failure = result.error != null ? result.error : earlierLibraryFailure();
+      if (failure == null) {
         appendLine(
-            () ->
-                sb.append("! Make sure to add '-Ddd.profiling.tempdir=")
-                    .append(temp)
-                    .append("' to your JVM command line !"));
+            "An earlier native library load failed. The loader does not retry within this JVM. "
+                + "Check application startup logs for the original error; restart after addressing the cause.",
+            sb);
+      }
+    } catch (Throwable t) {
+      failure = t;
+    }
+
+    appendLine("Unable to load native library using the profiling library loader.", sb);
+    appendStackTrace(failure, sb);
+    return false;
+  }
+
+  private static Throwable earlierLibraryFailure() {
+    for (DdprofLibraryLoader.ComponentHolder<?> holder :
+        new DdprofLibraryLoader.ComponentHolder<?>[] {
+          DdprofLibraryLoader.jvmAccess(), DdprofLibraryLoader.otelContext()
+        }) {
+      if (holder.isLoadAttempted() && holder.getReasonNotLoaded() != null) {
+        return holder.getReasonNotLoaded();
       }
     }
-    appendLine("Profiler is ready to be used.", sb);
-    return true;
+    return null;
+  }
+
+  private static void appendStackTrace(Throwable t, StringBuilder sb) {
+    if (t != null) {
+      StringWriter stackTrace = new StringWriter();
+      t.printStackTrace(new PrintWriter(stackTrace));
+      appendLine(stackTrace.toString(), sb);
+    }
   }
 
   @SuppressForbidden

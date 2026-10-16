@@ -61,6 +61,19 @@ public final class DdprofLibraryLoader {
       }
     }
 
+    /**
+     * Returns whether a load of this component has been attempted (successfully or not), without
+     * triggering one.
+     */
+    public final boolean isLoadAttempted() {
+      return loaded;
+    }
+
+    /** Returns whether this component was successfully loaded, without initializing it. */
+    public final boolean isLoaded() {
+      return loaded && component != null;
+    }
+
     public final T getComponent() {
       initialize();
       return component;
@@ -182,7 +195,8 @@ public final class DdprofLibraryLoader {
     return new OTelContextHolder(otelContext, reasonNotLoaded.get());
   }
 
-  private static String getScratchDir(ConfigProvider configProvider) throws IOException {
+  /** Returns the scratch directory used to load the native profiler library. */
+  public static String getScratchDir(ConfigProvider configProvider) throws IOException {
     String scratch = configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH);
     if (scratch == null) {
       Path scratchPath = TempLocationManager.getInstance().getTempDir().resolve("scratch");
