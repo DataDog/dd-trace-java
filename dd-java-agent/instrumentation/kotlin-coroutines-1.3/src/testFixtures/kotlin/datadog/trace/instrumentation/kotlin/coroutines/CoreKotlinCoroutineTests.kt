@@ -11,6 +11,9 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
@@ -21,13 +24,35 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 
 abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
+
+  fun launchWithCancelledParent() {
+    val queuedDispatcher = object : CoroutineDispatcher() {
+      var pending: Runnable? = null
+
+      override fun dispatch(context: CoroutineContext, block: Runnable) {
+        check(pending == null) { "Unexpected second dispatch" }
+        pending = block
+      }
+    }
+    val parent = Job()
+    parent.cancel()
+
+    val child = CoroutineScope(parent + queuedDispatcher).launch {
+      error("A child of an already-cancelled parent must not execute")
+    }
+
+    checkNotNull(queuedDispatcher.pending) { "Cancellation was not dispatched" }.run()
+    check(child.isCompleted && child.isCancelled) { "Child did not complete cancellation" }
+  }
 
   @Trace
   open fun tracePreventedByCancellation(): Int {
@@ -386,5 +411,156 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
   protected fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
     setAsyncPropagationEnabled(asyncPropagation)
     return runBlocking(jobName("test") + dispatcher, block = block)
+  }
+
+  // The following tests start a detached coroutine that outlives the method's root span. Its
+  // children wait on a gate that is only released by finishDetached(), after the root span has
+  // finished, so only coroutine continuations can keep the trace open until the children finish.
+
+  private val gate = CompletableDeferred<Unit>()
+  private var detached: Job? = null
+
+  /** Releases the children of the detached coroutine and waits for it to complete. */
+  fun finishDetached() {
+    gate.complete(Unit)
+    runBlocking { detached?.join() }
+  }
+
+  /** Cancels the detached coroutine and waits for it to complete. */
+  fun cancelDetached() {
+    detached?.cancel()
+    runBlocking { detached?.join() }
+  }
+
+  /** Children launched with their parent's context, from a span the parent finishes early. */
+  @Trace
+  open fun structuredChildrenOutliveSeedSpan(): Int {
+    runTest {
+      detached = launch(Job() + jobName("detached")) {
+        childSpan("seed").activateAndUse {
+          launch(coroutineContext + jobName("child")) {
+            gate.await()
+            childSpan("child").activateAndUse {
+              launch(coroutineContext + jobName("grandchild")) {
+                childSpan("grandchild").finish()
+              }
+            }
+          }
+        }
+      }
+    }
+    return 4
+  }
+
+  /** A structured child launched after a scoped coroutine has completed in its parent. */
+  open fun structuredChildAfterScopedCoroutine(scoped: String): Int {
+    runTest {
+      childSpan("root").activateAndUse {
+        val seedFinished = CompletableDeferred<Unit>()
+        detached = launch(Job() + jobName("detached")) {
+          childSpan("seed").activateAndUse {
+            when (scoped) {
+              "none" -> Unit
+              "withContext" -> withContext(jobName("scoped")) {}
+              "coroutineScope" -> coroutineScope {}
+              "withTimeout" -> withTimeout(30_000) {}
+              else -> error("Unknown scoped coroutine: $scoped")
+            }
+            launch(coroutineContext + jobName("child")) {
+              gate.await()
+              childSpan("child").finish()
+            }
+          }
+          seedFinished.complete(Unit)
+        }
+        // Finish both spans before opening the child's gate, regardless of dispatcher timing.
+        seedFinished.await()
+      }
+    }
+    return 3
+  }
+
+  /** Children launched with the context of scoped coroutines inside their parent. */
+  @Trace
+  open fun structuredChildrenOfScopedCoroutines(): Int {
+    runTest {
+      detached = launch(Job() + jobName("detached")) {
+        childSpan("seed").activateAndUse {
+          coroutineScope {
+            launch(coroutineContext + jobName("scope-child")) {
+              gate.await()
+              childSpan("scope-child").finish()
+            }
+          }
+          withContext(jobName("with-context")) {
+            launch(coroutineContext + jobName("context-child")) {
+              gate.await()
+              childSpan("context-child").finish()
+            }
+          }
+        }
+      }
+    }
+    return 4
+  }
+
+  /** A child launched with its parent's context, when the parent started without a trace. */
+  open fun structuredChildOfUntracedCoroutine(): Int {
+    runTest {
+      detached = launch(Job() + jobName("detached")) {
+        childSpan("root").activateAndUse {
+          val started = CompletableDeferred<Unit>()
+          launch(coroutineContext + jobName("child")) {
+            started.complete(Unit)
+            gate.await()
+            childSpan("child").finish()
+          }
+          // the child's first dispatch can keep the trace open, so finish the root after it
+          started.await()
+        }
+      }
+    }
+    return 2
+  }
+
+  /** A child launched with its parent's context but a different job, so not a structured child. */
+  @Trace
+  open fun childWithReplacedJob(supervisor: Boolean): Int {
+    runTest {
+      val job = if (supervisor) SupervisorJob() else Job()
+      val started = CompletableDeferred<Unit>()
+      detached = launch(coroutineContext + job + jobName("detached")) {
+        started.complete(Unit)
+        gate.await()
+        childSpan("child").finish()
+      }
+      // the child's first dispatch can keep the trace open, so finish the root after it
+      started.await()
+    }
+    return 2
+  }
+
+  /** A structured child that only adds its span while its cancelled parent waits for it. */
+  @Trace
+  open fun structuredChildOfCancelledCoroutine(): Int {
+    runTest {
+      val started = CompletableDeferred<Unit>()
+      detached = launch(Job() + jobName("detached")) {
+        launch(coroutineContext + jobName("child")) {
+          try {
+            started.complete(Unit)
+            CompletableDeferred<Unit>().await()
+          } finally {
+            withContext(NonCancellable) {
+              delay(50)
+              childSpan("cleanup").finish()
+            }
+          }
+        }
+      }
+      // a child cancelled before it starts never runs its finally block
+      started.await()
+    }
+    return 2
   }
 }

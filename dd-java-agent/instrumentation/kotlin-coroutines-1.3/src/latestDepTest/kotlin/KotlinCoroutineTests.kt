@@ -12,7 +12,7 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
 
   @Trace
   fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
-    val producer = flow {
+    val producer = flow<Int> {
       repeat(3) {
         tracedChild("produce_$it")
         if (withModifiedContext) {
@@ -36,7 +36,7 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
 
   @Trace
   fun traceAfterFlow(): Int = runTest {
-    val f = flow {
+    val f = flow<Int> {
       childSpan("inside-flow").activateAndUse {
         println("insideFlowSpan")
       }
@@ -50,6 +50,18 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
 
     3
   }
+
+  @Trace
+  override fun structuredChildrenOutliveSeedSpan(): Int = super.structuredChildrenOutliveSeedSpan()
+
+  @Trace
+  override fun structuredChildrenOfScopedCoroutines(): Int = super.structuredChildrenOfScopedCoroutines()
+
+  @Trace
+  override fun childWithReplacedJob(supervisor: Boolean): Int = super.childWithReplacedJob(supervisor)
+
+  @Trace
+  override fun structuredChildOfCancelledCoroutine(): Int = super.structuredChildOfCancelledCoroutine()
 
   @Trace
   override fun tracePreventedByCancellation(): Int = super.tracePreventedByCancellation()
