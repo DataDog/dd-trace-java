@@ -1036,7 +1036,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           "$Tags.HTTP_STATUS" status
         }
         if (otelSemantics) {
-          "$DDTags.HTTP_QUERY" null
+          "$DDTags.HTTP_QUERY_OTEL_NAME" null
           "$KnownTags.URL_QUERY_NAME" null
           "$DDTags.HTTP_FRAGMENT" null
         } else if (tagQueryString) {

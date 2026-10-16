@@ -45,7 +45,7 @@ public final class OtelHttpSemantics {
       // QueryObfuscator scrubs this before rebuilding url.full and removes it from client spans.
       final String query = url.getRawQuery();
       if (query != null) {
-        span.setTag(KnownTags.URL_QUERY_NAME, query);
+        span.setTag(DDTags.HTTP_QUERY_OTEL_NAME, query);
       }
     }
   }

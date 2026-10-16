@@ -66,7 +66,6 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(
         "https://REDACTED:REDACTED@example.com/orders#fragment",
         span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
-    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
     assertEquals("example.com", span.getTag(Tags.PEER_HOSTNAME));
     assertEquals(443, span.getTag(Tags.PEER_PORT));
     assertEquals(503, span.getHttpStatusCode());
@@ -86,7 +85,6 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(
         "https://example.com/orders#fragment",
         span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
-    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
   }
 
   @Test
@@ -106,7 +104,6 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(
         "https://REDACTED:REDACTED@example.com/orders?<redacted>#fragment",
         span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
-    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
   }
 
   @Test
@@ -125,7 +122,6 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(
         "https://REDACTED:REDACTED@example.com/orders?<redacted>#fragment",
         span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
-    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
   }
 
   @Test

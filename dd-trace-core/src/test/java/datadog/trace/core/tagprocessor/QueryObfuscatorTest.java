@@ -145,7 +145,7 @@ class QueryObfuscatorTest extends DDJavaSpecification {
     "OpenTelemetry | true          "
   })
   void invalidRegexDropsQueryString(boolean otelSemantics) {
-    String queryTag = otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY;
+    String queryTag = otelSemantics ? DDTags.HTTP_QUERY_OTEL_NAME : DDTags.HTTP_QUERY;
     TagMap unsafeTags =
         process(new QueryObfuscator("(?<=a)b", otelSemantics), "pwd=secret", queryTag);
 
@@ -182,7 +182,7 @@ class QueryObfuscatorTest extends DDJavaSpecification {
           }
         };
 
-    String queryTag = otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY;
+    String queryTag = otelSemantics ? DDTags.HTTP_QUERY_OTEL_NAME : DDTags.HTTP_QUERY;
     TagMap unsafeTags =
         assertDoesNotThrow(
             () -> process(new QueryObfuscator(null, otelSemantics), failing, queryTag));

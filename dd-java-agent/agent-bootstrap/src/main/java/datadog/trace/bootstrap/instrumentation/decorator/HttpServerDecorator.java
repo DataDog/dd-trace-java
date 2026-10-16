@@ -395,7 +395,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
             if (OTEL_SEMANTICS) {
               if (query != null && !query.isEmpty()) {
-                span.setTag(KnownTags.URL_QUERY_NAME, query);
+                span.setTag(DDTags.HTTP_QUERY_OTEL_NAME, query);
               }
             } else {
               span.setTag(DDTags.HTTP_QUERY, query);
