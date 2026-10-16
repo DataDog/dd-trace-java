@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
@@ -222,22 +223,23 @@ public class DebuggerTransformer implements ClassFileTransformer {
         continue;
       }
       try {
-        Files.lines(excludePath)
-            .forEach(
-                line -> {
-                  if (line.startsWith("#")) {
-                    return;
-                  }
-                  if (line.endsWith("*")) {
-                    prefixes.insert(line.substring(0, line.length() - 1));
-                    return;
-                  }
-                  if (line.contains("::")) {
-                    methods.add(line);
-                    return;
-                  }
-                  classes.add(line);
-                });
+        try (Stream<String> lines = Files.lines(excludePath)) {
+          lines.forEach(
+              line -> {
+                if (line.startsWith("#")) {
+                  return;
+                }
+                if (line.endsWith("*")) {
+                  prefixes.insert(line.substring(0, line.length() - 1));
+                  return;
+                }
+                if (line.contains("::")) {
+                  methods.add(line);
+                  return;
+                }
+                classes.add(line);
+              });
+        }
       } catch (IOException ex) {
         LOGGER.warn("Error reading exclude file '{}' for Instrument-The-World: ", fileName, ex);
       }

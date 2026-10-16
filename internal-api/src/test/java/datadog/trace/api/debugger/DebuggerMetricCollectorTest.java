@@ -41,7 +41,7 @@ class DebuggerMetricCollectorTest {
     Collection<DebuggerMetric> metrics = collector.drain();
     assertEquals(1, metrics.size());
     DebuggerMetric metric = metrics.iterator().next();
-    assertEquals("live_debugger", metric.namespace);
+    assertEquals("debugger", metric.namespace);
     assertEquals("events.dropped", metric.metricName);
     assertEquals("count", metric.type);
     assertTrue(metric.common);

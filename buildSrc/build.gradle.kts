@@ -130,6 +130,7 @@ testing {
     named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
+        implementation(libs.okhttp3.mockwebserver)
       }
       targets.configureEach {
         testTask.configure {
