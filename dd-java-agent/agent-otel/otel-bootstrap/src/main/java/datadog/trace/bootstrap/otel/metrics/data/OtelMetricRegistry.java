@@ -10,10 +10,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-/**
- * Tracks metric storage and observable callbacks by instrumentation scope, and the action shutting
- * down the metrics exporter.
- */
+/** Tracks metric storage, observable callbacks by instrumentation scope, and lifecycle hooks. */
 public final class OtelMetricRegistry {
   public static final OtelMetricRegistry INSTANCE = new OtelMetricRegistry();
 
@@ -23,7 +20,7 @@ public final class OtelMetricRegistry {
   private final Map<OtelInstrumentationScope, List<OtelObservable>> scopedObservables =
       new ConcurrentHashMap<>();
 
-  private volatile Runnable exporterShutdown;
+  private volatile Runnable shutdownHook;
 
   public OtelMetricStorage registerStorage(
       OtelInstrumentationScope instrumentationScope,
@@ -54,20 +51,16 @@ public final class OtelMetricRegistry {
     }
   }
 
-  /**
-   * Registers the action that performs a final export, then shuts down the metrics exporter.
-   *
-   * @param exporterShutdown the action to run when the {@code MeterProvider} is closed
-   */
-  public void registerExporterShutdown(Runnable exporterShutdown) {
-    this.exporterShutdown = exporterShutdown;
+  /** Registers the action to run when this registry is shut down. */
+  public void registerShutdownHook(Runnable shutdownHook) {
+    this.shutdownHook = shutdownHook;
   }
 
-  /** Performs a final export, then shuts down the metrics exporter, if one is registered. */
-  public void shutdownExporter() {
-    Runnable exporterShutdown = this.exporterShutdown;
-    if (exporterShutdown != null) {
-      exporterShutdown.run();
+  /** Runs the registered shutdown hook. */
+  public void shutdown() {
+    Runnable shutdownHook = this.shutdownHook;
+    if (shutdownHook != null) {
+      shutdownHook.run();
     }
   }
 

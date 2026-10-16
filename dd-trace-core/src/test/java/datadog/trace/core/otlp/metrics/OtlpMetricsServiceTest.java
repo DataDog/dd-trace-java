@@ -45,7 +45,7 @@ class OtlpMetricsServiceTest {
   @AfterEach
   void stopSchedulers() {
     schedulers.forEach(scheduler -> scheduler.shutdown(0, MILLISECONDS));
-    OtelMetricRegistry.INSTANCE.registerExporterShutdown(null);
+    OtelMetricRegistry.INSTANCE.registerShutdownHook(null);
   }
 
   @Test
@@ -101,11 +101,11 @@ class OtlpMetricsServiceTest {
   }
 
   @Test
-  void startRegistersExporterShutdown() {
+  void startRegistersShutdownHook() {
     TestService test = service(PAYLOAD);
     when(test.sender.send(PAYLOAD)).thenReturn(success(200));
 
-    OtelMetricRegistry.INSTANCE.shutdownExporter();
+    OtelMetricRegistry.INSTANCE.shutdown();
 
     verify(test.sender).send(PAYLOAD);
     verify(test.sender).shutdown();

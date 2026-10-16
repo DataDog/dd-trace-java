@@ -46,12 +46,12 @@ public final class OtelMeterProvider implements MeterProvider, Closeable {
   }
 
   /**
-   * Performs a final export of the recorded metrics, then stops exporting them. Waits a bounded
-   * time for the final export to complete.
+   * Requests a final metrics export followed by exporter shutdown. Waits a bounded time for
+   * completion. Shutdown continues if the wait times out or the thread is interrupted.
    */
   @Override
   public void close() {
-    OtelMetricRegistry.INSTANCE.shutdownExporter();
+    OtelMetricRegistry.INSTANCE.shutdown();
   }
 
   OtelMeter getMeterShim(

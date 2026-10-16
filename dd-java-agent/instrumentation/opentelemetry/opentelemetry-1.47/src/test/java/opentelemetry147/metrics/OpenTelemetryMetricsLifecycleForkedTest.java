@@ -15,14 +15,14 @@ import org.junit.jupiter.api.Test;
 class OpenTelemetryMetricsLifecycleForkedTest extends AbstractInstrumentationTest {
 
   @Test
-  void closingGlobalMeterProviderShutsDownExporter() throws Exception {
+  void closingGlobalMeterProviderRunsShutdownHook() throws Exception {
     Closeable meterProvider =
         assertInstanceOf(Closeable.class, GlobalOpenTelemetry.get().getMeterProvider());
-    AtomicBoolean exporterShutdown = new AtomicBoolean();
-    OtelMetricRegistry.INSTANCE.registerExporterShutdown(() -> exporterShutdown.set(true));
+    AtomicBoolean shutdownHookCalled = new AtomicBoolean();
+    OtelMetricRegistry.INSTANCE.registerShutdownHook(() -> shutdownHookCalled.set(true));
 
     meterProvider.close();
 
-    assertTrue(exporterShutdown.get());
+    assertTrue(shutdownHookCalled.get());
   }
 }

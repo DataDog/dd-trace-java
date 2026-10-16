@@ -90,34 +90,36 @@ public final class OtlpMetricsService {
         scheduler.scheduleAtFixedRate(
             this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
 
-    OtelMetricRegistry.INSTANCE.registerExporterShutdown(
+    OtelMetricRegistry.INSTANCE.registerShutdownHook(
         () -> exportThenShutdown(FINAL_EXPORT_TIMEOUT_SECONDS, TimeUnit.SECONDS));
   }
 
   public void flush() {
-    synchronized (this.lifecycleLock) {
-      if (this.sender != null && this.shutdownLatch == null) {
-        this.scheduler.execute(this::export);
+    synchronized (lifecycleLock) {
+      if (sender != null && shutdownLatch == null) {
+        scheduler.execute(this::export);
       }
     }
   }
 
   /**
-   * Performs one last export before shutting down the OTLP metrics exporter.
+   * Requests a final export followed by OTLP metrics exporter shutdown. Waits up to the given
+   * timeout for completion. Shutdown continues if the wait times out or the thread is interrupted.
    *
    * @param timeout the maximum time to wait for the export and shutdown to complete
    * @param unit the unit of the timeout
-   * @return {@code true} if the export and shutdown completed before the timeout
+   * @return {@code true} if the export and shutdown completed; {@code false} if the wait timed out
+   *     or the thread was interrupted. Completion does not indicate a successful export.
    */
   boolean exportThenShutdown(long timeout, TimeUnit unit) {
     CountDownLatch latch;
-    synchronized (this.lifecycleLock) {
-      if (this.shutdownLatch == null) {
-        this.shutdownLatch = new CountDownLatch(1);
-        this.scheduledTask.cancel();
-        this.scheduler.execute(this::waitForExportThenShutdown);
+    synchronized (lifecycleLock) {
+      if (shutdownLatch == null) {
+        shutdownLatch = new CountDownLatch(1);
+        scheduledTask.cancel();
+        scheduler.execute(this::waitForExportThenShutdown);
       }
-      latch = this.shutdownLatch;
+      latch = shutdownLatch;
     }
 
     try {
@@ -141,7 +143,7 @@ public final class OtlpMetricsService {
   private void waitForExportThenShutdown() {
     export();
     closeSender();
-    this.shutdownLatch.countDown();
+    shutdownLatch.countDown();
   }
 
   private void closeSender() {
