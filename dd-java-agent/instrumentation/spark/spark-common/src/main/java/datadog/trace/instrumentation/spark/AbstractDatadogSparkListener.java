@@ -494,6 +494,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withStartTimestamp(queryStart.time() * 1000)
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
+            .withTag("details", queryStart.details())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
@@ -679,6 +680,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
+    span.setTag("details", stageCompleted.stageInfo().details());
     if (stageInfo.failureReason().isDefined()) {
       span.setError(true);
       span.setErrorMessage(getErrorMessageWithoutStackTrace(stageInfo.failureReason().get()));
