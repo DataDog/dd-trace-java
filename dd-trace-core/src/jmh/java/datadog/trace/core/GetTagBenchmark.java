@@ -67,6 +67,17 @@ public class GetTagBenchmark {
     return span.getTag("not.there");
   }
 
+  /** A known tag the span doesn't hold: a clear slot bit can answer without a probe. */
+  @Benchmark
+  public Object missingKnownTag_getTag() {
+    return span.getTag(KnownTags.HTTP_METHOD_NAME);
+  }
+
+  @Benchmark
+  public Object missingKnownTag_unsafeGetTag() {
+    return span.unsafeGetTag(KnownTags.HTTP_METHOD_NAME);
+  }
+
   @Benchmark
   public Object knownTag_unsafeGetTag() {
     return span.unsafeGetTag(KnownTags.HTTP_ROUTE_NAME);
