@@ -82,6 +82,11 @@ gradlePlugin {
       id = "dd-trace-java.jardiff"
       implementationClass = "datadog.gradle.plugin.jardiff.JardiffPlugin"
     }
+
+    create("check-overlapping-outputs") {
+      id = "dd-trace-java.check-overlapping-outputs"
+      implementationClass = "datadog.gradle.plugin.overlapping.CheckOverlappingOutputsPlugin"
+    }
   }
 }
 
