@@ -11,15 +11,40 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 
 class FeatureFlagBackendApiFactoryTest {
+
+  @Test
+  void remoteConfigDoesNotEagerlyInitializeSharedTransport() {
+    final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
+    final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
+
+    new FeatureFlagBackendApiFactory(config, sco, EXPOSURE);
+
+    verifyNoInteractions(sco);
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  void agentlessWithoutCredentialsDoesNotEagerlyInitializeSharedTransport(String apiKey) {
+    final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, apiKey);
+    final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
+
+    new FeatureFlagBackendApiFactory(config, sco, EXPOSURE);
+
+    verifyNoInteractions(sco);
+  }
 
   @Test
   void remoteConfigUsesFixedV2WithoutDiscoveryOrDirectIntake() {

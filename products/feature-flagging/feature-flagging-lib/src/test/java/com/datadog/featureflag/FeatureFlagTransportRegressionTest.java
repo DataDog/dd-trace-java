@@ -1,7 +1,9 @@
 package com.datadog.featureflag;
 
 import static com.datadog.featureflag.FeatureFlagEventType.EXPOSURE;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -11,6 +13,8 @@ import datadog.communication.BackendApi;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.util.DDJavaSpecification;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketException;
@@ -25,10 +29,55 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okhttp3.mockwebserver.Dispatcher;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.tabletest.junit.TableTest;
 
-class FeatureFlagTransportRegressionTest {
+class FeatureFlagTransportRegressionTest extends DDJavaSpecification {
+  @ParameterizedTest
+  @EnumSource(FeatureFlagEventType.class)
+  @WithConfig(key = "trace.enabled", value = "false")
+  @WithConfig(key = "remote_config.enabled", value = "false")
+  @WithConfig(key = "telemetry.enabled", value = "false")
+  @WithConfig(key = "appsec.enabled", value = "false")
+  @WithConfig(key = "feature.flags.configuration.source", value = "agentless")
+  @WithConfig(key = "trace.agent.timeout", value = "2")
+  @WithConfig(key = "API_KEY", value = "test-api-key", env = true)
+  void agentlessInitializesDirectTimeoutsBeforeAgentDiscovery(FeatureFlagEventType eventType)
+      throws Exception {
+    try (MockWebServer agent = new MockWebServer()) {
+      agent.setDispatcher(
+          new Dispatcher() {
+            @Override
+            public MockResponse dispatch(RecordedRequest request) {
+              return new MockResponse().setBody("{\"endpoints\":[\"v0.5/traces\"]}");
+            }
+          });
+      final SharedCommunicationObjects sco = new SharedCommunicationObjects();
+      sco.agentUrl = agent.url("/");
+      try {
+        assertNotNull(new FeatureFlagBackendApiFactory(Config.get(), sco, eventType).create());
+
+        final OkHttpClient directClient = sco.getIntakeHttpClient();
+        assertAll(
+            () -> assertEquals(2000, sco.httpClientTimeout),
+            () -> assertEquals(2000, directClient.connectTimeoutMillis()),
+            () -> assertEquals(2000, directClient.readTimeoutMillis()),
+            () -> assertEquals(2000, directClient.writeTimeoutMillis()));
+      } finally {
+        if (sco.agentHttpClient != null) {
+          sco.agentHttpClient.connectionPool().evictAll();
+        }
+        sco.getIntakeHttpClient().connectionPool().evictAll();
+      }
+    }
+  }
+
   @TableTest({
     "Scenario              | First Attempt | Attempts | Delivered",
     "refused then accepted | refused       | 2        | true     ",
