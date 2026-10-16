@@ -36,6 +36,22 @@ final class HashSupport {
   /**
    * Finds an entry by hash/tag within a single bucket object (Entry | BucketGroup chain | null).
    */
+  /**
+   * {@link #find} for a known tag, matching on its id rather than its name: an id store's entries
+   * are all keyed by id, so it never needs a name to look one up. {@code hash} is {@code
+   * Entry.bucketHash(tagId)}.
+   */
+  static Entry findById(Object[] buckets, int hash, long tagId) {
+    Object bucket = buckets[hash & (buckets.length - 1)];
+    if (bucket instanceof Entry) {
+      Entry tagEntry = (Entry) bucket;
+      return tagEntry.tagHash == tagId ? tagEntry : null;
+    } else if (bucket instanceof BucketGroup) {
+      return ((BucketGroup) bucket).findInChainById(hash, tagId);
+    }
+    return null;
+  }
+
   static Entry findInBucket(Object bucket, int hash, String tag) {
     if (bucket instanceof Entry) {
       Entry tagEntry = (Entry) bucket;

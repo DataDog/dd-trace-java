@@ -2423,6 +2423,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return null;
     }
 
+    /**
+     * {@link #findInChain} for a known tag: matches on the entry's id, so it needs no name. Only an
+     * entry stored under {@code tagId} has that id, and the hash check filters first.
+     */
+    Entry findInChainById(int hash, long tagId) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        Entry curEntry = curGroup._findById(hash, tagId);
+        if (curEntry != null) return curEntry;
+      }
+      return null;
+    }
+
+    Entry _findById(int hash, long tagId) {
+      if (this.hash0 == hash && this.entry0.tagHash == tagId) {
+        return this.entry0;
+      } else if (this.hash1 == hash && this.entry1.tagHash == tagId) {
+        return this.entry1;
+      } else if (this.hash2 == hash && this.entry2.tagHash == tagId) {
+        return this.entry2;
+      } else if (this.hash3 == hash && this.entry3.tagHash == tagId) {
+        return this.entry3;
+      }
+      return null;
+    }
+
     Entry _find(int hash, String tag) {
       // if ( this._mayContain(hash) ) return null;
 

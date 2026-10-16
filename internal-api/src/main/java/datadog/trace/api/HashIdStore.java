@@ -52,8 +52,7 @@ final class HashIdStore extends IdStore {
   /** {@link #get} for a validated id and its slot bit. */
   private Entry getVisible(long tagId, long bit) {
     if (this.mayHaveLocal(bit)) {
-      Entry local =
-          HashSupport.find(this.buckets, Entry.bucketHash(tagId), KnownTagCodec.nameOf(tagId));
+      Entry local = HashSupport.findById(this.buckets, Entry.bucketHash(tagId), tagId);
       if (local != null) {
         return local.tombstone ? null : local;
       }
@@ -138,14 +137,13 @@ final class HashIdStore extends IdStore {
     }
     long bit = slotBit(tagId);
     int hash = Entry.bucketHash(tagId);
-    String name = KnownTagCodec.nameOf(tagId);
 
-    Entry local = this.mayHaveLocal(bit) ? HashSupport.find(this.buckets, hash, name) : null;
+    Entry local = this.mayHaveLocal(bit) ? HashSupport.findById(this.buckets, hash, tagId) : null;
     if (local != null) {
       if (local.tombstone) {
         return null; // already removed
       }
-      HashSupport.remove(this.buckets, hash, name);
+      HashSupport.remove(this.buckets, hash, local.tag);
       this.count--;
     }
     if (this.mayInherit(bit)) {
@@ -218,11 +216,11 @@ final class HashIdStore extends IdStore {
    * rule the slot out is skipped without a probe.
    */
   boolean parentEntryVisible(Entry parentEntry, HashIdStore fromAncestor) {
-    long bit = slotBit(parentEntry.tagHash);
+    long tagId = parentEntry.tagHash;
+    long bit = slotBit(tagId);
     int hash = parentEntry.hash();
-    String tag = parentEntry.tag;
     for (HashIdStore nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
-      if (nearer.mayHaveLocal(bit) && HashSupport.find(nearer.buckets, hash, tag) != null) {
+      if (nearer.mayHaveLocal(bit) && HashSupport.findById(nearer.buckets, hash, tagId) != null) {
         return false;
       }
     }
