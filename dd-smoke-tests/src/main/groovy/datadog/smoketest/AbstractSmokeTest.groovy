@@ -224,6 +224,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
+      SCOPE_DIAGNOSTICS_ARGUMENT,
       isIBM ? "-Xdump:directory=${tmpDir}" : "-XX:ErrorFile=${tmpDir}/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",
