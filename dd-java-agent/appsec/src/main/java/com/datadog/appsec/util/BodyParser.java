@@ -8,7 +8,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import datadog.trace.api.appsec.MediaType;
+import datadog.trace.api.http.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
