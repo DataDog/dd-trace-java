@@ -62,6 +62,8 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
+  // OpenFeature uses SLF4J 2; the shared Java 8 test binding targets SLF4J 1.7.
+  testImplementation("ch.qos.logback:logback-classic:1.6.5")
 
   // The main source set gets the bootstrap/config types as compileOnly, so the JMH source set
   // needs them on its own compile and runtime classpath to drive the hook end to end.

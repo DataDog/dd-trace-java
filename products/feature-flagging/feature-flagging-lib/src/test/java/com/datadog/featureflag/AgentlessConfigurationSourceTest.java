@@ -4,7 +4,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +17,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxy;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
@@ -41,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
+import javax.net.ssl.SSLHandshakeException;
 import okhttp3.Call;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -49,12 +57,14 @@ import okhttp3.Protocol;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class AgentlessConfigurationSourceTest {
@@ -793,8 +803,10 @@ class AgentlessConfigurationSourceTest {
       assertEquals(3, requests.size());
       verify(ratelimitedLogger)
           .warn(
-              "Feature Flagging agentless endpoint request failed after {} attempts",
+              "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}",
               3,
+              "SocketTimeoutException",
+              finalFailure.getMessage(),
               finalFailure);
       verifyNoInteractions(listener);
     } finally {
@@ -1202,6 +1214,210 @@ class AgentlessConfigurationSourceTest {
       builder.body(ResponseBody.create(MediaType.get("application/json"), response.body));
     }
     return builder.build();
+  }
+
+  @Nested
+  class Diagnostics {
+    private final Logger logger =
+        (Logger) LoggerFactory.getLogger(AgentlessConfigurationSource.class);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private Level previousLevel;
+
+    @BeforeEach
+    void captureLogs() {
+      previousLevel = logger.getLevel();
+      logger.setLevel(Level.DEBUG);
+      appender.start();
+      logger.addAppender(appender);
+    }
+
+    @AfterEach
+    void restoreLogging() {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+    }
+
+    @Test
+    void reportsAppliedUnchangedAndRejectedConfigurationWithParseFailure() throws Exception {
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any()))
+          .thenReturn(
+              response(200, "secret-etag", emptyConfig()),
+              response(304, null, null),
+              response(200, null, "{\"secret-payload\":"));
+      final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              HttpUrl.get("http://localhost" + CONFIG_PATH),
+              config("datadoghq.com", "production"),
+              30_000,
+              client,
+              executor);
+      try {
+        assertTrue(service.pollOnce());
+        assertTrue(service.pollOnce());
+        assertFalse(service.pollOnce());
+        assertLogged("configuration applied: flags=0, env=production, configurationEnv=Staging");
+        assertLogged("configuration unchanged (HTTP 304)");
+        assertNotNull(
+            assertLogged("configuration rejected: malformed UFC payload").getThrowableProxy());
+        assertEquals(
+            1,
+            appender.list.stream()
+                .filter(e -> e.getFormattedMessage().contains("configuration applied:"))
+                .count());
+        assertNoSecretsInFormattedMessages();
+      } finally {
+        service.close();
+      }
+    }
+
+    @Test
+    void reportsAppliedConfigurationWithoutEnvironment() throws Exception {
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any()))
+          .thenReturn(
+              response(
+                  200, null, jsonApiResponse("universal-flag-configuration", "{\"flags\":{}}")));
+      try (AgentlessConfigurationSource service = service(client)) {
+        assertTrue(service.pollOnce());
+        assertLogged("configuration applied: flags=0, env=, configurationEnv=null, createdAt=null");
+      }
+    }
+
+    @Test
+    void omitsDebugDetailsAndApiKeyWarningForConfiguredEndpoint() throws Exception {
+      logger.setLevel(Level.INFO);
+      final Config config = config();
+      when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+          .thenReturn("https://flags.example.com");
+      lenient().when(config.getApiKey()).thenReturn(null);
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any())).thenReturn(response(200, null, emptyConfig()));
+      FeatureFlaggingGateway.addConfigListener(listener);
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              HttpUrl.get("https://flags.example.com" + CONFIG_PATH),
+              config,
+              30_000,
+              client,
+              mock(ScheduledExecutorService.class));
+      try {
+        service.init();
+        verify(listener).accept(any(ServerConfiguration.class));
+        assertTrue(appender.list.isEmpty());
+      } finally {
+        service.close();
+      }
+    }
+
+    @Test
+    void logsMissingCredentialsAndOnlyEndpointOrigin() throws Exception {
+      final Config config = config();
+      when(config.getApiKey()).thenReturn(null);
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any())).thenReturn(response(401, null, null));
+      final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              HttpUrl.get(
+                  "https://secret-user:secret-password@example.com/secret-path?key=secret-query"),
+              config,
+              30_000,
+              client,
+              executor);
+      try {
+        service.init();
+        assertLogged("source at https://example.com:443");
+        assertLogged("requires DD_API_KEY");
+        assertLogged("HTTP 401; verify endpoint authentication");
+        assertNoSecretsInFormattedMessages();
+      } finally {
+        service.close();
+      }
+    }
+
+    @Test
+    void logsTransportFailureAndBackoffWithExceptionDetails() throws Exception {
+      final List<okhttp3.Request> requests = new ArrayList<>();
+      final SocketTimeoutException failure = new SocketTimeoutException("read timed out");
+      final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+          scriptedClient(
+              requests,
+              delay -> {},
+              () -> 1.0,
+              failure,
+              response(503, null, null),
+              response(200, null, emptyConfig()));
+      client.fetch(HttpUrl.get("https://example.com"), config(), null);
+      assertSame(
+          failure,
+          ((ThrowableProxy)
+                  assertLogged("attempt 1/3 failed: SocketTimeoutException").getThrowableProxy())
+              .getThrowable());
+      assertLogged("attempt 2/3 returned HTTP 503");
+      assertLogged("retry in 5000 ms");
+      assertLogged("returned HTTP 200");
+    }
+
+    @Test
+    void retainsTransportRootCauseAtWarnWhenDebugIsDisabled() throws Exception {
+      logger.setLevel(Level.WARN);
+      final SSLHandshakeException failure = new SSLHandshakeException("PKIX path building failed");
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any())).thenThrow(failure);
+      try (AgentlessConfigurationSource service = service(client)) {
+        assertFalse(service.pollOnce());
+        final ILoggingEvent event =
+            assertLogged("SSLHandshakeException: PKIX path building failed");
+        assertEquals(Level.WARN, event.getLevel());
+        assertSame(failure, ((ThrowableProxy) event.getThrowableProxy()).getThrowable());
+      }
+    }
+
+    @Test
+    void retainsListenerFailureForErrorTelemetry() throws Exception {
+      final IllegalStateException failure =
+          new IllegalStateException("listener rejected configuration");
+      final FeatureFlaggingGateway.ConfigListener failingListener =
+          configuration -> {
+            throw failure;
+          };
+      FeatureFlaggingGateway.addConfigListener(failingListener);
+      final AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any())).thenReturn(response(200, null, emptyConfig()));
+      try (AgentlessConfigurationSource service = service(client)) {
+        service.init();
+        assertSame(
+            failure,
+            ((ThrowableProxy)
+                    assertLogged("configuration poll failed: IllegalStateException")
+                        .getThrowableProxy())
+                .getThrowable());
+      } finally {
+        FeatureFlaggingGateway.removeConfigListener(failingListener);
+      }
+    }
+
+    private ILoggingEvent assertLogged(final String text) {
+      return appender.list.stream()
+          .filter(e -> e.getFormattedMessage().contains(text))
+          .findFirst()
+          .orElseThrow(() -> new AssertionError("Missing log: " + text));
+    }
+
+    private void assertNoSecretsInFormattedMessages() {
+      for (final ILoggingEvent event : appender.list) {
+        assertFalse(event.getFormattedMessage().contains("secret"));
+      }
+    }
   }
 
   private static Config config() {

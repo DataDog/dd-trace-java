@@ -123,6 +123,22 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       started = true;
     }
 
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flagging starting agentless configuration source at {}://{}:{}; pollIntervalMs={}, requestTimeoutSeconds={}, env={}",
+          endpoint.scheme(),
+          endpoint.host(),
+          endpoint.port(),
+          pollIntervalMillis,
+          config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds(),
+          config.getEnv());
+    }
+    if (config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() == null
+        && isBlank(config.getApiKey())) {
+      LOGGER.warn(
+          "Feature Flagging agentless configuration requires DD_API_KEY for the Datadog endpoint");
+    }
+
     // Complete the first poll cycle on the activation thread. This lets OpenFeature provider
     // initialization observe a successful retry before it checks whether configuration is ready.
     // No request occurs before application code activates the provider.
@@ -174,13 +190,17 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       activePollingThread.interrupt();
     }
     executor.shutdownNow();
+    LOGGER.debug("Feature Flagging agentless configuration source stopped");
   }
 
   private void pollOnceSafely() {
     try {
       pollOnce();
     } catch (final RuntimeException e) {
-      LOGGER.debug("Unexpected error while polling Feature Flagging HTTP configuration source", e);
+      LOGGER.debug(
+          "Feature Flagging agentless configuration poll failed: {}",
+          e.getClass().getSimpleName(),
+          e);
     }
   }
 
@@ -203,8 +223,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     } catch (final IOException e) {
       if (!closed) {
         ratelimitedLogger.warn(
-            "Feature Flagging agentless endpoint request failed after {} attempts",
+            "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}",
             MAX_ATTEMPTS,
+            e.getClass().getSimpleName(),
+            e.getMessage(),
             e);
       }
       return false;
@@ -213,6 +235,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
   private boolean apply(final UfcHttpResponse response) {
     if (response.status == HttpURLConnection.HTTP_NOT_MODIFIED) {
+      LOGGER.debug(
+          "Feature Flagging agentless configuration unchanged (HTTP 304); retaining current configuration");
       return true;
     }
     if (response.status == HttpURLConnection.HTTP_UNAUTHORIZED
@@ -222,21 +246,42 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
           response.status);
       return false;
     }
-    if (response.status != HttpURLConnection.HTTP_OK || response.body == null) {
+    if (response.status != HttpURLConnection.HTTP_OK) {
+      LOGGER.debug(
+          "Feature Flagging agentless configuration not applied: unexpected HTTP {}; retaining current configuration",
+          response.status);
+      return false;
+    }
+    if (response.body == null) {
+      LOGGER.debug(
+          "Feature Flagging agentless configuration rejected: missing response body; retaining current configuration");
       return false;
     }
     final ServerConfiguration configuration;
     try {
       configuration = JsonApiUfcResponseParser.INSTANCE.parse(response.body);
     } catch (final IOException | RuntimeException e) {
-      LOGGER.debug("Feature Flagging HTTP configuration source returned malformed UFC payload", e);
+      LOGGER.debug(
+          "Feature Flagging agentless configuration rejected: malformed UFC payload ({}); retaining current configuration",
+          e.getClass().getSimpleName(),
+          e);
       return false;
     }
     if (configuration == null) {
+      LOGGER.debug(
+          "Feature Flagging agentless configuration rejected: missing UFC data or flags; retaining current configuration");
       return false;
     }
     FeatureFlaggingGateway.dispatch(configuration);
     updateEtag(response.etag);
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flagging agentless configuration applied: flags={}, env={}, configurationEnv={}, createdAt={}",
+          configuration.flags.size(),
+          config.getEnv(),
+          configuration.environment == null ? null : configuration.environment.name,
+          configuration.createdAt);
+    }
     return true;
   }
 
@@ -261,7 +306,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     final HttpUrl parsed = HttpUrl.parse(configuredBaseUrl.trim());
     if (parsed == null) {
       throw new IllegalArgumentException(
-          "Invalid Feature Flagging HTTP configuration source URL: " + configuredBaseUrl);
+          "Invalid Feature Flagging HTTP configuration source URL; verify DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL");
     }
     if ("/".equals(parsed.encodedPath()) || parsed.encodedPath().isEmpty()) {
       return parsed
@@ -391,6 +436,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
               if (cancelled.get()) {
                 call.cancel();
               }
+              LOGGER.debug("Feature Flagging agentless configuration poll request starting");
               return call;
             };
         return sendWithRetries(
@@ -399,6 +445,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
             request,
             response -> {
               final int status = response.code();
+              if (response.isSuccessful()) {
+                LOGGER.debug(
+                    "Feature Flagging agentless configuration poll returned HTTP {}", status);
+              }
               final String responseEtag = response.header("ETag");
               try (ResponseBody responseBody = response.body()) {
                 final byte[] body = responseBody != null ? responseBody.bytes() : null;
@@ -453,6 +503,14 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
     @Override
     public boolean shouldRetry(final Exception exception) {
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug(
+            "Feature Flagging agentless configuration poll attempt {}/{} failed: {}",
+            retryAttempt + 1,
+            MAX_ATTEMPTS,
+            exception.getClass().getSimpleName(),
+            exception);
+      }
       return exception instanceof IOException
           && !Thread.currentThread().isInterrupted()
           && reserveRetry();
@@ -460,6 +518,13 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
     @Override
     public boolean shouldRetry(@Nullable final Response response) {
+      if (response != null && LOGGER.isDebugEnabled()) {
+        LOGGER.debug(
+            "Feature Flagging agentless configuration poll attempt {}/{} returned HTTP {}",
+            retryAttempt + 1,
+            MAX_ATTEMPTS,
+            response.code());
+      }
       return response != null && isRetryableStatus(response.code()) && reserveRetry();
     }
 
@@ -478,8 +543,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         throw new InterruptedIOException("Feature Flagging HTTP client is closed");
       }
       try {
-        retrySleeper.sleep(
-            retryDelayMillis(pollIntervalMillis, retryAttempt, jitter.getAsDouble()));
+        final long delayMillis =
+            retryDelayMillis(pollIntervalMillis, retryAttempt, jitter.getAsDouble());
+        LOGGER.debug("Feature Flagging agentless configuration retry in {} ms", delayMillis);
+        retrySleeper.sleep(delayMillis);
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new InterruptedIOException("Feature Flagging retry interrupted");
