@@ -1386,8 +1386,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry getEntry(String tag) {
     // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
     // an OpenTelemetry rename must resolve to the same id, or it would silently miss the entry.
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId == 0 ? this.names.get(tag) : this.ids.get(tagId);
+    return TagRouting.get(this.ids, this.names, TagRouting.keyOf(tag), tag);
   }
 
   /** The entry for a known tag id. */
@@ -1421,98 +1420,108 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
 
   static Entry anyEntryFor(String tag, Object value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId != 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value);
+    long key = TagRouting.keyOf(tag);
+    return TagRouting.isKnown(key) ? Entry.newAnyEntry(key, value) : Entry.newAnyEntry(tag, value);
   }
 
   static Entry objectEntryFor(String tag, CharSequence value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId != 0 ? Entry.newObjectEntry(tagId, value) : Entry.newObjectEntry(tag, value);
+    long key = TagRouting.keyOf(tag);
+    return TagRouting.isKnown(key)
+        ? Entry.newObjectEntry(key, value)
+        : Entry.newObjectEntry(tag, value);
   }
 
   static Entry booleanEntryFor(String tag, boolean value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId != 0 ? Entry.newBooleanEntry(tagId, value) : Entry.newBooleanEntry(tag, value);
+    long key = TagRouting.keyOf(tag);
+    return TagRouting.isKnown(key)
+        ? Entry.newBooleanEntry(key, value)
+        : Entry.newBooleanEntry(tag, value);
   }
 
   static Entry intEntryFor(String tag, int value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId != 0 ? Entry.newIntEntry(tagId, value) : Entry.newIntEntry(tag, value);
+    long key = TagRouting.keyOf(tag);
+    return TagRouting.isKnown(key) ? Entry.newIntEntry(key, value) : Entry.newIntEntry(tag, value);
   }
 
   static Entry longEntryFor(String tag, long value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId != 0 ? Entry.newLongEntry(tagId, value) : Entry.newLongEntry(tag, value);
+    long key = TagRouting.keyOf(tag);
+    return TagRouting.isKnown(key)
+        ? Entry.newLongEntry(key, value)
+        : Entry.newLongEntry(tag, value);
   }
 
   static Entry floatEntryFor(String tag, float value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId != 0 ? Entry.newFloatEntry(tagId, value) : Entry.newFloatEntry(tag, value);
+    long key = TagRouting.keyOf(tag);
+    return TagRouting.isKnown(key)
+        ? Entry.newFloatEntry(key, value)
+        : Entry.newFloatEntry(tag, value);
   }
 
   static Entry doubleEntryFor(String tag, double value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId != 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value);
+    long key = TagRouting.keyOf(tag);
+    return TagRouting.isKnown(key)
+        ? Entry.newDoubleEntry(key, value)
+        : Entry.newDoubleEntry(tag, value);
   }
 
   public void set(@Nonnull String tag, @Nonnull Object value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      this.set(tagId, value);
+    long key = TagRouting.keyOf(tag);
+    if (TagRouting.isKnown(key)) {
+      this.putKnown(Entry.newAnyEntry(key, value));
     } else {
       this.putCustom(Entry.newAnyEntry(tag, value));
     }
   }
 
   public void set(@Nonnull String tag, @Nonnull CharSequence value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      this.set(tagId, value);
+    long key = TagRouting.keyOf(tag);
+    if (TagRouting.isKnown(key)) {
+      this.putKnown(Entry.newObjectEntry(key, value));
     } else {
       this.putCustom(Entry.newObjectEntry(tag, value));
     }
   }
 
   public void set(@Nonnull String tag, boolean value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      this.set(tagId, value);
+    long key = TagRouting.keyOf(tag);
+    if (TagRouting.isKnown(key)) {
+      this.putKnown(Entry.newBooleanEntry(key, value));
     } else {
       this.putCustom(Entry.newBooleanEntry(tag, value));
     }
   }
 
   public void set(@Nonnull String tag, int value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      this.set(tagId, value);
+    long key = TagRouting.keyOf(tag);
+    if (TagRouting.isKnown(key)) {
+      this.putKnown(Entry.newIntEntry(key, value));
     } else {
       this.putCustom(Entry.newIntEntry(tag, value));
     }
   }
 
   public void set(@Nonnull String tag, long value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      this.set(tagId, value);
+    long key = TagRouting.keyOf(tag);
+    if (TagRouting.isKnown(key)) {
+      this.putKnown(Entry.newLongEntry(key, value));
     } else {
       this.putCustom(Entry.newLongEntry(tag, value));
     }
   }
 
   public void set(@Nonnull String tag, float value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      this.set(tagId, value);
+    long key = TagRouting.keyOf(tag);
+    if (TagRouting.isKnown(key)) {
+      this.putKnown(Entry.newFloatEntry(key, value));
     } else {
       this.putCustom(Entry.newFloatEntry(tag, value));
     }
   }
 
   public void set(@Nonnull String tag, double value) {
-    long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      this.set(tagId, value);
+    long key = TagRouting.keyOf(tag);
+    if (TagRouting.isKnown(key)) {
+      this.putKnown(Entry.newDoubleEntry(key, value));
     } else {
       this.putCustom(Entry.newDoubleEntry(tag, value));
     }
@@ -1525,56 +1534,56 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * second lookup.
    */
   public void setResolved(long tagId, @Nonnull String tag, @Nonnull Object value) {
-    if (tagId > 0) {
-      this.set(tagId, value);
+    if (TagRouting.isKnown(tagId)) {
+      this.putKnown(Entry.newAnyEntry(tagId, value));
     } else {
       this.putCustom(Entry.newAnyEntry(tag, value));
     }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, @Nonnull CharSequence value) {
-    if (tagId > 0) {
-      this.set(tagId, value);
+    if (TagRouting.isKnown(tagId)) {
+      this.putKnown(Entry.newObjectEntry(tagId, value));
     } else {
       this.putCustom(Entry.newObjectEntry(tag, value));
     }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, boolean value) {
-    if (tagId > 0) {
-      this.set(tagId, value);
+    if (TagRouting.isKnown(tagId)) {
+      this.putKnown(Entry.newBooleanEntry(tagId, value));
     } else {
       this.putCustom(Entry.newBooleanEntry(tag, value));
     }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, int value) {
-    if (tagId > 0) {
-      this.set(tagId, value);
+    if (TagRouting.isKnown(tagId)) {
+      this.putKnown(Entry.newIntEntry(tagId, value));
     } else {
       this.putCustom(Entry.newIntEntry(tag, value));
     }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, long value) {
-    if (tagId > 0) {
-      this.set(tagId, value);
+    if (TagRouting.isKnown(tagId)) {
+      this.putKnown(Entry.newLongEntry(tagId, value));
     } else {
       this.putCustom(Entry.newLongEntry(tag, value));
     }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, float value) {
-    if (tagId > 0) {
-      this.set(tagId, value);
+    if (TagRouting.isKnown(tagId)) {
+      this.putKnown(Entry.newFloatEntry(tagId, value));
     } else {
       this.putCustom(Entry.newFloatEntry(tag, value));
     }
   }
 
   public void setResolved(long tagId, @Nonnull String tag, double value) {
-    if (tagId > 0) {
-      this.set(tagId, value);
+    if (TagRouting.isKnown(tagId)) {
+      this.putKnown(Entry.newDoubleEntry(tagId, value));
     } else {
       this.putCustom(Entry.newDoubleEntry(tag, value));
     }
@@ -1582,14 +1591,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** The read counterpart of {@link #setResolved(long, String, Object)}. */
   public Entry getEntryResolved(long tagId, String tag) {
-    return tagId > 0 ? this.ids.get(tagId) : this.names.get(tag);
+    return TagRouting.get(this.ids, this.names, tagId, tag);
   }
 
   /** The removal counterpart of {@link #setResolved(long, String, Object)}. */
   public Entry removeResolved(long tagId, String tag) {
     this.checkWriteAccess();
 
-    return tagId > 0 ? this.ids.remove(tagId) : this.names.remove(tag);
+    return TagRouting.remove(this.ids, this.names, tagId, tag);
   }
 
   /*
@@ -1707,7 +1716,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
     this.checkWriteAccess();
 
-    return newEntry.tagId() != 0 ? this.ids.getAndPut(newEntry) : this.names.getAndPut(newEntry);
+    return TagRouting.getAndPut(this.ids, this.names, newEntry);
   }
 
   /**
@@ -1719,7 +1728,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   Entry putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
 
-    return newEntry.tagId() != 0 ? this.ids.put(newEntry) : this.names.put(newEntry);
+    return TagRouting.put(this.ids, this.names, newEntry);
   }
 
   /** {@link #putEntry} for an entry known to be a known tag's. */
@@ -1843,8 +1852,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
-    long tagId = KnownTagCodec.keyOf(tag);
-    return tagId == 0 ? this.names.remove(tag) : this.ids.remove(tagId);
+    return TagRouting.remove(this.ids, this.names, TagRouting.keyOf(tag), tag);
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
