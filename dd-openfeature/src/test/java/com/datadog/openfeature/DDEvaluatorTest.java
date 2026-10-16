@@ -2,6 +2,7 @@ package com.datadog.openfeature;
 
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static dev.openfeature.sdk.Reason.ERROR;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -15,15 +16,18 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
@@ -52,9 +56,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -182,6 +189,58 @@ public class DDEvaluatorTest {
         executor.shutdownNow();
         evaluator.shutdown();
       }
+    }
+  }
+
+  @Test
+  public void testShutdownWhileInitializationWaitsForConfiguration() throws Exception {
+    final CountDownLatch subscribed = new CountDownLatch(1);
+    final AtomicReference<Consumer<byte[]>> configurationListener = new AtomicReference<>();
+    final AutoCloseable subscription = mock(AutoCloseable.class);
+    final AgentBridge bridge = mock(AgentBridge.class);
+    when(bridge.remoteConfiguration())
+        .thenReturn(
+            listener -> {
+              configurationListener.set(listener);
+              subscribed.countDown();
+              return subscription;
+            });
+    final Settings settings =
+        TestSettings.of("feature.flags.configuration.source", "remote_config");
+    final DDEvaluator evaluator = new DDEvaluator(() -> {}, bridge, settings);
+    final DDEvaluator other = new DDEvaluator(() -> {}, bridge, settings);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    final Future<Boolean> initialized =
+        executor.submit(() -> evaluator.initialize(60, SECONDS, null));
+    try {
+      assertTrue(subscribed.await(5, SECONDS));
+      assertFalse(other.initialize(0, MILLISECONDS, null));
+      assertSame(other.runtime(), evaluator.runtime());
+
+      executor.submit(evaluator::shutdown).get(5, SECONDS);
+
+      assertNull(evaluator.runtime());
+      assertFalse(initialized.isDone());
+      verify(subscription, never()).close();
+      evaluator.shutdown();
+      verify(subscription, never()).close();
+
+      configurationListener
+          .get()
+          .accept("{\"environment\":{\"name\":\"Test\"},\"flags\":{}}".getBytes(UTF_8));
+      assertFalse(evaluator.hasConfiguration());
+      assertTrue(other.hasConfiguration());
+
+      other.shutdown();
+      verify(subscription).close();
+
+      evaluator.accept(new ServerConfiguration("", "", false, null, emptyMap()));
+      assertFalse(initialized.get(5, SECONDS));
+    } finally {
+      initialized.cancel(true);
+      executor.shutdownNow();
+      evaluator.shutdown();
+      other.shutdown();
     }
   }
 
