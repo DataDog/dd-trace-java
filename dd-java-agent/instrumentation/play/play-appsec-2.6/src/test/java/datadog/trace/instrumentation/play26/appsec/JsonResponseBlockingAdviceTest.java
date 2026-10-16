@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.play26.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.play26.appsec.ResultsStatusInstrumentation.ResultsStatusApplyAdvice;
 import datadog.trace.instrumentation.play26.appsec.StatusHeaderInstrumentation.StatusHeaderSendJsonAdvice;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.AfterEach;
@@ -54,22 +56,27 @@ class JsonResponseBlockingAdviceTest {
   private RequestContext reqCtx;
   private TraceSegment segment;
   private AppSecContext appSecCtx;
+  private Object receivedBody;
 
   @BeforeEach
   void setup() {
     segment = mock(TraceSegment.class);
     reqCtx = mock(RequestContext.class);
     when(reqCtx.getTraceSegment()).thenReturn(segment);
-    // @RequiresRequestContext rewrites the compiled advice to read the request context from the
-    // active span and to bail out unless AppSec data is present. A real AppSecContext (rather than
-    // a plain Object) lets the BlockResponseFunction default method's reportBlockFailure() path be
-    // exercised when the commit fails.
+    // these tests call the advice methods directly, so @RequiresRequestContext's bytecode
+    // rewriting never runs; the getData(APPSEC) stub only matters for the default
+    // tryCommitBlockingResponse(RequestContext, ...) method's reportBlockFailure() branch below. A
+    // real AppSecContext (rather than a plain Object) is what makes that branch exercisable.
     appSecCtx = mock(AppSecContext.class);
     when(reqCtx.getData(RequestContextSlot.APPSEC)).thenReturn(appSecCtx);
     AgentSpan span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(reqCtx);
 
-    BiFunction<RequestContext, Object, Flow<Void>> callback = (ctx, body) -> blockingFlow();
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
+        (ctx, body) -> {
+          receivedBody = body;
+          return blockingFlow();
+        };
     CallbackProvider cbp = mock(CallbackProvider.class);
     when(cbp.getCallback(EVENTS.responseBody())).thenReturn(callback);
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
@@ -93,7 +100,19 @@ class JsonResponseBlockingAdviceTest {
             BlockingException.class, () -> ResultsStatusApplyAdvice.after(content, reqCtx));
 
     assertEquals("Blocked request (for Results$Status/apply)", ex.getMessage());
+    // guards the handleResponseBody(RequestContext, JsValue, String) overload: the WAF callback
+    // must receive the converted plain-Java value, not the raw JsValue
+    assertEquals(Collections.singletonMap("key", "value"), receivedBody);
     brf.assertCommittedOnce(segment);
+    verify(appSecCtx, never()).reportBlockFailure();
+  }
+
+  @Test
+  void resultsStatusApplyDoesNotThrowWithoutBlockResponseFunction() {
+    JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
+
+    assertDoesNotThrow(() -> ResultsStatusApplyAdvice.after(content, reqCtx));
+
     verify(appSecCtx, never()).reportBlockFailure();
   }
 
@@ -127,7 +146,23 @@ class JsonResponseBlockingAdviceTest {
     }
 
     assertEquals("Blocked request (for StatusHeader/sendJson)", ex.getMessage());
+    // the Object overload passes the body through with no conversion
+    assertSame(json, receivedBody);
     brf.assertCommittedOnce(segment);
+    verify(appSecCtx, never()).reportBlockFailure();
+  }
+
+  @Test
+  void statusHeaderSendJsonDoesNotThrowWithoutBlockResponseFunction() {
+    ObjectNode json = JsonNodeFactory.instance.objectNode().put("key", "value");
+
+    try {
+      assertDoesNotThrow(() -> StatusHeaderSendJsonAdvice.before(json, reqCtx));
+    } finally {
+      // reset the call depth incremented by before()
+      CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
+    }
+
     verify(appSecCtx, never()).reportBlockFailure();
   }
 
@@ -149,6 +184,40 @@ class JsonResponseBlockingAdviceTest {
     assertEquals("Blocked request (for StatusHeader/sendJson)", ex.getMessage());
     brf.assertCommittedOnce(segment);
     verify(appSecCtx).reportBlockFailure();
+  }
+
+  /**
+   * Guards {@code handleResponseBody(RequestContext, JsValue, String)}'s early return when no
+   * {@link CallbackProvider} is registered: the body must not be published to a nonexistent
+   * callback, and no exception should propagate.
+   */
+  @Test
+  void handleResponseBodyJsValueDoesNothingWithoutCallbackProvider() {
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(any(RequestContextSlot.class))).thenReturn(null);
+    AgentTracer.forceRegister(tracer);
+    JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
+
+    assertDoesNotThrow(() -> BodyParserHelpers.handleResponseBody(reqCtx, content, "test"));
+  }
+
+  /**
+   * Guards {@code handleResponseBody(RequestContext, JsValue, String)}'s early return when no
+   * {@code responseBody()} callback is registered on the {@link CallbackProvider}: distinct from
+   * the no-provider case above.
+   */
+  @Test
+  void handleResponseBodyJsValueDoesNothingWithoutResponseBodyCallback() {
+    CallbackProvider cbp = mock(CallbackProvider.class);
+    when(cbp.getCallback(EVENTS.responseBody())).thenReturn(null);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(any(RequestContextSlot.class))).thenReturn(cbp);
+    AgentTracer.forceRegister(tracer);
+    JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
+
+    assertDoesNotThrow(() -> BodyParserHelpers.handleResponseBody(reqCtx, content, "test"));
+
+    verify(reqCtx, never()).getBlockResponseFunction();
   }
 
   private RecordingBlockResponseFunction givenBlockResponseFunction(boolean commitResult) {

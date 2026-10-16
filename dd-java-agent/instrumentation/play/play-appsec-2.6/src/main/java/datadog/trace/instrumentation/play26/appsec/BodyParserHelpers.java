@@ -402,8 +402,9 @@ public class BodyParserHelpers {
    * flagged content that was about to be sent to the client, so this always throws once a {@link
    * BlockResponseFunction} is present, regardless of the commit result. Letting the request proceed
    * on a failed commit would leak that flagged body instead of just failing to show a block page.
-   * Do not reuse this for request-body call sites (multipart uploads, arbitrary POST data) — those
-   * intentionally stay fail-open on a failed commit via {@link #executeCallback}.
+   * Do not reuse this for request-body call sites: multipart uploads call {@link
+   * #commitBlockAndThrow} directly and arbitrary POST data goes through {@link #executeCallback} -
+   * both intentionally stay fail-open on a failed commit.
    */
   private static void executeResponseBodyCallback(
       RequestContext reqCtx,
@@ -446,7 +447,8 @@ public class BodyParserHelpers {
    * so that inline advices don't carry the block response function logic in their bodies.
    *
    * @param reqCtx the active request context
-   * @param body the response body, already converted to plain java objects
+   * @param body the response body; passed through as-is, with no conversion applied (e.g. a Jackson
+   *     {@link com.fasterxml.jackson.databind.JsonNode} from {@code StatusHeaderSendJsonAdvice})
    * @param details the call site description used in the {@link BlockingException} message
    */
   public static void handleResponseBody(RequestContext reqCtx, Object body, String details) {
