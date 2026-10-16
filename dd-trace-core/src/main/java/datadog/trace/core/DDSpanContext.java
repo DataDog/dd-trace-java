@@ -163,10 +163,10 @@ public class DDSpanContext
    * While null -- almost always -- a write of a tag with an alias takes the plain store path: no
    * second lock, no boxing.
    *
-   * <p>Written under the {@code tags} lock. {@link #routedTagFlags()} reads it without the lock,
+   * <p>Written under the {@code tagIds} lock. The id setters read it without the lock,
    * deliberately: a setter on another thread that has not yet seen the holder is racing the alias
    * write, and the order of two unsynchronized writes is undefined anyway. The writing thread
-   * always sees its own update, so no value is lost relative to routing every such write.
+   * always sees its own update, so no value is lost relative to superseding on every such write.
    */
   private DirectionalTags.PendingAliases pendingAliases;
 
@@ -1289,17 +1289,6 @@ public class DDSpanContext
     }
   }
 
-  /**
-   * The tag id flags the id setters route through {@link TagInterceptor}: {@link
-   * KnownTagCodec#INTERCEPTED}, plus {@link KnownTagCodec#HAS_SCOPED_ALIAS} while the span holds a
-   * pending alias, so a write of a tag with an alias is routed to supersede it.
-   */
-  private int routedTagFlags() {
-    return pendingAliases == null
-        ? (int) KnownTagCodec.INTERCEPTED
-        : (int) (KnownTagCodec.INTERCEPTED | KnownTagCodec.HAS_SCOPED_ALIAS);
-  }
-
   /** True while the span holds an alias stored as written; see {@link #pendingAliases}. */
   @Override
   public boolean hasPendingAliases() {
@@ -1482,7 +1471,7 @@ public class DDSpanContext
         && !splitsOnAliasName(entry.tag())) {
       long aliasedId = KnownTagCodec.directionalKeyOf(entry.tag(), tagDirection());
       if (aliasedId > 0) {
-        return tagInterceptor.needsIntercept(aliasedId, (int) KnownTagCodec.INTERCEPTED)
+        return tagInterceptor.needsIntercept(aliasedId)
             && tagInterceptor.interceptTag(this, aliasedId, entry.objectValue());
       }
     }
@@ -1535,17 +1524,14 @@ public class DDSpanContext
   }
 
   /**
-   * Removes the pending aliases a write of {@code tagId} supersedes. Called by {@link
-   * TagInterceptor} for a tag with {@link KnownTagCodec#HAS_SCOPED_ALIAS}, which the id setters
-   * route like an intercepted tag only once the span holds a pending alias ({@link
-   * #routedTagFlags()}), so their fast path carries no alias handling at all. The tag itself is
-   * stored right after, under its own lock acquisition; a concurrent write of the alias from
-   * another thread in between has no defined order anyway.
+   * Removes the pending aliases a write of the id-keyed {@code tagId} supersedes, before the write
+   * is routed and stored. The id setters call it only for a tag with {@link
+   * KnownTagCodec#HAS_SCOPED_ALIAS} while the span holds a pending alias, a test that folds away
+   * for a constant id without an alias, so their fast path carries no alias handling at all. The
+   * tag itself is stored right after, under its own lock acquisition; a concurrent write of the
+   * alias from another thread in between has no defined order anyway.
    */
-  public void supersedeAliases(long tagId) {
-    if (!hasPendingAliases()) {
-      return; // entry paths route on the constant mask; nothing to supersede
-    }
+  private void supersedeAliases(long tagId) {
     synchronized (tagIds) {
       supersedePendingAliases(tagId);
     }
@@ -1578,8 +1564,12 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags())
-        || !tagInterceptor.interceptTag(this, tagId, value)) {
+      return;
+    }
+    if (KnownTagCodec.hasScopedAlias(tagId) && pendingAliases != null) {
+      supersedeAliases(tagId);
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (tagIds) {
         tagIds.set(tagId, value);
       }
@@ -1592,8 +1582,12 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags())
-        || !tagInterceptor.interceptTag(this, tagId, value)) {
+      return;
+    }
+    if (KnownTagCodec.hasScopedAlias(tagId) && pendingAliases != null) {
+      supersedeAliases(tagId);
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (tagIds) {
         tagIds.set(tagId, value);
       }
@@ -1604,7 +1598,10 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
+    if (KnownTagCodec.hasScopedAlias(tagId) && pendingAliases != null) {
+      supersedeAliases(tagId);
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagIds) {
@@ -1617,7 +1614,10 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
+    if (KnownTagCodec.hasScopedAlias(tagId) && pendingAliases != null) {
+      supersedeAliases(tagId);
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagIds) {
@@ -1630,7 +1630,10 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
+    if (KnownTagCodec.hasScopedAlias(tagId) && pendingAliases != null) {
+      supersedeAliases(tagId);
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagIds) {
@@ -1643,7 +1646,10 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
+    if (KnownTagCodec.hasScopedAlias(tagId) && pendingAliases != null) {
+      supersedeAliases(tagId);
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagIds) {
@@ -1656,7 +1662,10 @@ public class DDSpanContext
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    if (tagInterceptor.needsIntercept(tagId, routedTagFlags())) {
+    if (KnownTagCodec.hasScopedAlias(tagId) && pendingAliases != null) {
+      supersedeAliases(tagId);
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
       synchronized (tagIds) {

@@ -1106,16 +1106,10 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         consumed |= interceptor.interceptTag(span, tagId, value);
       }
 
-      // Superseding a pending alias is not a case: the tag is still stored.
-      boolean hasCase =
-          consumed
-              || mockingDetails(span).getInvocations().stream()
-                  .anyMatch(i -> !i.getMethod().getName().equals("supersedeAliases"));
+      boolean hasCase = consumed || !mockingDetails(span).getInvocations().isEmpty();
       assertEquals(KnownTagCodec.isIntercepted(tagId), hasCase, field.getName());
       assertEquals(
-          KnownTagCodec.isIntercepted(tagId) || KnownTagCodec.hasScopedAlias(tagId),
-          interceptor.needsIntercept(tagId),
-          field.getName());
+          KnownTagCodec.isIntercepted(tagId), interceptor.needsIntercept(tagId), field.getName());
     }
   }
 
