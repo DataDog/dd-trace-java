@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.apicontract.Restricted;
 import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.function.TriConsumer;
@@ -12,6 +13,9 @@ import java.util.function.Consumer;
  * built from one -- never a name, so nothing here can be handed a name that a caller has not yet
  * resolved.
  *
+ * <p>A span in the tracer core owns its id store directly ({@link TagRouting#newIdStore}); a {@link
+ * TagMap} owns one too.
+ *
  * <p>Each implementation is its own class: {@link HashIdStore} today, a dense store later. Nothing
  * that is always loaded may extend this class, so that a call through it stays monomorphic. No
  * locking: guarded by the owner's lock.
@@ -21,7 +25,8 @@ import java.util.function.Consumer;
  * tags that don't usually co-occur share a slot -- so a clear bit is a definite miss and a set bit
  * means "probe". The masks are never cleared by a removal, only widened.
  */
-abstract class IdStore {
+@Restricted(allowedIn = {"datadog.trace.core"})
+public abstract class IdStore {
   /** Slots that may hold a live local entry. */
   long occupancy;
 
@@ -67,40 +72,40 @@ abstract class IdStore {
    *
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
-  abstract Entry get(long tagId);
+  public abstract Entry get(long tagId);
 
   /**
    * {@code get(tagId)}'s value, boxed if necessary, or null -- for a caller that needs only the
    * value, so a store that keeps known tags without an Entry per tag can answer without one.
    */
-  abstract Object getKnownValue(long tagId);
+  public abstract Object getKnownValue(long tagId);
 
   /*
    * Sets a known tag without validating its id: the caller has checked KnownTagCodec.isKnown.
    */
 
-  abstract void set(long tagId, Object value);
+  public abstract void set(long tagId, Object value);
 
-  abstract void set(long tagId, CharSequence value);
+  public abstract void set(long tagId, CharSequence value);
 
-  abstract void set(long tagId, boolean value);
+  public abstract void set(long tagId, boolean value);
 
-  abstract void set(long tagId, int value);
+  public abstract void set(long tagId, int value);
 
-  abstract void set(long tagId, long value);
+  public abstract void set(long tagId, long value);
 
-  abstract void set(long tagId, float value);
+  public abstract void set(long tagId, float value);
 
-  abstract void set(long tagId, double value);
+  public abstract void set(long tagId, double value);
 
   /**
    * Inserts or replaces a known tag's entry, returning the local entry it replaced (or null). Does
    * not consult the read-through parent.
    */
-  abstract Entry put(Entry knownEntry);
+  public abstract Entry put(Entry knownEntry);
 
   /** {@link #put(Entry)}, returning the prior visible entry -- local, else read through. */
-  abstract Entry getAndPut(Entry knownEntry);
+  public abstract Entry getAndPut(Entry knownEntry);
 
   /**
    * Removes the known tag {@code tagId}, returning the prior visible entry; an inherited one is
@@ -108,7 +113,7 @@ abstract class IdStore {
    *
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
-  abstract Entry remove(long tagId);
+  public abstract Entry remove(long tagId);
 
   /*
    * Whole-store operations, for the owning TagMap.

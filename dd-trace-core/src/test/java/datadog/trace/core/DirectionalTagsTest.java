@@ -23,6 +23,41 @@ import org.tabletest.junit.TableTest;
  * span tests.
  */
 class DirectionalTagsTest {
+  /** The stores DirectionalTags works on, over a plain TagMap in place of a span. */
+  private static DirectionalTags.TagStores stores(TagMap tags) {
+    return new DirectionalTags.TagStores() {
+      @Override
+      public Object knownValue(long tagId) {
+        return tags.getObject(KnownTagCodec.nameOf(tagId));
+      }
+
+      @Override
+      public void setKnown(long tagId, Object value) {
+        tags.set(tagId, value);
+      }
+
+      @Override
+      public void removeKnown(long tagId) {
+        tags.getAndRemove(tagId);
+      }
+
+      @Override
+      public Object customValue(String name) {
+        return tags.getObject(name);
+      }
+
+      @Override
+      public void setCustom(String name, Object value) {
+        tags.set(name, value);
+      }
+
+      @Override
+      public void removeCustom(String name) {
+        tags.remove(name);
+      }
+    };
+  }
+
   private static PendingAliases pending(String alias, Object value) {
     return DirectionalTags.addPending(null, alias, value);
   }
@@ -39,16 +74,17 @@ class DirectionalTagsTest {
     TagMap tags = TagMap.create();
     tags.set(tag, "stored");
 
-    assertEquals("stored", DirectionalTags.get(tags, null, alias, direction));
-    assertEquals("stored", DirectionalTags.get(tags, null, tag, direction));
-    assertEquals("stored", DirectionalTags.get(tags, null, KnownTagCodec.keyOf(tag), direction));
+    assertEquals("stored", DirectionalTags.get(stores(tags), null, alias, direction));
+    assertEquals("stored", DirectionalTags.get(stores(tags), null, tag, direction));
+    assertEquals(
+        "stored", DirectionalTags.get(stores(tags), null, KnownTagCodec.keyOf(tag), direction));
 
     // A pending alias is the newer write, so it wins on read, by name or by id.
     PendingAliases pending = pending(alias, "pending");
-    assertEquals("pending", DirectionalTags.get(tags, pending, alias, direction));
-    assertEquals("pending", DirectionalTags.get(tags, pending, tag, direction));
+    assertEquals("pending", DirectionalTags.get(stores(tags), pending, alias, direction));
+    assertEquals("pending", DirectionalTags.get(stores(tags), pending, tag, direction));
     assertEquals(
-        "pending", DirectionalTags.get(tags, pending, KnownTagCodec.keyOf(tag), direction));
+        "pending", DirectionalTags.get(stores(tags), pending, KnownTagCodec.keyOf(tag), direction));
   }
 
   @Test
@@ -56,29 +92,34 @@ class DirectionalTagsTest {
     TagMap tags = TagMap.create();
     tags.set(Tags.PEER_HOSTNAME, "stored");
 
-    assertNull(DirectionalTags.get(tags, null, "server.address", DIRECTION_UNKNOWN));
-    assertEquals("stored", DirectionalTags.get(tags, null, Tags.PEER_HOSTNAME, DIRECTION_UNKNOWN));
+    assertNull(DirectionalTags.get(stores(tags), null, "server.address", DIRECTION_UNKNOWN));
     assertEquals(
-        "stored", DirectionalTags.get(tags, null, KnownTags.PEER_HOSTNAME_ID, DIRECTION_UNKNOWN));
+        "stored", DirectionalTags.get(stores(tags), null, Tags.PEER_HOSTNAME, DIRECTION_UNKNOWN));
+    assertEquals(
+        "stored",
+        DirectionalTags.get(stores(tags), null, KnownTags.PEER_HOSTNAME_ID, DIRECTION_UNKNOWN));
 
     PendingAliases pending = pending("server.address", "pending");
     assertEquals(
-        "pending", DirectionalTags.get(tags, pending, "server.address", DIRECTION_UNKNOWN));
+        "pending", DirectionalTags.get(stores(tags), pending, "server.address", DIRECTION_UNKNOWN));
     assertEquals(
-        "stored", DirectionalTags.get(tags, pending, Tags.PEER_HOSTNAME, DIRECTION_UNKNOWN));
+        "stored",
+        DirectionalTags.get(stores(tags), pending, Tags.PEER_HOSTNAME, DIRECTION_UNKNOWN));
   }
 
   @Test
   void aMissReadsAsNull() {
     TagMap tags = TagMap.create();
 
-    assertNull(DirectionalTags.get(tags, null, "my.tag", DIRECTION_OUTBOUND));
-    assertNull(DirectionalTags.get(tags, null, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
-    assertNull(DirectionalTags.get(tags, null, KnownTags.PEER_HOSTNAME_ID, DIRECTION_OUTBOUND));
-    assertNull(DirectionalTags.get(tags, null, KnownTags.HTTP_METHOD_ID, DIRECTION_OUTBOUND));
-    assertNull(DirectionalTags.get(tags, null, "server.address", DIRECTION_OUTBOUND));
+    assertNull(DirectionalTags.get(stores(tags), null, "my.tag", DIRECTION_OUTBOUND));
+    assertNull(DirectionalTags.get(stores(tags), null, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+    assertNull(
+        DirectionalTags.get(stores(tags), null, KnownTags.PEER_HOSTNAME_ID, DIRECTION_OUTBOUND));
+    assertNull(
+        DirectionalTags.get(stores(tags), null, KnownTags.HTTP_METHOD_ID, DIRECTION_OUTBOUND));
+    assertNull(DirectionalTags.get(stores(tags), null, "server.address", DIRECTION_OUTBOUND));
     // client.port names no tag on a client span
-    assertNull(DirectionalTags.get(tags, null, "client.port", DIRECTION_OUTBOUND));
+    assertNull(DirectionalTags.get(stores(tags), null, "client.port", DIRECTION_OUTBOUND));
   }
 
   @Test
@@ -87,10 +128,12 @@ class DirectionalTagsTest {
     tags.set("my.tag", "custom");
     tags.set(Tags.HTTP_METHOD, "GET");
 
-    assertEquals("custom", DirectionalTags.get(tags, null, "my.tag", DIRECTION_OUTBOUND));
-    assertEquals("GET", DirectionalTags.get(tags, null, Tags.HTTP_METHOD, DIRECTION_OUTBOUND));
+    assertEquals("custom", DirectionalTags.get(stores(tags), null, "my.tag", DIRECTION_OUTBOUND));
     assertEquals(
-        "GET", DirectionalTags.get(tags, null, KnownTags.HTTP_METHOD_ID, DIRECTION_OUTBOUND));
+        "GET", DirectionalTags.get(stores(tags), null, Tags.HTTP_METHOD, DIRECTION_OUTBOUND));
+    assertEquals(
+        "GET",
+        DirectionalTags.get(stores(tags), null, KnownTags.HTTP_METHOD_ID, DIRECTION_OUTBOUND));
   }
 
   @Test
@@ -99,7 +142,8 @@ class DirectionalTagsTest {
     PendingAliases pending = pending("server.address", "older");
 
     long tagId =
-        DirectionalTags.prepareAliasWrite(tags, pending, "server.address", DIRECTION_OUTBOUND);
+        DirectionalTags.prepareAliasWrite(
+            stores(tags), pending, "server.address", DIRECTION_OUTBOUND);
 
     assertEquals(KnownTags.PEER_HOSTNAME_ID, tagId);
     assertTrue(pending.isEmpty()); // the older pending value is dropped
@@ -117,7 +161,7 @@ class DirectionalTagsTest {
     PendingAliases pending = pending(name, "pending");
 
     // the sentinel (-3) marks a real alias left pending; 0 marks a name that is no alias at all
-    assertEquals(result, DirectionalTags.prepareAliasWrite(tags, pending, name, direction));
+    assertEquals(result, DirectionalTags.prepareAliasWrite(stores(tags), pending, name, direction));
     assertEquals("pending", pending.get(name));
   }
 
@@ -127,7 +171,7 @@ class DirectionalTagsTest {
     PendingAliases pending = pending("client.port", 1);
     pending.put("server.port", 2);
 
-    DirectionalTags.prepareWrite(tags, pending, KnownTags.PEER_PORT_ID, DIRECTION_UNKNOWN);
+    DirectionalTags.prepareWrite(stores(tags), pending, KnownTags.PEER_PORT_ID, DIRECTION_UNKNOWN);
 
     assertTrue(pending.isEmpty());
   }
@@ -138,7 +182,7 @@ class DirectionalTagsTest {
     PendingAliases pending = pending("client.port", 1); // no tag on a client span: kept
     pending.put("server.port", 2);
 
-    DirectionalTags.prepareWrite(tags, pending, KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND);
+    DirectionalTags.prepareWrite(stores(tags), pending, KnownTags.PEER_PORT_ID, DIRECTION_OUTBOUND);
 
     assertEquals(1, pending.get("client.port"));
     assertNull(pending.get("server.port"));
@@ -149,8 +193,9 @@ class DirectionalTagsTest {
     TagMap tags = TagMap.create();
     PendingAliases pending = pending("server.address", "pending");
 
-    DirectionalTags.prepareWrite(tags, pending, KnownTags.HTTP_METHOD_ID, DIRECTION_UNKNOWN);
-    DirectionalTags.prepareWrite(tags, pending, KnownTags.PEER_HOSTNAME_ID, DIRECTION_NONE);
+    DirectionalTags.prepareWrite(
+        stores(tags), pending, KnownTags.HTTP_METHOD_ID, DIRECTION_UNKNOWN);
+    DirectionalTags.prepareWrite(stores(tags), pending, KnownTags.PEER_HOSTNAME_ID, DIRECTION_NONE);
 
     assertEquals("pending", pending.get("server.address"));
   }
@@ -161,7 +206,7 @@ class DirectionalTagsTest {
     tags.set(Tags.PEER_HOSTNAME, "stored");
     PendingAliases pending = pending("server.address", "pending");
 
-    DirectionalTags.remove(tags, pending, "server.address", DIRECTION_OUTBOUND);
+    DirectionalTags.remove(stores(tags), pending, "server.address", DIRECTION_OUTBOUND);
 
     assertNull(tags.getObject(Tags.PEER_HOSTNAME));
     assertTrue(pending.isEmpty());
@@ -172,14 +217,15 @@ class DirectionalTagsTest {
     TagMap byName = TagMap.create();
     byName.set(Tags.HTTP_HOSTNAME, "stored");
     PendingAliases pendingByName = pending("server.address", "pending");
-    DirectionalTags.remove(byName, pendingByName, Tags.HTTP_HOSTNAME, DIRECTION_INBOUND);
+    DirectionalTags.remove(stores(byName), pendingByName, Tags.HTTP_HOSTNAME, DIRECTION_INBOUND);
     assertNull(byName.getObject(Tags.HTTP_HOSTNAME));
     assertTrue(pendingByName.isEmpty());
 
     TagMap byId = TagMap.create();
     byId.set(Tags.HTTP_HOSTNAME, "stored");
     PendingAliases pendingById = pending("server.address", "pending");
-    DirectionalTags.remove(byId, pendingById, KnownTags.HTTP_HOSTNAME_ID, DIRECTION_INBOUND);
+    DirectionalTags.remove(
+        stores(byId), pendingById, KnownTags.HTTP_HOSTNAME_ID, DIRECTION_INBOUND);
     assertNull(byId.getObject(Tags.HTTP_HOSTNAME));
     assertTrue(pendingById.isEmpty());
   }
@@ -188,10 +234,10 @@ class DirectionalTagsTest {
   void removingAnAliasAlsoRemovesACopyEmittedEarlier() {
     TagMap tags = TagMap.create();
     PendingAliases pending = pending("server.address", "pending");
-    DirectionalTags.copyPending(pending, tags);
+    DirectionalTags.copyPending(pending, stores(tags));
     assertEquals("pending", tags.getObject("server.address"));
 
-    DirectionalTags.remove(tags, pending, "server.address", DIRECTION_UNKNOWN);
+    DirectionalTags.remove(stores(tags), pending, "server.address", DIRECTION_UNKNOWN);
 
     assertNull(tags.getObject("server.address"));
     assertTrue(pending.isEmpty());
@@ -203,8 +249,8 @@ class DirectionalTagsTest {
     tags.set(Tags.PEER_HOSTNAME, "stored");
     tags.set("my.tag", "custom");
 
-    DirectionalTags.remove(tags, null, "my.tag", DIRECTION_OUTBOUND);
-    DirectionalTags.remove(tags, null, KnownTags.HTTP_METHOD_ID, DIRECTION_OUTBOUND);
+    DirectionalTags.remove(stores(tags), null, "my.tag", DIRECTION_OUTBOUND);
+    DirectionalTags.remove(stores(tags), null, KnownTags.HTTP_METHOD_ID, DIRECTION_OUTBOUND);
 
     assertEquals("stored", tags.getObject(Tags.PEER_HOSTNAME));
     assertNull(tags.getObject("my.tag"));
@@ -222,7 +268,7 @@ class DirectionalTagsTest {
     tags.set(tag, "older");
     tags.set("my.tag", "custom");
 
-    assertNull(DirectionalTags.resolvePending(tags, pending(alias, "newer"), direction));
+    assertNull(DirectionalTags.resolvePending(stores(tags), pending(alias, "newer"), direction));
 
     assertEquals("newer", tags.getObject(tag));
     assertNull(tags.getObject(alias));
@@ -235,13 +281,13 @@ class DirectionalTagsTest {
     PendingAliases pending = pending("client.port", 1234);
     pending.put("server.address", "pending");
 
-    assertSame(pending, DirectionalTags.resolvePending(tags, pending, DIRECTION_OUTBOUND));
+    assertSame(pending, DirectionalTags.resolvePending(stores(tags), pending, DIRECTION_OUTBOUND));
     assertEquals(1234, pending.get("client.port"));
     assertNull(pending.get("server.address"));
     assertEquals("pending", tags.getObject(Tags.PEER_HOSTNAME));
 
     PendingAliases unknown = pending("server.address", "pending");
-    assertSame(unknown, DirectionalTags.resolvePending(tags, unknown, DIRECTION_UNKNOWN));
+    assertSame(unknown, DirectionalTags.resolvePending(stores(tags), unknown, DIRECTION_UNKNOWN));
     assertEquals("pending", unknown.get("server.address"));
   }
 
@@ -250,7 +296,7 @@ class DirectionalTagsTest {
     TagMap tags = TagMap.create();
     PendingAliases pending = pending("server.address", "pending");
 
-    DirectionalTags.copyPending(pending, tags);
+    DirectionalTags.copyPending(pending, stores(tags));
 
     assertEquals("pending", tags.getObject("server.address"));
     assertEquals(1, tags.size());
@@ -261,27 +307,30 @@ class DirectionalTagsTest {
     TagMap tags = TagMap.create();
     tags.set(Tags.PEER_HOSTNAME, "older");
 
-    DirectionalTags.remove(tags, null, "server.address", DIRECTION_UNKNOWN);
+    DirectionalTags.remove(stores(tags), null, "server.address", DIRECTION_UNKNOWN);
 
     // once the span is a client, server.address names peer.hostname: the removal must stick
-    assertNull(DirectionalTags.get(tags, null, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
-    assertNull(DirectionalTags.get(tags, null, "server.address", DIRECTION_OUTBOUND));
+    assertNull(DirectionalTags.get(stores(tags), null, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+    assertNull(DirectionalTags.get(stores(tags), null, "server.address", DIRECTION_OUTBOUND));
   }
 
   @Test
   void removingATagBeforeTheDirectionIsKnownRemovesThePendingAliasesThatCouldDenoteIt() {
     TagMap byName = TagMap.create();
     PendingAliases pendingByName = pending("server.address", "pending");
-    DirectionalTags.remove(byName, pendingByName, Tags.PEER_HOSTNAME, DIRECTION_UNKNOWN);
+    DirectionalTags.remove(stores(byName), pendingByName, Tags.PEER_HOSTNAME, DIRECTION_UNKNOWN);
     assertTrue(pendingByName.isEmpty());
-    assertNull(DirectionalTags.get(byName, pendingByName, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+    assertNull(
+        DirectionalTags.get(stores(byName), pendingByName, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
 
     TagMap byId = TagMap.create();
     PendingAliases pendingById = pending("server.address", "pending");
-    DirectionalTags.remove(byId, pendingById, KnownTags.PEER_HOSTNAME_ID, DIRECTION_UNKNOWN);
+    DirectionalTags.remove(
+        stores(byId), pendingById, KnownTags.PEER_HOSTNAME_ID, DIRECTION_UNKNOWN);
     assertTrue(pendingById.isEmpty());
     assertNull(
-        DirectionalTags.get(byId, pendingById, KnownTags.PEER_HOSTNAME_ID, DIRECTION_OUTBOUND));
+        DirectionalTags.get(
+            stores(byId), pendingById, KnownTags.PEER_HOSTNAME_ID, DIRECTION_OUTBOUND));
   }
 
   @Test
@@ -290,10 +339,11 @@ class DirectionalTagsTest {
     tags.set(Tags.PEER_HOSTNAME, "kept");
     tags.set("my.tag", "gone");
 
-    DirectionalTags.remove(tags, null, "my.tag", DIRECTION_UNKNOWN);
+    DirectionalTags.remove(stores(tags), null, "my.tag", DIRECTION_UNKNOWN);
 
     assertNull(tags.getObject("my.tag"));
-    assertEquals("kept", DirectionalTags.get(tags, null, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
+    assertEquals(
+        "kept", DirectionalTags.get(stores(tags), null, Tags.PEER_HOSTNAME, DIRECTION_OUTBOUND));
   }
 
   @Test

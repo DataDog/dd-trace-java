@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.apicontract.Restricted;
 import datadog.trace.api.TagMap.BucketGroup;
 import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.TagMap.EntryReader;
@@ -16,10 +17,12 @@ import java.util.function.Consumer;
  * custom tag names (asserted): a known tag is resolved to its id first, and goes to the {@link
  * IdStore}.
  *
- * <p>Created lazily by its owner on the first custom write; until then the owner borrows its
- * parent's custom store, if any, read-only. No locking: guarded by the owner's lock.
+ * <p>Created lazily by its owner -- a {@link TagMap}, or a span in the tracer core -- on the first
+ * custom write ({@link TagRouting#newCustomStore}); until then the owner borrows its parent's
+ * custom store, if any, read-only. No locking: guarded by the owner's lock.
  */
-final class HashStore {
+@Restricted(allowedIn = {"datadog.trace.core"})
+public final class HashStore {
   final Object[] buckets;
 
   /** Local entries. */
@@ -87,7 +90,7 @@ final class HashStore {
   }
 
   /** The custom tag {@code tag}'s entry, reading through to the parent chain. */
-  Entry get(String tag) {
+  public Entry get(String tag) {
     assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; look it up by its id";
     return this.get(tag, Entry.bucketHash(Entry.customHash(tag)));
   }
@@ -111,31 +114,31 @@ final class HashStore {
    * Sets the custom tag {@code tag}, which must not be a known tag's name.
    */
 
-  void set(String tag, Object value) {
+  public void set(String tag, Object value) {
     this.put(Entry.newAnyEntry(tag, value));
   }
 
-  void set(String tag, CharSequence value) {
+  public void set(String tag, CharSequence value) {
     this.put(Entry.newObjectEntry(tag, value));
   }
 
-  void set(String tag, boolean value) {
+  public void set(String tag, boolean value) {
     this.put(Entry.newBooleanEntry(tag, value));
   }
 
-  void set(String tag, int value) {
+  public void set(String tag, int value) {
     this.put(Entry.newIntEntry(tag, value));
   }
 
-  void set(String tag, long value) {
+  public void set(String tag, long value) {
     this.put(Entry.newLongEntry(tag, value));
   }
 
-  void set(String tag, float value) {
+  public void set(String tag, float value) {
     this.put(Entry.newFloatEntry(tag, value));
   }
 
-  void set(String tag, double value) {
+  public void set(String tag, double value) {
     this.put(Entry.newDoubleEntry(tag, value));
   }
 
@@ -143,7 +146,7 @@ final class HashStore {
    * Inserts or replaces a custom tag's entry, returning the local entry it replaced (or null). Does
    * not consult the read-through parent.
    */
-  Entry put(Entry newEntry) {
+  public Entry put(Entry newEntry) {
     // Re-setting a key clears any read-through tombstone for it (the new value overrides the
     // removal). Gated on the lazy field, so this is a no-op for the common no-tombstone case.
     if (this.removedFromParent != null) {
@@ -157,7 +160,7 @@ final class HashStore {
   }
 
   /** {@link #put(Entry)}, returning the prior visible entry -- local, else read through. */
-  Entry getAndPut(Entry newEntry) {
+  public Entry getAndPut(Entry newEntry) {
     // Capture whether the key was tombstoned BEFORE put clears it: a tombstoned key had no visible
     // prior value (it was removed), so getAndPut must report null rather than the parent's.
     boolean wasTombstoned =
@@ -177,7 +180,7 @@ final class HashStore {
    * Removes the custom tag {@code tag}, returning the prior visible entry. Removing a key the
    * parent chain still exposes also installs a tombstone, so it stops reading through.
    */
-  Entry remove(String tag) {
+  public Entry remove(String tag) {
     assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; remove it by its id";
     int hash = Entry.bucketHash(Entry.customHash(tag));
     Entry localRemoved = HashSupport.remove(this.buckets, hash, tag);

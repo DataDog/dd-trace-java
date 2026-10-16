@@ -6,19 +6,20 @@ import datadog.apicontract.Restricted;
 import datadog.trace.api.TagMap.Entry;
 
 /**
- * Where a tag name is resolved and an operation is routed to the store of a {@link TagMap} that
- * holds it: a known tag to its {@link IdStore} by id, a custom tag to its {@link HashStore} by name
- * (created on the first custom write). The one place a name becomes an id, so the stores themselves
- * never see a name that might be a known tag's. Shared by TagMap and by the tracer core's spans,
- * which hold their tags in a TagMap and route to it directly, skipping the checks TagMap's public
- * methods make.
+ * Where a tag name is resolved and a read is routed to the store that holds it: a known tag to an
+ * {@link IdStore} by id, a custom tag to a {@link HashStore} by name. The one place a name becomes
+ * an id, so the stores themselves never see a name that might be a known tag's. Shared by {@link
+ * TagMap} and by the tracer core's spans, which own their stores directly.
+ *
+ * <p>A custom store may be null: its owner creates it on the first custom write ({@link
+ * #newCustomStore}), and until then may borrow its parent's. Writes and removals of custom tags are
+ * the owner's, which alone can create its store.
  *
  * <p>A name resolves once, by {@link #keyOf}, to a key: a known tag's id ({@code > 0}), 0 for a
  * custom tag, or a negative sentinel for a direction-scoped OpenTelemetry alias ({@code
  * server.address}), whose tag depends on the span's direction. An alias is the caller's to decide:
  * the key-taking methods treat any key that is not an id as custom, which is what a TagMap does
- * with an alias, having no direction. {@link #getEntry(TagMap, long, String, int, boolean)} reads
- * an alias by a span's direction.
+ * with an alias, having no direction.
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public final class TagRouting {
@@ -35,165 +36,60 @@ public final class TagRouting {
   }
 
   /*
-   * By id.
+   * Stores for an owner reading through to a frozen parent TagMap.
    */
 
-  /** The known tag {@code tagId}'s entry; throws for an id that names no known tag. */
-  public static Entry getById(TagMap tags, long tagId) {
-    return tags.ids.get(tagId);
+  /**
+   * The parent an owner reads through to: {@code parent}, or null when it is null or empty, as
+   * {@link TagMap#createFromParent} decides.
+   *
+   * @throws IllegalStateException if {@code parent} is not frozen
+   */
+  public static TagMap readThroughParent(TagMap parent) {
+    if (parent == null) {
+      return null;
+    }
+    if (!parent.isFrozen()) {
+      throw new IllegalStateException("read-through parent must be frozen");
+    }
+    return parent.isEmpty() ? null : parent;
   }
 
-  /** {@link #getById}'s value, or null. */
-  public static Object getKnownValue(TagMap tags, long tagId) {
-    return tags.ids.getKnownValue(tagId);
+  /** A fresh id store reading through to {@code parent}'s known tags (parent may be null). */
+  public static IdStore newIdStore(TagMap parent) {
+    return new HashIdStore(parent == null ? null : parent.ids);
   }
 
-  /** Removes the known tag {@code tagId}; throws for an id that names no known tag. */
-  public static Entry removeById(TagMap tags, long tagId) {
-    return tags.ids.remove(tagId);
+  /**
+   * {@code parent}'s custom store, for an owner to borrow read-only until its first custom write,
+   * or null.
+   */
+  public static HashStore inheritedCustomStore(TagMap parent) {
+    return parent == null ? null : parent.names;
+  }
+
+  /**
+   * A fresh custom store for an owner's first custom write, reading through to {@code borrowed},
+   * the store it borrowed until now (may be null).
+   */
+  public static HashStore newCustomStore(HashStore borrowed) {
+    return new HashStore(borrowed);
   }
 
   /*
-   * Sets a known tag without validating its id: the caller has checked KnownTagCodec.isKnown.
-   */
-
-  public static void setKnown(TagMap tags, long tagId, Object value) {
-    tags.ids.set(tagId, value);
-  }
-
-  public static void setKnown(TagMap tags, long tagId, CharSequence value) {
-    tags.ids.set(tagId, value);
-  }
-
-  public static void setKnown(TagMap tags, long tagId, boolean value) {
-    tags.ids.set(tagId, value);
-  }
-
-  public static void setKnown(TagMap tags, long tagId, int value) {
-    tags.ids.set(tagId, value);
-  }
-
-  public static void setKnown(TagMap tags, long tagId, long value) {
-    tags.ids.set(tagId, value);
-  }
-
-  public static void setKnown(TagMap tags, long tagId, float value) {
-    tags.ids.set(tagId, value);
-  }
-
-  public static void setKnown(TagMap tags, long tagId, double value) {
-    tags.ids.set(tagId, value);
-  }
-
-  /*
-   * Custom tags, by name: never a known tag's name.
-   */
-
-  /** The custom tag {@code tag}'s entry, reading through to parents, or null. */
-  public static Entry getCustom(TagMap tags, String tag) {
-    HashStore names = tags.names;
-    return names == null ? null : names.get(tag);
-  }
-
-  /** Removes the custom tag {@code tag}, returning the prior visible entry. */
-  public static Entry removeCustom(TagMap tags, String tag) {
-    return tags.removeCustom(tag);
-  }
-
-  /** Sets the custom tag {@code tag}. */
-  public static void setCustom(TagMap tags, String tag, Object value) {
-    tags.namesForWrite().set(tag, value);
-  }
-
-  /*
-   * By entry, which already carries its id or its name.
-   */
-
-  /** Puts {@code entry} into the store for its kind, returning the local entry it replaced. */
-  public static Entry put(TagMap tags, Entry entry) {
-    return entry.tagId() != 0 ? tags.ids.put(entry) : tags.namesForWrite().put(entry);
-  }
-
-  /** {@link #put}, returning the prior visible entry. */
-  public static Entry getAndPut(TagMap tags, Entry entry) {
-    return entry.tagId() != 0 ? tags.ids.getAndPut(entry) : tags.namesForWrite().getAndPut(entry);
-  }
-
-  /*
-   * By name, already resolved to its key by keyOf. A key that is not an id is a custom tag.
+   * Reads, by name already resolved to its key by keyOf. A key that is not an id is a custom tag.
    */
 
   /** The entry for {@code tag}, already resolved to {@code key}, reading through to parents. */
-  public static Entry get(TagMap tags, long key, String tag) {
-    return isKnown(key) ? tags.ids.get(key) : getCustom(tags, tag);
-  }
-
-  /** Removes {@code tag}, already resolved to {@code key}, returning the prior visible entry. */
-  public static Entry remove(TagMap tags, long key, String tag) {
-    return isKnown(key) ? tags.ids.remove(key) : tags.removeCustom(tag);
-  }
-
-  public static void set(TagMap tags, long key, String tag, Object value) {
-    if (isKnown(key)) {
-      tags.ids.set(key, value);
-    } else {
-      tags.namesForWrite().set(tag, value);
-    }
-  }
-
-  public static void set(TagMap tags, long key, String tag, CharSequence value) {
-    if (isKnown(key)) {
-      tags.ids.set(key, value);
-    } else {
-      tags.namesForWrite().set(tag, value);
-    }
-  }
-
-  public static void set(TagMap tags, long key, String tag, boolean value) {
-    if (isKnown(key)) {
-      tags.ids.set(key, value);
-    } else {
-      tags.namesForWrite().set(tag, value);
-    }
-  }
-
-  public static void set(TagMap tags, long key, String tag, int value) {
-    if (isKnown(key)) {
-      tags.ids.set(key, value);
-    } else {
-      tags.namesForWrite().set(tag, value);
-    }
-  }
-
-  public static void set(TagMap tags, long key, String tag, long value) {
-    if (isKnown(key)) {
-      tags.ids.set(key, value);
-    } else {
-      tags.namesForWrite().set(tag, value);
-    }
-  }
-
-  public static void set(TagMap tags, long key, String tag, float value) {
-    if (isKnown(key)) {
-      tags.ids.set(key, value);
-    } else {
-      tags.namesForWrite().set(tag, value);
-    }
-  }
-
-  public static void set(TagMap tags, long key, String tag, double value) {
-    if (isKnown(key)) {
-      tags.ids.set(key, value);
-    } else {
-      tags.namesForWrite().set(tag, value);
-    }
+  public static Entry get(IdStore ids, HashStore names, long key, String tag) {
+    return isKnown(key) ? ids.get(key) : names == null ? null : names.get(tag);
   }
 
   /*
    * By name, on a span of a direction. A direction-scoped alias reads the tag it denotes, and a tag
    * reads a pending alias stored as written in the custom store, which, being the newer write,
-   * wins. (A span keeps its pending aliases apart, and copies them into the custom store before
-   * handing its TagMap to a reader that uses this.)
+   * wins. (A span keeps its pending aliases apart, and copies them into its custom store before
+   * handing its tags to a reader that uses this.)
    */
 
   /**
@@ -202,30 +98,36 @@ public final class TagRouting {
    * single lookup like any other tag.
    */
   public static Entry getEntry(
-      TagMap tags, long key, String name, int direction, boolean mayHavePendingAliases) {
+      IdStore ids,
+      HashStore names,
+      long key,
+      String name,
+      int direction,
+      boolean mayHavePendingAliases) {
     if (isKnown(key)) {
-      return getById(tags, key, direction, mayHavePendingAliases);
+      return getById(ids, names, key, direction, mayHavePendingAliases);
     }
-    Entry asWritten = key == 0 || mayHavePendingAliases ? getCustom(tags, name) : null;
+    Entry asWritten = (key == 0 || mayHavePendingAliases) && names != null ? names.get(name) : null;
     if (key == 0 || asWritten != null) {
       return asWritten;
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-    return isKnown(tagId) ? tags.ids.get(tagId) : null;
+    return isKnown(tagId) ? ids.get(tagId) : null;
   }
 
   /** The entry the known tag {@code tagId} reads on a span of {@code direction}; see above. */
   public static Entry getById(
-      TagMap tags, long tagId, int direction, boolean mayHavePendingAliases) {
+      IdStore ids, HashStore names, long tagId, int direction, boolean mayHavePendingAliases) {
     if (mayHavePendingAliases
+        && names != null
         && KnownTagCodec.hasScopedAlias(tagId)
         && direction != DIRECTION_UNKNOWN) {
       String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
-      Entry pending = alias == null ? null : getCustom(tags, alias);
+      Entry pending = alias == null ? null : names.get(alias);
       if (pending != null) {
         return pending;
       }
     }
-    return tags.ids.get(tagId);
+    return ids.get(tagId);
   }
 }

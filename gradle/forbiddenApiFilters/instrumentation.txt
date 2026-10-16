@@ -3,10 +3,15 @@
 @defaultMessage Use AgentSpan#setServiceName(String, CharSequence) instead to track the source of the service name. The source should typically be the instrumentation name.
 datadog.trace.bootstrap.instrumentation.api.AgentSpan#setServiceName(java.lang.String)
 
-# A span's tags, and the routing over them, skip checks the tracer core has already made; they are
-# @Restricted to the core (see datadog.apicontract.Restricted). Instrumentation uses TagMap's
-# checked methods.
-@defaultMessage Tag routing is restricted to the tracer core; use TagMap's checked methods instead.
+# A span's tag stores, the routing over them and the span's view of them skip checks the tracer
+# core has already made; they are @Restricted to the core (see datadog.apicontract.Restricted).
+# Instrumentation uses TagMap's checked methods.
+@defaultMessage Tag stores are restricted to the tracer core; use TagMap's checked methods instead.
+datadog.trace.api.HashStore
+datadog.trace.api.IdStore
 datadog.trace.api.TagRouting
 datadog.trace.api.TagMap$DirectionSource
-datadog.trace.api.TagMap#forSpan(datadog.trace.api.TagMap,datadog.trace.api.TagMap$DirectionSource)
+datadog.trace.api.TagMap#viewOf(datadog.trace.api.IdStore,datadog.trace.api.HashStore,boolean,datadog.trace.api.TagMap$DirectionSource)
+datadog.trace.api.TagMap#attachCustomStore(datadog.trace.api.HashStore,boolean)
+datadog.trace.api.TagMap#customStore()
+datadog.trace.api.TagMap#isCustomStoreBorrowed()

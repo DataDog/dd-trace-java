@@ -212,100 +212,88 @@ class TagStoresTest {
   }
 
   @Test
-  void routingSendsKnownTagsByIdAndEverythingElseByName() {
-    TagMap tags = TagMap.create();
+  void routingReadsKnownTagsByIdAndEverythingElseByName() {
+    IdStore ids = TagRouting.newIdStore(null);
+    HashStore names = TagRouting.newCustomStore(null);
     long route = TagRouting.keyOf(KnownTags.HTTP_ROUTE_NAME);
     long alias = TagRouting.keyOf("server.address");
     assertEquals(KnownTags.HTTP_ROUTE_ID, route);
     assertEquals(0L, TagRouting.keyOf("my.tag"));
     assertTrue(alias < 0);
+    assertTrue(TagRouting.isKnown(route));
+    assertFalse(TagRouting.isKnown(alias));
 
-    TagRouting.set(tags, route, KnownTags.HTTP_ROUTE_NAME, (Object) "/a");
-    TagRouting.set(tags, 0L, "my.tag", (Object) "custom");
-    TagRouting.set(tags, alias, "server.address", (Object) "as-written");
+    ids.set(route, "/a");
+    names.set("my.tag", "custom");
+    names.set("server.address", "as-written");
 
-    assertEquals("/a", TagRouting.get(tags, route, KnownTags.HTTP_ROUTE_NAME).stringValue());
-    assertEquals("/a", TagRouting.getKnownValue(tags, KnownTags.HTTP_ROUTE_ID));
-    assertEquals("custom", TagRouting.getCustom(tags, "my.tag").stringValue());
-    assertEquals("as-written", TagRouting.getCustom(tags, "server.address").stringValue());
-
-    assertNotNull(TagRouting.remove(tags, route, KnownTags.HTTP_ROUTE_NAME));
-    assertNotNull(TagRouting.removeCustom(tags, "my.tag"));
-    assertNull(TagRouting.getById(tags, KnownTags.HTTP_ROUTE_ID));
-    assertNull(TagRouting.removeById(tags, KnownTags.HTTP_ROUTE_ID));
-    assertNull(TagRouting.remove(tags, 0L, "my.tag"));
+    assertEquals("/a", TagRouting.get(ids, names, route, KnownTags.HTTP_ROUTE_NAME).stringValue());
+    assertEquals("custom", TagRouting.get(ids, names, 0L, "my.tag").stringValue());
+    assertEquals("as-written", TagRouting.get(ids, names, alias, "server.address").stringValue());
+    assertNull(TagRouting.get(ids, null, 0L, "my.tag")); // no custom store yet
   }
 
   @Test
-  void routingSetsEveryValueShape() {
-    TagMap tags = TagMap.create();
-    TagRouting.setKnown(tags, KnownTags.COMPONENT_ID, (Object) "jdbc");
-    TagRouting.setKnown(tags, KnownTags.HTTP_ROUTE_ID, "/a");
-    TagRouting.setKnown(tags, KnownTags.DD_PROFILING_ENABLED_ID, true);
-    TagRouting.setKnown(tags, KnownTags.HTTP_STATUS_CODE_ID, 200);
-    TagRouting.setKnown(tags, KnownTags.HTTP_RESEND_COUNT_ID, 2L);
-    TagRouting.setKnown(tags, KnownTags.DB_POOL_NAME_ID, 1.5f);
-    TagRouting.setKnown(tags, KnownTags.DB_INSTANCE_ID, 2.25d);
-    TagRouting.set(tags, KnownTags.HTTP_METHOD_ID, "x", "GET");
-    TagRouting.set(tags, KnownTags.DD_PROFILING_ENABLED_ID, "x", false);
-    TagRouting.set(tags, KnownTags.HTTP_STATUS_CODE_ID, "x", 201);
-    TagRouting.set(tags, KnownTags.HTTP_RESEND_COUNT_ID, "x", 3L);
-    TagRouting.set(tags, KnownTags.DB_POOL_NAME_ID, "x", 2.5f);
-    TagRouting.set(tags, KnownTags.DB_INSTANCE_ID, "x", 3.25d);
-    TagRouting.set(tags, 0L, "s", "v");
-    TagRouting.set(tags, 0L, "b", true);
-    TagRouting.set(tags, 0L, "i", 1);
-    TagRouting.set(tags, 0L, "l", 2L);
-    TagRouting.set(tags, 0L, "f", 3f);
-    TagRouting.set(tags, 0L, "d", 4d);
-    TagRouting.setCustom(tags, "o", "obj");
+  void anOwnerReadsThroughItsParentsStores() {
+    assertNull(TagRouting.readThroughParent(null));
+    assertThrows(IllegalStateException.class, () -> TagRouting.readThroughParent(TagMap.create()));
+    assertNull(TagRouting.readThroughParent(TagMap.create().freeze())); // empty parent dropped
 
-    assertEquals(201, tags.getObject(KnownTags.HTTP_STATUS_CODE_NAME));
-    assertEquals(false, tags.getObject(KnownTags.DD_PROFILING_ENABLED_NAME));
-    assertEquals(3.25d, tags.getObject(KnownTags.DB_INSTANCE_NAME));
-    assertEquals(4d, tags.getObject("d"));
-    assertEquals("obj", tags.getObject("o"));
-    assertEquals(15, tags.size());
+    TagMap parent = TagRouting.readThroughParent(frozenParent());
+    IdStore ids = TagRouting.newIdStore(parent);
+    HashStore borrowed = TagRouting.inheritedCustomStore(parent);
+    assertSame(parent.names, borrowed);
+    assertEquals("/inherited", ids.getKnownValue(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("c", borrowed.get("inherited.custom").stringValue());
+
+    HashStore own = TagRouting.newCustomStore(borrowed);
+    own.set("own", "o");
+    assertEquals("c", own.get("inherited.custom").stringValue());
+    assertNull(borrowed.get("own"));
   }
 
   @Test
-  void routingPutsEntriesByTheirKind() {
-    TagMap tags = TagMap.create();
-    assertNull(TagRouting.put(tags, TagMap.Entry.create(KnownTags.HTTP_ROUTE_ID, "/a")));
-    assertNull(TagRouting.getAndPut(tags, TagMap.Entry.create("my.tag", "x")));
-    assertEquals(
-        "/a",
-        TagRouting.getAndPut(tags, TagMap.Entry.create(KnownTags.HTTP_ROUTE_ID, "/b"))
-            .stringValue());
-    assertEquals("x", TagRouting.put(tags, TagMap.Entry.create("my.tag", "y")).stringValue());
+  void theCustomStoreSetsEveryValueShape() {
+    HashStore names = TagRouting.newCustomStore(null);
+    names.set("o", (Object) "obj");
+    names.set("s", "v");
+    names.set("b", true);
+    names.set("i", 1);
+    names.set("l", 2L);
+    names.set("f", 3f);
+    names.set("d", 4d);
+    assertNull(names.getAndPut(TagMap.Entry.create("p", "x")));
+    assertEquals("x", names.put(TagMap.Entry.create("p", "y")).stringValue());
+
+    assertEquals(true, names.get("b").objectValue());
+    assertEquals(4d, names.get("d").objectValue());
+    assertEquals(8, names.size());
   }
 
   @Test
-  void aSpansTagsReadAnAliasByItsDirection() {
-    TagMap inbound = TagMap.forSpan(null, direction(DIRECTION_INBOUND, false));
-    TagMap outbound = TagMap.forSpan(null, direction(DIRECTION_OUTBOUND, false));
-    for (TagMap tags : new TagMap[] {inbound, outbound}) {
-      tags.set(KnownTags.HTTP_HOSTNAME_ID, "inbound.example");
-      tags.set(KnownTags.PEER_HOSTNAME_ID, "outbound.example");
-    }
-    TagMap plain = TagMap.create();
-    plain.set(KnownTags.PEER_HOSTNAME_ID, "outbound.example");
+  void aViewReadsAnAliasByTheSpansDirection() {
+    IdStore ids = TagRouting.newIdStore(null);
+    ids.set(KnownTags.HTTP_HOSTNAME_ID, "inbound.example");
+    ids.set(KnownTags.PEER_HOSTNAME_ID, "outbound.example");
+    TagMap inbound = TagMap.viewOf(ids, null, false, direction(DIRECTION_INBOUND, false));
+    TagMap outbound = TagMap.viewOf(ids, null, false, direction(DIRECTION_OUTBOUND, false));
+    TagMap plain = TagMap.viewOf(ids, null, false, null);
 
     assertEquals("inbound.example", inbound.getString("server.address"));
     assertEquals("outbound.example", outbound.getString("server.address"));
-    assertNull(plain.getString("server.address")); // a TagMap of its own reads names as written
+    assertNull(plain.getString("server.address")); // with no direction, names read as written
     assertEquals("inbound.example", outbound.getString(KnownTags.HTTP_HOSTNAME_NAME));
   }
 
   @Test
-  void aSpansTagsReadAnEmittedPendingAliasOverItsTag() {
-    TagMap pending = TagMap.forSpan(null, direction(DIRECTION_OUTBOUND, true));
-    TagMap noPending = TagMap.forSpan(null, direction(DIRECTION_OUTBOUND, false));
-    TagMap unknown = TagMap.forSpan(null, direction(DIRECTION_UNKNOWN, true));
-    for (TagMap tags : new TagMap[] {pending, noPending, unknown}) {
-      tags.set(KnownTags.PEER_HOSTNAME_ID, "older");
-      TagRouting.setCustom(tags, "server.address", "pending");
-    }
+  void aViewReadsAnEmittedPendingAliasOverItsTag() {
+    IdStore ids = TagRouting.newIdStore(null);
+    ids.set(KnownTags.PEER_HOSTNAME_ID, "older");
+    HashStore names = TagRouting.newCustomStore(null);
+    names.set("server.address", "pending");
+    TagMap pending = TagMap.viewOf(ids, names, false, direction(DIRECTION_OUTBOUND, true));
+    TagMap noPending = TagMap.viewOf(ids, names, false, direction(DIRECTION_OUTBOUND, false));
+    TagMap unknown = TagMap.viewOf(ids, names, false, direction(DIRECTION_UNKNOWN, true));
 
     assertEquals("pending", pending.getString(KnownTags.PEER_HOSTNAME_NAME));
     assertEquals("pending", pending.getString("server.address"));
@@ -313,18 +301,32 @@ class TagStoresTest {
     assertEquals("older", unknown.getString(KnownTags.PEER_HOSTNAME_NAME));
     assertEquals("pending", unknown.getString("server.address"));
     assertNull(noPending.getString("client.port")); // no tag in this direction
+    // with no custom store, the alias reads the tag it denotes
+    assertEquals(
+        "older",
+        TagMap.viewOf(ids, null, false, direction(DIRECTION_OUTBOUND, true))
+            .getString("server.address"));
   }
 
   @Test
-  void forSpanMirrorsCreateFromParent() {
-    assertThrows(
-        IllegalStateException.class,
-        () -> TagMap.forSpan(TagMap.create(), direction(DIRECTION_UNKNOWN, false)));
-    assertNull(TagMap.forSpan(TagMap.create().freeze(), null).parent); // empty parent dropped
+  void aViewWritesThroughToItsOwnersStoresAndHandsBackANewCustomStore() {
+    TagMap parent = TagRouting.readThroughParent(frozenParent());
+    IdStore ids = TagRouting.newIdStore(parent);
+    HashStore borrowed = TagRouting.inheritedCustomStore(parent);
+    TagMap view = TagMap.viewOf(ids, borrowed, true, direction(DIRECTION_UNKNOWN, false));
+    assertSame(borrowed, view.customStore());
+    assertTrue(view.isCustomStoreBorrowed());
 
-    TagMap span = TagMap.forSpan(frozenParent(), direction(DIRECTION_UNKNOWN, false));
-    assertEquals("/inherited", span.getString(KnownTags.HTTP_ROUTE_NAME));
-    assertEquals(3, span.size());
+    view.set(KnownTags.HTTP_METHOD_NAME, "GET");
+    view.set("own", "o");
+    assertEquals("GET", ids.getKnownValue(KnownTags.HTTP_METHOD_ID));
+    assertFalse(view.isCustomStoreBorrowed());
+    assertNotSame(borrowed, view.customStore());
+    assertEquals("o", view.customStore().get("own").stringValue());
+
+    view.attachCustomStore(null, false);
+    assertNull(view.getString("own"));
+    assertNull(view.customStore());
   }
 
   @Test

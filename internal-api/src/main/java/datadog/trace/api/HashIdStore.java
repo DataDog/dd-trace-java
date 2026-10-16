@@ -42,7 +42,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  Entry get(long tagId) {
+  public Entry get(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
@@ -62,50 +62,50 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  Object getKnownValue(long tagId) {
+  public Object getKnownValue(long tagId) {
     Entry entry = this.get(tagId);
     return entry == null ? null : entry.objectValue();
   }
 
   @Override
-  void set(long tagId, Object value) {
+  public void set(long tagId, Object value) {
     this.put(new Entry(tagId, null, Entry.ANY, 0L, value));
   }
 
   @Override
-  void set(long tagId, CharSequence value) {
+  public void set(long tagId, CharSequence value) {
     this.put(new Entry(tagId, null, EntryReader.OBJECT, 0L, value));
   }
 
   @Override
-  void set(long tagId, boolean value) {
+  public void set(long tagId, boolean value) {
     this.put(
         new Entry(
             tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
   }
 
   @Override
-  void set(long tagId, int value) {
+  public void set(long tagId, int value) {
     this.put(new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value), null));
   }
 
   @Override
-  void set(long tagId, long value) {
+  public void set(long tagId, long value) {
     this.put(new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value), null));
   }
 
   @Override
-  void set(long tagId, float value) {
+  public void set(long tagId, float value) {
     this.put(new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value), null));
   }
 
   @Override
-  void set(long tagId, double value) {
+  public void set(long tagId, double value) {
     this.put(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
   }
 
   @Override
-  Entry put(Entry knownEntry) {
+  public Entry put(Entry knownEntry) {
     Entry replaced = HashSupport.put(this.buckets, knownEntry);
     this.occupancy |= slotBit(knownEntry.tagHash);
     if (replaced == null || replaced.tombstone) {
@@ -116,7 +116,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  Entry getAndPut(Entry knownEntry) {
+  public Entry getAndPut(Entry knownEntry) {
     long tagId = knownEntry.tagHash;
     long bit = slotBit(tagId);
     Entry replaced = HashSupport.put(this.buckets, knownEntry);
@@ -132,7 +132,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  Entry remove(long tagId) {
+  public Entry remove(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
