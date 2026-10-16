@@ -215,7 +215,15 @@ public final class TagRouting {
    * {@link TagMap#putAll(TagMap)}.
    */
   public static void putAll(IdStore ids, HashStore hash, TagMap source) {
-    TagMap.viewOf(ids, hash, null).putAll(source);
+    if (!HASH_MODE) {
+      TagMap.viewOf(ids, hash, null).putAll(source);
+    } else if (source.names.parent != null) {
+      // read-through source: copy the full visible set, as TagMap.putAll does
+      source.forEach(hash, (target, entry) -> target.put(entry.entry()));
+    } else {
+      // No view here: putAll is too big to inline, so a view would escape and be allocated.
+      hash.putAllLocal(source.names);
+    }
   }
 
   /*
