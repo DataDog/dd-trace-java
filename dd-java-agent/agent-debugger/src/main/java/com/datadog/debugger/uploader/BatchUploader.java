@@ -76,9 +76,6 @@ public class BatchUploader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-  private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-  private static final String HEADER_DD_ENTITY_ID = "Datadog-Entity-ID";
-  private static final String HEADER_DD_EXTERNAL_ENV = "Datadog-External-Env";
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   public static final int MAX_ENQUEUED_REQUESTS = 20;
@@ -271,15 +268,7 @@ public class BatchUploader {
     } else {
       LOGGER.debug("API key is null");
     }
-    if (containerId != null) {
-      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
-    }
-    if (entityId != null) {
-      requestBuilder.addHeader(HEADER_DD_ENTITY_ID, entityId);
-    }
-    if (externalEnv != null) {
-      requestBuilder.addHeader(HEADER_DD_EXTERNAL_ENV, externalEnv);
-    }
+    OkHttpUtils.addOriginHeaders(requestBuilder, containerId, entityId, externalEnv);
     Request request = requestBuilder.build();
     LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());
     enqueueCall(client, request, responseCallback, retryPolicy, 0, inflightRequests);

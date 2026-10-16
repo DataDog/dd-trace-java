@@ -367,15 +367,32 @@ public class ContainerInfoTest extends DDJavaSpecification {
     "not parsed           | 'some unexpected value'                                               | 'some unexpected value'                                              "
   })
   // spotless:on
-  void readExternalEnv(String externalEnv, String expected) {
-    assertEquals(expected, ContainerInfo.readExternalEnv(externalEnv));
+  void sanitizeExternalEnv(String externalEnv, String expected) {
+    assertEquals(expected, ContainerInfo.sanitizeExternalEnv(externalEnv));
   }
 
   @Test
-  void readExternalEnvIgnoresValuesNotAllowedInHeaders() {
-    assertNull(ContainerInfo.readExternalEnv("it-false,\ncn-weblog"));
-    assertNull(ContainerInfo.readExternalEnv("it-false,cn-w\u00e9blog"));
-    assertNull(ContainerInfo.readExternalEnv("it-false,cn-weblog\u007f"));
+  void sanitizeExternalEnvKeepsEmbeddedTabs() {
+    // tabs are allowed in HTTP header values
+    assertEquals("it-false,\tcn-weblog", ContainerInfo.sanitizeExternalEnv("it-false,\tcn-weblog"));
+  }
+
+  @Test
+  void sanitizeExternalEnvTrimsSurroundingControlCharacters() {
+    // String.trim() strips all leading and trailing characters <= U+0020, including control
+    // characters, so only embedded invalid characters cause the value to be rejected
+    assertNull(ContainerInfo.sanitizeExternalEnv("\t"));
+    assertNull(ContainerInfo.sanitizeExternalEnv(" \t\n "));
+    assertEquals("it-false", ContainerInfo.sanitizeExternalEnv("\tit-false\t"));
+    assertEquals("it-false", ContainerInfo.sanitizeExternalEnv("\u0001it-false\n"));
+  }
+
+  @Test
+  void sanitizeExternalEnvIgnoresValuesNotAllowedInHeaders() {
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,\ncn-weblog"));
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,\u0001cn-weblog"));
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,cn-w\u00e9blog"));
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,cn-weblog\u007f"));
   }
 
   private static File createTempDir() throws IOException {

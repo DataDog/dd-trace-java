@@ -154,6 +154,28 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
   }
 
   @Test
+  void configurationRequestCarriesExternalEnvHeaderWithoutContainerOrEntityId() {
+    // the external env is the origin detection fallback when the container is not identifiable
+    String externalEnv = "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759";
+    PollerRequestFactory factory =
+        new PollerRequestFactory(
+            Config.get(),
+            TRACER_VERSION,
+            null,
+            null,
+            externalEnv,
+            INVALID_REMOTE_CONFIG_URL,
+            new Moshi.Builder().build());
+
+    Request request =
+        factory.newConfigurationRequest(Collections.singletonList("ASM"), null, null, 0);
+
+    assertNull(request.header("Datadog-Container-ID"));
+    assertNull(request.header("Datadog-Entity-ID"));
+    assertEquals(externalEnv, request.header("Datadog-External-Env"));
+  }
+
+  @Test
   void configurationRequestOmitsExternalEnvHeaderWhenUnset() {
     PollerRequestFactory factory =
         new PollerRequestFactory(

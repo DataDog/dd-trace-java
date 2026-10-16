@@ -48,7 +48,7 @@ public final class OkHttpUtils {
   private static final String DATADOG_META_LANG_INTERPRETER_VENDOR =
       "Datadog-Meta-Lang-Interpreter-Vendor";
   public static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
-  private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
+  static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
   static final String DATADOG_EXTERNAL_ENV = "Datadog-External-Env";
   public static final String DATADOG_CONTAINER_TAGS_HASH = "Datadog-Container-Tags-Hash";
 
@@ -262,6 +262,34 @@ public final class OkHttpUtils {
             .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
             .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
+    addOriginHeaders(builder, containerId, entityId, externalEnv);
+
+    for (Map.Entry<String, String> e : headers.entrySet()) {
+      builder.addHeader(e.getKey(), e.getValue());
+    }
+
+    return builder;
+  }
+
+  /**
+   * Adds the origin detection headers ({@code Datadog-Container-ID}, {@code Datadog-Entity-ID} and
+   * {@code Datadog-External-Env}) the Datadog Agent uses to resolve the container the request comes
+   * from, using the values detected by {@link ContainerInfo}.
+   */
+  public static Request.Builder addOriginHeaders(final Request.Builder builder) {
+    return addOriginHeaders(
+        builder,
+        ContainerInfo.get().getContainerId(),
+        ContainerInfo.getEntityId(),
+        ContainerInfo.getExternalEnv());
+  }
+
+  /** Adds the origin detection headers that are not {@code null}. */
+  public static Request.Builder addOriginHeaders(
+      final Request.Builder builder,
+      @Nullable final String containerId,
+      @Nullable final String entityId,
+      @Nullable final String externalEnv) {
     if (containerId != null) {
       builder.addHeader(DATADOG_CONTAINER_ID, containerId);
     }
@@ -271,11 +299,6 @@ public final class OkHttpUtils {
     if (externalEnv != null) {
       builder.addHeader(DATADOG_EXTERNAL_ENV, externalEnv);
     }
-
-    for (Map.Entry<String, String> e : headers.entrySet()) {
-      builder.addHeader(e.getKey(), e.getValue());
-    }
-
     return builder;
   }
 

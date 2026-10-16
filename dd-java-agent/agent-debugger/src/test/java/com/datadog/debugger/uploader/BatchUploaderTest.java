@@ -249,12 +249,40 @@ public class BatchUploaderTest {
             "testContainerId",
             "testEntityId",
             "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759");
+
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals("testContainerId", request.getHeader("Datadog-Container-ID"));
     assertEquals("testEntityId", request.getHeader("Datadog-Entity-ID"));
+    assertEquals(
+        "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759",
+        request.getHeader("Datadog-External-Env"));
+  }
+
+  @Test
+  public void testExternalEnvHeaderWithoutContainerOrEntityId() throws InterruptedException {
+    // the external env is the origin detection fallback when the container is not identifiable
+    server.enqueue(RESPONSE_200);
+
+    BatchUploader uploaderWithExternalEnvOnly =
+        new BatchUploader(
+            "test",
+            config,
+            url.toString(),
+            ratelimitedLogger,
+            retryPolicy,
+            null,
+            null,
+            "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759");
+
+    uploaderWithExternalEnvOnly.upload(SNAPSHOT_BUFFER);
+    uploaderWithExternalEnvOnly.shutdown();
+
+    RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
+    assertNull(request.getHeader("Datadog-Container-ID"));
+    assertNull(request.getHeader("Datadog-Entity-ID"));
     assertEquals(
         "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759",
         request.getHeader("Datadog-External-Env"));

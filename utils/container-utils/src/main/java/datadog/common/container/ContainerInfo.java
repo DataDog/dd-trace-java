@@ -61,7 +61,7 @@ public class ContainerInfo {
   private static final String EXTERNAL_ENV_VARIABLE = "DD_EXTERNAL_ENV";
 
   private static final String EXTERNAL_ENV =
-      readExternalEnv(ConfigHelper.env(EXTERNAL_ENV_VARIABLE));
+      sanitizeExternalEnv(ConfigHelper.env(EXTERNAL_ENV_VARIABLE));
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerId;
@@ -136,24 +136,32 @@ public class ContainerInfo {
 
   /**
    * Returns the external environment value to forward to the Datadog Agent, or {@code null} if it
-   * should not be sent. The value is forwarded verbatim (it is not parsed); it is only discarded
-   * when empty or when it contains characters that are not allowed in an HTTP header value.
+   * should not be sent. The value is forwarded unparsed, after trimming surrounding whitespace and
+   * control characters; it is discarded when empty or when it contains characters that are not
+   * allowed in an HTTP header value.
    */
-  static @Nullable String readExternalEnv(@Nullable String externalEnv) {
+  static @Nullable String sanitizeExternalEnv(@Nullable String externalEnv) {
     if (externalEnv == null) {
       return null;
     }
+
     String value = externalEnv.trim();
     if (value.isEmpty()) {
       return null;
     }
+
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);
       if ((c < 0x20 && c != '\t') || c >= 0x7f) {
-        log.debug("Ignoring {} because it contains invalid characters", EXTERNAL_ENV_VARIABLE);
+        // the admission controller sets this value, so a malformed one silently disables this
+        // origin detection fallback
+        log.warn(
+            "Ignoring {} because it contains characters not allowed in an HTTP header value",
+            EXTERNAL_ENV_VARIABLE);
         return null;
       }
     }
+
     return value;
   }
 
@@ -258,7 +266,7 @@ public class ContainerInfo {
   /**
    * Returns the value of the {@code DD_EXTERNAL_ENV} environment variable injected by the Datadog
    * Cluster Agent admission controller, to be sent as the {@code Datadog-External-Env} header, or
-   * {@code null} if unset or empty.
+   * {@code null} if it is unset, empty or not a valid HTTP header value.
    */
   public static @Nullable String getExternalEnv() {
     return EXTERNAL_ENV;
