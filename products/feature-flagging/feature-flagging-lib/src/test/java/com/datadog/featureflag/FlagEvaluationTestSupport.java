@@ -17,7 +17,7 @@ import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.intake.Intake;
-import datadog.trace.api.telemetry.CoreMetricCollector;
+import datadog.trace.api.telemetry.FlagEvaluationMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -47,8 +47,14 @@ final class FlagEvaluationTestSupport {
     return () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false);
   }
 
-  static void clearCoreMetrics() {
-    CoreMetricCollector.getInstance().drain();
+  static void clearFlagEvaluationMetrics() {
+    FlagEvaluationMetricCollector.get().resetForTesting();
+  }
+
+  static Collection<? extends MetricCollector.Metric> collectFlagEvaluationMetrics() {
+    final FlagEvaluationMetricCollector collector = FlagEvaluationMetricCollector.get();
+    collector.prepareMetrics();
+    return collector.drain();
   }
 
   static FlagEvalEvent event(

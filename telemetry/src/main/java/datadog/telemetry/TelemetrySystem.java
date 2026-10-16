@@ -13,6 +13,7 @@ import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
 import datadog.telemetry.metric.ConfigInversionMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.DebuggerMetricPeriodicAction;
+import datadog.telemetry.metric.FlagEvaluationMetricPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.LLMObsMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
@@ -61,6 +62,9 @@ public class TelemetrySystem {
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
+      if (Config.get().isFeatureFlaggingProviderEnabled()) {
+        actions.add(new FlagEvaluationMetricPeriodicAction());
+      }
       actions.add(new OtelEnvMetricPeriodicAction());
       if (InstrumenterConfig.get().getTraceExtensionsPath() != null) {
         actions.add(new OtelSpiMetricPeriodicAction());
