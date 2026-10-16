@@ -45,9 +45,13 @@
 # client's on an inbound one), is declared once per direction, each in a directional mixin. The
 # declarations merge into ONE tag with one id; only its OpenTelemetry name depends on the span's
 # direction. Any other repeated declaration is still an error.
-# Name resolution does not yet know a span's direction, so only renames that apply in every direction
-# resolve a name to a tag. A directional rename, including one under `span-kind: internal` (spans with
-# no direction), is applied only when a span's tags are emitted under OpenTelemetry names.
+# A directional rename may also be another tag's Datadog name: server.port is peer.port on outbound
+# spans, and its own tag (the server's port) in every other direction.
+# The tracer core resolves names without a direction, so only renames that apply in every direction
+# resolve a name to a tag there. A directional rename, including one under `span-kind: internal`, is
+# applied when a span's tags are emitted under OpenTelemetry names, and by the OpenTelemetry API,
+# which knows its span's kind. Instrumentation that knows its direction writes by id, through
+# KnownTags.Inbound / Outbound / Internal.
 # `span-kind-neutral: true` widens a directional rename to every direction -- the author's assertion
 # that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
 # interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
@@ -110,6 +114,7 @@ span_types:
     tags:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }  # inbound only; on outbound spans server.address is peer.hostname
+      - { dd-name: server.port,       type: int,    required: conditional }  # the server's own port; on outbound spans server.port is peer.port
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
       - { dd-name: http.query.string, type: string, required: recommended }  # not a rename: url.query is also carried inside url.full, while http.url excludes the query (QueryObfuscator re-appends it)
       - { dd-name: servlet.path,      type: string, required: optional }

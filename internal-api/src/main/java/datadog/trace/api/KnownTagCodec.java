@@ -138,6 +138,9 @@ public final class KnownTagCodec {
 
     /** The id for {@code name} in ANY namespace (many→one), or 0 when it is not a known tag. */
     long keyOf(String name);
+
+    /** See {@link KnownTagCodec#directionalKeyOf}. */
+    long directionalKeyOf(String name, int direction);
   }
 
   /**
@@ -237,4 +240,25 @@ public final class KnownTagCodec {
   }
 
   private KnownTagCodec() {}
+
+  /**
+   * The tag an OpenTelemetry name denotes on spans of {@code direction}, for a name whose tag
+   * depends on direction ({@code server.address} is {@code http.hostname} inbound and {@code
+   * peer.hostname} outbound); 0 for every other name, and for such a name on spans of a direction
+   * where it names no tag. The core stores and reads Datadog names only; this is for the
+   * OpenTelemetry side, which knows its span's direction.
+   */
+  public static long directionalKeyOf(String name, int direction) {
+    return Installed.RESOLVER.directionalKeyOf(name, direction);
+  }
+
+  /** True if {@code name} denotes a different tag depending on the span's direction. */
+  public static boolean isDirectionScoped(String name) {
+    for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
+      if (directionalKeyOf(name, direction) != 0) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

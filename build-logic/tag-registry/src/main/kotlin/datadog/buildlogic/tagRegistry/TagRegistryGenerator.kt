@@ -102,7 +102,7 @@ object TagRegistryGenerator {
 
       # DIRECTION-SCOPED OPENTELEMETRY NAMES. Each applies only on spans of the given direction, so
       # it is not in the tables above: a tag is emitted under it when its span has that direction,
-      # but name resolution does not use it until it knows the direction.
+      # and a value written under it is resolved to the tag once the span's direction is known.
       """.trimIndent()
     )
     val scoped =
