@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
@@ -150,34 +151,52 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @TableTest({
-    "scenario       | kind     | expectedPort",
-    "server's own   | server   | 8080        ",
-    "client's alias | client   | 443         ",
-    "internal's own | internal | 8080        "
+    "scenario   | kind     | tag         | expectedPort",
+    "server tag | server   | server.port | 8080        ",
+    "client tag | client   | peer.port   | 8080        ",
+    "internal   | internal | server.port | 8080        "
   })
-  void serverPortIsEmittedOnceInEveryDirection(String kind, long expectedPort) throws IOException {
+  void serverPortIsEmittedOnceInEveryDirection(String kind, String tag, long expectedPort)
+      throws IOException {
+    List<Object> ports = exportedServerPorts(kind, span -> span.setTag(tag, 8080));
+
+    assertEquals(1, ports.size(), "server.port must be emitted once; got " + ports);
+    assertEquals(String.valueOf(expectedPort), String.valueOf(ports.get(0)));
+  }
+
+  /**
+   * Ids are trusted: the server's own port written by id on a client span, beside peer.port (which
+   * is server.port there too), is exported twice rather than reconciled.
+   */
+  @Test
+  void aTagWrittenByIdOnTheWrongSideIsExportedAsWritten() throws IOException {
+    List<Object> ports =
+        exportedServerPorts(
+            "client",
+            span -> {
+              span.setTag(KnownTags.SERVER_PORT_ID, 8080);
+              span.setTag(KnownTags.PEER_PORT_ID, 443);
+            });
+
+    assertEquals(2, ports.size(), "got " + ports);
+  }
+
+  private static List<Object> exportedServerPorts(String kind, Consumer<AgentSpan> tagger)
+      throws IOException {
     Config realConfig = Config.get();
     try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
       Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
       when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
       configMock.when(Config::get).thenReturn(config);
 
-      // Misuse on the client span: the server's own port written by id beside peer.port, which
-      // is server.port there too. peer.port wins.
       AgentSpan agentSpan = TRACER.startSpan("test", "op.serverPort");
       agentSpan.setTag(SPAN_KIND, kind);
-      agentSpan.setTag(KnownTags.SERVER_PORT_ID, 8080);
-      if ("client".equals(kind)) {
-        agentSpan.setTag(KnownTags.PEER_PORT_ID, 443);
-      }
+      tagger.accept(agentSpan);
       agentSpan.finish();
 
       OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
       collector.addTrace(asList((CoreSpan<?>) agentSpan));
-      List<Object> ports = attributeValues(onlySpan(collector.collectTraces()), "server.port");
-
-      assertEquals(1, ports.size(), "server.port must be emitted once; got " + ports);
-      assertEquals(String.valueOf(expectedPort), String.valueOf(ports.get(0)));
+      return attributeValues(onlySpan(collector.collectTraces()), "server.port");
     }
   }
 

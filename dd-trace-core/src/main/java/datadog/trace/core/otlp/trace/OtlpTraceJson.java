@@ -255,21 +255,7 @@ public final class OtlpTraceJson {
       // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       TagMap tags = metadata.getTags();
       Integer direction = KnownTagCodec.directionOf(tags);
-      if (Config.get().isTraceOtelSemanticsEnabled()
-          && KnownTagCodec.hasYieldingName(tags, direction)) {
-        // Rare: a tag named for another tag's alias here (server.port beside peer.port on a client
-        // span). Emit the alias's tag only, so each attribute name appears once.
-        tags.forEach(
-            writer,
-            direction,
-            (out, dir, entry) -> {
-              if (!KnownTagCodec.yieldsName(tags, entry, dir)) {
-                writeSpanTag(out, dir, entry);
-              }
-            });
-      } else {
-        tags.forEach(writer, direction, OtlpTraceJson::writeSpanTag);
-      }
+      tags.forEach(writer, direction, OtlpTraceJson::writeSpanTag);
 
       // reset for next span
       includeProcessTags = false;

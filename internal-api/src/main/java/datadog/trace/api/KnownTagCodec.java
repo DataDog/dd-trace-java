@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.util.Arrays;
 
 /**
  * Resolves generated tag IDs and names. {@link KnownTags} owns the lookup tables; this class owns
@@ -340,56 +339,6 @@ public final class KnownTagCodec {
       }
     }
     return 0L;
-  }
-
-  /**
-   * True if {@code entry} must yield its emitted name on a span of {@code direction}: it is a tag
-   * named for another tag's alias there ({@code server.port}, on a client span that also holds
-   * {@code peer.port}). The alias's tag wins, so the span emits each attribute name once.
-   */
-  public static boolean yieldsName(TagMap tags, TagMap.EntryReader entry, int direction) {
-    long tagId = entry.tagId();
-    if (tagId == 0 || !hasScopedAlias(tagId) || direction == DIRECTION_UNKNOWN) {
-      return false;
-    }
-    long owner = directionalKeyOf(openTelemetryTagOf(tagId, direction), direction);
-    return owner > 0 && owner != tagId && tags.getKnownValue(owner) != null;
-  }
-
-  /**
-   * True if any entry of {@code tags} {@link #yieldsName yields its name} on spans of {@code
-   * direction}.
-   */
-  public static boolean hasYieldingName(TagMap tags, int direction) {
-    if (direction == DIRECTION_UNKNOWN) {
-      return false;
-    }
-    for (long tagId : SharedNames.TAG_IDS) {
-      if (tags.getKnownValue(tagId) != null) {
-        long owner = directionalKeyOf(nameOf(tagId), direction);
-        if (owner > 0 && owner != tagId && tags.getKnownValue(owner) != null) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /** The tags whose Datadog name is also another tag's alias, built once from the registry. */
-  private static final class SharedNames {
-    static final long[] TAG_IDS = sharedNameTagIds();
-
-    private static long[] sharedNameTagIds() {
-      long[] ids = new long[0];
-      for (int serial = 1; serial < serialLimit(); serial++) {
-        String name = nameOf(makeTagId(serial));
-        if (keyOrAliasOf(name) == DIRECTION_SCOPED_OTEL_NAME_SENTINEL) {
-          ids = Arrays.copyOf(ids, ids.length + 1);
-          ids[ids.length - 1] = datadogKeyOf(name);
-        }
-      }
-      return ids;
-    }
   }
 
   /**
