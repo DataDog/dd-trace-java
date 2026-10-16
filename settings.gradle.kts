@@ -480,6 +480,7 @@ include(
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",
   ":dd-java-agent:instrumentation:liberty:liberty-20.0",
   ":dd-java-agent:instrumentation:liberty:liberty-23.0",
+  ":dd-java-agent:instrumentation:liberty:liberty-appsec-common",
   ":dd-java-agent:instrumentation:log4j:log4j-1.2.4",
   ":dd-java-agent:instrumentation:log4j:log4j-2.0",
   ":dd-java-agent:instrumentation:log4j:log4j-2.7",

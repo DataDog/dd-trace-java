@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.liberty23;
+package datadog.trace.instrumentation.liberty.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;

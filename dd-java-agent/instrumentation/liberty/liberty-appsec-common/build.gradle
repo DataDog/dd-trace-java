@@ -1,0 +1,37 @@
+import datadog.gradle.plugin.liberty.UnpackOpenLiberty
+
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
+
+configurations {
+  register("zipped")
+}
+
+// only the jars LibertyBlockingHelper needs; never "wlp/lib/*.jar": it pulls a jar that JDK 25+ javac cannot read
+def compileJars = [
+  "wlp/lib/com.ibm.ws.transport.http*.jar",
+  "wlp/lib/com.ibm.ws.channelfw*.jar",
+  "wlp/lib/com.ibm.ws.logging*.jar"
+]
+
+// Since this task output is used in dependencies it has to be declared before, it can be configured later
+def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
+  extractDir.set(openlibertyHomeDir)
+  libJarIncludes.set(compileJars)
+  // only unzip the jars needed for compilation
+  include(compileJars)
+}
+
+dependencies {
+  zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
+
+  compileOnly files(unpackOpenLiberty.map { it.extractedJars.get() })
+
+  // IBM jars are compileOnly, tests need them on the runtime classpath too
+  testImplementation files(unpackOpenLiberty.map { it.extractedJars.get() })
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+}

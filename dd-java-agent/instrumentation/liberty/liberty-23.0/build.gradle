@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import datadog.gradle.plugin.liberty.UnpackOpenLiberty
 
 plugins {
   id 'java-test-fixtures'
@@ -28,6 +29,14 @@ evaluationDependsOn ':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'
 // Since these tasks output are used in dependencies they have to be declared before, they can be configured later
 def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
   extractDir.set(openlibertyHomeDir)
+  libJarIncludes.set([
+    "wlp/lib/com.ibm.ws.webcontainer.jakarta*.jar",
+    "wlp/lib/com.ibm.ws.transport.http*.jar",
+    "wlp/lib/com.ibm.ws.channelfw*.jar",
+    "wlp/lib/com.ibm.ws.wsbytebuffer*.jar",
+    "wlp/lib/com.ibm.ws.logging*.jar"
+  ])
+  serverJarIncludes.set(["wlp/lib/com.ibm.ws.kernel.boot*.jar", "wlp/bin/tools/ws-server.jar"])
 }
 def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 def shadowJar = tasks.named("shadowJar", ShadowJar)
@@ -39,6 +48,7 @@ dependencies {
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
   implementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
+  implementation project(':dd-java-agent:instrumentation:liberty:liberty-appsec-common')
 
   testImplementation files(unpackOpenLiberty.map {it.extractedJars.get() })
   testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
@@ -69,50 +79,6 @@ configurations.named("testRuntimeOnly") {
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
-}
-
-// unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
-abstract class UnpackOpenLiberty extends Copy {
-  @Input
-  final Property<String> configurationName = project.objects.property(String).convention("zipped")
-
-  @OutputDirectory
-  final DirectoryProperty extractDir = project.objects.directoryProperty()
-
-  @OutputFiles
-  final Provider<FileTree> extractedJars = project.providers.provider {
-    project.fileTree(extractDir) {
-      include "wlp/lib/com.ibm.ws.webcontainer.jakarta*.jar"
-      include "wlp/lib/com.ibm.ws.transport.http*.jar"
-      include "wlp/lib/com.ibm.ws.channelfw*.jar"
-      include "wlp/lib/com.ibm.ws.wsbytebuffer*.jar"
-      include "wlp/lib/com.ibm.ws.logging*.jar"
-      //include "wlp/lib/*.jar"
-    }
-  }
-
-  @OutputFiles
-  final Provider<FileTree> wsServerJar = project.providers.provider {
-    project.fileTree(extractDir) {
-      include "wlp/lib/com.ibm.ws.kernel.boot*.jar"
-      include "wlp/bin/tools/ws-server.jar"
-    }
-  }
-
-  @OutputFile
-  final Provider<File> serverXmlFile = project.providers.provider { extractDir.get().file("wlp/usr/servers/defaultServer/server.xml").asFile }
-
-  UnpackOpenLiberty() {
-    from project.zipTree(configurationName.map {
-      project.configurations.named(it).map {
-        it.singleFile
-      }
-    })
-    eachFile { FileCopyDetails fcd ->
-      fcd.path = fcd.path.replaceAll(/\/templates\/(servers\/defaultServer\/.+)/, '/usr/$1')
-    }
-    into extractDir
-  }
 }
 
 def webappCopyJars = tasks.register('webappCopyJars', Sync) {
