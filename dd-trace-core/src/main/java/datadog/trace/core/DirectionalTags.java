@@ -4,6 +4,8 @@ import static datadog.trace.api.KnownTagCodec.DIRECTION_INBOUND;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_NONE;
 import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 
+import datadog.trace.api.HashStore;
+import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagRouting;
@@ -51,30 +53,17 @@ import java.util.Arrays;
  * span's custom store when its tags are emitted, so an alias that never resolves is emitted under
  * its literal name.
  *
+ * <p>The methods work on a span's stores: its {@link IdStore}, and its custom {@link HashStore},
+ * which may be null, or borrowed read-only from its read-through parent ({@code borrowed}). Only
+ * the span creates its custom store: a removal that would have to hide a tag in a borrowed store
+ * changes nothing there and returns true, and the span creates its own store and repeats the
+ * removal, which is idempotent.
+ *
  * <p>One more: an alias written before the span has a direction is resolved when the kind arrives,
  * without passing through {@code TagInterceptor} again, so split-by-tags on its tag doesn't see it.
  * An alias written once the direction is known is intercepted as its tag.
  */
 final class DirectionalTags {
-
-  /**
-   * The tag stores DirectionalTags applies a span's direction to: the span itself, which owns them
-   * (or, in tests, a TagMap). Known tags by id; custom tags -- and aliases stored as written -- by
-   * name.
-   */
-  interface TagStores {
-    Object knownValue(long tagId);
-
-    void setKnown(long tagId, Object value);
-
-    void removeKnown(long tagId);
-
-    Object customValue(String name);
-
-    void setCustom(String name, Object value);
-
-    void removeCustom(String name);
-  }
 
   /**
    * A span's pending aliases: the direction-scoped aliases it stored as written, with their values,
@@ -146,13 +135,14 @@ final class DirectionalTags {
    * when it is no alias at all, so its value is an ordinary custom tag. A span keeps a pending
    * alias only for the sentinel, so a name that merely passed {@link
    * KnownTagCodec#mayBeScopedAlias}'s filter doesn't slow the span down.
+   *
+   * <p>For an id, a value pending under the alias is older than the write: this drops it from
+   * {@code pending}, and the caller removes the alias from its custom store.
    */
-  static long prepareAliasWrite(
-      TagStores tags, PendingAliases pending, String alias, int direction) {
+  static long prepareAliasWrite(PendingAliases pending, String alias, int direction) {
     long tagId = KnownTagCodec.directionalKeyOf(alias, direction);
-    if (tagId > 0) {
-      // a value pending under the alias is older than this write
-      removeAsWritten(tags, pending, alias);
+    if (tagId > 0 && pending != null) {
+      pending.remove(alias);
     }
     return tagId;
   }
@@ -160,44 +150,60 @@ final class DirectionalTags {
   /**
    * Prepares a write of the known tag {@code tagId} to a span of {@code direction}: when the tag
    * has an alias ({@link KnownTagCodec#HAS_SCOPED_ALIAS}), removes the pending aliases the write
-   * supersedes. A caller with a constant id that lacks the bit can skip the call.
+   * supersedes. A caller with a constant id that lacks the bit can skip the call. Returns true when
+   * the span must create its own custom store and repeat the call (see above).
    */
-  static void prepareWrite(TagStores tags, PendingAliases pending, long tagId, int direction) {
-    if (KnownTagCodec.hasScopedAlias(tagId)) {
-      removePendingAliases(tags, pending, tagId, direction);
-    }
+  static boolean prepareWrite(
+      HashStore custom, boolean borrowed, PendingAliases pending, long tagId, int direction) {
+    return KnownTagCodec.hasScopedAlias(tagId)
+        && removePendingAliases(custom, borrowed, pending, tagId, direction);
   }
 
   /**
    * Removes the aliases a write of {@code tagId} supersedes: the one it has in {@code direction},
    * or, with no direction yet, any it could have.
    */
-  private static void removePendingAliases(
-      TagStores tags, PendingAliases pending, long tagId, int direction) {
+  private static boolean removePendingAliases(
+      HashStore custom, boolean borrowed, PendingAliases pending, long tagId, int direction) {
     if (direction != DIRECTION_UNKNOWN) {
       String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
-      if (alias != null) {
-        removeAsWritten(tags, pending, alias);
-      }
-      return;
+      return alias != null && removeAsWritten(custom, borrowed, pending, alias);
     }
+    boolean blocked = false;
     for (int d = DIRECTION_INBOUND; d <= DIRECTION_NONE; d++) {
       String alias = KnownTagCodec.directionScopedNameOf(tagId, d);
       if (alias != null) {
-        removeAsWritten(tags, pending, alias);
+        blocked |= removeAsWritten(custom, borrowed, pending, alias);
       }
     }
+    return blocked;
   }
 
   /**
    * Removes {@code alias} as written: from the holder, and from the custom store, which holds it
    * once emitted, or when inherited or written through the span's view.
    */
-  private static void removeAsWritten(TagStores tags, PendingAliases pending, String alias) {
-    tags.removeCustom(alias);
+  private static boolean removeAsWritten(
+      HashStore custom, boolean borrowed, PendingAliases pending, String alias) {
     if (pending != null) {
       pending.remove(alias);
     }
+    return removeCustom(custom, borrowed, alias);
+  }
+
+  /**
+   * Removes the custom tag {@code name} from {@code custom}, unless it is borrowed: then returns
+   * whether it holds {@code name}, which the span must hide in a store of its own.
+   */
+  private static boolean removeCustom(HashStore custom, boolean borrowed, String name) {
+    if (custom == null) {
+      return false;
+    }
+    if (borrowed) {
+      return custom.get(name) != null;
+    }
+    custom.remove(name);
+    return false;
   }
 
   /**
@@ -206,27 +212,29 @@ final class DirectionalTags {
    * write, wins. With no holder, a tag with an alias skips probing for one, so it costs a single
    * lookup like any other tag.
    */
-  static Object get(TagStores tags, PendingAliases pending, String name, int direction) {
+  static Object get(
+      IdStore ids, HashStore custom, PendingAliases pending, String name, int direction) {
     long key = TagRouting.keyOf(name);
     if (key > 0) {
-      return get(tags, pending, key, direction);
+      return get(ids, pending, key, direction);
     }
     if (key == 0) {
-      return tags.customValue(name);
+      TagMap.Entry entry = custom == null ? null : custom.get(name);
+      return entry == null ? null : entry.objectValue();
     }
     Object written = pending == null ? null : pending.get(name);
     if (written != null) {
       return written;
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-    return tagId > 0 ? tags.knownValue(tagId) : null;
+    return tagId > 0 ? ids.getKnownValue(tagId) : null;
   }
 
   /**
    * The value of the known tag {@code tagId} on a span of {@code direction}; see {@link
-   * #get(TagStores, PendingAliases, String, int)}.
+   * #get(IdStore, HashStore, PendingAliases, String, int)}.
    */
-  static Object get(TagStores tags, PendingAliases pending, long tagId, int direction) {
+  static Object get(IdStore ids, PendingAliases pending, long tagId, int direction) {
     if (pending != null && KnownTagCodec.hasScopedAlias(tagId) && direction != DIRECTION_UNKNOWN) {
       String alias = KnownTagCodec.directionScopedNameOf(tagId, direction);
       Object written = alias == null ? null : pending.get(alias);
@@ -234,63 +242,81 @@ final class DirectionalTags {
         return written;
       }
     }
-    return tags.knownValue(tagId);
+    return ids.getKnownValue(tagId);
   }
 
-  /** Removes {@code name} from a span of {@code direction}: the tag and its alias together. */
-  static void remove(TagStores tags, PendingAliases pending, String name, int direction) {
+  /**
+   * Removes {@code name} from a span of {@code direction}: the tag and its alias together. Returns
+   * true when the span must create its own custom store and repeat the call.
+   */
+  static boolean remove(
+      IdStore ids,
+      HashStore custom,
+      boolean borrowed,
+      PendingAliases pending,
+      String name,
+      int direction) {
     // One lookup decides everything: a known tag, a custom tag, or a direction-scoped alias.
     long key = KnownTagCodec.keyOrAliasOf(name);
     if (key > 0) {
-      remove(tags, pending, key, direction);
-      return;
+      return remove(ids, custom, borrowed, pending, key, direction);
     }
     if (key == 0) {
-      tags.removeCustom(name); // a custom tag
-      return;
+      return removeCustom(custom, borrowed, name); // a custom tag
     }
-    removeAsWritten(tags, pending, name);
+    boolean blocked = removeAsWritten(custom, borrowed, pending, name);
     if (direction == DIRECTION_UNKNOWN) {
-      removeEveryTagOfAlias(tags, name);
-      return;
+      removeEveryTagOfAlias(ids, name);
+      return blocked;
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
     if (tagId > 0) {
-      tags.removeKnown(tagId);
+      ids.remove(tagId);
     }
+    return blocked;
   }
 
-  /** Removes the known tag {@code tagId}, and its alias, from a span of {@code direction}. */
-  static void remove(TagStores tags, PendingAliases pending, long tagId, int direction) {
-    tags.removeKnown(tagId);
-    if (KnownTagCodec.hasScopedAlias(tagId)) {
-      removePendingAliases(tags, pending, tagId, direction);
-    }
+  /**
+   * Removes the known tag {@code tagId}, and its alias, from a span of {@code direction}. Returns
+   * true when the span must create its own custom store and repeat the call.
+   */
+  static boolean remove(
+      IdStore ids,
+      HashStore custom,
+      boolean borrowed,
+      PendingAliases pending,
+      long tagId,
+      int direction) {
+    ids.remove(tagId);
+    return KnownTagCodec.hasScopedAlias(tagId)
+        && removePendingAliases(custom, borrowed, pending, tagId, direction);
   }
 
   /**
    * Removes every tag {@code alias} could denote, for a removal of the alias before the span has a
    * direction. A removal counts as a write, so no older value can resurface when the kind arrives;
    * like the write rule, this can drop the other direction's tag. (Removing a tag before then
-   * likewise removes the pending aliases that could denote it; see {@link #remove(TagStores,
-   * PendingAliases, long, int)}.)
+   * likewise removes the pending aliases that could denote it; see {@link #remove(IdStore,
+   * HashStore, boolean, PendingAliases, long, int)}.)
    */
-  private static void removeEveryTagOfAlias(TagStores tags, String alias) {
+  private static void removeEveryTagOfAlias(IdStore ids, String alias) {
     for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
       long aliasedId = KnownTagCodec.directionalKeyOf(alias, direction);
       if (aliasedId > 0) {
-        tags.removeKnown(aliasedId);
+        ids.remove(aliasedId);
       }
     }
   }
 
   /**
    * Resolves a span's pending aliases, once it has a direction, into the tags they denote: the
-   * alias, being the newer write, overwrites its tag. Returns the holder of those left pending --
-   * an alias with no tag in {@code direction}, or any while the direction is unknown or none -- or
-   * null when none are.
+   * alias, being the newer write, overwrites its tag, and a copy of it emitted earlier into the
+   * span's own custom store ({@code ownCustom}, null if the span has none) is dropped. Returns the
+   * holder of those left pending -- an alias with no tag in {@code direction}, or any while the
+   * direction is unknown or none -- or null when none are.
    */
-  static PendingAliases resolvePending(TagStores tags, PendingAliases pending, int direction) {
+  static PendingAliases resolvePending(
+      IdStore ids, HashStore ownCustom, PendingAliases pending, int direction) {
     if (direction == DIRECTION_UNKNOWN || direction == DIRECTION_NONE) {
       return pending; // no alias names a tag on a span with no direction, or an internal one
     }
@@ -299,9 +325,11 @@ final class DirectionalTags {
       long tagId = KnownTagCodec.directionalKeyOf(alias, direction);
       if (tagId > 0) {
         Object value = pending.values[i];
-        tags.removeCustom(alias); // a copy emitted earlier
+        if (ownCustom != null) {
+          ownCustom.remove(alias);
+        }
         pending.remove(alias);
-        tags.setKnown(tagId, value);
+        ids.set(tagId, value);
       } else {
         i++;
       }
@@ -310,12 +338,13 @@ final class DirectionalTags {
   }
 
   /**
-   * Copies the pending aliases into {@code tags} as custom tags under their literal names, so that
-   * emitting the span's tags includes them. The holder stays the span's record of them.
+   * Copies the pending aliases into {@code custom}, the span's own custom store, under their
+   * literal names, so that emitting the span's tags includes them. The holder stays the span's
+   * record of them.
    */
-  static void copyPending(PendingAliases pending, TagStores tags) {
+  static void copyPending(PendingAliases pending, HashStore custom) {
     for (int i = 0; i < pending.size; i++) {
-      tags.setCustom(pending.names[i], pending.values[i]);
+      custom.set(pending.names[i], pending.values[i]);
     }
   }
 

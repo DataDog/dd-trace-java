@@ -76,8 +76,7 @@ public class DDSpanContext
         RequestContext,
         TraceSegment,
         ProfilerContext,
-        TagMap.DirectionSource,
-        DirectionalTags.TagStores {
+        TagMap.DirectionSource {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -986,7 +985,9 @@ public class DDSpanContext
         // The span now has a direction: fold pending aliases into the tags they denote, so every
         // later reader (peer service naming, stats, sampling rules, serialization) sees them
         // resolved. Once none is left, the span is back on the fast path.
-        pendingAliases = DirectionalTags.resolvePending(this, pending, tagDirection());
+        pendingAliases =
+            DirectionalTags.resolvePending(
+                tagIds, customTagsBorrowed ? null : customTags, pending, tagDirection());
       }
     }
   }
@@ -1000,7 +1001,7 @@ public class DDSpanContext
   private TagMap emittableTags() {
     DirectionalTags.PendingAliases pending = pendingAliases;
     if (pending != null) {
-      DirectionalTags.copyPending(pending, this);
+      DirectionalTags.copyPending(pending, customTagsForWrite());
     }
     return tagView();
   }
@@ -1044,39 +1045,10 @@ public class DDSpanContext
     return custom;
   }
 
-  /*
-   * DirectionalTags.TagStores: the span's stores, for DirectionalTags. Call under the tagIds lock.
+  /**
+   * Removes the custom tag {@code name}: hiding an inherited one needs a store of the span's own.
    */
-
-  @Override
-  public Object knownValue(long tagId) {
-    return tagIds.getKnownValue(tagId);
-  }
-
-  @Override
-  public void setKnown(long tagId, Object value) {
-    tagIds.set(tagId, value);
-  }
-
-  @Override
-  public void removeKnown(long tagId) {
-    tagIds.remove(tagId);
-  }
-
-  @Override
-  public Object customValue(String name) {
-    HashStore custom = this.customTags;
-    TagMap.Entry entry = custom == null ? null : custom.get(name);
-    return entry == null ? null : entry.objectValue();
-  }
-
-  @Override
-  public void setCustom(String name, Object value) {
-    customTagsForWrite().set(name, value);
-  }
-
-  @Override
-  public void removeCustom(String name) {
+  private void removeCustomTag(String name) {
     HashStore custom = this.customTags;
     if (custom == null) {
       return;
@@ -1085,9 +1057,34 @@ public class DDSpanContext
       if (custom.get(name) == null) {
         return; // nothing to hide: keep borrowing
       }
-      custom = customTagsForWrite(); // hiding an inherited tag needs a tombstone of our own
+      custom = customTagsForWrite();
     }
     custom.remove(name);
+  }
+
+  /**
+   * {@link DirectionalTags#remove(IdStore, HashStore, boolean, DirectionalTags.PendingAliases,
+   * String, int)} on this span's stores. Call under the {@code tagIds} lock.
+   */
+  private void removeDirectional(String tag) {
+    int direction = tagDirection();
+    if (DirectionalTags.remove(
+        tagIds, customTags, customTagsBorrowed, pendingAliases, tag, direction)) {
+      customTagsForWrite(); // a borrowed tag to hide: repeat on a store of the span's own
+      DirectionalTags.remove(tagIds, customTags, false, pendingAliases, tag, direction);
+    }
+    dropPendingAliasesIfEmpty();
+  }
+
+  /** {@link #removeDirectional(String)} for a known tag id. */
+  private void removeDirectional(long tagId) {
+    int direction = tagDirection();
+    if (DirectionalTags.remove(
+        tagIds, customTags, customTagsBorrowed, pendingAliases, tagId, direction)) {
+      customTagsForWrite();
+      DirectionalTags.remove(tagIds, customTags, false, pendingAliases, tagId, direction);
+    }
+    dropPendingAliasesIfEmpty();
   }
 
   /** Copies {@code map}'s tags into the stores, sharing its Entry objects. */
@@ -1267,8 +1264,9 @@ public class DDSpanContext
     if (key == 0) {
       return 0L;
     }
-    long aliasedId = DirectionalTags.prepareAliasWrite(this, pendingAliases, tag, tagDirection());
+    long aliasedId = DirectionalTags.prepareAliasWrite(pendingAliases, tag, tagDirection());
     if (aliasedId > 0) {
+      removeCustomTag(tag); // a value pending under the alias is older than this write
       dropPendingAliasesIfEmpty();
       return aliasedId;
     }
@@ -1379,8 +1377,9 @@ public class DDSpanContext
       putEntry(entry);
     } else if (KnownTagCodec.mayBeScopedAlias(entry.tag())) {
       long aliasedId =
-          DirectionalTags.prepareAliasWrite(this, pendingAliases, entry.tag(), tagDirection());
+          DirectionalTags.prepareAliasWrite(pendingAliases, entry.tag(), tagDirection());
       if (aliasedId > 0) {
+        removeCustomTag(entry.tag()); // a value pending under the alias is older than this write
         dropPendingAliasesIfEmpty();
         tagIds.set(aliasedId, entry.objectValue());
       } else if (aliasedId < 0) {
@@ -1412,8 +1411,7 @@ public class DDSpanContext
     }
     synchronized (tagIds) {
       // A direction-dependent name and the tag it denotes here are removed together.
-      DirectionalTags.remove(this, pendingAliases, tag, tagDirection());
-      dropPendingAliasesIfEmpty();
+      removeDirectional(tag);
     }
   }
 
@@ -1431,8 +1429,7 @@ public class DDSpanContext
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (tagIds) {
-      DirectionalTags.remove(this, pendingAliases, tagId, tagDirection());
-      dropPendingAliasesIfEmpty();
+      removeDirectional(tagId);
     }
   }
 
@@ -1498,7 +1495,8 @@ public class DDSpanContext
    */
   private boolean isPresent(TagMap.EntryReader entry) {
     if (KnownTagCodec.isDirectionDependent(entry)) {
-      return DirectionalTags.get(this, pendingAliases, entry.tag(), tagDirection()) != null;
+      return DirectionalTags.get(tagIds, customTags, pendingAliases, entry.tag(), tagDirection())
+          != null;
     }
     String tag = entry.tag();
     return TagRouting.get(tagIds, customTags, TagRouting.keyOf(tag), tag) != null;
@@ -1560,7 +1558,11 @@ public class DDSpanContext
   private void supersedePendingAliases(long tagId) {
     DirectionalTags.PendingAliases pending = pendingAliases;
     if (pending != null && KnownTagCodec.hasScopedAlias(tagId)) {
-      DirectionalTags.prepareWrite(this, pending, tagId, tagDirection());
+      int direction = tagDirection();
+      if (DirectionalTags.prepareWrite(customTags, customTagsBorrowed, pending, tagId, direction)) {
+        customTagsForWrite(); // a borrowed alias to hide: repeat on a store of the span's own
+        DirectionalTags.prepareWrite(customTags, false, pending, tagId, direction);
+      }
       dropPendingAliasesIfEmpty();
     }
   }
@@ -1813,8 +1815,7 @@ public class DDSpanContext
             spanKindOrdinal = SPAN_KIND_UNSET;
           }
           // as removeTag(String): a direction-dependent name and the tag it denotes go together
-          DirectionalTags.remove(this, pendingAliases, tag, tagDirection());
-          dropPendingAliasesIfEmpty();
+          removeDirectional(tag);
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
@@ -1893,7 +1894,7 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return DirectionalTags.get(this, pendingAliases, tag, tagDirection());
+    return DirectionalTags.get(tagIds, customTags, pendingAliases, tag, tagDirection());
   }
 
   @Deprecated
