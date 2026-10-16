@@ -12,7 +12,7 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
 
   @Trace
   fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
-    val producer = flow {
+    val producer = flow<Int> {
       repeat(3) {
         tracedChild("produce_$it")
         if (withModifiedContext) {
@@ -36,7 +36,7 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
 
   @Trace
   fun traceAfterFlow(): Int = runTest {
-    val f = flow {
+    val f = flow<Int> {
       childSpan("inside-flow").activateAndUse {
         println("insideFlowSpan")
       }
