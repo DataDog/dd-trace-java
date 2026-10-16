@@ -10,10 +10,10 @@ import java.util.ArrayDeque;
  * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
  * cleanup() is called to ensure the invariant
  */
-final class ScopeStack {
+class ScopeStack {
 
   private final ProfilingContextIntegration profilingContextIntegration;
-  private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
+  final ArrayDeque<ContinuableScope> stack; // previous scopes
 
   ContinuableScope top; // current scope
 
@@ -22,6 +22,13 @@ final class ScopeStack {
 
   ScopeStack(ProfilingContextIntegration profilingContextIntegration) {
     this.profilingContextIntegration = profilingContextIntegration;
+    this.stack = new ArrayDeque<>();
+  }
+
+  /** Creates an empty stack with room for the given number of previous scopes. */
+  ScopeStack(ProfilingContextIntegration profilingContextIntegration, int numPrevious) {
+    this.profilingContextIntegration = profilingContextIntegration;
+    this.stack = new ArrayDeque<>(numPrevious);
   }
 
   /** Restore a shallow stack for async propagation purposes. */
@@ -34,6 +41,10 @@ final class ScopeStack {
       stack.push(parent);
     }
     top = active;
+  }
+
+  ContinuableScope top() {
+    return top;
   }
 
   ContinuableScope active() {
@@ -93,7 +104,7 @@ final class ScopeStack {
    * Slower check to see if overdue scopes ahead of the expected scope are all ITERATION scopes.
    * These represent iterations that are now out-of-scope and can be finished ready for cleanup.
    */
-  final boolean checkOverdueScopes(final ContinuableScope expectedScope) {
+  boolean checkOverdueScopes(final ContinuableScope expectedScope) {
     // we already know 'top' isn't the expected scope, so just need to check its source
     if (top == null || top.source() != ITERATION) {
       return false;
@@ -125,6 +136,30 @@ final class ScopeStack {
     return top != null ? 1 + stack.size() : 0;
   }
 
+  /** Returns a context that swaps this stack back in. */
+  ScopeStackContext swappedOut() {
+    return new SavedScopeContext(this);
+  }
+
+  /** Returns a context that swaps the replaced stack back in, after this stack replaces it. */
+  ScopeStackContext replacing(ScopeStack replaced) {
+    return replaced.swappedOut();
+  }
+
+  private ThreadScopeContext sameThreadToken; // reused, as it takes no snapshot
+
+  /**
+   * Returns a reusable context that swaps this stack back in, for callers that always swap it back
+   * on this thread.
+   */
+  ScopeStackContext swappedOutForSameThread() {
+    ThreadScopeContext token = sameThreadToken;
+    if (token == null) {
+      sameThreadToken = token = new ThreadScopeContext(this);
+    }
+    return token;
+  }
+
   // DQH - regrettably needed for pre-existing tests
   void clear() {
     stack.clear();
@@ -132,7 +167,7 @@ final class ScopeStack {
   }
 
   /** Notifies profiler that this thread has a context now */
-  private void onBecomeNonEmpty() {
+  final void onBecomeNonEmpty() {
     try {
       profilingContextIntegration.onAttach();
     } catch (Throwable e) {
@@ -141,7 +176,7 @@ final class ScopeStack {
   }
 
   /** Notifies profiler that this thread no longer has a context */
-  private void onBecomeEmpty() {
+  final void onBecomeEmpty() {
     try {
       profilingContextIntegration.onDetach();
     } catch (Throwable e) {

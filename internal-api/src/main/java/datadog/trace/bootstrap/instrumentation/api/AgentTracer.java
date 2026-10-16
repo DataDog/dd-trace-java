@@ -419,6 +419,13 @@ public class AgentTracer {
 
     @Deprecated
     ContextContinuation capture(Context context);
+
+    /**
+     * Legacy scope manager only: returns a context whose scope stack is shared by every thread it
+     * is swapped onto. If {@code initial} is already shared, the new stack starts from its top.
+     */
+    @Deprecated
+    Context sharedContextStack(Context initial);
   }
 
   public interface SpanBuilder {
@@ -700,6 +707,11 @@ public class AgentTracer {
     @Override
     public ContextContinuation capture(Context context) {
       return NoopContinuation.INSTANCE;
+    }
+
+    @Override
+    public Context sharedContextStack(Context initial) {
+      return initial;
     }
   }
 

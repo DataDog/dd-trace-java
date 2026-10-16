@@ -52,6 +52,18 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
   }
 
   @Trace
+  override fun structuredChildrenOutliveSeedSpan(): Int = super.structuredChildrenOutliveSeedSpan()
+
+  @Trace
+  override fun structuredChildrenOfScopedCoroutines(): Int = super.structuredChildrenOfScopedCoroutines()
+
+  @Trace
+  override fun childWithReplacedJob(supervisor: Boolean): Int = super.childWithReplacedJob(supervisor)
+
+  @Trace
+  override fun structuredChildOfCancelledCoroutine(): Int = super.structuredChildOfCancelledCoroutine()
+
+  @Trace
   override fun tracePreventedByCancellation(): Int = super.tracePreventedByCancellation()
 
   @Trace
