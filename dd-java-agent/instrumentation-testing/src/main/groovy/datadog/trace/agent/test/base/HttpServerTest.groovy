@@ -2740,11 +2740,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if (otelSemantics) {
           "$Tags.HTTP_URL" null
-          "$Tags.HTTP_HOSTNAME" null
-          "$KnownTags.SERVER_ADDRESS_NAME" address.host
+          "$KnownTags.HTTP_HOSTNAME_NAME" address.host
+          "$KnownTags.SERVER_PORT_NAME" requestUrl.port
           "$KnownTags.URL_PATH_NAME" expectedPath
           "$KnownTags.URL_SCHEME_NAME" requestUrl.scheme
-          "$KnownTags.SERVER_PORT_NAME" requestUrl.port
         } else {
           "$Tags.HTTP_HOSTNAME" address.host
           "$Tags.HTTP_URL" "$expectedUrl"

@@ -1019,22 +1019,16 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        if (otelSemantics) {
-          "$Tags.PEER_HOSTNAME" null
-          "$Tags.PEER_HOST_IPV4" null
-          "$Tags.PEER_PORT" null
-          "$KnownTags.SERVER_ADDRESS_NAME" uri.host
-          "$KnownTags.SERVER_PORT_NAME" OtelHttpSemantics.serverPort(uri)
-        } else {
-          "$Tags.PEER_HOSTNAME" {
-            it == uri.host || ignorePeer
-          }
-          "$Tags.PEER_HOST_IPV4" {
-            it == null || it == "127.0.0.1" || ignorePeer
-          } // Optional
-          "$Tags.PEER_PORT" {
-            it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer
-          }
+        "$Tags.PEER_HOSTNAME" {
+          it == uri.host || ignorePeer
+        }
+        "$Tags.PEER_HOST_IPV4" {
+          it == null || it == "127.0.0.1" || ignorePeer
+        } // Optional
+        "$Tags.PEER_PORT" {
+          otelSemantics
+          ? it == OtelHttpSemantics.serverPort(uri)
+          : (it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer)
         }
         "$Tags.HTTP_URL" expectedUrl
         "$Tags.HTTP_METHOD" method

@@ -45,7 +45,7 @@ class KnownTagsTest {
             KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME, KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID),
         Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE_ID),
         Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL_ID),
-        Arguments.of(KnownTags.SERVER_ADDRESS_NAME, KnownTags.SERVER_ADDRESS_ID),
+        Arguments.of(Tags.HTTP_HOSTNAME, KnownTags.HTTP_HOSTNAME_ID),
         Arguments.of(KnownTags.SERVER_PORT_NAME, KnownTags.SERVER_PORT_ID),
         Arguments.of(KnownTags.URL_PATH_NAME, KnownTags.URL_PATH_ID),
         Arguments.of(KnownTags.URL_QUERY_NAME, KnownTags.URL_QUERY_ID),
@@ -207,8 +207,9 @@ class KnownTagsTest {
     assertEquals(
         "client.port",
         KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_INBOUND));
-    // Temporarily remove "server.port" == openTelemetryTagOf(peer.port, outbound) because
-    // server.port in OTel is also used by server spans
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND));
     assertEquals(
         Tags.PEER_PORT,
         KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_NONE));

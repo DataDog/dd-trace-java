@@ -148,8 +148,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.PEER_PORT" Integer
         if (otelSemantics) {
           "$Tags.HTTP_URL" null
-          "$Tags.HTTP_HOSTNAME" null
-          "$KnownTags.SERVER_ADDRESS_NAME" address.host
+          "$Tags.HTTP_HOSTNAME" address.host
           "$KnownTags.SERVER_PORT_NAME" address.port
           "$KnownTags.URL_PATH_NAME" requestUrl.rawPath
           "$KnownTags.URL_SCHEME_NAME" address.scheme

@@ -144,8 +144,7 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
         "$Tags.NETWORK_CLIENT_IP" '127.0.0.1'
         if (otelSemantics) {
           "$Tags.HTTP_URL" null
-          "$Tags.HTTP_HOSTNAME" null
-          "$KnownTags.SERVER_ADDRESS_NAME" address.host
+          "$Tags.HTTP_HOSTNAME" address.host
           "$KnownTags.SERVER_PORT_NAME" address.port
           "$KnownTags.URL_PATH_NAME" expectedPath
           "$KnownTags.URL_SCHEME_NAME" address.scheme

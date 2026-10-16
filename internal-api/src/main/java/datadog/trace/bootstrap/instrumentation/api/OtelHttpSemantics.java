@@ -153,7 +153,7 @@ public final class OtelHttpSemantics {
     }
 
     if (serverAddress != null && !serverAddress.isEmpty()) {
-      span.setTag(KnownTags.SERVER_ADDRESS_NAME, serverAddress);
+      span.setTag(KnownTags.HTTP_HOSTNAME_NAME, serverAddress);
     }
 
     int serverPort = parsePort(forwardedValue(forwardedPortHeader));

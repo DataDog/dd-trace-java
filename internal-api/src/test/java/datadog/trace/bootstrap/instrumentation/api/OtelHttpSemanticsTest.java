@@ -244,7 +244,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, "host");
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, "host");
     verify(span).setTag(KnownTags.SERVER_PORT_NAME, 8080);
   }
 
@@ -254,7 +254,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "https", "host", -1);
 
-    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, "host");
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, "host");
     verify(span).setTag(KnownTags.SERVER_PORT_NAME, 443);
   }
 
@@ -264,7 +264,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "ftp", null, -1);
 
-    verify(span, never()).setTag(eq(KnownTags.SERVER_ADDRESS_NAME), anyString());
+    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_NAME), anyString());
     verify(span, never()).setTag(eq(KnownTags.SERVER_PORT_NAME), anyInt());
   }
 
@@ -274,7 +274,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, null, null, "http", "", -1);
 
-    verify(span, never()).setTag(eq(KnownTags.SERVER_ADDRESS_NAME), anyString());
+    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_NAME), anyString());
     verify(span).setTag(KnownTags.SERVER_PORT_NAME, 80);
   }
 
@@ -284,7 +284,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, "proxy:8443", "9443", "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, "proxy");
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, "proxy");
     verify(span).setTag(KnownTags.SERVER_PORT_NAME, 9443);
   }
 
@@ -322,7 +322,7 @@ class OtelHttpSemanticsTest {
 
     OtelHttpSemantics.setServerAddressAndPort(span, forwardedHost, null, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.SERVER_ADDRESS_NAME, expectedAddress);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME_NAME, expectedAddress);
     // A forwarded host suppresses the request port, so the scheme default applies instead.
     verify(span).setTag(KnownTags.SERVER_PORT_NAME, expectedPort);
   }

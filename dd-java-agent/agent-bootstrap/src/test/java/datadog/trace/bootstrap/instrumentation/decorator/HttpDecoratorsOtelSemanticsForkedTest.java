@@ -67,13 +67,11 @@ class HttpDecoratorsOtelSemanticsForkedTest {
         "https://REDACTED:REDACTED@example.com/orders#fragment",
         span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
     assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
-    assertEquals("example.com", span.getTag(KnownTags.SERVER_ADDRESS_NAME));
-    assertEquals(443, span.getTag(KnownTags.SERVER_PORT_NAME));
+    assertEquals("example.com", span.getTag(Tags.PEER_HOSTNAME));
+    assertEquals(443, span.getTag(Tags.PEER_PORT));
     assertEquals(503, span.getHttpStatusCode());
     assertEquals("503", span.getTag("error.type"));
     assertTrue(span.isError());
-    assertNull(span.getTag("peer.hostname"));
-    assertNull(span.getTag("peer.port"));
   }
 
   @Test
@@ -148,7 +146,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals("/users/123", span.getTag(KnownTags.URL_PATH_NAME));
     assertEquals("https", span.getTag(KnownTags.URL_SCHEME_NAME));
     assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
-    assertEquals("example.com", span.getTag(KnownTags.SERVER_ADDRESS_NAME));
+    assertEquals("example.com", span.getTag(KnownTags.HTTP_HOSTNAME_NAME));
     assertEquals(8443, span.getTag(KnownTags.SERVER_PORT_NAME));
     assertNull(span.getTag(Tags.HTTP_CLIENT_IP));
     assertNull(span.getTag(Tags.NETWORK_CLIENT_IP));
@@ -256,7 +254,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
         span, new Connection("192.0.2.10", 32100), request, AgentSpan.fromSpanContext(extracted));
 
     assertEquals("https", span.getTag(KnownTags.URL_SCHEME_NAME));
-    assertEquals("public.example.com", span.getTag(KnownTags.SERVER_ADDRESS_NAME));
+    assertEquals("public.example.com", span.getTag(KnownTags.HTTP_HOSTNAME_NAME));
     assertEquals(8443, span.getTag(KnownTags.SERVER_PORT_NAME));
   }
 
@@ -277,7 +275,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
         span, new Connection("192.0.2.10", 32100), request, AgentSpan.fromSpanContext(extracted));
 
     assertEquals("https", span.getTag(KnownTags.URL_SCHEME_NAME));
-    assertEquals("2001:db8::1", span.getTag(KnownTags.SERVER_ADDRESS_NAME));
+    assertEquals("2001:db8::1", span.getTag(KnownTags.HTTP_HOSTNAME_NAME));
     assertEquals(9443, span.getTag(KnownTags.SERVER_PORT_NAME));
   }
 

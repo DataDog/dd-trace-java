@@ -21,7 +21,7 @@ public abstract class UriBasedClientDecorator extends ClientDecorator {
     String host = uri.getHost();
     if (null != host && !host.isEmpty()) {
       if (OTEL_SEMANTICS) {
-        span.setTag(KnownTags.SERVER_ADDRESS_NAME, host);
+        span.setTag(KnownTags.PEER_HOSTNAME_NAME, host);
         int serverPort = OtelHttpSemantics.serverPort(uri);
         if (serverPort > 0) {
           span.setTag(KnownTags.SERVER_PORT_NAME, serverPort);

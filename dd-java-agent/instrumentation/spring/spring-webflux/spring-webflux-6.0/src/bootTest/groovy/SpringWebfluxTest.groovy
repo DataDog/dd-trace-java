@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.OkHttpWebsocketClient
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics
 import dd.trace.instrumentation.springwebflux.server.WsHandler
 import net.bytebuddy.utility.RandomString
 import org.springframework.beans.factory.annotation.Autowired
@@ -807,7 +808,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
   void serverUrlTags(TagsAssert tags, String url) {
     def uri = URI.create(url)
     if (Config.get().isTraceOtelSemanticsEnabled()) {
-      tags.tag(KnownTags.SERVER_ADDRESS_NAME, uri.host)
+      tags.tag(KnownTags.HTTP_HOSTNAME_NAME, uri.host)
       tags.tag(KnownTags.SERVER_PORT_NAME, uri.port)
       tags.tag(KnownTags.URL_PATH_NAME, uri.path)
       tags.tag(KnownTags.URL_SCHEME_NAME, uri.scheme)
@@ -863,8 +864,8 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
           "$Tags.PEER_PORT" { it == null || it == uri.port }
         }
         if (otelSemantics) {
-          "$KnownTags.SERVER_ADDRESS_NAME" uri.host
-          "$KnownTags.SERVER_PORT_NAME" uri.port
+          "$Tags.PEER_HOSTNAME" uri.host
+          "$Tags.PEER_PORT" uri.port
         }
         "$Tags.HTTP_URL" expectedUrl
         "$Tags.HTTP_METHOD" method

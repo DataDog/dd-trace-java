@@ -145,15 +145,12 @@ class OtlpTraceJsonCollectorTest {
         "a tag the registry does not name passes through unchanged; got " + attrKeys);
   }
 
-  // Restore the commented out pairings when an OTel name can also be qualified by a direction.
-  // Currently, OTel tags server.address and server.port represent the "peer" on client spans
-  // and the "self" on server spans
   @TableTest({
     "scenario         | kind   | tag               | otelName            ",
-    // "client hostname  | client | peer.hostname     | server.address      ",
-    // "server hostname  | server | http.hostname     | server.address      ",
+    "client hostname  | client | peer.hostname     | server.address      ",
+    "server hostname  | server | http.hostname     | server.address      ",
     "server client ip | server | network.client.ip | network.peer.address",
-    // "client peer port | client | peer.port         | server.port         ",
+    "client peer port | client | peer.port         | server.port         ",
     "server peer port | server | peer.port         | client.port         "
   })
   void aDirectionScopedTagIsEmittedUnderTheNameForTheSpansKind(
