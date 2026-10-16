@@ -192,6 +192,13 @@ public class DDSpanContext
 
   private final IdStore tagIds;
 
+  /**
+   * This span's one {@link #tagView() view} of its tag stores, created on first use under the
+   * {@code tagStore} lock and reused by every internal reader. The view holds no state of its own
+   * beyond the stores and this span (its direction source), so it stays live and correct.
+   */
+  private TagMap tagView;
+
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
 
@@ -980,10 +987,15 @@ public class DDSpanContext
 
   /**
    * A live view of this span's tag stores, for its internal readers: post-processors and the
-   * serializer. Use it only under the {@code tagStore} lock, and only while holding it.
+   * serializer. Call it, and use the view, only under the {@code tagStore} lock.
    */
   private TagMap tagView() {
-    return TagMap.viewOf(tagIds, tagStore, this);
+    TagMap view = this.tagView;
+    if (view == null) {
+      // a view handed to the post-processor chain escapes, so allocate it once per span
+      this.tagView = view = TagMap.viewOf(tagIds, tagStore, this);
+    }
+    return view;
   }
 
   /**
