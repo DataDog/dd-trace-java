@@ -9,13 +9,13 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
-import datadog.trace.api.llmobs.LLMObsPropagationValues;
+import datadog.trace.api.llmobs.LLMObsParent;
 import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
+import datadog.trace.api.llmobs.LLMObsTraceId;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.ArrayList;
@@ -152,108 +152,40 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
-    // Resolve effective ml_app, parent_id, session_id, agent_version, agent attribution and
-    // sampling decision from the LLMObs context, all gated on trace-id consistency. A stale
-    // context from a different trace (e.g. async boundary leakage) must not contribute any of
-    // them. Every inherited value is read inside the one same-trace branch below, so a newly
-    // propagated tag cannot ship with a weaker gate of its own.
-    AgentSpanContext parent = LLMObsContext.current();
-    String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
-    String resolvedTraceId = null;
-    String resolvedMlApp = mlApp;
-    String resolvedAgentVersion = agentVersion;
-    String sampleRate = null;
-    String samplingDecision = null;
-    String resolvedParentAgentSpanId = null;
-    String resolvedParentAgentName = null;
-    boolean inheritedInProcess = false;
-    if (null != parent) {
-      if (!parent.getTraceId().equals(span.getTraceId())) {
-        LOGGER.error(
-            "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
-            parent.getTraceId(),
-            parent.getSpanId(),
-            span.getTraceId(),
-            span.getSpanId());
-      } else {
-        inheritedInProcess = true;
-        parentSpanID = String.valueOf(parent.getSpanId());
-        // Stay on the enclosing span's LLMObs trace. Never re-seeded from the APM trace id here:
-        // the enclosing span may itself have adopted a trace id from another service, and every
-        // span below it has to keep reporting that one.
-        resolvedTraceId = LLMObsContext.currentTraceId();
-        // Inherit ml_app from the enclosing LLMObs span, if this span doesn't name its own, so a
-        // whole agent subtree stays in one application rather than each nested span falling back
-        // to the service default.
-        if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
-          String inherited = LLMObsContext.currentMlApp();
-          if (inherited != null && !inherited.isEmpty()) {
-            resolvedMlApp = inherited;
-          }
-        }
-        // Inherit session_id from parent context only when it belongs to the same trace.
-        // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
-        // span; descendants inherit transitively via context propagation.
-        if (sessionId == null || sessionId.isEmpty()) {
-          String inherited = LLMObsContext.currentSessionId();
-          if (inherited != null && !inherited.isEmpty()) {
-            sessionId = inherited;
-          }
-        }
-        // Inherit agent_version from the enclosing agent span, if this span doesn't set its own.
-        // An explicit value always wins, so a nested agent's own version overrides an ancestor's
-        // for its own subtree, matching session_id's explicit-wins semantics.
-        if (agentVersion == null || agentVersion.isEmpty()) {
-          String inherited = LLMObsContext.currentAgentVersion();
-          if (inherited != null && !inherited.isEmpty()) {
-            resolvedAgentVersion = inherited;
-          }
-        }
-        // Inherit the sampling decision from the context if present.
-        sampleRate = LLMObsContext.currentSampleRate();
-        samplingDecision = LLMObsContext.currentSamplingDecision();
-        // Inherit agent attribution: the nearest agent-kind ancestor. Overridden just below when
-        // this span is itself an agent.
-        resolvedParentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
-        resolvedParentAgentName = LLMObsContext.currentParentAgentName();
-      }
+    // Resolve the LLMObs parent: the in-process context when it is on this trace, else what arrived
+    // from another service, else none. See LLMObsParent for the rules; what follows layers this
+    // span's own explicit values on top.
+    LLMObsParent parent = LLMObsParent.resolve(span);
+    if (parent.ignoredContext != null) {
+      LOGGER.error(
+          "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
+          parent.ignoredContext.getTraceId(),
+          parent.ignoredContext.getSpanId(),
+          span.getTraceId(),
+          span.getSpanId());
     }
-
-    // No usable in-process LLMObs parent, so fall back to what arrived from another service on
-    // the span context's propagation tags. Null when nothing did, which leaves every value below
-    // at the default it already holds.
-    LLMObsPropagationValues propagated =
-        inheritedInProcess ? null : span.spanContext().getExtractedLLMObsValues();
-    if (propagated != null) {
-      if (propagated.parentId != null) {
-        parentSpanID = propagated.parentId;
-      }
-      // Adopt the caller's LLMObs trace id so the trace stays whole across the boundary. The APM
-      // trace id can't stand in for it: an intermediate service that starts a fresh APM trace
-      // would split the LLMObs trace in two, and dd-trace-py has been propagating this since it
-      // gained the tag. The value arrives as decimal and is stored as hex.
-      resolvedTraceId = LLMObsTraceId.fromWire(propagated.traceId);
-      if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
-        resolvedMlApp = propagated.mlApp;
-      }
-      if (sessionId == null || sessionId.isEmpty()) {
-        sessionId = propagated.sessionId;
-      }
-      resolvedParentAgentSpanId = propagated.parentAgentSpanId;
-      if (resolvedParentAgentSpanId != null) {
-        resolvedParentAgentName = propagated.parentAgentName;
-      }
-      // Adopt the upstream sampling verdict so a distributed LLMObs trace is retained or dropped
-      // as a whole. Re-rolling locally only agrees with the caller when both services happen to
-      // be configured at the same rate; honouring the propagated decision removes that
-      // coincidence. Both tags are required together — the rate is meaningless without the
-      // decision it produced, and a lone decision would be reported against this service's rate,
-      // which is not the rate that produced it.
-      if (propagated.sampleRate != null && propagated.samplingDecision != null) {
-        sampleRate = propagated.sampleRate;
-        samplingDecision = propagated.samplingDecision;
-      }
+    String parentSpanID = parent.parentId;
+    // Stay on the parent's LLMObs trace. Never re-seeded from the APM trace id when there is one:
+    // the parent may itself have adopted a trace id from another service, and every span below it
+    // has to keep reporting that one.
+    String resolvedTraceId = parent.traceId;
+    // An explicit value wins; an empty one counts as unset. Inheriting ml_app keeps a whole agent
+    // subtree in one application rather than each nested span falling back to the service
+    // default. session_id need only be set on the root span, matching dd-trace-py and dd-trace-js.
+    // A nested agent's own agent_version overrides an ancestor's for its own subtree.
+    String resolvedMlApp = isEmpty(mlApp) ? parent.mlApp : mlApp;
+    if (isEmpty(sessionId) && parent.sessionId != null) {
+      sessionId = parent.sessionId;
     }
+    String resolvedAgentVersion =
+        isEmpty(agentVersion) && parent.agentVersion != null ? parent.agentVersion : agentVersion;
+    // Honouring an inherited verdict keeps a distributed LLMObs trace retained or dropped as a
+    // whole, rather than agreeing with the caller only when both are configured at the same rate.
+    String sampleRate = parent.sampleRate;
+    String samplingDecision = parent.samplingDecision;
+    // The nearest agent-kind ancestor. Overridden just below when this span is itself an agent.
+    String resolvedParentAgentSpanId = parent.parentAgentSpanId;
+    String resolvedParentAgentName = parent.parentAgentName;
 
     // Root of an LLMObs trace: seed the LLMObs trace id from the APM one, in the shape the other
     // tracers store it in — hex above 2^64, decimal below. The shape has to match what fromWire
@@ -286,14 +218,11 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     // Roll a decision only at the true root of an LLMObs trace
-    if (!inheritedInProcess && propagated == null) {
+    if (parent.isRoot()) {
       sampleRate = sampler.formattedRate();
-      samplingDecision =
-          sampler.sample(span.getTraceId().toLong())
-              ? LLMObsContext.SAMPLING_DECISION_SAMPLED
-              : LLMObsContext.SAMPLING_DECISION_DROPPED;
+      samplingDecision = sampler.decide(span.getTraceId());
     }
-    // Both tags move together for the same reason they are adopted together above: a rate without
+    // Both tags move together for the same reason LLMObsParent adopts them together: a rate without
     // the decision it produced says nothing, and a decision on its own would be read against a
     // rate that did not produce it.
     if (sampleRate != null && samplingDecision != null) {
@@ -837,5 +766,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public long getSpanId() {
     return span.getSpanId();
+  }
+
+  private static boolean isEmpty(String value) {
+    return value == null || value.isEmpty();
   }
 }

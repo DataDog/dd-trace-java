@@ -1,4 +1,4 @@
-package datadog.trace.llmobs.domain;
+package datadog.trace.api.llmobs;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.internal.util.LongStringUtils;
@@ -40,7 +40,7 @@ public final class LLMObsTraceId {
    * renders only the low 64 bits — is the right decimal. It is not safe to call outside this
    * branch, which is the reason to go through here rather than at each call site.
    */
-  static String format(DDTraceId traceId) {
+  public static String format(DDTraceId traceId) {
     return traceId.toHighOrderLong() != 0 ? traceId.toHexString() : traceId.toString();
   }
 
