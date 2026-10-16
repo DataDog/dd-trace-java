@@ -11,7 +11,7 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Deduplicates and batches exposure events to the event platform {@code exposures} route. */
+/** Batches exposure events to the event platform {@code exposures} route. */
 public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExposurePipeline.class);
@@ -68,7 +68,6 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
 
     private final EventTransport transport;
     private final Map<String, String> context;
-    private final ExposureCache cache;
 
     private final List<ExposureEvent> buffer = new ArrayList<>();
 
@@ -79,7 +78,6 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
         final TimeUnit timeUnit,
         final Map<String, String> context) {
       this.queue = queue;
-      this.cache = new LRUExposureCache(queue.capacity());
       this.transport = transport;
       this.context = context;
 
@@ -102,28 +100,18 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
     private void runDutyCycle() throws InterruptedException {
       final Thread thread = Thread.currentThread();
       while (!thread.isInterrupted()) {
-        ExposureEvent event;
-        while ((event = queue.poll(100, TimeUnit.MILLISECONDS)) != null) {
-          if (addToBuffer(event)) {
-            consumeBatch();
-            break;
-          }
+        // The provider already deduplicated the exposures.
+        final ExposureEvent event = queue.poll(100, TimeUnit.MILLISECONDS);
+        if (event != null) {
+          this.buffer.add(event);
+          consumeBatch();
         }
         flushIfNecessary();
       }
     }
 
     private void consumeBatch() {
-      queue.drain(this::addToBuffer, queue.size());
-    }
-
-    /** Adds an element to the buffer taking care of duplicated exposures thanks to the LRU cache */
-    private boolean addToBuffer(final ExposureEvent event) {
-      if (cache.add(event)) {
-        buffer.add(event);
-        return true;
-      }
-      return false;
+      queue.drain(this.buffer::add, queue.size());
     }
 
     protected void flushIfNecessary() {
