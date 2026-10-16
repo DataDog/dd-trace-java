@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play26.appsec;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.play26.appsec.BodyParserHelpers.jsValueToJavaObject;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
@@ -55,8 +54,7 @@ public class ResultsStatusInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      BodyParserHelpers.handleResponseBody(
-          reqCtx, jsValueToJavaObject((JsValue) content), "Results$Status/apply");
+      BodyParserHelpers.handleResponseBody(reqCtx, (JsValue) content, "Results$Status/apply");
     }
   }
 }

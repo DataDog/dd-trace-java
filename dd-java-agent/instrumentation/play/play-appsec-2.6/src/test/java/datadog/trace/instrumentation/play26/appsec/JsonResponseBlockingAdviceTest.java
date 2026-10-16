@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play26.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,9 +40,9 @@ import play.mvc.StatusHeader;
  * Play 2.7+ via the {@code play26Plus} muzzle directive): when the AppSec response body callback
  * returns a {@link Flow.Action.RequestBlockingAction} and a {@link BlockResponseFunction} is
  * present, the advice attempts to commit the blocking response and throws {@link BlockingException}
- * only if the commit succeeds. A failed commit lets the request proceed, since there is no way to
- * abort consistently with the rest of the Play response pipeline (headers, status, body already
- * produced by this point).
+ * regardless of the commit result. These are response-body hooks: the WAF already flagged content
+ * about to be sent to the client, so a failed commit must still abort the request rather than let
+ * the flagged body through.
  */
 class JsonResponseBlockingAdviceTest {
 
@@ -99,12 +98,15 @@ class JsonResponseBlockingAdviceTest {
   }
 
   @Test
-  void resultsStatusApplyDoesNotThrowWhenCommitFails() {
+  void resultsStatusApplyStillThrowsWhenCommitFails() {
     RecordingBlockResponseFunction brf = givenBlockResponseFunction(false);
     JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
 
-    assertDoesNotThrow(() -> ResultsStatusApplyAdvice.after(content, reqCtx));
+    BlockingException ex =
+        assertThrows(
+            BlockingException.class, () -> ResultsStatusApplyAdvice.after(content, reqCtx));
 
+    assertEquals("Blocked request (for Results$Status/apply)", ex.getMessage());
     brf.assertCommittedOnce(segment);
     verify(appSecCtx).reportBlockFailure();
   }
@@ -130,17 +132,21 @@ class JsonResponseBlockingAdviceTest {
   }
 
   @Test
-  void statusHeaderSendJsonDoesNotThrowWhenCommitFails() {
+  void statusHeaderSendJsonStillThrowsWhenCommitFails() {
     RecordingBlockResponseFunction brf = givenBlockResponseFunction(false);
     ObjectNode json = JsonNodeFactory.instance.objectNode().put("key", "value");
 
+    BlockingException ex;
     try {
-      assertDoesNotThrow(() -> StatusHeaderSendJsonAdvice.before(json, reqCtx));
+      ex =
+          assertThrows(
+              BlockingException.class, () -> StatusHeaderSendJsonAdvice.before(json, reqCtx));
     } finally {
       // reset the call depth incremented by before()
       CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
     }
 
+    assertEquals("Blocked request (for StatusHeader/sendJson)", ex.getMessage());
     brf.assertCommittedOnce(segment);
     verify(appSecCtx).reportBlockFailure();
   }

@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.play25.appsec;
 
-import static datadog.trace.instrumentation.play25.appsec.BodyParserHelpers.jsValueToJavaObject;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContext;
@@ -20,7 +18,6 @@ public class ResultsStatusApplyAdvice {
       return;
     }
 
-    BodyParserHelpers.handleResponseBody(
-        reqCtx, jsValueToJavaObject((JsValue) content), "Results$Status/apply");
+    BodyParserHelpers.handleResponseBody(reqCtx, (JsValue) content, "Results$Status/apply");
   }
 }

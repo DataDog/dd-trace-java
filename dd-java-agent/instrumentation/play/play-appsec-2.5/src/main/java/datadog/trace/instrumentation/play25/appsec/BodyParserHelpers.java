@@ -360,17 +360,74 @@ public class BodyParserHelpers {
     }
   }
 
+  /**
+   * Like {@link #executeCallback}, but for response-body hooks specifically: the WAF already
+   * flagged content that was about to be sent to the client, so this always throws once a {@link
+   * BlockResponseFunction} is present, regardless of the commit result. Letting the request proceed
+   * on a failed commit would leak that flagged body instead of just failing to show a block page.
+   * Do not reuse this for request-body call sites (multipart uploads, arbitrary POST data) — those
+   * intentionally stay fail-open on a failed commit via {@link #executeCallback}.
+   */
+  private static void executeResponseBodyCallback(
+      RequestContext reqCtx,
+      BiFunction<RequestContext, Object, Flow<Void>> callback,
+      Object conv,
+      String details) {
+    Flow<Void> flow = callback.apply(reqCtx, conv);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      commitBlockAndThrowUnconditionally(reqCtx, rba, "for " + details);
+    }
+  }
+
   private static void commitBlockAndThrow(
       RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
     BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
     if (brf != null) {
-      // play runs on netty, which commits the blocking response synchronously and calls
-      // TraceSegment#effectivelyBlocked() itself: never call it here
+      // never call TraceSegment#effectivelyBlocked() here: the BlockResponseFunction
+      // implementation owns marking the segment, synchronously or (e.g. Netty off the event
+      // loop, Akka HTTP) once the response is actually committed
       boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
       if (success) {
         throw new BlockingException("Blocked request (" + details + ")");
       }
     }
+  }
+
+  private static void commitBlockAndThrowUnconditionally(
+      RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
+    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+    if (brf != null) {
+      // never call TraceSegment#effectivelyBlocked() here: the BlockResponseFunction
+      // implementation owns marking the segment, synchronously or (e.g. Netty off the event
+      // loop, Akka HTTP) once the response is actually committed
+      brf.tryCommitBlockingResponse(reqCtx, rba);
+      throw new BlockingException("Blocked request (" + details + ")");
+    }
+  }
+
+  /**
+   * Publishes a {@link JsValue} response body to the WAF, converting it to a plain Java object only
+   * once a response-body callback is actually registered, so callers pay the conversion cost only
+   * when AppSec/RASP needs the converted value.
+   *
+   * @param reqCtx the active request context
+   * @param content the response body, as the Scala {@link JsValue} produced by Play
+   * @param details the call site description used in the {@link BlockingException} message
+   */
+  public static void handleResponseBody(RequestContext reqCtx, JsValue content, String details) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    if (cbp == null) {
+      return;
+    }
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.responseBody());
+    if (callback == null) {
+      return;
+    }
+
+    executeResponseBodyCallback(reqCtx, callback, jsValueToJavaObject(content), details);
   }
 
   /**
@@ -392,7 +449,7 @@ public class BodyParserHelpers {
       return;
     }
 
-    executeCallback(reqCtx, callback, body, details);
+    executeResponseBodyCallback(reqCtx, callback, body, details);
   }
 
   private static Object tryConvertingScalaContainers(Object obj, int depth) {

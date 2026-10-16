@@ -54,8 +54,9 @@ public class PathExtractionHelpers {
       // nothing can commit the blocking response, so the request must not be blocked
       return null;
     }
-    // play runs on netty, which commits the blocking response synchronously and calls
-    // TraceSegment#effectivelyBlocked() itself: never call it here
+    // never call TraceSegment#effectivelyBlocked() here: the BlockResponseFunction implementation
+    // owns marking the segment, synchronously or (e.g. Netty off the event loop, Akka HTTP) once
+    // the response is actually committed
     brf.tryCommitBlockingResponse(reqCtx, rba);
     return new BlockingException("Blocked request (for " + origin + ")");
   }
