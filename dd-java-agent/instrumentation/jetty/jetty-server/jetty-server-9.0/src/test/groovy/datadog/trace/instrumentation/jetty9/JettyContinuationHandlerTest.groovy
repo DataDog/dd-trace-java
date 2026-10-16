@@ -4,6 +4,8 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
+import okhttp3.MediaType
+import okhttp3.RequestBody
 import org.eclipse.jetty.continuation.Continuation
 import org.eclipse.jetty.continuation.ContinuationSupport
 import org.eclipse.jetty.server.Request
@@ -18,12 +20,45 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 import static test.TestHandler.handleRequest
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOUT
 
 abstract class JettyContinuationHandlerTest extends Jetty9Test {
+
+  def 'form requests survive continuation redispatch without HTTP retries'() {
+    setup:
+    def noRetryClient = client.newBuilder().retryOnConnectionFailure(false).build()
+    int attempts = 100
+
+    when:
+    attempts.times {
+      def formRequest = request(BODY_URLENCODED, 'POST',
+      RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x')).build()
+      try (def response = noRetryClient.newCall(formRequest).execute()) {
+        assert response.code() == 200
+        assert response.body().string() == '[a:[x]]'
+      }
+    }
+    TEST_WRITER.waitForTraces(attempts)
+
+    then:
+    TEST_WRITER.size() == attempts
+    TEST_WRITER.every {
+      trace ->
+      def root = trace.find {
+        it.parentId == 0
+      }
+      trace.size() == 3 &&
+      root.getTag('http.status_code') == 200 &&
+      root.getTag('request.body.converted') == '[a:[x]]' &&
+      trace.any {
+        it.operationName == 'servlet.dispatch'
+      }
+    }
+  }
 
   @Override
   AbstractHandler handler() {
@@ -48,6 +83,16 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
       // this happens in the /exception endpoint
       if (!request.getAttribute('javax.servlet.error.status_code')) {
         if (continuation.initial) {
+          if (request.contentType?.startsWith('application/x-www-form-urlencoded')) {
+            // Parse the form before suspending the request. When the client waits for `HTTP 100 Continue`
+            // before sending the body, parsing after resume can overlap with Jetty 9.0.0's pending connection read
+            // and cause ReadPendingException.
+            request.parameterMap
+            if (response.committed) {
+              baseRequest.handled = true
+              return
+            }
+          }
           continuation.suspend()
           executorService.execute {
             continuation.resume()
