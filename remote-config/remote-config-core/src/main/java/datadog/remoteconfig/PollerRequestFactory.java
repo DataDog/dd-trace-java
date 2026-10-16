@@ -27,6 +27,7 @@ public class PollerRequestFactory {
   private static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_CONTAINER_ID = "Datadog-Container-ID";
   private static final String HEADER_ENTITY_ID = "Datadog-Entity-ID";
+  private static final String HEADER_EXTERNAL_ENV = "Datadog-External-Env";
 
   private static final Logger log = LoggerFactory.getLogger(PollerRequestFactory.class);
 
@@ -40,6 +41,7 @@ public class PollerRequestFactory {
   private final String tracerVersion;
   private final String containerId;
   private final String entityId;
+  private final String externalEnv;
   private final Moshi moshi;
   final HttpUrl url;
 
@@ -48,6 +50,7 @@ public class PollerRequestFactory {
       String tracerVersion,
       String containerId,
       String entityId,
+      String externalEnv,
       String url,
       Moshi moshi) {
     this.runtimeId = getRuntimeId(config);
@@ -60,6 +63,7 @@ public class PollerRequestFactory {
     this.tracerVersion = tracerVersion.replace('~', '+');
     this.containerId = containerId;
     this.entityId = entityId;
+    this.externalEnv = externalEnv;
     this.url = parseUrl(url);
     this.moshi = moshi;
   }
@@ -102,6 +106,9 @@ public class PollerRequestFactory {
     }
     if (entityId != null) {
       requestBuilder.addHeader(HEADER_ENTITY_ID, entityId);
+    }
+    if (externalEnv != null) {
+      requestBuilder.addHeader(HEADER_EXTERNAL_ENV, externalEnv);
     }
     return requestBuilder.build();
   }

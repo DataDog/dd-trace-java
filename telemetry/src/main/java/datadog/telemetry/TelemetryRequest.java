@@ -75,6 +75,10 @@ public class TelemetryRequest {
     if (entityId != null) {
       builder.addHeader("Datadog-Entity-ID", entityId);
     }
+    final String externalEnv = ContainerInfo.getExternalEnv();
+    if (externalEnv != null) {
+      builder.addHeader("Datadog-External-Env", externalEnv);
+    }
 
     if (debug) {
       builder.addHeader("DD-Telemetry-Debug-Enabled", "true");

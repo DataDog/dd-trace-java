@@ -225,13 +225,14 @@ public class BatchUploaderTest {
     server.enqueue(RESPONSE_200);
     BatchUploader uploaderWithNoContainerId =
         new BatchUploader(
-            "test", config, url.toString(), ratelimitedLogger, retryPolicy, null, null);
+            "test", config, url.toString(), ratelimitedLogger, retryPolicy, null, null, null);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertNull(request.getHeader("Datadog-Container-ID"));
+    assertNull(request.getHeader("Datadog-External-Env"));
   }
 
   @Test
@@ -246,13 +247,17 @@ public class BatchUploaderTest {
             ratelimitedLogger,
             retryPolicy,
             "testContainerId",
-            "testEntityId");
+            "testEntityId",
+            "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759");
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals("testContainerId", request.getHeader("Datadog-Container-ID"));
     assertEquals("testEntityId", request.getHeader("Datadog-Entity-ID"));
+    assertEquals(
+        "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759",
+        request.getHeader("Datadog-External-Env"));
   }
 
   @Test

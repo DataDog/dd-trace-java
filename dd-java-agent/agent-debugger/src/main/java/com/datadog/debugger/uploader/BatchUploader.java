@@ -78,6 +78,7 @@ public class BatchUploader {
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
   private static final String HEADER_DD_ENTITY_ID = "Datadog-Entity-ID";
+  private static final String HEADER_DD_EXTERNAL_ENV = "Datadog-External-Env";
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   public static final int MAX_ENQUEUED_REQUESTS = 20;
@@ -88,6 +89,7 @@ public class BatchUploader {
   private final String name;
   private final String containerId;
   private final String entityId;
+  private final String externalEnv;
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final HttpUrl urlBase;
@@ -122,7 +124,8 @@ public class BatchUploader {
         ratelimitedLogger,
         retryPolicy,
         ContainerInfo.get().containerId,
-        ContainerInfo.getEntityId());
+        ContainerInfo.getEntityId(),
+        ContainerInfo.getExternalEnv());
   }
 
   @VisibleForTesting
@@ -133,7 +136,8 @@ public class BatchUploader {
       RatelimitedLogger ratelimitedLogger,
       RetryPolicy retryPolicy,
       String containerId,
-      String entityId) {
+      String entityId,
+      String externalEnv) {
     this.name = name;
     instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
     if (endpoint == null || endpoint.length() == 0) {
@@ -155,6 +159,7 @@ public class BatchUploader {
     this.retryPolicy = retryPolicy;
     this.containerId = containerId;
     this.entityId = entityId;
+    this.externalEnv = externalEnv;
     Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
     client =
         OkHttpUtils.buildHttpClient(
@@ -271,6 +276,9 @@ public class BatchUploader {
     }
     if (entityId != null) {
       requestBuilder.addHeader(HEADER_DD_ENTITY_ID, entityId);
+    }
+    if (externalEnv != null) {
+      requestBuilder.addHeader(HEADER_DD_EXTERNAL_ENV, externalEnv);
     }
     Request request = requestBuilder.build();
     LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());

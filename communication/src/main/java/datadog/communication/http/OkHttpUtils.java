@@ -49,6 +49,7 @@ public final class OkHttpUtils {
       "Datadog-Meta-Lang-Interpreter-Vendor";
   public static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
   private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
+  static final String DATADOG_EXTERNAL_ENV = "Datadog-External-Env";
   public static final String DATADOG_CONTAINER_TAGS_HASH = "Datadog-Container-Tags-Hash";
 
   private static final String DD_API_KEY = "DD-API-KEY";
@@ -239,7 +240,20 @@ public final class OkHttpUtils {
   }
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
+    return prepareRequest(
+        url,
+        headers,
+        ContainerInfo.get().getContainerId(),
+        ContainerInfo.getEntityId(),
+        ContainerInfo.getExternalEnv());
+  }
 
+  static Request.Builder prepareRequest(
+      final HttpUrl url,
+      final Map<String, String> headers,
+      @Nullable final String containerId,
+      @Nullable final String entityId,
+      @Nullable final String externalEnv) {
     final Request.Builder builder =
         new Request.Builder()
             .url(url)
@@ -248,13 +262,14 @@ public final class OkHttpUtils {
             .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
             .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
-    final String containerId = ContainerInfo.get().getContainerId();
-    final String entityId = ContainerInfo.getEntityId();
     if (containerId != null) {
       builder.addHeader(DATADOG_CONTAINER_ID, containerId);
     }
     if (entityId != null) {
       builder.addHeader(DATADOG_ENTITY_ID, entityId);
+    }
+    if (externalEnv != null) {
+      builder.addHeader(DATADOG_EXTERNAL_ENV, externalEnv);
     }
 
     for (Map.Entry<String, String> e : headers.entrySet()) {

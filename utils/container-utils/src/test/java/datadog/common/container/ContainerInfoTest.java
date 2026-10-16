@@ -356,6 +356,28 @@ public class ContainerInfoTest extends DDJavaSpecification {
     assertEquals("in-" + ino, ContainerInfo.readEntityID(containerInfo, false, mountPath.toPath()));
   }
 
+  // spotless:off
+  @TableTest({
+    "Scenario             | externalEnv                                                           | expected                                                             ",
+    "unset                |                                                                       |                                                                      ",
+    "empty                | ''                                                                    |                                                                      ",
+    "blank                | '   '                                                                 |                                                                      ",
+    "admission controller | 'it-false,cn-nginx-webserver,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759' | 'it-false,cn-nginx-webserver,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759'",
+    "surrounding spaces   | ' it-false,cn-weblog '                                                | 'it-false,cn-weblog'                                                 ",
+    "not parsed           | 'some unexpected value'                                               | 'some unexpected value'                                              "
+  })
+  // spotless:on
+  void readExternalEnv(String externalEnv, String expected) {
+    assertEquals(expected, ContainerInfo.readExternalEnv(externalEnv));
+  }
+
+  @Test
+  void readExternalEnvIgnoresValuesNotAllowedInHeaders() {
+    assertNull(ContainerInfo.readExternalEnv("it-false,\ncn-weblog"));
+    assertNull(ContainerInfo.readExternalEnv("it-false,cn-w\u00e9blog"));
+    assertNull(ContainerInfo.readExternalEnv("it-false,cn-weblog\u007f"));
+  }
+
   private static File createTempDir() throws IOException {
     File dir = File.createTempFile("container-info-test-", "-sys-fs-cgroup");
     dir.delete();
