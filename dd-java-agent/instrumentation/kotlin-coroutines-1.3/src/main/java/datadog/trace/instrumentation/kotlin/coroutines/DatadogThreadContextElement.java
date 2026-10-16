@@ -4,7 +4,6 @@ import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -44,7 +43,7 @@ public final class DatadogThreadContextElement
       return coroutineContext.plus(new DatadogThreadContextElement(null));
     }
     DatadogThreadContextElement fresh =
-        new DatadogThreadContextElement(existing.traceKeptOpenFor(coroutineContext.get(Job.Key)));
+        new DatadogThreadContextElement(existing.localRootFor(coroutineContext.get(Job.Key)));
     // keep the element's position, so elements added after it can still update scopes on top
     return coroutineContext.fold(EmptyCoroutineContext.INSTANCE, fresh);
   }
@@ -55,26 +54,26 @@ public final class DatadogThreadContextElement
     return rebuilt.plus(element.getKey() == DATADOG_KEY ? this : element);
   }
 
-  @Nullable private AgentTraceCollector traceKeptOpenByParent;
+  @Nullable private AgentSpan parentLocalRootSpan;
   private volatile Context context;
   private volatile ContextContinuation continuation;
 
   /** The coroutine this element was created for. */
   @Nullable private volatile Job owner;
 
-  /** The trace kept open until this coroutine completes, by its own continuation or its parent. */
-  @Nullable private volatile AgentTraceCollector traceKeptOpen;
+  /** The local root of the trace kept open by this coroutine or its parent. */
+  @Nullable private volatile AgentSpan localRootSpan;
 
-  private DatadogThreadContextElement(@Nullable AgentTraceCollector traceKeptOpenByParent) {
-    this.traceKeptOpenByParent = traceKeptOpenByParent;
+  private DatadogThreadContextElement(@Nullable AgentSpan parentLocalRootSpan) {
+    this.parentLocalRootSpan = parentLocalRootSpan;
   }
 
-  /** Returns the trace this coroutine keeps open, if coroutines of this job are its children. */
+  /** Returns the local root kept open for structured children launched with this job. */
   @Nullable
-  private AgentTraceCollector traceKeptOpenFor(@Nullable Job job) {
-    AgentTraceCollector trace = traceKeptOpen;
+  private AgentSpan localRootFor(@Nullable Job job) {
+    AgentSpan rootSpan = localRootSpan;
     // structured children complete before their parent, which keeps its trace open until then
-    return trace != null && job != null && (job == owner || isScopedBy(job)) ? trace : null;
+    return rootSpan != null && job != null && (job == owner || isScopedBy(job)) ? rootSpan : null;
   }
 
   /** Scoped coroutines share their caller's element and complete before the caller does. */
@@ -106,30 +105,30 @@ public final class DatadogThreadContextElement
     if (context == null) {
       Context initial = Context.current();
       // this coroutine isn't running yet, so its context can't change under us
-      AgentTraceCollector trace = traceOf(initial);
-      if (trace != null) {
-        if (trace == traceKeptOpenByParent) {
+      AgentSpan rootSpan = localRootOf(initial);
+      if (rootSpan != null) {
+        if (rootSpan == parentLocalRootSpan) {
           // the parent keeps this trace open until after this child completes
-          traceKeptOpen = trace;
+          localRootSpan = rootSpan;
         } else {
           // stop enclosing trace from finishing early
           ContextContinuation captured = initial.capture();
           continuation = captured;
           if (captured.context() != Context.root()) {
             // only when the capture was accepted, e.g. async propagation is enabled
-            traceKeptOpen = trace;
+            localRootSpan = rootSpan;
           }
         }
       }
       context = initial;
-      traceKeptOpenByParent = null;
+      parentLocalRootSpan = null;
     }
   }
 
   @Nullable
-  private static AgentTraceCollector traceOf(Context context) {
+  private static AgentSpan localRootOf(Context context) {
     AgentSpan span = AgentSpan.fromContext(context);
-    return span != null ? span.spanContext().getTraceCollector() : null;
+    return span != null ? span.getLocalRootSpan() : null;
   }
 
   public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
@@ -138,7 +137,7 @@ public final class DatadogThreadContextElement
       // scoped coroutines share their caller's element, but must not release its trace hold
       return;
     }
-    datadog.traceKeptOpen = null;
+    datadog.localRootSpan = null;
     ContextContinuation continuation = CONTINUATION.getAndSet(datadog, null);
     if (continuation != null) {
       // release enclosing trace now the coroutine has completed
