@@ -10,7 +10,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-/** Tracks metric storage and observable callbacks by instrumentation scope. */
+/**
+ * Tracks metric storage and observable callbacks by instrumentation scope, and the action shutting
+ * down the metrics exporter.
+ */
 public final class OtelMetricRegistry {
   public static final OtelMetricRegistry INSTANCE = new OtelMetricRegistry();
 

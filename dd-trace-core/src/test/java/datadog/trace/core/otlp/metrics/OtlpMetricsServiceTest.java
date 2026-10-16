@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
-import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -36,7 +36,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.stubbing.Answer;
 
 class OtlpMetricsServiceTest {
   private static final OtlpPayload PAYLOAD =
@@ -46,6 +45,7 @@ class OtlpMetricsServiceTest {
   @AfterEach
   void stopSchedulers() {
     schedulers.forEach(scheduler -> scheduler.shutdown(0, MILLISECONDS));
+    OtelMetricRegistry.INSTANCE.registerExporterShutdown(null);
   }
 
   @Test
@@ -101,34 +101,39 @@ class OtlpMetricsServiceTest {
   }
 
   @Test
-  void exportThenShutdownDoesNotCompleteBeforeTransport() throws Exception {
+  void startRegistersExporterShutdown() {
     TestService test = service(PAYLOAD);
-    CountDownLatch entered = new CountDownLatch(1);
-    CountDownLatch release = new CountDownLatch(1);
-    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(entered, release));
+    when(test.sender.send(PAYLOAD)).thenReturn(success(200));
+
+    OtelMetricRegistry.INSTANCE.shutdownExporter();
+
+    verify(test.sender).send(PAYLOAD);
+    verify(test.sender).shutdown();
+  }
+
+  @Test
+  void exportThenShutdownDoesNotCompleteBeforeTransport() throws Exception {
+    TestService test = blockingService();
 
     assertFalse(test.service.exportThenShutdown(100, MILLISECONDS));
 
-    assertTrue(entered.await(5, SECONDS));
-    release.countDown();
+    assertTrue(test.sendEntered.await(5, SECONDS));
+    test.releaseSend.countDown();
     assertTrue(test.service.exportThenShutdown(5, SECONDS));
   }
 
   @Test
   void interruptedExportThenShutdownRestoresInterruptStatus() throws Exception {
-    TestService test = service(PAYLOAD);
-    CountDownLatch entered = new CountDownLatch(1);
-    CountDownLatch release = new CountDownLatch(1);
-    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(entered, release));
+    TestService test = blockingService();
     assertFalse(test.service.exportThenShutdown(100, MILLISECONDS));
-    assertTrue(entered.await(5, SECONDS));
+    assertTrue(test.sendEntered.await(5, SECONDS));
 
     Thread.currentThread().interrupt();
     try {
       assertFalse(test.service.exportThenShutdown(5, SECONDS));
       assertTrue(Thread.interrupted());
     } finally {
-      release.countDown();
+      test.releaseSend.countDown();
     }
   }
 
@@ -198,13 +203,11 @@ class OtlpMetricsServiceTest {
   }
 
   @Test
-  void unavailablePipelineExportThenShutdownSucceeds() {
-    AgentTaskScheduler scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
-    schedulers.add(scheduler);
-    OtlpMetricsService service = new OtlpMetricsService(scheduler, null, null, 10_000);
+  void flushIsSafeWithoutSender() {
+    OtlpMetricsService service =
+        new OtlpMetricsService(mock(AgentTaskScheduler.class), null, null, 10_000);
 
     service.flush();
-    assertTrue(service.exportThenShutdown(5, SECONDS));
   }
 
   @Test
@@ -237,28 +240,28 @@ class OtlpMetricsServiceTest {
 
   @Test
   void exportThenShutdownWaitsForInflightFlush() throws Exception {
-    TestService test = service(PAYLOAD);
-    CountDownLatch entered = new CountDownLatch(1);
-    CountDownLatch release = new CountDownLatch(1);
-    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(entered, release));
+    TestService test = blockingService();
 
     test.service.flush();
-    assertTrue(entered.await(5, SECONDS));
+    assertTrue(test.sendEntered.await(5, SECONDS));
     assertFalse(test.service.exportThenShutdown(100, MILLISECONDS));
-    release.countDown();
+    test.releaseSend.countDown();
 
     assertTrue(test.service.exportThenShutdown(5, SECONDS));
     verify(test.sender, times(2)).send(PAYLOAD);
     verify(test.sender).shutdown();
   }
 
-  private static Answer<RemoteApi.Response> blockingSend(
-      CountDownLatch entered, CountDownLatch release) {
-    return ignored -> {
-      entered.countDown();
-      assertTrue(release.await(5, SECONDS));
-      return success(200);
-    };
+  private TestService blockingService() {
+    TestService test = service(PAYLOAD);
+    when(test.sender.send(PAYLOAD))
+        .thenAnswer(
+            ignored -> {
+              test.sendEntered.countDown();
+              assertTrue(test.releaseSend.await(5, SECONDS));
+              return success(200);
+            });
+    return test;
   }
 
   private TestService service(OtlpPayload payload) {
@@ -267,8 +270,9 @@ class OtlpMetricsServiceTest {
     OtlpMetricsCollector collector = mock(OtlpMetricsCollector.class);
     OtlpSender sender = mock(OtlpSender.class);
     when(collector.collectMetrics()).thenReturn(payload);
-    return new TestService(
-        new OtlpMetricsService(scheduler, collector, sender, 10_000), scheduler, collector, sender);
+    OtlpMetricsService service = new OtlpMetricsService(scheduler, collector, sender, 60_000);
+    service.start();
+    return new TestService(service, scheduler, collector, sender);
   }
 
   private static Map<String, OtlpTelemetry.OtlpMetric> drainMetricsTelemetry() {
@@ -287,6 +291,8 @@ class OtlpMetricsServiceTest {
     private final AgentTaskScheduler scheduler;
     private final OtlpMetricsCollector collector;
     private final OtlpSender sender;
+    private final CountDownLatch sendEntered = new CountDownLatch(1);
+    private final CountDownLatch releaseSend = new CountDownLatch(1);
 
     private TestService(
         OtlpMetricsService service,

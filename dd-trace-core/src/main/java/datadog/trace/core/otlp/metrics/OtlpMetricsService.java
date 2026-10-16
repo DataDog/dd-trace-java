@@ -95,9 +95,9 @@ public final class OtlpMetricsService {
   }
 
   public void flush() {
-    synchronized (lifecycleLock) {
+    synchronized (this.lifecycleLock) {
       if (this.sender != null && this.shutdownLatch == null) {
-        scheduler.execute(this::export);
+        this.scheduler.execute(this::export);
       }
     }
   }
@@ -110,25 +110,18 @@ public final class OtlpMetricsService {
    * @return {@code true} if the export and shutdown completed before the timeout
    */
   boolean exportThenShutdown(long timeout, TimeUnit unit) {
-    CountDownLatch shutdownLatch;
+    CountDownLatch latch;
     synchronized (this.lifecycleLock) {
       if (this.shutdownLatch == null) {
         this.shutdownLatch = new CountDownLatch(1);
-        if (this.scheduledTask != null) {
-          this.scheduledTask.cancel();
-        }
-
-        if (this.sender != null) {
-          this.scheduler.execute(this::waitForExportThenShutdown);
-        } else {
-          this.shutdownLatch.countDown();
-        }
+        this.scheduledTask.cancel();
+        this.scheduler.execute(this::waitForExportThenShutdown);
       }
-      shutdownLatch = this.shutdownLatch;
+      latch = this.shutdownLatch;
     }
 
     try {
-      return shutdownLatch.await(timeout, unit);
+      return latch.await(timeout, unit);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return false;
