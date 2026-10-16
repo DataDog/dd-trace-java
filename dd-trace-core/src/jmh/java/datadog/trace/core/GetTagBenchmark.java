@@ -33,8 +33,8 @@ public class GetTagBenchmark {
 
   /**
    * The known tags the span holds, read in turn by the {@code *_cycle} arms so a read's cost is
-   * averaged over the span's tags rather than decided by whether one particular tag collides in
-   * its bucket. A power-of-two length lets the index wrap with a mask.
+   * averaged over the span's tags rather than decided by whether one particular tag collides in its
+   * bucket. A power-of-two length lets the index wrap with a mask.
    */
   private static final String[] KNOWN_HELD = {
     "span.kind",

@@ -82,7 +82,7 @@ public final class TagRouting {
 
   /** The entry for {@code tag}, already resolved to {@code key}, reading through to parents. */
   public static Entry get(IdStore ids, HashStore names, long key, String tag) {
-    return isKnown(key) ? ids.get(key) : names == null ? null : names.get(tag);
+    return isKnown(key) ? entryOf(ids.get(key)) : names == null ? null : names.get(tag);
   }
 
   /*
@@ -112,7 +112,7 @@ public final class TagRouting {
       return asWritten;
     }
     long tagId = KnownTagCodec.directionalKeyOf(name, direction);
-    return isKnown(tagId) ? ids.get(tagId) : null;
+    return isKnown(tagId) ? entryOf(ids.get(tagId)) : null;
   }
 
   /** The entry the known tag {@code tagId} reads on a span of {@code direction}; see above. */
@@ -128,6 +128,15 @@ public final class TagRouting {
         return pending;
       }
     }
-    return ids.get(tagId);
+    return entryOf(ids.get(tagId));
+  }
+
+  /**
+   * The Entry an id store's {@code reader} denotes, for a caller that hands it out of the trust
+   * boundary or keeps it: free for a hash store's reader, which is its Entry; a store reading
+   * through a reused flyweight builds one here.
+   */
+  public static Entry entryOf(TagMap.EntryReader reader) {
+    return reader == null ? null : reader.entry();
   }
 }

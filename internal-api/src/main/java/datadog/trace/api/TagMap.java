@@ -1528,7 +1528,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** The entry for a known tag id. */
   public Entry getEntry(long tagId) {
-    return this.ids.get(tagId);
+    return TagRouting.entryOf(this.ids.get(tagId));
   }
 
   @Deprecated
@@ -1735,7 +1735,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry removeResolved(long tagId, String tag) {
     this.checkWriteAccess();
 
-    return TagRouting.isKnown(tagId) ? this.ids.remove(tagId) : this.removeCustom(tag);
+    return TagRouting.isKnown(tagId)
+        ? TagRouting.entryOf(this.ids.remove(tagId))
+        : this.removeCustom(tag);
   }
 
   /*
@@ -1790,7 +1792,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.checkWriteAccess();
 
     return newEntry.tagId() != 0
-        ? this.ids.getAndPut(newEntry)
+        ? TagRouting.entryOf(this.ids.getAndPut(newEntry))
         : this.namesForWrite().getAndPut(newEntry);
   }
 
@@ -1803,7 +1805,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   Entry putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
 
-    return newEntry.tagId() != 0 ? this.ids.put(newEntry) : this.namesForWrite().put(newEntry);
+    return newEntry.tagId() != 0
+        ? TagRouting.entryOf(this.ids.put(newEntry))
+        : this.namesForWrite().put(newEntry);
   }
 
   /** {@link #putEntry} for an entry known to be a known tag's. */
@@ -1938,14 +1942,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
     long key = TagRouting.keyOf(tag);
-    return TagRouting.isKnown(key) ? this.ids.remove(key) : this.removeCustom(tag);
+    return TagRouting.isKnown(key)
+        ? TagRouting.entryOf(this.ids.remove(key))
+        : this.removeCustom(tag);
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
   public Entry getAndRemove(long tagId) {
     this.checkWriteAccess();
 
-    return this.ids.remove(tagId);
+    return TagRouting.entryOf(this.ids.remove(tagId));
   }
 
   public TagMap copy() {

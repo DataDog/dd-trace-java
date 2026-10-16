@@ -64,7 +64,10 @@ public abstract class IdStore {
   }
 
   /*
-   * Point operations.
+   * Point operations. A returned EntryReader is valid only until this store's next operation: a
+   * store that keeps known tags without an Entry per tag answers with a reused flyweight. Call
+   * EntryReader.entry() to keep one. Stores are inside the tracer's trust boundary, so callers are
+   * expected to follow this rather than have it enforced.
    */
 
   /**
@@ -72,7 +75,7 @@ public abstract class IdStore {
    *
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
-  public abstract Entry get(long tagId);
+  public abstract EntryReader get(long tagId);
 
   /**
    * {@code get(tagId)}'s value, boxed if necessary, or null -- for a caller that needs only the
@@ -102,10 +105,10 @@ public abstract class IdStore {
    * Inserts or replaces a known tag's entry, returning the local entry it replaced (or null). Does
    * not consult the read-through parent.
    */
-  public abstract Entry put(Entry knownEntry);
+  public abstract EntryReader put(Entry knownEntry);
 
   /** {@link #put(Entry)}, returning the prior visible entry -- local, else read through. */
-  public abstract Entry getAndPut(Entry knownEntry);
+  public abstract EntryReader getAndPut(Entry knownEntry);
 
   /**
    * Removes the known tag {@code tagId}, returning the prior visible entry; an inherited one is
@@ -113,7 +116,7 @@ public abstract class IdStore {
    *
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
-  public abstract Entry remove(long tagId);
+  public abstract EntryReader remove(long tagId);
 
   /*
    * Whole-store operations, for the owning TagMap.
