@@ -1,4 +1,4 @@
-package datadog.trace.api.appsec;
+package datadog.trace.api.http;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
