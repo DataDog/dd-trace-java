@@ -108,7 +108,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         parent = null;
       }
     }
-    return new TagMap(parent);
+    return new TagMap(parent, null);
   }
 
   /** Creates a new TagMap.Ledger */
@@ -470,6 +470,40 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     volatile String strCache = null;
 
     /**
+     * True for a known tag's tombstone: the marker an id store puts in its own buckets to hide an
+     * inherited entry it has removed. Never visible outside the store; see {@link #tombstoneOf}.
+     */
+    final boolean tombstone;
+
+    /** The shared tombstone per known tag, by serial, created on first use. */
+    private static final Entry[] TOMBSTONES = new Entry[KnownTagCodec.serialLimit()];
+
+    /**
+     * The tombstone for the known tag {@code tagId}: one shared, immutable entry per tag, so
+     * tombstoning a known tag allocates nothing after the first time. Racing first uses may each
+     * build one; either serves, since a tombstone is told apart by {@link #tombstone}, not
+     * identity.
+     */
+    static Entry tombstoneOf(long tagId) {
+      int serial = KnownTagCodec.serialNum(tagId);
+      Entry tombstone = TOMBSTONES[serial];
+      if (tombstone == null || tombstone.tagHash != tagId) {
+        tombstone = new Entry(tagId);
+        TOMBSTONES[serial] = tombstone;
+      }
+      return tombstone;
+    }
+
+    private Entry(long tagId) {
+      super(requireKnownName(tagId));
+      this.tagHash = tagId;
+      this.tombstone = true;
+      this.rawType = OBJECT;
+      this.rawPrim = 0L;
+      this.rawObj = null;
+    }
+
+    /**
      * A custom tag's entry: no registry lookup. A known tag is built from its id instead -- callers
      * that start from a name resolve it once and pick the id or name factory (see {@code
      * TagMap.anyEntryFor}).
@@ -483,6 +517,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       // Resolve the name once: it both validates the id and names the entry.
       super(requireKnownName(tagId));
       this.tagHash = tagId;
+      this.tombstone = false;
 
       this.rawType = type;
       this.rawPrim = prim;
@@ -493,6 +528,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     Entry(long tagId, String customTag, byte type, long prim, Object obj) {
       super(tagId != 0 ? KnownTagCodec.nameOf(tagId) : customTag);
       this.tagHash = tagId != 0 ? tagId : customHash(customTag);
+      this.tombstone = false;
 
       this.rawType = type;
       this.rawPrim = prim;
@@ -1195,26 +1231,30 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /*
-   * A TagMap is a view over a pair of stores: an IdStore holding the known tags by id, and a name
-   * store holding the custom tags by name. Their key spaces are disjoint, so each store reads
-   * through to its own parent chain and keeps its own tombstones, and precedence never crosses
-   * stores.
+   * A TagMap holds its tags in two stores, each with its own bucket array: an IdStore with the
+   * known tags by id, and a HashStore with the custom tags by name. Their key spaces are disjoint,
+   * so each store reads through to its own parent chain and keeps its own tombstones, and
+   * precedence never crosses stores.
    *
-   * In hash mode -- the only mode so far -- one HashStore serves as both (ids == names), so a map
-   * is the view plus one store, and no tag costs more than before. A whole-map operation (size,
-   * iteration, copy, putAll, clear) runs on that one store and so covers both halves; a separate
-   * IdStore implementation (a dense store) would have to visit ids as well, and would be chosen,
-   * by a global mode, in the constructor that pairs the stores.
+   * The custom store is created on the first custom write. Until then, a map with a parent borrows
+   * the parent's custom store, read-only (namesBorrowed): the parent is frozen, so its store is
+   * stable, and with no local custom state the borrowed store reads exactly as an own one would.
    */
 
-  /** The known tags, by id; null in hash mode, where {@link #names} holds them. */
-  final IdStore ids;
-
-  /** The custom tags, by name; in hash mode it holds the known tags too. */
-  final HashStore names;
+  /** The known tags, by id. Not final only so {@link #clear()} can replace it. */
+  IdStore ids;
 
   /**
-   * For a span's view ({@link #viewOf}), the span, which says what direction-scoped names read as;
+   * The custom tags, by name: null until the first custom write, or the parent's custom store,
+   * borrowed read-only while {@link #namesBorrowed}.
+   */
+  HashStore names;
+
+  /** True while {@link #names} is the parent's custom store, borrowed until the first write. */
+  boolean namesBorrowed;
+
+  /**
+   * For a span's tags ({@link #forSpan}), the span, which says what direction-scoped names read as;
    * null for a TagMap of its own, which reads every name as written.
    */
   final DirectionSource direction;
@@ -1223,15 +1263,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /**
    * Optional frozen parent for read-through. Reads that miss locally fall through to the parent
-   * chain (each store reads through to the parent's matching store); see {@link HashStore#parent}.
-   * Must be frozen when attached, so it is safely shareable. Not final only so {@link #clear()} can
-   * detach it (to null); it is otherwise fixed at construction and never re-pointed.
-   * Package-visible so same-package tests can assert attach/detach directly.
+   * chain (each store reads through to the parent's matching store). Must be frozen when attached,
+   * so it is safely shareable. Not final only so {@link #clear()} can detach it (to null); it is
+   * otherwise fixed at construction and never re-pointed. Package-visible so same-package tests can
+   * assert attach/detach directly.
    */
   @VisibleForTesting TagMap parent;
 
   public TagMap() {
-    this((TagMap) null);
+    this(null, null);
   }
 
   /**
@@ -1239,28 +1279,33 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * construction and never re-pointed (only detached to null by {@link #clear()}), so read-through
    * optimizations can treat it as fixed.
    */
-  private TagMap(TagMap parent) {
-    this(parent, new HashStore(parent == null ? null : parent.names));
+  private TagMap(TagMap parent, DirectionSource direction) {
+    this.ids = new HashIdStore(parent == null ? null : parent.ids);
+    HashStore parentNames = parent == null ? null : parent.names;
+    this.names = parentNames;
+    this.namesBorrowed = parentNames != null;
+    this.direction = direction;
+    this.frozen = false;
+    this.parent = parent;
   }
 
-  /**
-   * A mutable map over {@code store}, which reads through to {@code parent}'s store. Where the
-   * store mode is chosen: hash mode uses the one store for both halves.
-   */
-  private TagMap(TagMap parent, HashStore store) {
-    this.ids = TagRouting.idStoreFor(store);
-    this.names = store;
+  /** A copy over {@code ids} and {@code names}; see {@link #copy()}. */
+  private TagMap(TagMap parent, IdStore ids, HashStore names, boolean namesBorrowed) {
+    this.ids = ids;
+    this.names = names;
+    this.namesBorrowed = namesBorrowed;
     this.direction = null;
     this.frozen = false;
     this.parent = parent;
   }
 
-  /** A live view over stores the caller owns; see {@link #viewOf}. */
-  private TagMap(IdStore ids, HashStore names, DirectionSource direction) {
-    this.ids = ids;
-    this.names = names;
-    this.direction = direction;
-    this.frozen = false;
+  /** Used for inexpensive immutable */
+  private TagMap(Object[] buckets, int size) {
+    this.ids = new HashIdStore(buckets, size);
+    this.names = null;
+    this.namesBorrowed = false;
+    this.direction = null;
+    this.frozen = true;
     this.parent = null;
   }
 
@@ -1276,76 +1321,83 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
-   * A live, mutable TagMap over a span's stores, for the span's internal readers (tag
-   * post-processors, serializers). It owns nothing: reads and writes go straight to the stores, and
-   * name-keyed reads honor the span's direction. Not thread-safe; use it under the lock that guards
-   * the stores, and only as long as the caller holds it. Small, so a local view is scalar-replaced.
-   */
-  @Restricted(allowedIn = {"datadog.trace.core"})
-  public static TagMap viewOf(IdStore ids, HashStore names, DirectionSource direction) {
-    return new TagMap(ids, names, direction);
-  }
-
-  /**
-   * The store a span's HashStore reads through to for the tags in {@code parent}, or null when
-   * there is nothing to read through to; the stores-level {@link #createFromParent}.
+   * A span's tags: a mutable TagMap reading through to {@code parent}, as {@link #createFromParent}
+   * builds, whose name-keyed reads honor the span's direction. The span routes to it with {@link
+   * TagRouting} under its own lock, and hands it to its internal readers (tag post-processors,
+   * serializers); it is not thread-safe.
    *
    * @throws IllegalStateException if {@code parent} is not frozen
    */
   @Restricted(allowedIn = {"datadog.trace.core"})
-  public static HashStore readThroughStore(TagMap parent) {
-    if (parent == null) {
+  public static TagMap forSpan(TagMap parent, DirectionSource direction) {
+    if (parent != null) {
+      if (!parent.frozen) {
+        throw new IllegalStateException("read-through parent must be frozen");
+      }
+      if (parent.isEmpty()) {
+        parent = null;
+      }
+    }
+    return new TagMap(parent, direction);
+  }
+
+  /** The custom store to write to: created on the first write, ending any borrowing. */
+  HashStore namesForWrite() {
+    HashStore names = this.names;
+    if (names == null || this.namesBorrowed) {
+      // A borrowed store is the nearest ancestor's custom store: read through to it.
+      names = new HashStore(names);
+      this.names = names;
+      this.namesBorrowed = false;
+    }
+    return names;
+  }
+
+  /** Removes the custom tag {@code tag}, returning the prior visible entry. */
+  Entry removeCustom(String tag) {
+    HashStore names = this.names;
+    if (names == null) {
       return null;
     }
-    if (!parent.frozen) {
-      throw new IllegalStateException("read-through parent must be frozen");
+    if (this.namesBorrowed) {
+      if (names.get(tag) == null) {
+        return null; // nothing to hide: keep borrowing
+      }
+      names = this.namesForWrite(); // hiding an inherited tag needs a tombstone of our own
     }
-    // An empty parent is dropped, as createFromParent does.
-    return parent.isEmpty() ? null : parent.names;
+    return names.remove(tag);
   }
 
-  /** This map's HashStore. */
-  @Restricted(allowedIn = {"datadog.trace.core"})
-  public HashStore hashStore() {
-    return this.names;
-  }
-
-  /** This map's IdStore, null in hash mode; see {@link TagRouting#idStoreFor}. */
-  @Restricted(allowedIn = {"datadog.trace.core"})
-  public IdStore idStore() {
-    return this.ids;
-  }
-
-  /** Used for inexpensive immutable */
-  private TagMap(Object[] buckets, int size) {
-    HashStore store = new HashStore(buckets, size);
-    this.ids = TagRouting.idStoreFor(store);
-    this.names = store;
-    this.direction = null;
-    this.frozen = true;
-    this.parent = null;
+  /** Whether either store reads through to a parent. */
+  private boolean readsThrough() {
+    HashStore names = this.names;
+    return this.ids.hasParent() || this.namesBorrowed || (names != null && names.parent != null);
   }
 
   @Override
   public int size() {
     // Exact (Map contract). Under read-through resolves the union; prefer estimateSize() for hints.
-    return this.names.size();
+    HashStore names = this.names;
+    return this.ids.size() + (names == null ? 0 : names.size());
   }
 
   @Override
   public boolean isEmpty() {
     // Exact (Map contract). Under read-through resolves the parent; prefer isDefinitelyEmpty().
-    return this.names.isEmpty();
+    HashStore names = this.names;
+    return this.ids.isEmpty() && (names == null || names.isEmpty());
   }
 
   public boolean isDefinitelyEmpty() {
     // Cheap: empty iff no level in the chain holds a local entry (ignores shadowing/tombstones).
-    return this.names.isDefinitelyEmpty();
+    HashStore names = this.names;
+    return this.ids.isDefinitelyEmpty() && (names == null || names.isDefinitelyEmpty());
   }
 
   public int estimateSize() {
     // Upper bound: sum of every level's local size, ignoring read-through shadowing/removals.
-    return this.names.estimateSize();
+    HashStore names = this.names;
+    return this.ids.estimateSize() + (names == null ? 0 : names.estimateSize());
   }
 
   @Deprecated
@@ -1458,15 +1510,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     long key = TagRouting.keyOf(tag);
     DirectionSource direction = this.direction;
     if (direction == null || key == 0) {
-      return TagRouting.get(this.ids, this.names, key, tag);
+      return TagRouting.get(this, key, tag);
     }
     return TagRouting.getEntry(
-        this.ids, this.names, key, tag, direction.tagDirection(), direction.hasPendingAliases());
+        this, key, tag, direction.tagDirection(), direction.hasPendingAliases());
   }
 
   /** The entry for a known tag id. */
   public Entry getEntry(long tagId) {
-    return TagRouting.getById(this.ids, this.names, tagId);
+    return this.ids.get(tagId);
   }
 
   @Deprecated
@@ -1666,14 +1718,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** The read counterpart of {@link #setResolved(long, String, Object)}. */
   public Entry getEntryResolved(long tagId, String tag) {
-    return TagRouting.get(this.ids, this.names, tagId, tag);
+    return TagRouting.get(this, tagId, tag);
   }
 
   /** The removal counterpart of {@link #setResolved(long, String, Object)}. */
   public Entry removeResolved(long tagId, String tag) {
     this.checkWriteAccess();
 
-    return TagRouting.remove(this.ids, this.names, tagId, tag);
+    return TagRouting.remove(this, tagId, tag);
   }
 
   /*
@@ -1684,7 +1736,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** {@code getEntry(tagId)}'s value, or null, for a caller that needs only the value. */
   Object getKnownValue(long tagId) {
-    return TagRouting.getKnownValue(this.ids, this.names, tagId);
+    return this.ids.getKnownValue(tagId);
   }
 
   public void set(long tagId, @Nonnull Object value) {
@@ -1727,7 +1779,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
     this.checkWriteAccess();
 
-    return TagRouting.getAndPut(this.ids, this.names, newEntry);
+    return TagRouting.getAndPut(this, newEntry);
   }
 
   /**
@@ -1739,21 +1791,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   Entry putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
 
-    return TagRouting.put(this.ids, this.names, newEntry);
+    return TagRouting.put(this, newEntry);
   }
 
   /** {@link #putEntry} for an entry known to be a known tag's. */
   void putKnown(Entry knownEntry) {
     this.checkWriteAccess();
 
-    TagRouting.put(this.ids, this.names, knownEntry);
+    this.ids.put(knownEntry);
   }
 
   /** {@link #putEntry} for an entry known to be a custom tag's. */
   void putCustom(Entry customEntry) {
     this.checkWriteAccess();
 
-    this.names.put(customEntry);
+    this.namesForWrite().put(customEntry);
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
@@ -1815,35 +1867,45 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   private void putAllOptimizedMap(TagMap that) {
-    if (that.names.parent != null) {
+    if (that.readsThrough()) {
       // read-through source: the bucket-copy paths only see that's local entries, so they would
       // drop entries visible only through that's ancestor chain (and ignore its tombstones).
       // Union-copy the full visible set instead -- still shares the source Entry objects.
       that.forEach(this, (self, entry) -> self.set(entry));
       return;
     }
-    this.names.putAllLocal(that.names);
+    this.ids.putAllLocal(that.ids);
+    HashStore thatNames = that.names;
+    if (thatNames != null && thatNames.count != 0) {
+      this.namesForWrite().putAllLocal(thatNames);
+    }
   }
 
   public void fillMap(Map<? super String, Object> map) {
-    if (this.names.parent != null) {
+    if (this.readsThrough()) {
       // read-through source: the bucket-only loop below sees just local entries, so it would drop
       // tags visible only through the parent chain (and ignore shadowing/tombstones). Walk the full
       // visible union instead -- mirrors putAllOptimizedMap.
       this.forEach(map, (m, entry) -> m.put(entry.tag(), entry.objectValue()));
       return;
     }
-    this.names.fillMapLocal(map);
+    this.ids.fillMapLocal(map);
+    if (this.names != null) {
+      this.names.fillMapLocal(map);
+    }
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
-    if (this.names.parent != null) {
+    if (this.readsThrough()) {
       // read-through source: walk the visible union so parent-only tags aren't dropped -- see
       // fillMap.
       this.forEach(stringMap, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
       return;
     }
-    this.names.fillStringMapLocal(stringMap);
+    this.ids.fillStringMapLocal(stringMap);
+    if (this.names != null) {
+      this.names.fillStringMapLocal(stringMap);
+    }
   }
 
   @Override
@@ -1863,21 +1925,24 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
-    return TagRouting.remove(this.ids, this.names, TagRouting.keyOf(tag), tag);
+    return TagRouting.remove(this, TagRouting.keyOf(tag), tag);
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
   public Entry getAndRemove(long tagId) {
     this.checkWriteAccess();
 
-    return TagRouting.removeById(this.ids, this.names, tagId);
+    return this.ids.remove(tagId);
   }
 
   public TagMap copy() {
     // The same (frozen, shared) parent, fixed at construction, over a copy of this map's own
     // entries and tombstones. The copy stays independently mutable (writes land on its local
     // store, never the shared parent).
-    return new TagMap(this.parent, this.names.copy());
+    HashStore names = this.names;
+    boolean borrowed = this.namesBorrowed;
+    return new TagMap(
+        this.parent, this.ids.copy(), names == null || borrowed ? names : names.copy(), borrowed);
   }
 
   public TagMap immutableCopy() {
@@ -1899,24 +1964,39 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
-    this.names.forEach(consumer);
+    this.ids.forEach(consumer);
+    HashStore names = this.names;
+    if (names != null) {
+      names.forEach(consumer);
+    }
   }
 
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
-    this.names.forEach(thisObj, consumer);
+    this.ids.forEach(thisObj, consumer);
+    HashStore names = this.names;
+    if (names != null) {
+      names.forEach(thisObj, consumer);
+    }
   }
 
   public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
-    this.names.forEach(thisObj, otherObj, consumer);
+    this.ids.forEach(thisObj, otherObj, consumer);
+    HashStore names = this.names;
+    if (names != null) {
+      names.forEach(thisObj, otherObj, consumer);
+    }
   }
 
   public void clear() {
     this.checkWriteAccess();
 
-    // clear() removes ALL mappings, including any inherited through read-through: the store
-    // detaches its parent, and so does the view.
-    this.names.clear();
+    // clear() removes ALL mappings, including any inherited through read-through. Fresh parentless
+    // stores (rather than tombstoning every inherited key) are simpler and cheaper, and leave an
+    // empty, parent-less map. Detach is one-way -- the parent is never re-pointed.
+    this.ids = new HashIdStore(null);
+    this.names = null;
+    this.namesBorrowed = false;
     this.parent = null;
   }
 
@@ -1935,15 +2015,20 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   void checkIntegrity() {
-    this.names.checkIntegrity();
+    this.ids.checkIntegrity();
+    if (this.names != null && !this.namesBorrowed) {
+      this.names.checkIntegrity();
+    }
   }
 
+  /** The local entries, recomputed from both stores' structure. */
   int computeSize() {
-    return this.names.computeSize();
+    HashStore names = this.names;
+    return this.ids.computeSize() + (names == null || this.namesBorrowed ? 0 : names.computeSize());
   }
 
   boolean checkIfEmpty() {
-    return this.names.checkIfEmpty();
+    return this.computeSize() == 0;
   }
 
   @Override
@@ -2001,15 +2086,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * debugging
    */
   String toInternalString() {
-    return this.names.toInternalString();
+    HashStore names = this.names;
+    return "ids:\n"
+        + this.ids.toInternalString()
+        + "names:\n"
+        + (names == null ? "none\n" : names.toInternalString());
   }
 
   abstract static class IteratorBase {
-    private final HashStore store;
-
-    // the level whose buckets are currently being walked: the leaf (store) first, then each
-    // ancestor in turn (read-through union). store == level means we're on the leaf's own entries.
-    private HashStore level;
+    // Two phases: the id store's chain, then the custom store's. In each, the level whose buckets
+    // are being walked is the leaf first, then each ancestor in turn (read-through union).
+    // (A dense id store will need its own walk.)
+    private final HashIdStore idLeaf;
+    private final HashStore nameLeaf;
+    private HashIdStore idLevel;
+    private HashStore nameLevel; // non-null once in the custom phase
     private Object[] buckets;
 
     private Entry nextEntry;
@@ -2020,9 +2111,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     private int groupIndex = 0;
 
     IteratorBase(TagMap map) {
-      this.store = map.names;
-      this.level = this.store;
-      this.buckets = this.store.buckets;
+      this.idLeaf = (HashIdStore) map.ids;
+      this.nameLeaf = map.names;
+      this.idLevel = this.idLeaf;
+      this.buckets = this.idLeaf.buckets;
     }
 
     public final boolean hasNext() {
@@ -2062,23 +2154,55 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         if (tagEntry != null) {
           // leaf entries emit as-is; ancestor entries only if visible from the leaf -- not shadowed
           // by a nearer level and not tombstoned. (parentEntryVisible walks the nearer levels.)
-          if (this.level == this.store || this.store.parentEntryVisible(tagEntry, this.level)) {
+          if (this.isVisible(tagEntry)) {
             return tagEntry;
           }
-          continue; // ancestor entry shadowed/tombstoned -> skip
+          continue; // tombstone, or ancestor entry shadowed/tombstoned -> skip
         }
 
-        // current level exhausted; advance to the next ancestor's buckets (read-through union)
-        if (this.level.parent != null) {
-          this.level = this.level.parent;
-          this.buckets = this.level.buckets;
-          this.bucketIndex = -1;
-          this.group = null;
-          this.groupIndex = 0;
-          continue;
+        // current level exhausted; advance to the next ancestor's buckets (read-through union),
+        // then from the id chain to the custom chain
+        Object[] next = this.nextLevel();
+        if (next == null) {
+          return null;
         }
+        this.buckets = next;
+        this.bucketIndex = -1;
+        this.group = null;
+        this.groupIndex = 0;
+      }
+    }
+
+    private boolean isVisible(Entry entry) {
+      HashStore nameLevel = this.nameLevel;
+      if (nameLevel == null) {
+        return !entry.tombstone
+            && (this.idLevel == this.idLeaf || this.idLeaf.parentEntryVisible(entry, this.idLevel));
+      }
+      return nameLevel == this.nameLeaf || this.nameLeaf.parentEntryVisible(entry, nameLevel);
+    }
+
+    /** Moves to the next level's buckets, or returns null when both chains are done. */
+    private Object[] nextLevel() {
+      HashStore nameLevel = this.nameLevel;
+      if (nameLevel == null) {
+        HashIdStore idParent = this.idLevel.parent;
+        if (idParent != null) {
+          this.idLevel = idParent;
+          return idParent.buckets;
+        }
+        if (this.nameLeaf == null) {
+          return null;
+        }
+        this.nameLevel = this.nameLeaf;
+        return this.nameLeaf.buckets;
+      }
+      HashStore nameParent = nameLevel.parent;
+      if (nameParent == null) {
         return null;
       }
+      this.nameLevel = nameParent;
+      return nameParent.buckets;
     }
 
     /** Next raw entry in the current bucket array, ignoring shadowing/tombstones. */
@@ -2473,86 +2597,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         this.entry3 = null;
       }
       return existingEntry;
-    }
-
-    void forEachInChain(Consumer<? super EntryReader> consumer) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._forEach(consumer);
-      }
-    }
-
-    void _forEach(Consumer<? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(this.entry0);
-      if (this.entry1 != null) consumer.accept(this.entry1);
-      if (this.entry2 != null) consumer.accept(this.entry2);
-      if (this.entry3 != null) consumer.accept(this.entry3);
-    }
-
-    <T> void forEachInChain(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._forEach(thisObj, consumer);
-      }
-    }
-
-    <T> void _forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(thisObj, this.entry0);
-      if (this.entry1 != null) consumer.accept(thisObj, this.entry1);
-      if (this.entry2 != null) consumer.accept(thisObj, this.entry2);
-      if (this.entry3 != null) consumer.accept(thisObj, this.entry3);
-    }
-
-    <T, U> void forEachInChain(
-        T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._forEach(thisObj, otherObj, consumer);
-      }
-    }
-
-    <T, U> void _forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(thisObj, otherObj, this.entry0);
-      if (this.entry1 != null) consumer.accept(thisObj, otherObj, this.entry1);
-      if (this.entry2 != null) consumer.accept(thisObj, otherObj, this.entry2);
-      if (this.entry3 != null) consumer.accept(thisObj, otherObj, this.entry3);
-    }
-
-    void fillMapFromChain(Map<? super String, ? super Object> map) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._fillMap(map);
-      }
-    }
-
-    void _fillMap(Map<? super String, ? super Object> map) {
-      Entry entry0 = this.entry0;
-      if (entry0 != null) map.put(entry0.tag, entry0.objectValue());
-
-      Entry entry1 = this.entry1;
-      if (entry1 != null) map.put(entry1.tag, entry1.objectValue());
-
-      Entry entry2 = this.entry2;
-      if (entry2 != null) map.put(entry2.tag, entry2.objectValue());
-
-      Entry entry3 = this.entry3;
-      if (entry3 != null) map.put(entry3.tag, entry3.objectValue());
-    }
-
-    void fillStringMapFromChain(Map<? super String, ? super String> map) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._fillStringMap(map);
-      }
-    }
-
-    void _fillStringMap(Map<? super String, ? super String> map) {
-      Entry entry0 = this.entry0;
-      if (entry0 != null) map.put(entry0.tag, entry0.stringValue());
-
-      Entry entry1 = this.entry1;
-      if (entry1 != null) map.put(entry1.tag, entry1.stringValue());
-
-      Entry entry2 = this.entry2;
-      if (entry2 != null) map.put(entry2.tag, entry2.stringValue());
-
-      Entry entry3 = this.entry3;
-      if (entry3 != null) map.put(entry3.tag, entry3.stringValue());
     }
 
     BucketGroup cloneChain() {
