@@ -494,7 +494,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withStartTimestamp(queryStart.time() * 1000)
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
-            .withTag("details", queryStart.details())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
@@ -680,7 +679,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    span.setTag("details", stageCompleted.stageInfo().details());
     if (stageInfo.failureReason().isDefined()) {
       span.setError(true);
       span.setErrorMessage(getErrorMessageWithoutStackTrace(stageInfo.failureReason().get()));
@@ -950,7 +948,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
-    SparkListenerSQLExecutionStart queryStart = sqlQueries.remove(sqlEnd.executionId());
+    sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
 
     if (span != null) {
@@ -958,10 +956,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         metrics.setSpanMetrics(span);
       }
       notifyOl(x -> openLineageSparkListener.onOtherEvent(x), sqlEnd);
-
-      // Set right before finish so long-running heartbeats of the running span don't carry the
-      // plan
-      span.setTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription());
       span.finish(sqlEnd.time() * 1000);
     }
   }
