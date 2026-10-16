@@ -84,8 +84,9 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
       if (!request.getAttribute('javax.servlet.error.status_code')) {
         if (continuation.initial) {
           if (request.contentType?.startsWith('application/x-www-form-urlencoded')) {
-            // Jetty 9.0.0 can race the connection's read callback when a resumed handler
-            // reads a form sent with Expect: 100-continue. Parse it before suspending.
+// Parse the form before suspending the request. When the client waits for
+// HTTP 100 Continue before sending the body, parsing after resume can overlap
+// with Jetty 9.0.0's pending connection read and cause ReadPendingException.
             request.parameterMap
             if (response.committed) {
               baseRequest.handled = true
