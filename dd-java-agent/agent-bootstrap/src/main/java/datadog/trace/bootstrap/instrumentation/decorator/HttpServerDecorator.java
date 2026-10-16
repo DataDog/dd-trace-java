@@ -291,9 +291,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     //   - peer.ipv4
     //   - peer.ipv6
     final boolean shouldTagIps =
-        OTEL_SEMANTICS
-            || config.isClientIpEnabled()
-            || traceClientIpResolverEnabled && APPSEC_ACTIVE;
+        config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
     // Whether to stash IP data for later tagging or not.
     // AI Guard requires client IP tags on the local root span when an ai_guard span is created.
     // Resolve the IPs eagerly but do not tag the span yet; stash them on the request context so
@@ -392,7 +390,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
           }
 
-          if (valid && (OTEL_SEMANTICS || config.isHttpServerTagQueryString())) {
+          if (valid && config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
             if (OTEL_SEMANTICS) {

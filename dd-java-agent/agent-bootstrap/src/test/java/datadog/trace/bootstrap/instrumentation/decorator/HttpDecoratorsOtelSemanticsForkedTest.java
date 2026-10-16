@@ -4,7 +4,10 @@ import static datadog.context.Context.root;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
+import static datadog.trace.core.MetadataConsumer.NO_OP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,6 +18,7 @@ import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.common.writer.ListWriter;
@@ -54,6 +58,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.afterStart(span);
     decorator.onRequest(span, request);
     decorator.onResponse(span, 503);
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
     assertEquals("HTTP", span.getResourceName().toString());
     assertEquals("_OTHER", span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME));
@@ -61,7 +66,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(
         "https://REDACTED:REDACTED@example.com/orders#fragment",
         span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
-    assertEquals("token=secret", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
     assertEquals("example.com", span.getTag(KnownTags.SERVER_ADDRESS_NAME));
     assertEquals(443, span.getTag(KnownTags.SERVER_PORT_NAME));
     assertEquals(503, span.getHttpStatusCode());
@@ -72,14 +77,57 @@ class HttpDecoratorsOtelSemanticsForkedTest {
   }
 
   @Test
-  void urlConnectionDecoratorCapturesQueryForObfuscation() throws Exception {
+  void urlConnectionDecoratorRespectsQueryStringOptOut() throws Exception {
     DDSpan span = (DDSpan) tracer.startSpan("test", "urlconnection.request");
 
+    UrlConnectionDecorator.DECORATE.afterStart(span);
     UrlConnectionDecorator.DECORATE.onURI(
         span, new URI("https://example.com/orders?token=secret#fragment"));
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
-    assertEquals("https://example.com/orders#fragment", span.getTag(KnownTags.HTTP_URL_OTEL_NAME));
+    assertEquals(
+        "https://example.com/orders#fragment",
+        span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
+    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
+  }
+
+  @Test
+  @WithConfig(key = HTTP_CLIENT_TAG_QUERY_STRING, value = "true")
+  void clientDecoratorCapturesAndObfuscatesQueryWhenEnabled() throws Exception {
+    TestClientDecorator decorator = new TestClientDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    URI uri = new URI("https://user:password@example.com/orders?token=secret#fragment");
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new ClientRequest("GET", uri));
+
     assertEquals("token=secret", span.getTag(KnownTags.URL_QUERY_NAME));
+
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
+
+    assertEquals(
+        "https://REDACTED:REDACTED@example.com/orders?<redacted>#fragment",
+        span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
+    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
+  }
+
+  @Test
+  @WithConfig(key = HTTP_CLIENT_TAG_QUERY_STRING, value = "true")
+  void urlConnectionDecoratorCapturesAndObfuscatesQueryWhenEnabled() throws Exception {
+    DDSpan span = (DDSpan) tracer.startSpan("test", "urlconnection.request");
+    URI uri = new URI("https://user:password@example.com/orders?token=secret#fragment");
+
+    UrlConnectionDecorator.DECORATE.afterStart(span);
+    UrlConnectionDecorator.DECORATE.onURI(span, uri);
+
+    assertEquals("token=secret", span.getTag(KnownTags.URL_QUERY_NAME));
+
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
+
+    assertEquals(
+        "https://REDACTED:REDACTED@example.com/orders?<redacted>#fragment",
+        span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
+    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
   }
 
   @Test
@@ -93,20 +141,87 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
     HTTP_RESOURCE_DECORATOR.withRoute(span, request.method, "/users/{id}");
     decorator.onResponse(span, 503);
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
     assertEquals("GET /users/{id}", span.getResourceName().toString());
     assertEquals("GET", span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME));
     assertEquals("/users/123", span.getTag(KnownTags.URL_PATH_NAME));
     assertEquals("https", span.getTag(KnownTags.URL_SCHEME_NAME));
-    assertEquals("view=full", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
     assertEquals("example.com", span.getTag(KnownTags.SERVER_ADDRESS_NAME));
     assertEquals(8443, span.getTag(KnownTags.SERVER_PORT_NAME));
-    assertEquals("192.0.2.10", span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
-    assertEquals("192.0.2.10", span.getTag(KnownTags.NETWORK_CLIENT_IP_OTEL_NAME));
+    assertNull(span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
+    assertNull(span.getTag(KnownTags.NETWORK_CLIENT_IP_OTEL_NAME));
     assertEquals(503, span.getHttpStatusCode());
     assertEquals("503", span.getTag("error.type"));
     assertTrue(span.isError());
     assertFalse(span.getTags().containsKey("http.url"));
+  }
+
+  @Test
+  @WithConfig(key = HTTP_SERVER_TAG_QUERY_STRING, value = "true")
+  void serverDecoratorCapturesAndObfuscatesQueryWhenEnabled() throws Exception {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    ServerRequest request =
+        new ServerRequest("GET", new URI("https://example.com/orders?token=secret&view=full"));
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
+
+    assertEquals("token=secret&view=full", span.getTag(KnownTags.URL_QUERY_NAME));
+
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
+
+    assertEquals("<redacted>&view=full", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals("/orders", span.getTag(KnownTags.URL_PATH_NAME));
+  }
+
+  @Test
+  void serverDecoratorOmitsClientIpsAndForwardedHeadersByDefault() throws Exception {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    ServerRequest request = new ServerRequest("GET", new URI("https://example.com/"));
+    TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
+    headers.xForwardedFor = "203.0.113.7";
+    headers.forwarded = "for=203.0.113.7";
+    TagContext extracted = new TagContext(null, null, headers, null, 0, null, null, DDTraceId.ZERO);
+
+    decorator.onRequest(
+        span, new Connection("192.0.2.10", 32100), request, AgentSpan.fromSpanContext(extracted));
+
+    assertNull(span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
+    assertNull(span.getTag(KnownTags.NETWORK_CLIENT_IP_OTEL_NAME));
+    assertNull(span.getTag(Tags.HTTP_FORWARDED_IP));
+    assertNull(span.getTag(Tags.HTTP_FORWARDED));
+  }
+
+  @TableTest({
+    "Scenario          | Forwarded Ip | Expected Client Ip",
+    "peer address      |              | 192.0.2.10        ",
+    "forwarded address | 203.0.113.7  | 203.0.113.7       "
+  })
+  @WithConfig(key = CLIENT_IP_ENABLED, value = "true")
+  void serverDecoratorCapturesClientIpsWithOptIn(String forwardedIp, String expectedClientIp)
+      throws Exception {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    ServerRequest request = new ServerRequest("GET", new URI("https://example.com/"));
+    TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
+    headers.xForwardedFor = forwardedIp;
+    headers.forwarded = forwardedIp == null ? null : "for=" + forwardedIp;
+    TagContext extracted = new TagContext(null, null, headers, null, 0, null, null, DDTraceId.ZERO);
+
+    decorator.onRequest(
+        span,
+        new Connection("192.0.2.10", 32100),
+        request,
+        forwardedIp == null ? root() : AgentSpan.fromSpanContext(extracted));
+
+    assertEquals(expectedClientIp, span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
+    assertEquals("192.0.2.10", span.getTag(KnownTags.NETWORK_CLIENT_IP_OTEL_NAME));
+    assertEquals(forwardedIp, span.getTag(Tags.HTTP_FORWARDED_IP));
+    assertEquals(headers.forwarded, span.getTag(Tags.HTTP_FORWARDED));
   }
 
   @TableTest({

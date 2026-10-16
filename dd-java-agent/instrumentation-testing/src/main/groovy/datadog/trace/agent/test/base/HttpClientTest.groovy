@@ -994,7 +994,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   Map<String, Serializable> extraTags = null) {
 
     def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
-    def expectedQuery = otelSemantics || tagQueryString ? uri.query : null
+    def expectedQuery = tagQueryString ? uri.query : null
     def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
     if (expectedQuery != null && !expectedQuery.empty) {
       expectedUrl = "$expectedUrl?$expectedQuery"

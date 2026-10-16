@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.cache.RadixTreeCache;
@@ -37,11 +38,15 @@ public final class OtelHttpSemantics {
   }
 
   public static void setClientUrl(final AgentSpan span, final URI url) {
-    span.setTag(KnownTags.HTTP_URL_OTEL_NAME, withoutQuery(redactedUrl(url)));
-    // QueryObfuscator scrubs this before rebuilding url.full and removes it from client spans.
-    final String query = url.getRawQuery();
-    if (query != null) {
-      span.setTag(KnownTags.URL_QUERY_NAME, query);
+    // Use the object tag setter rather than the CharSequence overload, which checks length(), which
+    // would render the URL immediately.
+    span.setTag(KnownTags.HTTP_URL_OTEL_NAME, (Object) new ClientUrl(url));
+    if (Config.get().isHttpClientTagQueryString()) {
+      // QueryObfuscator scrubs this before rebuilding url.full and removes it from client spans.
+      final String query = url.getRawQuery();
+      if (query != null) {
+        span.setTag(KnownTags.URL_QUERY_NAME, query);
+      }
     }
   }
 
@@ -164,14 +169,42 @@ public final class OtelHttpSemantics {
   }
 
   public static int parsePort(final String value) {
-    if (value == null || value.isEmpty()) {
+    if (value == null) {
       return -1;
     }
-    try {
-      final int port = Integer.parseInt(value);
-      return port > 0 && port <= 65535 ? port : -1;
-    } catch (NumberFormatException ignored) {
+    final int length = value.length();
+    if (length == 0 || length > 5) {
       return -1;
+    }
+    int port = 0;
+    for (int i = 0; i < length; i++) {
+      final char c = value.charAt(i);
+      if (c < '0' || c > '9') {
+        return -1;
+      }
+      port = port * 10 + (c - '0');
+    }
+    return port > 0 && port <= 65535 ? port : -1;
+  }
+
+  /** Defers client URL redaction and query removal until the URL is read. */
+  private static final class ClientUrl extends URIUtils.LazyUrl {
+    private final URI uri;
+
+    private ClientUrl(URI uri) {
+      super(null);
+      this.uri = uri;
+    }
+
+    @Override
+    public String path() {
+      return uri.getPath();
+    }
+
+    @Override
+    public String get() {
+      String value = lazy;
+      return value != null ? value : withoutQuery(redactedUrl(uri));
     }
   }
 }
