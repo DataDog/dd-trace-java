@@ -55,8 +55,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Registers JVM runtime metrics with OTel-native names against the agent's bootstrap-level metric
- * registry. Each point also carries selected JMXFetch-compatible identity, entrypoint, and
- * source-MBean attributes.
+ * registry. Each point also carries selected JMXFetch-compatible identity, entrypoint, service-name
+ * source, and source-MBean attributes.
  */
 public final class JvmOtlpRuntimeMetrics {
   private static final Logger log = LoggerFactory.getLogger(JvmOtlpRuntimeMetrics.class);
@@ -86,6 +86,8 @@ public final class JvmOtlpRuntimeMetrics {
   private static final String ENTRYPOINT_NAME = "entrypoint.name";
   private static final String ENTRYPOINT_TYPE = "entrypoint.type";
   private static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
+  private static final String SVC_AUTO = "svc.auto";
+  private static final String SVC_USER = "svc.user";
   private static final String INJECTION_MODE = "_dd.injection.mode";
 
   private static Attributes buildLegacyJmxAttributes() {
@@ -105,7 +107,9 @@ public final class JvmOtlpRuntimeMetrics {
           if (ENTRYPOINT_BASEDIR.equals(key)
               || ENTRYPOINT_NAME.equals(key)
               || ENTRYPOINT_TYPE.equals(key)
-              || ENTRYPOINT_WORKDIR.equals(key)) {
+              || ENTRYPOINT_WORKDIR.equals(key)
+              || SVC_AUTO.equals(key)
+              || SVC_USER.equals(key)) {
             builder.put(key, processTag.substring(separator + 1));
           }
         }

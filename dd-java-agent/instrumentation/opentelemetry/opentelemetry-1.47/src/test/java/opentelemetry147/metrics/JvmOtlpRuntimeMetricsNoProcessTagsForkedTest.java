@@ -1,6 +1,6 @@
 package opentelemetry147.metrics;
 
-import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.ENTRYPOINT_TAGS;
+import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.PROCESS_TAGS;
 import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.assertJavaLangJmxFetchTags;
 import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.forEachJvmPoint;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -21,10 +21,10 @@ class JvmOtlpRuntimeMetricsNoProcessTagsForkedTest {
   }
 
   @Test
-  void entrypointTagsAreOmittedWhenProcessTagsAreDisabled() {
+  void processTagsAreOmittedWhenProcessTagsAreDisabled() {
     forEachJvmPoint(
         (metric, point) -> {
-          for (String key : ENTRYPOINT_TAGS) {
+          for (String key : PROCESS_TAGS) {
             assertNull(point.attrs.get(key), metric + " " + point.attrs);
           }
         });

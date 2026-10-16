@@ -117,6 +117,9 @@ public class JvmOtlpRuntimeMetricsTest {
     assertNotNull(processTags.get("entrypoint.name"), "Missing process tag entrypoint.name");
     assertNotNull(processTags.get("entrypoint.type"), "Missing process tag entrypoint.type");
     assertNotNull(processTags.get("entrypoint.workdir"), "Missing process tag entrypoint.workdir");
+    assertTrue(
+        processTags.containsKey("svc.auto") ^ processTags.containsKey("svc.user"),
+        "Exactly one of svc.auto and svc.user is expected: " + processTags);
 
     int dataPointCount = 0;
     for (Map.Entry<String, List<DataPointEntry>> metric : collector.points.entrySet()) {
@@ -354,9 +357,14 @@ public class JvmOtlpRuntimeMetricsTest {
     }
   }
 
-  static final List<String> ENTRYPOINT_TAGS =
+  static final List<String> PROCESS_TAGS =
       Arrays.asList(
-          "entrypoint.basedir", "entrypoint.name", "entrypoint.type", "entrypoint.workdir");
+          "entrypoint.basedir",
+          "entrypoint.name",
+          "entrypoint.type",
+          "entrypoint.workdir",
+          "svc.auto",
+          "svc.user");
 
   static Map<String, String> expectedProcessTags() {
     Map<String, String> result = new HashMap<>();
@@ -365,7 +373,7 @@ public class JvmOtlpRuntimeMetricsTest {
       for (String tag : processTags) {
         int separator = tag.indexOf(':');
         String key = tag.substring(0, separator);
-        if (ENTRYPOINT_TAGS.contains(key)) {
+        if (PROCESS_TAGS.contains(key)) {
           result.put(key, tag.substring(separator + 1));
         }
       }
@@ -393,7 +401,7 @@ public class JvmOtlpRuntimeMetricsTest {
     String context = metric + " " + point.attrs;
     assertEquals("dd-java-agent default", point.attrs.get("instance"), context);
     assertEquals("jmxfetch-config", point.attrs.get("dd.internal.jmx_check_name"), context);
-    for (String key : ENTRYPOINT_TAGS) {
+    for (String key : PROCESS_TAGS) {
       assertEquals(processTags.get(key), point.attrs.get(key), context);
     }
   }

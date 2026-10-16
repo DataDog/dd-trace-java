@@ -53,6 +53,8 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
               "entrypoint.name",
               "entrypoint.type",
               "entrypoint.workdir",
+              "svc.auto",
+              "svc.user",
               "_dd.injection.mode",
               "jmx_domain",
               "type",
@@ -278,6 +280,9 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
             "type")) {
       assertTrue(tags.containsKey(key), payloadName + " is missing tag " + key + " for " + bean);
     }
+    assertTrue(
+        tags.containsKey("svc.auto") ^ tags.containsKey("svc.user"),
+        payloadName + " should carry exactly one of svc.auto and svc.user for " + bean);
   }
 
   private static void assertContainsBeanType(Set<BeanId> beans, String type) {
