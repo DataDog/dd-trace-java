@@ -42,6 +42,10 @@ import java.util.List;
  * Likewise a value written under an alias that turns out to have no tag in the span's direction
  * ({@code client.port} on what becomes a client span) is removed by an earlier-direction write of a
  * tag it could have denoted ({@code peer.port}).
+ *
+ * <p>One more: an alias written before the span has a direction is resolved when the kind arrives,
+ * without passing through {@code TagInterceptor} again, so split-by-tags on its tag doesn't see it.
+ * An alias written once the direction is known is intercepted as its tag.
  */
 final class DirectionalTags {
 

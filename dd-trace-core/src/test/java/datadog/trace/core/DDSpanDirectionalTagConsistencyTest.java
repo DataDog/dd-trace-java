@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TagMap;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import java.util.concurrent.CountDownLatch;
@@ -105,6 +106,32 @@ class DDSpanDirectionalTagConsistencyTest extends DDCoreJavaSpecification {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
 
     assertNull(span.getTag(Tags.PEER_HOSTNAME));
+  }
+
+  /**
+   * A pending alias is folded into its tag as soon as the span learns its kind, not at
+   * serialization, so readers that run before then (peer service naming, stats) see the tag.
+   */
+  @Test
+  void aPendingAliasIsResolvedAsSoonAsTheKindIsKnown() {
+    span.setTag("server.address", "db.example.com");
+
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+
+    TagMap stored = span.getTags();
+    assertEquals("db.example.com", stored.getObject(Tags.PEER_HOSTNAME));
+    assertNull(stored.getObject("server.address"));
+  }
+
+  /** A prototype's alias default must not overwrite an explicit value of the tag it denotes. */
+  @Test
+  void aPrototypeAliasDefaultDoesNotClobberAnExplicitTag() {
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    span.setTag(Tags.PEER_HOSTNAME, "explicit");
+
+    span.apply(SpanPrototype.builder().initTag("server.address", "from-prototype").build());
+
+    assertEquals("explicit", span.getTag(Tags.PEER_HOSTNAME));
   }
 
   @Test

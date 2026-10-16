@@ -700,11 +700,10 @@ public class DDSpanContext
       map.forEach(
           this,
           (ctx, tagEntry) -> {
-            final String tag = tagEntry.tag();
-            if (ctx.unsafeTags.containsKey(tag)) {
+            if (ctx.isPresent(tagEntry)) {
               return;
             }
-            if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
+            if (!ctx.interceptEntry(tagEntry)) {
               ctx.storeEntry(tagEntry);
             }
           });
@@ -957,6 +956,14 @@ public class DDSpanContext
    */
   public void setSpanKindOrdinal(String kind) {
     spanKindOrdinal = spanKindOrdinalOf(kind);
+    if (hasPendingAliases()) {
+      // The span now has a direction: fold pending aliases into the tags they denote, so every
+      // later reader (peer service naming, stats, sampling rules, serialization) sees them
+      // resolved.
+      synchronized (unsafeTags) {
+        DirectionalTags.resolveScopedNames(unsafeTags, tagDirection());
+      }
+    }
   }
 
   /**
@@ -1181,11 +1188,56 @@ public class DDSpanContext
    * @param tag The tag name.
    * @param value The nullable tag value.
    */
+  /**
+   * The id a name-keyed write of {@code tag} goes through: the tag's own id; for a direction-scoped
+   * alias ({@code server.address}) once the span has a direction, the tag it denotes; else 0. So an
+   * alias takes the id path, including interception (split-by-tags on {@code peer.hostname} sees a
+   * {@code server.address} write on a client span).
+   */
+  private long idForWrite(String tag) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId == 0 && KnownTagCodec.mayBeScopedAlias(tag)) {
+      long aliasedId = KnownTagCodec.directionalKeyOf(tag, tagDirection());
+      if (aliasedId > 0) {
+        return aliasedId;
+      }
+    }
+    return tagId;
+  }
+
+  /**
+   * {@link TagInterceptor#interceptTag(DDSpanContext, TagMap.EntryReader)} for an entry about to be
+   * stored through {@link #storeEntry}, which resolves a direction-scoped alias to its tag: such an
+   * entry is intercepted as that tag, so routing sees the tag it is stored as.
+   */
+  private boolean interceptEntry(TagMap.EntryReader entry) {
+    if (entry.tagId() == 0 && KnownTagCodec.mayBeScopedAlias(entry.tag())) {
+      long aliasedId = KnownTagCodec.directionalKeyOf(entry.tag(), tagDirection());
+      if (aliasedId > 0) {
+        return tagInterceptor.needsIntercept(aliasedId, (int) KnownTagCodec.INTERCEPTED)
+            && tagInterceptor.interceptTag(this, aliasedId, entry.objectValue());
+      }
+    }
+    return tagInterceptor.interceptTag(this, entry);
+  }
+
+  /**
+   * Whether {@code entry}'s tag is already on this span, by the tag it denotes here: a
+   * direction-scoped alias is present if its tag is, and a tag if a pending alias for it is.
+   */
+  private boolean isPresent(TagMap.EntryReader entry) {
+    if (KnownTagCodec.isDirectionDependent(entry)) {
+      return DirectionalTags.get(unsafeTags, entry.tag(), tagDirection(), hasPendingAliases())
+          != null;
+    }
+    return unsafeTags.containsKey(entry.tag());
+  }
+
   public void setTag(final String tag, final Object value) {
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = idForWrite(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (null == value) {
@@ -1201,7 +1253,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = idForWrite(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (null == value) {
@@ -1344,7 +1396,7 @@ public class DDSpanContext
     }
 
     // the interceptor prechecks the entry, to avoid boxing
-    if (!tagInterceptor.interceptTag(this, entry)) {
+    if (!interceptEntry(entry)) {
       synchronized (unsafeTags) {
         storeEntry(entry);
       }
@@ -1375,7 +1427,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = idForWrite(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1390,7 +1442,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = idForWrite(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1405,7 +1457,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = idForWrite(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1420,7 +1472,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = idForWrite(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1435,7 +1487,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = idForWrite(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1463,7 +1515,7 @@ public class DDSpanContext
         map.forEach(
             this,
             (ctx, tagEntry) -> {
-              if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
+              if (!ctx.interceptEntry(tagEntry)) {
                 ctx.storeEntry(tagEntry);
               }
             });
@@ -1491,7 +1543,7 @@ public class DDSpanContext
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
-          if (!tagInterceptor.interceptTag(this, entry)) {
+          if (!interceptEntry(entry)) {
             storeEntry(entry);
           }
         }
@@ -1507,7 +1559,12 @@ public class DDSpanContext
     } else if (!map.isEmpty()) {
       synchronized (unsafeTags) {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
-          if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
+          long tagId = idForWrite(tag.getKey());
+          boolean intercepted =
+              tagId != 0
+                  ? tagInterceptor.interceptTag(this, tagId, tag.getValue())
+                  : tagInterceptor.interceptCustomTag(this, tag.getKey(), tag.getValue());
+          if (!intercepted) {
             unsafeSetTag(tag.getKey(), tag.getValue());
           }
         }
@@ -1650,12 +1707,6 @@ public class DDSpanContext
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
     synchronized (unsafeTags) {
-      // Direction-scoped names: the span's kind is final now, so each resolves to its one tag.
-      // Only a span that stored an alias as written has any; every other span skips the walk.
-      if (hasPendingAliases()) {
-        DirectionalTags.resolveScopedNames(unsafeTags, tagDirection());
-      }
-
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 

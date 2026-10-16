@@ -421,6 +421,24 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals(DDTags.LANGUAGE_TAG_VALUE, span.getServiceName());
   }
 
+  /** Split-by-tags on a tag also splits on its direction-scoped alias, by name or in bulk. */
+  @Test
+  void splitByTagsSeesAnAliasAsTheTagItDenotes() {
+    CoreTracer tracer = createSplittingTracer(Tags.PEER_HOSTNAME);
+
+    AgentSpan byName = tracer.buildSpan("datadog", "by name").start();
+    byName.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    byName.setTag("server.address", "by-name-host");
+    byName.finish();
+    assertEquals("by-name-host", byName.getServiceName());
+
+    AgentSpan inBulk = tracer.buildSpan("datadog", "in bulk").start();
+    inBulk.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    inBulk.setAllTags(Collections.singletonMap("server.address", "bulk-host"));
+    inBulk.finish();
+    assertEquals("bulk-host", inBulk.getServiceName());
+  }
+
   @Test
   void setResourceName() throws Exception {
     ListWriter writer = new ListWriter();
