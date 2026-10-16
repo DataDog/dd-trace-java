@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.freemarker24;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -27,6 +28,14 @@ public class ObjectWrapperInstrumentation extends InstrumenterModule.Iast
 
   public ObjectWrapperInstrumentation() {
     super("freemarker");
+  }
+
+  static final ElementMatcher.Junction<ClassLoader> VERSION_POST_2_3_24 =
+      hasClassNamed("freemarker.cache.ByteArrayTemplateLoader");
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return VERSION_POST_2_3_24;
   }
 
   @Override
