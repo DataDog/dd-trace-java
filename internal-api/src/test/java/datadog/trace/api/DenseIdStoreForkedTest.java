@@ -25,8 +25,8 @@ class DenseIdStoreForkedTest {
     map.set(KnownTags.COMPONENT_ID, "okhttp");
     map.set("custom.tag", "custom");
 
-    assertSame(DenseIdStore.class, map.ids.getClass());
-    assertSame(DenseIdStore.class, TagMap.EMPTY.ids.getClass());
+    assertSame(DenseIdStore.class, map.knownStore.getClass());
+    assertSame(DenseIdStore.class, TagMap.EMPTY.knownStore.getClass());
     assertEquals("okhttp", map.getObject(KnownTags.COMPONENT_NAME));
     assertFalse(isLoaded("datadog.trace.api.HashIdStore"));
   }

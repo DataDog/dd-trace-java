@@ -44,7 +44,7 @@ public final class HashStore {
    * or null.
    */
   public static HashStore inheritedFrom(TagMap parent) {
-    return parent == null ? null : parent.names;
+    return parent == null ? null : parent.nameStore;
   }
 
   /**

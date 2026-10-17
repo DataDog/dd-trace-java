@@ -72,7 +72,7 @@ public abstract class IdStore {
 
   /** A fresh id store reading through to {@code parent}'s known tags (parent may be null). */
   public static IdStore create(TagMap parent) {
-    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.ids);
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
   }
 
   /** {@code tagId}'s slot bit. */

@@ -1207,21 +1207,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * precedence never crosses stores.
    *
    * The custom store is created on the first custom write. Until then, a map with a parent borrows
-   * the parent's custom store, read-only (namesBorrowed): the parent is frozen, so its store is
+   * the parent's custom store, read-only (nameStoreBorrowed): the parent is frozen, so its store is
    * stable, and with no local custom state the borrowed store reads exactly as an own one would.
    */
 
   /** The known tags, by id. Not final only so {@link #clear()} can replace it. */
-  IdStore ids;
+  IdStore knownStore;
 
   /**
    * The custom tags, by name: null until the first custom write, or the parent's custom store,
-   * borrowed read-only while {@link #namesBorrowed}.
+   * borrowed read-only while {@link #nameStoreBorrowed}.
    */
-  HashStore names;
+  HashStore nameStore;
 
-  /** True while {@link #names} is the parent's custom store, borrowed until the first write. */
-  boolean namesBorrowed;
+  /** True while {@link #nameStore} is the parent's custom store, borrowed until the first write. */
+  boolean nameStoreBorrowed;
 
   private boolean frozen;
 
@@ -1244,28 +1244,30 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * optimizations can treat it as fixed.
    */
   private TagMap(TagMap parent) {
-    this.ids = IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.ids);
-    HashStore parentNames = parent == null ? null : parent.names;
-    this.names = parentNames;
-    this.namesBorrowed = parentNames != null;
+    this.knownStore =
+        IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
+    HashStore parentNames = parent == null ? null : parent.nameStore;
+    this.nameStore = parentNames;
+    this.nameStoreBorrowed = parentNames != null;
     this.frozen = false;
     this.parent = parent;
   }
 
-  /** A map over {@code ids} and {@code names}: a copy ({@link #copy()}) or a view. */
-  private TagMap(TagMap parent, IdStore ids, HashStore names, boolean namesBorrowed) {
-    this.ids = ids;
-    this.names = names;
-    this.namesBorrowed = namesBorrowed;
+  /** A map over {@code knownStore} and {@code nameStore}: a copy ({@link #copy()}) or a view. */
+  private TagMap(
+      TagMap parent, IdStore knownStore, HashStore nameStore, boolean nameStoreBorrowed) {
+    this.knownStore = knownStore;
+    this.nameStore = nameStore;
+    this.nameStoreBorrowed = nameStoreBorrowed;
     this.frozen = false;
     this.parent = parent;
   }
 
-  /** A frozen map over the empty parentless store {@code ids}: {@link #EMPTY}. */
-  private TagMap(IdStore ids) {
-    this.ids = ids;
-    this.names = null;
-    this.namesBorrowed = false;
+  /** A frozen map over the empty parentless store {@code knownStore}: {@link #EMPTY}. */
+  private TagMap(IdStore knownStore) {
+    this.knownStore = knownStore;
+    this.nameStore = null;
+    this.nameStoreBorrowed = false;
     this.frozen = true;
     this.parent = null;
   }
@@ -1281,8 +1283,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * a custom tag.
    */
   @Restricted(allowedIn = {"datadog.trace.core"})
-  public static TagMap viewOf(IdStore ids, HashStore names, boolean namesBorrowed) {
-    return new TagMap(null, ids, names, namesBorrowed);
+  public static TagMap viewOf(IdStore knownStore, HashStore nameStore, boolean nameStoreBorrowed) {
+    return new TagMap(null, knownStore, nameStore, nameStoreBorrowed);
   }
 
   /**
@@ -1314,72 +1316,75 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   /** This map's custom store: null, borrowed ({@link #isCustomStoreBorrowed}), or its own. */
   @Restricted(allowedIn = {"datadog.trace.core"})
   public HashStore customStore() {
-    return this.names;
+    return this.nameStore;
   }
 
   /** Whether {@link #customStore} is the parent's, borrowed read-only. */
   @Restricted(allowedIn = {"datadog.trace.core"})
   public boolean isCustomStoreBorrowed() {
-    return this.namesBorrowed;
+    return this.nameStoreBorrowed;
   }
 
   /** The custom store to write to: created on the first write, ending any borrowing. */
-  HashStore namesForWrite() {
-    HashStore names = this.names;
-    if (names == null || this.namesBorrowed) {
+  HashStore nameStoreForWrite() {
+    HashStore nameStore = this.nameStore;
+    if (nameStore == null || this.nameStoreBorrowed) {
       // A borrowed store is the nearest ancestor's custom store: read through to it.
-      names = new HashStore(names);
-      this.names = names;
-      this.namesBorrowed = false;
+      nameStore = new HashStore(nameStore);
+      this.nameStore = nameStore;
+      this.nameStoreBorrowed = false;
     }
-    return names;
+    return nameStore;
   }
 
   /** Removes the custom tag {@code tag}, returning the prior visible entry. */
   Entry removeCustom(String tag) {
-    HashStore names = this.names;
-    if (names == null) {
+    HashStore nameStore = this.nameStore;
+    if (nameStore == null) {
       return null;
     }
-    if (this.namesBorrowed) {
-      if (names.get(tag) == null) {
+    if (this.nameStoreBorrowed) {
+      if (nameStore.get(tag) == null) {
         return null; // nothing to hide: keep borrowing
       }
-      names = this.namesForWrite(); // hiding an inherited tag needs a tombstone of our own
+      nameStore = this.nameStoreForWrite(); // hiding an inherited tag needs a tombstone of our own
     }
-    return names.remove(tag);
+    return nameStore.remove(tag);
   }
 
   /** Whether either store reads through to a parent. */
   private boolean readsThrough() {
-    HashStore names = this.names;
-    return this.ids.hasParent() || this.namesBorrowed || (names != null && names.parent != null);
+    HashStore nameStore = this.nameStore;
+    return this.knownStore.hasParent()
+        || this.nameStoreBorrowed
+        || (nameStore != null && nameStore.parent != null);
   }
 
   @Override
   public int size() {
     // Exact (Map contract). Under read-through resolves the union; prefer estimateSize() for hints.
-    HashStore names = this.names;
-    return this.ids.size() + (names == null ? 0 : names.size());
+    HashStore nameStore = this.nameStore;
+    return this.knownStore.size() + (nameStore == null ? 0 : nameStore.size());
   }
 
   @Override
   public boolean isEmpty() {
     // Exact (Map contract). Under read-through resolves the parent; prefer isDefinitelyEmpty().
-    HashStore names = this.names;
-    return this.ids.isEmpty() && (names == null || names.isEmpty());
+    HashStore nameStore = this.nameStore;
+    return this.knownStore.isEmpty() && (nameStore == null || nameStore.isEmpty());
   }
 
   public boolean isDefinitelyEmpty() {
     // Cheap: empty iff no level in the chain holds a local entry (ignores shadowing/tombstones).
-    HashStore names = this.names;
-    return this.ids.isDefinitelyEmpty() && (names == null || names.isDefinitelyEmpty());
+    HashStore nameStore = this.nameStore;
+    return this.knownStore.isDefinitelyEmpty()
+        && (nameStore == null || nameStore.isDefinitelyEmpty());
   }
 
   public int estimateSize() {
     // Upper bound: sum of every level's local size, ignoring read-through shadowing/removals.
-    HashStore names = this.names;
-    return this.ids.estimateSize() + (names == null ? 0 : names.estimateSize());
+    HashStore nameStore = this.nameStore;
+    return this.knownStore.estimateSize() + (nameStore == null ? 0 : nameStore.estimateSize());
   }
 
   @Deprecated
@@ -1491,15 +1496,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // an OpenTelemetry rename must resolve to the same id, or it would silently miss the entry.
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return entryOf(this.ids.getEntryReader(key));
+      return entryOf(this.knownStore.getEntryReader(key));
     }
-    HashStore names = this.names;
-    return names == null ? null : names.get(tag);
+    HashStore nameStore = this.nameStore;
+    return nameStore == null ? null : nameStore.get(tag);
   }
 
   /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
   public Entry getEntry(long tagId) {
-    return entryOf(this.ids.getEntryReader(tagId));
+    return entryOf(this.knownStore.getEntryReader(tagId));
   }
 
   @Deprecated
@@ -1630,7 +1635,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** {@code getEntry(tagId)}'s value, or null, for a caller that needs only the value. */
   Object getKnownValue(long tagId) {
-    return this.ids.getValue(tagId);
+    return this.knownStore.getValue(tagId);
   }
 
   public void set(long tagId, @Nonnull Object value) {
@@ -1674,8 +1679,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.checkWriteAccess();
 
     return newEntry.tagId() != 0
-        ? entryOf(this.ids.getAndPut(newEntry))
-        : this.namesForWrite().getAndPut(newEntry);
+        ? entryOf(this.knownStore.getAndPut(newEntry))
+        : this.nameStoreForWrite().getAndPut(newEntry);
   }
 
   /**
@@ -1688,22 +1693,22 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.checkWriteAccess();
 
     return newEntry.tagId() != 0
-        ? entryOf(this.ids.put(newEntry))
-        : this.namesForWrite().put(newEntry);
+        ? entryOf(this.knownStore.put(newEntry))
+        : this.nameStoreForWrite().put(newEntry);
   }
 
   /** {@link #putEntry} for an entry known to be a known tag's. */
   void putKnown(Entry knownEntry) {
     this.checkWriteAccess();
 
-    this.ids.put(knownEntry);
+    this.knownStore.put(knownEntry);
   }
 
   /** {@link #putEntry} for an entry known to be a custom tag's. */
   void putCustom(Entry customEntry) {
     this.checkWriteAccess();
 
-    this.namesForWrite().put(customEntry);
+    this.nameStoreForWrite().put(customEntry);
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
@@ -1772,10 +1777,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       that.forEach(this, (self, entry) -> self.set(entry));
       return;
     }
-    this.ids.putAllLocal(that.ids);
-    HashStore thatNames = that.names;
+    this.knownStore.putAllLocal(that.knownStore);
+    HashStore thatNames = that.nameStore;
     if (thatNames != null && thatNames.count != 0) {
-      this.namesForWrite().putAllLocal(thatNames);
+      this.nameStoreForWrite().putAllLocal(thatNames);
     }
   }
 
@@ -1787,9 +1792,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.forEach(map, (m, entry) -> m.put(entry.tag(), entry.objectValue()));
       return;
     }
-    this.ids.fillMapLocal(map);
-    if (this.names != null) {
-      this.names.fillMapLocal(map);
+    this.knownStore.fillMapLocal(map);
+    if (this.nameStore != null) {
+      this.nameStore.fillMapLocal(map);
     }
   }
 
@@ -1800,9 +1805,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.forEach(stringMap, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
       return;
     }
-    this.ids.fillStringMapLocal(stringMap);
-    if (this.names != null) {
-      this.names.fillStringMapLocal(stringMap);
+    this.knownStore.fillStringMapLocal(stringMap);
+    if (this.nameStore != null) {
+      this.nameStore.fillStringMapLocal(stringMap);
     }
   }
 
@@ -1824,24 +1829,27 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must resolve to the id first to find (and tombstone) the right entry.
     long key = KnownTagCodec.keyOf(tag);
-    return key != 0 ? entryOf(this.ids.remove(key)) : this.removeCustom(tag);
+    return key != 0 ? entryOf(this.knownStore.remove(key)) : this.removeCustom(tag);
   }
 
   /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
   public Entry getAndRemove(long tagId) {
     this.checkWriteAccess();
 
-    return entryOf(this.ids.remove(tagId));
+    return entryOf(this.knownStore.remove(tagId));
   }
 
   public TagMap copy() {
     // The same (frozen, shared) parent, fixed at construction, over a copy of this map's own
     // entries and tombstones. The copy stays independently mutable (writes land on its local
     // store, never the shared parent).
-    HashStore names = this.names;
-    boolean borrowed = this.namesBorrowed;
+    HashStore nameStore = this.nameStore;
+    boolean borrowed = this.nameStoreBorrowed;
     return new TagMap(
-        this.parent, this.ids.copy(), names == null || borrowed ? names : names.copy(), borrowed);
+        this.parent,
+        this.knownStore.copy(),
+        nameStore == null || borrowed ? nameStore : nameStore.copy(),
+        borrowed);
   }
 
   public TagMap immutableCopy() {
@@ -1863,27 +1871,27 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
-    this.ids.forEach(consumer);
-    HashStore names = this.names;
-    if (names != null) {
-      names.forEach(consumer);
+    this.knownStore.forEach(consumer);
+    HashStore nameStore = this.nameStore;
+    if (nameStore != null) {
+      nameStore.forEach(consumer);
     }
   }
 
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
-    this.ids.forEach(thisObj, consumer);
-    HashStore names = this.names;
-    if (names != null) {
-      names.forEach(thisObj, consumer);
+    this.knownStore.forEach(thisObj, consumer);
+    HashStore nameStore = this.nameStore;
+    if (nameStore != null) {
+      nameStore.forEach(thisObj, consumer);
     }
   }
 
   public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
-    this.ids.forEach(thisObj, otherObj, consumer);
-    HashStore names = this.names;
-    if (names != null) {
-      names.forEach(thisObj, otherObj, consumer);
+    this.knownStore.forEach(thisObj, otherObj, consumer);
+    HashStore nameStore = this.nameStore;
+    if (nameStore != null) {
+      nameStore.forEach(thisObj, otherObj, consumer);
     }
   }
 
@@ -1893,9 +1901,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // clear() removes ALL mappings, including any inherited through read-through. Fresh parentless
     // stores (rather than tombstoning every inherited key) are simpler and cheaper, and leave an
     // empty, parent-less map. Detach is one-way -- the parent is never re-pointed.
-    this.ids = IdStoreFactory.Default.INSTANCE.create(null);
-    this.names = null;
-    this.namesBorrowed = false;
+    this.knownStore = IdStoreFactory.Default.INSTANCE.create(null);
+    this.nameStore = null;
+    this.nameStoreBorrowed = false;
     this.parent = null;
   }
 
@@ -1914,16 +1922,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   void checkIntegrity() {
-    this.ids.checkIntegrity();
-    if (this.names != null && !this.namesBorrowed) {
-      this.names.checkIntegrity();
+    this.knownStore.checkIntegrity();
+    if (this.nameStore != null && !this.nameStoreBorrowed) {
+      this.nameStore.checkIntegrity();
     }
   }
 
   /** The local entries, recomputed from both stores' structure. */
   int computeSize() {
-    HashStore names = this.names;
-    return this.ids.computeSize() + (names == null || this.namesBorrowed ? 0 : names.computeSize());
+    HashStore nameStore = this.nameStore;
+    return this.knownStore.computeSize()
+        + (nameStore == null || this.nameStoreBorrowed ? 0 : nameStore.computeSize());
   }
 
   boolean checkIfEmpty() {
@@ -1965,19 +1974,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   String toPrettyString() {
     boolean first = true;
 
-    StringBuilder ledger = new StringBuilder(128);
-    ledger.append('{');
+    StringBuilder builder = new StringBuilder(128);
+    builder.append('{');
     for (EntryReader entry : this) {
       if (first) {
         first = false;
       } else {
-        ledger.append(", ");
+        builder.append(", ");
       }
 
-      ledger.append(entry.tag()).append('=').append(entry.stringValue());
+      builder.append(entry.tag()).append('=').append(entry.stringValue());
     }
-    ledger.append('}');
-    return ledger.toString();
+    builder.append('}');
+    return builder.toString();
   }
 
   /**
@@ -1985,17 +1994,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * debugging
    */
   String toInternalString() {
-    HashStore names = this.names;
-    return "ids:\n"
-        + this.ids.toInternalString()
-        + "names:\n"
-        + (names == null ? "none\n" : names.toInternalString());
+    HashStore nameStore = this.nameStore;
+    return "knownStore:\n"
+        + this.knownStore.toInternalString()
+        + "nameStore:\n"
+        + (nameStore == null ? "none\n" : nameStore.toInternalString());
   }
 
   abstract static class IteratorBase {
     // Two phases: the id store's visible entries, through its own cursor, then the custom store's
     // chain -- the leaf's buckets first, then each ancestor's in turn (read-through union).
-    private IdStore.Cursor ids; // null once the id phase is done
+    private IdStore.Cursor knownCursor; // null once the id phase is done
     private final HashStore nameLeaf;
     private HashStore nameLevel; // the custom level being walked; null before and after
     private HashSupport.BucketWalker walker;
@@ -2003,8 +2012,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     private EntryReader nextEntry;
 
     IteratorBase(TagMap map) {
-      this.ids = map.ids.cursor();
-      this.nameLeaf = map.names;
+      this.knownCursor = map.knownStore.cursor();
+      this.nameLeaf = map.nameStore;
     }
 
     public final boolean hasNext() {
@@ -2029,13 +2038,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     private EntryReader advance() {
-      IdStore.Cursor ids = this.ids;
-      if (ids != null) {
-        EntryReader reader = ids.next();
+      IdStore.Cursor knownCursor = this.knownCursor;
+      if (knownCursor != null) {
+        EntryReader reader = knownCursor.next();
         if (reader != null) {
           return reader;
         }
-        this.ids = null;
+        this.knownCursor = null;
         if (this.nameLeaf == null) {
           return null;
         }
@@ -2472,15 +2481,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public String toString() {
-      StringBuilder ledger = new StringBuilder(32);
-      ledger.append('[');
+      StringBuilder builder = new StringBuilder(32);
+      builder.append('[');
       for (int i = 0; i < BucketGroup.LEN; ++i) {
-        if (i != 0) ledger.append(", ");
+        if (i != 0) builder.append(", ");
 
-        ledger.append(this._entryAt(i));
+        builder.append(this._entryAt(i));
       }
-      ledger.append(']');
-      return ledger.toString();
+      builder.append(']');
+      return builder.toString();
     }
   }
 

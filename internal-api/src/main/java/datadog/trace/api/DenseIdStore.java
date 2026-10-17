@@ -635,10 +635,10 @@ final class DenseIdStore extends IdStore {
 
   @Override
   String toInternalString() {
-    StringBuilder ledger = new StringBuilder();
+    StringBuilder builder = new StringBuilder();
     for (int i = 0; i < this.used; ++i) {
       Object value = this.values[i];
-      ledger
+      builder
           .append('[')
           .append(i)
           .append("]: ")
@@ -647,6 +647,6 @@ final class DenseIdStore extends IdStore {
           .append(value == TOMBSTONE ? "<tombstone>" : value)
           .append('\n');
     }
-    return ledger.toString();
+    return builder.toString();
   }
 }

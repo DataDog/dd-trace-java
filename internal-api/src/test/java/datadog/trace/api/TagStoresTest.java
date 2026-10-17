@@ -33,10 +33,10 @@ class TagStoresTest {
     TagMap tags = TagMap.create();
     tags.set(KnownTags.HTTP_ROUTE_ID, "/a");
     tags.set(KnownTags.COMPONENT_NAME, "jdbc");
-    assertNull(tags.names);
+    assertNull(tags.nameStore);
 
     tags.set("my.tag", "x");
-    assertNotNull(tags.names);
+    assertNotNull(tags.nameStore);
     assertEquals(3, tags.size());
   }
 
@@ -44,18 +44,18 @@ class TagStoresTest {
   void aChildBorrowsItsParentsCustomStoreUntilItWritesOne() {
     TagMap parent = frozenParent();
     TagMap child = TagMap.createFromParent(parent);
-    assertSame(parent.names, child.names);
-    assertTrue(child.namesBorrowed);
+    assertSame(parent.nameStore, child.nameStore);
+    assertTrue(child.nameStoreBorrowed);
     assertEquals("c", child.getString("inherited.custom"));
 
     child.set(KnownTags.HTTP_METHOD_ID, "GET"); // a known write keeps borrowing
-    assertTrue(child.namesBorrowed);
+    assertTrue(child.nameStoreBorrowed);
     assertFalse(child.remove("not.there")); // nothing to hide keeps borrowing
-    assertTrue(child.namesBorrowed);
+    assertTrue(child.nameStoreBorrowed);
 
     child.set("own.custom", "o");
-    assertFalse(child.namesBorrowed);
-    assertNotSame(parent.names, child.names);
+    assertFalse(child.nameStoreBorrowed);
+    assertNotSame(parent.nameStore, child.nameStore);
     assertEquals("c", child.getString("inherited.custom")); // still reads through
     assertEquals(5, child.size());
     assertEquals("c", parent.getString("inherited.custom"));
@@ -69,7 +69,7 @@ class TagStoresTest {
 
     assertEquals("c", child.getAndRemove("inherited.custom").stringValue());
 
-    assertFalse(child.namesBorrowed);
+    assertFalse(child.nameStoreBorrowed);
     assertNull(child.getString("inherited.custom"));
     assertEquals(2, child.size());
     assertEquals("c", parent.getString("inherited.custom"));
@@ -89,7 +89,7 @@ class TagStoresTest {
     for (TagMap.EntryReader entry : child) {
       assertNotEquals(KnownTags.HTTP_ROUTE_ID, entry.tagId());
     }
-    IdStore ids = child.ids;
+    IdStore ids = child.knownStore;
     assertEquals(0, ids.computeSize());
     assertNotEquals(0L, ids.tombstoneMask);
     child.checkIntegrity();
@@ -201,7 +201,7 @@ class TagStoresTest {
 
     TagMap copy = child.copy();
     assertNull(copy.getString(KnownTags.HTTP_ROUTE_NAME));
-    assertTrue(copy.namesBorrowed);
+    assertTrue(copy.nameStoreBorrowed);
     assertEquals(child.size(), copy.size());
 
     copy.set(KnownTags.HTTP_ROUTE_NAME, "/copy");
@@ -253,7 +253,7 @@ class TagStoresTest {
     TagMap parent = TagMap.readThroughParent(frozenParent());
     IdStore ids = IdStore.create(parent);
     HashStore borrowed = HashStore.inheritedFrom(parent);
-    assertSame(parent.names, borrowed);
+    assertSame(parent.nameStore, borrowed);
     assertEquals("/inherited", ids.getValue(KnownTags.HTTP_ROUTE_ID));
     assertEquals("c", borrowed.get("inherited.custom").stringValue());
 
@@ -304,9 +304,9 @@ class TagStoresTest {
     child.set("own", "o");
     child.clear();
     assertTrue(child.isEmpty());
-    assertNull(child.names);
+    assertNull(child.nameStore);
     assertNull(child.getString("inherited.custom"));
-    assertTrue(child.toInternalString().contains("names:"));
+    assertTrue(child.toInternalString().contains("nameStore:"));
   }
 
   /** Every known tag's real id, from the registry. */
