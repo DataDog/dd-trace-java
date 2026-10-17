@@ -67,9 +67,30 @@ public final class HashStore {
 
   /** Ancestor entries not shadowed or tombstoned by a nearer level, nearest-level-wins. */
   private int visibleParentCount() {
-    int[] count = new int[1];
-    this.forEachParent(count, null, (c, unused, entry) -> c[0]++);
-    return count[0];
+    // a plain loop, not forEachParent: counting through a lambda would allocate a counter
+    int count = 0;
+    for (HashStore ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      Object[] parentBuckets = ancestor.buckets;
+      for (int i = 0; i < parentBuckets.length; ++i) {
+        Object bucket = parentBuckets[i];
+        if (bucket instanceof Entry) {
+          Entry entry = (Entry) bucket;
+          if (this.parentEntryVisible(entry, ancestor)) {
+            count++;
+          }
+        } else if (bucket instanceof BucketGroup) {
+          for (BucketGroup group = (BucketGroup) bucket; group != null; group = group.prev) {
+            for (int j = 0; j < BucketGroup.LEN; ++j) {
+              Entry entry = group._entryAt(j);
+              if (entry != null && this.parentEntryVisible(entry, ancestor)) {
+                count++;
+              }
+            }
+          }
+        }
+      }
+    }
+    return count;
   }
 
   boolean isEmpty() {

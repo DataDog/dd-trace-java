@@ -707,7 +707,7 @@ public class DDSpanContext
             if (ctx.isPresent(tagEntry)) {
               return;
             }
-            if (!ctx.tagInterceptor.interceptTag(this, tagEntry)) {
+            if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
               ctx.routePut(tagEntry);
             }
           });
@@ -1535,7 +1535,7 @@ public class DDSpanContext
         map.forEach(
             this,
             (ctx, tagEntry) -> {
-              if (!ctx.tagInterceptor.interceptTag(this, tagEntry)) {
+              if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
                 ctx.routePut(tagEntry);
               }
             });
