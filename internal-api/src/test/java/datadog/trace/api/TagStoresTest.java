@@ -124,30 +124,30 @@ class TagStoresTest {
     assertFalse(span.mayInherit(bit, IdStore.levelOf(KnownTags.HTTP_METHOD_ID)));
     assertTrue(span.mayInherit(bit, IdStore.levelOf(KnownTags.RUNTIME_ID)));
     assertFalse(traceLevel.mayHaveLocal(bit, IdStore.SPAN_LEVEL));
-    assertNull(span.get(KnownTags.HTTP_METHOD_ID));
-    assertEquals("abc", span.getKnownValue(KnownTags.RUNTIME_ID));
+    assertNull(span.getEntryReader(KnownTags.HTTP_METHOD_ID));
+    assertEquals("abc", span.getValue(KnownTags.RUNTIME_ID));
   }
 
   @Test
   void aClearSlotBitIsADefiniteMiss() {
     HashIdStore ids = new HashIdStore(null);
     assertEquals(0L, ids.occupancy);
-    assertNull(ids.get(KnownTags.HTTP_ROUTE_ID));
+    assertNull(ids.getEntryReader(KnownTags.HTTP_ROUTE_ID));
 
     ids.set(KnownTags.HTTP_ROUTE_ID, "/a");
     assertNotEquals(0L, ids.occupancy & IdStore.slotBit(KnownTags.HTTP_ROUTE_ID));
-    assertEquals("/a", ids.getKnownValue(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("/a", ids.getValue(KnownTags.HTTP_ROUTE_ID));
 
     // a child inherits its parent's slots, so a read-through miss can stop early
     HashIdStore child = new HashIdStore(ids);
     assertEquals(ids.occupancy, child.inheritedMask);
-    assertEquals("/a", child.getKnownValue(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("/a", child.getValue(KnownTags.HTTP_ROUTE_ID));
   }
 
   @Test
   void anUnknownIdIsRejected() {
     HashIdStore ids = new HashIdStore(null);
-    assertThrows(IllegalArgumentException.class, () -> ids.get(0L));
+    assertThrows(IllegalArgumentException.class, () -> ids.getEntryReader(0L));
     assertThrows(IllegalArgumentException.class, () -> ids.remove(0L));
   }
 
@@ -163,7 +163,7 @@ class TagStoresTest {
     ids.set(KnownTags.DB_INSTANCE_ID, 2.25d);
 
     TagMap checked = TagMap.create();
-    checked.set(KnownTags.COMPONENT_ID, ids.get(KnownTags.COMPONENT_ID).objectValue());
+    checked.set(KnownTags.COMPONENT_ID, ids.getEntryReader(KnownTags.COMPONENT_ID).objectValue());
     checked.set(KnownTags.HTTP_ROUTE_ID, "/a");
     checked.set(KnownTags.DD_PROFILING_ENABLED_ID, true);
     checked.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
@@ -258,7 +258,7 @@ class TagStoresTest {
     IdStore ids = TagRouting.newIdStore(parent);
     HashStore borrowed = TagRouting.inheritedCustomStore(parent);
     assertSame(parent.names, borrowed);
-    assertEquals("/inherited", ids.getKnownValue(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("/inherited", ids.getValue(KnownTags.HTTP_ROUTE_ID));
     assertEquals("c", borrowed.get("inherited.custom").stringValue());
 
     HashStore own = TagRouting.newCustomStore(borrowed);
@@ -296,7 +296,7 @@ class TagStoresTest {
 
     view.set(KnownTags.HTTP_METHOD_NAME, "GET");
     view.set("own", "o");
-    assertEquals("GET", ids.getKnownValue(KnownTags.HTTP_METHOD_ID));
+    assertEquals("GET", ids.getValue(KnownTags.HTTP_METHOD_ID));
     assertFalse(view.isCustomStoreBorrowed());
     assertNotSame(borrowed, view.customStore());
     assertEquals("o", view.customStore().get("own").stringValue());

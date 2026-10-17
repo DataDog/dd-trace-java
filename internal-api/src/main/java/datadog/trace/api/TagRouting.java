@@ -77,7 +77,7 @@ public final class TagRouting {
 
   /** The entry for {@code tag}, already resolved to {@code key}, reading through to parents. */
   public static Entry get(IdStore ids, HashStore names, long key, String tag) {
-    return isKnown(key) ? entryOf(ids.get(key)) : names == null ? null : names.get(tag);
+    return isKnown(key) ? entryOf(ids.getEntryReader(key)) : names == null ? null : names.get(tag);
   }
 
   /**

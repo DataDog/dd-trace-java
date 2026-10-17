@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import datadog.apicontract.Restricted;
-import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.function.TriConsumer;
 import java.util.Map;
@@ -33,6 +32,12 @@ import java.util.function.Consumer;
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
+  /** Visits a store's visible entries one at a time. */
+  abstract static class Cursor {
+    /** The next visible entry, or null when there are none left. */
+    abstract EntryReader next();
+  }
+
   /** Slots that may hold a live local entry. */
   long occupancy;
 
@@ -113,13 +118,13 @@ public abstract class IdStore {
    *
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
-  public abstract EntryReader get(long tagId);
+  public abstract EntryReader getEntryReader(long tagId);
 
   /**
-   * {@code get(tagId)}'s value, boxed if necessary, or null -- for a caller that needs only the
-   * value, so a store that keeps known tags without an Entry per tag can answer without one.
+   * {@link #getEntryReader}'s value, boxed if necessary, or null -- for a caller that needs only
+   * the value, so a store that keeps known tags without an Entry per tag can answer without one.
    */
-  public abstract Object getKnownValue(long tagId);
+  public abstract Object getValue(long tagId);
 
   /*
    * Sets a known tag without validating its id: the caller has checked KnownTagCodec.isKnown.
@@ -140,13 +145,14 @@ public abstract class IdStore {
   public abstract void set(long tagId, double value);
 
   /**
-   * Inserts or replaces a known tag's entry, returning the local entry it replaced (or null). Does
-   * not consult the read-through parent.
+   * Inserts or replaces a known tag, returning the local entry it replaced (or null). Does not
+   * consult the read-through parent. A store that keeps Entry objects keeps {@code known}'s Entry
+   * (free when it is one); a store that doesn't copies its value.
    */
-  public abstract EntryReader put(Entry knownEntry);
+  public abstract EntryReader put(EntryReader known);
 
-  /** {@link #put(Entry)}, returning the prior visible entry -- local, else read through. */
-  public abstract EntryReader getAndPut(Entry knownEntry);
+  /** {@link #put}, returning the prior visible entry -- local, else read through. */
+  public abstract EntryReader getAndPut(EntryReader known);
 
   /**
    * Removes the known tag {@code tagId}, returning the prior visible entry; an inherited one is
@@ -187,12 +193,6 @@ public abstract class IdStore {
    * is valid until its next call, as with a point read.
    */
   abstract Cursor cursor();
-
-  /** Visits a store's visible entries one at a time. */
-  abstract static class Cursor {
-    /** The next visible entry, or null when there are none left. */
-    abstract EntryReader next();
-  }
 
   /** An independently mutable copy with the same parent, sharing Entry objects. */
   abstract IdStore copy();

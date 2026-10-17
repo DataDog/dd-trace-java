@@ -1111,7 +1111,7 @@ public class DDSpanContext
     }
     // UNSET or CUSTOM -- fall through to tag map
     synchronized (tagIds) {
-      TagMap.EntryReader kind = tagIds.get(KnownTags.SPAN_KIND_ID);
+      TagMap.EntryReader kind = tagIds.getEntryReader(KnownTags.SPAN_KIND_ID);
       return kind == null ? null : kind.stringValue();
     }
   }
@@ -1195,15 +1195,12 @@ public class DDSpanContext
     setResolved(TagRouting.keyOf(tag), tag, value);
   }
 
-  /** Stores {@code entry} as is, sharing its Entry; a reader with no entry is a no-op. */
+  /** Stores {@code entry}, sharing its Entry where the store keeps Entry objects. */
   private void putEntry(TagMap.EntryReader entry) {
-    TagMap.Entry e = entry.entry();
-    if (e != null) {
-      if (e.tagId() != 0) {
-        tagIds.put(e);
-      } else {
-        customTagsForWrite().put(e);
-      }
+    if (entry.tagId() != 0) {
+      tagIds.put(entry); // no Entry built for a dense store, or for a flyweight from one
+    } else {
+      customTagsForWrite().put(entry.entry());
     }
   }
 
@@ -1614,7 +1611,7 @@ public class DDSpanContext
   public Object unsafeGetTag(final String tag) {
     long key = TagRouting.keyOf(tag);
     if (TagRouting.isKnown(key)) {
-      return tagIds.getKnownValue(key);
+      return tagIds.getValue(key);
     }
     HashStore custom = customTags;
     TagMap.Entry entry = custom == null ? null : custom.get(tag);

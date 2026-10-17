@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.function.TriConsumer;
 import java.util.Arrays;
@@ -16,9 +15,9 @@ import java.util.function.Consumer;
  * full id is rebuilt from the serial ({@link KnownTagCodec#idOf}) only where a reader asks for it.
  * Values are boxed: a primitive set by id is stored as its wrapper.
  *
- * <p>Point reads that need only the value ({@link #getKnownValue}) build nothing. Those that return
- * an {@link EntryReader} answer with this store's one reused flyweight, valid until the store's
- * next operation (see {@link IdStore}).
+ * <p>Point reads that need only the value ({@link #getValue}) build nothing. Those that return an
+ * {@link EntryReader} answer with this store's one reused flyweight, valid until the store's next
+ * operation (see {@link IdStore}).
  *
  * <p>Removing a local tag swaps the last tag into its place. Removing an inherited tag leaves the
  * shared {@link #TOMBSTONE} as its value, in place, and sets its slot in the tombstone mask; a
@@ -33,6 +32,35 @@ final class DenseIdStore extends IdStore {
 
   private static final char[] NO_SERIALS = new char[0];
   private static final Object[] NO_VALUES = new Object[0];
+
+  /** Walks the leaf's slots, then each ancestor's, skipping tombstones and shadowed tags. */
+  private static final class DenseCursor extends Cursor {
+    private final DenseIdStore leaf;
+    private DenseIdStore level;
+    private int index = -1;
+    private final EntryReadingHelper reader = new EntryReadingHelper();
+
+    DenseCursor(DenseIdStore leaf) {
+      this.leaf = leaf;
+      this.level = leaf;
+    }
+
+    @Override
+    EntryReader next() {
+      DenseIdStore level = this.level;
+      while (level != null) {
+        for (++this.index; this.index < level.used; ++this.index) {
+          if (this.leaf.readIfVisible(level, this.index, this.reader)) {
+            return this.reader;
+          }
+        }
+        level = level.parent;
+        this.level = level;
+        this.index = -1;
+      }
+      return null;
+    }
+  }
 
   /** Each local tag's serial, then {@link #used} slots in; parallel to {@link #values}. */
   private char[] serials = NO_SERIALS;
@@ -57,12 +85,12 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  public EntryReader get(long tagId) {
-    return this.readerOf(tagId, this.getKnownValue(tagId));
+  public EntryReader getEntryReader(long tagId) {
+    return this.readerOf(tagId, this.getValue(tagId));
   }
 
   @Override
-  public Object getKnownValue(long tagId) {
+  public Object getValue(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
@@ -119,14 +147,14 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  public EntryReader put(Entry knownEntry) {
-    long tagId = knownEntry.tagHash;
-    return this.readerOf(tagId, this.store(tagId, knownEntry.objectValue()));
+  public EntryReader put(EntryReader known) {
+    long tagId = known.tagId();
+    return this.readerOf(tagId, this.store(tagId, known.objectValue()));
   }
 
   @Override
-  public EntryReader getAndPut(Entry knownEntry) {
-    long tagId = knownEntry.tagHash;
+  public EntryReader getAndPut(EntryReader known) {
+    long tagId = known.tagId();
     char serial = (char) KnownTagCodec.serialNum(tagId);
     long bit = slotBit(tagId);
     int level = levelOf(tagId);
@@ -139,10 +167,10 @@ final class DenseIdStore extends IdStore {
         this.markLocal(bit, level);
         this.count++;
       }
-      this.values[i] = knownEntry.objectValue();
+      this.values[i] = known.objectValue();
     } else {
       prior = this.mayInherit(bit, level) ? this.parent.getVisible(serial, bit, level) : null;
-      this.append(serial, bit, level, knownEntry.objectValue());
+      this.append(serial, bit, level, known.objectValue());
     }
     return this.readerOf(tagId, prior);
   }
@@ -396,35 +424,6 @@ final class DenseIdStore extends IdStore {
   @Override
   Cursor cursor() {
     return new DenseCursor(this);
-  }
-
-  /** Walks the leaf's slots, then each ancestor's, skipping tombstones and shadowed tags. */
-  private static final class DenseCursor extends Cursor {
-    private final DenseIdStore leaf;
-    private DenseIdStore level;
-    private int index = -1;
-    private final EntryReadingHelper reader = new EntryReadingHelper();
-
-    DenseCursor(DenseIdStore leaf) {
-      this.leaf = leaf;
-      this.level = leaf;
-    }
-
-    @Override
-    EntryReader next() {
-      DenseIdStore level = this.level;
-      while (level != null) {
-        for (++this.index; this.index < level.used; ++this.index) {
-          if (this.leaf.readIfVisible(level, this.index, this.reader)) {
-            return this.reader;
-          }
-        }
-        level = level.parent;
-        this.level = level;
-        this.index = -1;
-      }
-      return null;
-    }
   }
 
   @Override

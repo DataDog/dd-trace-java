@@ -19,6 +19,45 @@ import java.util.function.Consumer;
  * counted, iterated or returned.
  */
 final class HashIdStore extends IdStore {
+  /** An empty parentless store over one bucket, for {@link TagMap#EMPTY}, which is frozen. */
+  static HashIdStore newEmpty() {
+    return new HashIdStore(new Object[1]);
+  }
+
+  /** Walks the leaf's buckets, then each ancestor's, skipping tombstones and shadowed entries. */
+  private static final class HashCursor extends Cursor {
+    private final HashIdStore leaf;
+    private HashIdStore level;
+    private final HashSupport.BucketWalker walker = new HashSupport.BucketWalker();
+
+    HashCursor(HashIdStore leaf) {
+      this.leaf = leaf;
+      this.level = leaf;
+      this.walker.reset(leaf.buckets);
+    }
+
+    @Override
+    EntryReader next() {
+      HashIdStore level = this.level;
+      while (level != null) {
+        Entry entry = this.walker.next();
+        if (entry != null) {
+          if (!entry.tombstone
+              && (level == this.leaf || this.leaf.parentEntryVisible(entry, level))) {
+            return entry;
+          }
+          continue;
+        }
+        level = level.parent;
+        this.level = level;
+        if (level != null) {
+          this.walker.reset(level.buckets);
+        }
+      }
+      return null;
+    }
+  }
+
   final Object[] buckets;
 
   /** Live local entries, not counting tombstones. */
@@ -33,11 +72,6 @@ final class HashIdStore extends IdStore {
     this.parent = (HashIdStore) parent;
   }
 
-  /** An empty parentless store over one bucket, for {@link TagMap#EMPTY}, which is frozen. */
-  static HashIdStore newEmpty() {
-    return new HashIdStore(new Object[1]);
-  }
-
   private HashIdStore(Object[] buckets) {
     super(null);
     this.buckets = buckets;
@@ -45,14 +79,14 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Entry get(long tagId) {
+  public Entry getEntryReader(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
     return this.getVisible(tagId, slotBit(tagId), levelOf(tagId));
   }
 
-  /** {@link #get} for a validated id and its slot bit and level. */
+  /** {@link #getEntryReader} for a validated id and its slot bit and level. */
   private Entry getVisible(long tagId, long bit, int level) {
     if (this.mayHaveLocal(bit, level)) {
       Entry local = HashSupport.findById(this.buckets, Entry.bucketHash(tagId), tagId);
@@ -64,50 +98,49 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Object getKnownValue(long tagId) {
-    Entry entry = this.get(tagId);
+  public Object getValue(long tagId) {
+    Entry entry = this.getEntryReader(tagId);
     return entry == null ? null : entry.objectValue();
   }
 
   @Override
   public void set(long tagId, Object value) {
-    this.put(new Entry(tagId, null, Entry.ANY, 0L, value));
+    this.put(Entry.newAnyEntry(tagId, value));
   }
 
   @Override
   public void set(long tagId, CharSequence value) {
-    this.put(new Entry(tagId, null, EntryReader.OBJECT, 0L, value));
+    this.put(Entry.newObjectEntry(tagId, value));
   }
 
   @Override
   public void set(long tagId, boolean value) {
-    this.put(
-        new Entry(
-            tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
+    this.put(Entry.newBooleanEntry(tagId, value));
   }
 
   @Override
   public void set(long tagId, int value) {
-    this.put(new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value), null));
+    this.put(Entry.newIntEntry(tagId, value));
   }
 
   @Override
   public void set(long tagId, long value) {
-    this.put(new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value), null));
+    this.put(Entry.newLongEntry(tagId, value));
   }
 
   @Override
   public void set(long tagId, float value) {
-    this.put(new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value), null));
+    this.put(Entry.newFloatEntry(tagId, value));
   }
 
   @Override
   public void set(long tagId, double value) {
-    this.put(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
+    this.put(Entry.newDoubleEntry(tagId, value));
   }
 
   @Override
-  public Entry put(Entry knownEntry) {
+  public Entry put(EntryReader known) {
+    Entry knownEntry = known.entry();
     Entry replaced = HashSupport.put(this.buckets, knownEntry);
     this.markLocal(slotBit(knownEntry.tagHash), levelOf(knownEntry.tagHash));
     if (replaced == null || replaced.tombstone) {
@@ -118,7 +151,8 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Entry getAndPut(Entry knownEntry) {
+  public Entry getAndPut(EntryReader known) {
+    Entry knownEntry = known.entry();
     long tagId = knownEntry.tagHash;
     long bit = slotBit(tagId);
     int level = levelOf(tagId);
@@ -289,40 +323,6 @@ final class HashIdStore extends IdStore {
     return new HashCursor(this);
   }
 
-  /** Walks the leaf's buckets, then each ancestor's, skipping tombstones and shadowed entries. */
-  private static final class HashCursor extends Cursor {
-    private final HashIdStore leaf;
-    private HashIdStore level;
-    private final HashSupport.BucketWalker walker = new HashSupport.BucketWalker();
-
-    HashCursor(HashIdStore leaf) {
-      this.leaf = leaf;
-      this.level = leaf;
-      this.walker.reset(leaf.buckets);
-    }
-
-    @Override
-    EntryReader next() {
-      HashIdStore level = this.level;
-      while (level != null) {
-        Entry entry = this.walker.next();
-        if (entry != null) {
-          if (!entry.tombstone
-              && (level == this.leaf || this.leaf.parentEntryVisible(entry, level))) {
-            return entry;
-          }
-          continue;
-        }
-        level = level.parent;
-        this.level = level;
-        if (level != null) {
-          this.walker.reset(level.buckets);
-        }
-      }
-      return null;
-    }
-  }
-
   @Override
   IdStore copy() {
     HashIdStore copy = new HashIdStore(this.parent);
@@ -342,7 +342,7 @@ final class HashIdStore extends IdStore {
     }
     if (this.tombstoneMask != 0L) {
       // A bucket merge would count a replaced tombstone as a replacement, so put one at a time.
-      HashSupport.forEach(that.buckets, this, (self, entry) -> self.put(entry.entry()));
+      HashSupport.forEach(that.buckets, this, (self, entry) -> self.put(entry));
       return;
     }
     if (this.count == 0) {

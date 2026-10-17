@@ -1477,7 +1477,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
   public Entry getEntry(long tagId) {
-    return TagRouting.entryOf(this.ids.get(tagId));
+    return TagRouting.entryOf(this.ids.getEntryReader(tagId));
   }
 
   @Deprecated
@@ -1618,7 +1618,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** {@code getEntry(tagId)}'s value, or null, for a caller that needs only the value. */
   Object getKnownValue(long tagId) {
-    return this.ids.getKnownValue(tagId);
+    return this.ids.getValue(tagId);
   }
 
   public void set(long tagId, @Nonnull Object value) {
