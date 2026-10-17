@@ -79,9 +79,9 @@ class RootSpanTagsReadThroughTest extends DDCoreJavaSpecification {
 
   /** The known tags the span's own id store holds, not counting what it reads through. */
   private static int localKnownTagCount(DDSpan span) throws Exception {
-    Field tagIds = DDSpanContext.class.getDeclaredField("tagIds");
-    tagIds.setAccessible(true);
-    Object ids = tagIds.get(span.spanContext());
+    Field knownTags = DDSpanContext.class.getDeclaredField("knownTags");
+    knownTags.setAccessible(true);
+    Object ids = knownTags.get(span.spanContext());
     Method computeSize =
         Class.forName("datadog.trace.api.IdStore").getDeclaredMethod("computeSize");
     computeSize.setAccessible(true);

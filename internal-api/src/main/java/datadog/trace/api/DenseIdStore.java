@@ -147,14 +147,14 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  public EntryReader put(EntryReader known) {
-    long tagId = known.tagId();
-    return this.readerOf(tagId, this.store(tagId, known.objectValue()));
+  public EntryReader put(EntryReader entryReader) {
+    long tagId = entryReader.tagId();
+    return this.readerOf(tagId, this.store(tagId, entryReader.objectValue()));
   }
 
   @Override
-  public EntryReader getAndPut(EntryReader known) {
-    long tagId = known.tagId();
+  public EntryReader getAndPut(EntryReader entryReader) {
+    long tagId = entryReader.tagId();
     char serial = (char) KnownTagCodec.serialNum(tagId);
     long bit = slotBit(tagId);
     int level = levelOf(tagId);
@@ -167,10 +167,10 @@ final class DenseIdStore extends IdStore {
         this.markLocal(bit, level);
         this.count++;
       }
-      this.values[i] = known.objectValue();
+      this.values[i] = entryReader.objectValue();
     } else {
       prior = this.mayInherit(bit, level) ? this.parent.getVisible(serial, bit, level) : null;
-      this.append(serial, bit, level, known.objectValue());
+      this.append(serial, bit, level, entryReader.objectValue());
     }
     return this.readerOf(tagId, prior);
   }

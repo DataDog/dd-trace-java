@@ -139,10 +139,10 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Entry put(EntryReader known) {
-    Entry knownEntry = known.entry();
-    Entry replaced = HashSupport.put(this.buckets, knownEntry);
-    this.markLocal(slotBit(knownEntry.tagHash), levelOf(knownEntry.tagHash));
+  public Entry put(EntryReader entryReader) {
+    Entry entry = entryReader.entry();
+    Entry replaced = HashSupport.put(this.buckets, entry);
+    this.markLocal(slotBit(entry.tagHash), levelOf(entry.tagHash));
     if (replaced == null || replaced.tombstone) {
       this.count++; // a tombstone replaced is a removal undone: no prior local entry
       return null;
@@ -151,12 +151,12 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Entry getAndPut(EntryReader known) {
-    Entry knownEntry = known.entry();
-    long tagId = knownEntry.tagHash;
+  public Entry getAndPut(EntryReader entryReader) {
+    Entry entry = entryReader.entry();
+    long tagId = entry.tagHash;
     long bit = slotBit(tagId);
     int level = levelOf(tagId);
-    Entry replaced = HashSupport.put(this.buckets, knownEntry);
+    Entry replaced = HashSupport.put(this.buckets, entry);
     this.markLocal(bit, level);
     if (replaced != null && !replaced.tombstone) {
       return replaced; // replaced a local entry -> that is the prior value
@@ -342,7 +342,7 @@ final class HashIdStore extends IdStore {
     }
     if (this.tombstoneMask != 0L) {
       // A bucket merge would count a replaced tombstone as a replacement, so put one at a time.
-      HashSupport.forEach(that.buckets, this, (self, entry) -> self.put(entry));
+      HashSupport.forEach(that.buckets, this, (self, entryReader) -> self.put(entryReader));
       return;
     }
     if (this.count == 0) {

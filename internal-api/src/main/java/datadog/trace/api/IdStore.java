@@ -152,13 +152,13 @@ public abstract class IdStore {
 
   /**
    * Inserts or replaces a known tag, returning the local entry it replaced (or null). Does not
-   * consult the read-through parent. A store that keeps Entry objects keeps {@code known}'s Entry
-   * (free when it is one); a store that doesn't copies its value.
+   * consult the read-through parent. A store that keeps Entry objects keeps {@code entryReader}'s
+   * Entry (free when it is one); a store that doesn't copies its value.
    */
-  public abstract EntryReader put(EntryReader known);
+  public abstract EntryReader put(EntryReader entryReader);
 
   /** {@link #put}, returning the prior visible entry -- local, else read through. */
-  public abstract EntryReader getAndPut(EntryReader known);
+  public abstract EntryReader getAndPut(EntryReader entryReader);
 
   /**
    * Removes the known tag {@code tagId}, returning the prior visible entry; an inherited one is
