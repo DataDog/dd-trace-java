@@ -708,7 +708,7 @@ public class DDSpanContext
               return;
             }
             if (!ctx.tagInterceptor.interceptTag(this, tagEntry)) {
-              ctx.putEntry(tagEntry);
+              ctx.routePut(tagEntry);
             }
           });
     }
@@ -1024,7 +1024,7 @@ public class DDSpanContext
   }
 
   /** Removes {@code tag}, known or custom. Call under the {@code knownTags} lock. */
-  private void removeStored(String tag) {
+  private void routeRemoval(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
       knownTags.remove(key);
@@ -1036,17 +1036,18 @@ public class DDSpanContext
   /**
    * Copies {@code map}'s tags into the stores, sharing its Entry objects where a store keeps them.
    */
-  private void putAllTags(TagMap map) {
+  private void routePutAll(TagMap map) {
     // straight into the stores: a view created this early would likely be dropped by a later
     // custom write
-    map.forEach(this, (ctx, entryReader) -> ctx.putEntry(entryReader));
+    map.forEach(this, (ctx, entryReader) -> ctx.routePut(entryReader));
   }
 
   /*
-   * The resolved writes: a known tag by id, else a custom tag.
+   * The route* operations send a tag to the store that holds it: the known store by id, else the
+   * custom store by name. Call them while holding the knownTags lock.
    */
 
-  private void setResolved(long key, String tag, Object value) {
+  private void routeSet(long key, String tag, Object value) {
     if (key != 0) {
       knownTags.set(key, value);
     } else {
@@ -1054,7 +1055,7 @@ public class DDSpanContext
     }
   }
 
-  private void setResolved(long key, String tag, CharSequence value) {
+  private void routeSet(long key, String tag, CharSequence value) {
     if (key != 0) {
       knownTags.set(key, value);
     } else {
@@ -1062,7 +1063,7 @@ public class DDSpanContext
     }
   }
 
-  private void setResolved(long key, String tag, boolean value) {
+  private void routeSet(long key, String tag, boolean value) {
     if (key != 0) {
       knownTags.set(key, value);
     } else {
@@ -1070,7 +1071,7 @@ public class DDSpanContext
     }
   }
 
-  private void setResolved(long key, String tag, int value) {
+  private void routeSet(long key, String tag, int value) {
     if (key != 0) {
       knownTags.set(key, value);
     } else {
@@ -1078,7 +1079,7 @@ public class DDSpanContext
     }
   }
 
-  private void setResolved(long key, String tag, long value) {
+  private void routeSet(long key, String tag, long value) {
     if (key != 0) {
       knownTags.set(key, value);
     } else {
@@ -1086,7 +1087,7 @@ public class DDSpanContext
     }
   }
 
-  private void setResolved(long key, String tag, float value) {
+  private void routeSet(long key, String tag, float value) {
     if (key != 0) {
       knownTags.set(key, value);
     } else {
@@ -1094,7 +1095,7 @@ public class DDSpanContext
     }
   }
 
-  private void setResolved(long key, String tag, double value) {
+  private void routeSet(long key, String tag, double value) {
     if (key != 0) {
       knownTags.set(key, value);
     } else {
@@ -1153,25 +1154,25 @@ public class DDSpanContext
 
   public void setMetric(final CharSequence key, final int value) {
     synchronized (knownTags) {
-      storeTag(key.toString(), value);
+      routeSet(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final long value) {
     synchronized (knownTags) {
-      storeTag(key.toString(), value);
+      routeSet(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final float value) {
     synchronized (knownTags) {
-      storeTag(key.toString(), value);
+      routeSet(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final double value) {
     synchronized (knownTags) {
-      storeTag(key.toString(), value);
+      routeSet(key.toString(), value);
     }
   }
 
@@ -1181,45 +1182,44 @@ public class DDSpanContext
     }
 
     synchronized (knownTags) {
-      putEntry(entry);
+      routePut(entry);
     }
   }
 
   /*
-   * Store a tag that interception let through, by name: resolved once to the store that holds it.
-   * Call while holding the tags lock.
+   * Route a tag that interception let through, by name: resolved once to the store that holds it.
    */
 
-  private void storeTag(String tag, Object value) {
-    setResolved(KnownTagCodec.keyOf(tag), tag, value);
+  private void routeSet(String tag, Object value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  private void storeTag(String tag, CharSequence value) {
-    setResolved(KnownTagCodec.keyOf(tag), tag, value);
+  private void routeSet(String tag, CharSequence value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  private void storeTag(String tag, boolean value) {
-    setResolved(KnownTagCodec.keyOf(tag), tag, value);
+  private void routeSet(String tag, boolean value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  private void storeTag(String tag, int value) {
-    setResolved(KnownTagCodec.keyOf(tag), tag, value);
+  private void routeSet(String tag, int value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  private void storeTag(String tag, long value) {
-    setResolved(KnownTagCodec.keyOf(tag), tag, value);
+  private void routeSet(String tag, long value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  private void storeTag(String tag, float value) {
-    setResolved(KnownTagCodec.keyOf(tag), tag, value);
+  private void routeSet(String tag, float value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  private void storeTag(String tag, double value) {
-    setResolved(KnownTagCodec.keyOf(tag), tag, value);
+  private void routeSet(String tag, double value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   /** Stores {@code entry}, sharing its Entry where the store keeps Entry objects. */
-  private void putEntry(TagMap.EntryReader entryReader) {
+  private void routePut(TagMap.EntryReader entryReader) {
     if (entryReader.tagId() != 0) {
       knownTags.put(entryReader); // no Entry built for a dense store, or for a flyweight from one
     } else {
@@ -1233,7 +1233,7 @@ public class DDSpanContext
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (knownTags) {
-      removeStored(tag);
+      routeRemoval(tag);
     }
   }
 
@@ -1289,7 +1289,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        storeTag(tag, value);
+        routeSet(tag, value);
       }
     }
   }
@@ -1305,7 +1305,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        storeTag(tag, value);
+        routeSet(tag, value);
       }
     }
   }
@@ -1418,7 +1418,7 @@ public class DDSpanContext
     // the interceptor prechecks the entry, to avoid boxing
     if (!tagInterceptor.interceptTag(this, entry)) {
       synchronized (knownTags) {
-        putEntry(entry);
+        routePut(entry);
       }
     }
   }
@@ -1453,7 +1453,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        storeTag(tag, value);
+        routeSet(tag, value);
       }
     }
   }
@@ -1468,7 +1468,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        storeTag(tag, value);
+        routeSet(tag, value);
       }
     }
   }
@@ -1483,7 +1483,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        storeTag(tag, value);
+        routeSet(tag, value);
       }
     }
   }
@@ -1498,7 +1498,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        storeTag(tag, value);
+        routeSet(tag, value);
       }
     }
   }
@@ -1513,7 +1513,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        storeTag(tag, value);
+        routeSet(tag, value);
       }
     }
   }
@@ -1536,11 +1536,11 @@ public class DDSpanContext
             this,
             (ctx, tagEntry) -> {
               if (!ctx.tagInterceptor.interceptTag(this, tagEntry)) {
-                ctx.putEntry(tagEntry);
+                ctx.routePut(tagEntry);
               }
             });
       } else {
-        putAllTags(map);
+        routePutAll(map);
       }
     }
   }
@@ -1558,12 +1558,12 @@ public class DDSpanContext
             // mirror removeTag(String): keep the cached ordinal in sync with the tags
             spanKindOrdinal = SPAN_KIND_UNSET;
           }
-          removeStored(tag);
+          routeRemoval(tag);
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
           if (!tagInterceptor.interceptTag(this, entry)) {
-            putEntry(entry);
+            routePut(entry);
           }
         }
       }
@@ -1592,19 +1592,19 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    storeTag(tag, value);
+    routeSet(tag, value);
   }
 
   void unsafeSetTag(final String tag, final CharSequence value) {
-    storeTag(tag, value);
+    routeSet(tag, value);
   }
 
   void unsafeSetTag(final String tag, final byte value) {
-    storeTag(tag, value);
+    routeSet(tag, value);
   }
 
   void unsafeSetTag(final String tag, final double value) {
-    storeTag(tag, value);
+    routeSet(tag, value);
   }
 
   Object getTag(final String key) {
