@@ -13,11 +13,7 @@ import java.io.IOException
 import java.io.InputStream
 
 /**
- * Performs build-time instrumentation of classes, called indirectly from
- * [BuildTimeInstrumentationPlugin].
- *
- * This is the ByteBuddy side of the task; [BuildTimeInstrumentationPlugin] contains the Gradle
- * wiring and task configuration.
+ * Performs build-time instrumentation inside the worker JVM.
  */
 object ByteBuddyInstrumenter {
   private val log = LoggerFactory.getLogger(ByteBuddyInstrumenter::class.java)
