@@ -219,10 +219,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     /**
      * All of a root span's trace-level tags in one frozen map -- these tags over {@code
-     * mergedTracerTags} -- for the root span to read through instead of copying them in. Keeps the
-     * span's own store to span-level tags, which the tag registry's slot coloring assumes: it lets
-     * a span-level and a trace-level tag share a slot bit. Built once per config snapshot (a racy
-     * rebuild is harmless: the result is the same).
+     * mergedTracerTags} -- for the root span to read through instead of copying them in. The tag
+     * registry colors trace-level tags separately, so they reuse span-level slot bits; keeping them
+     * out of the span's own store keeps its slot bits exact. Built once per config snapshot; a racy
+     * rebuild is harmless, since it builds the same map.
      */
     TagMap traceLevelParent(final TagMap mergedTracerTags) {
       TraceLevelTags cached = this.traceLevel;
@@ -2357,9 +2357,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
       // With builder tags taking precedence, a root span reads its trace-level tags (root-span tags
-      // over the merged tracer tags) through one shared frozen parent rather than copying the
-      // root-span tags in. They become the precedence floor -- the order already puts them below
-      // the builder and contextual tags. Tags needing interception are still copied in.
+      // over the merged tracer tags) through one shared frozen parent instead of copying the
+      // root-span tags in. They become the precedence floor: the flag's order already puts them
+      // below builder and contextual tags, and now inbound header tags and prototype defaults also
+      // win over them. Tags needing interception are still copied in.
       final boolean rootSpanTagsReadThrough =
           localRootSpanTags != null
               && tracer.builderTagsPrecedence

@@ -81,9 +81,9 @@ public final class TagRouting {
   }
 
   /**
-   * The Entry an id store's {@code reader} denotes, for a caller that hands it out of the trust
-   * boundary or keeps it: free for a hash store's reader, which is its Entry; a store reading
-   * through a reused flyweight builds one here.
+   * The Entry an id store's {@code reader} denotes, or null, for a caller that keeps it or hands it
+   * out of the trust boundary. Free for a hash store's reader, which is an Entry; for a dense
+   * store's reused flyweight, this builds one.
    */
   public static Entry entryOf(TagMap.EntryReader reader) {
     return reader == null ? null : reader.entry();

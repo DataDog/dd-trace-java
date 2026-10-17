@@ -15,9 +15,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * A TagMap's two stores -- {@link HashIdStore} for known tags, {@link HashStore} for custom tags,
- * created lazily -- the {@link TagRouting} over them, and the span's TagMap ({@link
- * TagMap#forSpan}).
+ * A TagMap's two stores -- an {@link IdStore} for known tags ({@link HashIdStore} unless dense mode
+ * is on), a {@link HashStore} for custom tags, created lazily -- the {@link TagRouting} over them,
+ * and the span's view ({@link TagMap#viewOf}).
  */
 class TagStoresTest {
   private static TagMap frozenParent() {

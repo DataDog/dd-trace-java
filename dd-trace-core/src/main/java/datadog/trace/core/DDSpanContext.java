@@ -1012,7 +1012,9 @@ public class DDSpanContext
     }
   }
 
-  /** Copies {@code map}'s tags into the stores, sharing its Entry objects. */
+  /**
+   * Copies {@code map}'s tags into the stores, sharing its Entry objects where a store keeps them.
+   */
   private void putAllTags(TagMap map) {
     TagMap view = tagView();
     view.putAll(map);

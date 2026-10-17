@@ -12,11 +12,11 @@ import java.util.function.Consumer;
  * The hash {@link IdStore}: known tags in their own bucket array ({@link HashSupport}), keyed by
  * id, reading through to the frozen parent's id store.
  *
- * <p>A read checks the slot masks before probing: a clear local bit skips the buckets, and a clear
- * inherited bit skips the read-through. Removing an inherited tag puts that tag's shared tombstone
- * ({@link Entry#tombstoneOf}) in the local buckets, so it allocates nothing, and sets its slot in
- * the tombstone mask; the bucket entry is the exact state, the mask the hint. A tombstone is never
- * counted, iterated or returned.
+ * <p>A read checks the slot and level masks ({@link IdStore}) before probing: a clear local bit
+ * skips the buckets, and a clear inherited bit skips the read-through. Removing an inherited tag
+ * puts that tag's shared tombstone ({@link Entry#tombstoneOf}) in the local buckets, so it
+ * allocates nothing, and sets its slot in the tombstone mask; the bucket entry is the exact state,
+ * the mask the hint. A tombstone is never counted, iterated or returned.
  */
 final class HashIdStore extends IdStore {
   /** An empty parentless store over one bucket, for {@link TagMap#EMPTY}, which is frozen. */

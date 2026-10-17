@@ -34,12 +34,8 @@ final class HashSupport {
   }
 
   /**
-   * Finds an entry by hash/tag within a single bucket object (Entry | BucketGroup chain | null).
-   */
-  /**
-   * {@link #find} for a known tag, matching on its id rather than its name: an id store's entries
-   * are all keyed by id, so it never needs a name to look one up. {@code hash} is {@code
-   * Entry.bucketHash(tagId)}.
+   * {@link #find} for a known tag, matching on its id rather than its name, so an id store never
+   * needs a name. {@code hash} is {@code Entry.bucketHash(tagId)}.
    */
   static Entry findById(Object[] buckets, int hash, long tagId) {
     Object bucket = buckets[hash & (buckets.length - 1)];
@@ -52,6 +48,7 @@ final class HashSupport {
     return null;
   }
 
+  /** Finds an entry by hash and tag in one bucket: an Entry, a BucketGroup chain, or null. */
   static Entry findInBucket(Object bucket, int hash, String tag) {
     if (bucket instanceof Entry) {
       Entry tagEntry = (Entry) bucket;
@@ -173,7 +170,7 @@ final class HashSupport {
   static int merge(Object[] thisBuckets, Object[] thatBuckets) {
     int added = 0;
 
-    // Since TagMap-s don't support expansion, buckets are perfectly aligned
+    // Stores don't expand, so buckets are perfectly aligned
     // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
     // elimination
     for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
@@ -230,7 +227,7 @@ final class HashSupport {
           Entry incomingEntry = thisNewGroup.findInChain(thisHash, thisEntry.tag());
           if (incomingEntry != null) {
             // there's already an entry w/ the same tag from the incoming TagMap
-            // incoming entry clobbers the existing try, so we're done
+            // incoming entry clobbers the existing entry, so we're done
             thisBuckets[i] = thisNewGroup;
 
             // overlapping group - subtract one for clobbered existing entry

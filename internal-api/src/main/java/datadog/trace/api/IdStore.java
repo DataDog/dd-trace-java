@@ -8,16 +8,17 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Known tags keyed by their {@link KnownTags} id. Every method takes an id, or an Entry already
- * built from one -- never a name, so nothing here can be handed a name that a caller has not yet
- * resolved.
+ * Known tags keyed by their {@link KnownTags} id. Every method takes an id, or an {@link
+ * EntryReader} for a known tag -- never a name, so nothing here can be handed a name that a caller
+ * has not yet resolved.
  *
  * <p>A span in the tracer core owns its id store directly ({@link TagRouting#newIdStore}); a {@link
  * TagMap} owns one too.
  *
- * <p>Each implementation is its own class -- {@link HashIdStore} or {@link DenseIdStore}, one per
- * JVM, chosen by {@link IdStoreFactory} -- and nothing that is always loaded may extend this class,
- * so a call through it stays monomorphic. No locking: guarded by the owner's lock.
+ * <p>{@link IdStoreFactory} loads one implementation per JVM, {@link HashIdStore} or {@link
+ * DenseIdStore}. With one subclass loaded, class hierarchy analysis devirtualizes every call on an
+ * {@code IdStore} without a type guard, so nothing that is always loaded may extend this class. No
+ * locking: guarded by the owner's lock.
  *
  * <p>The base keeps the slot masks an implementation shares: a tag's slot ({@link
  * KnownTagCodec#slotOf}) maps it to one bit of a {@code long}. A bit is a may-be-present hint --
@@ -194,10 +195,10 @@ public abstract class IdStore {
    */
   abstract Cursor cursor();
 
-  /** An independently mutable copy with the same parent, sharing Entry objects. */
+  /** An independently mutable copy with the same parent, sharing any Entry objects it holds. */
   abstract IdStore copy();
 
-  /** Copies the entries of the parentless store {@code that}, sharing Entry objects. */
+  /** Copies the entries of the parentless store {@code that}, sharing any Entry objects. */
   abstract void putAllLocal(IdStore that);
 
   /** Puts the local entries into {@code map}, for a store with no parent. */

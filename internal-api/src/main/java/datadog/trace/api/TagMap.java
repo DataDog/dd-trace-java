@@ -446,8 +446,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     volatile String strCache = null;
 
     /**
-     * True for a known tag's tombstone: the marker an id store puts in its own buckets to hide an
-     * inherited entry it has removed. Never visible outside the store; see {@link #tombstoneOf}.
+     * True for a known tag's tombstone: the marker the hash id store puts in its own buckets to
+     * hide an inherited entry it has removed. Never visible outside the store; see {@link
+     * #tombstoneOf}.
      */
     final boolean tombstone;
 
@@ -1204,8 +1205,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /*
-   * A TagMap holds its tags in two stores, each with its own bucket array: an IdStore with the
-   * known tags by id, and a HashStore with the custom tags by name. Their key spaces are disjoint,
+   * A TagMap holds its tags in two stores: an IdStore with the known tags by id, and a HashStore
+   * with the custom tags by name. Their key spaces are disjoint,
    * so each store reads through to its own parent chain and keeps its own tombstones, and
    * precedence never crosses stores.
    *

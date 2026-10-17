@@ -14,12 +14,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 public final class KnownTagCodec {
   /*
    * tagId bit layout: [63-48 serialNum (16 bits, 15 used: bit 63 is kept clear)] [47-32 slot]
-   * [31-0 flags]. Keeping bit 63 clear makes every id positive, so 0 (unknown) and the negative
-   * lookup sentinels below can never be ids; the generator enforces it. serialNum is globally
-   * unique per known tag and is the whole of the tag's identity — nameOf/openTelemetryNameOf switch
-   * on it, and the generator emits each id as a literal. Bits [47-32] hold the tag's slot ({@link
-   * #slotOf}), assigned by graph coloring so tags on one span type never share a slot, or {@link
-   * #NO_SLOT} for a tag on no modeled span type. Of the low 32 flag bits, bit 2 is the trace/span
+   * [31-0 flags]. The generator keeps bit 63 clear, so every id is positive and a negative value
+   * can never be an id. serialNum is globally unique per known tag and is the whole of the tag's
+   * identity — nameOf/openTelemetryNameOf switch on it, and the generator emits each id as a
+   * literal. Bits [47-32] hold the tag's slot ({@link #slotOf}), or {@link #NO_SLOT} for a tag on
+   * no modeled span type. Graph coloring gives tags that appear together on a span type distinct
+   * slots; trace-level tags are colored separately and reuse the span-level slots. Of the low 32 flag bits, bit 2 is the trace/span
    * LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown (string-only) custom
    * tags are NOT known ids — {@code keyOf} returns 0 for them.
    *

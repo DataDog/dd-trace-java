@@ -32,9 +32,9 @@ public final class HashStore {
   final HashStore parent;
 
   /**
-   * Parent keys removed locally (read-through tombstones). Lazily allocated on the first such
-   * removal; {@code null} both means "no tombstones" and serves as the gate that keeps the hot
-   * paths untouched. A tombstone stops read-through for its key.
+   * Parent keys removed locally (read-through tombstones): a tombstone stops read-through for its
+   * key. Allocated on the first such removal, so while it is {@code null} the hot paths skip the
+   * tombstone checks.
    */
   private Set<String> removedFromParent;
 
@@ -159,7 +159,7 @@ public final class HashStore {
     return replaced;
   }
 
-  /** {@link #put(Entry)}, returning the prior visible entry -- local, else read through. */
+  /** {@link #put}, returning the prior visible entry -- local, else read through. */
   public Entry getAndPut(Entry newEntry) {
     // Capture whether the key was tombstoned BEFORE put clears it: a tombstoned key had no visible
     // prior value (it was removed), so getAndPut must report null rather than the parent's.

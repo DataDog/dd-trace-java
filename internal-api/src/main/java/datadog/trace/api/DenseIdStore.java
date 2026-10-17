@@ -11,17 +11,17 @@ import java.util.function.Consumer;
  * The dense {@link IdStore}: known tags in two parallel arrays -- each tag's 16-bit serial and its
  * value -- with no Entry per tag, reading through to the frozen parent's store.
  *
- * <p>A lookup is a linear scan of the serials, skipped when the slot masks rule the tag out. The
- * full id is rebuilt from the serial ({@link KnownTagCodec#idOf}) only where a reader asks for it.
- * Values are boxed: a primitive set by id is stored as its wrapper.
+ * <p>A lookup is a linear scan of the serials, skipped when the slot and level masks rule the tag
+ * out. The full id is rebuilt from the serial ({@link KnownTagCodec#idOf}) only where a reader asks
+ * for it. Values are boxed: a primitive set by id is stored as its wrapper.
  *
  * <p>Point reads that need only the value ({@link #getValue}) build nothing. Those that return an
  * {@link EntryReader} answer with this store's one reused flyweight, valid until the store's next
  * operation (see {@link IdStore}).
  *
- * <p>Removing a local tag swaps the last tag into its place. Removing an inherited tag leaves the
- * shared {@link #TOMBSTONE} as its value, in place, and sets its slot in the tombstone mask; a
- * tombstone is never counted, iterated or returned.
+ * <p>Removing a tag that hides nothing inherited swaps the last slot into its place. Removing a tag
+ * the parent chain also holds stores the shared {@link #TOMBSTONE} as its value instead, and sets
+ * its slot in the tombstone mask. A tombstone is never counted, iterated or returned.
  */
 final class DenseIdStore extends IdStore {
   /** A value hiding an inherited tag. Never escapes the store. */
@@ -62,7 +62,7 @@ final class DenseIdStore extends IdStore {
     }
   }
 
-  /** Each local tag's serial, then {@link #used} slots in; parallel to {@link #values}. */
+  /** The serial of each local tag or tombstone, in the first {@link #used} slots. */
   private char[] serials = NO_SERIALS;
 
   private Object[] values = NO_VALUES;

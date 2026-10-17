@@ -17,8 +17,9 @@ import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Measures reading tags back from a live span, by how the tag is named: a known tag's name, a
- * custom name, a direction-scoped alias, and a miss. {@code getTag} takes the span's tag lock;
- * {@code unsafeGetTag} reads without it, as the tracer's internal readers do.
+ * custom name, an OpenTelemetry name ({@code server.address}, which the core treats as a custom
+ * name), and misses. {@code getTag} takes the span's tag lock; {@code unsafeGetTag} reads without
+ * it, as the tracer's internal readers do.
  */
 @State(Scope.Thread)
 @Warmup(iterations = 3, time = 1)
