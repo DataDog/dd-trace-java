@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.play23;
 
+import static java.lang.Math.max;
+
+import datadog.trace.bootstrap.instrumentation.api.HostHeader;
 import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import play.api.mvc.Request;
 
@@ -11,9 +14,10 @@ final class RequestURIDataAdapter extends URIRawDataAdapter {
 
   RequestURIDataAdapter(Request request) {
     this.request = request;
-    int split = request.host().lastIndexOf(':');
-    this.host = split == -1 ? request.host() : request.host().substring(0, split);
-    this.port = split == -1 ? 0 : Integer.parseInt(request.host().substring(split + 1));
+    // the Host header comes from the client, so the port may be missing or malformed
+    final String hostHeader = request.host();
+    this.host = HostHeader.host(hostHeader);
+    this.port = max(HostHeader.port(hostHeader), 0);
   }
 
   @Override
