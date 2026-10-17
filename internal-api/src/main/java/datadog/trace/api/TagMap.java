@@ -92,19 +92,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * local miss/removal for no benefit.
    */
   public static final TagMap createFromParent(TagMap parent) {
-    if (parent != null) {
-      if (!parent.frozen) {
-        throw new IllegalStateException("read-through parent must be frozen");
-      }
-      // Exact, not isDefinitelyEmpty(): a multi-level parent can be observationally empty while a
-      // local level still holds entries (all of them tombstoned by a nearer level). Dropping such a
-      // parent keeps isEmpty()'s no-tombstone fast path valid -- an attached parent always
-      // contributes at least one visible entry.
-      if (parent.isEmpty()) {
-        parent = null;
-      }
-    }
-    return new TagMap(parent);
+    return new TagMap(readThroughParent(parent));
   }
 
   /** Creates a new TagMap.Ledger */
@@ -1244,11 +1232,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * optimizations can treat it as fixed.
    */
   private TagMap(TagMap parent) {
-    this.knownStore =
-        IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
-    HashStore parentNames = parent == null ? null : parent.nameStore;
-    this.nameStore = parentNames;
-    this.nameStoreBorrowed = parentNames != null;
+    this.knownStore = IdStore.create(parent);
+    this.nameStore = HashStore.inheritedFrom(parent);
+    this.nameStoreBorrowed = this.nameStore != null;
     this.frozen = false;
     this.parent = parent;
   }
@@ -1301,6 +1287,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     if (!parent.isFrozen()) {
       throw new IllegalStateException("read-through parent must be frozen");
     }
+    // Exact, not isDefinitelyEmpty(): a multi-level parent can be observationally empty while a
+    // local level still holds entries (all of them tombstoned by a nearer level). Dropping such a
+    // parent keeps isEmpty()'s no-tombstone fast path valid -- an attached parent always
+    // contributes at least one visible entry.
     return parent.isEmpty() ? null : parent;
   }
 
@@ -1330,7 +1320,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     HashStore nameStore = this.nameStore;
     if (nameStore == null || this.nameStoreBorrowed) {
       // A borrowed store is the nearest ancestor's custom store: read through to it.
-      nameStore = new HashStore(nameStore);
+      nameStore = HashStore.create(nameStore);
       this.nameStore = nameStore;
       this.nameStoreBorrowed = false;
     }

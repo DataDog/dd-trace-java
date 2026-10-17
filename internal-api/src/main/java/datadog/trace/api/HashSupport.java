@@ -374,11 +374,11 @@ final class HashSupport {
 
         for (BucketGroup curGroup = thisGroup; curGroup != null; curGroup = curGroup.prev) {
           for (int j = 0; j < BucketGroup.LEN; ++j) {
-            Entry thisEntry = curGroup._entryAt(i);
+            Entry thisEntry = curGroup._entryAt(j);
             if (thisEntry == null) continue;
 
             int thisHash = thisEntry.hash();
-            assert curGroup._hashAt(i) == thisHash;
+            assert curGroup._hashAt(j) == thisHash;
 
             int expectedBucket = thisHash & (thisBuckets.length - 1);
             if (expectedBucket != i) {

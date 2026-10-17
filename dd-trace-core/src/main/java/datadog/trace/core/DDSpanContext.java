@@ -252,7 +252,6 @@ public class DDSpanContext
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -274,7 +273,6 @@ public class DDSpanContext
         null,
         errorFlag,
         spanType,
-        tagsSize,
         traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
@@ -301,7 +299,6 @@ public class DDSpanContext
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -325,7 +322,6 @@ public class DDSpanContext
         null,
         errorFlag,
         spanType,
-        tagsSize,
         traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
@@ -355,7 +351,6 @@ public class DDSpanContext
       final Baggage w3cBaggage,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -381,7 +376,6 @@ public class DDSpanContext
         w3cBaggage,
         errorFlag,
         spanType,
-        tagsSize,
         traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
@@ -410,7 +404,6 @@ public class DDSpanContext
       final Baggage w3cBaggage,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -1269,13 +1262,12 @@ public class DDSpanContext
    */
   /** Whether {@code entry}'s tag is already on this span. */
   private boolean isPresent(TagMap.EntryReader entry) {
-    String tag = entry.tag();
-    long key = KnownTagCodec.keyOf(tag);
+    long key = entry.tagId(); // the reader already carries its id: no name lookup
     if (key != 0) {
       return knownTags.getValue(key) != null;
     }
     HashStore custom = customTags;
-    return custom != null && custom.get(tag) != null;
+    return custom != null && custom.get(entry.tag()) != null;
   }
 
   public void setTag(final String tag, final Object value) {

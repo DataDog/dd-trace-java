@@ -2373,13 +2373,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         tagParent = mergedTracerTagsNeedsIntercept ? null : mergedTracerTags;
       }
 
-      final int tagsSize =
-          mergedTracerTags.size()
-              + (null == tagLedger ? 0 : tagLedger.estimateSize())
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags || rootSpanTagsReadThrough ? 0 : rootSpanTags.size())
-              + (null == contextualTags ? 0 : contextualTags.size());
-
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
       }
@@ -2407,7 +2400,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               w3cBaggage,
               errorFlag,
               spanType,
-              tagsSize,
               parentTraceCollector,
               requestContextDataAppSec,
               requestContextDataIast,
