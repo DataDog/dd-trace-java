@@ -38,7 +38,6 @@ public final class HashStore {
    */
   private Set<String> removedFromParent;
 
-  /** A fresh, empty store reading through to {@code parent} (may be null), which is frozen. */
   /**
    * {@code parent}'s custom store, for an owner to borrow read-only until its first custom write,
    * or null.

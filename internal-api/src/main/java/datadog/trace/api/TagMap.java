@@ -48,9 +48,8 @@ import javax.annotation.Nullable;
  */
 public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
-  // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
-  // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
-  // reads no statics, so this is safe to build directly during TagMap's <clinit>.
+  // Built from the JVM's chosen store's createEmpty(); IdStoreFactory explains why that is safe
+  // during TagMap's <clinit>, whichever class initializes first.
   public static final TagMap EMPTY = new TagMap(IdStoreFactory.Default.INSTANCE.createEmpty());
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
