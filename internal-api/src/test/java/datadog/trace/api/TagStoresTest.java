@@ -131,17 +131,32 @@ class TagStoresTest {
   @Test
   void aClearSlotBitIsADefiniteMiss() {
     HashIdStore ids = new HashIdStore(null);
-    assertEquals(0L, ids.occupancy);
+    assertEquals(0L, ids.spanOccupancy);
     assertNull(ids.getEntryReader(KnownTags.HTTP_ROUTE_ID));
 
     ids.set(KnownTags.HTTP_ROUTE_ID, "/a");
-    assertNotEquals(0L, ids.occupancy & IdStore.slotBit(KnownTags.HTTP_ROUTE_ID));
+    assertNotEquals(0L, ids.spanOccupancy & IdStore.slotBit(KnownTags.HTTP_ROUTE_ID));
     assertEquals("/a", ids.getValue(KnownTags.HTTP_ROUTE_ID));
 
     // a child inherits its parent's slots, so a read-through miss can stop early
     HashIdStore child = new HashIdStore(ids);
-    assertEquals(ids.occupancy, child.inheritedMask);
+    assertEquals(ids.spanOccupancy, child.inheritedMask);
     assertEquals("/a", child.getValue(KnownTags.HTTP_ROUTE_ID));
+  }
+
+  @Test
+  void aTraceLevelTagDoesNotDefeatASpanLevelMissInTheSameSlot() {
+    // A local root span holds trace-level and span-level tags in one store, and the two levels are
+    // colored independently, so their slot numbers overlap.
+    for (IdStore ids : new IdStore[] {new HashIdStore(null), new DenseIdStore(null)}) {
+      ids.set(KnownTags.RUNTIME_ID, "abc");
+      ids.set(KnownTags.HTTP_ROUTE_ID, "/a");
+      long runtimeIdBit = IdStore.slotBit(KnownTags.RUNTIME_ID);
+      assertNotEquals(runtimeIdBit, IdStore.slotBit(KnownTags.HTTP_ROUTE_ID), "test precondition");
+
+      assertTrue(ids.mayHaveLocal(runtimeIdBit, IdStore.TRACE_LEVEL));
+      assertFalse(ids.mayHaveLocal(runtimeIdBit, IdStore.SPAN_LEVEL), ids.getClass().getName());
+    }
   }
 
   @Test

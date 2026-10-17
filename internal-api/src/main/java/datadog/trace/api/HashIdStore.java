@@ -349,9 +349,10 @@ final class HashIdStore extends IdStore {
     HashIdStore copy = new HashIdStore(this.parent);
     HashSupport.copyInto(copy.buckets, this.buckets);
     copy.count = this.count;
-    copy.occupancy = this.occupancy;
+    copy.spanOccupancy = this.spanOccupancy;
+    copy.traceOccupancy = this.traceOccupancy;
     copy.tombstoneMask = this.tombstoneMask;
-    copy.levels = this.levels;
+    copy.tombstoneLevels = this.tombstoneLevels;
     return copy;
   }
 
@@ -372,8 +373,8 @@ final class HashIdStore extends IdStore {
     } else {
       this.count += HashSupport.merge(this.buckets, that.buckets);
     }
-    this.occupancy |= that.occupancy;
-    this.levels |= that.levels;
+    this.spanOccupancy |= that.spanOccupancy;
+    this.traceOccupancy |= that.traceOccupancy;
   }
 
   @Override

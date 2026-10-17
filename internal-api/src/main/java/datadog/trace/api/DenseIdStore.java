@@ -538,9 +538,10 @@ final class DenseIdStore extends IdStore {
     }
     copy.used = this.used;
     copy.count = this.count;
-    copy.occupancy = this.occupancy;
+    copy.spanOccupancy = this.spanOccupancy;
+    copy.traceOccupancy = this.traceOccupancy;
     copy.tombstoneMask = this.tombstoneMask;
-    copy.levels = this.levels;
+    copy.tombstoneLevels = this.tombstoneLevels;
     return copy;
   }
 
@@ -556,8 +557,8 @@ final class DenseIdStore extends IdStore {
       this.values = Arrays.copyOf(that.values, that.values.length);
       this.used = that.used;
       this.count = that.count;
-      this.occupancy |= that.occupancy;
-      this.levels |= that.levels;
+      this.spanOccupancy |= that.spanOccupancy;
+      this.traceOccupancy |= that.traceOccupancy;
       return;
     }
     for (int i = 0; i < that.used; ++i) {
@@ -603,11 +604,12 @@ final class DenseIdStore extends IdStore {
         throw new IllegalStateException("not a known serial: " + (int) serial);
       }
       long tagId = KnownTagCodec.idOf(serial);
-      long mask = this.values[i] == TOMBSTONE ? this.tombstoneMask : this.occupancy;
+      boolean tombstone = this.values[i] == TOMBSTONE;
+      long mask = tombstone ? this.tombstoneMask : this.occupancy(levelOf(tagId));
       if ((mask & slotBit(tagId)) == 0L) {
         throw new IllegalStateException("slot bit not set: " + nameAt(i));
       }
-      if ((this.levels & levelOf(tagId)) == 0) {
+      if (tombstone && (this.tombstoneLevels & levelOf(tagId)) == 0) {
         throw new IllegalStateException("level not set: " + nameAt(i));
       }
       if (this.values[i] == null) {

@@ -39,8 +39,15 @@ public abstract class IdStore {
     EntryReader next();
   }
 
-  /** Slots that may hold a live local entry. */
-  long occupancy;
+  /**
+   * Slots that may hold a live local span-level entry. Span-level and trace-level tags are colored
+   * independently, so their slot numbers overlap; a local root span holds both, so each level keeps
+   * its own word and a span-level miss isn't defeated by a trace-level tag in the same slot.
+   */
+  long spanOccupancy;
+
+  /** Slots that may hold a live local trace-level entry; see {@link #spanOccupancy}. */
+  long traceOccupancy;
 
   /** Slots that may hold a local tombstone, hiding an inherited entry. */
   long tombstoneMask;
@@ -51,8 +58,8 @@ public abstract class IdStore {
    */
   final long inheritedMask;
 
-  /** The levels ({@link #SPAN_LEVEL}, {@link #TRACE_LEVEL}) of the local entries and tombstones. */
-  byte levels;
+  /** The levels ({@link #SPAN_LEVEL}, {@link #TRACE_LEVEL}) of the local tombstones. */
+  byte tombstoneLevels;
 
   /** The levels an ancestor may hold, fixed at construction like {@link #inheritedMask}. */
   final byte inheritedLevels;
@@ -65,8 +72,8 @@ public abstract class IdStore {
       this.inheritedMask = 0L;
       this.inheritedLevels = 0;
     } else {
-      this.inheritedMask = parent.occupancy | parent.inheritedMask;
-      this.inheritedLevels = (byte) (parent.levels | parent.inheritedLevels);
+      this.inheritedMask = parent.spanOccupancy | parent.traceOccupancy | parent.inheritedMask;
+      this.inheritedLevels = (byte) (parent.localLevels() | parent.inheritedLevels);
     }
   }
 
@@ -85,9 +92,22 @@ public abstract class IdStore {
     return 1 << (int) ((tagId & KnownTagCodec.LEVEL_TRACE) >>> 2);
   }
 
+  /** The occupancy word of {@code level}: a select that folds when the level is constant. */
+  final long occupancy(int level) {
+    return level == TRACE_LEVEL ? this.traceOccupancy : this.spanOccupancy;
+  }
+
+  /** The levels of the local entries and tombstones. */
+  final int localLevels() {
+    return (this.spanOccupancy != 0L ? SPAN_LEVEL : 0)
+        | (this.traceOccupancy != 0L ? TRACE_LEVEL : 0)
+        | this.tombstoneLevels;
+  }
+
   /** Whether the slot {@code bit} may hold a local entry or tombstone of {@code level}. */
   final boolean mayHaveLocal(long bit, int level) {
-    return (levels & level) != 0 && ((occupancy | tombstoneMask) & bit) != 0L;
+    return (occupancy(level) & bit) != 0L
+        || ((tombstoneLevels & level) != 0 && (tombstoneMask & bit) != 0L);
   }
 
   /** Whether an ancestor may hold a tag of {@code level} in the slot {@code bit}. */
@@ -97,14 +117,17 @@ public abstract class IdStore {
 
   /** Records a live local entry in the slot {@code bit} of {@code level}. */
   final void markLocal(long bit, int level) {
-    this.occupancy |= bit;
-    this.levels |= (byte) level;
+    if (level == TRACE_LEVEL) {
+      this.traceOccupancy |= bit;
+    } else {
+      this.spanOccupancy |= bit;
+    }
   }
 
   /** Records a local tombstone in the slot {@code bit} of {@code level}. */
   final void markTombstone(long bit, int level) {
     this.tombstoneMask |= bit;
-    this.levels |= (byte) level;
+    this.tombstoneLevels |= (byte) level;
   }
 
   /** Throws for an id that names no known tag. */
