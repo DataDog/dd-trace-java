@@ -34,9 +34,9 @@ import java.util.function.Consumer;
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
   /** Visits a store's visible entries one at a time. */
-  abstract static class Cursor {
+  interface Cursor {
     /** The next visible entry, or null when there are none left. */
-    abstract EntryReader next();
+    EntryReader next();
   }
 
   /** Slots that may hold a live local entry. */

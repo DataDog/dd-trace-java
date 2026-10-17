@@ -33,12 +33,115 @@ final class DenseIdStore extends IdStore {
   private static final char[] NO_SERIALS = new char[0];
   private static final Object[] NO_VALUES = new Object[0];
 
-  /** Walks the leaf's slots, then each ancestor's, skipping tombstones and shadowed tags. */
-  private static final class DenseCursor extends Cursor {
+  /**
+   * The reused flyweight a dense store answers with: a known tag's id and value, with no Entry. Its
+   * name is resolved from the id only when asked for.
+   */
+  static class DenseReader implements EntryReader {
+    private long tagId;
+    private Object value;
+    private String tag; // resolved lazily via nameOf on first tag() access
+
+    void set(long tagId, Object value) {
+      this.tagId = tagId;
+      this.value = value;
+      this.tag = null;
+    }
+
+    @Override
+    public final String tag() {
+      String tag = this.tag;
+      if (tag == null) {
+        tag = KnownTagCodec.nameOf(this.tagId);
+        this.tag = tag;
+      }
+      return tag;
+    }
+
+    @Override
+    public final long tagId() {
+      return this.tagId;
+    }
+
+    @Override
+    public final byte type() {
+      return TagValueConversions.typeOf(this.value);
+    }
+
+    @Override
+    public final boolean is(byte type) {
+      return TagValueConversions.isA(this.value, type);
+    }
+
+    @Override
+    public final boolean isNumber() {
+      return TagValueConversions.isNumber(this.value);
+    }
+
+    @Override
+    public final boolean isNumericPrimitive() {
+      return TagValueConversions.isNumericPrimitive(this.value);
+    }
+
+    @Override
+    public final boolean isObject() {
+      return TagValueConversions.isObject(this.value);
+    }
+
+    @Override
+    public final boolean booleanValue() {
+      return TagValueConversions.toBoolean(this.value);
+    }
+
+    @Override
+    public final int intValue() {
+      return TagValueConversions.toInt(this.value);
+    }
+
+    @Override
+    public final long longValue() {
+      return TagValueConversions.toLong(this.value);
+    }
+
+    @Override
+    public final float floatValue() {
+      return TagValueConversions.toFloat(this.value);
+    }
+
+    @Override
+    public final double doubleValue() {
+      return TagValueConversions.toDouble(this.value);
+    }
+
+    @Override
+    public final String stringValue() {
+      return TagValueConversions.toString(this.value);
+    }
+
+    @Override
+    public final Object objectValue() {
+      return this.value;
+    }
+
+    @Override
+    public final TagMap.Entry entry() {
+      return TagMap.Entry.newAnyEntry(this.tagId, this.value);
+    }
+
+    @Override
+    public final Map.Entry<String, Object> mapEntry() {
+      return this.entry();
+    }
+  }
+
+  /**
+   * Walks the leaf's slots, then each ancestor's, skipping tombstones and shadowed tags. The cursor
+   * is its own flyweight: {@link #next} points it at the next visible tag and returns it.
+   */
+  private static final class DenseCursor extends DenseReader implements Cursor {
     private final DenseIdStore leaf;
     private DenseIdStore level;
     private int index = -1;
-    private final EntryReadingHelper reader = new EntryReadingHelper();
 
     DenseCursor(DenseIdStore leaf) {
       this.leaf = leaf;
@@ -46,12 +149,12 @@ final class DenseIdStore extends IdStore {
     }
 
     @Override
-    EntryReader next() {
+    public EntryReader next() {
       DenseIdStore level = this.level;
       while (level != null) {
         for (++this.index; this.index < level.used; ++this.index) {
-          if (this.leaf.readIfVisible(level, this.index, this.reader)) {
-            return this.reader;
+          if (this.leaf.readIfVisible(level, this.index, this)) {
+            return this;
           }
         }
         level = level.parent;
@@ -77,7 +180,7 @@ final class DenseIdStore extends IdStore {
   final DenseIdStore parent;
 
   /** The reused flyweight point reads answer with; built on first use. */
-  private EntryReadingHelper reader;
+  private DenseReader reader;
 
   DenseIdStore(IdStore parent) {
     super(parent);
@@ -291,9 +394,9 @@ final class DenseIdStore extends IdStore {
     if (value == null) {
       return null;
     }
-    EntryReadingHelper reader = this.reader;
+    DenseReader reader = this.reader;
     if (reader == null) {
-      reader = new EntryReadingHelper();
+      reader = new DenseReader();
       this.reader = reader;
     }
     reader.set(tagId, value);
@@ -376,7 +479,7 @@ final class DenseIdStore extends IdStore {
   }
 
   /** Points {@code reader} at slot {@code i} of {@code level}, if it holds a visible tag. */
-  private boolean readIfVisible(DenseIdStore level, int i, EntryReadingHelper reader) {
+  private boolean readIfVisible(DenseIdStore level, int i, DenseReader reader) {
     Object value = level.values[i];
     if (value == TOMBSTONE || (level != this && !this.visibleFrom(level, i))) {
       return false;
@@ -387,7 +490,7 @@ final class DenseIdStore extends IdStore {
 
   @Override
   void forEach(Consumer<? super EntryReader> consumer) {
-    EntryReadingHelper reader = new EntryReadingHelper();
+    DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
         if (this.readIfVisible(level, i, reader)) {
@@ -399,7 +502,7 @@ final class DenseIdStore extends IdStore {
 
   @Override
   <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-    EntryReadingHelper reader = new EntryReadingHelper();
+    DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
         if (this.readIfVisible(level, i, reader)) {
@@ -411,7 +514,7 @@ final class DenseIdStore extends IdStore {
 
   @Override
   <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-    EntryReadingHelper reader = new EntryReadingHelper();
+    DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
         if (this.readIfVisible(level, i, reader)) {

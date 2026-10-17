@@ -25,7 +25,7 @@ final class HashIdStore extends IdStore {
   }
 
   /** Walks the leaf's buckets, then each ancestor's, skipping tombstones and shadowed entries. */
-  private static final class HashCursor extends Cursor {
+  private static final class HashCursor implements Cursor {
     private final HashIdStore leaf;
     private HashIdStore level;
     private final HashSupport.BucketWalker walker = new HashSupport.BucketWalker();
@@ -37,7 +37,7 @@ final class HashIdStore extends IdStore {
     }
 
     @Override
-    EntryReader next() {
+    public EntryReader next() {
       HashIdStore level = this.level;
       while (level != null) {
         Entry entry = this.walker.next();
