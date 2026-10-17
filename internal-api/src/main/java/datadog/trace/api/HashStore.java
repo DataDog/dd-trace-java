@@ -18,8 +18,8 @@ import java.util.function.Consumer;
  * IdStore}.
  *
  * <p>Created lazily by its owner -- a {@link TagMap}, or a span in the tracer core -- on the first
- * custom write ({@link TagRouting#newCustomStore}); until then the owner borrows its parent's
- * custom store, if any, read-only. No locking: guarded by the owner's lock.
+ * custom write ({@link #create}); until then the owner borrows its parent's custom store, if any,
+ * read-only. No locking: guarded by the owner's lock.
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public final class HashStore {
@@ -39,6 +39,22 @@ public final class HashStore {
   private Set<String> removedFromParent;
 
   /** A fresh, empty store reading through to {@code parent} (may be null), which is frozen. */
+  /**
+   * {@code parent}'s custom store, for an owner to borrow read-only until its first custom write,
+   * or null.
+   */
+  public static HashStore inheritedFrom(TagMap parent) {
+    return parent == null ? null : parent.names;
+  }
+
+  /**
+   * A fresh custom store for an owner's first custom write, reading through to {@code borrowed},
+   * the store it borrowed until now (may be null).
+   */
+  public static HashStore create(HashStore borrowed) {
+    return new HashStore(borrowed);
+  }
+
   HashStore(HashStore parent) {
     this.buckets = HashSupport.newBuckets();
     this.parent = parent;

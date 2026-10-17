@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A TagMap's two stores -- an {@link IdStore} for known tags ({@link HashIdStore} unless dense mode
- * is on), a {@link HashStore} for custom tags, created lazily -- the {@link TagRouting} over them,
+ * is on), a {@link HashStore} for custom tags, created lazily -- the name-or-id routing over them,
  * and the span's view ({@link TagMap#viewOf}).
  */
 class TagStoresTest {
@@ -230,38 +230,34 @@ class TagStoresTest {
 
   @Test
   void routingReadsKnownTagsByIdAndEverythingElseByName() {
-    IdStore ids = TagRouting.newIdStore(null);
-    HashStore names = TagRouting.newCustomStore(null);
-    long route = TagRouting.keyOf(KnownTags.HTTP_ROUTE_NAME);
-    assertEquals(KnownTags.HTTP_ROUTE_ID, route);
-    assertEquals(0L, TagRouting.keyOf("my.tag"));
+    IdStore ids = IdStore.create(null);
+    HashStore names = HashStore.create(null);
     // a direction-scoped OpenTelemetry name is resolved at the OpenTelemetry boundary, not here
-    assertEquals(0L, TagRouting.keyOf("server.address"));
-    assertTrue(TagRouting.isKnown(route));
-    assertFalse(TagRouting.isKnown(0L));
+    assertEquals(0L, KnownTagCodec.keyOf("server.address"));
 
-    ids.set(route, "/a");
+    ids.set(KnownTags.HTTP_ROUTE_ID, "/a");
     names.set("my.tag", "custom");
 
-    assertEquals("/a", TagRouting.get(ids, names, route, KnownTags.HTTP_ROUTE_NAME).stringValue());
-    assertEquals("custom", TagRouting.get(ids, names, 0L, "my.tag").stringValue());
-    assertNull(TagRouting.get(ids, null, 0L, "my.tag")); // no custom store yet
+    TagMap view = TagMap.viewOf(ids, names, false);
+    assertEquals("/a", view.getEntry(KnownTags.HTTP_ROUTE_NAME).stringValue());
+    assertEquals("custom", view.getEntry("my.tag").stringValue());
+    assertNull(TagMap.viewOf(ids, null, false).getEntry("my.tag")); // no custom store yet
   }
 
   @Test
   void anOwnerReadsThroughItsParentsStores() {
-    assertNull(TagRouting.readThroughParent(null));
-    assertThrows(IllegalStateException.class, () -> TagRouting.readThroughParent(TagMap.create()));
-    assertNull(TagRouting.readThroughParent(TagMap.create().freeze())); // empty parent dropped
+    assertNull(TagMap.readThroughParent(null));
+    assertThrows(IllegalStateException.class, () -> TagMap.readThroughParent(TagMap.create()));
+    assertNull(TagMap.readThroughParent(TagMap.create().freeze())); // empty parent dropped
 
-    TagMap parent = TagRouting.readThroughParent(frozenParent());
-    IdStore ids = TagRouting.newIdStore(parent);
-    HashStore borrowed = TagRouting.inheritedCustomStore(parent);
+    TagMap parent = TagMap.readThroughParent(frozenParent());
+    IdStore ids = IdStore.create(parent);
+    HashStore borrowed = HashStore.inheritedFrom(parent);
     assertSame(parent.names, borrowed);
     assertEquals("/inherited", ids.getValue(KnownTags.HTTP_ROUTE_ID));
     assertEquals("c", borrowed.get("inherited.custom").stringValue());
 
-    HashStore own = TagRouting.newCustomStore(borrowed);
+    HashStore own = HashStore.create(borrowed);
     own.set("own", "o");
     assertEquals("c", own.get("inherited.custom").stringValue());
     assertNull(borrowed.get("own"));
@@ -269,7 +265,7 @@ class TagStoresTest {
 
   @Test
   void theCustomStoreSetsEveryValueShape() {
-    HashStore names = TagRouting.newCustomStore(null);
+    HashStore names = HashStore.create(null);
     names.set("o", (Object) "obj");
     names.set("s", "v");
     names.set("b", true);
@@ -287,9 +283,9 @@ class TagStoresTest {
 
   @Test
   void aViewWritesThroughToItsOwnersStoresAndHandsBackANewCustomStore() {
-    TagMap parent = TagRouting.readThroughParent(frozenParent());
-    IdStore ids = TagRouting.newIdStore(parent);
-    HashStore borrowed = TagRouting.inheritedCustomStore(parent);
+    TagMap parent = TagMap.readThroughParent(frozenParent());
+    IdStore ids = IdStore.create(parent);
+    HashStore borrowed = HashStore.inheritedFrom(parent);
     TagMap view = TagMap.viewOf(ids, borrowed, true);
     assertSame(borrowed, view.customStore());
     assertTrue(view.isCustomStoreBorrowed());

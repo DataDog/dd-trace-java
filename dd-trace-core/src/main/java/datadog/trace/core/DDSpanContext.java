@@ -21,7 +21,6 @@ import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.api.TagRouting;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -47,7 +46,6 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -153,9 +151,9 @@ public class DDSpanContext
    * <p>The span owns its tag stores directly: {@code tagIds}, the known tags by id, created with
    * the span; and {@code customTags}, the custom tags by name, created on the first custom write --
    * until then null, or the read-through parent's custom store, borrowed read-only while {@code
-   * customTagsBorrowed}. Every read and write goes span to store, routed by {@link TagRouting},
-   * under one lock that guards both: {@code tagIds}, which always exists. Internal readers get a
-   * cached {@link #tagView() view}.
+   * customTagsBorrowed}. Every read and write goes span to store, routed by name or id, under one
+   * lock that guards both: {@code tagIds}, which always exists. Internal readers get a cached
+   * {@link #tagView() view}.
    */
   private final IdStore tagIds;
 
@@ -433,9 +431,9 @@ public class DDSpanContext
     this.pathwayContext = pathwayContext;
 
     // Reads through to the frozen tracer-level tags, if any.
-    TagMap parentTags = TagRouting.readThroughParent(readThroughParent);
-    this.tagIds = TagRouting.newIdStore(parentTags);
-    this.customTags = TagRouting.inheritedCustomStore(parentTags);
+    TagMap parentTags = TagMap.readThroughParent(readThroughParent);
+    this.tagIds = IdStore.create(parentTags);
+    this.customTags = HashStore.inheritedFrom(parentTags);
     this.customTagsBorrowed = this.customTags != null;
 
     // must set this before setting the service and resource names below
@@ -972,13 +970,10 @@ public class DDSpanContext
   }
 
   /** The custom store to write to: created on the first custom write, ending any borrowing. */
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "Written and read only under the tagIds lock")
   private HashStore customTagsForWrite() {
     HashStore custom = this.customTags;
     if (custom == null || this.customTagsBorrowed) {
-      custom = TagRouting.newCustomStore(custom); // reads through to the store borrowed till now
+      custom = HashStore.create(custom); // reads through to the store borrowed till now
       this.customTags = custom;
       this.customTagsBorrowed = false;
     }
@@ -1004,8 +999,8 @@ public class DDSpanContext
 
   /** Removes {@code tag}, known or custom. Call under the {@code tagIds} lock. */
   private void removeStored(String tag) {
-    long key = TagRouting.keyOf(tag);
-    if (TagRouting.isKnown(key)) {
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
       tagIds.remove(key);
     } else {
       removeCustomTag(tag);
@@ -1026,7 +1021,7 @@ public class DDSpanContext
    */
 
   private void setResolved(long key, String tag, Object value) {
-    if (TagRouting.isKnown(key)) {
+    if (key != 0) {
       tagIds.set(key, value);
     } else {
       customTagsForWrite().set(tag, value);
@@ -1034,7 +1029,7 @@ public class DDSpanContext
   }
 
   private void setResolved(long key, String tag, CharSequence value) {
-    if (TagRouting.isKnown(key)) {
+    if (key != 0) {
       tagIds.set(key, value);
     } else {
       customTagsForWrite().set(tag, value);
@@ -1042,7 +1037,7 @@ public class DDSpanContext
   }
 
   private void setResolved(long key, String tag, boolean value) {
-    if (TagRouting.isKnown(key)) {
+    if (key != 0) {
       tagIds.set(key, value);
     } else {
       customTagsForWrite().set(tag, value);
@@ -1050,7 +1045,7 @@ public class DDSpanContext
   }
 
   private void setResolved(long key, String tag, int value) {
-    if (TagRouting.isKnown(key)) {
+    if (key != 0) {
       tagIds.set(key, value);
     } else {
       customTagsForWrite().set(tag, value);
@@ -1058,7 +1053,7 @@ public class DDSpanContext
   }
 
   private void setResolved(long key, String tag, long value) {
-    if (TagRouting.isKnown(key)) {
+    if (key != 0) {
       tagIds.set(key, value);
     } else {
       customTagsForWrite().set(tag, value);
@@ -1066,7 +1061,7 @@ public class DDSpanContext
   }
 
   private void setResolved(long key, String tag, float value) {
-    if (TagRouting.isKnown(key)) {
+    if (key != 0) {
       tagIds.set(key, value);
     } else {
       customTagsForWrite().set(tag, value);
@@ -1074,7 +1069,7 @@ public class DDSpanContext
   }
 
   private void setResolved(long key, String tag, double value) {
-    if (TagRouting.isKnown(key)) {
+    if (key != 0) {
       tagIds.set(key, value);
     } else {
       customTagsForWrite().set(tag, value);
@@ -1170,31 +1165,31 @@ public class DDSpanContext
    */
 
   private void storeTag(String tag, Object value) {
-    setResolved(TagRouting.keyOf(tag), tag, value);
+    setResolved(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, CharSequence value) {
-    setResolved(TagRouting.keyOf(tag), tag, value);
+    setResolved(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, boolean value) {
-    setResolved(TagRouting.keyOf(tag), tag, value);
+    setResolved(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, int value) {
-    setResolved(TagRouting.keyOf(tag), tag, value);
+    setResolved(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, long value) {
-    setResolved(TagRouting.keyOf(tag), tag, value);
+    setResolved(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, float value) {
-    setResolved(TagRouting.keyOf(tag), tag, value);
+    setResolved(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   private void storeTag(String tag, double value) {
-    setResolved(TagRouting.keyOf(tag), tag, value);
+    setResolved(KnownTagCodec.keyOf(tag), tag, value);
   }
 
   /** Stores {@code entry}, sharing its Entry where the store keeps Entry objects. */
@@ -1249,7 +1244,12 @@ public class DDSpanContext
   /** Whether {@code entry}'s tag is already on this span. */
   private boolean isPresent(TagMap.EntryReader entry) {
     String tag = entry.tag();
-    return TagRouting.get(tagIds, customTags, TagRouting.keyOf(tag), tag) != null;
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
+      return tagIds.getValue(key) != null;
+    }
+    HashStore custom = customTags;
+    return custom != null && custom.get(tag) != null;
   }
 
   public void setTag(final String tag, final Object value) {
@@ -1611,8 +1611,8 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    long key = TagRouting.keyOf(tag);
-    if (TagRouting.isKnown(key)) {
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
       return tagIds.getValue(key);
     }
     HashStore custom = customTags;

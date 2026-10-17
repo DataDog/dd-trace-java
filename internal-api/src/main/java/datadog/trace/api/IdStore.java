@@ -12,8 +12,8 @@ import java.util.function.Consumer;
  * EntryReader} for a known tag -- never a name, so nothing here can be handed a name that a caller
  * has not yet resolved.
  *
- * <p>A span in the tracer core owns its id store directly ({@link TagRouting#newIdStore}); a {@link
- * TagMap} owns one too.
+ * <p>A span in the tracer core owns its id store directly ({@link #create}); a {@link TagMap} owns
+ * one too.
  *
  * <p>{@link IdStoreFactory} loads one implementation per JVM, {@link HashIdStore} or {@link
  * DenseIdStore}. With one subclass loaded, class hierarchy analysis devirtualizes every call on an
@@ -68,6 +68,11 @@ public abstract class IdStore {
       this.inheritedMask = parent.occupancy | parent.inheritedMask;
       this.inheritedLevels = (byte) (parent.levels | parent.inheritedLevels);
     }
+  }
+
+  /** A fresh id store reading through to {@code parent}'s known tags (parent may be null). */
+  public static IdStore create(TagMap parent) {
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.ids);
   }
 
   /** {@code tagId}'s slot bit. */
