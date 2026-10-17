@@ -1,8 +1,5 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.KnownTagCodec.DIRECTION_INBOUND;
-import static datadog.trace.api.KnownTagCodec.DIRECTION_OUTBOUND;
-import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -236,20 +233,18 @@ class TagStoresTest {
     IdStore ids = TagRouting.newIdStore(null);
     HashStore names = TagRouting.newCustomStore(null);
     long route = TagRouting.keyOf(KnownTags.HTTP_ROUTE_NAME);
-    long alias = TagRouting.keyOf("server.address");
     assertEquals(KnownTags.HTTP_ROUTE_ID, route);
     assertEquals(0L, TagRouting.keyOf("my.tag"));
-    assertTrue(alias < 0);
+    // a direction-scoped OpenTelemetry name is resolved at the OpenTelemetry boundary, not here
+    assertEquals(0L, TagRouting.keyOf("server.address"));
     assertTrue(TagRouting.isKnown(route));
-    assertFalse(TagRouting.isKnown(alias));
+    assertFalse(TagRouting.isKnown(0L));
 
     ids.set(route, "/a");
     names.set("my.tag", "custom");
-    names.set("server.address", "as-written");
 
     assertEquals("/a", TagRouting.get(ids, names, route, KnownTags.HTTP_ROUTE_NAME).stringValue());
     assertEquals("custom", TagRouting.get(ids, names, 0L, "my.tag").stringValue());
-    assertEquals("as-written", TagRouting.get(ids, names, alias, "server.address").stringValue());
     assertNull(TagRouting.get(ids, null, 0L, "my.tag")); // no custom store yet
   }
 
@@ -291,47 +286,11 @@ class TagStoresTest {
   }
 
   @Test
-  void aViewReadsAnAliasByTheSpansDirection() {
-    IdStore ids = TagRouting.newIdStore(null);
-    ids.set(KnownTags.HTTP_HOSTNAME_ID, "inbound.example");
-    ids.set(KnownTags.PEER_HOSTNAME_ID, "outbound.example");
-    TagMap inbound = view(ids, null, false, DIRECTION_INBOUND, false);
-    TagMap outbound = view(ids, null, false, DIRECTION_OUTBOUND, false);
-    TagMap plain = TagMap.viewOf(ids, null, false);
-
-    assertEquals("inbound.example", inbound.getString("server.address"));
-    assertEquals("outbound.example", outbound.getString("server.address"));
-    assertNull(plain.getString("server.address")); // with no direction, names read as written
-    assertEquals("inbound.example", outbound.getString(KnownTags.HTTP_HOSTNAME_NAME));
-  }
-
-  @Test
-  void aViewReadsAnEmittedPendingAliasOverItsTag() {
-    IdStore ids = TagRouting.newIdStore(null);
-    ids.set(KnownTags.PEER_HOSTNAME_ID, "older");
-    HashStore names = TagRouting.newCustomStore(null);
-    names.set("server.address", "pending");
-    TagMap pending = view(ids, names, false, DIRECTION_OUTBOUND, true);
-    TagMap noPending = view(ids, names, false, DIRECTION_OUTBOUND, false);
-    TagMap unknown = view(ids, names, false, DIRECTION_UNKNOWN, true);
-
-    assertEquals("pending", pending.getString(KnownTags.PEER_HOSTNAME_NAME));
-    assertEquals("pending", pending.getString("server.address"));
-    assertEquals("older", noPending.getString(KnownTags.PEER_HOSTNAME_NAME));
-    assertEquals("older", unknown.getString(KnownTags.PEER_HOSTNAME_NAME));
-    assertEquals("pending", unknown.getString("server.address"));
-    assertNull(noPending.getString("client.port")); // no tag in this direction
-    // with no custom store, the alias reads the tag it denotes
-    assertEquals(
-        "older", view(ids, null, false, DIRECTION_OUTBOUND, true).getString("server.address"));
-  }
-
-  @Test
   void aViewWritesThroughToItsOwnersStoresAndHandsBackANewCustomStore() {
     TagMap parent = TagRouting.readThroughParent(frozenParent());
     IdStore ids = TagRouting.newIdStore(parent);
     HashStore borrowed = TagRouting.inheritedCustomStore(parent);
-    TagMap view = view(ids, borrowed, true, DIRECTION_UNKNOWN, false);
+    TagMap view = TagMap.viewOf(ids, borrowed, true);
     assertSame(borrowed, view.customStore());
     assertTrue(view.isCustomStoreBorrowed());
 
@@ -342,7 +301,7 @@ class TagStoresTest {
     assertNotSame(borrowed, view.customStore());
     assertEquals("o", view.customStore().get("own").stringValue());
 
-    view.attach(null, false, DIRECTION_UNKNOWN, false);
+    view.attach(null, false);
     assertNull(view.getString("own"));
     assertNull(view.customStore());
   }
@@ -505,13 +464,5 @@ class TagStoresTest {
     HashStore names = new HashStore(null);
     assertThrows(AssertionError.class, () -> names.get(KnownTags.HTTP_ROUTE_NAME));
     assertThrows(AssertionError.class, () -> names.remove(KnownTags.HTTP_ROUTE_NAME));
-  }
-
-  /** A span-style view over {@code ids} and {@code names}, attached to a direction. */
-  private static TagMap view(
-      IdStore ids, HashStore names, boolean namesBorrowed, int direction, boolean pendingAliases) {
-    TagMap view = TagMap.viewOf(ids, names, namesBorrowed);
-    view.attach(names, namesBorrowed, direction, pendingAliases);
-    return view;
   }
 }

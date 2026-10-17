@@ -11,6 +11,6 @@ datadog.trace.api.HashStore
 datadog.trace.api.IdStore
 datadog.trace.api.TagRouting
 datadog.trace.api.TagMap#viewOf(datadog.trace.api.IdStore,datadog.trace.api.HashStore,boolean)
-datadog.trace.api.TagMap#attach(datadog.trace.api.HashStore,boolean,int,boolean)
+datadog.trace.api.TagMap#attach(datadog.trace.api.HashStore,boolean)
 datadog.trace.api.TagMap#customStore()
 datadog.trace.api.TagMap#isCustomStoreBorrowed()

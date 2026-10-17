@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jakarta3;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -93,6 +94,22 @@ class MessageBodyWriterAdviceAppSecTest {
     assertEquals(1, callbackInvocations);
     assertSame(entity, callbackEntity);
     brf.assertCommittedOnce(segment);
+  }
+
+  /**
+   * Fail-open invariant: without a {@link BlockResponseFunction} there is no way to commit a
+   * response consistent with the rest of the pipeline, so the advice must let the request through
+   * rather than abort without a controlled response.
+   */
+  @Test
+  void jsonEntityDoesNotThrowWithoutABlockResponseFunction() {
+    when(reqCtx.getBlockResponseFunction()).thenReturn(null);
+    Object entity = new Object();
+
+    assertDoesNotThrow(
+        () -> MessageBodyWriterAdvice.before(entity, MediaType.APPLICATION_JSON_TYPE, reqCtx));
+
+    assertEquals(1, callbackInvocations);
   }
 
   @Test

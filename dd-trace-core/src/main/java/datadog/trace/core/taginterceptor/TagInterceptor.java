@@ -139,14 +139,9 @@ public class TagInterceptor {
     return names != null && names.contains(customTag);
   }
 
-  /**
-   * Whether {@code map} must be copied onto a span entry by entry: some entry may be routed, or
-   * holds a direction-dependent name, which the span resolves through {@code DirectionalTags}.
-   * Computed once for a tracer-level map, so a map with neither takes the bulk-copy fast path.
-   */
   public boolean needsIntercept(TagMap map) {
     for (TagMap.EntryReader entry : map) {
-      if (needsIntercept(entry) || KnownTagCodec.isDirectionDependent(entry)) return true;
+      if (needsIntercept(entry)) return true;
     }
     return false;
   }

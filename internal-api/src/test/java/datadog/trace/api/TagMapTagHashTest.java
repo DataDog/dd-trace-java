@@ -82,8 +82,8 @@ class TagMapTagHashTest {
     assertEquals(tagIds.size(), copy.size());
     for (long tagId : tagIds) {
       String name = KnownTagCodec.nameOf(tagId);
-      assertEquals("value", map.getEntry(tagId).objectValue(), name);
-      assertEquals("value", copy.getEntry(tagId).objectValue(), name);
+      assertEquals("value", map.getObject(name), name);
+      assertEquals("value", copy.getObject(name), name);
     }
   }
 
@@ -91,7 +91,10 @@ class TagMapTagHashTest {
     List<Long> tagIds = new ArrayList<>();
     for (Field field : KnownTags.class.getFields()) {
       if (field.getType() == long.class && Modifier.isStatic(field.getModifiers())) {
-        tagIds.add(field.getLong(null));
+        long tagId = field.getLong(null);
+        if (KnownTagCodec.isKnown(tagId)) {
+          tagIds.add(tagId);
+        }
       }
     }
     return tagIds;

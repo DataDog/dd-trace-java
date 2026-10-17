@@ -253,65 +253,41 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
           || (value instanceof CharSequence && ((CharSequence) value).length() == 0);
     }
 
-    /*
-     * Name-keyed factories. They accept only a name whose tag needs no span direction: an entry is
-     * built with no span, so it cannot resolve a direction-scoped OpenTelemetry name such as
-     * server.address (http.hostname inbound, peer.hostname outbound). For those, use the id-keyed
-     * create(long, ...) below, or set the name on the span, which resolves it by its kind. Prefer
-     * the id-keyed factories generally: these are expected to be deprecated.
-     */
-
     /**
      * Entry for {@code (tag, value)}, or null when {@code value} is null or an empty {@code
      * CharSequence} -- checked by runtime type, so an empty String passed as {@code Object} skips
      * the same as via the {@link #create(String, CharSequence)} overload.
-     *
-     * @throws IllegalArgumentException if {@code tag}'s tag depends on the span's direction
      */
     @Nullable
     public static final Entry create(@Nonnull String tag, Object value) {
-      return isEmptyValue(value) ? null : new Entry(directionFreeKeyOf(tag), tag, ANY, 0L, value);
+      return isEmptyValue(value) ? null : TagMap.anyEntryFor(tag, value);
     }
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
     @Nullable
     public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
-      return isEmptyValue(value) ? null : new Entry(directionFreeKeyOf(tag), tag, OBJECT, 0, value);
+      return isEmptyValue(value) ? null : TagMap.objectEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, boolean value) {
-      return new Entry(
-          directionFreeKeyOf(tag), tag, BOOLEAN, boolean2Prim(value), Boolean.valueOf(value));
+      return TagMap.booleanEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, int value) {
-      return new Entry(directionFreeKeyOf(tag), tag, INT, int2Prim(value), null);
+      return TagMap.intEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, long value) {
-      return new Entry(directionFreeKeyOf(tag), tag, LONG, long2Prim(value), null);
+      return TagMap.longEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, float value) {
-      return new Entry(directionFreeKeyOf(tag), tag, FLOAT, float2Prim(value), null);
+      return TagMap.floatEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, double value) {
-      return new Entry(directionFreeKeyOf(tag), tag, DOUBLE, double2Prim(value), null);
-    }
-
-    /** {@code tag}'s id, or 0 for a custom tag; rejects a name whose tag depends on direction. */
-    private static long directionFreeKeyOf(String tag) {
-      long key = KnownTagCodec.keyOrAliasOf(tag);
-      if (key < 0) {
-        throw new IllegalArgumentException(
-            "'"
-                + tag
-                + "' names a different tag depending on the span's direction; create the entry"
-                + " with a KnownTags id, or set the name on the span");
-      }
-      return key;
+      return TagMap.doubleEntryFor(tag, value);
     }
 
     /*
@@ -982,10 +958,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (!(obj instanceof TagMap.Entry)) return false;
 
       TagMap.Entry that = (TagMap.Entry) obj;
-      // hashCode folds tagHash, so equal entries must agree on it, not just on the name.
-      return this.tagHash == that.tagHash
-          && this.tag.equals(that.tag)
-          && this.objectValue().equals(that.objectValue());
+      return this.tag.equals(that.tag) && this.objectValue().equals(that.objectValue());
     }
 
     static long boolean2Prim(boolean value) {
@@ -1253,18 +1226,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   /** True while {@link #names} is the parent's custom store, borrowed until the first write. */
   boolean namesBorrowed;
 
-  /**
-   * For a span's view ({@link #viewOf}), the span's direction (a {@code KnownTagCodec.DIRECTION_*}
-   * constant), set by {@link #attach} before each use; {@code DIRECTION_UNKNOWN} for a TagMap of
-   * its own, which reads every name as written.
-   */
-  private int direction = KnownTagCodec.DIRECTION_UNKNOWN;
-
-  /**
-   * For a span's view, whether the span may hold an alias stored as written; see {@link #attach}.
-   */
-  private boolean pendingAliases;
-
   private boolean frozen;
 
   /**
@@ -1314,30 +1275,23 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /**
    * A live view over a span's stores, for the span's internal readers (tag post-processors,
-   * serializers) and its snapshot copy; never on the span's own set/get paths. Name-keyed reads
-   * honor the span's direction. Not thread-safe: use it under the span's tag lock.
+   * serializers) and its snapshot copy; never on the span's own set/get paths. Not thread-safe: use
+   * it under the span's tag lock.
    *
    * <p>The span owns the stores. Before each use it {@link #attach attaches} the view to its
-   * current custom store, which it creates lazily, and its current direction; after, it adopts any
-   * custom store the view created ({@link #customStore}), since a reader may write a custom tag.
+   * current custom store, which it creates lazily; after, it adopts any custom store the view
+   * created ({@link #customStore}), since a reader may write a custom tag.
    */
   @Restricted(allowedIn = {"datadog.trace.core"})
   public static TagMap viewOf(IdStore ids, HashStore names, boolean namesBorrowed) {
     return new TagMap(null, ids, names, namesBorrowed);
   }
 
-  /**
-   * Points this view at its span's current custom store and direction; see {@link #viewOf}. {@code
-   * pendingAliases} says whether the span may hold an alias stored as written, which a read of the
-   * tag it denotes then prefers.
-   */
+  /** Points this view at its span's current custom store; see {@link #viewOf}. */
   @Restricted(allowedIn = {"datadog.trace.core"})
-  public void attach(
-      HashStore names, boolean namesBorrowed, int direction, boolean pendingAliases) {
+  public void attach(HashStore names, boolean namesBorrowed) {
     this.names = names;
     this.namesBorrowed = namesBorrowed;
-    this.direction = direction;
-    this.pendingAliases = pendingAliases;
   }
 
   /** This map's custom store: null, borrowed ({@link #isCustomStoreBorrowed}), or its own. */
@@ -1518,15 +1472,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry getEntry(String tag) {
     // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
     // an OpenTelemetry rename must resolve to the same id, or it would silently miss the entry.
-    long key = TagRouting.keyOf(tag);
-    int direction = this.direction;
-    if (direction == KnownTagCodec.DIRECTION_UNKNOWN || key == 0) {
-      return TagRouting.get(this.ids, this.names, key, tag);
-    }
-    return TagRouting.getEntry(this.ids, this.names, key, tag, direction, this.pendingAliases);
+    return TagRouting.get(this.ids, this.names, TagRouting.keyOf(tag), tag);
   }
 
-  /** The entry for a known tag id. */
+  /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
   public Entry getEntry(long tagId) {
     return TagRouting.entryOf(this.ids.get(tagId));
   }
@@ -1551,11 +1500,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /*
    * Entry factories for callers that start from a name: resolve it once, then build a known tag
-   * from its id or a custom tag from its name. (Entry's own name factories are custom-only.) A
-   * direction-scoped OpenTelemetry name ({@code server.address}) resolves to no id, so it is stored
-   * as written, a custom tag, and resolved by whoever knows the direction.
+   * from its id or a custom tag from its name. (Entry's own name factories are custom-only.)
    */
-
   static Entry anyEntryFor(String tag, Object value) {
     long key = TagRouting.keyOf(tag);
     return TagRouting.isKnown(key) ? Entry.newAnyEntry(key, value) : Entry.newAnyEntry(tag, value);
@@ -1662,82 +1608,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     } else {
       this.putCustom(Entry.newDoubleEntry(tag, value));
     }
-  }
-
-  /*
-   * Pre-resolved setters: for a caller that has already looked {@code tag} up with
-   * KnownTagCodec.keyOf (or keyOrAliasOf) and passes the result as {@code tagId} -- the tag's id,
-   * or 0 (or a negative sentinel) for a custom tag. The same write as set(tag, value), without a
-   * second lookup.
-   */
-  public void setResolved(long tagId, @Nonnull String tag, @Nonnull Object value) {
-    if (TagRouting.isKnown(tagId)) {
-      this.putKnown(Entry.newAnyEntry(tagId, value));
-    } else {
-      this.putCustom(Entry.newAnyEntry(tag, value));
-    }
-  }
-
-  public void setResolved(long tagId, @Nonnull String tag, @Nonnull CharSequence value) {
-    if (TagRouting.isKnown(tagId)) {
-      this.putKnown(Entry.newObjectEntry(tagId, value));
-    } else {
-      this.putCustom(Entry.newObjectEntry(tag, value));
-    }
-  }
-
-  public void setResolved(long tagId, @Nonnull String tag, boolean value) {
-    if (TagRouting.isKnown(tagId)) {
-      this.putKnown(Entry.newBooleanEntry(tagId, value));
-    } else {
-      this.putCustom(Entry.newBooleanEntry(tag, value));
-    }
-  }
-
-  public void setResolved(long tagId, @Nonnull String tag, int value) {
-    if (TagRouting.isKnown(tagId)) {
-      this.putKnown(Entry.newIntEntry(tagId, value));
-    } else {
-      this.putCustom(Entry.newIntEntry(tag, value));
-    }
-  }
-
-  public void setResolved(long tagId, @Nonnull String tag, long value) {
-    if (TagRouting.isKnown(tagId)) {
-      this.putKnown(Entry.newLongEntry(tagId, value));
-    } else {
-      this.putCustom(Entry.newLongEntry(tag, value));
-    }
-  }
-
-  public void setResolved(long tagId, @Nonnull String tag, float value) {
-    if (TagRouting.isKnown(tagId)) {
-      this.putKnown(Entry.newFloatEntry(tagId, value));
-    } else {
-      this.putCustom(Entry.newFloatEntry(tag, value));
-    }
-  }
-
-  public void setResolved(long tagId, @Nonnull String tag, double value) {
-    if (TagRouting.isKnown(tagId)) {
-      this.putKnown(Entry.newDoubleEntry(tagId, value));
-    } else {
-      this.putCustom(Entry.newDoubleEntry(tag, value));
-    }
-  }
-
-  /** The read counterpart of {@link #setResolved(long, String, Object)}. */
-  public Entry getEntryResolved(long tagId, String tag) {
-    return TagRouting.get(this.ids, this.names, tagId, tag);
-  }
-
-  /** The removal counterpart of {@link #setResolved(long, String, Object)}. */
-  public Entry removeResolved(long tagId, String tag) {
-    this.checkWriteAccess();
-
-    return TagRouting.isKnown(tagId)
-        ? TagRouting.entryOf(this.ids.remove(tagId))
-        : this.removeCustom(tag);
   }
 
   /*
