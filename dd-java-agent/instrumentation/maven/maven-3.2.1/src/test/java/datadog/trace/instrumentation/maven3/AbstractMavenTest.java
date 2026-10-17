@@ -15,10 +15,14 @@ import org.apache.maven.cli.MavenCli;
 import org.apache.maven.eventspy.AbstractEventSpy;
 import org.apache.maven.eventspy.EventSpy;
 import org.apache.maven.execution.ExecutionEvent;
+import org.apache.maven.execution.MavenExecutionResult;
 import org.codehaus.plexus.PlexusContainer;
+import org.eclipse.aether.transfer.ArtifactTransferException;
 import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractMavenTest {
+  private static final int MAVEN_BUILD_ATTEMPTS = 3;
+
   @TempDir static Path WORKING_DIRECTORY;
 
   protected AbstractMavenTest() {
@@ -43,15 +47,6 @@ public abstract class AbstractMavenTest {
       PrintStream stderr,
       String... additionalArgs)
       throws Exception {
-    MojoStartedSpy spy = new MojoStartedSpy(mojoStartedHandler);
-    MavenCli mavenCli =
-        new MavenCli() {
-          @Override
-          protected void customizeContainer(PlexusContainer container) {
-            container.addComponent(spy, EventSpy.class, null);
-          }
-        };
-
     File pomFile = new File(AbstractMavenTest.class.getResource(pomPath).toURI());
 
     List<String> arguments = new ArrayList<>();
@@ -67,11 +62,24 @@ public abstract class AbstractMavenTest {
     }
     addAll(arguments, additionalArgs);
 
-    mavenCli.doMain(
-        arguments.toArray(new String[0]),
-        WORKING_DIRECTORY.toAbsolutePath().toString(),
-        stdOut,
-        stderr);
+    MojoStartedSpy spy;
+    int attempt = 0;
+    do {
+      spy = new MojoStartedSpy(mojoStartedHandler);
+      MojoStartedSpy attemptSpy = spy;
+      MavenCli mavenCli =
+          new MavenCli() {
+            @Override
+            protected void customizeContainer(PlexusContainer container) {
+              container.addComponent(attemptSpy, EventSpy.class, null);
+            }
+          };
+      mavenCli.doMain(
+          arguments.toArray(new String[0]),
+          WORKING_DIRECTORY.toAbsolutePath().toString(),
+          stdOut,
+          stderr);
+    } while (spy.artifactTransferFailed && ++attempt < MAVEN_BUILD_ATTEMPTS);
 
     Exception error = spy.handlerError.get();
     if (error != null) {
@@ -80,10 +88,22 @@ public abstract class AbstractMavenTest {
     assertTrue(spy.handlerRan.get());
   }
 
+  private static boolean hasArtifactTransferFailure(MavenExecutionResult result) {
+    for (Throwable exception : result.getExceptions()) {
+      for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+        if (cause instanceof ArtifactTransferException) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private static final class MojoStartedSpy extends AbstractEventSpy {
     private final Function<ExecutionEvent, Boolean> mojoStartedHandler;
     private final AtomicBoolean handlerRan = new AtomicBoolean(false);
     private final AtomicReference<Exception> handlerError = new AtomicReference<>(null);
+    private boolean artifactTransferFailed;
 
     private MojoStartedSpy(Function<ExecutionEvent, Boolean> mojoStartedHandler) {
       this.mojoStartedHandler = mojoStartedHandler;
@@ -91,6 +111,10 @@ public abstract class AbstractMavenTest {
 
     @Override
     public void onEvent(Object o) {
+      if (o instanceof MavenExecutionResult) {
+        artifactTransferFailed = hasArtifactTransferFailure((MavenExecutionResult) o);
+        return;
+      }
       if (!(o instanceof ExecutionEvent)) {
         return;
       }
