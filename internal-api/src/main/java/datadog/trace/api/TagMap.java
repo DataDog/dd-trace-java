@@ -1623,11 +1623,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * custom tags have no id and use the String setters.
    */
 
-  /** {@code getEntry(tagId)}'s value, or null, for a caller that needs only the value. */
-  Object getKnownValue(long tagId) {
-    return this.knownStore.getValue(tagId);
-  }
-
   public void set(long tagId, @Nonnull Object value) {
     this.putKnown(Entry.newAnyEntry(tagId, value));
   }

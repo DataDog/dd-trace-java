@@ -72,16 +72,4 @@ class TagMapSetByIdTest {
     assertThrows(IllegalArgumentException.class, () -> map.set(0L, "value"));
     assertThrows(IllegalArgumentException.class, () -> map.set(KnownTagCodec.makeTagId(9999), 1));
   }
-
-  @Test
-  void theCoresKnownValueReadMatchesTheEntrysValue() {
-    TagMap parent = TagMap.create();
-    parent.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
-    TagMap tags = TagMap.createFromParent(parent.freeze());
-    tags.set(KnownTags.HTTP_ROUTE_ID, "/users/{id}");
-
-    assertEquals("/users/{id}", tags.getKnownValue(KnownTags.HTTP_ROUTE_ID));
-    assertEquals(200, tags.getKnownValue(KnownTags.HTTP_STATUS_CODE_ID)); // read-through
-    assertNull(tags.getKnownValue(KnownTags.HTTP_METHOD_ID));
-  }
 }
