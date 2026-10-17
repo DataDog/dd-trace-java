@@ -5,6 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.ResourceMethodSpanState;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -12,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.container.AsyncResponse;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -51,6 +54,51 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
   @Override
   protected CharSequence component() {
     return JAKARTA_RS_CONTROLLER;
+  }
+
+  /** Registers a terminal call so resource exit cannot finish while its outcome is undecorated. */
+  public ResourceMethodSpanState beginTerminal(
+      final ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore,
+      final AsyncResponse asyncResponse) {
+    final ResourceMethodSpanState state = contextStore.get(asyncResponse);
+    if (state != null && state.beginTerminalCall()) {
+      return state;
+    }
+    return null;
+  }
+
+  /**
+   * Returns the span only to the first terminal call that completes successfully or exceptionally.
+   */
+  public AgentSpan claimTerminalOutcome(final ResourceMethodSpanState state) {
+    return state != null && state.claimTerminalOutcome() ? state.span() : null;
+  }
+
+  /** Completes a terminal call and finishes only after the owning resource method has exited. */
+  public void endTerminal(
+      final ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore,
+      final AsyncResponse asyncResponse,
+      final ResourceMethodSpanState state) {
+    if (state == null) {
+      return;
+    }
+    boolean responseResolved = false;
+    try {
+      responseResolved = !asyncResponse.isSuspended();
+    } catch (final Throwable ignored) {
+    }
+    if (state.endTerminalCall(responseResolved)) {
+      final AgentSpan span = state.span();
+      try {
+        beforeFinish(span);
+      } finally {
+        try {
+          contextStore.remove(asyncResponse);
+        } finally {
+          span.finish();
+        }
+      }
+    }
   }
 
   public void onJakartaRsSpan(

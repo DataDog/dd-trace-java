@@ -24,6 +24,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.ResourceMethodSpanState;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -62,7 +63,8 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("javax.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
+    return singletonMap(
+        "javax.ws.rs.container.AsyncResponse", ResourceMethodSpanState.class.getName());
   }
 
   @Override
@@ -98,11 +100,12 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
         @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
-      ContextStore<AsyncResponse, AgentSpan> contextStore = null;
+      ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore = null;
       for (final Object arg : args) {
         if (arg instanceof AsyncResponse) {
           asyncResponse = (AsyncResponse) arg;
-          contextStore = InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
+          contextStore =
+              InstrumentationContext.get(AsyncResponse.class, ResourceMethodSpanState.class);
           if (contextStore.get(asyncResponse) != null) {
             /**
              * We are probably in a recursive call and don't want to start a new span because it
@@ -127,7 +130,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       final ContextScope scope = activateSpan(span);
 
       if (contextStore != null && asyncResponse != null) {
-        contextStore.put(asyncResponse, span);
+        contextStore.put(asyncResponse, new ResourceMethodSpanState(span));
       }
 
       return scope;
@@ -142,26 +145,50 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
         return;
       }
       final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
+      if (asyncResponse == null) {
+        try {
+          if (throwable != null) {
+            DECORATE.onError(span, throwable);
+          }
+          DECORATE.beforeFinish(span);
+        } finally {
+          scope.close();
+          span.finish();
+        }
         return;
       }
 
-      if (asyncResponse != null && !asyncResponse.isSuspended()) {
-        // Clear span from the asyncResponse. Logically this should never happen. Added to be safe.
-        InstrumentationContext.get(AsyncResponse.class, AgentSpan.class).put(asyncResponse, null);
+      final ContextStore<AsyncResponse, ResourceMethodSpanState> contextStore =
+          InstrumentationContext.get(AsyncResponse.class, ResourceMethodSpanState.class);
+      final ResourceMethodSpanState state = contextStore.get(asyncResponse);
+      boolean responseResolved = false;
+      if (throwable == null) {
+        try {
+          responseResolved = !asyncResponse.isSuspended();
+        } catch (final Throwable ignored) {
+        }
       }
-      if (asyncResponse == null || !asyncResponse.isSuspended()) {
-        DECORATE.beforeFinish(span);
+      final boolean finish =
+          state == null
+              ? throwable != null || responseResolved
+              : state.exitResource(responseResolved, throwable != null);
+      try {
+        if (throwable != null) {
+          DECORATE.onError(span, throwable);
+        }
+        if (finish) {
+          DECORATE.beforeFinish(span);
+        }
+      } finally {
         scope.close();
-        span.finish();
-      } else {
-        scope.close();
+        if (finish) {
+          try {
+            contextStore.remove(asyncResponse);
+          } finally {
+            span.finish();
+          }
+        }
       }
-      // else span finished by AsyncResponseAdvice
     }
   }
 }
