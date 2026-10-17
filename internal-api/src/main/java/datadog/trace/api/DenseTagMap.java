@@ -484,6 +484,16 @@ final class DenseTagMap extends TagMap {
     if ((this.knownOccupancy & slotBit(denseId)) == 0) {
       return -1; // definitely absent
     }
+    return this.findKnown(denseId);
+  }
+
+  /**
+   * Scans the dense ids for {@code denseId}, or returns -1. Kept out of the callers' bodies:
+   * callers reach it only when the id's slot bit is set, which for a write mostly means an
+   * overwrite, so where writes are mostly first sets C2 leaves the loop -- and its unrolled copies
+   * -- out of every inlined store.
+   */
+  private int findKnown(long denseId) {
     long[] ids = this.knownIds;
     for (int i = 0; i < this.knownCount; ++i) {
       if (ids[i] == denseId) return i;
@@ -497,22 +507,27 @@ final class DenseTagMap extends TagMap {
    * that discards the result allocates nothing, whether or not the JIT inlines this.
    */
   private Object storeKnownValue(long denseId, Object value) {
-    int i = this.knownIndexOf(denseId);
+    long bit = slotBit(denseId);
+    int i = (this.knownOccupancy & bit) != 0 ? this.findKnown(denseId) : -1;
+    Object prior;
     if (i >= 0) {
-      Object prior = this.knownValues[i];
-      this.knownValues[i] = value;
-      return prior;
+      prior = this.knownValues[i];
+    } else {
+      i = this.knownCount;
+      if (i == this.knownIds.length) {
+        this.spillKnown();
+      }
+      this.knownIds[i] = denseId;
+      prior = null;
     }
-    int idx = this.knownCount;
-    if (idx == this.knownIds.length) {
-      this.spillKnown();
+    // The one reference store: under G1 each store site carries its own inline write barriers.
+    this.knownValues[i] = value;
+    if (prior == null) { // appended: dense values are never null
+      this.knownCount = i + 1;
+      this.knownOccupancy |= bit;
+      this.knownTraceLevel |= KnownTagCodec.isTraceLevel(denseId);
     }
-    this.knownIds[idx] = denseId;
-    this.knownValues[idx] = value;
-    this.knownCount = idx + 1;
-    this.knownOccupancy |= slotBit(denseId);
-    this.knownTraceLevel |= KnownTagCodec.isTraceLevel(denseId);
-    return null;
+    return prior;
   }
 
   /**

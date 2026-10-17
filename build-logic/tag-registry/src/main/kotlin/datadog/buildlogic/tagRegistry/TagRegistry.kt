@@ -92,10 +92,14 @@ class TagRegistry private constructor(val tags: List<Tag>) {
       val renames = conv.otelMappings().groupBy { it.tag.ddName }
       val slots = colorSlots(conv)
 
-      // One tag per Datadog name, in a stable order (by name) so serials -- and therefore ids -- are
-      // a pure function of the input. A name's declarations per direction merge into its one tag.
+      // One tag per Datadog name, in a stable order so serials -- and therefore ids -- are a pure
+      // function of the input: intercepted tags first, then by name. Intercepted tags taking the
+      // lowest serials keeps TagInterceptor's switch on the serial a dense table of just those tags.
+      // A name's declarations per direction merge into its one tag.
       val tags =
-        conv.allDeclaredTags().groupBy { it.ddName }.toSortedMap().values.mapIndexed { i, decls ->
+        conv.allDeclaredTags().groupBy { it.ddName }
+          .toSortedMap(compareBy<String> { it !in conv.interceptedNames }.thenBy { it })
+          .values.mapIndexed { i, decls ->
           val first = decls.first()
           require(decls.all { it.type == first.type }) {
             "'${first.ddName}' is declared per direction with different types: ${decls.map { it.type }}"

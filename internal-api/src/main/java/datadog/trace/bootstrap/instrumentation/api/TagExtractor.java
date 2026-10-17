@@ -23,9 +23,13 @@ import datadog.trace.api.function.Strategy;
  * a non-capturing lambda constant is accepted but is the weaker, speculative shape. The consumer,
  * {@link AgentSpan#setTagsFrom(Object, TagExtractor)}, is small so it inlines and each call site
  * sees the exact extractor type. Don't hold extractors in a field or collection of the abstract
- * type and dispatch from there. Targets {@link AgentSpan} so it can also drive span-level state
- * (resource name, error, status) during the transition; that surface narrows as those fields
- * migrate into the tag model.
+ * type and dispatch from there.
+ *
+ * <p>Writes go to a {@link TagsWriter}, under one lock for the whole extraction (see {@link
+ * AgentSpan#setTagsFrom(Object, TagExtractor)}); span-level state with a tag ({@code
+ * resource.name}, {@code error}, ...) is set through that tag. Because the lock is held while
+ * {@code extract} runs, keep it to reading the source: don't block, call back into tracing, or
+ * touch another span. A virtual thread holding the lock stays pinned to its carrier before JDK 24.
  *
  * <p>Apply it with {@link AgentSpan#setTagsFrom(Object, TagExtractor)}.
  *
@@ -34,5 +38,5 @@ import datadog.trace.api.function.Strategy;
 @Strategy
 @FunctionalInterface
 public interface TagExtractor<T> {
-  void extract(T source, AgentSpan span);
+  void extract(T source, TagsWriter writer);
 }

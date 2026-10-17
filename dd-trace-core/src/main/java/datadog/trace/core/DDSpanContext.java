@@ -40,6 +40,8 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -1412,6 +1414,227 @@ public class DDSpanContext
       synchronized (unsafeTags) {
         unsafeTags.internals().setKnown(tagId, box);
       }
+    }
+  }
+
+  /**
+   * Applies {@code extractor} to {@code source} under one acquisition of the tag lock, handing it a
+   * writer that takes no lock per write; see {@code AgentSpan.setTagsFrom}. Under strict trace
+   * writes, the writer is checked: using it after this returns, or from another thread, throws.
+   */
+  <T> void setTagsFrom(final T source, final TagExtractor<T> extractor) {
+    synchronized (unsafeTags) {
+      if (traceCollector.isStrictTraceWrites()) {
+        ScopeCheckedTagsWriter writer = new ScopeCheckedTagsWriter(new HeldLockTagsWriter(this));
+        try {
+          extractor.extract(source, writer);
+        } finally {
+          writer.close();
+        }
+      } else {
+        extractor.extract(source, new HeldLockTagsWriter(this));
+      }
+    }
+  }
+
+  /** {@link #setTagsFrom(Object, TagExtractor)} for a {@link TagContributor}. */
+  void setTagsFrom(final TagContributor contributor) {
+    synchronized (unsafeTags) {
+      if (traceCollector.isStrictTraceWrites()) {
+        ScopeCheckedTagsWriter writer = new ScopeCheckedTagsWriter(new HeldLockTagsWriter(this));
+        try {
+          contributor.addTo(writer);
+        } finally {
+          writer.close();
+        }
+      } else {
+        contributor.addTo(new HeldLockTagsWriter(this));
+      }
+    }
+  }
+
+  /*
+   * The setters above, for a caller that already holds the tag lock (HeldLockTagsWriter): the same
+   * routing and storage, with interception inside the lock, as in setAllTags. Removals go through
+   * removeTag, whose acquisition is then a cheap recursive one.
+   */
+  void setTagHoldingLock(final long tagId, final Object value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else {
+      setKnownHoldingLock(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final CharSequence value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
+        || !tagInterceptor.interceptTag(this, tagId, value)) {
+      unsafeTags.internals().setKnown(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final boolean value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownHoldingLock(tagId, value);
+    } else {
+      unsafeTags.internals().setKnown(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final int value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownHoldingLock(tagId, value);
+    } else {
+      unsafeTags.internals().setKnown(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final long value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownHoldingLock(tagId, value);
+    } else {
+      unsafeTags.internals().setKnown(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final float value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownHoldingLock(tagId, value);
+    } else {
+      unsafeTags.internals().setKnown(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final double value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (TagMap.Internals.STORES_BOXES || tagInterceptor.needsIntercept(tagId, routedTagFlags)) {
+      setKnownHoldingLock(tagId, value);
+    } else {
+      unsafeTags.internals().setKnown(tagId, value);
+    }
+  }
+
+  /** The boxed path of the lock-held id setters, as {@link #setKnownBox} is for the others. */
+  private void setKnownHoldingLock(long tagId, Object box) {
+    if (!tagInterceptor.needsIntercept(tagId, routedTagFlags)
+        || !tagInterceptor.interceptTag(this, tagId, box)) {
+      unsafeTags.internals().setKnown(tagId, box);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final Object value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTag(tag);
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
+      storeTag(tag, value);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final CharSequence value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTag(tag);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      storeTag(tag, value);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final boolean value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      storeTag(tag, value);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final int value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      storeTag(tag, value);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final long value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      storeTag(tag, value);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final float value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      storeTag(tag, value);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final double value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      storeTag(tag, value);
     }
   }
 

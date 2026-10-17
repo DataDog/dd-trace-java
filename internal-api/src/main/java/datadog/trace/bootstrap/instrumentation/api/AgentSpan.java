@@ -150,29 +150,33 @@ public interface AgentSpan
 
   /**
    * Sets tags on this span by applying a {@link TagExtractor} to a foreign source — the span-first,
-   * product-dev-facing form of {@code extractor.extract(source, this)}. Named {@code setTagsFrom},
-   * not {@code setTags}, because {@code source} is not itself a tag value: {@code setTag(name,
-   * value)} stores one value, while this derives any number of tags from {@code source}. Kept small
-   * so it inlines: each call site then sees the exact extractor type (see {@link
-   * datadog.trace.api.function.Strategy}). This is also the seam where the whole extraction can be
-   * coarse-locked (one critical section) — an implementer may override to do so.
+   * product-dev-facing form of {@code extractor.extract(source, writer)}. Named {@code
+   * setTagsFrom}, not {@code setTags}, because {@code source} is not itself a tag value: {@code
+   * setTag(name, value)} stores one value, while this derives any number of tags from {@code
+   * source}. Kept small so it inlines: each call site then sees the exact extractor type (see
+   * {@link datadog.trace.api.function.Strategy}).
+   *
+   * <p>This is the seam where the whole extraction is coarse-locked: a span with a lock holds it
+   * across {@code extract} and hands it a {@link TagsWriter} that takes none. This default forwards
+   * each write to {@link #setTag}.
    */
   @StrategyConsumer
   default <T> AgentSpan setTagsFrom(final T source, final TagExtractor<T> extractor) {
     if (source != null) {
-      extractor.extract(source, this);
+      extractor.extract(source, new SpanTagsWriter(this));
     }
     return this;
   }
 
   /**
    * Sets the tags a {@link TagContributor} projects from its own state — the span-first form of
-   * {@code contributor.addTo(this)}. Call it with the contributor's concrete type so {@code addTo}
-   * devirtualizes and inlines.
+   * {@code contributor.addTo(writer)}. Call it with the contributor's concrete type so {@code
+   * addTo} devirtualizes and inlines. Coarse-locked as {@link #setTagsFrom(Object, TagExtractor)}
+   * is; this default forwards each write to {@link #setTag}.
    */
   default AgentSpan setTagsFrom(final TagContributor contributor) {
     if (contributor != null) {
-      contributor.addTo(this);
+      contributor.addTo(new SpanTagsWriter(this));
     }
     return this;
   }

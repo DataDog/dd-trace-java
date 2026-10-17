@@ -22,6 +22,7 @@ import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -37,6 +38,8 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
@@ -588,6 +591,29 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public DDSpan setTag(final long tagId, final Object value) {
     context.setTag(tagId, value);
+    return this;
+  }
+
+  /**
+   * Holds the span's tag lock across the whole extraction; see {@link DDSpanContext#setTagsFrom}.
+   */
+  @Override
+  @StrategyConsumer
+  public <T> AgentSpan setTagsFrom(final T source, final TagExtractor<T> extractor) {
+    if (source != null) {
+      context.setTagsFrom(source, extractor);
+    }
+    return this;
+  }
+
+  /**
+   * Holds the span's tag lock across the whole contribution; see {@link DDSpanContext#setTagsFrom}.
+   */
+  @Override
+  public AgentSpan setTagsFrom(final TagContributor contributor) {
+    if (contributor != null) {
+      context.setTagsFrom(contributor);
+    }
     return this;
   }
 

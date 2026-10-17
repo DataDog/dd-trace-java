@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,18 +17,18 @@ class AgentSpanSetTagsFromTest {
   private final List<Object> calls = new ArrayList<>();
 
   @Test
-  void appliesTheExtractorToTheSourceAndThisSpan() {
+  void appliesTheExtractorToTheSourceWithAWriterForThisSpan() {
     TagExtractor<String> extractor =
-        (source, target) -> {
+        (source, writer) -> {
           calls.add(source);
-          calls.add(target);
+          writer.setTag("tag", (Object) "value");
         };
 
     assertSame(span, span.setTagsFrom("source", extractor));
 
-    assertEquals(2, calls.size());
+    assertEquals(1, calls.size());
     assertEquals("source", calls.get(0));
-    assertSame(span, calls.get(1));
+    verify(span).setTag("tag", (Object) "value");
   }
 
   @Test
@@ -40,13 +41,12 @@ class AgentSpanSetTagsFromTest {
   }
 
   @Test
-  void appliesTheContributorToThisSpan() {
-    TagContributor contributor = calls::add;
+  void appliesTheContributorWithAWriterForThisSpan() {
+    TagContributor contributor = writer -> writer.setTag(42L, 7);
 
     assertSame(span, span.setTagsFrom(contributor));
 
-    assertEquals(1, calls.size());
-    assertSame(span, calls.get(0));
+    verify(span).setTag(42L, 7);
   }
 
   @Test

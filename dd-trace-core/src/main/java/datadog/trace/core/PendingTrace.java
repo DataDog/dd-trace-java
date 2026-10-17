@@ -88,6 +88,12 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   private final DDTraceId traceId;
   private final PendingTraceBuffer pendingTraceBuffer;
   private final boolean strictTraceWrites;
+
+  @Override
+  boolean isStrictTraceWrites() {
+    return strictTraceWrites;
+  }
+
   private final HealthMetrics healthMetrics;
 
   /**

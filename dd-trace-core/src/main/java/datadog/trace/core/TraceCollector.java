@@ -97,6 +97,14 @@ public abstract class TraceCollector implements AgentTraceCollector {
     return endToEndStartTime;
   }
 
+  /**
+   * Whether writes into this trace are checked strictly, as in tests: then {@code setTagsFrom}
+   * hands out a {@link ScopeCheckedTagsWriter} that fails when used out of its scope.
+   */
+  boolean isStrictTraceWrites() {
+    return false;
+  }
+
   abstract void touch();
 
   abstract void registerSpan(final DDSpan span);

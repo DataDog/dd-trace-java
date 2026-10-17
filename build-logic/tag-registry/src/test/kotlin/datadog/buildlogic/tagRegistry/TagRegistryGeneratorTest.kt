@@ -535,7 +535,7 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `the tracer overlay declares routed keys and marks intercepted tags`() {
+  fun `the tracer overlay declares routed keys and marks intercepted tags, which take the lowest serials`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -558,10 +558,10 @@ class TagRegistryGeneratorTest {
     val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(knownTags)
       .contains(
-        "COMPONENT_ID = 0x0001FFFF00000000L",
-        "RESOURCE_NAME_ID = 0x0002FFFF00000002L",
-        "SERVICE_ID = 0x0003FFFF00000002L",
-        "public static final int SERVICE_SERIAL_NUM = 3;",
+        "RESOURCE_NAME_ID = 0x0001FFFF00000002L",
+        "SERVICE_ID = 0x0002FFFF00000002L",
+        "COMPONENT_ID = 0x0003FFFF00000000L",
+        "public static final int SERVICE_SERIAL_NUM = 2;",
         "public static final int SERIAL_LIMIT = 4;"
       )
   }

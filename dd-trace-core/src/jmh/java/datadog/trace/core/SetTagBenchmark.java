@@ -19,7 +19,9 @@ import org.openjdk.jmh.annotations.Warmup;
 /**
  * Measures {@code DDSpan.setTag} on a live span, overwriting one tag per call, by how the tag is
  * named: a constant id ({@code knownTag_byId}, {@code knownIntTag_byId}), a constant intercepted id
- * ({@code interceptedTag_byId}, {@code span.kind}), a known tag's name, and a custom name.
+ * ({@code interceptedTag_byId}, {@code span.kind}, which is still stored), a constant intercepted
+ * id that is consumed ({@code consumedTag_byId}, {@code resource.name}), a known tag's name, and a
+ * custom name.
  *
  * <p>Controls: {@code tagMap_byId} is the same store on a bare {@link TagMap}, with no span, lock,
  * or interceptor; {@code tagMap_byId_synchronized} adds an uncontended lock, as the span takes one;
@@ -87,6 +89,11 @@ public class SetTagBenchmark {
   @Benchmark
   public Object interceptedTag_byId() {
     return span.setTag(KnownTags.SPAN_KIND_ID, "client");
+  }
+
+  @Benchmark
+  public Object consumedTag_byId() {
+    return span.setTag(KnownTags.RESOURCE_NAME_ID, "GET /users/{id}");
   }
 
   @Benchmark
