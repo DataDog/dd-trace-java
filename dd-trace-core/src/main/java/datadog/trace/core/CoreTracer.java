@@ -209,9 +209,42 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     final TagMap tags;
     final boolean needsIntercept;
 
+    /** The last {@link #traceLevelParent}, with the merged tracer tags it was built over. */
+    private volatile TraceLevelTags traceLevel;
+
     LocalRootSpanTags(final TagMap tags, final boolean needsIntercept) {
       this.tags = tags;
       this.needsIntercept = needsIntercept;
+    }
+
+    /**
+     * All of a root span's trace-level tags in one frozen map -- these tags over {@code
+     * mergedTracerTags} -- for the root span to read through instead of copying them in. The tag
+     * registry colors trace-level tags separately, so they reuse span-level slot bits; keeping them
+     * out of the span's own store keeps its slot bits exact. Built once per config snapshot; a racy
+     * rebuild is harmless, since it builds the same map.
+     */
+    TagMap traceLevelParent(final TagMap mergedTracerTags) {
+      TraceLevelTags cached = this.traceLevel;
+      if (cached != null && cached.mergedTracerTags == mergedTracerTags) {
+        return cached.parent;
+      }
+      TagMap parent = TagMap.create();
+      parent.putAll(mergedTracerTags);
+      parent.putAll(this.tags);
+      parent.freeze();
+      this.traceLevel = new TraceLevelTags(mergedTracerTags, parent);
+      return parent;
+    }
+  }
+
+  private static final class TraceLevelTags {
+    final TagMap mergedTracerTags;
+    final TagMap parent;
+
+    TraceLevelTags(final TagMap mergedTracerTags, final TagMap parent) {
+      this.mergedTracerTags = mergedTracerTags;
+      this.parent = parent;
     }
   }
 
@@ -2139,6 +2172,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final CharSequence origin;
       final TagMap coreTags;
       final boolean coreTagsNeedsIntercept;
+      final LocalRootSpanTags localRootSpanTags;
       final TagMap rootSpanTags;
       final boolean rootSpanTagsNeedsIntercept;
       final DDSpanContext context;
@@ -2168,6 +2202,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         origin = null;
         coreTags = null;
         coreTagsNeedsIntercept = false;
+        localRootSpanTags = null;
         rootSpanTags = null;
         rootSpanTagsNeedsIntercept = false;
         parentServiceName = ddsc.getServiceName();
@@ -2242,7 +2277,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           ciVisibilityContextData = null;
         }
 
-        LocalRootSpanTags localRootSpanTags = tracer.localRootSpanTags;
+        localRootSpanTags = tracer.localRootSpanTags;
         rootSpanTags = localRootSpanTags.tags;
         rootSpanTagsNeedsIntercept = localRootSpanTags.needsIntercept;
 
@@ -2321,12 +2356,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
-      final int tagsSize =
-          mergedTracerTags.size()
-              + (null == tagLedger ? 0 : tagLedger.estimateSize())
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-              + (null == contextualTags ? 0 : contextualTags.size());
+      // With builder tags taking precedence, a root span reads its trace-level tags (root-span tags
+      // over the merged tracer tags) through one shared frozen parent instead of copying the
+      // root-span tags in. They become the precedence floor: the flag's order already puts them
+      // below builder and contextual tags, and now inbound header tags and prototype defaults also
+      // win over them. Tags needing interception are still copied in.
+      final boolean rootSpanTagsReadThrough =
+          localRootSpanTags != null
+              && tracer.builderTagsPrecedence
+              && !rootSpanTagsNeedsIntercept
+              && !mergedTracerTagsNeedsIntercept;
+      final TagMap tagParent;
+      if (rootSpanTagsReadThrough) {
+        tagParent = localRootSpanTags.traceLevelParent(mergedTracerTags);
+      } else {
+        tagParent = mergedTracerTagsNeedsIntercept ? null : mergedTracerTags;
+      }
 
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
@@ -2355,7 +2400,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               w3cBaggage,
               errorFlag,
               spanType,
-              tagsSize,
               parentTraceCollector,
               requestContextDataAppSec,
               requestContextDataIast,
@@ -2366,7 +2410,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
               tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+              tagParent);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
@@ -2391,7 +2435,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
       if (tracer.builderTagsPrecedence) {
         context.setAllTags(coreTags, coreTagsNeedsIntercept);
-        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        if (!rootSpanTagsReadThrough) {
+          context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        }
         context.setAllTags(contextualTags);
         context.setAllTags(tagLedger);
       } else {

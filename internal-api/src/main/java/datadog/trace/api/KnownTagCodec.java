@@ -13,13 +13,15 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  */
 public final class KnownTagCodec {
   /*
-   * tagId bit layout: [63-48 serialNum (16 bits)] [47-32 reserved, zero] [31-0 flags]. serialNum is
-   * globally unique per known tag and is the whole of the tag's identity — nameOf/
-   * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
-   * are RESERVED and always zero here: they are the window the dense tag store uses for its
-   * co-occurrence slot coordinate, which arrives with that store. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown
-   * (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for them.
+   * tagId bit layout: [63-48 serialNum (16 bits, 15 used: bit 63 is kept clear)] [47-32 slot]
+   * [31-0 flags]. The generator keeps bit 63 clear, so every id is positive and a negative value
+   * can never be an id. serialNum is globally unique per known tag and is the whole of the tag's
+   * identity — nameOf/openTelemetryNameOf switch on it, and the generator emits each id as a
+   * literal. Bits [47-32] hold the tag's slot ({@link #slotOf}), or {@link #NO_SLOT} for a tag on
+   * no modeled span type. Graph coloring gives tags that appear together on a span type distinct
+   * slots; trace-level tags are colored separately and reuse the span-level slots. Of the low 32 flag bits, bit 2 is the trace/span
+   * LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown (string-only) custom
+   * tags are NOT known ids — {@code keyOf} returns 0 for them.
    *
    * <p>There is one id per Datadog name. A tag the conventions declare once per direction, such as
    * {@code peer.port}, is still one tag: only its OpenTelemetry name depends on the span's
@@ -63,6 +65,36 @@ public final class KnownTagCodec {
   /** True if the tagId names a tag TagInterceptor may route on the set-path. */
   public static boolean isIntercepted(long tagId) {
     return (tagId & INTERCEPTED) != 0L;
+  }
+
+  /** Bit position of the slot: bits [47-32] of an id. */
+  public static final int SLOT_SHIFT = 32;
+
+  /** The slot of a known tag on no modeled span type. */
+  public static final int NO_SLOT = 0xFFFF;
+
+  /**
+   * The tag's slot, or {@link #NO_SLOT}. The generator colors tags that appear together on a span
+   * type with distinct slots, so when instrumentation follows its span type, {@code 1L <<
+   * slotOf(id)} gives each of a span's tags its own presence bit. A span can still hold two tags
+   * that share a slot, so a clear bit means the tag is absent, but a set bit only means it may be
+   * present. Every tag without a slot shares bit 63, which no real slot uses.
+   */
+  public static int slotOf(long tagId) {
+    return (int) (tagId >>> SLOT_SHIFT) & 0xFFFF;
+  }
+
+  /**
+   * True if the tag has a slot, below {@link #slotCount()}. False for {@code 0L}, the id {@link
+   * #keyOf} gives a custom tag, which would otherwise decode as slot 0.
+   */
+  public static boolean hasSlot(long tagId) {
+    return tagId != 0L && slotOf(tagId) != NO_SLOT;
+  }
+
+  /** Slots in use: every slotted tag's slot is below this. */
+  public static int slotCount() {
+    return KnownTags.SLOT_COUNT;
   }
 
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
@@ -129,6 +161,9 @@ public final class KnownTagCodec {
     /** The tag's Datadog-namespace (canonical) name. */
     String nameOf(long tagId);
 
+    /** The full id of the known tag with {@code serial}, which must be below the serial limit. */
+    long idOf(int serial);
+
     /**
      * The tag's OpenTelemetry-namespace name on spans of {@code direction}, or {@code null} when it
      * declares none there. {@link #DIRECTION_UNKNOWN} returns only a name that holds in every
@@ -150,6 +185,15 @@ public final class KnownTagCodec {
    */
   private static final class Installed {
     static final Resolver RESOLVER = KnownTags.RESOLVER;
+  }
+
+  /**
+   * The full id of the known tag with {@code serial} (flag and slot bits included), for a store
+   * that keeps only the 16-bit serial. {@code serial} must be a known tag's: {@code 0 < serial <
+   * serialLimit()}.
+   */
+  public static long idOf(int serial) {
+    return Installed.RESOLVER.idOf(serial);
   }
 
   /** The tag's canonical (Datadog-namespace) name, or {@code null} when the id is not known. */

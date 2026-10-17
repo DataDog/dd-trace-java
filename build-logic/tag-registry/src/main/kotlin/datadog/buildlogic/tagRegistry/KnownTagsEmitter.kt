@@ -92,6 +92,7 @@ object KnownTagsEmitter {
           appendLine("  public static final String ${otelNameC(t.ddName)} = \"${escape(t.otelName)}\";")
         }
         append("// makeTagId(serial=${t.serial})")
+        append(if (t.slot == TagRegistry.NO_SLOT) " + no slot" else " + slot=${t.slot}")
         if (t.traceLevel) append(" + trace-level")
         if (t.intercepted) append(" + intercepted")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
@@ -137,6 +138,9 @@ object KnownTagsEmitter {
       // Every known tag's serial is below SERIAL_LIMIT; serial 0 is no tag.
       val serialLimit = (reg.tags.maxOfOrNull { it.serial } ?: 0) + 1
       appendLine("  public static final int SERIAL_LIMIT = $serialLimit;")
+      // Slots in use: every slotted tag's slot is below SLOT_COUNT.
+      val slotCount = (reg.tags.filter { it.slot != TagRegistry.NO_SLOT }.maxOfOrNull { it.slot } ?: -1) + 1
+      appendLine("  public static final int SLOT_COUNT = $slotCount;")
 
       // OpenTelemetry name -> canonical tag name. Validation ensures aliases are distinct from all
       // canonical names. Sort by OTel name to keep output deterministic.
@@ -205,6 +209,21 @@ object KnownTagsEmitter {
           };
 
           /**
+           * Each tag's id, indexed by serial; slot 0 (no tag) is 0. Lets a store that keeps only the
+           * 16-bit serial recover the full id, flag and slot bits included.
+           */
+          static final long[] IDS_BY_SERIAL = {
+            0L,
+        """.trimIndent()
+      )
+      for (t in reg.tags.sortedBy { it.serial }) {
+        appendLine("    ${idC(t.ddName)},")
+      }
+      appendLine(
+        """
+          };
+
+          /**
            * The registry's name&harr;id tables, as a {@link KnownTagCodec.Resolver}. {@code KnownTagCodec}
            * reads this field from its own holder, so the two classes complete each other: the codec owns
            * the bit layout and the naming policy, this class owns the data. Nothing has to be called first.
@@ -215,6 +234,11 @@ object KnownTagsEmitter {
                 public String nameOf(long tagId) {
                   int serial = KnownTagCodec.serialNum(tagId);
                   return serial < NAMES_BY_SERIAL.length ? NAMES_BY_SERIAL[serial] : null;
+                }
+
+                @Override
+                public long idOf(int serial) {
+                  return IDS_BY_SERIAL[serial];
                 }
         
                 // openTelemetryNameOf: id -> OTel-namespace name on spans of a direction, null when

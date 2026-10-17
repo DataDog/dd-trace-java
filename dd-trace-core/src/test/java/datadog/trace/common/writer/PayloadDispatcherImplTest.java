@@ -217,7 +217,6 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
             Collections.emptyMap(),
             false,
             "",
-            0,
             trace,
             null,
             null,

@@ -228,7 +228,6 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
             Collections.emptyMap(),
             false,
             "fakeType",
-            0,
             trace,
             null,
             null,

@@ -285,6 +285,21 @@ class KnownTagsTest {
     assertEquals("my.custom.tag", KnownTagCodec.canonicalTagName("my.custom.tag"));
   }
 
+  @Test
+  void idOfRecoversEveryKnownTagsFullIdFromItsSerial() throws IllegalAccessException {
+    int checked = 0;
+    for (java.lang.reflect.Field field : KnownTags.class.getFields()) {
+      if (field.getType() == long.class && field.getName().endsWith("_ID")) {
+        long tagId = field.getLong(null);
+        if (KnownTagCodec.isKnown(tagId)) {
+          assertEquals(tagId, KnownTagCodec.idOf(KnownTagCodec.serialNum(tagId)), field.getName());
+          checked++;
+        }
+      }
+    }
+    assertTrue(checked > 0);
+  }
+
   @TableTest({
     "scenario | kind       | direction",
     "no kind  |            | -1       ",

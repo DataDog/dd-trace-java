@@ -71,6 +71,11 @@ trace_level:
     - { dd-name: env,                    type: string,  required: recommended }
     - { dd-name: language,               type: string,  required: required }
     - { dd-name: runtime-id,             type: string,  required: required }
+    # tracer-internal, set on the local root span only: the process id, the span attribute schema
+    # version, and the agent-provided sampling rate the sampler applied
+    - { dd-name: process_id,             type: long,    required: recommended }
+    - { dd-name: _dd.trace_span_attribute_schema, type: int, required: recommended }
+    - { dd-name: _dd.agent_psr,          type: double,  required: optional }
     - { dd-name: _dd.tracer_host,        type: string,  required: recommended }
     - { dd-name: _dd.git.commit.sha,     type: string,  required: recommended }
     - { dd-name: _dd.git.repository_url, type: string,  required: recommended }
