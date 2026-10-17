@@ -13,6 +13,10 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+tasks.compileJava {
+  options.release.set(8)
+}
+
 spotless {
   java {
     toggleOffOn()

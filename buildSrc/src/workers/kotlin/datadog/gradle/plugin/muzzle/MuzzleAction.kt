@@ -18,12 +18,12 @@ abstract class MuzzleAction : WorkAction<MuzzleWorkParameters> {
         }
 
         /**
-         * Creates a classloader for [cp] with the given [parent]. By default, the platform
-         * classloader keeps JDK classes visible without exposing Gradle's bundled libraries.
+         * Creates a classloader for [cp]. The system loader's parent (extension loader on
+         * Java 8, platform loader on Java 9+) exposes JDK classes without Gradle's libraries.
          */
         fun createClassLoader(
           cp: FileCollection,
-          parent: ClassLoader = ClassLoader.getPlatformClassLoader()
+          parent: ClassLoader = ClassLoader.getSystemClassLoader().parent
         ): ClassLoader {
             val urls = cp.map { it.toURI().toURL() }.toTypedArray()
             return URLClassLoader(urls, parent)
