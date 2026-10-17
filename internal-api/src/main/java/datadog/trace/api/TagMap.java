@@ -51,7 +51,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
   // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
   // reads no statics, so this is safe to build directly during TagMap's <clinit>.
-  public static final TagMap EMPTY = new TagMap(IdStoreFactory.Default.INSTANCE.newEmpty());
+  public static final TagMap EMPTY = new TagMap(IdStoreFactory.Default.INSTANCE.createEmpty());
 
   // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
   // tag, so it cannot represent "not computed".

@@ -11,7 +11,7 @@ package datadog.trace.api;
  * call on an {@code IdStore} without a guard. A store builds its own copies.
  *
  * <p>No static state here, and no {@link TagMap}: {@link TagMap#EMPTY} is built with {@link
- * #newEmpty}, so class initialization works whichever of the two starts first.
+ * #createEmpty}, so class initialization works whichever of the two starts first.
  */
 abstract class IdStoreFactory {
   /** The JVM's store, chosen once by the dense-store flag. */
@@ -26,7 +26,7 @@ abstract class IdStoreFactory {
   abstract IdStore create(IdStore parent);
 
   /** A new empty parentless store, for a frozen map. */
-  abstract IdStore newEmpty();
+  abstract IdStore createEmpty();
 }
 
 final class HashIdStoreFactory extends IdStoreFactory {
@@ -40,8 +40,8 @@ final class HashIdStoreFactory extends IdStoreFactory {
   }
 
   @Override
-  IdStore newEmpty() {
-    return HashIdStore.newEmpty();
+  IdStore createEmpty() {
+    return HashIdStore.createEmpty();
   }
 }
 
@@ -56,7 +56,7 @@ final class DenseIdStoreFactory extends IdStoreFactory {
   }
 
   @Override
-  IdStore newEmpty() {
+  IdStore createEmpty() {
     return new DenseIdStore(null);
   }
 }

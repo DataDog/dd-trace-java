@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  */
 final class HashIdStore extends IdStore {
   /** An empty parentless store over one bucket, for {@link TagMap#EMPTY}, which is frozen. */
-  static HashIdStore newEmpty() {
+  static HashIdStore createEmpty() {
     return new HashIdStore(new Object[1]);
   }
 
