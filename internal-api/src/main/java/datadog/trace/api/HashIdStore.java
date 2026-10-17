@@ -49,18 +49,18 @@ final class HashIdStore extends IdStore {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
-    return this.getVisible(tagId, slotBit(tagId));
+    return this.getVisible(tagId, slotBit(tagId), levelOf(tagId));
   }
 
-  /** {@link #get} for a validated id and its slot bit. */
-  private Entry getVisible(long tagId, long bit) {
-    if (this.mayHaveLocal(bit)) {
+  /** {@link #get} for a validated id and its slot bit and level. */
+  private Entry getVisible(long tagId, long bit, int level) {
+    if (this.mayHaveLocal(bit, level)) {
       Entry local = HashSupport.findById(this.buckets, Entry.bucketHash(tagId), tagId);
       if (local != null) {
         return local.tombstone ? null : local;
       }
     }
-    return this.mayInherit(bit) ? this.parent.getVisible(tagId, bit) : null;
+    return this.mayInherit(bit, level) ? this.parent.getVisible(tagId, bit, level) : null;
   }
 
   @Override
@@ -109,7 +109,7 @@ final class HashIdStore extends IdStore {
   @Override
   public Entry put(Entry knownEntry) {
     Entry replaced = HashSupport.put(this.buckets, knownEntry);
-    this.occupancy |= slotBit(knownEntry.tagHash);
+    this.markLocal(slotBit(knownEntry.tagHash), levelOf(knownEntry.tagHash));
     if (replaced == null || replaced.tombstone) {
       this.count++; // a tombstone replaced is a removal undone: no prior local entry
       return null;
@@ -121,16 +121,17 @@ final class HashIdStore extends IdStore {
   public Entry getAndPut(Entry knownEntry) {
     long tagId = knownEntry.tagHash;
     long bit = slotBit(tagId);
+    int level = levelOf(tagId);
     Entry replaced = HashSupport.put(this.buckets, knownEntry);
-    this.occupancy |= bit;
+    this.markLocal(bit, level);
     if (replaced != null && !replaced.tombstone) {
       return replaced; // replaced a local entry -> that is the prior value
     }
     this.count++;
-    if (replaced != null || !this.mayInherit(bit)) {
+    if (replaced != null || !this.mayInherit(bit, level)) {
       return null; // it was tombstoned, so not visible, or nothing to inherit
     }
-    return this.parent.getVisible(tagId, bit);
+    return this.parent.getVisible(tagId, bit, level);
   }
 
   @Override
@@ -139,9 +140,11 @@ final class HashIdStore extends IdStore {
       throw notKnown(tagId);
     }
     long bit = slotBit(tagId);
+    int level = levelOf(tagId);
     int hash = Entry.bucketHash(tagId);
 
-    Entry local = this.mayHaveLocal(bit) ? HashSupport.findById(this.buckets, hash, tagId) : null;
+    Entry local =
+        this.mayHaveLocal(bit, level) ? HashSupport.findById(this.buckets, hash, tagId) : null;
     if (local != null) {
       if (local.tombstone) {
         return null; // already removed
@@ -149,13 +152,13 @@ final class HashIdStore extends IdStore {
       HashSupport.remove(this.buckets, hash, local.tag);
       this.count--;
     }
-    if (this.mayInherit(bit)) {
+    if (this.mayInherit(bit, level)) {
       // Read-through: hide an inherited value with a tombstone. The prior *visible* value is the
       // local entry if there was one, otherwise the inherited one.
-      Entry inherited = this.parent.getVisible(tagId, bit);
+      Entry inherited = this.parent.getVisible(tagId, bit, level);
       if (inherited != null) {
         HashSupport.put(this.buckets, Entry.tombstoneOf(tagId));
-        this.tombstoneMask |= bit;
+        this.markTombstone(bit, level);
         return local != null ? local : inherited;
       }
     }
@@ -221,9 +224,11 @@ final class HashIdStore extends IdStore {
   boolean parentEntryVisible(Entry parentEntry, HashIdStore fromAncestor) {
     long tagId = parentEntry.tagHash;
     long bit = slotBit(tagId);
+    int level = levelOf(tagId);
     int hash = parentEntry.hash();
     for (HashIdStore nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
-      if (nearer.mayHaveLocal(bit) && HashSupport.findById(nearer.buckets, hash, tagId) != null) {
+      if (nearer.mayHaveLocal(bit, level)
+          && HashSupport.findById(nearer.buckets, hash, tagId) != null) {
         return false;
       }
     }
@@ -325,6 +330,7 @@ final class HashIdStore extends IdStore {
     copy.count = this.count;
     copy.occupancy = this.occupancy;
     copy.tombstoneMask = this.tombstoneMask;
+    copy.levels = this.levels;
     return copy;
   }
 
@@ -346,6 +352,7 @@ final class HashIdStore extends IdStore {
       this.count += HashSupport.merge(this.buckets, that.buckets);
     }
     this.occupancy |= that.occupancy;
+    this.levels |= that.levels;
   }
 
   @Override

@@ -66,19 +66,21 @@ final class DenseIdStore extends IdStore {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
-    return this.getVisible((char) KnownTagCodec.serialNum(tagId), slotBit(tagId));
+    return this.getVisible((char) KnownTagCodec.serialNum(tagId), slotBit(tagId), levelOf(tagId));
   }
 
-  /** The visible value of the tag {@code serial} in the slot {@code bit}, or null. */
-  private Object getVisible(char serial, long bit) {
-    if (this.mayHaveLocal(bit)) {
+  /**
+   * The visible value of the tag {@code serial} in the slot {@code bit} of {@code level}, or null.
+   */
+  private Object getVisible(char serial, long bit, int level) {
+    if (this.mayHaveLocal(bit, level)) {
       int i = this.indexOf(serial);
       if (i >= 0) {
         Object value = this.values[i];
         return value == TOMBSTONE ? null : value;
       }
     }
-    return this.mayInherit(bit) ? this.parent.getVisible(serial, bit) : null;
+    return this.mayInherit(bit, level) ? this.parent.getVisible(serial, bit, level) : null;
   }
 
   @Override
@@ -127,19 +129,20 @@ final class DenseIdStore extends IdStore {
     long tagId = knownEntry.tagHash;
     char serial = (char) KnownTagCodec.serialNum(tagId);
     long bit = slotBit(tagId);
-    int i = this.mayHaveLocal(bit) ? this.indexOf(serial) : -1;
+    int level = levelOf(tagId);
+    int i = this.mayHaveLocal(bit, level) ? this.indexOf(serial) : -1;
     Object prior;
     if (i >= 0) {
       prior = this.values[i];
       if (prior == TOMBSTONE) {
         prior = null; // tombstoned, so not visible
-        this.occupancy |= bit;
+        this.markLocal(bit, level);
         this.count++;
       }
       this.values[i] = knownEntry.objectValue();
     } else {
-      prior = this.mayInherit(bit) ? this.parent.getVisible(serial, bit) : null;
-      this.append(serial, bit, knownEntry.objectValue());
+      prior = this.mayInherit(bit, level) ? this.parent.getVisible(serial, bit, level) : null;
+      this.append(serial, bit, level, knownEntry.objectValue());
     }
     return this.readerOf(tagId, prior);
   }
@@ -151,8 +154,9 @@ final class DenseIdStore extends IdStore {
     }
     char serial = (char) KnownTagCodec.serialNum(tagId);
     long bit = slotBit(tagId);
+    int level = levelOf(tagId);
 
-    int i = this.mayHaveLocal(bit) ? this.indexOf(serial) : -1;
+    int i = this.mayHaveLocal(bit, level) ? this.indexOf(serial) : -1;
     Object local = null;
     if (i >= 0) {
       local = this.values[i];
@@ -160,10 +164,10 @@ final class DenseIdStore extends IdStore {
         return null; // already removed
       }
     }
-    if (this.mayInherit(bit)) {
+    if (this.mayInherit(bit, level)) {
       // Read-through: hide an inherited value with a tombstone. The prior *visible* value is the
       // local one if there was one, otherwise the inherited one.
-      Object inherited = this.parent.getVisible(serial, bit);
+      Object inherited = this.parent.getVisible(serial, bit, level);
       if (inherited != null) {
         if (i >= 0) {
           this.values[i] = TOMBSTONE;
@@ -171,7 +175,7 @@ final class DenseIdStore extends IdStore {
         } else {
           this.appendSlot(serial, TOMBSTONE);
         }
-        this.tombstoneMask |= bit;
+        this.markTombstone(bit, level);
         return this.readerOf(tagId, local != null ? local : inherited);
       }
     }
@@ -186,25 +190,26 @@ final class DenseIdStore extends IdStore {
   private Object store(long tagId, Object value) {
     char serial = (char) KnownTagCodec.serialNum(tagId);
     long bit = slotBit(tagId);
-    int i = this.mayHaveLocal(bit) ? this.indexOf(serial) : -1;
+    int level = levelOf(tagId);
+    int i = this.mayHaveLocal(bit, level) ? this.indexOf(serial) : -1;
     if (i >= 0) {
       Object prior = this.values[i];
       this.values[i] = value;
       if (prior == TOMBSTONE) {
-        this.occupancy |= bit;
+        this.markLocal(bit, level);
         this.count++; // a tombstone replaced is a removal undone: no prior local value
         return null;
       }
       return prior;
     }
-    this.append(serial, bit, value);
+    this.append(serial, bit, level, value);
     return null;
   }
 
   /** Appends a live local tag. */
-  private void append(char serial, long bit, Object value) {
+  private void append(char serial, long bit, int level, Object value) {
     this.appendSlot(serial, value);
-    this.occupancy |= bit;
+    this.markLocal(bit, level);
     this.count++;
   }
 
@@ -331,9 +336,11 @@ final class DenseIdStore extends IdStore {
    */
   private boolean visibleFrom(DenseIdStore fromAncestor, int i) {
     char serial = fromAncestor.serials[i];
-    long bit = slotBit(KnownTagCodec.idOf(serial));
+    long tagId = KnownTagCodec.idOf(serial);
+    long bit = slotBit(tagId);
+    int level = levelOf(tagId);
     for (DenseIdStore nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
-      if (nearer.mayHaveLocal(bit) && nearer.indexOf(serial) >= 0) {
+      if (nearer.mayHaveLocal(bit, level) && nearer.indexOf(serial) >= 0) {
         return false;
       }
     }
@@ -431,6 +438,7 @@ final class DenseIdStore extends IdStore {
     copy.count = this.count;
     copy.occupancy = this.occupancy;
     copy.tombstoneMask = this.tombstoneMask;
+    copy.levels = this.levels;
     return copy;
   }
 
@@ -447,6 +455,7 @@ final class DenseIdStore extends IdStore {
       this.used = that.used;
       this.count = that.count;
       this.occupancy |= that.occupancy;
+      this.levels |= that.levels;
       return;
     }
     for (int i = 0; i < that.used; ++i) {
@@ -491,10 +500,13 @@ final class DenseIdStore extends IdStore {
       if (serial == 0 || serial >= KnownTagCodec.serialLimit()) {
         throw new IllegalStateException("not a known serial: " + (int) serial);
       }
-      long bit = slotBit(KnownTagCodec.idOf(serial));
+      long tagId = KnownTagCodec.idOf(serial);
       long mask = this.values[i] == TOMBSTONE ? this.tombstoneMask : this.occupancy;
-      if ((mask & bit) == 0L) {
+      if ((mask & slotBit(tagId)) == 0L) {
         throw new IllegalStateException("slot bit not set: " + nameAt(i));
+      }
+      if ((this.levels & levelOf(tagId)) == 0) {
+        throw new IllegalStateException("level not set: " + nameAt(i));
       }
       if (this.values[i] == null) {
         throw new IllegalStateException("null value: " + nameAt(i));

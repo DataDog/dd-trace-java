@@ -24,6 +24,12 @@ import java.util.function.Consumer;
  * KnownTagCodec#slotOf}) maps it to one bit of a {@code long}. A bit is a may-be-present hint --
  * tags that don't usually co-occur share a slot -- so a clear bit is a definite miss and a set bit
  * means "probe". The masks are never cleared by a removal, only widened.
+ *
+ * <p>Span-level and trace-level tags are colored separately and reuse the same slots, since they
+ * are meant to live in separate stores (a span's trace-level tags in the frozen parent it reads
+ * through). So each store also records which levels it holds, local and inherited, and a lookup
+ * consults the slot bits only for a level that is present: in a store holding one level the word is
+ * exact, and a store holding both still works, with a cross-level collision costing a probe.
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
@@ -39,8 +45,23 @@ public abstract class IdStore {
    */
   final long inheritedMask;
 
+  /** The levels ({@link #SPAN_LEVEL}, {@link #TRACE_LEVEL}) of the local entries and tombstones. */
+  byte levels;
+
+  /** The levels an ancestor may hold, fixed at construction like {@link #inheritedMask}. */
+  final byte inheritedLevels;
+
+  static final int SPAN_LEVEL = 1;
+  static final int TRACE_LEVEL = 2;
+
   IdStore(IdStore parent) {
-    this.inheritedMask = parent == null ? 0L : parent.occupancy | parent.inheritedMask;
+    if (parent == null) {
+      this.inheritedMask = 0L;
+      this.inheritedLevels = 0;
+    } else {
+      this.inheritedMask = parent.occupancy | parent.inheritedMask;
+      this.inheritedLevels = (byte) (parent.levels | parent.inheritedLevels);
+    }
   }
 
   /** {@code tagId}'s slot bit. */
@@ -48,14 +69,31 @@ public abstract class IdStore {
     return 1L << KnownTagCodec.slotOf(tagId);
   }
 
-  /** Whether the slot {@code bit} may hold a local entry or tombstone. */
-  final boolean mayHaveLocal(long bit) {
-    return ((occupancy | tombstoneMask) & bit) != 0L;
+  /** {@code tagId}'s level: {@link #SPAN_LEVEL} or {@link #TRACE_LEVEL}, without a branch. */
+  static int levelOf(long tagId) {
+    return 1 << (int) ((tagId & KnownTagCodec.LEVEL_TRACE) >>> 2);
   }
 
-  /** Whether an ancestor may hold a tag in the slot {@code bit}. */
-  final boolean mayInherit(long bit) {
-    return (inheritedMask & bit) != 0L;
+  /** Whether the slot {@code bit} may hold a local entry or tombstone of {@code level}. */
+  final boolean mayHaveLocal(long bit, int level) {
+    return (levels & level) != 0 && ((occupancy | tombstoneMask) & bit) != 0L;
+  }
+
+  /** Whether an ancestor may hold a tag of {@code level} in the slot {@code bit}. */
+  final boolean mayInherit(long bit, int level) {
+    return (inheritedLevels & level) != 0 && (inheritedMask & bit) != 0L;
+  }
+
+  /** Records a live local entry in the slot {@code bit} of {@code level}. */
+  final void markLocal(long bit, int level) {
+    this.occupancy |= bit;
+    this.levels |= (byte) level;
+  }
+
+  /** Records a local tombstone in the slot {@code bit} of {@code level}. */
+  final void markTombstone(long bit, int level) {
+    this.tombstoneMask |= bit;
+    this.levels |= (byte) level;
   }
 
   /** Throws for an id that names no known tag. */

@@ -112,6 +112,26 @@ class TagStoresTest {
   }
 
   @Test
+  void aSpanLevelReadSkipsAParentHoldingOnlyTraceLevelTagsInItsSlot() {
+    // runtime-id (trace level) and http.method (span level) are colored into the same slot
+    assertEquals(IdStore.slotBit(KnownTags.RUNTIME_ID), IdStore.slotBit(KnownTags.HTTP_METHOD_ID));
+    assertEquals(IdStore.TRACE_LEVEL, IdStore.levelOf(KnownTags.RUNTIME_ID));
+    assertEquals(IdStore.SPAN_LEVEL, IdStore.levelOf(KnownTags.HTTP_METHOD_ID));
+
+    HashIdStore traceLevel = new HashIdStore(null);
+    traceLevel.set(KnownTags.RUNTIME_ID, "abc");
+    HashIdStore span = new HashIdStore(traceLevel);
+    span.set(KnownTags.HTTP_ROUTE_ID, "/a");
+
+    long bit = IdStore.slotBit(KnownTags.HTTP_METHOD_ID);
+    assertFalse(span.mayInherit(bit, IdStore.levelOf(KnownTags.HTTP_METHOD_ID)));
+    assertTrue(span.mayInherit(bit, IdStore.levelOf(KnownTags.RUNTIME_ID)));
+    assertFalse(traceLevel.mayHaveLocal(bit, IdStore.SPAN_LEVEL));
+    assertNull(span.get(KnownTags.HTTP_METHOD_ID));
+    assertEquals("abc", span.getKnownValue(KnownTags.RUNTIME_ID));
+  }
+
+  @Test
   void aClearSlotBitIsADefiniteMiss() {
     HashIdStore ids = new HashIdStore(null);
     assertEquals(0L, ids.occupancy);
