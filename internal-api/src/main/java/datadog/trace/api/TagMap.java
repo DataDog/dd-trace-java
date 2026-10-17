@@ -1279,9 +1279,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * serializers) and its snapshot copy; never on the span's own set/get paths. Not thread-safe: use
    * it under the span's tag lock.
    *
-   * <p>The span owns the stores. Before each use it {@link #attach attaches} the view to its
-   * current custom store, which it creates lazily; after, it adopts any custom store the view
-   * created ({@link #customStore}), since a reader may write a custom tag.
+   * <p>The span owns the stores, and the view keeps the ones it was created over. A span that later
+   * creates its own custom store drops its view and creates a new one. After using the view, the
+   * span adopts any custom store the view created ({@link #customStore}), since a reader may write
+   * a custom tag.
    */
   @Restricted(allowedIn = {"datadog.trace.core"})
   public static TagMap viewOf(IdStore ids, HashStore names, boolean namesBorrowed) {
@@ -1312,13 +1313,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
   private static Entry entryOf(EntryReader reader) {
     return reader == null ? null : reader.entry();
-  }
-
-  /** Points this view at its span's current custom store; see {@link #viewOf}. */
-  @Restricted(allowedIn = {"datadog.trace.core"})
-  public void attach(HashStore names, boolean namesBorrowed) {
-    this.names = names;
-    this.namesBorrowed = namesBorrowed;
   }
 
   /** This map's custom store: null, borrowed ({@link #isCustomStoreBorrowed}), or its own. */

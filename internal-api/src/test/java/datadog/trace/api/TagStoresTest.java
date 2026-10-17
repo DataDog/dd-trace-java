@@ -296,10 +296,6 @@ class TagStoresTest {
     assertFalse(view.isCustomStoreBorrowed());
     assertNotSame(borrowed, view.customStore());
     assertEquals("o", view.customStore().get("own").stringValue());
-
-    view.attach(null, false);
-    assertNull(view.getString("own"));
-    assertNull(view.customStore());
   }
 
   @Test

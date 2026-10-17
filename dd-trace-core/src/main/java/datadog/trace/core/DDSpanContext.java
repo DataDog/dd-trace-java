@@ -963,9 +963,11 @@ public class DDSpanContext
   }
 
   /**
-   * This span's cached view of its tag stores, for its internal readers (post-processors, the
-   * serializer, the snapshot copy) -- never its own set/get paths. Before each use it is pointed at
-   * the current custom store, which the span creates lazily. Call under the {@code knownTags} lock.
+   * This span's cached view of its tag stores, for its internal bulk readers (post-processors, the
+   * serializer, the snapshot copy) -- never its own set/get paths. The view keeps the stores it was
+   * created over: {@link #customTagsForWrite} drops it when the span creates its own custom store.
+   * Bulk readers run late in a span's life, after its custom writes, so that is rare. Call under
+   * the {@code knownTags} lock.
    */
   private TagMap tagView() {
     TagMap view = this.tagView;
@@ -973,7 +975,6 @@ public class DDSpanContext
       // a view handed to the post-processor chain escapes, so allocate it once per span
       this.tagView = view = TagMap.viewOf(knownTags, customTags, customTagsBorrowed);
     }
-    view.attach(customTags, customTagsBorrowed);
     return view;
   }
 
@@ -982,17 +983,25 @@ public class DDSpanContext
    * so the span's own paths see it. Call under the {@code knownTags} lock, after using the view.
    */
   private void adoptViewStores(TagMap view) {
-    this.customTags = view.customStore();
-    this.customTagsBorrowed = view.isCustomStoreBorrowed();
+    // Skipped when the span dropped this view during its use: a callback into a span setter
+    // created the span's own custom store, which must not be replaced by the view's older one.
+    if (view == this.tagView) {
+      this.customTags = view.customStore();
+      this.customTagsBorrowed = view.isCustomStoreBorrowed();
+    }
   }
 
-  /** The custom store to write to: created on the first custom write, ending any borrowing. */
+  /**
+   * The custom store to write to: created on the first custom write, ending any borrowing. A cached
+   * view still holds the old store, so it is dropped.
+   */
   private HashStore customTagsForWrite() {
     HashStore custom = this.customTags;
     if (custom == null || this.customTagsBorrowed) {
       custom = HashStore.create(custom); // reads through to the store borrowed till now
       this.customTags = custom;
       this.customTagsBorrowed = false;
+      this.tagView = null;
     }
     return custom;
   }
@@ -1028,9 +1037,9 @@ public class DDSpanContext
    * Copies {@code map}'s tags into the stores, sharing its Entry objects where a store keeps them.
    */
   private void putAllTags(TagMap map) {
-    TagMap view = tagView();
-    view.putAll(map);
-    adoptViewStores(view);
+    // straight into the stores: a view created this early would likely be dropped by a later
+    // custom write
+    map.forEach(this, (ctx, entryReader) -> ctx.putEntry(entryReader));
   }
 
   /*
