@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
@@ -23,7 +24,10 @@ import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
@@ -43,6 +47,7 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -228,6 +233,53 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(1, exposures.size());
     assertEquals(1, customerEvaluations.size());
     assertTelemetryCounts(0);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void telemetryAttributeRemainsAvailableForTargetingAndExposure(final boolean enabled)
+      throws Exception {
+    start(new Provider.Options().enableEvaluationTelemetryOptOutParameter(enabled));
+
+    for (final boolean observeFullEvaluationData : new boolean[] {false, true}) {
+      FeatureFlaggingGateway.dispatch(targetingConfiguration(observeFullEvaluationData));
+      final String subject = "subject-" + observeFullEvaluationData;
+      final int previousEvents = events.size();
+      final int previousExposures = exposures.size();
+
+      final FlagEvaluationDetails<Integer> allowed = evaluate(subject, new Value(false));
+      final FlagEvaluationDetails<Integer> optedOut = evaluate(subject, new Value(true));
+      final FlagEvaluationDetails<Integer> repeated = evaluate(subject, new Value(true));
+      final FlagEvaluationDetails<Integer> stringValue =
+          evaluate(subject + "-string", new Value("true"));
+
+      assertNull(allowed.getErrorCode());
+      assertEquals(1, allowed.getValue());
+      assertEquals("on", allowed.getVariant());
+      for (final FlagEvaluationDetails<Integer> details : asList(optedOut, repeated, stringValue)) {
+        assertNull(details.getErrorCode());
+        assertEquals(2, details.getValue(), "the ordinary targeting rule sees the attribute");
+        assertEquals("targeted", details.getVariant());
+      }
+      assertEquals(
+          previousExposures + 3, exposures.size(), "normal exposure deduplication applies");
+      assertEquals(false, exposures.get(previousExposures).subject.attributes.get(PARAMETER));
+      assertEquals(true, exposures.get(previousExposures + 1).subject.attributes.get(PARAMETER));
+      assertEquals("true", exposures.get(previousExposures + 2).subject.attributes.get(PARAMETER));
+      assertTelemetryCounts(previousEvents + (enabled ? 2 : 4));
+
+      if (observeFullEvaluationData) {
+        assertEquals(false, events.get(previousEvents).attrs.get(PARAMETER));
+        assertEquals("true", events.get(events.size() - 1).attrs.get(PARAMETER));
+        if (!enabled) {
+          assertEquals(true, events.get(previousEvents + 1).attrs.get(PARAMETER));
+        }
+      } else {
+        for (final FlagEvalEvent event : events.subList(previousEvents, events.size())) {
+          assertTrue(event.attrs.isEmpty(), "normal evaluation privacy rules still apply");
+        }
+      }
+    }
   }
 
   @Test
@@ -557,6 +609,38 @@ class EvaluationTelemetryOptOutTest {
 
   private void start() throws Exception {
     start(new Provider.Options().enableEvaluationTelemetryOptOutParameter(true));
+  }
+
+  private static ServerConfiguration targetingConfiguration(
+      final boolean observeFullEvaluationData) {
+    final Rule rule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(
+                    ConditionOperator.ONE_OF, PARAMETER, singletonList(true))));
+    final Allocation targeted =
+        new Allocation(
+            "targeted",
+            singletonList(rule),
+            null,
+            null,
+            singletonList(new Split(emptyList(), "targeted", emptyMap(), 7)),
+            true);
+    final Allocation fallback =
+        new Allocation(
+            "fallback",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true);
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("on", new Variant("on", 1));
+    variants.put("targeted", new Variant("targeted", 2));
+    final Flag flag =
+        new Flag("flag", true, ValueType.INTEGER, variants, asList(targeted, fallback));
+    return new ServerConfiguration(
+        "", "", observeFullEvaluationData, null, singletonMap("flag", flag));
   }
 
   private void start(final Provider.Options options) throws Exception {

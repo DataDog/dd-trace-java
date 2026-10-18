@@ -99,7 +99,11 @@ An explicit provider option overrides these sources, including an explicit `fals
 This setting only enables support for the subject attribute. It does not suppress telemetry for all subjects.
 
 Only boolean `true` suppresses telemetry. Missing, false, null, and other types preserve telemetry.
-The provider ignores the parameter unless the option is enabled before provider construction.
+The provider suppresses telemetry only when the option is enabled before provider construction.
+
+The attribute remains available for targeting and exposure reporting with either activation setting.
+Existing privacy and reporting settings apply. Targeting rules can use the attribute to select
+assignments. Normal exposure deduplication applies when its value changes.
 
 Opt-out suppresses new evaluation EVP events and counts, OpenTelemetry evaluation metrics, and
 automatic flag-related span enrichment. It does not change flag values, evaluation details,

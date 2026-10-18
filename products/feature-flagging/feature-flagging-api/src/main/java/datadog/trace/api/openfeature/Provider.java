@@ -335,6 +335,9 @@ public class Provider extends EventProvider implements Metadata {
      * and automatic flag span enrichment. Missing or other values preserve telemetry. This does not
      * change flag results, exposure logging, application hooks, or previously recorded data.
      *
+     * <p>The attribute remains available for targeting and exposure reporting. Existing privacy and
+     * reporting settings apply.
+     *
      * @param enabled whether to honor the attribute; configure before constructing the provider
      * @return these options
      */
