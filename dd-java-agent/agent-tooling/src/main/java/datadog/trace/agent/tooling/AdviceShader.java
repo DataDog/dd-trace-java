@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import static java.lang.Integer.toHexString;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
@@ -84,9 +85,10 @@ public final class AdviceShader {
   public String uniqueHelper(String dottedName) {
     int packageEnd = dottedName.lastIndexOf('.');
     if (packageEnd > 0) {
+      // Hex encoding keeps negative hashes valid in Java package names.
       return dottedName.substring(0, packageEnd + 1)
           + "shaded"
-          + relocations.hashCode()
+          + toHexString(relocations.hashCode())
           + dottedName.substring(packageEnd);
     }
     return dottedName;
