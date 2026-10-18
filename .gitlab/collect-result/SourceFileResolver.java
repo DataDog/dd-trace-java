@@ -1,3 +1,5 @@
+import static java.util.stream.Collectors.groupingBy;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.classfile.Attributes;
@@ -51,7 +53,7 @@ final class SourceFileResolver {
     private final Path classesDir;
     private final Map<String, Set<String>> sourceNames = new HashMap<>();
     private final Map<String, String> resolved = new HashMap<>();
-    private List<Path> sources = List.of();
+    private Map<String, List<Path>> sourcesByFilename = Map.of();
     private boolean indexed;
 
     private SourceIndex(Path sourceRoot, Path classesDir) {
@@ -73,8 +75,7 @@ final class SourceFileResolver {
       var locations = new ArrayList<Path>();
       if (names != null) {
         for (var name : names) {
-          var candidates =
-              sources.stream().filter(path -> path.getFileName().toString().equals(name)).toList();
+          var candidates = sourcesByFilename.getOrDefault(name, List.of());
           var conventional =
               candidates.stream().filter(path -> matchesPackage(path, className, name)).toList();
           // Groovy and Kotlin source directories need not mirror the declared package.
@@ -86,8 +87,9 @@ final class SourceFileResolver {
         while (locations.isEmpty()) {
           var simpleName = lookupName.substring(lookupName.lastIndexOf('.') + 1);
           for (var extension : SOURCE_EXTENSIONS) {
-            for (var source : sources) {
-              if (matchesPackage(source, lookupName, simpleName + extension)) {
+            var name = simpleName + extension;
+            for (var source : sourcesByFilename.getOrDefault(name, List.of())) {
+              if (matchesPackage(source, lookupName, name)) {
                 locations.add(source);
               }
             }
@@ -129,7 +131,10 @@ final class SourceFileResolver {
       indexed = true;
       if (Files.isDirectory(sourceRoot)) {
         try (var paths = Files.walk(sourceRoot)) {
-          sources = paths.filter(Files::isRegularFile).toList();
+          sourcesByFilename =
+              paths
+                  .filter(Files::isRegularFile)
+                  .collect(groupingBy(path -> path.getFileName().toString()));
         }
       }
       if (Files.isDirectory(classesDir)) {
