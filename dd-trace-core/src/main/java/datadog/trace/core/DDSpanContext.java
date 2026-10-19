@@ -1056,14 +1056,6 @@ public class DDSpanContext
     }
   }
 
-  private void routeSet(long key, String tag, boolean value) {
-    if (key != 0) {
-      knownTags.set(key, value);
-    } else {
-      customTagsForWrite().set(tag, value);
-    }
-  }
-
   private void routeSet(long key, String tag, int value) {
     if (key != 0) {
       knownTags.set(key, value);
@@ -1191,10 +1183,6 @@ public class DDSpanContext
     routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
 
-  private void routeSet(String tag, boolean value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
-  }
-
   private void routeSet(String tag, int value) {
     routeSet(KnownTagCodec.keyOf(tag), tag, value);
   }
@@ -1281,7 +1269,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        routeSet(tag, value);
+        customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
   }
@@ -1297,7 +1285,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        routeSet(tag, value);
+        customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
   }
@@ -1445,7 +1433,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        routeSet(tag, value);
+        customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
   }
@@ -1460,7 +1448,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        routeSet(tag, value);
+        customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
   }
@@ -1475,7 +1463,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        routeSet(tag, value);
+        customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
   }
@@ -1490,7 +1478,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        routeSet(tag, value);
+        customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
   }
@@ -1505,7 +1493,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        routeSet(tag, value);
+        customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
   }
