@@ -146,10 +146,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           onURI(span, url);
           if (OTEL_SEMANTICS) {
             OtelHttpSemantics.setClientUrl(span, url);
-            // url.full may trigger URLAsResourceNameRule; restore the OTel span name afterwards.
-            if (shouldSetResourceName()) {
-              OtelHttpSemantics.setMethodResourceName(span, method);
-            }
           } else {
             span.setTag(
                 KnownTags.HTTP_URL_ID,
@@ -160,7 +156,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
               span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
             }
           }
-          if (!OTEL_SEMANTICS && shouldSetResourceName()) {
+          // Explicit path mappings take precedence over the default name in either semantic mode.
+          if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
           // SSRF exploit prevention check

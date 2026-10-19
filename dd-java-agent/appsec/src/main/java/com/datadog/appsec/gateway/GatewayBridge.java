@@ -28,6 +28,7 @@ import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.util.BodyParser;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.HttpClientPayload;
 import datadog.trace.api.appsec.HttpClientRequest;
@@ -1114,13 +1115,15 @@ public class GatewayBridge {
   private boolean maybeSampleForApiSecurity(
       AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
     log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-    // API Security sampling requires http.route tag or http.url for endpoint inference.
+    // API Security sampling requires a route or a URL path for endpoint inference.
     final Object route = tags.get(Tags.HTTP_ROUTE);
     if (route != null) {
       ctx.setRoute(route.toString());
     }
-    // Pass http.url to enable endpoint inference when route is absent
-    final Object url = tags.get(Tags.HTTP_URL);
+    Object url = tags.get(Tags.HTTP_URL);
+    if (url == null) {
+      url = tags.get(KnownTags.URL_PATH_NAME);
+    }
     if (url != null) {
       ctx.setHttpUrl(url.toString());
     }

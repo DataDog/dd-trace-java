@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.Pair;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
@@ -17,11 +19,24 @@ public class HttpResourceDecorator {
 
   private final boolean shouldSetUrlResourceName =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
+  private final boolean hasClientPathMappings =
+      !Config.get().getHttpClientPathResourceNameMapping().isEmpty();
 
   private HttpResourceDecorator() {}
 
   public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
-    if (OTEL_SEMANTICS) {
+    if (OTEL_SEMANTICS
+        && span.getSpanType() != null
+        && DDSpanTypes.HTTP_CLIENT.contentEquals(span.getSpanType())) {
+      if (hasClientPathMappings && path != null) {
+        Pair<CharSequence, Byte> resourceName =
+            HttpResourceNames.computeForClient(
+                OtelHttpSemantics.spanNameMethod(method), path, false);
+        if (resourceName.getRight() == ResourceNamePriorities.HTTP_CLIENT_CONFIG_PATTERN_MATCH) {
+          span.setResourceName(resourceName.getLeft(), resourceName.getRight());
+          return;
+        }
+      }
       OtelHttpSemantics.setMethodResourceName(span, method);
     } else {
       HttpResourceNames.setForClient(span, method, path, false);

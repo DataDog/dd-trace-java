@@ -43,7 +43,10 @@ public final class OtelHttpSemantics {
     span.setTag(KnownTags.HTTP_URL_ID, (Object) new ClientUrl(url));
     if (Config.get().isHttpClientTagQueryString()) {
       // QueryObfuscator scrubs this before rebuilding url.full and removes it from client spans.
-      final String query = url.getRawQuery();
+      // Decode rather than using getRawQuery(): the obfuscator matches literal parameter names, so
+      // a percent-encoded name such as t%6fken would hide the secret from it. This matches the
+      // query that non-OpenTelemetry client spans already carry in http.url.
+      final String query = url.getQuery();
       if (query != null) {
         span.setTag(KnownTags.URL_QUERY_ID, query);
       }

@@ -114,6 +114,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       if (domainName != null && !domainName.isEmpty()) {
         span.setTag(KnownTags.URL_SCHEME_ID, "https");
         span.setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, domainName);
+        span.setTag(KnownTags.Inbound.SERVER_PORT_ID, 443);
       }
     } else {
       span.setTag(KnownTags.HTTP_METHOD_ID, httpMethod);
