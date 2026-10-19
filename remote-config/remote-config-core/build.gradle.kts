@@ -31,6 +31,7 @@ dependencies {
   implementation(libs.bundles.cafe.crypto)
 
   implementation(project(":internal-api"))
+  implementation(project(":utils:container-utils"))
   implementation(project(":utils:logging-utils"))
 
   testImplementation(project(":utils:test-utils"))

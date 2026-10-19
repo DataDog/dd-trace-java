@@ -12,6 +12,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.common.container.ContainerInfo;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -46,6 +47,8 @@ public class BatchUploaderTest {
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
   private static final String API_KEY_VALUE = "testkey";
+  private static final String EXTERNAL_ENV =
+      "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759";
 
   @Mock private Config config;
   @Mock private RatelimitedLogger ratelimitedLogger;
@@ -56,8 +59,17 @@ public class BatchUploaderTest {
 
   private BatchUploader uploader;
 
+  private String savedContainerId;
+  private String savedEntityId;
+  private String savedExternalEnv;
+
   @BeforeEach
   public void setup() throws IOException {
+    ContainerInfo containerInfo = ContainerInfo.get();
+    savedContainerId = containerInfo.getContainerId();
+    savedEntityId = containerInfo.getEntityId();
+    savedExternalEnv = containerInfo.getExternalEnv();
+
     server.start();
     url = server.url(URL_PATH);
 
@@ -69,6 +81,7 @@ public class BatchUploaderTest {
 
   @AfterEach
   public void tearDown() throws IOException {
+    setOrigin(savedContainerId, savedEntityId, savedExternalEnv);
     uploader.shutdown();
     try {
       server.shutdown();
@@ -219,13 +232,19 @@ public class BatchUploaderTest {
         IllegalArgumentException.class, () -> new BatchUploader("test", config, "", retryPolicy));
   }
 
+  private static void setOrigin(String containerId, String entityId, String externalEnv) {
+    ContainerInfo containerInfo = ContainerInfo.get();
+    containerInfo.setContainerId(containerId);
+    containerInfo.setEntityId(entityId);
+    containerInfo.setExternalEnv(externalEnv);
+  }
+
   @Test
   public void testNoContainerId() throws InterruptedException {
-    // we don't explicitly specify a container ID
     server.enqueue(RESPONSE_200);
+    setOrigin(null, null, null);
     BatchUploader uploaderWithNoContainerId =
-        new BatchUploader(
-            "test", config, url.toString(), ratelimitedLogger, retryPolicy, null, null, null);
+        new BatchUploader("test", config, url.toString(), ratelimitedLogger, retryPolicy);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
@@ -239,26 +258,16 @@ public class BatchUploaderTest {
   public void testContainerIdHeader() throws InterruptedException {
     server.enqueue(RESPONSE_200);
 
+    setOrigin("testContainerId", "testEntityId", EXTERNAL_ENV);
     BatchUploader uploaderWithContainerId =
-        new BatchUploader(
-            "test",
-            config,
-            url.toString(),
-            ratelimitedLogger,
-            retryPolicy,
-            "testContainerId",
-            "testEntityId",
-            "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759");
-
+        new BatchUploader("test", config, url.toString(), ratelimitedLogger, retryPolicy);
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals("testContainerId", request.getHeader("Datadog-Container-ID"));
     assertEquals("testEntityId", request.getHeader("Datadog-Entity-ID"));
-    assertEquals(
-        "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759",
-        request.getHeader("Datadog-External-Env"));
+    assertEquals(EXTERNAL_ENV, request.getHeader("Datadog-External-Env"));
   }
 
   @Test
@@ -266,16 +275,9 @@ public class BatchUploaderTest {
     // the external env is the origin detection fallback when the container is not identifiable
     server.enqueue(RESPONSE_200);
 
+    setOrigin(null, null, EXTERNAL_ENV);
     BatchUploader uploaderWithExternalEnvOnly =
-        new BatchUploader(
-            "test",
-            config,
-            url.toString(),
-            ratelimitedLogger,
-            retryPolicy,
-            null,
-            null,
-            "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759");
+        new BatchUploader("test", config, url.toString(), ratelimitedLogger, retryPolicy);
 
     uploaderWithExternalEnvOnly.upload(SNAPSHOT_BUFFER);
     uploaderWithExternalEnvOnly.shutdown();
@@ -283,9 +285,7 @@ public class BatchUploaderTest {
     RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertNull(request.getHeader("Datadog-Container-ID"));
     assertNull(request.getHeader("Datadog-Entity-ID"));
-    assertEquals(
-        "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759",
-        request.getHeader("Datadog-External-Env"));
+    assertEquals(EXTERNAL_ENV, request.getHeader("Datadog-External-Env"));
   }
 
   @Test

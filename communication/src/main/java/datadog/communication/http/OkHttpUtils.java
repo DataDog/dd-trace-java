@@ -240,20 +240,6 @@ public final class OkHttpUtils {
   }
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
-    return prepareRequest(
-        url,
-        headers,
-        ContainerInfo.get().getContainerId(),
-        ContainerInfo.getEntityId(),
-        ContainerInfo.getExternalEnv());
-  }
-
-  static Request.Builder prepareRequest(
-      final HttpUrl url,
-      final Map<String, String> headers,
-      @Nullable final String containerId,
-      @Nullable final String entityId,
-      @Nullable final String externalEnv) {
     final Request.Builder builder =
         new Request.Builder()
             .url(url)
@@ -262,7 +248,7 @@ public final class OkHttpUtils {
             .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
             .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
-    addOriginHeaders(builder, containerId, entityId, externalEnv);
+    addOriginHeaders(builder);
 
     for (Map.Entry<String, String> e : headers.entrySet()) {
       builder.addHeader(e.getKey(), e.getValue());
@@ -277,25 +263,16 @@ public final class OkHttpUtils {
    * from, using the values detected by {@link ContainerInfo}.
    */
   public static Request.Builder addOriginHeaders(final Request.Builder builder) {
-    return addOriginHeaders(
-        builder,
-        ContainerInfo.get().getContainerId(),
-        ContainerInfo.getEntityId(),
-        ContainerInfo.getExternalEnv());
-  }
-
-  /** Adds the origin detection headers that are not {@code null}. */
-  public static Request.Builder addOriginHeaders(
-      final Request.Builder builder,
-      @Nullable final String containerId,
-      @Nullable final String entityId,
-      @Nullable final String externalEnv) {
+    final ContainerInfo containerInfo = ContainerInfo.get();
+    final String containerId = containerInfo.getContainerId();
     if (containerId != null) {
       builder.addHeader(DATADOG_CONTAINER_ID, containerId);
     }
+    final String entityId = containerInfo.getEntityId();
     if (entityId != null) {
       builder.addHeader(DATADOG_ENTITY_ID, entityId);
     }
+    final String externalEnv = containerInfo.getExternalEnv();
     if (externalEnv != null) {
       builder.addHeader(DATADOG_EXTERNAL_ENV, externalEnv);
     }

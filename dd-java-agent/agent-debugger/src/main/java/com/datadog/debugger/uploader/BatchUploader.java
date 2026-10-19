@@ -3,7 +3,6 @@ package com.datadog.debugger.uploader;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
 
 import com.datadog.debugger.util.DebuggerMetrics;
-import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
@@ -84,9 +83,6 @@ public class BatchUploader {
   public static final MediaType APPLICATION_GZIP = MediaType.get("application/gzip");
 
   private final String name;
-  private final String containerId;
-  private final String entityId;
-  private final String externalEnv;
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final HttpUrl urlBase;
@@ -108,33 +104,13 @@ public class BatchUploader {
         retryPolicy);
   }
 
-  BatchUploader(
-      String name,
-      Config config,
-      String endpoint,
-      RatelimitedLogger ratelimitedLogger,
-      RetryPolicy retryPolicy) {
-    this(
-        name,
-        config,
-        endpoint,
-        ratelimitedLogger,
-        retryPolicy,
-        ContainerInfo.get().containerId,
-        ContainerInfo.getEntityId(),
-        ContainerInfo.getExternalEnv());
-  }
-
   @VisibleForTesting
   BatchUploader(
       String name,
       Config config,
       String endpoint,
       RatelimitedLogger ratelimitedLogger,
-      RetryPolicy retryPolicy,
-      String containerId,
-      String entityId,
-      String externalEnv) {
+      RetryPolicy retryPolicy) {
     this.name = name;
     instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
     if (endpoint == null || endpoint.length() == 0) {
@@ -154,9 +130,6 @@ public class BatchUploader {
             new SynchronousQueue<>(),
             new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.retryPolicy = retryPolicy;
-    this.containerId = containerId;
-    this.entityId = entityId;
-    this.externalEnv = externalEnv;
     Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
     client =
         OkHttpUtils.buildHttpClient(
@@ -268,7 +241,7 @@ public class BatchUploader {
     } else {
       LOGGER.debug("API key is null");
     }
-    OkHttpUtils.addOriginHeaders(requestBuilder, containerId, entityId, externalEnv);
+    OkHttpUtils.addOriginHeaders(requestBuilder);
     Request request = requestBuilder.build();
     LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());
     enqueueCall(client, request, responseCallback, retryPolicy, 0, inflightRequests);

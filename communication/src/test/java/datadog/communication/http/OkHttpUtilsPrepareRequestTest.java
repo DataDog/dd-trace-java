@@ -9,8 +9,11 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.common.container.ContainerInfo;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class OkHttpUtilsPrepareRequestTest {
@@ -19,10 +22,35 @@ class OkHttpUtilsPrepareRequestTest {
   private static final String EXTERNAL_ENV =
       "it-false,cn-nginx-webserver,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759";
 
+  private String savedContainerId;
+  private String savedEntityId;
+  private String savedExternalEnv;
+
+  @BeforeEach
+  void saveContainerInfo() {
+    ContainerInfo containerInfo = ContainerInfo.get();
+    savedContainerId = containerInfo.getContainerId();
+    savedEntityId = containerInfo.getEntityId();
+    savedExternalEnv = containerInfo.getExternalEnv();
+  }
+
+  @AfterEach
+  void restoreContainerInfo() {
+    setOrigin(savedContainerId, savedEntityId, savedExternalEnv);
+  }
+
+  private static void setOrigin(String containerId, String entityId, String externalEnv) {
+    ContainerInfo containerInfo = ContainerInfo.get();
+    containerInfo.setContainerId(containerId);
+    containerInfo.setEntityId(entityId);
+    containerInfo.setExternalEnv(externalEnv);
+  }
+
   @Test
   void addsExternalEnvHeaderWhenSet() {
-    Request request =
-        prepareRequest(URL, emptyMap(), "containerId", "entityId", EXTERNAL_ENV).get().build();
+    setOrigin("containerId", "entityId", EXTERNAL_ENV);
+
+    Request request = prepareRequest(URL, emptyMap()).get().build();
 
     assertEquals(EXTERNAL_ENV, request.header(DATADOG_EXTERNAL_ENV));
     assertEquals("containerId", request.header(DATADOG_CONTAINER_ID));
@@ -31,7 +59,9 @@ class OkHttpUtilsPrepareRequestTest {
   @Test
   void addsExternalEnvHeaderWithoutContainerOrEntityId() {
     // the external env is the origin detection fallback when the container is not identifiable
-    Request request = prepareRequest(URL, emptyMap(), null, null, EXTERNAL_ENV).get().build();
+    setOrigin(null, null, EXTERNAL_ENV);
+
+    Request request = prepareRequest(URL, emptyMap()).get().build();
 
     assertEquals(EXTERNAL_ENV, request.header(DATADOG_EXTERNAL_ENV));
     assertNull(request.header(DATADOG_CONTAINER_ID));
@@ -40,16 +70,18 @@ class OkHttpUtilsPrepareRequestTest {
 
   @Test
   void omitsExternalEnvHeaderWhenUnset() {
-    Request request = prepareRequest(URL, emptyMap(), null, null, null).get().build();
+    setOrigin(null, null, null);
+
+    Request request = prepareRequest(URL, emptyMap()).get().build();
 
     assertNull(request.header(DATADOG_EXTERNAL_ENV));
   }
 
   @Test
   void addOriginHeadersAddsAllHeadersWhenSet() {
-    Request request =
-        addOriginHeaders(new Request.Builder().url(URL), "containerId", "entityId", EXTERNAL_ENV)
-            .build();
+    setOrigin("containerId", "entityId", EXTERNAL_ENV);
+
+    Request request = addOriginHeaders(new Request.Builder().url(URL)).build();
 
     assertEquals("containerId", request.header(DATADOG_CONTAINER_ID));
     assertEquals("entityId", request.header(DATADOG_ENTITY_ID));
@@ -58,7 +90,9 @@ class OkHttpUtilsPrepareRequestTest {
 
   @Test
   void addOriginHeadersOmitsUnsetHeaders() {
-    Request request = addOriginHeaders(new Request.Builder().url(URL), null, null, null).build();
+    setOrigin(null, null, null);
+
+    Request request = addOriginHeaders(new Request.Builder().url(URL)).build();
 
     assertEquals(0, request.headers().size());
   }

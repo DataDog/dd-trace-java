@@ -3,7 +3,6 @@ package datadog.communication.ddagent;
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.http.SocketUtils;
 import datadog.metrics.api.Monitoring;
@@ -164,9 +163,6 @@ public class SharedCommunicationObjects {
   }
 
   private ConfigurationPoller createPoller(Config config) {
-    String containerId = ContainerInfo.get().getContainerId();
-    String entityId = ContainerInfo.getEntityId();
-    String externalEnv = ContainerInfo.getExternalEnv();
     Supplier<String> configUrlSupplier;
     String remoteConfigUrl = config.getFinalRemoteConfigUrl();
     if (remoteConfigUrl != null) {
@@ -176,13 +172,7 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new DefaultConfigurationPoller(
-        config,
-        TRACER_VERSION,
-        containerId,
-        entityId,
-        externalEnv,
-        configUrlSupplier,
-        agentHttpClient);
+        config, TRACER_VERSION, configUrlSupplier, agentHttpClient);
   }
 
   // for testing

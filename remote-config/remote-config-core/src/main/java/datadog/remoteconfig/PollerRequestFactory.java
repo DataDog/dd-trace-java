@@ -1,6 +1,7 @@
 package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
+import datadog.common.container.ContainerInfo;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
@@ -39,20 +40,10 @@ public class PollerRequestFactory {
   private final String ddVersion;
   private final String hostName;
   private final String tracerVersion;
-  private final String containerId;
-  private final String entityId;
-  private final String externalEnv;
   private final Moshi moshi;
   final HttpUrl url;
 
-  public PollerRequestFactory(
-      Config config,
-      String tracerVersion,
-      String containerId,
-      String entityId,
-      String externalEnv,
-      String url,
-      Moshi moshi) {
+  public PollerRequestFactory(Config config, String tracerVersion, String url, Moshi moshi) {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
@@ -61,9 +52,6 @@ public class PollerRequestFactory {
     this.hostName = config.getHostName();
     // Semantic Versioning requires build separated with `+`
     this.tracerVersion = tracerVersion.replace('~', '+');
-    this.containerId = containerId;
-    this.entityId = entityId;
-    this.externalEnv = externalEnv;
     this.url = parseUrl(url);
     this.moshi = moshi;
   }
@@ -101,12 +89,16 @@ public class PollerRequestFactory {
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
     }
+    ContainerInfo containerInfo = ContainerInfo.get();
+    String containerId = containerInfo.getContainerId();
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_CONTAINER_ID, containerId);
     }
+    String entityId = containerInfo.getEntityId();
     if (entityId != null) {
       requestBuilder.addHeader(HEADER_ENTITY_ID, entityId);
     }
+    String externalEnv = containerInfo.getExternalEnv();
     if (externalEnv != null) {
       requestBuilder.addHeader(HEADER_EXTERNAL_ENV, externalEnv);
     }

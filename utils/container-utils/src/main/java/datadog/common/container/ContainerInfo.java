@@ -52,16 +52,11 @@ public class ContainerInfo {
   private static final String CGROUPV1_BASE_CONTROLLER = "memory";
   private static final String CGROUPV2_BASE_CONTROLLER = "";
 
-  private static final String ENTITY_ID;
-
   /**
    * Environment variable injected by the Datadog Cluster Agent admission controller into
    * application containers. It is not meant to be set by users.
    */
   private static final String EXTERNAL_ENV_VARIABLE = "DD_EXTERNAL_ENV";
-
-  private static final String EXTERNAL_ENV =
-      sanitizeExternalEnv(ConfigHelper.env(EXTERNAL_ENV_VARIABLE));
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerId;
@@ -74,6 +69,10 @@ public class ContainerInfo {
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public List<CGroupInfo> cGroups = new ArrayList<>();
+
+  private String entityId;
+
+  private String externalEnv;
 
   public String getContainerId() {
     return containerId;
@@ -107,6 +106,31 @@ public class ContainerInfo {
     this.cGroups = cGroups;
   }
 
+  /**
+   * Returns the entity id to send as the {@code Datadog-Entity-ID} header: the container id when
+   * known, otherwise the cgroup inode, or {@code null} if neither is available.
+   */
+  public @Nullable String getEntityId() {
+    return entityId;
+  }
+
+  public void setEntityId(@Nullable String entityId) {
+    this.entityId = entityId;
+  }
+
+  /**
+   * Returns the value of the {@code DD_EXTERNAL_ENV} environment variable injected by the Datadog
+   * Cluster Agent admission controller, to be sent as the {@code Datadog-External-Env} header, or
+   * {@code null} if it is unset, empty or not a valid HTTP header value.
+   */
+  public @Nullable String getExternalEnv() {
+    return externalEnv;
+  }
+
+  public void setExternalEnv(@Nullable String externalEnv) {
+    this.externalEnv = externalEnv;
+  }
+
   static {
     ContainerInfo containerInfo = new ContainerInfo();
     if (ContainerInfo.isRunningInContainer()) {
@@ -117,9 +141,11 @@ public class ContainerInfo {
       }
     }
 
-    INSTANCE = containerInfo;
+    containerInfo.setEntityId(
+        readEntityID(containerInfo, isHostCgroupNamespace(), DEFAULT_CGROUP_MOUNT_PATH));
+    containerInfo.setExternalEnv(sanitizeExternalEnv(ConfigHelper.env(EXTERNAL_ENV_VARIABLE)));
 
-    ENTITY_ID = readEntityID(containerInfo, isHostCgroupNamespace(), DEFAULT_CGROUP_MOUNT_PATH);
+    INSTANCE = containerInfo;
   }
 
   static @Nullable String readEntityID(
@@ -257,19 +283,6 @@ public class ContainerInfo {
 
   public static ContainerInfo get() {
     return INSTANCE;
-  }
-
-  public static String getEntityId() {
-    return ENTITY_ID;
-  }
-
-  /**
-   * Returns the value of the {@code DD_EXTERNAL_ENV} environment variable injected by the Datadog
-   * Cluster Agent admission controller, to be sent as the {@code Datadog-External-Env} header, or
-   * {@code null} if it is unset, empty or not a valid HTTP header value.
-   */
-  public static @Nullable String getExternalEnv() {
-    return EXTERNAL_ENV;
   }
 
   public static boolean isRunningInContainer() {
