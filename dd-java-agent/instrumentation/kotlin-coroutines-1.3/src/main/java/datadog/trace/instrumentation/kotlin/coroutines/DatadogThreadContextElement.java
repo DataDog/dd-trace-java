@@ -99,6 +99,9 @@ public final class DatadogThreadContextElement
       }
       if (datadog.context == null) {
         datadog.captureInitialContext();
+      } else if (datadog.owner != coroutine && datadog.isScopedBy(coroutine)) {
+        // preserve active span changes when a scoped coroutine reinstalls this element
+        datadog.context = Context.current();
       }
     }
   }

@@ -489,10 +489,10 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     }
   }
 
-  def "children of scoped coroutines keep the trace open #dispatcherName"() {
+  def "children of scoped coroutines keep the trace open #dispatcherName (suspendScope=#suspendScope)"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
-    int expectedNumberOfSpans = kotlinTest.structuredChildrenOfScopedCoroutines()
+    int expectedNumberOfSpans = kotlinTest.structuredChildrenOfScopedCoroutines(suspendScope)
     kotlinTest.finishDetached()
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -504,7 +504,9 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     findSpan(trace, "context-child").spanContext().getParentId() == findSpan(trace, "seed").spanContext().getSpanId()
 
     where:
-    [dispatcherName, dispatcher] << dispatchersToTest
+    [dispatcherName, dispatcher, suspendScope] << dispatchersToTest.collectMany { dispatcher ->
+      [false, true].collect { dispatcher + it }
+    }
   }
 
   def "structured child keeps the trace open when its parent started without one #dispatcherName"() {

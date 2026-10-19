@@ -482,12 +482,14 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
 
   /** Children launched with the context of scoped coroutines inside their parent. */
   @Trace
-  open fun structuredChildrenOfScopedCoroutines(): Int {
+  open fun structuredChildrenOfScopedCoroutines(suspendScope: Boolean): Int {
+    if (!suspendScope) gate.complete(Unit)
     runTest {
-      detached = launch(Job() + jobName("detached")) {
+      detached = launch(Job() + jobName("detached"), start = CoroutineStart.UNDISPATCHED) {
         childSpan("seed").activateAndUse {
+          // Enter the child inline so the closed gate always suspends this scope.
           coroutineScope {
-            launch(coroutineContext + jobName("scope-child")) {
+            launch(coroutineContext + jobName("scope-child"), start = CoroutineStart.UNDISPATCHED) {
               gate.await()
               childSpan("scope-child").finish()
             }
