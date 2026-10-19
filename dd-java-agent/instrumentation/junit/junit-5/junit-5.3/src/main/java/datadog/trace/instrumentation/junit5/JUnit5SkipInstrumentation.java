@@ -88,7 +88,11 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
       if (test == null) {
         return;
       }
-      SkipReason skipReason = testEventsHandler.skipReason(test);
+      SkipReason skipReason =
+          testEventsHandler.skipReason(
+              test,
+              JUnitPlatformUtils.toTestSourceData(testDescriptor),
+              JUnitPlatformUtils.getTags(testDescriptor));
       if (skipReason == null) {
         return;
       }
