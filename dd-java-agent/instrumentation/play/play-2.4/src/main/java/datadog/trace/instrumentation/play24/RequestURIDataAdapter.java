@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.play24;
 
-import static java.lang.Math.max;
-
 import datadog.trace.bootstrap.instrumentation.api.HostHeader;
 import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import play.api.mvc.Request;
@@ -17,7 +15,7 @@ final class RequestURIDataAdapter extends URIRawDataAdapter {
     // the Host header comes from the client, so the port may be missing or malformed
     final String hostHeader = request.host();
     this.host = HostHeader.host(hostHeader);
-    this.port = max(HostHeader.port(hostHeader), 0);
+    this.port = HostHeader.port(hostHeader);
   }
 
   @Override

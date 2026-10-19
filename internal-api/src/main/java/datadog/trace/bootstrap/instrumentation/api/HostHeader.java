@@ -35,14 +35,16 @@ public final class HostHeader {
   }
 
   /**
-   * @return the port, or {@code -1} if there is no port or it is not a valid number
+   * @return the port, or {@code 0} if there is no port or it is not a valid number
    */
   public static int port(@Nullable String hostHeader) {
     final int separator = portSeparator(hostHeader);
     if (separator == -1) {
-      return -1;
+      return 0;
     }
-    return parseNonNegativeInt(
-        hostHeader, separator + 1, hostHeader.length() - separator - 1, REJECT_LEADING_PLUS);
+    final int port =
+        parseNonNegativeInt(
+            hostHeader, separator + 1, hostHeader.length() - separator - 1, REJECT_LEADING_PLUS);
+    return port == -1 ? 0 : port;
   }
 }
