@@ -48,9 +48,15 @@ public class DatadogWeaverReporter {
         Collection<String> tags = new ArrayList<>();
         scala.collection.Iterator<String> declaredTags = testName.tags().iterator();
         while (declaredTags.hasNext()) {
-          tags.add(declaredTags.next());
+          String tag = declaredTags.next();
+          if ("datadog_no_auto_retry".equals(tag)
+              || "datadog_prevent_failure_suppression".equals(tag)) {
+            tags.add(tag);
+          }
         }
-        tagsByName.put(testName.name(), tags);
+        if (!tags.isEmpty()) {
+          tagsByName.put(testName.name(), tags);
+        }
       }
       TEST_TAGS.put(suiteName, tagsByName);
     } catch (Exception e) {
