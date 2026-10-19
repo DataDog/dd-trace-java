@@ -2,6 +2,8 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_SHUTDOWN;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -27,6 +29,7 @@ public class FeatureFlaggingSystem {
   private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
   private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
   private static volatile boolean STARTED;
+  private static Thread SHUTDOWN_HOOK;
 
   private FeatureFlaggingSystem() {}
 
@@ -82,6 +85,13 @@ public class FeatureFlaggingSystem {
       final SystemInitializer systemInitializer) {
     try {
       systemInitializer.initialize(sco, config);
+      if (!config.isTraceEnabled() && (EXPOSURE_WRITER != null || FLAG_EVAL_WRITER != null)) {
+        // Tracing already owns the pre-application-hook shutdown path. Without it, only an
+        // activated Feature Flagging subsystem needs a hook; do not stop other products.
+        final Thread hook = newAgentThread(FEATURE_FLAG_SHUTDOWN, FeatureFlaggingSystem::stop);
+        Runtime.getRuntime().addShutdownHook(hook);
+        SHUTDOWN_HOOK = hook;
+      }
     } catch (final RuntimeException | Error e) {
       stop();
       throw e;
@@ -94,7 +104,8 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
       return;
     }
-    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
+    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config, routeSelector);
     initialize(configService, exposureWriter);
 
     final boolean evalCountsEnabled =
@@ -103,7 +114,8 @@ public class FeatureFlaggingSystem {
             .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
     if (evalCountsEnabled) {
-      final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
+      final FlagEvaluationWriterImpl evalWriter =
+          new FlagEvaluationWriterImpl(sco, config, routeSelector);
       // Publish before start() so a failed start is still reachable by the rollback in stop().
       FLAG_EVAL_WRITER = evalWriter;
       evalWriter.start();
@@ -167,6 +179,7 @@ public class FeatureFlaggingSystem {
       justification =
           "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   public static synchronized void stop() {
+    final long deadline = FeatureFlagEventWriter.shutdownDeadline();
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
@@ -180,18 +193,47 @@ public class FeatureFlaggingSystem {
     SPAN_ENRICHMENT_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
+    final Thread shutdownHook = SHUTDOWN_HOOK;
+    SHUTDOWN_HOOK = null;
+    if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+      try {
+        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+      } catch (IllegalStateException ignored) {
+        // JVM shutdown has already started. The idempotent hook will observe the stopped state.
+      }
+    }
     if (activationListener != null) {
       FeatureFlaggingGateway.removeActivationListener(activationListener);
     }
-    closeQuietly(flagEvalWriter);
+    requestWriterShutdown(flagEvalWriter);
+    requestWriterShutdown(exposureWriter);
     closeQuietly(spanEnrichmentWriter);
-    closeQuietly(exposureWriter);
     closeQuietly(configService);
+    awaitWriterTermination(flagEvalWriter, deadline);
+    awaitWriterTermination(exposureWriter, deadline);
     LOGGER.debug("Feature Flagging system stopped");
   }
 
   static boolean isAwaitingApplicationActivation() {
     return ACTIVATION_LISTENER != null;
+  }
+
+  static boolean isShutdownHookRegistered() {
+    return SHUTDOWN_HOOK != null;
+  }
+
+  private static void requestWriterShutdown(final AutoCloseable writer) {
+    if (writer instanceof FeatureFlagEventWriter) {
+      ((FeatureFlagEventWriter) writer).requestShutdown();
+    } else {
+      closeQuietly(writer);
+    }
+  }
+
+  private static void awaitWriterTermination(final AutoCloseable writer, final long deadline) {
+    if (writer instanceof FeatureFlagEventWriter) {
+      ((FeatureFlagEventWriter) writer).awaitTermination(deadline);
+    }
   }
 
   static boolean isExposureWriterStarted() {
