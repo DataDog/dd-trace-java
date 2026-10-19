@@ -28,3 +28,10 @@ The agent reports true-only `test.test_management.no_auto_retry` and
 execution, including skips. Backend assignment tags remain visible even when
 the assigned behavior is excluded. Removing an annotation restores ordinary
 policy on the next execution.
+
+## JUnit 5
+
+Use the same method annotations with `org.junit.jupiter.api.Test`,
+`ParameterizedTest`, repeated tests and test templates. Every generated
+invocation resolves the declaration on its source method. Native JUnit tags can
+also reference `TestAutomationExclusions` constants.
