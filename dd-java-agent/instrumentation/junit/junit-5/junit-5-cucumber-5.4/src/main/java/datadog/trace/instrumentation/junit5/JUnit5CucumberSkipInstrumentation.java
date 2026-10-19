@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -109,7 +110,9 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         return;
       }
 
-      SkipReason skipReason = testEventsHandler.skipReason(test);
+      SkipReason skipReason =
+          testEventsHandler.skipReason(
+              test, TestSourceData.UNKNOWN, JUnitPlatformUtils.getTags(testDescriptor));
       if (skipReason == null) {
         return;
       }
