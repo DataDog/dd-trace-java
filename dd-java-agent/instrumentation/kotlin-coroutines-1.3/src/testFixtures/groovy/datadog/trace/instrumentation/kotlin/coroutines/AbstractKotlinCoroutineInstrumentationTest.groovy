@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.kotlin.coroutines
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
+import datadog.trace.test.util.Flaky
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
@@ -329,6 +331,12 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
+  @Flaky(
+  value = "Legacy scope restore/resume race",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "coroutine instrumentation should work when started lazily without any parent span #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
