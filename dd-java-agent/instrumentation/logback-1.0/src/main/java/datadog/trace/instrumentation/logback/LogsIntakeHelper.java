@@ -8,6 +8,7 @@ import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.logging.intake.LogsIntake;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,18 +17,23 @@ import java.util.stream.Collectors;
 public class LogsIntakeHelper {
 
   private static final boolean APP_LOGS_COLLECTION = Config.get().isAppLogsCollectionEnabled();
+  private static final boolean ENABLED =
+      APP_LOGS_COLLECTION || Config.get().isAgentlessLogSubmissionEnabled();
   private static final Level SUBMISSION_LEVEL =
       submissionLevel(Config.get().getAgentlessLogSubmissionLevel());
 
-  public static void log(ILoggingEvent event) {
+  public static void log(ILoggingEvent event, AgentSpan span) {
+    if (!ENABLED) {
+      return;
+    }
     // App-log collection keeps its existing payload and framework-level filtering, even when
     // both collection flags are enabled.
     if (APP_LOGS_COLLECTION || event.getLevel().isGreaterOrEqual(SUBMISSION_LEVEL)) {
-      LogsIntake.log(map(event));
+      LogsIntake.log(map(event, span));
     }
   }
 
-  private static Map<String, Object> map(ILoggingEvent event) {
+  private static Map<String, Object> map(ILoggingEvent event, AgentSpan span) {
     Map<String, Object> log = new HashMap<>();
     log.put("thread", event.getThreadName());
     log.put("level", event.getLevel().levelStr);
@@ -46,9 +52,7 @@ public class LogsIntakeHelper {
     }
     if (!APP_LOGS_COLLECTION) {
       Map<String, Object> context = new HashMap<>();
-      // Capture on the producer thread, independently of the ordering of the two entry advices.
-      // Injection-disabled logs retain user MDC but do not gain automatic correlation IDs.
-      if (traceConfig().isLogsInjectionEnabled()) {
+      if (traceConfig(span).isLogsInjectionEnabled()) {
         addCorrelationIds(context);
       }
       Map<String, String> mdc = event.getMDCPropertyMap();
