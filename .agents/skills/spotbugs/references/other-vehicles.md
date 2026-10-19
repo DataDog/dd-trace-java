@@ -12,7 +12,7 @@ Config: [`gradle/forbiddenApiFilters/main.txt`](../../../../gradle/forbiddenApiF
 Use when the rule is “never call this method/class” with **no location qualifier** (not “only in `@Advice`”, not “only in premain”).
 
 1. Append **one** signature (and optional `@defaultMessage`) to `main.txt`.
-2. Do not enable test `forbiddenApis*` tasks (they are disabled on purpose).
+2. Preserve existing task enablement (they are disabled on purpose).
 3. Verify:
 
    ```bash
