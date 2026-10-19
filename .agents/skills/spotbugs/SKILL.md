@@ -52,7 +52,7 @@ Leave tests, smoke tests (`:dd-smoke-tests`), generated sources, and vendored tr
 
 1. Classify the rule. Prefer SpotBugs. Read `gradle/spotbugs.gradle` and the [detector list](https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html).
    - If a visitor in `omitVisitors` matches, that is the check to enable.
-   - If a visitor is already absent from `omitVisitors`, the check is already on. Stop.
+   - If a matching visitor is absent from `omitVisitors`, check its defaults in the SpotBugs version in use and the task configuration. Stop only if the detector is already enabled.
    - If no SpotBugs detector can express the rule, follow [other vehicles](references/other-vehicles.md). Do not invent a custom SpotBugs detector unless the user asks.
 2. Enable one visitor in the shared SpotBugs convention. Remove it from `omitVisitors` if present, or explicitly enable it if it is disabled by default. Review all bug patterns it reports and use `@SuppressFBWarnings` with a justification for intentional exceptions.
 3. Run SpotBugs from the repo root:
