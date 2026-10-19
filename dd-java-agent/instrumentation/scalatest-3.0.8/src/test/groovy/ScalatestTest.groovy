@@ -4,6 +4,7 @@ import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.scalatest.ScalatestUtils
 import org.example.TestFailed
+import org.example.TestAutomationExcluded
 import org.example.TestFailedParameterized
 import org.example.TestFailedSuite
 import org.example.TestFailedThenSucceed
@@ -31,6 +32,38 @@ import sbt.testing.Task
 import sbt.testing.TaskDef
 
 class ScalatestTest extends CiVisibilityInstrumentationTest {
+
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], false)
+
+    then:
+    TEST_WRITER.toList().flatten().count { it.getTag("test.name") == "protected_failure" } == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+    def skippedSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_skip" }
+    skippedSpan != null
+    skippedSpan.getTag("test.test_management.no_auto_retry") == true
+    skippedSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    skippedSpan.getTag("test.status").toString() == "skip"
+  }
+
 
   def "test #testcaseName"() {
     runTests(tests, success)

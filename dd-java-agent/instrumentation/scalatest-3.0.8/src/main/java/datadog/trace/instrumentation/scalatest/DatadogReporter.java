@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.scalatest;
 
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -150,13 +149,8 @@ public class DatadogReporter {
     String testName = event.testName();
     Object testQualifier = null;
     String testParameters = null;
-    Collection<String> categories;
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    if (context.itrUnskippable(testIdentifier)) {
-      categories = Collections.singletonList(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
-    } else {
-      categories = Collections.emptyList();
-    }
+    Collection<String> categories = context.tags(testIdentifier);
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
@@ -234,6 +228,7 @@ public class DatadogReporter {
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
     TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
+    categories = context.tags(skippableTest);
     SkipReason reason = context.getSkipReason(skippableTest);
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
