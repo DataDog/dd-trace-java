@@ -74,11 +74,12 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
 
   @Test
   fun `should take dumps`() {
-    val output = runGradleTest(testSleepMillis = 25_0000)
+    // The all-JVM thread sweep can take more than five seconds on busy CI workers.
+    val output = runGradleTest(testSleepMillis = 120_000, timeoutSeconds = 60, dumpOffset = 45)
 
     // Assert Gradle output has evidence of taking dumps.
     assertTrue(output.contains("Taking dumps after 15 seconds delay for :test"))
-    assertTrue(output.contains("Requesting stop of task ':test' as it has exceeded its configured timeout of 20s."))
+    assertTrue(output.contains("Requesting stop of task ':test' as it has exceeded its configured timeout of 1m."))
     assertTrue(buildDir.exists()) // Assert build happened.
 
     val dumps = buildFile("dumps")
@@ -279,6 +280,7 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
   private fun File.toIbmJdk(): IbmJdk? {
     val release = File(this, "release").takeIf { it.isFile } ?: return null
     val properties = Properties().apply { release.inputStream().use { load(it) } }
+
     // Values in `release` are quoted, e.g. IMPLEMENTOR="IBM Corporation".
     fun property(name: String) = properties.getProperty(name).orEmpty().trim('"')
 

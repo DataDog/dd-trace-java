@@ -164,6 +164,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.env.FixedCapturedEnvironment.useFixedEnv;
@@ -3116,6 +3117,34 @@ class ConfigTest {
   }
 
   @TableTest({
+    "scenario                    | ciVisibility | agentless | serviceDiscovery | expected",
+    "default                     | false        | false     |                  | true    ",
+    "CI Visibility with agent    | true         | false     |                  | true    ",
+    "CI Visibility agentless     | true         | true      |                  | false   ",
+    "explicitly enabled override | true         | true      | true             | true    "
+  })
+  @ParameterizedTest(name = "[{index}] {0}")
+  void serviceDiscoveryIsDisabledInCiVisibilityAgentlessMode(
+      String scenario,
+      boolean ciVisibility,
+      boolean agentless,
+      String serviceDiscovery,
+      boolean expected)
+      throws Exception {
+    Properties properties = new Properties();
+    properties.setProperty(CIVISIBILITY_ENABLED, String.valueOf(ciVisibility));
+    properties.setProperty(CIVISIBILITY_AGENTLESS_ENABLED, String.valueOf(agentless));
+    properties.setProperty(API_KEY, "123456789");
+    if (serviceDiscovery != null) {
+      properties.setProperty(TRACE_SERVICE_DISCOVERY_ENABLED, serviceDiscovery);
+    }
+
+    Config config = newConfig(withPropertiesOverride(properties));
+
+    assertEquals(expected, config.isServiceDiscoveryEnabled());
+  }
+
+  @TableTest({
     "scenario        | configuredBuckets | expectedBuckets",
     "'5,4,3,2,1'     | '5,4,3,2,1'       | [5, 4, 3, 2, 1]",
     "'5, 4, 3, 2, 1' | '5, 4, 3, 2, 1'   | [5, 4, 3, 2, 1]",
@@ -3667,16 +3696,16 @@ class ConfigTest {
   }
 
   @TableTest({
-    "scenario          | value             | expected         ",
-    "not set           |                   | agentless        ",
-    "empty             | ''                | agentless        ",
-    "blank             | '   '             | agentless        ",
-    "mixed case padded | ' ReMoTe_ConFiG ' | remote_config    ",
-    "unknown source    | not-a-real-source | not-a-real-source",
-    "padded uppercase  | ' OFFLINE '       | offline          "
+    "scenario             | value             | expected     ",
+    "not set              |                   | agentless    ",
+    "empty                | ''                | agentless    ",
+    "blank                | '   '             | agentless    ",
+    "case insensitive     | ReMoTe_ConFiG     | remote_config",
+    "padded               | ' remote_config ' | invalid      ",
+    "unknown source       | not-a-real-source | invalid      ",
+    "unset is not a value | unset             | invalid      "
   })
-  void featureFlagConfigurationSourceNormalizesValue(String value, String expected)
-      throws Exception {
+  void featureFlagConfigurationSourceParsesValue(String value, String expected) throws Exception {
     Properties properties = new Properties();
     if (value != null) {
       properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE, value);
@@ -3697,8 +3726,8 @@ class ConfigTest {
     "source wins over legacy disabled   |                 | remote_config | false                 | true            | remote_config ",
     "provider disabled wins over legacy | false           | agentless     | true                  | false           | agentless     ",
     "legacy disabled wins over provider | true            |               | false                 | false           |               ",
-    "unknown source                     |                 | not-a-source  |                       | false           | not-a-source  ",
-    "offline source                     |                 | offline       | true                  | false           | offline       "
+    "unknown source                     |                 | not-a-source  |                       | false           | invalid       ",
+    "offline source                     |                 | offline       | true                  | false           | invalid       "
   })
   void featureFlagConfigurationAppliesMigrationPrecedence(
       Boolean providerEnabled,

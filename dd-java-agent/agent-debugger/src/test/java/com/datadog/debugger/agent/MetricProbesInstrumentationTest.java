@@ -530,6 +530,23 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  public void lineCatchHandlerCountMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    String METRIC_NAME = "catch_count";
+    // line of catch handler start: caught exception is on the operand stack
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID1);
+    MetricProbe metricProbe =
+        createLineMetric(LINE_METRIC_ID1, METRIC_NAME, COUNT, CLASS_NAME, null, line);
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "triggerSwallowedException").get();
+    assertEquals(-1, result);
+    assertTrue(listener.counters.containsKey(METRIC_NAME));
+    assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
+    verify(probeStatusSink, times(0)).addError(any(), anyString());
+  }
+
+  @Test
   public void invalidNameArgumentRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";

@@ -50,6 +50,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -597,21 +598,24 @@ public abstract class BaseIntegrationTest {
 
   protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker) {
     try {
-      long errorLines =
-          Files.lines(logFilePath)
-              .filter(
-                  it ->
-                      it.contains(" ERROR ")
-                          || it.contains("ASSERTION FAILED")
-                          || it.contains("Error:")
-                          || checker.apply(it))
-              .peek(System.out::println)
-              .count();
-      boolean hasErrors = errorLines > 0;
-      if (hasErrors) {
-        LOG.info("Test application log is containing errors. See full run logs in {}", logFilePath);
+      try (Stream<String> lines = Files.lines(logFilePath)) {
+        long errorLines =
+            lines
+                .filter(
+                    it ->
+                        it.contains(" ERROR ")
+                            || it.contains("ASSERTION FAILED")
+                            || it.contains("Error:")
+                            || checker.apply(it))
+                .peek(System.out::println)
+                .count();
+        boolean hasErrors = errorLines > 0;
+        if (hasErrors) {
+          LOG.info(
+              "Test application log is containing errors. See full run logs in {}", logFilePath);
+        }
+        return hasErrors;
       }
-      return hasErrors;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -324,10 +324,11 @@ public class ProviderTest {
     Provider provider =
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
     List<Hook> hooks = provider.getProviderHooks();
-    // Two hooks: OTel FlagEvalMetricsHook (index 0) + FlagEvalLoggingHook (index 1)
-    assertThat(hooks.size(), equalTo(2));
+    // OTel FlagEvalMetricsHook (index 0), FlagEvalLoggingHook (index 1), ExposureLoggingHook (last)
+    assertThat(hooks.size(), equalTo(3));
     assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
     assertThat(hooks.get(1) instanceof FlagEvalLoggingHook, equalTo(true));
+    assertThat(hooks.get(2) instanceof ExposureLoggingHook, equalTo(true));
   }
 
   @Test
@@ -342,8 +343,9 @@ public class ProviderTest {
 
     List<Hook> hooks = provider.getProviderHooks();
 
-    assertThat(hooks.size(), equalTo(1));
+    assertThat(hooks.size(), equalTo(2));
     assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
+    assertThat(hooks.get(1) instanceof ExposureLoggingHook, equalTo(true));
   }
 
   @Test
@@ -409,8 +411,8 @@ public class ProviderTest {
     provider.shutdown();
 
     verify(evaluator).shutdown();
-    // After shutdown, getProviderHooks still returns a list with both OTel + logging hooks
-    assertThat(provider.getProviderHooks().size(), equalTo(2));
+    // After shutdown, getProviderHooks still returns the OTel, logging and exposure hooks
+    assertThat(provider.getProviderHooks().size(), equalTo(3));
   }
 
   private static void assertHasFlagEvalMetricsHook(final Provider provider) {

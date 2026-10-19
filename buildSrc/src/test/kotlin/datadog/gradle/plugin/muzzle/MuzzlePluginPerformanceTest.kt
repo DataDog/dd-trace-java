@@ -3,9 +3,113 @@ package datadog.gradle.plugin.muzzle
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.assertj.core.api.Assertions.assertThat
+import kotlin.math.abs
 
 class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
+  private fun writeCoreProject() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeNoopScanPlugin()
+  }
+
+  @Test
+  fun `compileMuzzle does not resolve version directives or schedule checks`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle {
+        pass {
+          group = "does.not.exist"
+          module = "must-not-resolve"
+          versions = "[1.0,2.0)"
+        }
+      }
+      """
+    )
+    val result = run(":dd-java-agent:instrumentation:demo:compileMuzzle", "--offline", "--info")
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.tasks).noneMatch { it.path.contains("muzzle-Assert") || it.path.endsWith("muzzle-end") }
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:compileMuzzle")?.outcome).isEqualTo(UP_TO_DATE)
+  }
+
+  @Test
+  fun `aggregate does not plan an excluded module`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle {
+        pass {
+          group = "does.not.exist"
+          module = "must-not-resolve"
+          versions = "[1.0,2.0)"
+        }
+      }
+      """
+    )
+    writeRootProject(
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+
+    val result = run(":runMuzzle", "-x", ":dd-java-agent:instrumentation:demo:muzzle", "--offline")
+
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.tasks).noneMatch { it.path.startsWith(":dd-java-agent:instrumentation:demo:") }
+    assertThat(result.output).doesNotContain("muzzle-Assert", "muzzle-end")
+  }
+
+  @Test
+  fun `aggregate skips excluded plans but explicit muzzle still checks them`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeNoopScanPlugin()
+    addSubproject("dd-java-agent:instrumentation:other",
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeRootProject(
+      """
+      tasks.register("runMuzzle") { dependsOn(":dd-java-agent:instrumentation:demo:muzzle") }
+      """
+    )
+    val aggregate = run("runMuzzle", "--info")
+    assertThat(aggregate.output).contains("BUILD SUCCESSFUL")
+    assertThat(aggregate.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+    assertThat(aggregate.tasks).noneMatch { it.path.contains(":other:") }
+    val explicit = run(":dd-java-agent:instrumentation:other:muzzle")
+    assertThat(explicit.output).contains("BUILD SUCCESSFUL")
+    assertThat(explicit.task(":dd-java-agent:instrumentation:other:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
 
   @Test
   fun `task graph does not include muzzle tasks when not requested`() {
@@ -18,8 +122,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
       muzzle {
         pass {
-          group = "com.example.test"
-          module = "some-lib"
+          group = "does.not.exist"
+          module = "must-not-resolve"
           versions = "[1.0.0,2.0.0)"
         }
       }
@@ -30,21 +134,21 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     val result = run(
       ":dd-java-agent:instrumentation:demo:tasks",
       "--all",
+      "--offline",
       "--info"
     )
 
     assertThat(result.task(":dd-java-agent:instrumentation:demo:tasks")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
 
     assertThat(result.tasks)
       .withFailMessage("Should not create or execute any muzzle tasks when not requested")
       .noneMatch { it.path.contains("muzzle") }
-    assertThat(result.output)
-      .withFailMessage("Should log early return when muzzle not requested")
-      .contains("No muzzle tasks invoked for :dd-java-agent:instrumentation:demo, skipping muzzle task planification")
+    assertThat(result.output).doesNotContain("muzzle-Assert", "muzzle-end")
   }
 
   @Test
-  fun `does not configure muzzle when other project muzzle task is requested`() {
+  fun `does not plan checks when another project's muzzle task is requested`() {
     writeProject(
       """
       plugins {
@@ -64,26 +168,105 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
         id("dd-trace-java.muzzle")
       }
       muzzle {
-        pass { coreJdk() }
+        pass {
+          group = "does.not.exist"
+          module = "must-not-resolve"
+          versions = "[1.0,2.0)"
+        }
       }
       """
     )
 
     val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
+      "--offline",
       "--stacktrace",
       "--info"
     )
 
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
     assertThat(result.tasks)
       .withFailMessage("Should execute muzzle tasks for demo project")
       .anyMatch { it.path.contains("demo") && it.path.contains("muzzle") }
     assertThat(result.tasks)
       .withFailMessage("Should NOT create or register execute muzzle tasks for other project")
       .noneMatch { it.path.contains("other") && it.path.contains("muzzle") }
-    assertThat(result.output.lines())
-      .withFailMessage("Other project should skip muzzle configuration when demo project's muzzle is requested")
-      .anyMatch { it.contains("No muzzle tasks invoked for :dd-java-agent:instrumentation:other, skipping muzzle task planification") }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = [1, 2])
+  fun `CI aggregate runs only the module assigned to its slot`(slot: Int) {
+    writeCoreProject()
+    addSubproject("dd-java-agent:instrumentation:other",
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle { pass { coreJdk() } }
+      """
+    )
+    writeRootProject("""plugins { id("dd-trace-java.ci-jobs") }""")
+    val demoSlot = abs(":dd-java-agent:instrumentation:demo".hashCode() % 2) + 1
+    val otherSlot = abs(":dd-java-agent:instrumentation:other".hashCode() % 2) + 1
+    assertThat(demoSlot).isNotEqualTo(otherSlot)
+
+    val result = run(":runMuzzle", "-Pslot=$slot/2")
+
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    val selectedModule = if (slot == demoSlot) "demo" else "other"
+    val unselectedModule = if (slot == demoSlot) "other" else "demo"
+    assertThat(result.task(":dd-java-agent:instrumentation:$selectedModule:muzzle-AssertPass-core-jdk")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.tasks).noneMatch { it.path.contains(":$unselectedModule:") }
+  }
+
+  @Test
+  fun `CI aggregate does not resolve off-slot directives`() {
+    writeCoreProject()
+    addSubproject("dd-java-agent:instrumentation:other",
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      muzzle {
+        pass {
+          group = "does.not.exist"
+          module = "must-not-resolve"
+          versions = "[1.0,2.0)"
+        }
+      }
+      """
+    )
+    writeRootProject("""plugins { id("dd-trace-java.ci-jobs") }""")
+    val demoSlot = abs(":dd-java-agent:instrumentation:demo".hashCode() % 2) + 1
+
+    val result = run(":runMuzzle", "-Pslot=$demoSlot/2", "--offline")
+
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.tasks).noneMatch { it.path.contains(":other:") }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `explicit module check bypasses CI slot selection`(includeAggregate: Boolean) {
+    writeCoreProject()
+    writeRootProject("""plugins { id("dd-trace-java.ci-jobs") }""")
+    val demoSlot = abs(":dd-java-agent:instrumentation:demo".hashCode() % 2) + 1
+    val taskNames = if (includeAggregate) {
+      arrayOf(":runMuzzle", ":dd-java-agent:instrumentation:demo:muzzle")
+    } else {
+      arrayOf(":dd-java-agent:instrumentation:demo:muzzle")
+    }
+
+    val result = run(*taskNames, "-Pslot=${3 - demoSlot}/2")
+
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+      .isEqualTo(SUCCESS)
   }
 
   @Test
