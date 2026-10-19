@@ -7,7 +7,9 @@ RUN apt-get update && \
 
 # install sdkman
 COPY .sdkmanrc .
-RUN curl -s "https://get.sdkman.io" | bash
+RUN curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/sdkman-install.sh "https://get.sdkman.io" && \
+    bash /tmp/sdkman-install.sh && \
+    rm /tmp/sdkman-install.sh
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     sdk env install && \
     sdk install java 17.0.10-tem && \
