@@ -150,8 +150,8 @@ For each changed method, decide *which multiplier applies* before flagging anyth
 **Pre-existing code the diff carries into a new context is in scope.** Leave unchanged
 lines alone unless the diff changes what they cost: they now run more often, under a new
 lock, on a different thread, or ahead of a new branch that makes them run more often.
-Then flag them as *carried in by this change* (see `checks.md` § Posture). Example:
-#12397 moved an existing per-trace string concatenation inside a new `synchronized`
+Then flag them as *carried in by this change* (see `checks.md` § Posture). Example: a
+change that moves an existing per-trace string concatenation inside a new `synchronized`
 block on the sampling path.
 
 **Hot anchors** (reachable ⇒ assume hot): `@Advice.OnMethodEnter`/`OnMethodExit`,
