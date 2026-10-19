@@ -1,5 +1,3 @@
-import datadog.gradle.plugin.liberty.UnpackOpenLiberty
-
 plugins {
   id 'dd-trace-java.module.instrumentation'
 }
@@ -10,19 +8,9 @@ configurations {
   register("zipped")
 }
 
-// only the jars LibertyBlockingHelper needs; never "wlp/lib/*.jar": it pulls a jar that JDK 25+ javac cannot read
-def compileJars = [
-  "wlp/lib/com.ibm.ws.transport.http*.jar",
-  "wlp/lib/com.ibm.ws.channelfw*.jar",
-  "wlp/lib/com.ibm.ws.logging*.jar"
-]
-
 // Since this task output is used in dependencies it has to be declared before, it can be configured later
 def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
   extractDir.set(openlibertyHomeDir)
-  libJarIncludes.set(compileJars)
-  // only unzip the jars needed for compilation
-  include(compileJars)
 }
 
 dependencies {
@@ -34,4 +22,37 @@ dependencies {
   testImplementation files(unpackOpenLiberty.map { it.extractedJars.get() })
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
+}
+
+// unzips only the jars LibertyBlockingHelper needs from the 'zipped' configuration so 'compileOnly' can reference them
+abstract class UnpackOpenLiberty extends Copy {
+  // never "wlp/lib/*.jar": it pulls a jar that JDK 25+ javac cannot read
+  static final List<String> COMPILE_JARS = [
+    "wlp/lib/com.ibm.ws.transport.http*.jar",
+    "wlp/lib/com.ibm.ws.channelfw*.jar",
+    "wlp/lib/com.ibm.ws.logging*.jar"
+  ]
+
+  @Input
+  final Property<String> configurationName = project.objects.property(String).convention("zipped")
+
+  @OutputDirectory
+  final DirectoryProperty extractDir = project.objects.directoryProperty()
+
+  @OutputFiles
+  final Provider<FileTree> extractedJars = project.providers.provider {
+    project.fileTree(extractDir) {
+      include COMPILE_JARS
+    }
+  }
+
+  UnpackOpenLiberty() {
+    from project.zipTree(configurationName.map {
+      project.configurations.named(it).map {
+        it.singleFile
+      }
+    })
+    include COMPILE_JARS
+    into extractDir
+  }
 }
