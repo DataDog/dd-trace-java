@@ -81,6 +81,18 @@ public class RunContext {
     return tagsByTest.getOrDefault(test, Collections.emptyList());
   }
 
+  /** Exclusions are the only new traits exposed by this integration. */
+  public Collection<String> exclusionTags(TestIdentifier test) {
+    Collection<String> exclusions = new ArrayList<>();
+    for (String tag : tags(test)) {
+      if ("datadog_no_auto_retry".equals(tag)
+          || "datadog_prevent_failure_suppression".equals(tag)) {
+        exclusions.add(tag);
+      }
+    }
+    return exclusions;
+  }
+
   public void populateTags(
       String suiteId,
       Map<String, Set<String>> tags,
