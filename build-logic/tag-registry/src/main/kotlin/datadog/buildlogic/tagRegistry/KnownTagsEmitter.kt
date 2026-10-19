@@ -92,8 +92,10 @@ object KnownTagsEmitter {
           appendLine("  public static final String ${otelNameC(t.ddName)} = \"${escape(t.otelName)}\";")
         }
         append("// makeTagId(serial=${t.serial})")
+        append(if (t.slot == TagRegistry.NO_SLOT) " + no slot" else " + slot=${t.slot}")
         if (t.traceLevel) append(" + trace-level")
         if (t.intercepted) append(" + intercepted")
+        if (t.sharesSlot) append(" + shares slot")
         if (t.otelName != null) append(" -> ${escape(t.otelName)}")
         for ((direction, otel) in t.scopedOtelNames) append(" -> ${escape(otel)} (${direction.yamlKey})")
         appendLine("  <${escape(t.required)}>")
@@ -137,6 +139,9 @@ object KnownTagsEmitter {
       // Every known tag's serial is below SERIAL_LIMIT; serial 0 is no tag.
       val serialLimit = (reg.tags.maxOfOrNull { it.serial } ?: 0) + 1
       appendLine("  public static final int SERIAL_LIMIT = $serialLimit;")
+      // Slots in use: every slotted tag's slot is below SLOT_COUNT.
+      val slotCount = (reg.tags.filter { it.slot != TagRegistry.NO_SLOT }.maxOfOrNull { it.slot } ?: -1) + 1
+      appendLine("  public static final int SLOT_COUNT = $slotCount;")
 
       // OpenTelemetry name -> canonical tag name. Validation ensures aliases are distinct from all
       // canonical names. Sort by OTel name to keep output deterministic.
