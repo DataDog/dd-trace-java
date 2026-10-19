@@ -124,6 +124,25 @@ public final class OtelHttpSemantics {
     return first.isEmpty() ? null : first;
   }
 
+  /** Returns an explicit authority port, or -1 when absent or invalid. */
+  public static int portFromHost(final String host) {
+    if (host == null) {
+      return -1;
+    }
+    final int colon = host.lastIndexOf(':');
+    if (colon <= 0) {
+      return -1;
+    }
+    if (host.charAt(0) == '[') {
+      if (host.indexOf(']') != colon - 1) {
+        return -1;
+      }
+    } else if (host.indexOf(':') != colon) {
+      return -1;
+    }
+    return parsePort(host.substring(colon + 1));
+  }
+
   public static void setServerAddressAndPort(
       final AgentSpan span,
       final String forwardedHostHeader,

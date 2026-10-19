@@ -154,11 +154,12 @@ class QueryObfuscatorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "Scenario      | OTel semantics",
-    "Datadog       | false         ",
-    "OpenTelemetry | true          "
+    "Scenario       | OTel semantics | Query tag        ",
+    "Datadog        | false          | http.query.string",
+    "OpenTelemetry  | true           | url.query        ",
+    "Legacy in OTel | true           | http.query.string"
   })
-  void obfuscationFailureDropsQueryString(boolean otelSemantics) {
+  void obfuscationFailureDropsQueryString(boolean otelSemantics, String queryTag) {
     CharSequence failing =
         new CharSequence() {
           @Override
@@ -182,7 +183,6 @@ class QueryObfuscatorTest extends DDJavaSpecification {
           }
         };
 
-    String queryTag = otelSemantics ? DDTags.HTTP_QUERY_OTEL_NAME : DDTags.HTTP_QUERY;
     TagMap unsafeTags =
         assertDoesNotThrow(
             () -> process(new QueryObfuscator(null, otelSemantics), failing, queryTag));
@@ -202,6 +202,69 @@ class QueryObfuscatorTest extends DDJavaSpecification {
   }
 
   @TableTest({
+    "Scenario    | Legacy query     | OTel query        | Expected legacy | Expected OTel       | Expected URL query ",
+    "Legacy only | token=legacy     |                   | <redacted>      |                     | <redacted>         ",
+    "OTel only   |                  | pwd=otel&view=all |                 | <redacted>&view=all | <redacted>&view=all",
+    "Both keys   | token=legacy&a=1 | pwd=otel&b=2      | <redacted>&a=1  | <redacted>&b=2      | <redacted>&b=2     "
+  })
+  void otelSemanticsObfuscatesBothQueryTags(
+      String legacyQuery,
+      String otelQuery,
+      String expectedLegacy,
+      String expectedOtel,
+      String expectedUrlQuery) {
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, "http://site.com/index#fragment");
+    if (legacyQuery != null) {
+      tags.put(DDTags.HTTP_QUERY, legacyQuery);
+    }
+    if (otelQuery != null) {
+      tags.put(DDTags.HTTP_QUERY_OTEL_NAME, otelQuery);
+    }
+
+    new QueryObfuscator(null, true).processTags(tags, null, link -> {});
+
+    assertEquals(expectedLegacy, tags.get(DDTags.HTTP_QUERY));
+    assertEquals(expectedOtel, tags.get(DDTags.HTTP_QUERY_OTEL_NAME));
+    assertEquals(
+        "http://site.com/index?" + expectedUrlQuery + "#fragment", tags.get(Tags.HTTP_URL));
+  }
+
+  @TableTest({
+    "Scenario     | Failing tag       | Other tag        ",
+    "Legacy fails | http.query.string | url.query        ",
+    "OTel fails   | url.query         | http.query.string"
+  })
+  void failureInOneQueryTagDoesNotPreventObfuscatingTheOther(String failingTag, String otherTag) {
+    CharSequence query = mock(CharSequence.class);
+    when(query.toString()).thenThrow(new IllegalStateException("boom"));
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, "http://site.com/index#fragment");
+    tags.put(failingTag, query);
+    tags.put(otherTag, "token=secret");
+
+    assertDoesNotThrow(() -> new QueryObfuscator(null, true).processTags(tags, null, link -> {}));
+
+    assertFalse(tags.containsKey(failingTag));
+    assertEquals("<redacted>", tags.get(otherTag));
+    assertEquals("http://site.com/index?<redacted>#fragment", tags.get(Tags.HTTP_URL));
+  }
+
+  @Test
+  void invalidRegexDropsBothQueryTagsInOtelMode() {
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, "http://site.com/index#fragment");
+    tags.put(DDTags.HTTP_QUERY, "token=legacy");
+    tags.put(DDTags.HTTP_QUERY_OTEL_NAME, "pwd=otel");
+
+    new QueryObfuscator("(?<=a)b", true).processTags(tags, null, link -> {});
+
+    assertFalse(tags.containsKey(DDTags.HTTP_QUERY));
+    assertFalse(tags.containsKey(DDTags.HTTP_QUERY_OTEL_NAME));
+    assertEquals("http://site.com/index#fragment", tags.get(Tags.HTTP_URL));
+  }
+
+  @TableTest({
     "spanType | retainQuery",
     "http     | false      ",
     "web      | true       "
@@ -213,11 +276,13 @@ class QueryObfuscatorTest extends DDJavaSpecification {
 
     TagMap tags = TagMap.create();
     tags.put(Tags.HTTP_URL, "http://site.com/index#fragment");
-    tags.put(KnownTags.URL_QUERY_NAME, "token=secret");
+    tags.put(KnownTags.URL_QUERY_NAME, "token=secret&otel_value=retained");
+    tags.put(DDTags.HTTP_QUERY, "pwd=legacy&dd_value=not_kept");
 
     obfuscator.processTags(tags, spanContext, link -> {});
 
-    assertEquals("http://site.com/index?<redacted>#fragment", tags.get(Tags.HTTP_URL));
+    assertEquals("http://site.com/index?<redacted>&otel_value=retained#fragment", tags.get(Tags.HTTP_URL));
+    assertEquals("<redacted>&otel_value=retained", tags.get(DDTags.HTTP_QUERY));
     if (retainQuery) {
       assertEquals("<redacted>", tags.get(KnownTags.URL_QUERY_NAME));
       return;

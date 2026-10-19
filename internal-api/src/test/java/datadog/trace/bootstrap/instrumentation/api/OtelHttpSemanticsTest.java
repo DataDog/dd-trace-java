@@ -98,6 +98,7 @@ class OtelHttpSemanticsTest {
     assertEquals("/a", url.path());
     assertNull(url.lazy);
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.toString());
+    assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.get());
     verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
   }
 
@@ -265,6 +266,22 @@ class OtelHttpSemanticsTest {
 
     verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "host");
     verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 8080);
+  }
+
+  @TableTest({
+    "Scenario           | Host                     | Expected port",
+    "No host            |                          | -1           ",
+    "Host only          | public.example.com       | -1           ",
+    "Explicit port      | public.example.com:9443  | 9443         ",
+    "Invalid port       | public.example.com:bad   | -1           ",
+    "Port out of range  | public.example.com:65536 | -1           ",
+    "IPv6 host          | '[2001:db8::1]'          | -1           ",
+    "IPv6 explicit port | '[2001:db8::1]:8443'     | 8443         ",
+    "Unbracketed IPv6   | 2001:db8::1:8443         | -1           ",
+    "Malformed IPv6     | '[2001:db8::1:8443'      | -1           "
+  })
+  void portFromHostRequiresAnExplicitValidPort(String host, int expectedPort) {
+    assertEquals(expectedPort, OtelHttpSemantics.portFromHost(host));
   }
 
   @Test

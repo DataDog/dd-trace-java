@@ -355,6 +355,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             if (scheme == null) {
               scheme = url.scheme();
             }
+            int requestPort = url.port();
+            if (scheme != null && !scheme.equalsIgnoreCase(url.scheme())) {
+              // A forwarded scheme can describe a different origin from the backend connection.
+              // Preserve an explicit public Host port; otherwise use the origin scheme default.
+              requestPort = OtelHttpSemantics.portFromHost(getRequestHeader(request, "Host"));
+            }
             if (valid) {
               if (scheme != null) {
                 span.setTag(KnownTags.URL_SCHEME_ID, scheme);
@@ -375,7 +381,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
                 extracted == null ? null : extracted.getXForwardedPort(),
                 scheme,
                 url.host(),
-                url.port());
+                requestPort);
           } else {
             if (valid) {
               span.setTag(

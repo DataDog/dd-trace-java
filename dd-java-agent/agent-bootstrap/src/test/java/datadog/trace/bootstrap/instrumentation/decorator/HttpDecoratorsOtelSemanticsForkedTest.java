@@ -296,6 +296,32 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(9443, span.getTag(KnownTags.SERVER_PORT_NAME));
   }
 
+  @TableTest({
+    "Scenario             | Request URI                             | Host header             | Expected port",
+    "Backend default port | http://internal.example.com:80/orders   | public.example.com      | 443          ",
+    "Backend custom port  | http://internal.example.com:8080/orders | public.example.com      | 443          ",
+    "Missing Host header  | http://internal.example.com:8080/orders |                         | 443          ",
+    "Explicit public port | http://internal.example.com:8080/orders | public.example.com:9443 | 9443         ",
+    "Explicit IPv6 port   | http://internal.example.com:8080/orders | '[2001:db8::1]:8443'    | 8443         ",
+    "Already resolved     | https://public.example.com:9443/orders  | public.example.com      | 9443         "
+  })
+  void serverDecoratorUsesOriginPortWithOnlyForwardedScheme(
+      String requestUri, String hostHeader, int expectedPort) {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    ServerRequest request = new ServerRequest("GET", URI.create(requestUri), hostHeader);
+    TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
+    headers.xForwardedProto = "https, http";
+    TagContext extracted = new TagContext(null, null, headers, null, 0, null, null, DDTraceId.ZERO);
+
+    decorator.afterStart(span);
+    decorator.onRequest(
+        span, new Connection("192.0.2.10", 32100), request, AgentSpan.fromSpanContext(extracted));
+
+    assertEquals("https", span.getTag(KnownTags.URL_SCHEME_NAME));
+    assertEquals(expectedPort, span.getTag(KnownTags.SERVER_PORT_NAME));
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"elasticsearch", "opensearch"})
   void databaseRestClientsKeepEndpointResourceNames(String spanType) {
@@ -525,10 +551,16 @@ class HttpDecoratorsOtelSemanticsForkedTest {
   private static final class ServerRequest {
     private final String method;
     private final URI uri;
+    private final String hostHeader;
 
     private ServerRequest(String method, URI uri) {
+      this(method, uri, null);
+    }
+
+    private ServerRequest(String method, URI uri, String hostHeader) {
       this.method = method;
       this.uri = uri;
+      this.hostHeader = hostHeader;
     }
   }
 
@@ -577,6 +609,11 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     @Override
     protected URIDataAdapter url(ServerRequest request) {
       return new URIDefaultDataAdapter(request.uri);
+    }
+
+    @Override
+    protected String getRequestHeader(ServerRequest request, String key) {
+      return "Host".equalsIgnoreCase(key) ? request.hostHeader : null;
     }
 
     @Override
