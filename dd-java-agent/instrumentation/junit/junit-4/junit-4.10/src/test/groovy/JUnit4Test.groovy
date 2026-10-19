@@ -15,6 +15,34 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
   def runner = new JUnitCore()
 
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
+
   def "test #testcaseName"() {
     runTests(tests, success)
 
