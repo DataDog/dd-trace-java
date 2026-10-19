@@ -105,6 +105,7 @@ public abstract class CiVisibilitySmokeTest {
   protected List<String> buildJvmArguments(
       String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
     List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx512m"));
+    // Disable CDS to avoid SIGSEGVs on Linux arm64
     if (isLinuxArm64()) {
       arguments.add(DISABLE_CDS);
     }
