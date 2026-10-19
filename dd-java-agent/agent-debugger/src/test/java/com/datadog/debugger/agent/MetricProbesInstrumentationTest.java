@@ -565,7 +565,7 @@ public class MetricProbesInstrumentationTest {
             eq(
                 "Cannot instrument line "
                     + line
-                    + ": Cannot instrument this line, probably in the middle of a statement or expression"));
+                    + ": operand stack is not empty, line is probably in the middle of a statement or expression"));
   }
 
   @Test
