@@ -43,7 +43,8 @@ Leave tests, smoke tests (`:dd-smoke-tests`), generated sources, and vendored tr
 - Do not enable a detector family or bulk-remove `omitVisitors` entries.
 - Keep `ignoreFailures = false` on Main tasks. Do not mark GitLab `check_*` jobs `allow_failure`.
 - Do not enable SpotBugs on test or smoke-test source sets unless asked.
-- Do not widen `exclude.xml`, `onlyAnalyze`, or the Main-only task filter unless asked.
+- Production source sets include `main` and version-specific sets such as `main_java11`, `main_java17`, `main_java21` and `main_java25`, etc. Check the shared SpotBugs convention for the enabled sets and report any coverage gaps.
+- Do not widen `exclude.xml`, `onlyAnalyze`, or the production-source task filter unless asked.
 - Do not use `@SuppressFBWarnings` as the way to land a noisy check. If the detector is too noisy, leave the visitor omitted. For an intentional local exception, keep the detector enabled and annotate that site with `@SuppressFBWarnings(value = "…", justification = "…")`.
 - Do not treat this as a format change. Run `./gradlew spotlessApply` only if you touched Java/Gradle files that Spotless owns.
 - Keep `omitVisitors` accurate: a deferred detector belongs in that list, not in a comment elsewhere.
