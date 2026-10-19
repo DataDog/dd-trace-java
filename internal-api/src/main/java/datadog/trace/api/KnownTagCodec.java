@@ -276,11 +276,12 @@ public final class KnownTagCodec {
    * The tag an OpenTelemetry name denotes on spans of {@code direction}, for a name whose tag
    * depends on direction ({@code server.address} is {@code http.hostname} inbound and {@code
    * peer.hostname} outbound); 0 for every other name, and for such a name on spans of a direction
-   * where it names no tag. The core stores and reads Datadog names only; this is for the
-   * OpenTelemetry side, which knows its span's direction.
+   * where it names no tag, or when {@code name} is null. The core stores and reads Datadog names
+   * only; this is for the OpenTelemetry side, which knows its span's direction.
    */
   public static long directionalKeyOf(String name, int direction) {
-    return Installed.RESOLVER.directionalKeyOf(name, direction);
+    // a null attribute key comes from the application; leave it for the span builder to ignore
+    return name == null ? 0L : Installed.RESOLVER.directionalKeyOf(name, direction);
   }
 
   /** True if {@code name} denotes a different tag depending on the span's direction. */

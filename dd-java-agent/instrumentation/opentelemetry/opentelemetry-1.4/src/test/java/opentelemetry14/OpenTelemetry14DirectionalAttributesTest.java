@@ -83,6 +83,43 @@ public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTeleme
   }
 
   @TableTest({
+    "scenario    | kind   | when       ",
+    "before kind | CLIENT | before kind",
+    "after kind  | CLIENT | after kind ",
+    "no kind     |        | before kind"
+  })
+  void aNullAttributeKeyIsIgnored(String kind, String when) {
+    SpanBuilder builder = this.otelTracer.spanBuilder("some-name");
+    if ("before kind".equals(when)) {
+      setNullKeyAttributes(builder);
+    }
+    if (kind != null) {
+      builder.setSpanKind(SpanKind.valueOf(kind));
+    }
+    if ("after kind".equals(when)) {
+      setNullKeyAttributes(builder);
+    }
+    builder.startSpan().end();
+
+    SpanKind spanKind = kind == null ? SpanKind.INTERNAL : SpanKind.valueOf(kind);
+    assertTraces(
+        trace(
+            span()
+                .root()
+                .tags(
+                    defaultTags(),
+                    tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(spanKind))))));
+  }
+
+  private static void setNullKeyAttributes(SpanBuilder builder) {
+    builder
+        .setAttribute((String) null, "value")
+        .setAttribute((String) null, 1L)
+        .setAttribute((String) null, 1.0)
+        .setAttribute((String) null, true);
+  }
+
+  @TableTest({
     "scenario           | kind   | tag        ",
     "client server.port | CLIENT | peer.port  ",
     "server server.port | SERVER | server.port"
