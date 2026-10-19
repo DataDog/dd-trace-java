@@ -71,9 +71,7 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
       testNG.addListener((ITestNGListener) suiteListener);
 
       if (Config.get().isCiVisibilityExecutionPoliciesEnabled()) {
-        final RetryAnnotationTransformer transformer =
-            new RetryAnnotationTransformer(testNG.getAnnotationTransformer());
-        testNG.addListener(transformer);
+        testNG.addListener(new RetryAnnotationTransformer(testNG.getAnnotationTransformer()));
       }
     }
 
