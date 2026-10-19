@@ -2602,7 +2602,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
      */
     final TagMap spanDefaultTags;
 
-    /** The global tags overlaid by {@link #spanDefaultTags}: the tags every span starts with. */
+    /**
+     * The tags every span starts with: the global tags merged with the span defaults (span defaults
+     * win), then given the tracer-defined tags. {@code version} is dropped here even when it's a
+     * global tag, unless it's a split-by tag.
+     */
     final TagMap mergedTracerTags;
 
     final boolean mergedTracerTagsNeedsIntercept;
