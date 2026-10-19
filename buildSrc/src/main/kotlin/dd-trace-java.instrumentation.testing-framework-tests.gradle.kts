@@ -6,6 +6,7 @@ logger.info("Avoid executing classes used to test testing frameworks instrumenta
 
 tasks.withType<Test>().configureEach {
   exclude("**/TestAssumption*", "**/TestSuiteSetUpAssumption*")
+  exclude("**/TestAutomationExcluded*", "**/TestExplicitRetryExcluded*")
   exclude("**/TestContinueOnStepFailure*")
   exclude("**/TestDisableTestTrace*")
   exclude("**/TestError*")
