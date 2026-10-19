@@ -11,7 +11,17 @@ Config: [`gradle/forbiddenApiFilters/main.txt`](../../../../gradle/forbiddenApiF
 
 Use when the rule is “never call this method/class” with **no location qualifier** (not “only in `@Advice`”, not “only in premain”).
 
-1. Append **one** signature (and optional `@defaultMessage`) to `main.txt`.
+1. Add or update one rule in the appropriate shared signature file, including all required overloads.
+   - For a new rule, set its own `@defaultMessage` before its signatures, or give each signature an explicit inline message.
+   - For an existing rule, update its signatures and message in place. Keep added overloads with that rule and check which signatures inherit a changed `@defaultMessage`.
+
+   For example, when extending a `System.getenv()` ban to its other overload, keep both signatures under the same message:
+
+   ```text
+   @defaultMessage Use ConfigHelper to access environment variables.
+   java.lang.System#getenv()
+   java.lang.System#getenv(java.lang.String)
+   ```
 2. Preserve existing task enablement (they are disabled on purpose).
 3. Verify:
 
