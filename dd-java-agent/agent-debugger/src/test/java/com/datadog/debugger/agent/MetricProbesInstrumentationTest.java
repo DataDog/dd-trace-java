@@ -547,6 +547,28 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  public void lineMultiLineExpressionCountMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    String METRIC_NAME = "expr_count";
+    // line in the middle of a constructor call: operand stack holds uninitialized references
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID4);
+    MetricProbe metricProbe =
+        createLineMetric(LINE_METRIC_ID4, METRIC_NAME, COUNT, CLASS_NAME, null, line);
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    String result = Reflect.on(testClass).call("multiLineExpression", "foo").get();
+    assertEquals("f", result);
+    assertFalse(listener.counters.containsKey(METRIC_NAME));
+    verify(probeStatusSink)
+        .addError(
+            eq(LINE_METRIC_ID4),
+            eq(
+                "Cannot instrument line "
+                    + line
+                    + ": Cannot instrument this line, probably in the middle of a statement or expression"));
+  }
+
+  @Test
   public void invalidNameArgumentRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";

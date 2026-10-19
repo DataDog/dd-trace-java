@@ -157,17 +157,31 @@ public class MetricInstrumenter extends Instrumenter {
    * the start of a catch handler, the caught exception is still on the operand stack. The exception
    * handler of the try/catch clears the stack, so the exception is saved in a temporary local
    * before the call and loaded back after it. This keeps the stack empty at both ends of the
-   * try/catch range.
+   * try/catch range. If the line label is in the middle of an expression, the operand stack is not
+   * empty and may hold uninitialized references that cannot be saved in locals, so the metric call
+   * is not wrapped: jumping from the exception handler back to the line with an empty stack would
+   * fail verification. If the operand stack state at the line label is unknown, the line cannot be
+   * instrumented safely and {@link IllegalStateException} is thrown.
    */
-  private InsnList wrapLineTryCatch(InsnList insnList, LabelNode lineLabel) {
-    InsnList wrapped = wrapTryCatch(insnList);
-    if (wrapped == EMPTY_INSN_LIST) {
-      return wrapped;
+  private InsnList wrapLineTryCatch(
+      InsnList insnList, LabelNode lineLabel, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+    if (insnList == null || insnList == EMPTY_INSN_LIST) {
+      return EMPTY_INSN_LIST;
     }
     TryCatchBlockNode catchHandler = findCatchHandler(lineLabel);
     if (catchHandler == null) {
-      return wrapped;
+      Frame<BasicValue> frame = frames.get(lineLabel);
+      if (frame == null) {
+        throw new IllegalStateException("operand stack state cannot be computed");
+      }
+      if (frame.getStackSize() > 0) {
+        // if stack is non-empty, means we are in the middle of a statement or expression
+        throw new IllegalStateException(
+            "Cannot instrument this line, probably in the middle of a statement or expression");
+      }
+      return wrapTryCatch(insnList);
     }
+    InsnList wrapped = wrapTryCatch(insnList);
     int exceptionVar = newVar(OBJECT_TYPE);
     // stack [exception]
     wrapped.insert(new VarInsnNode(Opcodes.ASTORE, exceptionVar));
@@ -410,6 +424,9 @@ public class MetricInstrumenter extends Instrumenter {
       reportError("Missing line debug information.");
       return InstrumentationResult.Status.ERROR;
     }
+    // computed before any insertion: frames are keyed by the original line labels
+    Map<AbstractInsnNode, Frame<BasicValue>> frames =
+        ASMHelper.computeFrames(classNode.name, methodNode);
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
       int till = sourceLine.getTill();
@@ -421,13 +438,20 @@ public class MetricInstrumenter extends Instrumenter {
         reportError(
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
-      if (beforeLabel != null) {
-        InsnList insnList = wrapLineTryCatch(callMetric(metricProbe, beforeLabel), beforeLabel);
-        methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
-      }
-      if (afterLabel != null && !sourceLine.isSingleLine()) {
-        InsnList insnList = wrapLineTryCatch(callMetric(metricProbe, afterLabel), afterLabel);
-        methodNode.instructions.insert(afterLabel, insnList);
+      try {
+        if (beforeLabel != null) {
+          InsnList insnList =
+              wrapLineTryCatch(callMetric(metricProbe, beforeLabel), beforeLabel, frames);
+          methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
+        }
+        if (afterLabel != null && !sourceLine.isSingleLine()) {
+          InsnList insnList =
+              wrapLineTryCatch(callMetric(metricProbe, afterLabel), afterLabel, frames);
+          methodNode.instructions.insert(afterLabel, insnList);
+        }
+      } catch (IllegalStateException ex) {
+        reportError("Cannot instrument line " + sourceLine + ": " + ex.getMessage());
+        return InstrumentationResult.Status.ERROR;
       }
     }
     return InstrumentationResult.Status.INSTALLED;
