@@ -6,12 +6,18 @@ Pick the **narrowest** vehicle that can fail CI with low false positives. One ru
 
 ## ForbiddenAPIs — unconditional banned call or class
 
-Config: [`gradle/forbiddenApiFilters/main.txt`](../../../../gradle/forbiddenApiFilters/main.txt),
-[`gradle/forbiddenapis.gradle`](../../../../gradle/forbiddenapis.gradle).
+Plugin: `de.thetaphi.forbiddenapis`. Grep for that id (or `apply plugin: "de.thetaphi.forbiddenapis"`) and follow `signaturesFiles` to the shared lists; do not add a new signature file.
+
+Two lists exist today:
+
+- `main.txt` — common rules, applied by the default plugin config
+- `instrumentation.txt` — extra rules the instrumentation convention adds on top of `main.txt`
+
+Put a repo-wide ban in `main.txt`. Put a ban that should apply only to instrumentation modules in `instrumentation.txt`. Leave plugin/task enablement in the module configuration.
 
 Use when the rule is “never call this method/class” with **no location qualifier** (not “only in `@Advice`”, not “only in premain”).
 
-1. Add or update one rule in the appropriate shared signature file, including all required overloads.
+1. Add or update one rule in the matching signature file, including all required overloads.
    - For a new rule, set its own `@defaultMessage` before its signatures, or give each signature an explicit inline message.
    - For an existing rule, update its signatures and message in place. Keep added overloads with that rule and check which signatures inherit a changed `@defaultMessage`.
 
