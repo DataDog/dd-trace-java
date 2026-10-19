@@ -15,6 +15,8 @@ import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.lang.reflect.Method;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
+import org.testng.ITestResult;
+import org.testng.Reporter;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 
@@ -58,18 +60,23 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
         @Advice.Argument(1) final Object instance,
         @Advice.Argument(2) final Object[] parameters) {
       TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
+      ITestResult invocation = Reporter.getCurrentTestResult();
+      List<String> groups =
+          invocation != null
+                  && method.equals(TestNGUtils.toTestSourceData(invocation).getTestMethod())
+              ? TestNGUtils.getGroups(invocation)
+              : TestNGUtils.getGroups(method);
       SkipReason skipReason =
           TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(
               testIdentifier,
               new TestSourceData(
                   instance != null ? instance.getClass() : method.getDeclaringClass(), method),
-              TestNGUtils.getGroups(method));
+              groups);
       if (skipReason == null) {
         return;
       }
 
       if (skipReason == SkipReason.ITR) {
-        List<String> groups = TestNGUtils.getGroups(method);
         if (groups.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
           return;
         }
