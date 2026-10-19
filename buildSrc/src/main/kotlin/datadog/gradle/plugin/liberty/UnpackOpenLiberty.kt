@@ -40,7 +40,7 @@ abstract class UnpackOpenLiberty : Copy() {
   /** Extracted library jars matching [libJarIncludes]. */
   @get:Internal
   val extractedJars: Provider<FileTree> =
-    extractDir.map { it.asFileTree.matching { include(libJarIncludes.get()) } }
+    extractDir.locationOnly.map { it.asFileTree.matching { include(libJarIncludes.get()) } }
 
   /**
    * Extracted server jars matching [serverJarIncludes]. Empty if the copy is filtered to exclude
@@ -48,7 +48,7 @@ abstract class UnpackOpenLiberty : Copy() {
    */
   @get:Internal
   val wsServerJar: Provider<FileTree> =
-    extractDir.map { it.asFileTree.matching { include(serverJarIncludes.get()) } }
+    extractDir.locationOnly.map { it.asFileTree.matching { include(serverJarIncludes.get()) } }
 
   /**
    * The default server's server.xml inside [extractDir]. Only exists if the copy is not filtered to
@@ -56,7 +56,7 @@ abstract class UnpackOpenLiberty : Copy() {
    */
   @get:Internal
   val serverXmlFile: Provider<File> =
-    extractDir.map { it.file("wlp/usr/servers/defaultServer/server.xml").asFile }
+    extractDir.locationOnly.map { it.file("wlp/usr/servers/defaultServer/server.xml").asFile }
 
   init {
     configurationName.convention("zipped")
