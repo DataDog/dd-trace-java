@@ -17,4 +17,7 @@ object TestAutomationExcluded extends SimpleIOSuite {
   test(excluded("protected_skip")) {
     ignore("developer skip")
   }
+  test("ordinary_tagged".tagged("customer_tag")) {
+    IO.pure(expect(true))
+  }
 }

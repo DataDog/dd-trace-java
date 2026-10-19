@@ -24,6 +24,11 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
     then:
     def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "protected_failure" || it.getTag("test.name") == "protected_skip" }
     testSpans.size() == 2
+    def ordinary = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "ordinary_tagged" }
+    ordinary != null
+    ordinary.getTag("test.test_management.no_auto_retry") == null
+    ordinary.getTag("test.test_management.prevent_failure_suppression") == null
+    ordinary.getTag("test.traits") == null
     testSpans.every { it.getTag("test.test_management.no_auto_retry") == true }
     testSpans.every { it.getTag("test.test_management.prevent_failure_suppression") == true }
     testSpans.find { it.getTag("test.name") == "protected_failure" }.getTag("test.status").toString() == "fail"
