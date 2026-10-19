@@ -47,3 +47,10 @@ constants. User-supplied retry analyzers retain their existing behavior.
 Apply the public annotations directly to a Spock feature method. They apply
 to every data-driven iteration. Spec-level skip aggregation inspects the
 feature declaration before deciding whether the whole spec can be skipped.
+
+## Cucumber
+
+For either the JUnit4 or JUnit Platform Cucumber runner, tag a Scenario or
+Scenario Outline with `@datadog_no_auto_retry` and/or
+`@datadog_prevent_failure_suppression`. These names correspond to the public
+`TestAutomationExclusions` constants. Tags apply to every outline example.
