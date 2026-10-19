@@ -66,7 +66,7 @@ Leave tests, smoke tests (`:dd-smoke-tests`), generated sources, and vendored tr
    - Mechanical first-party fixes in `src/main/java` (and `src/main/java11`) are OK in the same change.
    - Do not edit generated, vendored, or smoke-test sources to silence SpotBugs.
    - Do not paper over findings with a blanket `exclude.xml` match. A justified `@SuppressFBWarnings` on an intentional exception is OK; a pile of suppressions to make a noisy detector pass is not.
-   - If the cleanup is large or opinionated, put the visitor back in `omitVisitors` (name the failing classes) and stop. Ask before a repo-wide rewrite.
+   - If the cleanup is large or opinionated, undo this change's visitor activation and stop. Report the failing classes and the changes they need to the main assistant, so it can ask the user before starting a repo-wide rewrite.
 5. Keep the check only if `spotbugsMain` exits 0.
 
 ## Local command
