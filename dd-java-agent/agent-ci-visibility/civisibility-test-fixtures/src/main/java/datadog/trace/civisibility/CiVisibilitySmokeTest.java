@@ -169,6 +169,7 @@ public abstract class CiVisibilitySmokeTest {
     if (directory == null || !Files.isDirectory(directory)) {
       return;
     }
+
     List<Path> crashLogs;
     try (Stream<Path> files = Files.walk(directory)) {
       crashLogs =
@@ -176,25 +177,25 @@ public abstract class CiVisibilitySmokeTest {
               .filter(p -> p.getFileName().toString().matches("hs_err_pid\\d+\\.log"))
               .collect(Collectors.toList());
     } catch (IOException | UncheckedIOException e) {
-      System.err.println("Failed to look for JVM crash logs in " + directory + ": " + e);
+      System.err.printf("Failed to look for JVM crash logs in %s: %s%n", directory, e);
       return;
     }
+
     for (Path crashLog : crashLogs) {
       try {
         Files.createDirectories(JVM_CRASH_LOGS_DIR);
         Path copy = JVM_CRASH_LOGS_DIR.resolve(crashLog.getFileName());
         Files.copy(crashLog, copy, StandardCopyOption.REPLACE_EXISTING);
+
         try (Stream<String> lines = Files.lines(crashLog, StandardCharsets.ISO_8859_1)) {
-          System.out.println(
-              "JVM crash log "
-                  + crashLog
-                  + " (copied to "
-                  + copy.toAbsolutePath()
-                  + "):\n"
-                  + lines.limit(JVM_CRASH_LOG_PRINTED_LINES).collect(Collectors.joining("\n")));
+          System.out.printf(
+              "JVM crash log %s (copied to %s):%n%s%n",
+              crashLog,
+              copy.toAbsolutePath(),
+              lines.limit(JVM_CRASH_LOG_PRINTED_LINES).collect(Collectors.joining("\n")));
         }
       } catch (IOException | UncheckedIOException e) {
-        System.err.println("Failed to report JVM crash log " + crashLog + ": " + e);
+        System.err.printf("Failed to report JVM crash log %s: %s%n", crashLog, e);
       }
     }
   }
