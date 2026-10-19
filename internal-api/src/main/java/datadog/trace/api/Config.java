@@ -5555,6 +5555,11 @@ public class Config {
     return version;
   }
 
+  /** Tags set on every span ({@code DD_SPAN_TAGS}), without the global tags. */
+  public Map<String, String> getSpanTags() {
+    return spanTags;
+  }
+
   public Map<String, String> getMergedSpanTags() {
     // Do not include runtimeId into span tags: we only want that added to the root span
     final Map<String, String> result = newHashMap(getGlobalTags().size() + spanTags.size());

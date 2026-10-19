@@ -221,10 +221,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    */
   private final boolean apmTracingEnabled;
 
-  /** A set of tags that are added to every span */
+  /**
+   * Span defaults added to every span: {@code DD_SPAN_TAGS}, or the tags given to the builder.
+   * Unlike the global tags ({@code DD_TAGS}), remote config doesn't replace these.
+   */
   private final TagMap defaultSpanTags;
-
-  private final boolean defaultSpanTagsNeedsIntercept;
 
   /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
@@ -543,7 +544,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               invertMap(config.getBaggageMapping())));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
-      defaultSpanTags(withTracerTags(config.getMergedSpanTags(), config, null));
+      defaultSpanTags(config.getSpanTags());
       serviceNameMappings(config.getServiceMapping());
       taggedHeaders(config.getRequestHeaderTags());
       baggageMapping(config.getBaggageMapping());
@@ -737,7 +738,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
 
     this.defaultSpanTags = defaultSpanTags;
-    this.defaultSpanTagsNeedsIntercept = this.tagInterceptor.needsIntercept(this.defaultSpanTags);
 
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
@@ -751,7 +751,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             .setTraceSampleRate(config.getTraceSampleRate())
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
-            .setTracingTags(config.getMergedSpanTags())
+            .setTracingTags(config.getGlobalTags())
             .setDataStreamsTransactionExtractors(dataStreamsTransactionExtractors.getExtractors())
             .apply();
 
@@ -2590,7 +2590,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   protected class ConfigSnapshot extends DynamicConfig.Snapshot {
     final Sampler sampler;
 
+    /**
+     * The global tags ({@code DD_TAGS}, or their remote-config override), as given. These are what
+     * an OTLP export carries as resource attributes.
+     */
+    final TagMap globalTags;
+
+    /**
+     * The span defaults with the tracer-defined tags ({@code env}, {@code _dd.dsm.enabled}, ...),
+     * but without the global tags.
+     */
+    final TagMap spanDefaultTags;
+
+    /** The global tags overlaid by {@link #spanDefaultTags}: the tags every span starts with. */
     final TagMap mergedTracerTags;
+
     final boolean mergedTracerTagsNeedsIntercept;
 
     protected ConfigSnapshot(
@@ -2607,14 +2621,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
       }
 
-      if (null == oldSnapshot) {
-        mergedTracerTags = CoreTracer.this.defaultSpanTags.immutableCopy();
-        this.mergedTracerTagsNeedsIntercept = CoreTracer.this.defaultSpanTagsNeedsIntercept;
-      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())) {
+      if (null != oldSnapshot && getTracingTags().equals(oldSnapshot.getTracingTags())) {
+        globalTags = oldSnapshot.globalTags;
+        spanDefaultTags = oldSnapshot.spanDefaultTags;
         mergedTracerTags = oldSnapshot.mergedTracerTags;
         mergedTracerTagsNeedsIntercept = oldSnapshot.mergedTracerTagsNeedsIntercept;
       } else {
-        mergedTracerTags = withTracerTags(getTracingTags(), CoreTracer.this.initialConfig, this);
+        Config config = CoreTracer.this.initialConfig;
+        TagMap defaultSpanTags = CoreTracer.this.defaultSpanTags;
+        globalTags = TagMap.fromMapImmutable(getTracingTags());
+        spanDefaultTags = withTracerTags(defaultSpanTags, config, this);
+
+        // span defaults take precedence over global tags
+        TagMap userSpanTags = TagMap.create(globalTags.size() + defaultSpanTags.size());
+        userSpanTags.putAll(globalTags);
+        userSpanTags.putAll(defaultSpanTags);
+        mergedTracerTags = withTracerTags(userSpanTags, config, this);
         mergedTracerTagsNeedsIntercept =
             CoreTracer.this.tagInterceptor.needsIntercept(mergedTracerTags);
       }
