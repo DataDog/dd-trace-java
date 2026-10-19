@@ -33,7 +33,7 @@ Fallbacks: [other vehicles](references/other-vehicles.md).
 - Run: `./gradlew spotbugsMain -PskipTests` (optionally qualify with `:module:spotbugsMain`)
 - CI: `check_base` / `check_inst` / `check_profiling` / `check_debugger` run Gradle `check`, which includes those tasks
 
-Leave tests, smoke tests (`:dd-smoke-tests`), generated sources, and vendored trees out unless the user explicitly expands the filter.
+Preserve tests, smoke tests (`:dd-smoke-tests`), generated sources, and vendored trees out unless the user explicitly expands the filter.
 
 `omitVisitors` in `gradle/spotbugs.gradle` is the deferred-check list. `exclude.xml` is the path/class filter. `@SuppressFBWarnings` is the local override.
 
