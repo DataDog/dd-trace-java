@@ -243,7 +243,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.skipReason(thisTest) == SkipReason.ITR) {
+          if (testModule.skipReason(thisTest, testSourceData, categories) == SkipReason.ITR) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
