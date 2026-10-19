@@ -5,6 +5,7 @@ import datadog.trace.instrumentation.weaver.WeaverIntegrationTestRunner
 import datadog.trace.instrumentation.weaver.WeaverUtils
 import org.example.TestCanceled
 import org.example.TestFailed
+import org.example.TestAutomationExcluded
 import org.example.TestFailedExceptionPure
 import org.example.TestFailedPure
 import org.example.TestIgnored
@@ -15,6 +16,19 @@ import org.example.TestSucceedSuiteResource
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class WeaverTest extends CiVisibilityInstrumentationTest {
+
+  def "test automation exclusions retain native outcomes and declaration tags"() {
+    when:
+    runTests([TestAutomationExcluded])
+
+    then:
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "protected_failure" || it.getTag("test.name") == "protected_skip" }
+    testSpans.size() == 2
+    testSpans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    testSpans.every { it.getTag("test.test_management.prevent_failure_suppression") == true }
+    testSpans.find { it.getTag("test.name") == "protected_failure" }.getTag("test.status").toString() == "fail"
+    testSpans.find { it.getTag("test.name") == "protected_skip" }.getTag("test.status").toString() == "skip"
+  }
 
   def "test #testcaseName"() {
     runTests(tests)

@@ -10,11 +10,18 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.api.time.SystemTimeSource;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sbt.testing.TaskDef;
 import scala.Option;
 import weaver.Result;
+import weaver.TestName;
 import weaver.TestOutcome;
 import weaver.framework.RunEvent;
 import weaver.framework.SuiteFinished;
@@ -24,6 +31,33 @@ import weaver.framework.TestFinished;
 public class DatadogWeaverReporter {
 
   private static final String TEST_FRAMEWORK = "weaver";
+  private static final Logger LOGGER = LoggerFactory.getLogger(DatadogWeaverReporter.class);
+  private static final Map<String, Map<String, Collection<String>>> TEST_TAGS =
+      new ConcurrentHashMap<>();
+
+  /** Takes a fresh snapshot per execution and retains only names and strings. */
+  public static void registerTestTags(Object suite) {
+    try {
+      String suiteName = (String) suite.getClass().getMethod("name").invoke(suite);
+      scala.collection.Iterable<?> plan =
+          (scala.collection.Iterable<?>) suite.getClass().getMethod("plan").invoke(suite);
+      Map<String, Collection<String>> tagsByName = new HashMap<>();
+      scala.collection.Iterator<?> tests = plan.iterator();
+      while (tests.hasNext()) {
+        TestName testName = (TestName) tests.next();
+        Collection<String> tags = new ArrayList<>();
+        scala.collection.Iterator<String> declaredTags = testName.tags().iterator();
+        while (declaredTags.hasNext()) {
+          tags.add(declaredTags.next());
+        }
+        tagsByName.put(testName.name(), tags);
+      }
+      TEST_TAGS.put(suiteName, tagsByName);
+    } catch (Exception e) {
+      LOGGER.debug("Could not read Weaver test declaration tags", e);
+    }
+  }
+
   private static final String TEST_FRAMEWORK_VERSION = WeaverUtils.getWeaverVersion();
 
   private static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor>
@@ -50,6 +84,7 @@ public class DatadogWeaverReporter {
     if (TEST_EVENTS_HANDLER != null) {
       TEST_EVENTS_HANDLER.close();
       TEST_EVENTS_HANDLER = null;
+      TEST_TAGS.clear();
     }
   }
 
@@ -89,6 +124,7 @@ public class DatadogWeaverReporter {
     Class<?> testClass = WeaverUtils.getClass(testSuiteName);
 
     TEST_EVENTS_HANDLER.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
+    TEST_TAGS.remove(testSuiteName);
   }
 
   public static void onTestFinished(TestFinished event, TaskDef taskDef) {
@@ -104,7 +140,10 @@ public class DatadogWeaverReporter {
     String testName = event.outcome().name();
     Object testQualifier = null;
     String testParameters = null;
-    Collection<String> categories = Collections.emptyList();
+    Collection<String> categories =
+        TEST_TAGS
+            .getOrDefault(testSuiteName, Collections.emptyMap())
+            .getOrDefault(testName, Collections.emptyList());
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     String testMethodName = null;
