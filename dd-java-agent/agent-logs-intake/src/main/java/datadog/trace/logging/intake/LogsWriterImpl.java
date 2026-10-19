@@ -83,6 +83,9 @@ public class LogsWriterImpl implements LogsWriter {
   }
 
   private void logPollingLoop() {
+    // Created for the first log. Building the HTTP client initializes TLS, which can initialize
+    // the JUL LogManager on this thread before the application configures it, for example with
+    // JBoss LogManager.
     LogsDispatcher logsDispatcher = null;
 
     while (!Thread.currentThread().isInterrupted()) {
@@ -110,10 +113,6 @@ public class LogsWriterImpl implements LogsWriter {
     }
   }
 
-  /**
-   * Creating the HTTP client initializes TLS, which can initialize the JUL {@code LogManager}. It
-   * is created for the first log, after the application has configured its own log manager.
-   */
   private LogsDispatcher createDispatcher() {
     BackendApi backendApi = apiFactory.createBackendApi(intake);
     return new LogsDispatcher(backendApi);
