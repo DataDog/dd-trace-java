@@ -116,8 +116,7 @@ public class OpenAiDecorator extends ClientDecorator {
 
       // Resolve the LLMObs parent the same way DDLLMObsSpan does: the in-process context when it
       // is on this trace, else what arrived from another service (an HTTP handler or queue
-      // consumer calling OpenAI without an LLMObs span of its own), else none. Inheriting
-      // session_id is what files this span under its session in the LLM Trace Explorer.
+      // consumer calling OpenAI without an LLMObs span of its own), else none.
       LLMObsParent parent = LLMObsParent.resolve(span);
       span.setTag(CommonTags.PARENT_ID, parent.parentId);
       // With no trace id to inherit the tag is left unset, and the mapper seeds it from the APM

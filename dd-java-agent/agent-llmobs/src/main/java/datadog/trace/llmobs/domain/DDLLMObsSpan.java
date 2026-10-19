@@ -153,8 +153,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
     // Resolve the LLMObs parent: the in-process context when it is on this trace, else what arrived
-    // from another service, else none. See LLMObsParent for the rules; what follows layers this
-    // span's own explicit values on top.
+    // from another service, else none. A context from another trace is already discarded there and
+    // only reported back as ignoredContext, so the values below never come from it. What follows
+    // layers this span's own explicit values on top.
     LLMObsParent parent = LLMObsParent.resolve(span);
     if (parent.ignoredContext != null) {
       LOGGER.error(
@@ -173,12 +174,17 @@ public class DDLLMObsSpan implements LLMObsSpan {
     // subtree in one application rather than each nested span falling back to the service
     // default. session_id need only be set on the root span, matching dd-trace-py and dd-trace-js.
     // A nested agent's own agent_version overrides an ancestor's for its own subtree.
-    String resolvedMlApp = isEmpty(mlApp) ? parent.mlApp : mlApp;
-    if (isEmpty(sessionId) && parent.sessionId != null) {
+    String resolvedMlApp = mlApp;
+    if ((resolvedMlApp == null || resolvedMlApp.isEmpty()) && parent.mlApp != null) {
+      resolvedMlApp = parent.mlApp;
+    }
+    if ((sessionId == null || sessionId.isEmpty()) && parent.sessionId != null) {
       sessionId = parent.sessionId;
     }
-    String resolvedAgentVersion =
-        isEmpty(agentVersion) && parent.agentVersion != null ? parent.agentVersion : agentVersion;
+    String resolvedAgentVersion = agentVersion;
+    if ((agentVersion == null || agentVersion.isEmpty()) && parent.agentVersion != null) {
+      resolvedAgentVersion = parent.agentVersion;
+    }
     // Honouring an inherited verdict keeps a distributed LLMObs trace retained or dropped as a
     // whole, rather than agreeing with the caller only when both are configured at the same rate.
     String sampleRate = parent.sampleRate;
@@ -766,9 +772,5 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public long getSpanId() {
     return span.getSpanId();
-  }
-
-  private static boolean isEmpty(String value) {
-    return value == null || value.isEmpty();
   }
 }

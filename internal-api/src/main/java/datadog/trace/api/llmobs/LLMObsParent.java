@@ -20,18 +20,7 @@ import javax.annotation.Nullable;
  * </ol>
  *
  * <p>If neither applies the span is the root of its own LLMObs trace, which {@link #isRoot()}
- * reports. One gate decides every inherited value, so a newly propagated value cannot ship with a
- * weaker gate of its own.
- *
- * <p>Resolution only: nothing is written to the span. Values the caller sets explicitly, the
- * service-default {@code ml_app}, an agent span standing in as its own descendants' parent agent,
- * and a fresh sampling decision at the root are all the caller's to apply.
- *
- * <p>Inherited strings are {@code null} when absent; an empty value reads as absent, as it does on
- * the wire. In-process values are otherwise passed through exactly as the context holds them, since
- * a span re-attaches them for its own descendants and injections. Propagated values follow the two
- * pairing rules: the parent agent name is taken only alongside its id, and the sampling rate only
- * together with the decision it produced.
+ * reports.
  */
 public final class LLMObsParent {
 

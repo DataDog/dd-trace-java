@@ -536,6 +536,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(LLMObsContext.ROOT_SPAN_ID, openAiSpan.getTag("_ml_obs_tag.parent_id"));
+    // Nothing to inherit, so the tag stays unset and LLMObsSpanMapper seeds the LLMObs trace id
+    // from the APM one when it serializes the span.
     assertNull(openAiSpan.getTag("_ml_obs_tag.trace_id"));
     assertNull(openAiSpan.getTag("_ml_obs_tag.session_id"));
     assertEquals(Config.get().getLlmObsMlApp(), openAiSpan.getTag("_ml_obs_tag.ml_app"));
