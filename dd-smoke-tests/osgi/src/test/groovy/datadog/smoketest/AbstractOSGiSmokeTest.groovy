@@ -3,6 +3,7 @@ package datadog.smoketest
 import java.util.concurrent.TimeUnit
 
 abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
+  private static final long EXIT_TIMEOUT_MINUTES = 2
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -51,7 +52,7 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
 
   def "example application runs without errors"() {
     when:
-    if (!testedProcess.waitFor(2, TimeUnit.MINUTES)) {
+    if (!testedProcess.waitFor(EXIT_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
       collectDiagnostics()
     }
 
@@ -64,18 +65,18 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
 
   private File diagnosticsDirectory() {
     // Share the application log timestamp so retries keep separate dumps that match their logs.
-    File directory = new File(buildDirectory, "reports/${getClass().simpleName}.${logFileTimestamp}-dumps")
-    directory.mkdirs()
-    return directory
+    // Not created here: the IBM JVM creates its dump directory on the first dump, so passing runs leave no folder.
+    return new File(buildDirectory, "reports/${getClass().simpleName}.${logFileTimestamp}-dumps")
   }
 
   /** Collects thread dumps (and a system dump on IBM) of the hanging application, then fails the test. */
   private void collectDiagnostics() {
     File directory = diagnosticsDirectory()
-    AssertionError failure = new AssertionError((Object) "OSGi application did not exit within 2 minutes; diagnostics: ${directory}; application log: ${logFilePath}")
+    AssertionError failure = new AssertionError((Object) "OSGi application did not exit within ${EXIT_TIMEOUT_MINUTES} minutes; diagnostics: ${directory}; application log: ${logFilePath}")
     try {
       // Java 8 has no public Process.pid() API.
       long pid = testedProcess.metaClass.respondsTo(testedProcess, 'pid') ? testedProcess.pid() : testedProcess.@pid
+      directory.mkdirs()
       File summary = new File(directory, 'collection.log')
       summary << "Application PID: ${pid}\n"
       if (isIBM) {
@@ -83,9 +84,14 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
           'threads-*.log and system-dump.log only capture the output of the kill commands\n'
       }
 
-      File javaHome = new File(System.getProperty('java.home'))
-      File jcmd = new File(javaHome.name == 'jre' ? javaHome.parentFile : javaHome, 'bin/jcmd')
-      List<String> threadDump = isIBM ? ['kill', '-3', pid.toString()] : [jcmd.path, pid.toString(), 'Thread.print', '-l']
+      List<String> threadDump
+      if (isIBM) {
+        threadDump = ['kill', '-3', pid.toString()]
+      } else {
+        File javaHome = new File(System.getProperty('java.home'))
+        File jcmd = new File(javaHome.name == 'jre' ? javaHome.parentFile : javaHome, 'bin/jcmd')
+        threadDump = [jcmd.path, pid.toString(), 'Thread.print', '-l']
+      }
       def run = { List<String> command, String output ->
         Process diagnostic = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(new File(directory, output)).start()
         if (diagnostic.waitFor(15, TimeUnit.SECONDS)) {
