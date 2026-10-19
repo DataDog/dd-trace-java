@@ -124,7 +124,11 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
           if (featureIdentifier == null) {
             return;
           }
-          SkipReason skipReason = testEventsHandler.skipReason(featureIdentifier);
+          SkipReason skipReason =
+              testEventsHandler.skipReason(
+                  featureIdentifier,
+                  SpockUtils.toTestSourceData(feature),
+                  JUnitPlatformUtils.getTags(feature));
           if (skipReason == null) {
             return;
           }
@@ -149,7 +153,11 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
         if (test == null) {
           return;
         }
-        SkipReason skipReason = testEventsHandler.skipReason(test);
+        SkipReason skipReason =
+            testEventsHandler.skipReason(
+                test,
+                SpockUtils.toTestSourceData(spockNode),
+                JUnitPlatformUtils.getTags(spockNode));
         if (skipReason == null) {
           return;
         }
