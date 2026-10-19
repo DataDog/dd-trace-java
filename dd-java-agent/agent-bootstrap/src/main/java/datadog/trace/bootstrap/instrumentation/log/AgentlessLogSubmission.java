@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.log;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.trace.api.Config;
@@ -42,18 +43,18 @@ public final class AgentlessLogSubmission {
 
   /** Converts a {@link java.util.logging.Level} integer value to a level name of this class. */
   public static String julLevel(int value) {
-    if (value >= 1100) {
-      return FATAL;
-    } else if (value >= 1000) {
-      return ERROR;
-    } else if (value >= 900) {
-      return WARN;
-    } else if (value >= 800) {
-      return INFO;
-    } else if (value >= 500) {
+    if (value < 500) {
+      return TRACE;
+    } else if (value < 800) {
       return DEBUG;
+    } else if (value < 900) {
+      return INFO;
+    } else if (value < 1000) {
+      return WARN;
+    } else if (value < 1100) {
+      return ERROR;
     }
-    return TRACE;
+    return FATAL;
   }
 
   /**
@@ -80,7 +81,7 @@ public final class AgentlessLogSubmission {
       log.put("thrown", thrown(thrown));
     }
     Map<String, String> contextMap = new HashMap<>();
-    if (traceConfig().isLogsInjectionEnabled()) {
+    if (traceConfig(activeSpan()).isLogsInjectionEnabled()) {
       addCorrelationValues(contextMap);
     }
     if (context != null) {
